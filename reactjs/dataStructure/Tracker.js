@@ -1,14 +1,44 @@
+import {w3cwebsocket as W3CWebSocket} from "websocket";
+import React from "react";
 import Cesium from 'cesium/Cesium';
-import {TraccarDevice, TraccarDeviceList} from "./TraccarDevices";
+import {TraccarDeviceList} from "./TraccarDevices";
 import {TraccarDeviceTracks} from "./TraccarDeviceTrack";
+import axios from "axios";
+import {server, token} from "./constants";
 
-export class Tracker {
-    constructor(viewer, contest) {
-        this.contest = contest;
+export class Tracker extends React.Component {
+    constructor(props) {
+        super(props)
+        this.contest = props.contest;
+        this.viewer = props.viewer;
+        this.state = {score: {}}
         this.traccarDeviceList = new TraccarDeviceList();
-        this.traccarDeviceTracks = new TraccarDeviceTracks(this.traccarDeviceList, viewer, new Date(this.contest.startTime), new Date(this.contest.finishTime), this.contest.contestant_set, this.contest.track);
-        this.viewer = viewer;
+        this.traccarDeviceTracks = new TraccarDeviceTracks(this.traccarDeviceList, this.viewer, new Date(this.contest.startTime), new Date(this.contest.finishTime), this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
+        this.initiateSession()
         this.renderTrack();
+    }
+
+    updateScoreCallback(contestant) {
+        let existing = this.state.score;
+        existing[contestant.contestantNumber] = contestant;
+        this.setState({score: existing})
+    }
+
+    initiateSession() {
+        axios.get("http://" + server + "/api/session?token=" + token, {withCredentials: true}).then(res => {
+            this.client = new W3CWebSocket("ws://" + server + "/api/socket")
+            console.log("Initiated session")
+            console.log(res)
+
+            this.client.onopen = () => {
+                console.log("Client connected")
+            };
+            this.client.onmessage = (message) => {
+                let data = JSON.parse(message.data);
+                this.appendPositionReports(data);
+            };
+
+        })
     }
 
     renderTrack() {
@@ -69,6 +99,31 @@ export class Tracker {
                 this.traccarDeviceTracks.appendPositionReport(data.positions[position])
             }
         }
+    }
+
+    compareScore(a, b) {
+        if (a.score > b.score) return 1;
+        if (a.score < b.score) return -1;
+        return 0
+    }
+
+    render() {
+        let contestants = []
+        for (const key in this.state.score) {
+            if (this.state.score.hasOwnProperty(key)) {
+                contestants.push(this.state.score[key])
+            }
+        }
+        contestants.sort(this.compareScore)
+        const listItems = contestants.map((d) => <li
+            key={d.contestantNumber}>{d.contestantNumber} {d.pilot} {d.score}</li>);
+        return (
+            <div>
+                <h1>Live contest tracking</h1>
+                <h2>{this.contest.name}</h2>
+                <ol>{listItems}</ol>
+            </div>
+        );
     }
 
 }

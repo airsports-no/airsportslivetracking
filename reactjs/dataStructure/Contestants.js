@@ -14,6 +14,7 @@ export class Contestant {
         this.startTime = startTime
         this.finishedByTime = finishedByTime
         this.plannedSpeed = plannedSpeed
+        this.score = 0
     }
 }
 

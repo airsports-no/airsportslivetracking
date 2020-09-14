@@ -65,8 +65,9 @@ function compare(a, b) {
 }
 
 export class TraccarDeviceTrack {
-    constructor(traccarDevice, viewer, contestant, track) {
+    constructor(traccarDevice, viewer, contestant, track, updateScoreCallback) {
         this.traccarDevice = traccarDevice;
+        this.updateScoreCallback = updateScoreCallback
         this.contestant = contestant
         this.track = track
         this.positions = [];
@@ -106,6 +107,7 @@ export class TraccarDeviceTrack {
             }
 
         })
+        this.updateScoreCallback(this.contestant)
     }
 
     getPositionsHistory() {
@@ -178,7 +180,8 @@ export class TraccarDeviceTrack {
 }
 
 export class TraccarDeviceTracks {
-    constructor(traccarDeviceList, viewer, startDate, finishDate, contestantList, track) {
+    constructor(traccarDeviceList, viewer, startDate, finishDate, contestantList, track, updateScoreCallback) {
+        this.updateScoreCallback = updateScoreCallback
         this.startDate = startDate;
         this.finishDate = finishDate;
         this.track = track;
@@ -198,7 +201,7 @@ export class TraccarDeviceTracks {
         let track = this.tracks.find((track) => track.contestant.id === contestant.id)
         if (!track) {
             console.log("Created new track for " + traccarDevice.name)
-            track = new TraccarDeviceTrack(traccarDevice, this.viewer, contestant, this.track);
+            track = new TraccarDeviceTrack(traccarDevice, this.viewer, contestant, this.track, this.updateScoreCallback);
             this.tracks.push(track);
         }
         return track;

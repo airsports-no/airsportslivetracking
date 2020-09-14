@@ -1,21 +1,16 @@
 import React from "react";
 import axios from "axios";
-import {w3cwebsocket as W3CWebSocket} from "websocket";
 import {Tracker} from "../dataStructure/Tracker";
-import contest from "../dataStructure/contest.json";
 import {render} from "react-dom";
 import Cesium from 'cesium/Cesium';
 
-
-const server = "home.kolaf.net:8082";
-const token = "i2hvekMl21UUYIGzjSvezCTSOdxiv1a9";
 
 
 class CesiumContainer extends React.Component {
     constructor(props) {
         super(props);
         // console.log(this.props)
-        this.state = {contest_name: ""};
+        this.state = {initiated: false};
         this.client = null;
         this.viewer = null;
         this.tracker = {contest: {name: ""}}
@@ -31,9 +26,7 @@ class CesiumContainer extends React.Component {
             console.log(res)
             this.contest = res.data;
             this.initialising = false;
-            this.tracker = new Tracker(this.viewer, this.contest);
-            this.setState({contestName: this.contest.name})
-            this.initiateSession();
+            this.setState({initiated: true})
         });
     }
 
@@ -62,24 +55,6 @@ class CesiumContainer extends React.Component {
         this.scene = this.viewer.scene;
     }
 
-
-    initiateSession() {
-        axios.get("http://" + server + "/api/session?token=" + token, {withCredentials: true}).then(res => {
-            this.client = new W3CWebSocket("ws://" + server + "/api/socket")
-            console.log("Initiated session")
-            console.log(res)
-
-            this.client.onopen = () => {
-                console.log("Client connected")
-            };
-            this.client.onmessage = (message) => {
-                let data = JSON.parse(message.data);
-                this.tracker.appendPositionReports(data);
-            };
-
-        })
-    }
-
     // componentWillMount() {
     // }
     //
@@ -90,13 +65,24 @@ class CesiumContainer extends React.Component {
     }
 
     render() {
+        let TrackerDisplay = <div/>
+        if (this.state.initiated)
+            TrackerDisplay = <Tracker viewer={this.viewer} contest={this.contest}/>
         return (
             <div id='main_div'>
-                {this.state.contest_name}
                 <div id="cesiumContainer"></div>
+                <div className="backdrop" id="menu">
+                    {TrackerDisplay}
+                </div>
             </div>
         );
     }
 }
 
-render(<CesiumContainer/>, document.getElementById('cesiumContainerRoot'));
+render(
+    <CesiumContainer/>,
+    document
+        .getElementById(
+            'cesiumContainerRoot'
+        ))
+;
