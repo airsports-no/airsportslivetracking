@@ -1,0 +1,7 @@
+{% load static %}
+<h2>Import command script</h2>
+<form method="post" class="form" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form }}
+    <input type="submit" class="btn btn-primary">Submit</input>
+</form>

@@ -1,0 +1,16 @@
+# Pure local development environment
+
+version: '2'
+services:
+  web:
+    command: ["bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py runserver 0.0.0.0:8000"]
+    container_name: live_tracker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./assets:/assets/
+      - ./src:/src/
+      - ./reactjs:/reactjs/
+    ports:
+      - "8000:8000"
