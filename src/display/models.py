@@ -122,6 +122,8 @@ class Team(models.Model):
 class Contest(models.Model):
     name = models.CharField(max_length=200)
     track = models.ForeignKey(Track, on_delete=models.SET_NULL, null=True)
+    server_address = models.CharField(max_length=200, blank=True)
+    server_token = models.CharField(max_length=200, blank=True)
     start_time = models.DateTimeField()
     finish_time = models.DateTimeField()
 
