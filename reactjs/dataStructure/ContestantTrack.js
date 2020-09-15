@@ -64,7 +64,7 @@ function compare(a, b) {
     return 0
 }
 
-export class TraccarDeviceTrack {
+export class ContestantTrack {
     constructor(traccarDevice, viewer, contestant, track, updateScoreCallback) {
         this.traccarDevice = traccarDevice;
         this.updateScoreCallback = updateScoreCallback
@@ -201,7 +201,7 @@ export class TraccarDeviceTracks {
         let track = this.tracks.find((track) => track.contestant.id === contestant.id)
         if (!track) {
             console.log("Created new track for " + traccarDevice.name)
-            track = new TraccarDeviceTrack(traccarDevice, this.viewer, contestant, this.track, this.updateScoreCallback);
+            track = new ContestantTrack(traccarDevice, this.viewer, contestant, this.track, this.updateScoreCallback);
             this.tracks.push(track);
         }
         return track;

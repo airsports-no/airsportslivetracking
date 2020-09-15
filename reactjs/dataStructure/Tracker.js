@@ -2,7 +2,7 @@ import {w3cwebsocket as W3CWebSocket} from "websocket";
 import React from "react";
 import Cesium from 'cesium/Cesium';
 import {TraccarDeviceList} from "./TraccarDevices";
-import {TraccarDeviceTracks} from "./TraccarDeviceTrack";
+import {TraccarDeviceTracks} from "./ContestantTrack";
 import axios from "axios";
 import {server, token} from "./constants";
 

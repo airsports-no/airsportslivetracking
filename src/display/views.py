@@ -36,8 +36,6 @@ def import_track(request):
                 line = [item.strip() for item in line.decode(encoding="UTF-8").split(",")]
                 track_data.append({"name": line[0], "longitude": float(line[1]), "latitude": float(line[2]),
                                    "type": line[3], "width": float(line[4])})
-            track = Track(name=name, waypoints=track_data)
-            track.gates = track.get_gates()
-            track.save()
+            Track.create(name=name, waypoints=track_data)
             return redirect("/")
     return render(request, "display/import_track_form.html", {"form": form})
