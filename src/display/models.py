@@ -112,7 +112,7 @@ def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
 
 class Team(models.Model):
     pilot = models.CharField(max_length=200)
-    navigator = models.CharField(max_length=200)
+    navigator = models.CharField(max_length=200, blank = True)
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):

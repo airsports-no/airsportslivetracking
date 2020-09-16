@@ -1,7 +1,7 @@
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import React from "react";
 import Cesium from 'cesium/Cesium';
-import {TraccarDeviceList} from "./TraccarDevices";
+import {TraccarDevice, TraccarDeviceList} from "./TraccarDevices";
 import {TraccarDeviceTracks} from "./ContestantTrack";
 import axios from "axios";
 
@@ -9,13 +9,15 @@ export class Tracker extends React.Component {
     constructor(props) {
         super(props)
         this.contest = props.contest;
+        this.startTime = new Date(this.contest.start_time)
+        this.finishTime = new Date(this.contest.finish_time)
+        console.log(this.startTime)
         this.viewer = props.viewer;
         this.state = {score: {}}
-        this.traccarDeviceList = new TraccarDeviceList(this.contest.server_address, this.contest.server_token);
-        this.traccarDeviceTracks = new TraccarDeviceTracks(this.traccarDeviceList, this.viewer, new Date(this.contest.startTime), new Date(this.contest.finishTime), this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
         this.initiateSession()
         this.renderTrack();
     }
+
 
     updateScoreCallback(contestant) {
         let existing = this.state.score;
@@ -23,21 +25,38 @@ export class Tracker extends React.Component {
         this.setState({score: existing})
     }
 
-    initiateSession() {
-        axios.get("http://" + this.contest.server_address + "/api/session?token=" + this.contest.server_token, {withCredentials: true}).then(res => {
-            this.client = new W3CWebSocket("ws://" + this.contest.server_address + "/api/socket")
-            console.log("Initiated session")
-            console.log(res)
-
-            this.client.onopen = () => {
-                console.log("Client connected")
-            };
-            this.client.onmessage = (message) => {
-                let data = JSON.parse(message.data);
-                this.appendPositionReports(data);
-            };
-
+    async initiateSession() {
+        const result = await axios.get("http://" + this.contest.server_address + "/api/session?token=" + this.contest.server_token, {withCredentials: true})
+        // Required to wait for the promise to resolve
+        console.log(result)
+        console.log("Initiated session")
+        const devices_results = await axios.get("http://" + this.contest.server_address + "/api/devices", {withCredentials: true})
+        console.log("Device data:")
+        console.log(devices_results.data)
+        const devices = devices_results.data.map((data) => {
+            return new TraccarDevice(data.id, data.name, data.status, data.lastUpdate, data.category);
         })
+
+        this.traccarDeviceList = new TraccarDeviceList(devices);
+        this.traccarDeviceTracks = new TraccarDeviceTracks(this.traccarDeviceList, this.viewer, this.startTime, this.finishTime, this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
+        // Fetch history
+        for (const track of this.traccarDeviceTracks.tracks) {
+            console.log("Get history for " + track.traccarDevice.name)
+            const res = await axios.get("http://" + this.contest.server_address + "/api/positions?deviceId=" + track.traccarDevice.id + "&from=" + this.startTime.toISOString() + "&to=" + this.finishTime.toISOString(), {withCredentials: true})
+            await console.log(res.data)
+            track.addPositionHistory(res.data)
+        }
+
+        this.client = new W3CWebSocket("ws://" + this.contest.server_address + "/api/socket")
+
+        this.client.onopen = () => {
+            console.log("Client connected")
+        };
+        this.client.onmessage = (message) => {
+            let data = JSON.parse(message.data);
+            this.appendPositionReports(data);
+        };
+
     }
 
     renderTrack() {

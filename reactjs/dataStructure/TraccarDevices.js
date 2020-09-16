@@ -12,35 +12,17 @@ export class TraccarDevice {
 }
 
 export class TraccarDeviceList {
-    constructor(server, token) {
-        this.finished = false;
-        this.server = server
-        this.token = token
-        this.fetchDevices()
-    }
-
-    fetchDevices() {
-        this.finished = false;
-        axios.get("http://" + this.server + "/api/devices", {withCredentials: true}).then(res => {
-            console.log("Device data:")
-            console.log(res)
-            this.devices = res.data.map((data) => {
-                return new TraccarDevice(data.id, data.name, data.status, data.lastUpdate, data.category);
-            })
-            this.finished = true;
-        });
+    constructor(devices) {
+        this.devices = devices
     }
 
     deviceById(id) {
-        while (!this.finished) {
-        }
         return this.devices.find(device => device.id === id);
     }
 
     deviceByName(name) {
-        while (!this.finished) {
-        }
         return this.devices.find(device => device.name === name);
     }
+
 
 }

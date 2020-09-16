@@ -32,6 +32,7 @@ import axios from "axios";
 import {fractionOfLeg, intersect} from "./lineUtilities";
 import {ScoreCalculator} from "./scoreCalculator"
 
+
 class Gate {
     constructor(name, x1, y1, x2, y2, expectedTime) {
         this.name = name
@@ -52,10 +53,11 @@ export class PositionReport {
         this.longitude = longitude
         this.altitude = altitude
         this.batteryLevel = batteryLevel
-        this.deviceTime = deviceTime
-        this.serverTime = serverTime
+        this.deviceTime = new Date(deviceTime)
+        this.serverTime = new Date(serverTime)
         this.speed = speed
         this.course = course
+        this.cartesian = Cesium.Cartesian3.fromDegrees(this.longitude, this.latitude)
     }
 }
 
@@ -66,30 +68,30 @@ function compare(a, b) {
 }
 
 export class ContestantTrack {
-    constructor(traccarDevice, viewer, contestant, track, updateScoreCallback) {
+    constructor(traccarDevice, viewer, contestant, track, updateScoreCallback, startDate, finishDate, previousPositions) {
         this.traccarDevice = traccarDevice;
         this.updateScoreCallback = updateScoreCallback
+        this.startDate = startDate
+        this.finishDate = finishDate
         this.contestant = contestant
         this.track = track
-        this.positions = [];
+        this.positions = previousPositions
         this.viewer = viewer;
         this.gates = []
+        this.latestPositionRendered = 0
         for (const index in this.track.waypoints) {
             const gate = this.track.waypoints[index]
             this.gates.push(new Gate(gate.name, gate.gate_line[0], gate.gate_line[1], gate.gate_line[2], gate.gate_line[3], new Date(this.contestant.gate_times[gate.name])))
         }
         this.outstandingGates = Array.from(this.gates)
-        this.polyline = this.viewer.entities.add({
-            name: this.traccarDevice.name + "_line",
-            polyline: {
-                positions: [],
-                width: 2,
-                material: Cesium.Color.fromCssColorString(this.contestant.colour)
-            }
-        })
+        this.lineCollection = this.viewer.scene.primitives.add(new Cesium.PolylineCollection())
         this.dot = this.viewer.entities.add({
             name: this.traccarDevice.name,
             position: Cesium.Cartesian3.fromDegrees(0, 0),
+            path: {
+                leadTime: 0,
+                trailTime: 3 * 3600
+            },
             point: {
                 pixelSize: 5,
                 color: Cesium.Color.RED,
@@ -109,12 +111,21 @@ export class ContestantTrack {
         this.scoreCalculator = new ScoreCalculator(this)
     }
 
-    getPositionsHistory() {
+    createPolyline(positions) {
+        // this.viewer.entities.add({
+        let material = new Cesium.Material.fromType("Color")
+        material.uniforms.color = Cesium.Color.fromCssColorString(this.contestant.colour)
+        this.lineCollection.add({
+            positions: positions,
+            width: 2,
+            material: material
+            // material: {
+            //     color: Cesium.Color.fromCssColorString(this.contestant.colour)
+            // }
+        })
 
-        axios.get(protocol + "://" + server + "/api/positions?deviceId=" + this.traccarDevice.id, {withCredentials: true}).then(res => {
-
-        });
     }
+
 
     getTimeOfIntersectLastPosition(gate) {
         if (this.positions.length > 1) {
@@ -154,28 +165,55 @@ export class ContestantTrack {
         }
     }
 
-    appendPosition(positionReport) {
+    appendPosition(positionReport, render) {
         // console.log("Added position for " + this.traccarDevice.name + " :")
         // console.log(positionReport)
         let a = new PositionReport(positionReport.latitude, positionReport.longitude, positionReport.altitude, positionReport.attributes.batteryLevel, new Date(positionReport.deviceTime), new Date(positionReport.serverTime), positionReport.speed, positionReport.course);
-        if (a.deviceTime < this.contestant.startTime) {
+        if (!(this.contestant.startTime < a.deviceTime < this.contestant.finishedByTime)) {
             // console.log("Ignoring old message for " + this.traccarDevice.name)
             return
         }
         // console.log(a)
         this.positions.push(a);
-        this.positions.sort(compare);
-        // console.log("Current list")
-        // console.log(this.positions);
-        let b = this.createCartesianPositionList();
-        let newest_position = b.slice(-1)[0];
-        this.polyline.polyline.positions = b
-        this.dot.position = newest_position
+        if (render) {
+            this.renderPositions();
+        }
         this.checkIntersections()
     }
 
-    createCartesianPositionList() {
-        return this.positions.map((position) => {
+    addPositionHistory(positions) {
+        // To be called only at the beginning, before we start receiving live positions
+        this.positions = []
+        for (const positionReport of positions) {
+            this.appendPosition(positionReport, false)
+            // let a = new PositionReport(positionReport.latitude, positionReport.longitude, positionReport.altitude, positionReport.attributes.batteryLevel, new Date(positionReport.deviceTime), new Date(positionReport.serverTime), positionReport.speed, positionReport.course);
+            // if (!(this.contestant.startTime < a.deviceTime < this.contestant.finishedByTime)) {
+            //     continue
+            // }
+            // this.positions.push(a);
+        }
+        this.renderPositions()
+        this.checkIntersections()
+    }
+
+    renderPositions() {
+        this.positions.sort(compare);
+        let b = this.positions.slice(this.latestPositionRendered - this.positions.length)
+        if (b.length) {
+            // So that the next time we render the two last positions in order to get a line
+            this.latestPositionRendered = this.positions.length - 1
+            let newest_position = b.slice(-1)[0].cartesian;
+            if (b.length > 1) {
+                this.createPolyline(b.map((position) => {
+                    return position.cartesian
+                }));
+            }
+            this.dot.position = newest_position
+        }
+    }
+
+    createCartesianPositionList(fromIndex) {
+        return this.positions.slice(fromIndex - this.positions.length).map((position) => {
             return Cesium.Cartesian3.fromDegrees(position.longitude, position.latitude)
         })
     }
@@ -193,8 +231,16 @@ export class TraccarDeviceTracks {
         this.traccarDeviceList = traccarDeviceList;
         this.viewer = viewer
         this.tracks = []
+        this.prePopulateContestantTracks()
     }
 
+
+    prePopulateContestantTracks() {
+        this.contestants.contestants.forEach(contestant => {
+            const track = new ContestantTrack(this.getTrackerForContestant(contestant), this.viewer, contestant, this.track, this.updateScoreCallback, this.startDate, this.finishDate);
+            this.tracks.push(track);
+        })
+    }
 
     getTrackForTraccarDevice(traccarDevice, atTime) {
         let contestant = this.contestants.getContestantForTrackerForTime(traccarDevice.name, atTime)
@@ -205,7 +251,7 @@ export class TraccarDeviceTracks {
         let track = this.tracks.find((track) => track.contestant.id === contestant.id)
         if (!track) {
             console.log("Created new track for " + traccarDevice.name)
-            track = new ContestantTrack(traccarDevice, this.viewer, contestant, this.track, this.updateScoreCallback);
+            track = new ContestantTrack(traccarDevice, this.viewer, contestant, this.track, this.updateScoreCallback, this.startDate, this.finishDate);
             this.tracks.push(track);
         }
         return track;
@@ -215,8 +261,11 @@ export class TraccarDeviceTracks {
         let device = this.traccarDeviceList.deviceById(positionReport.deviceId);
         let track = this.getTrackForTraccarDevice(device, new Date(positionReport.deviceTime));
         if (track)
-            track.appendPosition(positionReport);
+            track.appendPosition(positionReport, true);
     }
 
+    getTrackerForContestant(contestant) {
+        return this.traccarDeviceList.deviceByName(contestant.trackerName)
+    }
 
 }

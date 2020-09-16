@@ -26,7 +26,7 @@ export class ContestantList {
 
     loadContestants(contestantList) {
         return contestantList.map((data) => {
-            return new Contestant(data.id, data.contestant_number, data.team.aeroplane.registration, data.team.pilot, data.team.navigator, data.traccar_device_name, this.colours.pop().hex(), new Date(data.start_time), new Date(data.finished_by_time), data.ground_speed, data.gate_times)
+            return new Contestant(data.id, data.contestant_number, data.team.aeroplane.registration, data.team.pilot, data.team.navigator, data.traccar_device_name, this.colours.pop().hex(), new Date(data.takeoff_time), new Date(data.finished_by_time), data.ground_speed, data.gate_times)
         })
     }
 
@@ -37,6 +37,7 @@ export class ContestantList {
     getContestantForTrackerForTime(trackerName, atTime) {
         return this.contestants.find((contestant) => contestant.trackerName === trackerName && contestant.startTime <= atTime <= contestant.finishedByTime)
     }
+
 
 
 }

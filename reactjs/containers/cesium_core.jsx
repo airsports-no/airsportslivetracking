@@ -1,3 +1,4 @@
+import 'regenerator-runtime/runtime'
 import React from "react";
 import axios from "axios";
 import {Tracker} from "../dataStructure/Tracker";
