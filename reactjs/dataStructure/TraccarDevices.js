@@ -1,4 +1,3 @@
-import {protocol, server} from "./constants.js";
 import axios from "axios";
 
 export class TraccarDevice {
@@ -13,14 +12,16 @@ export class TraccarDevice {
 }
 
 export class TraccarDeviceList {
-    constructor() {
+    constructor(server, token) {
         this.finished = false;
+        this.server = server
+        this.token = token
         this.fetchDevices()
     }
 
     fetchDevices() {
         this.finished = false;
-        axios.get(protocol + "://" + server + "/api/devices", {withCredentials: true}).then(res => {
+        axios.get("http://" + this.server + "/api/devices", {withCredentials: true}).then(res => {
             console.log("Device data:")
             console.log(res)
             this.devices = res.data.map((data) => {

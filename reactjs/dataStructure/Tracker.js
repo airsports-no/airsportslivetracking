@@ -4,7 +4,6 @@ import Cesium from 'cesium/Cesium';
 import {TraccarDeviceList} from "./TraccarDevices";
 import {TraccarDeviceTracks} from "./ContestantTrack";
 import axios from "axios";
-import {server, token} from "./constants";
 
 export class Tracker extends React.Component {
     constructor(props) {
@@ -12,7 +11,7 @@ export class Tracker extends React.Component {
         this.contest = props.contest;
         this.viewer = props.viewer;
         this.state = {score: {}}
-        this.traccarDeviceList = new TraccarDeviceList();
+        this.traccarDeviceList = new TraccarDeviceList(this.contest.server_address, this.contest.server_token);
         this.traccarDeviceTracks = new TraccarDeviceTracks(this.traccarDeviceList, this.viewer, new Date(this.contest.startTime), new Date(this.contest.finishTime), this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
         this.initiateSession()
         this.renderTrack();
@@ -25,8 +24,8 @@ export class Tracker extends React.Component {
     }
 
     initiateSession() {
-        axios.get("http://" + server + "/api/session?token=" + token, {withCredentials: true}).then(res => {
-            this.client = new W3CWebSocket("ws://" + server + "/api/socket")
+        axios.get("http://" + this.contest.server_address + "/api/session?token=" + this.contest.server_token, {withCredentials: true}).then(res => {
+            this.client = new W3CWebSocket("ws://" + this.contest.server_address + "/api/socket")
             console.log("Initiated session")
             console.log(res)
 
@@ -42,13 +41,13 @@ export class Tracker extends React.Component {
     }
 
     renderTrack() {
-        for (const key in this.contest.track.gates) {
-            if (this.contest.track.gates.hasOwnProperty(key)) {
-                let gate = this.contest.track.gates[key];
+        for (const key in this.contest.track.waypoints) {
+            if (this.contest.track.waypoints.hasOwnProperty(key)) {
+                let gate = this.contest.track.waypoints[key];
                 this.viewer.entities.add(new Cesium.Entity({
                     name: name + "_gate",
                     polyline: {
-                        positions: [new Cesium.Cartesian3.fromDegrees(gate[0], gate[1]), new Cesium.Cartesian3.fromDegrees(gate[2], gate[3])],
+                        positions: [new Cesium.Cartesian3.fromDegrees(gate.gate_line[0], gate.gate_line[1]), new Cesium.Cartesian3.fromDegrees(gate.gate_line[2], gate.gate_line[3])],
                         width: 2,
                         material: Cesium.Color.BLUEVIOLET
                     }

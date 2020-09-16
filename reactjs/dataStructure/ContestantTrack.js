@@ -29,11 +29,11 @@ import Cesium from 'cesium/Cesium';
 
 import {ContestantList} from "./Contestants";
 import axios from "axios";
-import {protocol, server} from "./constants";
 import {fractionOfLeg, intersect} from "./lineUtilities";
+import {ScoreCalculator} from "./scoreCalculator"
 
 class Gate {
-    constructor(name, x1, y1, x2, y2) {
+    constructor(name, x1, y1, x2, y2, expectedTime) {
         this.name = name
         this.x1 = x1
         this.y1 = y1
@@ -41,6 +41,7 @@ class Gate {
         this.y2 = y2
         this.passingTime = -1
         this.missed = false
+        this.expectedTime = expectedTime
     }
 
 }
@@ -74,11 +75,8 @@ export class ContestantTrack {
         this.viewer = viewer;
         this.gates = []
         for (const index in this.track.waypoints) {
-            let name = this.track.waypoints[index].name
-            if (this.track.gates.hasOwnProperty(name)) {
-                let gate = this.track.gates[name];
-                this.gates.push(new Gate(name, gate[0], gate[1], gate[2], gate[3]))
-            }
+            const gate = this.track.waypoints[index]
+            this.gates.push(new Gate(gate.name, gate.gate_line[0], gate.gate_line[1], gate.gate_line[2], gate.gate_line[3], new Date(this.contestant.gate_times[gate.name])))
         }
         this.outstandingGates = Array.from(this.gates)
         this.polyline = this.viewer.entities.add({
@@ -108,6 +106,7 @@ export class ContestantTrack {
 
         })
         this.updateScoreCallback(this.contestant)
+        this.scoreCalculator = new ScoreCalculator(this)
     }
 
     getPositionsHistory() {
@@ -143,10 +142,15 @@ export class ContestantTrack {
             if (crossedGate) {
                 if (this.outstandingGates[i].passingTime === -1) {
                     this.outstandingGates[i].missed = true
-                console.log("Missed gate " + this.outstandingGates[i].name)
+                    console.log("Missed gate " + this.outstandingGates[i].name)
                 }
                 this.outstandingGates.splice(i, 1);
             }
+        }
+        if (crossedGate) {
+            this.scoreCalculator.updateGateScore()
+            this.contestant.score = this.scoreCalculator.getScore()
+            this.updateScoreCallback(this.contestant)
         }
     }
 
