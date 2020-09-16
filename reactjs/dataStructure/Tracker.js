@@ -11,6 +11,7 @@ export class Tracker extends React.Component {
         this.contest = props.contest;
         this.startTime = new Date(this.contest.start_time)
         this.finishTime = new Date(this.contest.finish_time)
+        this.liveMode = new Date() < this.finishTime
         console.log(this.startTime)
         this.viewer = props.viewer;
         this.state = {score: {}}
@@ -46,17 +47,17 @@ export class Tracker extends React.Component {
             await console.log(res.data)
             track.addPositionHistory(res.data)
         }
+        if (this.liveMode) {
+            this.client = new W3CWebSocket("ws://" + this.contest.server_address + "/api/socket")
 
-        this.client = new W3CWebSocket("ws://" + this.contest.server_address + "/api/socket")
-
-        this.client.onopen = () => {
-            console.log("Client connected")
-        };
-        this.client.onmessage = (message) => {
-            let data = JSON.parse(message.data);
-            this.appendPositionReports(data);
-        };
-
+            this.client.onopen = () => {
+                console.log("Client connected")
+            };
+            this.client.onmessage = (message) => {
+                let data = JSON.parse(message.data);
+                this.appendPositionReports(data);
+            };
+        }
     }
 
     renderTrack() {
@@ -137,7 +138,7 @@ export class Tracker extends React.Component {
             key={d.contestantNumber}>{d.contestantNumber} {d.pilot} {d.score}</li>);
         return (
             <div>
-                <h1>Live contest tracking</h1>
+                <h1>{this.liveMode ? "Live" : "Historic"} contest tracking</h1>
                 <h2>{this.contest.name}</h2>
                 <ol>{listItems}</ol>
             </div>
