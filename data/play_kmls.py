@@ -37,5 +37,5 @@ for index in range(0, maximum_index, 10):
     for contestant_name, positions in tracks.items():
         if len(positions) > index:
             longitude, latitude = positions[index]
-            send(contestant_name, time.mktime(datetime.datetime.now().timetuple()), latitude, longitude, 0)
+            send(contestant_name, time.mktime(datetime.datetime.now(datetime.timezone.utc).astimezone().timetuple()), latitude, longitude, 0)
     time.sleep(0.5)

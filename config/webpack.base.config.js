@@ -123,6 +123,10 @@ module.exports = {
                 use: ['style-loader', 'css-loader', 'sass-loader'],
             },
             {
+                test: /\.(png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/,
+                use: ["file-loader"]
+            },
+            {
                 test: /\.module\.s[ac]ss$/i,
                 use: [
                     'style-loader',

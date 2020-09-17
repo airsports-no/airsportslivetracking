@@ -9,14 +9,17 @@
     <!-- Make the app on mobile take up the full browser screen and disable user scaling. -->
     <meta name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
-
-    <title>Title</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+          crossorigin=""/>
+    <title>AirSports</title>
     <link rel="stylesheet" href="{% static 'cesium/cesium.css' %}" media="screen">
 </head>
 <body>
 <script>
     document.configuration = {
-        contest_id: {{ contest_id }}
+        contest_id: {{ contest_id }},
+        liveMode: {{ live_mode }}
     }
 </script>
 <script

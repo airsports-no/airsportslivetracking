@@ -15,7 +15,7 @@ from display.serialisers import ContestSerialiser
 
 
 def frontend_view(request, pk):
-    return render(request, "display/root.html", {"contest_id": pk})
+    return render(request, "display/root.html", {"contest_id": pk, "live_mode": "true"})
 
 
 class RetrieveContestApi(RetrieveAPIView):

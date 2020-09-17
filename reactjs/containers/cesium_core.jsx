@@ -3,8 +3,8 @@ import React from "react";
 import axios from "axios";
 import {Tracker} from "../dataStructure/Tracker";
 import {render} from "react-dom";
-import Cesium from 'cesium/Cesium';
-
+import {map, tileLayer} from "leaflet"
+// import "leaflet/dist/leaflet.css"
 
 class CesiumContainer extends React.Component {
     constructor(props) {
@@ -15,70 +15,37 @@ class CesiumContainer extends React.Component {
         this.viewer = null;
         this.tracker = {contest: {name: ""}}
         this.contest_id = document.configuration.contest_id;
-        this.liveMode = document.configuration.live_mode;
+        this.liveMode = document.configuration.liveMode;
         this.contest = null;
         console.log("contest_id = " + this.contest_id)
     }
 
     fetchContest(contestId) {
-        this.initialising = true;
         axios.get("/display/api/contest/detail/" + contestId).then(res => {
             console.log("contest data:")
             console.log(res)
             this.contest = res.data;
-            if (new Date() > new Date(this.contest.start_time))
+            if (new Date() > new Date(this.contest.finish_time))
                 this.liveMode = false;
-            this.initialiseCesium()
+            this.initialiseMap()
             this.setState({initiated: true})
-            const startTime = Cesium.JulianDate.fromDate(new Date(this.contest.start_time))
-            const finishTime = Cesium.JulianDate.fromDate(new Date(this.contest.finish_time))
-            if (!this.liveMode) {
-                this.viewer.clock.startTime = startTime.clone()
-                this.viewer.clock.stopTime = finishTime.clone()
-                this.viewer.clock.currentTime = startTime.clone()
-                this.viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP
-                this.viewer.clock.multiplier = 10
-                this.viewer.clock.shouldAnimate = true
-                this.viewer.timeline.zoomTo(startTime, finishTime)
-            } else {
-                // Remove timeline controls
-                this.viewer.animation.container.style.visibility = "hidden"
-                this.viewer.timeline.container.style.visibility = "hidden"
-                this.viewer.forceResize()
-            }
-            this.initialising = false;
-
         });
     }
 
+    initialiseMap() {
+        this.map = map('cesiumContainer')
+        const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
+        tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+            maxZoom: 18,
+            id: 'mapbox/streets-v11',
+            tileSize: 512,
+            zoomOffset: -1,
+            accessToken: token
+        }).addTo(this.map);
 
-    initialiseCesium() {
-        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5OTk4N2IyMi1lMjE4LTRjODctYTQyMS03MTc4OWU4Y2QwM2YiLCJpZCI6NzIzMiwic2NvcGVzIjpbImFzciIsImdjIl0sImlhdCI6MTU0ODc2NzIzNH0.YuwXvkKfzak9mFxdaSjGKcSNg5vtkCMXgVv9VcBoBR4';
-        //////////////////////////////////////////////////////////////////////////
-        // Creating the Viewer
-        //////////////////////////////////////////////////////////////////////////
-        let options = {
-            projectionPicker: true,
-            selectionIndicator: true,
-            baseLayerPicker: true,
-            fullscreenButton: true,
-            requestRenderMode: true,
-            maximumRenderTimeChange: 3,
-            terrainProvider: Cesium.createWorldTerrain({
-                requestVertexNormals: true,
-                requestWaterMask: true
-            })
-        };
-        this.viewer = new Cesium.Viewer('cesiumContainer', {});
-        // this.viewer.scene.globe.enableLighting = true;
-        // this.viewer.infoBox.frame.removeAttribute('sandbox');
-
-        this.scene = this.viewer.scene;
     }
 
-    // componentWillMount() {
-    // }
-    //
     componentDidMount() {
         this.fetchContest(this.contest_id)
         // this.viewer.zoomTo(this.viewer.entities);
@@ -87,13 +54,13 @@ class CesiumContainer extends React.Component {
     render() {
         let TrackerDisplay = <div/>
         if (this.state.initiated)
-            TrackerDisplay = <Tracker viewer={this.viewer} contest={this.contest} liveMode={this.liveMode}/>
+            TrackerDisplay = <Tracker map={this.map} contest={this.contest} liveMode={this.liveMode}/>
         return (
             <div id='main_div'>
-                <div id="cesiumContainer"></div>
-                <div className="backdrop" id="menu">
+                <div className = "score">
                     {TrackerDisplay}
                 </div>
+                <div id="cesiumContainer"></div>
             </div>
         );
     }

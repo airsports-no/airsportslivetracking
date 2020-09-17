@@ -1,9 +1,9 @@
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import React from "react";
-import Cesium from 'cesium/Cesium';
 import {TraccarDevice, TraccarDeviceList} from "./TraccarDevices";
 import {TraccarDeviceTracks} from "./ContestantTrack";
 import axios from "axios";
+import {circle, marker, polyline} from "leaflet"
 
 export class Tracker extends React.Component {
     constructor(props) {
@@ -13,8 +13,8 @@ export class Tracker extends React.Component {
         this.finishTime = new Date(this.contest.finish_time)
         this.liveMode = props.liveMode
         console.log(this.startTime)
-        this.viewer = props.viewer;
-        this.state = {score: {}}
+        this.map = props.map;
+        this.state = {score: {}, currentTime: new Date().toLocaleString()}
         this.initiateSession()
         this.renderTrack();
     }
@@ -39,14 +39,14 @@ export class Tracker extends React.Component {
         })
 
         this.traccarDeviceList = new TraccarDeviceList(devices);
-        this.traccarDeviceTracks = new TraccarDeviceTracks(this.traccarDeviceList, this.viewer, this.startTime, this.finishTime, this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
+        this.traccarDeviceTracks = new TraccarDeviceTracks(this.traccarDeviceList, this.map, this.startTime, this.finishTime, this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
         // Fetch history
         for (const track of this.traccarDeviceTracks.tracks) {
             console.log("Get history for " + track.traccarDevice.name)
             const res = await axios.get("http://" + this.contest.server_address + "/api/positions?deviceId=" + track.traccarDevice.id + "&from=" + this.startTime.toISOString() + "&to=" + this.finishTime.toISOString(), {withCredentials: true})
             await console.log(res.data)
             track.addPositionHistory(res.data)
-            if (this.liveMode) track.renderPositions()
+            if (this.liveMode) track.insertHistoryIntoLiveTrack()
         }
         if (this.liveMode) {
             this.client = new W3CWebSocket("ws://" + this.contest.server_address + "/api/socket")
@@ -58,9 +58,21 @@ export class Tracker extends React.Component {
                 let data = JSON.parse(message.data);
                 this.appendPositionReports(data);
             };
+            setInterval(() => {
+                this.setState({currentTime: new Date().toLocaleString})
+            }, 1000)
         } else {
             console.log("Historic mode, rendering historic tracks")
-            this.traccarDeviceTracks.renderHistoricTracks()
+            this.historicTimeStep = 4
+            const interval = 1000
+            this.currentHistoricTime = new Date(this.startTime.getTime() + this.historicTimeStep * interval)
+            setInterval(() => {
+                console.log("Rendering historic time: " + this.currentHistoricTime)
+                this.setState({currentTime: this.currentHistoricTime.toLocaleString()})
+                this.traccarDeviceTracks.renderHistoricTime(this.currentHistoricTime)
+                this.currentHistoricTime.setTime(this.currentHistoricTime.getTime() + this.historicTimeStep * interval)
+            }, interval)
+            // this.traccarDeviceTracks.renderHistoricTracks()
         }
     }
 
@@ -68,52 +80,26 @@ export class Tracker extends React.Component {
         for (const key in this.contest.track.waypoints) {
             if (this.contest.track.waypoints.hasOwnProperty(key)) {
                 let gate = this.contest.track.waypoints[key];
-                this.viewer.entities.add(new Cesium.Entity({
-                    name: name + "_gate",
-                    polyline: {
-                        positions: [new Cesium.Cartesian3.fromDegrees(gate.gate_line[0], gate.gate_line[1]), new Cesium.Cartesian3.fromDegrees(gate.gate_line[2], gate.gate_line[3])],
-                        width: 2,
-                        material: Cesium.Color.BLUEVIOLET
-                    }
-
-                }));
+                polyline([[gate.gate_line[1], gate.gate_line[0]], [gate.gate_line[3], gate.gate_line[2]]], {
+                    color: "blue"
+                }).addTo(this.map)
             }
         }
         let turningPoints = this.contest.track.waypoints.filter((waypoint) => {
             return waypoint.type === "tp"
         }).map((waypoint) => {
-            return Cesium.Cartesian3.fromDegrees(waypoint.longitude, waypoint.latitude)
+            return [waypoint.latitude, waypoint.longitude]
         });
         this.contest.track.waypoints.map((waypoint) => {
-            this.viewer.entities.add(new Cesium.Entity({
-                name: waypoint.name,
-                position: Cesium.Cartesian3.fromDegrees(waypoint.longitude, waypoint.latitude),
-                // point: {
-                //     pixelSize: 4,
-                //     color: Cesium.Color.WHITE,
-                //     outlineColor: Cesium.Color.WHITE,
-                //     outlineWidth: 2
-                // },
-                label: {
-                    text: waypoint.name,
-                    font: '14pt monospace',
-                    outlineWidth: 2,
-                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                    pixelOffset: new Cesium.Cartesian2(0, -9)
-                }
-
-            }))
+            circle([waypoint.latitude, waypoint.longitude], {
+                color: "blue"
+            }).bindTooltip(waypoint.name, {permanent: true}).addTo(this.map)
         });
+        let route = polyline(turningPoints, {
+            color: "blue"
+        }).addTo(this.map)
+        this.map.fitBounds(route.getBounds())
 
-        this.trackEntity = this.viewer.entities.add({
-            name: this.contest.name + "_track",
-            polyline: {
-                positions: turningPoints,
-                width: 2,
-                material: Cesium.Color.BLUEVIOLET
-            }
-        })
-        this.viewer.flyTo(this.trackEntity);
     }
 
     appendPositionReports(data) {
@@ -144,6 +130,7 @@ export class Tracker extends React.Component {
             <div>
                 <h1>{this.liveMode ? "Live" : "Historic"} contest tracking</h1>
                 <h2>{this.contest.name}</h2>
+                <h2>{this.state.currentTime}</h2>
                 <ol>{listItems}</ol>
             </div>
         );

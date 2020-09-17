@@ -2,9 +2,9 @@
 
 version: '2'
 services:
-  web:
+  tracker_web:
     command: ["bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py runserver 0.0.0.0:8000"]
-    container_name: live_tracker
+    container_name: tracker_web
     build:
       context: .
       dockerfile: Dockerfile
@@ -13,4 +13,4 @@ services:
       - ./src:/src/
       - ./reactjs:/reactjs/
     ports:
-      - "8000:8000"
+      - "8002:8000"
