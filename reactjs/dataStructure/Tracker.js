@@ -11,7 +11,7 @@ export class Tracker extends React.Component {
         this.contest = props.contest;
         this.startTime = new Date(this.contest.start_time)
         this.finishTime = new Date(this.contest.finish_time)
-        this.liveMode = new Date() < this.finishTime
+        this.liveMode = props.liveMode
         console.log(this.startTime)
         this.viewer = props.viewer;
         this.state = {score: {}}
@@ -46,6 +46,7 @@ export class Tracker extends React.Component {
             const res = await axios.get("http://" + this.contest.server_address + "/api/positions?deviceId=" + track.traccarDevice.id + "&from=" + this.startTime.toISOString() + "&to=" + this.finishTime.toISOString(), {withCredentials: true})
             await console.log(res.data)
             track.addPositionHistory(res.data)
+            if (this.liveMode) track.renderPositions()
         }
         if (this.liveMode) {
             this.client = new W3CWebSocket("ws://" + this.contest.server_address + "/api/socket")
@@ -57,6 +58,9 @@ export class Tracker extends React.Component {
                 let data = JSON.parse(message.data);
                 this.appendPositionReports(data);
             };
+        } else {
+            console.log("Historic mode, rendering historic tracks")
+            this.traccarDeviceTracks.renderHistoricTracks()
         }
     }
 

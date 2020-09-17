@@ -28,7 +28,6 @@
 import Cesium from 'cesium/Cesium';
 
 import {ContestantList} from "./Contestants";
-import axios from "axios";
 import {fractionOfLeg, intersect} from "./lineUtilities";
 import {ScoreCalculator} from "./scoreCalculator"
 
@@ -68,14 +67,14 @@ function compare(a, b) {
 }
 
 export class ContestantTrack {
-    constructor(traccarDevice, viewer, contestant, track, updateScoreCallback, startDate, finishDate, previousPositions) {
+    constructor(traccarDevice, viewer, contestant, track, updateScoreCallback, startTime, finishTime) {
         this.traccarDevice = traccarDevice;
         this.updateScoreCallback = updateScoreCallback
-        this.startDate = startDate
-        this.finishDate = finishDate
+        this.startTime = startTime
+        this.finishTime = finishTime
         this.contestant = contestant
         this.track = track
-        this.positions = previousPositions
+        this.positions = []
         this.viewer = viewer;
         this.gates = []
         this.latestPositionRendered = 0
@@ -84,14 +83,17 @@ export class ContestantTrack {
             this.gates.push(new Gate(gate.name, gate.gate_line[0], gate.gate_line[1], gate.gate_line[2], gate.gate_line[3], new Date(this.contestant.gate_times[gate.name])))
         }
         this.outstandingGates = Array.from(this.gates)
+        this.updateScoreCallback(this.contestant)
+        this.scoreCalculator = new ScoreCalculator(this)
+        this.lineCollection = null;
+        this.dot = null;
+    }
+
+    createLiveEntities() {
         this.lineCollection = this.viewer.scene.primitives.add(new Cesium.PolylineCollection())
         this.dot = this.viewer.entities.add({
             name: this.traccarDevice.name,
             position: Cesium.Cartesian3.fromDegrees(0, 0),
-            path: {
-                leadTime: 0,
-                trailTime: 3 * 3600
-            },
             point: {
                 pixelSize: 5,
                 color: Cesium.Color.RED,
@@ -107,21 +109,15 @@ export class ContestantTrack {
             }
 
         })
-        this.updateScoreCallback(this.contestant)
-        this.scoreCalculator = new ScoreCalculator(this)
     }
 
     createPolyline(positions) {
-        // this.viewer.entities.add({
         let material = new Cesium.Material.fromType("Color")
         material.uniforms.color = Cesium.Color.fromCssColorString(this.contestant.colour)
         this.lineCollection.add({
             positions: positions,
             width: 2,
             material: material
-            // material: {
-            //     color: Cesium.Color.fromCssColorString(this.contestant.colour)
-            // }
         })
 
     }
@@ -169,7 +165,7 @@ export class ContestantTrack {
         // console.log("Added position for " + this.traccarDevice.name + " :")
         // console.log(positionReport)
         let a = new PositionReport(positionReport.latitude, positionReport.longitude, positionReport.altitude, positionReport.attributes.batteryLevel, new Date(positionReport.deviceTime), new Date(positionReport.serverTime), positionReport.speed, positionReport.course);
-        if (!(this.contestant.startTime < a.deviceTime < this.contestant.finishedByTime)) {
+        if (!(this.contestant.takeOffTime < a.deviceTime < this.contestant.finishedByTime)) {
             // console.log("Ignoring old message for " + this.traccarDevice.name)
             return
         }
@@ -186,17 +182,14 @@ export class ContestantTrack {
         this.positions = []
         for (const positionReport of positions) {
             this.appendPosition(positionReport, false)
-            // let a = new PositionReport(positionReport.latitude, positionReport.longitude, positionReport.altitude, positionReport.attributes.batteryLevel, new Date(positionReport.deviceTime), new Date(positionReport.serverTime), positionReport.speed, positionReport.course);
-            // if (!(this.contestant.startTime < a.deviceTime < this.contestant.finishedByTime)) {
-            //     continue
-            // }
-            // this.positions.push(a);
         }
-        this.renderPositions()
         this.checkIntersections()
     }
 
     renderPositions() {
+        if (!this.dot) {
+            this.createLiveEntities()
+        }
         this.positions.sort(compare);
         let b = this.positions.slice(this.latestPositionRendered - this.positions.length)
         if (b.length) {
@@ -212,6 +205,49 @@ export class ContestantTrack {
         }
     }
 
+    renderHistoricPositions() {
+        // Used in non-live mode to render the track relative to contest start including timing information so that
+        // we can use the cesium timing controls for playback
+        let localTrack = new Cesium.SampledPositionProperty()
+        if (this.positions.length > 0) {
+            const firstPositionTime = this.positions[0].deviceTime
+            for (const position of this.positions) {
+                localTrack.addSample(
+                    // Make all tracks start at the beginning of the contest time for historic playback
+                    Cesium.JulianDate.fromDate(new Date(this.startTime.getTime() + (position.deviceTime - firstPositionTime))),
+                    position.cartesian
+                );
+            }
+        }
+        let material = new Cesium.Material.fromType("Color")
+        material.uniforms.color = Cesium.Color.fromCssColorString(this.contestant.colour)
+        this.historicTrack = this.viewer.entities.add({
+            position: localTrack,
+            name: this.contestant.id + "_path",
+            path: {
+                show: true,
+                resolution: 1,
+                material: Cesium.Color.fromCssColorString(this.contestant.colour),
+                width: 2,
+                leadTime: 0,
+                trailTime: (this.finishTime - this.startTime) / 1000
+            },
+            point: {
+                pixelSize: 5,
+                color: Cesium.Color.RED,
+                outlineColor: Cesium.Color.WHITE,
+                outlineWidth: 2
+            },
+            label: {
+                text: this.contestant.pilot,
+                font: '14pt monospace',
+                outlineWidth: 2,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                pixelOffset: new Cesium.Cartesian2(0, -9)
+            }
+        })
+    }
+
     createCartesianPositionList(fromIndex) {
         return this.positions.slice(fromIndex - this.positions.length).map((position) => {
             return Cesium.Cartesian3.fromDegrees(position.longitude, position.latitude)
@@ -222,10 +258,10 @@ export class ContestantTrack {
 }
 
 export class TraccarDeviceTracks {
-    constructor(traccarDeviceList, viewer, startDate, finishDate, contestantList, track, updateScoreCallback) {
+    constructor(traccarDeviceList, viewer, startTime, finishTime, contestantList, track, updateScoreCallback) {
         this.updateScoreCallback = updateScoreCallback
-        this.startDate = startDate;
-        this.finishDate = finishDate;
+        this.startTime = startTime;
+        this.finishTime = finishTime;
         this.track = track;
         this.contestants = new ContestantList(contestantList)
         this.traccarDeviceList = traccarDeviceList;
@@ -237,7 +273,7 @@ export class TraccarDeviceTracks {
 
     prePopulateContestantTracks() {
         this.contestants.contestants.forEach(contestant => {
-            const track = new ContestantTrack(this.getTrackerForContestant(contestant), this.viewer, contestant, this.track, this.updateScoreCallback, this.startDate, this.finishDate);
+            const track = new ContestantTrack(this.getTrackerForContestant(contestant), this.viewer, contestant, this.track, this.updateScoreCallback, this.startTime, this.finishTime);
             this.tracks.push(track);
         })
     }
@@ -251,7 +287,7 @@ export class TraccarDeviceTracks {
         let track = this.tracks.find((track) => track.contestant.id === contestant.id)
         if (!track) {
             console.log("Created new track for " + traccarDevice.name)
-            track = new ContestantTrack(traccarDevice, this.viewer, contestant, this.track, this.updateScoreCallback, this.startDate, this.finishDate);
+            track = new ContestantTrack(traccarDevice, this.viewer, contestant, this.track, this.updateScoreCallback, this.startTime, this.finishTime);
             this.tracks.push(track);
         }
         return track;
@@ -268,4 +304,9 @@ export class TraccarDeviceTracks {
         return this.traccarDeviceList.deviceByName(contestant.trackerName)
     }
 
+    renderHistoricTracks() {
+        this.tracks.forEach(track => {
+            track.renderHistoricPositions()
+        })
+    }
 }

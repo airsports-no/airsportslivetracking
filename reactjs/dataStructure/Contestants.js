@@ -10,7 +10,7 @@ export class Contestant {
         this.navigator = navigator;
         this.trackerName = trackerName;
         this.colour = colour
-        this.startTime = startTime
+        this.takeoffTime = startTime
         this.finishedByTime = finishedByTime
         this.plannedSpeed = plannedSpeed
         this.gate_times = gate_times
@@ -35,7 +35,7 @@ export class ContestantList {
     }
 
     getContestantForTrackerForTime(trackerName, atTime) {
-        return this.contestants.find((contestant) => contestant.trackerName === trackerName && contestant.startTime <= atTime <= contestant.finishedByTime)
+        return this.contestants.find((contestant) => contestant.trackerName === trackerName && contestant.takeoffTime <= atTime <= contestant.finishedByTime)
     }
 
 

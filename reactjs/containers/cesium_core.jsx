@@ -6,7 +6,6 @@ import {render} from "react-dom";
 import Cesium from 'cesium/Cesium';
 
 
-
 class CesiumContainer extends React.Component {
     constructor(props) {
         super(props);
@@ -16,6 +15,7 @@ class CesiumContainer extends React.Component {
         this.viewer = null;
         this.tracker = {contest: {name: ""}}
         this.contest_id = document.configuration.contest_id;
+        this.liveMode = document.configuration.live_mode;
         this.contest = null;
         console.log("contest_id = " + this.contest_id)
     }
@@ -26,8 +26,28 @@ class CesiumContainer extends React.Component {
             console.log("contest data:")
             console.log(res)
             this.contest = res.data;
-            this.initialising = false;
+            if (new Date() > new Date(this.contest.start_time))
+                this.liveMode = false;
+            this.initialiseCesium()
             this.setState({initiated: true})
+            const startTime = Cesium.JulianDate.fromDate(new Date(this.contest.start_time))
+            const finishTime = Cesium.JulianDate.fromDate(new Date(this.contest.finish_time))
+            if (!this.liveMode) {
+                this.viewer.clock.startTime = startTime.clone()
+                this.viewer.clock.stopTime = finishTime.clone()
+                this.viewer.clock.currentTime = startTime.clone()
+                this.viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP
+                this.viewer.clock.multiplier = 10
+                this.viewer.clock.shouldAnimate = true
+                this.viewer.timeline.zoomTo(startTime, finishTime)
+            } else {
+                // Remove timeline controls
+                this.viewer.animation.container.style.visibility = "hidden"
+                this.viewer.timeline.container.style.visibility = "hidden"
+                this.viewer.forceResize()
+            }
+            this.initialising = false;
+
         });
     }
 
@@ -60,7 +80,6 @@ class CesiumContainer extends React.Component {
     // }
     //
     componentDidMount() {
-        this.initialiseCesium()
         this.fetchContest(this.contest_id)
         // this.viewer.zoomTo(this.viewer.entities);
     }
@@ -68,7 +87,7 @@ class CesiumContainer extends React.Component {
     render() {
         let TrackerDisplay = <div/>
         if (this.state.initiated)
-            TrackerDisplay = <Tracker viewer={this.viewer} contest={this.contest}/>
+            TrackerDisplay = <Tracker viewer={this.viewer} contest={this.contest} liveMode={this.liveMode}/>
         return (
             <div id='main_div'>
                 <div id="cesiumContainer"></div>
