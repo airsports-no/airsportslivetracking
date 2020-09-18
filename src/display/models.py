@@ -74,6 +74,9 @@ class Track(models.Model):
             print(tp_gates[index])
             tp_gates[index]["is_procedure_turn"] = is_procedure_turn(tp_gates[index]["bearing"],
                                                                      tp_gates[index + 1]["bearing"])
+            tp_gates[index]["turn_direction"] = "cw" if bearing_difference(tp_gates[index]["bearing"],
+                                                                                     tp_gates[index + 1][
+                                                                                         "bearing"]) > 0 else "ccw"
 
         gates = [item for item in waypoints if item["type"] in ("tp", "secret")]
         for index in range(1, len(gates)):
@@ -82,6 +85,10 @@ class Track(models.Model):
                 (gates[index - 1]["latitude"], gates[index - 1]["longitude"]),
                 (gates[index]["latitude"], gates[index]["longitude"])) * 1.852
         return waypoints
+
+
+def bearing_difference(bearing1, bearing2) -> float:
+    return (bearing2 - bearing1 + 540) % 360 - 180
 
 
 def is_procedure_turn(bearing1, bearing2) -> bool:
@@ -93,7 +100,7 @@ def is_procedure_turn(bearing1, bearing2) -> bool:
     :return:
     """
     reciprocal = (180 - bearing2) % 360
-    return abs(bearing1 - reciprocal) > 90
+    return abs(bearing_difference(bearing1, reciprocal)) > 90
 
 
 def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
@@ -112,7 +119,7 @@ def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
 
 class Team(models.Model):
     pilot = models.CharField(max_length=200)
-    navigator = models.CharField(max_length=200, blank = True)
+    navigator = models.CharField(max_length=200, blank=True)
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):

@@ -5,12 +5,21 @@ import {circle, marker, polyline} from "leaflet"
 
 
 class Gate {
-    constructor(name, x1, y1, x2, y2, expectedTime) {
-        this.name = name
-        this.x1 = x1
-        this.y1 = y1
-        this.x2 = x2
-        this.y2 = y2
+    constructor(gate, expectedTime) {
+        this.name = gate.name
+        this.x1 = gate.gate_line[0]
+        this.y1 = gate.gate_line[1]
+        this.x2 = gate.gate_line[2]
+        this.y2 = gate.gate_line[3]
+        this.latitude = gate.latitude
+        this.longitude = gate.longitude
+        this.isTurningPoint = gate.type === "tp"
+        if (this.isTurningPoint) {
+            this.distance = gate.distance
+            this.bearing = gate.bearing
+            this.isProcedureTurn = gate.is_procedure_turn
+            this.turnDirection = gate.turn_direction
+        }
         this.passingTime = -1
         this.missed = false
         this.expectedTime = expectedTime
@@ -38,9 +47,8 @@ function compare(a, b) {
 }
 
 export class ContestantTrack {
-    constructor(traccarDevice, map, contestant, track, updateScoreCallback, startTime, finishTime) {
+    constructor(traccarDevice, map, contestant, track, startTime, finishTime) {
         this.traccarDevice = traccarDevice;
-        this.updateScoreCallback = updateScoreCallback
         this.startTime = startTime
         this.finishTime = finishTime
         this.contestant = contestant
@@ -52,10 +60,10 @@ export class ContestantTrack {
         this.lastRenderedTime = this.startTime
         for (const index in this.track.waypoints) {
             const gate = this.track.waypoints[index]
-            this.gates.push(new Gate(gate.name, gate.gate_line[0], gate.gate_line[1], gate.gate_line[2], gate.gate_line[3], new Date(this.contestant.gate_times[gate.name])))
+            this.gates.push(new Gate(gate, new Date(this.contestant.gate_times[gate.name])))
         }
-        this.outstandingGates = Array.from(this.gates)
-        this.updateScoreCallback(this.contestant)
+        this.contestant.updateScore(0)
+        this.contestant.updateLatestStatus("Initialised")
         this.scoreCalculator = new ScoreCalculator(this)
         this.lineCollection = null;
         this.dot = null;
@@ -79,45 +87,11 @@ export class ContestantTrack {
     }
 
 
-    getTimeOfIntersectLastPosition(gate) {
-        if (this.positions.length > 1) {
-            let segment = this.positions.slice(-2);
-            let intersection = intersect(segment[0].longitude, segment[0].latitude, segment[1].longitude, segment[1].latitude, gate.x1, gate.y1, gate.x2, gate.y2)
-            if (intersection) {
-                let fraction = fractionOfLeg(segment[0].longitude, segment[0].latitude, segment[1].longitude, segment[1].latitude, intersection.x, intersection.y)
-                let timeDifference = segment[1].deviceTime - segment[0].deviceTime
-                return new Date(segment[0].deviceTime.getTime() + fraction * timeDifference);
-            }
-        }
-        return false
-    }
-
-    checkIntersections() {
-        let i = this.outstandingGates.length
-        let crossedGate = false
-        while (i--) {
-            let intersectionTime = this.getTimeOfIntersectLastPosition(this.outstandingGates[i])
-            if (intersectionTime) {
-                console.log("Intersected gate " + this.outstandingGates[i].name + " at time " + intersectionTime)
-                this.outstandingGates[i].passingTime = intersectionTime
-                crossedGate = true;
-            }
-            if (crossedGate) {
-                if (this.outstandingGates[i].passingTime === -1) {
-                    this.outstandingGates[i].missed = true
-                    console.log("Missed gate " + this.outstandingGates[i].name)
-                }
-                this.outstandingGates.splice(i, 1);
-            }
-        }
-        if (crossedGate) {
-            this.scoreCalculator.updateGateScore()
-            this.contestant.score = this.scoreCalculator.getScore()
-            this.updateScoreCallback(this.contestant)
-        }
-    }
 
     appendPosition(positionReport, render) {
+        // TODO
+        if (this.contestant.pilot !== "Helge" ) return
+
         // console.log("Added position for " + this.traccarDevice.name + " :")
         // console.log(positionReport)
         let a = new PositionReport(positionReport.latitude, positionReport.longitude, positionReport.altitude, positionReport.attributes.batteryLevel, new Date(positionReport.deviceTime), new Date(positionReport.serverTime), positionReport.speed, positionReport.course);
@@ -130,13 +104,14 @@ export class ContestantTrack {
         if (render) {
             this.renderPositions(this.positions.slice(-Math.min(2, this.positions.length)));
         }
-        this.checkIntersections()
+        this.scoreCalculator.updateFinalScore()
     }
 
     addPositionHistory(positions) {
         this.historicPositions = positions
     }
-    insertHistoryIntoLiveTrack(){
+
+    insertHistoryIntoLiveTrack() {
         this.positions = []
         // To be called only at the beginning, before we start receiving live positions
         for (const positionReport of this.historicPositions) {
@@ -167,12 +142,14 @@ export class ContestantTrack {
         if (!this.historicPositions.length) return
         // historicPositions is the raw data, not wrapped into the appropriate class
         const initialTrackTime = new Date(this.historicPositions[0].deviceTime)
+        // todo
+        const startTakeoffDifference = 0//this.contestant.takeoffTime - initialTrackTime
         const toRender = this.historicPositions.filter((position) => {
-            const shiftedStartTime = new Date(this.startTime.getTime() + (new Date(position.deviceTime) - initialTrackTime))
+            const shiftedStartTime = new Date(this.startTime.getTime() + (new Date(position.deviceTime) - initialTrackTime) + startTakeoffDifference)
             return this.lastRenderedTime < shiftedStartTime && shiftedStartTime <= historicTime
         })
-        console.log(this.contestant.pilot + ": Last rendered is " + this.lastRenderedTime + ", rendering until " + historicTime + ": " + toRender.length)
-        toRender.map((position)=>{
+        // console.log(this.contestant.pilot + ": Last rendered is " + this.lastRenderedTime + ", rendering until " + historicTime + ": " + toRender.length)
+        toRender.map((position) => {
             this.appendPosition(position, true)
         })
         this.lastRenderedTime = new Date(historicTime.getTime())
@@ -186,7 +163,7 @@ export class TraccarDeviceTracks {
         this.startTime = startTime;
         this.finishTime = finishTime;
         this.track = track;
-        this.contestants = new ContestantList(contestantList)
+        this.contestants = new ContestantList(contestantList, updateScoreCallback)
         this.traccarDeviceList = traccarDeviceList;
         this.map = map
         this.tracks = []
@@ -196,7 +173,7 @@ export class TraccarDeviceTracks {
 
     prePopulateContestantTracks() {
         this.contestants.contestants.forEach(contestant => {
-            const track = new ContestantTrack(this.getTrackerForContestant(contestant), this.map, contestant, this.track, this.updateScoreCallback, this.startTime, this.finishTime);
+            const track = new ContestantTrack(this.getTrackerForContestant(contestant), this.map, contestant, this.track, this.startTime, this.finishTime);
             this.tracks.push(track);
         })
     }
@@ -210,7 +187,7 @@ export class TraccarDeviceTracks {
         let track = this.tracks.find((track) => track.contestant.id === contestant.id)
         if (!track) {
             console.log("Created new track for " + traccarDevice.name)
-            track = new ContestantTrack(traccarDevice, this.map, contestant, this.track, this.updateScoreCallback, this.startTime, this.finishTime);
+            track = new ContestantTrack(traccarDevice, this.map, contestant, this.track, this.startTime, this.finishTime);
             this.tracks.push(track);
         }
         return track;

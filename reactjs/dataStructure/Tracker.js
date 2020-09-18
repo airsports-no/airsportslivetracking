@@ -63,11 +63,11 @@ export class Tracker extends React.Component {
             }, 1000)
         } else {
             console.log("Historic mode, rendering historic tracks")
-            this.historicTimeStep = 4
+            this.historicTimeStep = 1
             const interval = 1000
             this.currentHistoricTime = new Date(this.startTime.getTime() + this.historicTimeStep * interval)
             setInterval(() => {
-                console.log("Rendering historic time: " + this.currentHistoricTime)
+                // console.log("Rendering historic time: " + this.currentHistoricTime)
                 this.setState({currentTime: this.currentHistoricTime.toLocaleString()})
                 this.traccarDeviceTracks.renderHistoricTime(this.currentHistoricTime)
                 this.currentHistoricTime.setTime(this.currentHistoricTime.getTime() + this.historicTimeStep * interval)
@@ -124,14 +124,23 @@ export class Tracker extends React.Component {
             }
         }
         contestants.sort(this.compareScore)
-        const listItems = contestants.map((d) => <li
-            key={d.contestantNumber}>{d.contestantNumber} {d.pilot} {d.score}</li>);
+        let position = 1
+        const listItems = contestants.map((d) => <tr
+            key={d.contestantNumber}>
+            <td>{position++}</td>
+            <td>{d.contestantNumber}</td>
+            <td>{d.pilot}</td>
+            <td>{d.score}</td>
+            <td>{d.trackState}</td>
+            <td>{d.latestStatus}</td>
+            <td>{d.currentLeg}</td>
+        </tr>);
         return (
             <div>
                 <h1>{this.liveMode ? "Live" : "Historic"} contest tracking</h1>
                 <h2>{this.contest.name}</h2>
                 <h2>{this.state.currentTime}</h2>
-                <ol>{listItems}</ol>
+                <table><tbody>{listItems}</tbody></table>
             </div>
         );
     }

@@ -13,10 +13,28 @@ function getDistance(lat1, lon1, lat2, lon2) {
     return R * c; // in metres
 }
 
-function getBearing(lat1, lon1, lat2, lon2) {
+function getInitialBearing(lat1, lon1, lat2, lon2) {
     const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) -
         Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
     const Theta = Math.atan2(y, x);
-    const brng = (Theta * 180 / Math.PI + 360) % 360; // in degrees
+    return (Theta * 180 / Math.PI + 360) % 360; // in degrees
+}
+
+export function getBearing(lat1, lon1, lat2, lon2) {
+    return (getInitialBearing(lat1, lon1, lat2, lon2) + 180) % 360
+}
+
+export function getHeadingDifference(heading1, heading2) {
+    return (heading2 - heading1 + 540) % 360 - 180
+}
+
+function angularDistance(lat1, lon1, lat2, lon2) {
+    return 2 * Math.asin(Math.sqrt(Math.sin((lat2 - lat1) / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon2 - lon1) / 2) ** 2))
+}
+
+export function crossTrackDistance(lat1, lon1, lat2, lon2, lat, lon) {
+    const R = 6371e3; // metres
+    const angularDistance13 = getDistance(lat1, lon1, lat, lon) / R
+    return Math.asin(Math.sin(angularDistance13) * Math.sin(getInitialBearing(lat1, lon1, lat, lon) - getInitialBearing(lat1, lon1, lat2, lon2))) * R
 }

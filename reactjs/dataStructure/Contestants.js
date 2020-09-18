@@ -2,7 +2,7 @@ import distinctColors from "distinct-colors";
 
 
 export class Contestant {
-    constructor(id, contestantNumber, registrationNumber, pilot, navigator, trackerName, colour, startTime, finishedByTime, plannedSpeed, gate_times) {
+    constructor(id, contestantNumber, registrationNumber, pilot, navigator, trackerName, colour, startTime, finishedByTime, plannedSpeed, gate_times, updateScoreCallback) {
         this.id = id
         this.contestantNumber = contestantNumber;
         this.registrationNumber = registrationNumber;
@@ -15,18 +15,48 @@ export class Contestant {
         this.plannedSpeed = plannedSpeed
         this.gate_times = gate_times
         this.score = 0
+        this.latestStatus = ""
+        this.trackState = "Starting"
+        this.currentLeg = ""
+        this.updateScoreCallback = updateScoreCallback
+        this.scoreByGate = {}
+    }
+
+    updateScore(score) {
+        this.score = score
+        this.updateScoreCallback(this)
+    }
+
+    updateTrackState(state) {
+        this.trackState = state
+        this.updateScoreCallback(this)
+    }
+
+    updateCurrentLeg(gate) {
+        this.currentLeg = gate ? gate.name : "missing"
+        this.updateScoreCallback(this)
+    }
+
+    updateLatestStatus(status) {
+        this.latestStatus = status
+        console.log("Updating current status: " + status)
+        this.updateScoreCallback(this)
+    }
+
+    updateScoredByGate(gate, score) {
+        this.scoreByGate[gate] = score
     }
 }
 
 export class ContestantList {
-    constructor(contestantList) {
+    constructor(contestantList, updateScoreCallback) {
         this.colours = distinctColors({count: contestantList.length})
-        this.contestants = this.loadContestants(contestantList);
+        this.contestants = this.loadContestants(contestantList, updateScoreCallback);
     }
 
-    loadContestants(contestantList) {
+    loadContestants(contestantList, updateScoreCallback) {
         return contestantList.map((data) => {
-            return new Contestant(data.id, data.contestant_number, data.team.aeroplane.registration, data.team.pilot, data.team.navigator, data.traccar_device_name, this.colours.pop().hex(), new Date(data.takeoff_time), new Date(data.finished_by_time), data.ground_speed, data.gate_times)
+            return new Contestant(data.id, data.contestant_number, data.team.aeroplane.registration, data.team.pilot, data.team.navigator, data.traccar_device_name, this.colours.pop().hex(), new Date(data.takeoff_time), new Date(data.finished_by_time), data.ground_speed, data.gate_times, updateScoreCallback)
         })
     }
 
@@ -37,7 +67,6 @@ export class ContestantList {
     getContestantForTrackerForTime(trackerName, atTime) {
         return this.contestants.find((contestant) => contestant.trackerName === trackerName && contestant.takeoffTime <= atTime <= contestant.finishedByTime)
     }
-
 
 
 }
