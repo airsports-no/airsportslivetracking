@@ -1,5 +1,5 @@
-function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // metres
+const R = 6371e3; // metres
+export function getDistance(lat1, lon1, lat2, lon2) {
     const phi1 = lat1 * Math.PI / 180; // phi, lambda in radians
     const phi2 = lat2 * Math.PI / 180;
     const deltaphi = (lat2 - lat1) * Math.PI / 180;
@@ -13,7 +13,11 @@ function getDistance(lat1, lon1, lat2, lon2) {
     return R * c; // in metres
 }
 
-function getInitialBearing(lat1, lon1, lat2, lon2) {
+export function getBearing(lat1, lon1, lat2, lon2) {
+    lat1 *= Math.PI / 180
+    lon1 *= Math.PI / 180
+    lat2 *= Math.PI / 180
+    lon2 *= Math.PI / 180
     const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) -
         Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
@@ -21,9 +25,6 @@ function getInitialBearing(lat1, lon1, lat2, lon2) {
     return (Theta * 180 / Math.PI + 360) % 360; // in degrees
 }
 
-export function getBearing(lat1, lon1, lat2, lon2) {
-    return (getInitialBearing(lat1, lon1, lat2, lon2) + 180) % 360
-}
 
 export function getHeadingDifference(heading1, heading2) {
     return (heading2 - heading1 + 540) % 360 - 180
@@ -34,7 +35,13 @@ function angularDistance(lat1, lon1, lat2, lon2) {
 }
 
 export function crossTrackDistance(lat1, lon1, lat2, lon2, lat, lon) {
-    const R = 6371e3; // metres
     const angularDistance13 = getDistance(lat1, lon1, lat, lon) / R
-    return Math.asin(Math.sin(angularDistance13) * Math.sin(getInitialBearing(lat1, lon1, lat, lon) - getInitialBearing(lat1, lon1, lat2, lon2))) * R
+    const firstBearing = getBearing(lat1, lon1, lat, lon) * Math.PI / 180
+    const secondBearing = getBearing(lat1, lon1, lat2, lon2) * Math.PI / 180
+    return Math.asin(Math.sin(angularDistance13) * Math.sin(firstBearing - secondBearing)) * R
+}
+
+export function alongTrackDistance(lat1, lon1, lat, lon, crossTrackDistance) {
+    const angularDistance13 = getDistance(lat1, lon1, lat, lon) / R
+    return Math.acos(Math.cos(angularDistance13) * Math.cos(crossTrackDistance / R)) * R
 }

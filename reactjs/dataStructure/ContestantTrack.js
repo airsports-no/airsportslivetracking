@@ -63,7 +63,7 @@ export class ContestantTrack {
             this.gates.push(new Gate(gate, new Date(this.contestant.gate_times[gate.name])))
         }
         this.contestant.updateScore(0)
-        this.contestant.updateLatestStatus("Initialised")
+        this.contestant.updateLatestStatus("")
         this.scoreCalculator = new ScoreCalculator(this)
         this.lineCollection = null;
         this.dot = null;
@@ -90,7 +90,7 @@ export class ContestantTrack {
 
     appendPosition(positionReport, render) {
         // TODO
-        if (this.contestant.pilot !== "Helge" ) return
+        // if (this.contestant.pilot !== "Helge" ) return
 
         // console.log("Added position for " + this.traccarDevice.name + " :")
         // console.log(positionReport)

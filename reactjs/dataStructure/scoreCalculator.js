@@ -1,4 +1,4 @@
-import {crossTrackDistance, getBearing, getHeadingDifference} from "./utilities"
+import {alongTrackDistance, crossTrackDistance, getBearing, getDistance, getHeadingDifference} from "./utilities"
 import {fractionOfLeg, intersect} from "./lineUtilities";
 
 const TrackingStates = {
@@ -11,7 +11,7 @@ const TrackingStates = {
     finished: 6
 }
 
-const TrackingStateText = ["Tracking", "Backtracking", "Procedure turn", "Failed procedure turn", "Deviating", "Starting", "Finished"]
+const TrackingStateText = ["Tracking", "Backtracking", "Procedure turn", "Failed procedure turn", "Deviating", "Waiting...", "Finished"]
 
 export class ScoreCalculator {
     constructor(contestantTrack) {
@@ -103,11 +103,11 @@ export class ScoreCalculator {
                 const absoluteDifference = Math.abs(difference)
                 if (absoluteDifference > 2) {
                     gateScore = Math.min(100, Math.floor(absoluteDifference) * 2)
-                    s = Math.min(100, Math.floor(absoluteDifference) * 2) + " points for passing gate " + gate.name + " off by " + difference
+                    s = Math.min(100, Math.floor(absoluteDifference) * 2) + " points for passing gate " + gate.name + " off by " + Math.round(difference)
                     console.log(s)
                     this.scoreLog.push(s)
                 } else {
-                    s = "0 points for passing gate " + gate.name + " off by " + difference
+                    s = "0 points for passing gate " + gate.name + " off by " + Math.round(difference)
                     console.log(s)
                     this.scoreLog.push(s)
                 }
@@ -134,6 +134,7 @@ export class ScoreCalculator {
     updateScore(gate, score, message) {
         console.log(message)
         this.scoreLog.push(message)
+        this.contestantTrack.contestant.updateLatestStatus(message)
         this.scoredByGate[gate.name] += score
         this.trackScore += score
     }
@@ -149,9 +150,18 @@ export class ScoreCalculator {
             const previousGate = gates[index - 1]
             const nextGate = gates[index]
             const crossTrack = crossTrackDistance(previousGate.latitude, previousGate.longitude, nextGate.latitude, nextGate.longitude, currentPosition.latitude, currentPosition.longitude)
-            if (crossTrack < minimumDistance) {
-                minimumDistance = crossTrack
-                currentBestGate = nextGate
+            const absoluteCrossTrack = Math.abs(crossTrack)
+            const distanceFromStart = alongTrackDistance(previousGate.latitude, previousGate.longitude, currentPosition.latitude, currentPosition.longitude, crossTrack)
+            const distanceFromFinish = alongTrackDistance(nextGate.latitude, nextGate.longitude, currentPosition.latitude, currentPosition.longitude, -crossTrack)
+            const legDistance = getDistance(previousGate.latitude, previousGate.longitude, nextGate.latitude, nextGate.longitude)
+            console.log("Distance to " + nextGate.name + ": " + crossTrack + ", fromStart: " + distanceFromStart + ", fromFinish: " + distanceFromFinish + ", legDistance: " + legDistance)
+            if (distanceFromFinish + distanceFromStart <= legDistance + 500) {
+                console.log("Inside")
+                // We are inside the leg
+                if (absoluteCrossTrack < minimumDistance) {
+                    minimumDistance = absoluteCrossTrack
+                    currentBestGate = nextGate
+                }
             }
         }
         return currentBestGate
@@ -161,6 +171,8 @@ export class ScoreCalculator {
         const lookBack = 2
         let startIndex = Math.max(this.previousTrackIndex - lookBack, 0)
         let finishIndex = startIndex + lookBack
+        let lastBearing = null
+        console.log(startIndex + ":" + finishIndex + "<" + this.contestantTrack.positions.length)
         while (finishIndex < this.contestantTrack.positions.length) {
             const firstPosition = this.contestantTrack.positions[startIndex]
             const lastPosition = this.contestantTrack.positions[finishIndex]
@@ -191,11 +203,16 @@ export class ScoreCalculator {
                 this.updateTrackingState(TrackingStates.tracking)
             }
             if (this.trackingState === TrackingStates.procedureTurn) {
-                const turnDirection = getHeadingDifference(bearing, nextGateLast.bearing) > 0 ? "cw" : "ccw"
-                if (lastGateLast.turnDirection !== turnDirection) {
-                    this.updateTrackingState(TrackingStates.failedProcedureTurn)
-                    this.updateScore(nextGateLast, 200, "Incorrect procedure turn at " + lastPosition.deviceTime)
+                if (!lastBearing) lastBearing = bearing
+                else {
+                    const turnDirection = getHeadingDifference(lastBearing, bearing) > 0 ? "cw" : "ccw"
+                    if (lastGateLast.turnDirection !== turnDirection) {
+                        this.updateTrackingState(TrackingStates.failedProcedureTurn)
+                        this.updateScore(nextGateLast, 200, "Incorrect procedure turn at " + lastPosition.deviceTime)
+                    }
+
                 }
+
             } else {
                 if (bearingDifference > 90) {
                     if (this.trackingState === TrackingStates.tracking) {
@@ -207,7 +224,7 @@ export class ScoreCalculator {
             startIndex += 1
             finishIndex += 1
         }
-        this.previousTrackIndex = Math.max(0, startIndex - 1)
+        this.previousTrackIndex = finishIndex
     }
 
 

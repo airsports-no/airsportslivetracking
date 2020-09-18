@@ -72,18 +72,20 @@ class Track(models.Model):
                 (tp_gates[index]["latitude"], tp_gates[index]["longitude"]))
         for index in range(1, len(tp_gates) - 1):
             print(tp_gates[index])
+            print(tp_gates[index]["name"])
             tp_gates[index]["is_procedure_turn"] = is_procedure_turn(tp_gates[index]["bearing"],
                                                                      tp_gates[index + 1]["bearing"])
-            tp_gates[index]["turn_direction"] = "cw" if bearing_difference(tp_gates[index]["bearing"],
+            print("is_procedure_turn: {}".format(tp_gates[index]["is_procedure_turn"]))
+            tp_gates[index]["turn_direction"] = "ccw" if bearing_difference(tp_gates[index]["bearing"],
                                                                                      tp_gates[index + 1][
-                                                                                         "bearing"]) > 0 else "ccw"
+                                                                                         "bearing"]) > 0 else "cw"
 
         gates = [item for item in waypoints if item["type"] in ("tp", "secret")]
         for index in range(1, len(gates)):
             # distance as nm
             gates[index]["distance"] = calculate_distance_lat_lon(
                 (gates[index - 1]["latitude"], gates[index - 1]["longitude"]),
-                (gates[index]["latitude"], gates[index]["longitude"])) * 1.852
+                (gates[index]["latitude"], gates[index]["longitude"])) / 1.852
         return waypoints
 
 
@@ -99,8 +101,9 @@ def is_procedure_turn(bearing1, bearing2) -> bool:
     :param bearing2: degrees
     :return:
     """
-    reciprocal = (180 - bearing2) % 360
-    return abs(bearing_difference(bearing1, reciprocal)) > 90
+    print("First bearing: {}".format(bearing1))
+    print("Second bearing: {}".format(bearing2))
+    return abs(bearing_difference(bearing1, bearing2)) > 90
 
 
 def create_perpendicular_line_at_end(x1, y1, x2, y2, length):

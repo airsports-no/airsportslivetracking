@@ -16,7 +16,7 @@ export class Contestant {
         this.gate_times = gate_times
         this.score = 0
         this.latestStatus = ""
-        this.trackState = "Starting"
+        this.trackState = "Waiting..."
         this.currentLeg = ""
         this.updateScoreCallback = updateScoreCallback
         this.scoreByGate = {}
@@ -33,7 +33,7 @@ export class Contestant {
     }
 
     updateCurrentLeg(gate) {
-        this.currentLeg = gate ? gate.name : "missing"
+        this.currentLeg = gate ? gate.name : ""
         this.updateScoreCallback(this)
     }
 

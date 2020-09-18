@@ -95,10 +95,18 @@ export class Tracker extends React.Component {
                 color: "blue"
             }).bindTooltip(waypoint.name, {permanent: true}).addTo(this.map)
         });
+        this.contest.track.waypoints.filter((waypoint) => {
+            return waypoint.is_procedure_turn
+        }).map((waypoint) => {
+            circle([waypoint.latitude, waypoint.longitude], {
+                radius: 500,
+                color: "blue"
+            }).addTo(this.map)
+        })
         let route = polyline(turningPoints, {
             color: "blue"
         }).addTo(this.map)
-        this.map.fitBounds(route.getBounds())
+        this.map.fitBounds(route.getBounds(), {padding: [50, 50]})
 
     }
 
@@ -140,7 +148,20 @@ export class Tracker extends React.Component {
                 <h1>{this.liveMode ? "Live" : "Historic"} contest tracking</h1>
                 <h2>{this.contest.name}</h2>
                 <h2>{this.state.currentTime}</h2>
-                <table><tbody>{listItems}</tbody></table>
+                <table border={1}>
+                    <thead>
+                    <tr>
+                        <td>Rank</td>
+                        <td>#</td>
+                        <td>Pilot</td>
+                        <td>Score</td>
+                        <td>Tracking state</td>
+                        <td>Latest event</td>
+                        <td>Current leg</td>
+                    </tr>
+                    </thead>
+                    <tbody>{listItems}</tbody>
+                </table>
             </div>
         );
     }
