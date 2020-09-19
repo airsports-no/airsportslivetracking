@@ -2,6 +2,7 @@ import {ContestantList} from "./Contestants";
 import {fractionOfLeg, intersect} from "./lineUtilities";
 import {ScoreCalculator} from "./scoreCalculator"
 import {circle, marker, polyline} from "leaflet"
+import {getDistance} from "./utilities";
 
 
 class Gate {
@@ -23,6 +24,10 @@ class Gate {
         this.passingTime = -1
         this.missed = false
         this.expectedTime = expectedTime
+    }
+
+    hasBeenPassed() {
+        return this.missed || this.passingTime !== -1
     }
 
 }
@@ -62,6 +67,16 @@ export class ContestantTrack {
             const gate = this.track.waypoints[index]
             this.gates.push(new Gate(gate, new Date(this.contestant.gate_times[gate.name])))
         }
+        // Correct bad calculation from server
+        // for (let index = 1;index<this.gates.length;index++) {
+        //     const previousGate = this.gates[index-1]
+        //     const nextGate = this.gates[index]
+        //     console.log("Overriding distance " + getDistance(previousGate.latitude, previousGate.longitude, nextGate.latitude, nextGate.longitude))
+        //     nextGate.distance = getDistance(previousGate.latitude, previousGate.longitude, nextGate.latitude, nextGate.longitude)
+        //     console.log(nextGate.distance)
+        // }
+        this.startingLine = new Gate(this.track.starting_line, new Date(this.contestant.gate_times[this.track.waypoints[0].name]))
+        this.startingLinePassingTimes = [];
         this.contestant.updateScore(0)
         this.contestant.updateLatestStatus("")
         this.scoreCalculator = new ScoreCalculator(this)
@@ -87,10 +102,9 @@ export class ContestantTrack {
     }
 
 
-
     appendPosition(positionReport, render) {
         // TODO
-        // if (this.contestant.pilot !== "Helge" ) return
+        if (this.contestant.pilot !== "TorHelge" ) return
 
         // console.log("Added position for " + this.traccarDevice.name + " :")
         // console.log(positionReport)

@@ -29,6 +29,7 @@ Waypoint = namedtuple("Waypoint", "name latitude longitude start_point finish_po
 class Track(models.Model):
     name = models.CharField(max_length=200)
     waypoints = MyPickledObjectField(default=list)
+    starting_line = MyPickledObjectField(default=list)
 
     def __str__(self):
         return self.name
@@ -37,7 +38,8 @@ class Track(models.Model):
     def create(cls, name: str, waypoints: List[Dict]) -> "Track":
         waypoints = cls.add_gate_data(waypoints)
         waypoints = cls.legs(waypoints)
-        object = cls(name=name, waypoints=waypoints)
+        starting_line = cls.create_starting_line(waypoints)
+        object = cls(name=name, waypoints=waypoints, starting_line=starting_line)
         object.save()
         return object
 
@@ -64,12 +66,31 @@ class Track(models.Model):
         return waypoints
 
     @staticmethod
+    def create_starting_line(gates) -> Dict:
+        return {
+            "name": "Starting line",
+            "latitude": gates[0]["latitude"],
+            "longitude": gates[0]["longitude"],
+            "gate_line": create_perpendicular_line_at_end(gates[1]["longitude"],
+                                                          gates[1]["latitude"],
+                                                          gates[0]["longitude"],
+                                                          gates[0]["latitude"],
+                                                          40),
+        }
+
+    @staticmethod
     def legs(waypoints) -> Dict:
+        gates = [item for item in waypoints if item["type"] in ("tp", "secret")]
+        for index in range(1, len(gates)):
+            gates[index]["distance"] = -1
         tp_gates = [item for item in waypoints if item["type"] == "tp"]
         for index in range(1, len(tp_gates)):
             tp_gates[index]["bearing"] = calculate_bearing(
                 (tp_gates[index - 1]["latitude"], tp_gates[index - 1]["longitude"]),
                 (tp_gates[index]["latitude"], tp_gates[index]["longitude"]))
+            tp_gates[index]["distance"] = calculate_distance_lat_lon(
+                (tp_gates[index - 1]["latitude"], tp_gates[index - 1]["longitude"]),
+                (tp_gates[index]["latitude"], tp_gates[index]["longitude"])) * 1000  # Convert to metres
         for index in range(1, len(tp_gates) - 1):
             print(tp_gates[index])
             print(tp_gates[index]["name"])
@@ -77,15 +98,9 @@ class Track(models.Model):
                                                                      tp_gates[index + 1]["bearing"])
             print("is_procedure_turn: {}".format(tp_gates[index]["is_procedure_turn"]))
             tp_gates[index]["turn_direction"] = "ccw" if bearing_difference(tp_gates[index]["bearing"],
-                                                                                     tp_gates[index + 1][
-                                                                                         "bearing"]) > 0 else "cw"
+                                                                            tp_gates[index + 1][
+                                                                                "bearing"]) > 0 else "cw"
 
-        gates = [item for item in waypoints if item["type"] in ("tp", "secret")]
-        for index in range(1, len(gates)):
-            # distance as nm
-            gates[index]["distance"] = calculate_distance_lat_lon(
-                (gates[index - 1]["latitude"], gates[index - 1]["longitude"]),
-                (gates[index]["latitude"], gates[index]["longitude"])) / 1.852
         return waypoints
 
 

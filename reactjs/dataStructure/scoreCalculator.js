@@ -21,22 +21,25 @@ export class ScoreCalculator {
         this.trackingState = TrackingStates.beforeStart
         this.scoredByGate = {}
         this.scoreLog = []
-        this.previousTrackIndex = 0
+        this.currentProcedureTurnGate = null
+        this.currentProcedureTurnDirections = []
         this.lastGate = 0
+        this.lastBearing = null
+        this.legLog = [this.contestantTrack.gates[0].name]
         this.outstandingGates = Array.from(this.contestantTrack.gates)
 
     }
 
-    getTurningpointbeforeNow(index) {
+    getTurningPointBeforeNow(index) {
         const gatesCrossed = this.contestantTrack.gates.filter((gate) => {
-            return gate.isTurningPoint && (gate.missed || gate.passingTime !== -1 && gate.passingTime < this.contestantTrack.positions[index].deviceTime)
+            return gate.isTurningPoint && (gate.hasBeenPassed() && gate.passingTime < this.contestantTrack.positions[index].deviceTime)
         })
         return gatesCrossed.length ? gatesCrossed.slice(-1)[0] : null
     }
 
     getTurningPointAfterNow(index) {
         const gatesNotCrossed = this.contestantTrack.gates.filter((gate) => {
-            return gate.isTurningPoint && !(gate.missed || gate.passingTime !== -1 && gate.passingTime < this.contestantTrack.positions[index].deviceTime)
+            return gate.isTurningPoint && !(gate.hasBeenPassed() && gate.passingTime < this.contestantTrack.positions[index].deviceTime)
         }).filter((gate) => {
             return gate.isTurningPoint
         })
@@ -57,6 +60,16 @@ export class ScoreCalculator {
     }
 
     checkIntersections() {
+        // Check starting line
+        if (!this.contestantTrack.startingLine.hasBeenPassed()) {
+            let intersectionTime = this.getTimeOfIntersectLastPosition(this.contestantTrack.startingLine)
+            if (intersectionTime) {
+                console.log("Intersected gate " + this.contestantTrack.startingLine.name + " at time " + intersectionTime)
+                this.contestantTrack.startingLine.passingTime = intersectionTime
+                this.contestantTrack.startingLinePassingTimes.push(intersectionTime)
+            }
+        }
+
         let i = this.outstandingGates.length
         let crossedGate = false
         while (i--) {
@@ -83,7 +96,6 @@ export class ScoreCalculator {
 
 
     calculateGateScore() {
-        console.log("Updating gate score " + this.lastGate)
         let index = 0
         let finished = false
         this.contestantTrack.gates.slice(this.lastGate).forEach(gate => {
@@ -143,93 +155,167 @@ export class ScoreCalculator {
         const currentPosition = this.contestantTrack.positions.slice(-1)[0]
         let minimumDistance = 999999999999999
         let currentBestGate = null
+        let insideLegs = []
         const gates = this.contestantTrack.gates.filter((g) => {
             return g.isTurningPoint
         })
         for (let index = 1; index < gates.length; index++) {
             const previousGate = gates[index - 1]
             const nextGate = gates[index]
+            if (nextGate.hasBeenPassed()) continue // We are definitely done with this leg
             const crossTrack = crossTrackDistance(previousGate.latitude, previousGate.longitude, nextGate.latitude, nextGate.longitude, currentPosition.latitude, currentPosition.longitude)
             const absoluteCrossTrack = Math.abs(crossTrack)
             const distanceFromStart = alongTrackDistance(previousGate.latitude, previousGate.longitude, currentPosition.latitude, currentPosition.longitude, crossTrack)
             const distanceFromFinish = alongTrackDistance(nextGate.latitude, nextGate.longitude, currentPosition.latitude, currentPosition.longitude, -crossTrack)
-            const legDistance = getDistance(previousGate.latitude, previousGate.longitude, nextGate.latitude, nextGate.longitude)
-            console.log("Distance to " + nextGate.name + ": " + crossTrack + ", fromStart: " + distanceFromStart + ", fromFinish: " + distanceFromFinish + ", legDistance: " + legDistance)
-            if (distanceFromFinish + distanceFromStart <= legDistance + 500) {
-                console.log("Inside")
+            // console.log("Distance to " + nextGate.name + ": " + crossTrack + ", fromStart: " + distanceFromStart + ", fromFinish: " + distanceFromFinish + ", legDistance: " + nextGate.distance)
+            if (distanceFromFinish + distanceFromStart <= nextGate.distance * 1.05) {
+                insideLegs.push({gate: nextGate, absoluteCrossTrack: absoluteCrossTrack})
+                // console.log("Inside")
                 // We are inside the leg
-                if (absoluteCrossTrack < minimumDistance) {
-                    minimumDistance = absoluteCrossTrack
-                    currentBestGate = nextGate
-                }
+                // if (absoluteCrossTrack < minimumDistance) {
+                //     minimumDistance = absoluteCrossTrack
+                //     currentBestGate = nextGate
+                // }
             }
         }
-        return currentBestGate
+        return insideLegs.sort((a, b) => {
+            if (a.absoluteCrossTrack > b.absoluteCrossTrack) return 1;
+            if (a.absoluteCrossTrack < b.absoluteCrossTrack) return -1;
+            return 0
+        })
+    }
+
+    sortOutBestLeg(bestGuesses, bearing) {
+        const insideLegDistance = 500
+
+        let currentLeg = null
+        let minimumDistance = null
+        for (const guess of bestGuesses) {
+            if (guess.absoluteCrossTrack < insideLegDistance && Math.abs(getHeadingDifference(bearing, guess.gate.bearing) < 60)) {
+                currentLeg = guess.gate
+                console.log("Choosing best leg because inside leg distance")
+                break
+            }
+            if (!minimumDistance || guess.absoluteCrossTrack < minimumDistance) {
+                minimumDistance = guess.absoluteCrossTrack
+                currentLeg = guess.gate
+            }
+        }
+        if (currentLeg)
+            console.log("Choosing best leg " + currentLeg.name)
+        return currentLeg
+    }
+
+    calculateCurrentLeg() {
+        const gateRange = 2000
+        const currentPositionIndex = this.contestantTrack.positions.length - 1
+        if (currentPositionIndex === 0) return null
+        const currentPosition = this.contestantTrack.positions[currentPositionIndex]
+        const previousPosition = this.contestantTrack.positions[currentPositionIndex - 1]
+        const nextGate = this.getTurningPointAfterNow(currentPositionIndex)
+        let distanceToNextGate = 9999999999999999
+        if (nextGate)
+            distanceToNextGate = getDistance(currentPosition.latitude, currentPosition.longitude, nextGate.latitude, nextGate.longitude)
+        const lastGate = this.getTurningPointBeforeNow(currentPositionIndex)
+        let distanceToLastGate = 9999999999999
+        if (lastGate)
+            distanceToLastGate = getDistance(lastGate.latitude, lastGate.longitude, currentPosition.latitude, currentPosition.longitude)
+        const bearing = getBearing(previousPosition.latitude, previousPosition.longitude, currentPosition.latitude, currentPosition.longitude)
+        const bestGuesses = this.guessCurrentLeg()
+        console.log(bestGuesses)
+
+        if (nextGate)
+            console.log("Next gate " + nextGate.name + " distance " + distanceToNextGate)
+        if (lastGate)
+            console.log("Last gate " + lastGate.name + " distance " + distanceToLastGate)
+        const bestGuess = this.sortOutBestLeg(bestGuesses, bearing, distanceToNextGate)
+        let currentLeg;
+        if (bestGuess === nextGate) {
+            currentLeg = nextGate
+        } else {
+            if (distanceToNextGate < gateRange) {
+                currentLeg = nextGate
+            } else if (distanceToLastGate < gateRange) {
+                currentLeg = nextGate
+            } else {
+                currentLeg = bestGuess
+            }
+        }
+        this.legLog.push(currentLeg)
+        return currentLeg
+    }
+
+    anyGatePassed() {
+        return this.contestantTrack.gates.filter((gate) => {
+            gate.hasBeenPassed()
+        }).length > 0
     }
 
     calculateTrackScore() {
+        if (!this.contestantTrack.startingLine.hasBeenPassed() && !this.anyGatePassed()) {
+            return
+        }
         const lookBack = 2
-        let startIndex = Math.max(this.previousTrackIndex - lookBack, 0)
-        let finishIndex = startIndex + lookBack
-        let lastBearing = null
-        console.log(startIndex + ":" + finishIndex + "<" + this.contestantTrack.positions.length)
-        while (finishIndex < this.contestantTrack.positions.length) {
-            const firstPosition = this.contestantTrack.positions[startIndex]
-            const lastPosition = this.contestantTrack.positions[finishIndex]
-            const lastGateFirst = this.getTurningpointbeforeNow(startIndex)
-            const lastGateLast = this.getTurningpointbeforeNow(finishIndex)
-            const nextGateLast = this.getTurningPointAfterNow(finishIndex)
-            const nextGateFirst = this.getTurningPointAfterNow(startIndex)
-            if (!nextGateFirst && nextGateLast)
+        const finishIndex = this.contestantTrack.positions.length - 1
+        let startIndex = Math.max(finishIndex - lookBack, 0)
+        const currentLeg = this.calculateCurrentLeg()
+        this.contestantTrack.contestant.updateCurrentLeg(currentLeg)
+        const firstPosition = this.contestantTrack.positions[startIndex]
+        const lastPosition = this.contestantTrack.positions[finishIndex]
+        const lastGateFirst = this.getTurningPointBeforeNow(startIndex)
+        const lastGateLast = this.getTurningPointBeforeNow(finishIndex)
+        const nextGateLast = this.getTurningPointAfterNow(finishIndex)
+        const nextGateFirst = this.getTurningPointAfterNow(startIndex)
+        if (!nextGateFirst && nextGateLast)
+            // Just before the starting gate
+            this.updateTrackingState(TrackingStates.tracking)
+        if (!nextGateLast) {
+            // We have passed the finish gate
+            this.updateTrackingState(TrackingStates.finished)
+            return
+        }
+        // const nextGateFirst = this.getTurningPointAfterNow(startIndex)
+        const bearing = getBearing(firstPosition.latitude, firstPosition.longitude, lastPosition.latitude, lastPosition.longitude)
+        let bearingDifference
+        if (currentLeg)
+            bearingDifference = Math.abs(getHeadingDifference(bearing, currentLeg.bearing))
+        else
+            bearingDifference = Math.abs(getHeadingDifference(bearing, nextGateLast.bearing))
+        if (lastGateLast && lastGateLast.isProcedureTurn && !lastGateFirst.isProcedureTurn && this.trackingState !== TrackingStates.failedProcedureTurn) {
+            // We have just passed a gate with a procedure turn
+            this.updateTrackingState(TrackingStates.procedureTurn)
+            this.currentProcedureTurnGate = lastGateLast
+        }
+        if (this.trackingState === TrackingStates.procedureTurn) {
+            if (this.lastBearing) {
+                const turnDirection = getHeadingDifference(this.lastBearing, bearing) > 0 ? "cw" : "ccw"
+                this.currentProcedureTurnDirections.push(turnDirection)
+            }
+            if (bearingDifference < 50) {
                 this.updateTrackingState(TrackingStates.tracking)
-            if (!nextGateLast) {
-                // We have passed the finish point
-                this.updateTrackingState(TrackingStates.finished)
-                return
+                if (!this.currentProcedureTurnDirections.includes(this.currentProcedureTurnGate.turnDirection)) {
+                    this.updateTrackingState(TrackingStates.failedProcedureTurn)
+                    this.updateScore(nextGateLast, 200, "Incorrect procedure turn at " + this.currentProcedureTurnGate.name)
+                }
             }
-            if (!lastGateLast) {
-                // We have not passed the starting point, so no scoring
-                startIndex += 1
-                finishIndex += 1
-                continue
+        } else {
+            if (bearingDifference > 90) {
+                if (this.trackingState === TrackingStates.tracking) {
+                    this.updateTrackingState(TrackingStates.backtracking)
+                    this.updateScore(nextGateLast, 200, "Backtracking more than 90° from the track at " + lastPosition.deviceTime)
+                }
             }
-            // const nextGateFirst = this.getTurningPointAfterNow(startIndex)
-            if (lastGateLast.isProcedureTurn && !lastGateFirst.isProcedureTurn) {
-                this.updateTrackingState(TrackingStates.procedureTurn)
-            }
-            const bearing = getBearing(firstPosition.latitude, firstPosition.longitude, lastPosition.latitude, lastPosition.longitude)
-            const bearingDifference = Math.abs(getHeadingDifference(bearing, nextGateLast.bearing))
             if (bearingDifference < 90) {
                 this.updateTrackingState(TrackingStates.tracking)
             }
-            if (this.trackingState === TrackingStates.procedureTurn) {
-                if (!lastBearing) lastBearing = bearing
-                else {
-                    const turnDirection = getHeadingDifference(lastBearing, bearing) > 0 ? "cw" : "ccw"
-                    if (lastGateLast.turnDirection !== turnDirection) {
-                        this.updateTrackingState(TrackingStates.failedProcedureTurn)
-                        this.updateScore(nextGateLast, 200, "Incorrect procedure turn at " + lastPosition.deviceTime)
-                    }
-
-                }
-
-            } else {
-                if (bearingDifference > 90) {
-                    if (this.trackingState === TrackingStates.tracking) {
-                        this.updateTrackingState(TrackingStates.backtracking)
-                        this.updateScore(nextGateLast, 200, "Backtracking more than 90° from the track at " + lastPosition.deviceTime)
-                    }
-                }
-            }
-            startIndex += 1
-            finishIndex += 1
         }
-        this.previousTrackIndex = finishIndex
+
+        this.lastBearing = bearing
+
     }
 
 
     updateFinalScore() {
-        this.contestantTrack.contestant.updateCurrentLeg(this.guessCurrentLeg())
         this.checkIntersections()
         this.calculateGateScore()
         this.calculateTrackScore()

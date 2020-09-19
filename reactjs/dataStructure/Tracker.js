@@ -63,7 +63,7 @@ export class Tracker extends React.Component {
             }, 1000)
         } else {
             console.log("Historic mode, rendering historic tracks")
-            this.historicTimeStep = 1
+            this.historicTimeStep = 2
             const interval = 1000
             this.currentHistoricTime = new Date(this.startTime.getTime() + this.historicTimeStep * interval)
             setInterval(() => {

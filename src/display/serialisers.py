@@ -5,6 +5,7 @@ from display.models import Contest, Aeroplane, Team, Track, Contestant
 
 class TrackSerialiser(serializers.ModelSerializer):
     waypoints = serializers.JSONField()
+    starting_line = serializers.JSONField()
 
     class Meta:
         model = Track

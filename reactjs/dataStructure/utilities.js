@@ -43,5 +43,5 @@ export function crossTrackDistance(lat1, lon1, lat2, lon2, lat, lon) {
 
 export function alongTrackDistance(lat1, lon1, lat, lon, crossTrackDistance) {
     const angularDistance13 = getDistance(lat1, lon1, lat, lon) / R
-    return Math.acos(Math.cos(angularDistance13) * Math.cos(crossTrackDistance / R)) * R
+    return Math.acos(Math.cos(angularDistance13) / Math.cos(crossTrackDistance / R)) * R
 }
