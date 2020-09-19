@@ -22,6 +22,10 @@ export class Contestant {
         this.scoreByGate = {}
     }
 
+    displayString() {
+        return this.pilot
+    }
+
     updateScore(score) {
         this.score = score
         this.updateScoreCallback(this)
@@ -43,9 +47,6 @@ export class Contestant {
         this.updateScoreCallback(this)
     }
 
-    updateScoredByGate(gate, score) {
-        this.scoreByGate[gate] = score
-    }
 }
 
 export class ContestantList {

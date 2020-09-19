@@ -5,6 +5,12 @@ import {TraccarDeviceTracks} from "./ContestantTrack";
 import axios from "axios";
 import {circle, marker, polyline} from "leaflet"
 
+const DisplayTypes = {
+    scoreboard: 0,
+    trackDetails: 1,
+    turningpointstanding: 2
+}
+
 export class Tracker extends React.Component {
     constructor(props) {
         super(props)
@@ -14,7 +20,13 @@ export class Tracker extends React.Component {
         this.liveMode = props.liveMode
         console.log(this.startTime)
         this.map = props.map;
-        this.state = {score: {}, currentTime: new Date().toLocaleString()}
+        this.state = {score: {}, currentTime: new Date().toLocaleString(), currentDisplay: DisplayTypes.scoreboard}
+        this.turningPointsDisplay = this.contest.track.waypoints.map((waypoint) => {
+            return <a href={"#"} onClick={() => {
+                this.setState({currentDisplay: DisplayTypes.turningpointstanding, turningPoint: waypoint.name})
+            }}>{waypoint.name}, </a>
+        })
+
         this.initiateSession()
         this.renderTrack();
     }
@@ -63,7 +75,7 @@ export class Tracker extends React.Component {
             }, 1000)
         } else {
             console.log("Historic mode, rendering historic tracks")
-            this.historicTimeStep = 2
+            this.historicTimeStep = 5
             const interval = 1000
             this.currentHistoricTime = new Date(this.startTime.getTime() + this.historicTimeStep * interval)
             setInterval(() => {
@@ -124,44 +136,80 @@ export class Tracker extends React.Component {
         return 0
     }
 
+
     render() {
-        let contestants = []
-        for (const key in this.state.score) {
-            if (this.state.score.hasOwnProperty(key)) {
-                contestants.push(this.state.score[key])
+        let detailsDisplay
+        if (this.state.currentDisplay === DisplayTypes.scoreboard) {
+            let contestants = []
+            for (const key in this.state.score) {
+                if (this.state.score.hasOwnProperty(key)) {
+                    contestants.push(this.state.score[key])
+                }
             }
+            contestants.sort(this.compareScore)
+            let position = 1
+            const listItems = contestants.map((d) => <tr
+                key="leaderboard{d.contestantNumber}">
+                <td>{position++}</td>
+                <td><a href={"#"}
+                       onClick={() => this.setState({
+                           currentDisplay: DisplayTypes.trackDetails,
+                           displayTrack: this.traccarDeviceTracks.getTrackForContestant(d)
+                       })}>{d.contestantNumber}</a></td>
+                <td>{d.displayString()}</td>
+                <td>{d.score}</td>
+                <td>{d.trackState}</td>
+                <td>{d.latestStatus}</td>
+                <td>{d.currentLeg}</td>
+            </tr>);
+            detailsDisplay = <table border={1}>
+                <thead>
+                <tr>
+                    <td>Rank</td>
+                    <td>#</td>
+                    <td>Pilot</td>
+                    <td>Score</td>
+                    <td>Tracking state</td>
+                    <td>Latest event</td>
+                    <td>Current leg</td>
+                </tr>
+                </thead>
+                <tbody>{listItems}</tbody>
+            </table>
+        } else if (this.state.currentDisplay === DisplayTypes.trackDetails) {
+            const events = this.state.displayTrack.scoreCalculator.scoreLog.map((line, index) => {
+                return <li key="{this.state.displayTrack.contestant.contestantNumber}event{index}">{line}</li>
+            })
+            detailsDisplay = <div><h2>{this.state.displayTrack.contestant.displayString()}</h2>
+                <ol>
+                    {events}
+                </ol>
+            </div>
+        } else if (this.state.currentDisplay === DisplayTypes.turningpointstanding) {
+            let position = 0
+            const scores = this.traccarDeviceTracks.tracks.filter((c) => {
+                return !Number.isNaN(c.scoreCalculator.getScoreByGate(this.state.turningPoint))
+            }).sort((a, b) => {
+                if (a.scoreCalculator.getScoreByGate(this.state.turningPoint) > b.scoreCalculator.getScoreByGate(this.state.turningPoint)) return 1;
+                if (a.scoreCalculator.getScoreByGate(this.state.turningPoint) < b.scoreCalculator.getScoreByGate(this.state.turningPoint)) return -1;
+                return 0
+            }).map((c) => {
+                return <li
+                    key="{this.state.turningpoint.name}{c.contestant.contestantNumber}">{position++}: {c.contestant.contestantNumber} {c.contestant.displayString()} with {c.scoreCalculator.getScoreByGate(this.state.turningPoint)} points</li>
+            })
+            detailsDisplay = <div><h2>{this.state.turningPoint}</h2>
+                <ol>{scores}</ol>
+            </div>
         }
-        contestants.sort(this.compareScore)
-        let position = 1
-        const listItems = contestants.map((d) => <tr
-            key={d.contestantNumber}>
-            <td>{position++}</td>
-            <td>{d.contestantNumber}</td>
-            <td>{d.pilot}</td>
-            <td>{d.score}</td>
-            <td>{d.trackState}</td>
-            <td>{d.latestStatus}</td>
-            <td>{d.currentLeg}</td>
-        </tr>);
         return (
             <div>
                 <h1>{this.liveMode ? "Live" : "Historic"} contest tracking</h1>
-                <h2>{this.contest.name}</h2>
+                <h2><a href={"#"}
+                       onClick={() => this.setState({currentDisplay: DisplayTypes.scoreboard})}>{this.contest.name}</a>
+                </h2>
                 <h2>{this.state.currentTime}</h2>
-                <table border={1}>
-                    <thead>
-                    <tr>
-                        <td>Rank</td>
-                        <td>#</td>
-                        <td>Pilot</td>
-                        <td>Score</td>
-                        <td>Tracking state</td>
-                        <td>Latest event</td>
-                        <td>Current leg</td>
-                    </tr>
-                    </thead>
-                    <tbody>{listItems}</tbody>
-                </table>
+                {this.turningPointsDisplay}
+                {detailsDisplay}
             </div>
         );
     }

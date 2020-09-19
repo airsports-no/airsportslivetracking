@@ -83,6 +83,9 @@ class Track(models.Model):
         gates = [item for item in waypoints if item["type"] in ("tp", "secret")]
         for index in range(1, len(gates)):
             gates[index]["distance"] = -1
+            gates[index]["gate_distance"] = calculate_distance_lat_lon(
+                (gates[index - 1]["latitude"], gates[index - 1]["longitude"]),
+                (gates[index]["latitude"], gates[index]["longitude"])) * 1000  # Convert to metres
         tp_gates = [item for item in waypoints if item["type"] == "tp"]
         for index in range(1, len(tp_gates)):
             tp_gates[index]["bearing"] = calculate_bearing(
@@ -177,7 +180,7 @@ class Contestant(models.Model):
         crossing_times[gates[0]["name"]] = crossing_time
         for gate in gates[1:]:
             print(gate)
-            crossing_time += datetime.timedelta(hours=gate["distance"] / self.ground_speed)
+            crossing_time += datetime.timedelta(hours=(gate["gate_distance"] / 1852) / self.ground_speed)
             if gate.get("is_procedure_turn", False):
                 crossing_time += datetime.timedelta(minutes=1)
             crossing_times[gate["name"]] = crossing_time

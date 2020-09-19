@@ -1,6 +1,18 @@
 import {alongTrackDistance, crossTrackDistance, getBearing, getDistance, getHeadingDifference} from "./utilities"
 import {fractionOfLeg, intersect} from "./lineUtilities";
 
+const Scorecard = {
+    missedGate: 100,
+    gateTimingPerSecond: 3,
+    gatePerfectLimitSeconds: 2,
+    maximumGateScore: 100,
+    backtracking: 200,
+    missedProcedureTurn: 200,
+    belowMinimumAltitude: 500,
+    takeoffTimeLimitSeconds: 60,
+    missedTakeoffGate: 100
+}
+
 const TrackingStates = {
     tracking: 0,
     backtracking: 1,
@@ -15,20 +27,47 @@ const TrackingStateText = ["Tracking", "Backtracking", "Procedure turn", "Failed
 
 export class ScoreCalculator {
     constructor(contestantTrack) {
+        this.scorecard = Scorecard
         this.contestantTrack = contestantTrack
-        this.gateScore = 0
-        this.trackScore = 0
+        this.score = 0
         this.trackingState = TrackingStates.beforeStart
-        this.scoredByGate = {}
+        this.scoreByGate = {}
         this.scoreLog = []
         this.currentProcedureTurnGate = null
         this.currentProcedureTurnDirections = []
         this.lastGate = 0
         this.lastBearing = null
+        this.currentSpeedEstimate = 0
         this.legLog = [this.contestantTrack.gates[0].name]
         this.outstandingGates = Array.from(this.contestantTrack.gates)
 
     }
+
+    updateScore(gate, score, message) {
+        console.log(message)
+        this.scoreLog.push(message)
+        this.contestantTrack.contestant.updateLatestStatus(message)
+        // Must be done before global score update, otherwise it will be counted twice.
+        this.updateScoreByGate(gate.name, score)
+        // Must be done after score by gate
+        this.score += score
+    }
+
+    updateScoreByGate(gate, score) {
+        try {
+            this.scoreByGate[gate] += score
+        } catch (e) {
+            this.scoreByGate[gate] = this.score+score
+        }
+    }
+
+    getScoreByGate(gateName) {
+        if (this.scoreByGate.hasOwnProperty(gateName)) {
+            return this.scoreByGate[gateName]
+        }
+        return NaN
+    }
+
 
     getTurningPointBeforeNow(index) {
         const gatesCrossed = this.contestantTrack.gates.filter((gate) => {
@@ -57,6 +96,17 @@ export class ScoreCalculator {
             }
         }
         return false
+    }
+
+    missOutstandingGates() {
+        let i = this.outstandingGates.length
+        while (i--) {
+            let gate = this.outstandingGates[i]
+            gate.missed = true
+            console.log("Missed gate " + this.outstandingGates[i].name)
+            this.outstandingGates.splice(i, 1);
+        }
+
     }
 
     checkIntersections() {
@@ -100,36 +150,30 @@ export class ScoreCalculator {
         let finished = false
         this.contestantTrack.gates.slice(this.lastGate).forEach(gate => {
             if (finished) return
-            this.scoredByGate[gate.name] = 0;
-            let gateScore = 0
+            this.scoreByGate[gate.name] = 0;
             let s = ""
             if (gate.missed) {
                 index += 1
-                console.log("100 points for missing gate " + gate.name)
-                this.scoreLog.push("100 points for missing gate " + gate.name)
-                gateScore = 100
-                s = "Missed gate " + gate.name
+                const s = this.scorecard.missedGate + " points for missing gate " + gate.name
+                this.updateScore(gate, this.scorecard.missedGate, s)
+                if (gate.isProcedureTurn) {
+                    this.updateScore(gate, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " for missing procedure turn at " + gate.name)
+                }
             } else if (gate.passingTime !== -1) {
                 index += 1
                 const difference = (gate.passingTime - gate.expectedTime) / 1000;
                 const absoluteDifference = Math.abs(difference)
-                if (absoluteDifference > 2) {
-                    gateScore = Math.min(100, Math.floor(absoluteDifference) * 2)
-                    s = Math.min(100, Math.floor(absoluteDifference) * 2) + " points for passing gate " + gate.name + " off by " + Math.round(difference)
-                    console.log(s)
-                    this.scoreLog.push(s)
+                if (absoluteDifference > this.scorecard.gatePerfectLimitSeconds) {
+                    const gateScore = Math.min(this.scorecard.maximumGateScore, (Math.floor(absoluteDifference) - this.scorecard.gateTimingPerSecond) * this.scorecard.gateTimingPerSecond)
+                    this.updateScore(gate, gateScore, gateScore + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s")
                 } else {
-                    s = "0 points for passing gate " + gate.name + " off by " + Math.round(difference)
-                    console.log(s)
-                    this.scoreLog.push(s)
+                    this.updateScore(gate, 0, 0 + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s")
                 }
             } else {
                 finished = true
             }
             if (!finished) {
-                this.contestantTrack.contestant.updateLatestStatus(s)
-                this.gateScore += gateScore
-                this.scoredByGate[gate.name] += this.gateScore;
+                this.contestantTrack.contestant.updateLatestStatus(this.scoreLog.slice(-1)[0])
             }
         });
         this.lastGate += index
@@ -143,18 +187,9 @@ export class ScoreCalculator {
         }
     }
 
-    updateScore(gate, score, message) {
-        console.log(message)
-        this.scoreLog.push(message)
-        this.contestantTrack.contestant.updateLatestStatus(message)
-        this.scoredByGate[gate.name] += score
-        this.trackScore += score
-    }
 
     guessCurrentLeg() {
         const currentPosition = this.contestantTrack.positions.slice(-1)[0]
-        let minimumDistance = 999999999999999
-        let currentBestGate = null
         let insideLegs = []
         const gates = this.contestantTrack.gates.filter((g) => {
             return g.isTurningPoint
@@ -170,12 +205,6 @@ export class ScoreCalculator {
             // console.log("Distance to " + nextGate.name + ": " + crossTrack + ", fromStart: " + distanceFromStart + ", fromFinish: " + distanceFromFinish + ", legDistance: " + nextGate.distance)
             if (distanceFromFinish + distanceFromStart <= nextGate.distance * 1.05) {
                 insideLegs.push({gate: nextGate, absoluteCrossTrack: absoluteCrossTrack})
-                // console.log("Inside")
-                // We are inside the leg
-                // if (absoluteCrossTrack < minimumDistance) {
-                //     minimumDistance = absoluteCrossTrack
-                //     currentBestGate = nextGate
-                // }
             }
         }
         return insideLegs.sort((a, b) => {
@@ -222,12 +251,12 @@ export class ScoreCalculator {
             distanceToLastGate = getDistance(lastGate.latitude, lastGate.longitude, currentPosition.latitude, currentPosition.longitude)
         const bearing = getBearing(previousPosition.latitude, previousPosition.longitude, currentPosition.latitude, currentPosition.longitude)
         const bestGuesses = this.guessCurrentLeg()
-        console.log(bestGuesses)
-
-        if (nextGate)
-            console.log("Next gate " + nextGate.name + " distance " + distanceToNextGate)
-        if (lastGate)
-            console.log("Last gate " + lastGate.name + " distance " + distanceToLastGate)
+        // console.log(bestGuesses)
+        //
+        // if (nextGate)
+        //     console.log("Next gate " + nextGate.name + " distance " + distanceToNextGate)
+        // if (lastGate)
+        //     console.log("Last gate " + lastGate.name + " distance " + distanceToLastGate)
         const bestGuess = this.sortOutBestLeg(bestGuesses, bearing, distanceToNextGate)
         let currentLeg;
         if (bestGuess === nextGate) {
@@ -236,7 +265,7 @@ export class ScoreCalculator {
             if (distanceToNextGate < gateRange) {
                 currentLeg = nextGate
             } else if (distanceToLastGate < gateRange) {
-                currentLeg = nextGate
+                currentLeg = nextGate  // We only care about the next leg after we have passed one
             } else {
                 currentLeg = bestGuess
             }
@@ -247,21 +276,37 @@ export class ScoreCalculator {
 
     anyGatePassed() {
         return this.contestantTrack.gates.filter((gate) => {
-            gate.hasBeenPassed()
+            return gate.hasBeenPassed()
         }).length > 0
     }
 
+    allGatesPassed() {
+        return this.contestantTrack.gates.filter((gate) => {
+            return !gate.hasBeenPassed()
+        }).length === 0
+    }
+
     calculateTrackScore() {
+        if (this.trackingState === TrackingStates.finished) return
         if (!this.contestantTrack.startingLine.hasBeenPassed() && !this.anyGatePassed()) {
             return
         }
-        const lookBack = 2
         const finishIndex = this.contestantTrack.positions.length - 1
+        const lastPosition = this.contestantTrack.positions[finishIndex]
+        const speed = this.getSpeed()
+        if ((speed === 0 || lastPosition.deviceTime > this.contestantTrack.contestant.finishedByTime) && !this.allGatesPassed()) {
+            // Contestant has finished
+            console.log("Speed is zero or end time has been passed, assume contestant has finished")
+            this.missOutstandingGates()
+            this.updateTrackingState(TrackingStates.finished)
+            return
+        }
+
+        const lookBack = 2
         let startIndex = Math.max(finishIndex - lookBack, 0)
         const currentLeg = this.calculateCurrentLeg()
         this.contestantTrack.contestant.updateCurrentLeg(currentLeg)
         const firstPosition = this.contestantTrack.positions[startIndex]
-        const lastPosition = this.contestantTrack.positions[finishIndex]
         const lastGateFirst = this.getTurningPointBeforeNow(startIndex)
         const lastGateLast = this.getTurningPointBeforeNow(finishIndex)
         const nextGateLast = this.getTurningPointAfterNow(finishIndex)
@@ -295,14 +340,14 @@ export class ScoreCalculator {
                 this.updateTrackingState(TrackingStates.tracking)
                 if (!this.currentProcedureTurnDirections.includes(this.currentProcedureTurnGate.turnDirection)) {
                     this.updateTrackingState(TrackingStates.failedProcedureTurn)
-                    this.updateScore(nextGateLast, 200, "Incorrect procedure turn at " + this.currentProcedureTurnGate.name)
+                    this.updateScore(nextGateLast, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " points for Incorrect procedure turn at " + this.currentProcedureTurnGate.name)
                 }
             }
         } else {
             if (bearingDifference > 90) {
                 if (this.trackingState === TrackingStates.tracking) {
                     this.updateTrackingState(TrackingStates.backtracking)
-                    this.updateScore(nextGateLast, 200, "Backtracking more than 90° from the track at " + lastPosition.deviceTime)
+                    this.updateScore(nextGateLast, this.scorecard.backtracking , this.scorecard.backtracking + " points for backtracking at " + currentLeg.name)
                 }
             }
             if (bearingDifference < 90) {
@@ -314,6 +359,15 @@ export class ScoreCalculator {
 
     }
 
+    getSpeed() {
+        const currentPositionIndex = this.contestantTrack.positions.length - 1
+        if (currentPositionIndex === 0) return 0
+        const currentPosition = this.contestantTrack.positions[currentPositionIndex]
+        const previousPosition = this.contestantTrack.positions[currentPositionIndex - 1]
+
+        this.currentSpeedEstimate = (getDistance(previousPosition.latitude, previousPosition.longitude, currentPosition.latitude, currentPosition.longitude) / 1852) / ((currentPosition.deviceTime - previousPosition.deviceTime) * 1000)
+        return this.currentSpeedEstimate
+    }
 
     updateFinalScore() {
         this.checkIntersections()
@@ -323,7 +377,7 @@ export class ScoreCalculator {
     }
 
     getScore() {
-        return this.gateScore + this.trackScore
+        return this.score
     }
 
 }

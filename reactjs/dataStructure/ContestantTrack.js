@@ -67,14 +67,6 @@ export class ContestantTrack {
             const gate = this.track.waypoints[index]
             this.gates.push(new Gate(gate, new Date(this.contestant.gate_times[gate.name])))
         }
-        // Correct bad calculation from server
-        // for (let index = 1;index<this.gates.length;index++) {
-        //     const previousGate = this.gates[index-1]
-        //     const nextGate = this.gates[index]
-        //     console.log("Overriding distance " + getDistance(previousGate.latitude, previousGate.longitude, nextGate.latitude, nextGate.longitude))
-        //     nextGate.distance = getDistance(previousGate.latitude, previousGate.longitude, nextGate.latitude, nextGate.longitude)
-        //     console.log(nextGate.distance)
-        // }
         this.startingLine = new Gate(this.track.starting_line, new Date(this.contestant.gate_times[this.track.waypoints[0].name]))
         this.startingLinePassingTimes = [];
         this.contestant.updateScore(0)
@@ -104,16 +96,12 @@ export class ContestantTrack {
 
     appendPosition(positionReport, render) {
         // TODO
-        if (this.contestant.pilot !== "TorHelge" ) return
+        // if (this.contestant.pilot !== "Steinar") return
 
-        // console.log("Added position for " + this.traccarDevice.name + " :")
-        // console.log(positionReport)
         let a = new PositionReport(positionReport.latitude, positionReport.longitude, positionReport.altitude, positionReport.attributes.batteryLevel, new Date(positionReport.deviceTime), new Date(positionReport.serverTime), positionReport.speed, positionReport.course);
         if (!(this.contestant.takeOffTime < a.deviceTime < this.contestant.finishedByTime)) {
-            // console.log("Ignoring old message for " + this.traccarDevice.name)
             return
         }
-        // console.log(a)
         this.positions.push(a);
         if (render) {
             this.renderPositions(this.positions.slice(-Math.min(2, this.positions.length)));
@@ -190,6 +178,10 @@ export class TraccarDeviceTracks {
             const track = new ContestantTrack(this.getTrackerForContestant(contestant), this.map, contestant, this.track, this.startTime, this.finishTime);
             this.tracks.push(track);
         })
+    }
+
+    getTrackForContestant(contestant) {
+        return this.tracks.find((track) => track.contestant.id === contestant.id)
     }
 
     getTrackForTraccarDevice(traccarDevice, atTime) {
