@@ -74,3 +74,14 @@ html, body, #cesiumContainer {
     text-align: center;
     line-height: 20px;
 }
+
+.myAnnotationIcon {
+    text-align: center;
+    line-height: 20px;
+}
+
+.myGateIcon {
+    text-align: center;
+    line-height: 20px;
+    font-size: large;
+}

@@ -3,7 +3,7 @@ import React from "react";
 import {TraccarDevice, TraccarDeviceList} from "./TraccarDevices";
 import {TraccarDeviceTracks} from "./ContestantTrack";
 import axios from "axios";
-import {circle, marker, polyline} from "leaflet"
+import {circle, divIcon, marker, polyline} from "leaflet"
 
 const DisplayTypes = {
     scoreboard: 0,
@@ -103,9 +103,14 @@ export class Tracker extends React.Component {
             return [waypoint.latitude, waypoint.longitude]
         });
         this.contest.track.waypoints.map((waypoint) => {
-            circle([waypoint.latitude, waypoint.longitude], {
-                color: "blue"
-            }).bindTooltip(waypoint.name, {permanent: true}).addTo(this.map)
+            marker([waypoint.latitude, waypoint.longitude], {
+                color: "blue",
+                icon: divIcon({
+                    html: '<i class="fas"><br/>' + waypoint.name + '</i>',
+                    iconSize: [20, 20],
+                    className: "myGateIcon"
+                })
+            }).bindTooltip(waypoint.name, {permanent: false}).addTo(this.map)
         });
         this.contest.track.waypoints.filter((waypoint) => {
             return waypoint.is_procedure_turn

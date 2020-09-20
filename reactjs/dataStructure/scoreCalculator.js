@@ -235,7 +235,7 @@ export class ScoreCalculator {
     }
 
     calculateCurrentLeg() {
-        const gateRange = 2000
+        const gateRange = 4000
         const currentPositionIndex = this.contestantTrack.positions.length - 1
         if (currentPositionIndex === 0) return null
         const currentPosition = this.contestantTrack.positions[currentPositionIndex]

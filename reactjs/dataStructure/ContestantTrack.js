@@ -76,9 +76,19 @@ export class ContestantTrack {
         this.dot = null;
         this.annotationLayer = layerGroup()
         this.airplaneIcon = divIcon({
-            html: '<i class="fa fa-plane" style="color: {this.contestant.colour}"><br/>' + this.contestant.displayString() + '</i>',
-            iconSize: [20, 20],
+            html: '<i class="fa fa-plane" style="color: ' + this.contestant.colour + '"><br/>' + this.contestant.displayString() + '</i>',
+            iconSize: [30, 30],
             className: "myAirplaneIcon"
+        })
+        this.anomalyAnnotationIcon = divIcon({
+            html: '<i class="fas fa-exclamation-triangle" style="color: black"></i>',
+            iconSize: [40, 40],
+            className: "myAnnotationIcon"
+        })
+        this.informationAnnotationIcon = divIcon({
+            html: '<i class="fas fa-info-circle" style="color: black"></i>',
+            iconSize: [40, 40],
+            className: "myAnnotationIcon"
         })
     }
 
@@ -92,8 +102,9 @@ export class ContestantTrack {
         this.showTrack()
     }
 
-    addAnnotation(latitude, longitude, message) {
-        this.annotationLayer.addLayer(marker([latitude, longitude]).bindTooltip(message, {
+    addAnnotation(latitude, longitude, message, icon) {
+        if (icon == undefined) icon = this.informationAnnotationIcon
+        this.annotationLayer.addLayer(marker([latitude, longitude], {icon: icon}).bindTooltip(message, {
             permanent: false
         }))
     }
