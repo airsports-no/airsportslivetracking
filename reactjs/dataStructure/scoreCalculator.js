@@ -43,22 +43,22 @@ export class ScoreCalculator {
 
     }
 
-    updateScore(gate, score, message) {
+    updateScore(gate, score, message, latitude, longitude) {
         console.log(message)
         this.scoreLog.push(message)
         this.contestantTrack.contestant.updateLatestStatus(message)
+        this.contestantTrack.addAnnotation(latitude, longitude, message)
         // Must be done before global score update, otherwise it will be counted twice.
         this.updateScoreByGate(gate.name, score)
         // Must be done after score by gate
         this.score += score
     }
 
-    updateScoreByGate(gate, score) {
-        try {
-            this.scoreByGate[gate] += score
-        } catch (e) {
-            this.scoreByGate[gate] = this.score+score
-        }
+    updateScoreByGate(gateName, score) {
+        if (!this.scoreByGate.hasOwnProperty(gateName))
+            this.scoreByGate[gateName] = this.score + score
+        else
+            this.scoreByGate[gateName] += score
     }
 
     getScoreByGate(gateName) {
@@ -150,14 +150,13 @@ export class ScoreCalculator {
         let finished = false
         this.contestantTrack.gates.slice(this.lastGate).forEach(gate => {
             if (finished) return
-            this.scoreByGate[gate.name] = 0;
             let s = ""
             if (gate.missed) {
                 index += 1
                 const s = this.scorecard.missedGate + " points for missing gate " + gate.name
-                this.updateScore(gate, this.scorecard.missedGate, s)
+                this.updateScore(gate, this.scorecard.missedGate, s, gate.latitude, gate.longitude)
                 if (gate.isProcedureTurn) {
-                    this.updateScore(gate, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " for missing procedure turn at " + gate.name)
+                    this.updateScore(gate, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " for missing procedure turn at " + gate.name, gate.latitude, gate.longitude)
                 }
             } else if (gate.passingTime !== -1) {
                 index += 1
@@ -165,9 +164,9 @@ export class ScoreCalculator {
                 const absoluteDifference = Math.abs(difference)
                 if (absoluteDifference > this.scorecard.gatePerfectLimitSeconds) {
                     const gateScore = Math.min(this.scorecard.maximumGateScore, (Math.floor(absoluteDifference) - this.scorecard.gateTimingPerSecond) * this.scorecard.gateTimingPerSecond)
-                    this.updateScore(gate, gateScore, gateScore + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s")
+                    this.updateScore(gate, gateScore, gateScore + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s", gate.latitude, gate.longitude)
                 } else {
-                    this.updateScore(gate, 0, 0 + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s")
+                    this.updateScore(gate, 0, 0 + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s", gate.latitude, gate.longitude)
                 }
             } else {
                 finished = true
@@ -340,14 +339,14 @@ export class ScoreCalculator {
                 this.updateTrackingState(TrackingStates.tracking)
                 if (!this.currentProcedureTurnDirections.includes(this.currentProcedureTurnGate.turnDirection)) {
                     this.updateTrackingState(TrackingStates.failedProcedureTurn)
-                    this.updateScore(nextGateLast, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " points for Incorrect procedure turn at " + this.currentProcedureTurnGate.name)
+                    this.updateScore(nextGateLast, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " points for Incorrect procedure turn at " + this.currentProcedureTurnGate.name, lastPosition.latitude, lastPosition.longitude)
                 }
             }
         } else {
             if (bearingDifference > 90) {
                 if (this.trackingState === TrackingStates.tracking) {
                     this.updateTrackingState(TrackingStates.backtracking)
-                    this.updateScore(nextGateLast, this.scorecard.backtracking , this.scorecard.backtracking + " points for backtracking at " + currentLeg.name)
+                    this.updateScore(nextGateLast, this.scorecard.backtracking, this.scorecard.backtracking + " points for backtracking at " + currentLeg.name, lastPosition.latitude, lastPosition.longitude)
                 }
             }
             if (bearingDifference < 90) {

@@ -26,6 +26,10 @@ export class Contestant {
         return this.pilot
     }
 
+    displayFull() {
+        return "Contestant: " +this.contestantNumber + "<br/>Pilot: " + this.pilot + "<br/>Navigator: " + this.navigator + "<br/>Aeroplane: " + this.registrationNumber
+    }
+
     updateScore(score) {
         this.score = score
         this.updateScoreCallback(this)

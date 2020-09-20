@@ -70,3 +70,7 @@ html, body, #cesiumContainer {
     /*background: #000;*/
 }
 
+.myAirplaneIcon {
+    text-align: center;
+    line-height: 20px;
+}

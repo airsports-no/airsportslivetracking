@@ -75,7 +75,7 @@ export class Tracker extends React.Component {
             }, 1000)
         } else {
             console.log("Historic mode, rendering historic tracks")
-            this.historicTimeStep = 5
+            this.historicTimeStep = 1
             const interval = 1000
             this.currentHistoricTime = new Date(this.startTime.getTime() + this.historicTimeStep * interval)
             setInterval(() => {
@@ -140,6 +140,10 @@ export class Tracker extends React.Component {
     render() {
         let detailsDisplay
         if (this.state.currentDisplay === DisplayTypes.scoreboard) {
+            if (this.traccarDeviceTracks) {
+                this.traccarDeviceTracks.showAllTracks()
+                this.traccarDeviceTracks.hideAllAnnotations()
+            }
             let contestants = []
             for (const key in this.state.score) {
                 if (this.state.score.hasOwnProperty(key)) {
@@ -149,7 +153,7 @@ export class Tracker extends React.Component {
             contestants.sort(this.compareScore)
             let position = 1
             const listItems = contestants.map((d) => <tr
-                key="leaderboard{d.contestantNumber}">
+                key={"leaderboard" + d.contestantNumber}>
                 <td>{position++}</td>
                 <td><a href={"#"}
                        onClick={() => this.setState({
@@ -177,6 +181,10 @@ export class Tracker extends React.Component {
                 <tbody>{listItems}</tbody>
             </table>
         } else if (this.state.currentDisplay === DisplayTypes.trackDetails) {
+            if (this.traccarDeviceTracks) {
+                this.traccarDeviceTracks.hideAllButThisTrack(this.state.displayTrack)
+                this.traccarDeviceTracks.showAnnotationsForTrack(this.state.displayTrack)
+            }
             const events = this.state.displayTrack.scoreCalculator.scoreLog.map((line, index) => {
                 return <li key="{this.state.displayTrack.contestant.contestantNumber}event{index}">{line}</li>
             })
@@ -186,6 +194,10 @@ export class Tracker extends React.Component {
                 </ol>
             </div>
         } else if (this.state.currentDisplay === DisplayTypes.turningpointstanding) {
+            if (this.traccarDeviceTracks) {
+                this.traccarDeviceTracks.showAllTracks()
+                this.traccarDeviceTracks.hideAllAnnotations()
+            }
             let position = 0
             const scores = this.traccarDeviceTracks.tracks.filter((c) => {
                 return !Number.isNaN(c.scoreCalculator.getScoreByGate(this.state.turningPoint))

@@ -1,8 +1,6 @@
 import {ContestantList} from "./Contestants";
-import {fractionOfLeg, intersect} from "./lineUtilities";
 import {ScoreCalculator} from "./scoreCalculator"
-import {circle, marker, polyline} from "leaflet"
-import {getDistance} from "./utilities";
+import {divIcon, layerGroup, marker, polyline} from "leaflet"
 
 
 class Gate {
@@ -62,6 +60,8 @@ export class ContestantTrack {
         this.historicPositions = []
         this.map = map;
         this.gates = []
+        this.displayed = false
+        this.displayAnnotations = false
         this.lastRenderedTime = this.startTime
         for (const index in this.track.waypoints) {
             const gate = this.track.waypoints[index]
@@ -74,17 +74,62 @@ export class ContestantTrack {
         this.scoreCalculator = new ScoreCalculator(this)
         this.lineCollection = null;
         this.dot = null;
+        this.annotationLayer = layerGroup()
+        this.airplaneIcon = divIcon({
+            html: '<i class="fa fa-plane" style="color: {this.contestant.colour}"><br/>' + this.contestant.displayString() + '</i>',
+            iconSize: [20, 20],
+            className: "myAirplaneIcon"
+        })
     }
 
     createLiveEntities(position) {
         this.lineCollection = polyline([position], {
             color: this.contestant.colour
-        }).addTo(this.map)
-        this.dot = marker(position, {
-            color: this.contestant.colour
-        }).bindTooltip(this.contestant.pilot, {
-            permanent: true
-        }).addTo(this.map)
+        })
+        this.dot = marker(position, {icon: this.airplaneIcon}).bindTooltip(this.contestant.displayFull(), {
+            permanent: false
+        })
+        this.showTrack()
+    }
+
+    addAnnotation(latitude, longitude, message) {
+        this.annotationLayer.addLayer(marker([latitude, longitude]).bindTooltip(message, {
+            permanent: false
+        }))
+    }
+
+    showAnnotations() {
+        if (!this.displayAnnotations) {
+            this.annotationLayer.addTo(this.map)
+            this.displayAnnotations = true
+        }
+    }
+
+    hideAnnotations() {
+        if (this.displayAnnotations) {
+            this.annotationLayer.removeFrom(this.map)
+            this.displayAnnotations = false
+        }
+    }
+
+    showTrack() {
+        if (!this.displayed && this.dot) {
+            this.lineCollection.addTo(this.map)
+            this.dot.addTo(this.map)
+            // this.map.addLayer(this.lineCollection)
+            // this.map.addLayer(this.dot)
+            this.displayed = true
+        }
+    }
+
+    hideTrack() {
+        if (this.displayed && this.dot) {
+            this.lineCollection.removeFrom(this.map)
+            this.dot.removeFrom(this.map)
+            // this.map.removeLayer(this.lineCollection)
+            // this.map.removeLayer(this.dot)
+            this.displayed = false
+        }
     }
 
     createPolyline(positions) {
@@ -214,6 +259,34 @@ export class TraccarDeviceTracks {
     renderHistoricTime(historicTime) {
         this.tracks.map((track) => {
             track.renderHistoricTime(historicTime)
+        })
+    }
+
+    hideAllButThisTrack(track) {
+        this.tracks.map((t) => {
+            if (track !== t) {
+                t.hideTrack()
+            }
+        })
+    }
+
+    showAnnotationsForTrack(track) {
+        this.tracks.map((t) => {
+            if (track === t) {
+                t.showAnnotations()
+            }
+        })
+    }
+
+    hideAllAnnotations() {
+        this.tracks.map((t) => {
+            t.hideAnnotations()
+        })
+    }
+
+    showAllTracks() {
+        this.tracks.map((t) => {
+            t.showTrack()
         })
     }
 }
