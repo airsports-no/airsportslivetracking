@@ -186,7 +186,7 @@ export class Tracker extends React.Component {
                 this.traccarDeviceTracks.showAnnotationsForTrack(this.state.displayTrack)
             }
             const events = this.state.displayTrack.scoreCalculator.scoreLog.map((line, index) => {
-                return <li key="{this.state.displayTrack.contestant.contestantNumber}event{index}">{line}</li>
+                return <li key={this.state.displayTrack.contestant.contestantNumber + "event" + index}>{line}</li>
             })
             detailsDisplay = <div><h2>{this.state.displayTrack.contestant.displayString()}</h2>
                 <ol>
@@ -198,7 +198,6 @@ export class Tracker extends React.Component {
                 this.traccarDeviceTracks.showAllTracks()
                 this.traccarDeviceTracks.hideAllAnnotations()
             }
-            let position = 0
             const scores = this.traccarDeviceTracks.tracks.filter((c) => {
                 return !Number.isNaN(c.scoreCalculator.getScoreByGate(this.state.turningPoint))
             }).sort((a, b) => {
@@ -207,7 +206,7 @@ export class Tracker extends React.Component {
                 return 0
             }).map((c) => {
                 return <li
-                    key="{this.state.turningpoint.name}{c.contestant.contestantNumber}">{position++}: {c.contestant.contestantNumber} {c.contestant.displayString()} with {c.scoreCalculator.getScoreByGate(this.state.turningPoint)} points</li>
+                    key={this.state.turningpoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {c.scoreCalculator.getScoreByGate(this.state.turningPoint)} points</li>
             })
             detailsDisplay = <div><h2>{this.state.turningPoint}</h2>
                 <ol>{scores}</ol>
