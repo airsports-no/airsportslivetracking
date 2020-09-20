@@ -206,7 +206,7 @@ export class Tracker extends React.Component {
                 return 0
             }).map((c) => {
                 return <li
-                    key={this.state.turningpoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {c.scoreCalculator.getScoreByGate(this.state.turningPoint)} points</li>
+                    key={this.state.turningPoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {c.scoreCalculator.getScoreByGate(this.state.turningPoint)} points</li>
             })
             detailsDisplay = <div><h2>{this.state.turningPoint}</h2>
                 <ol>{scores}</ol>
