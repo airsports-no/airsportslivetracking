@@ -6,7 +6,7 @@ from display.views import frontend_view, RetrieveContestApi, import_track, front
 
 urlpatterns = [
     path('importtrack', import_track, name="import_track"),
-    path('frontend/<int:pk>/', frontend_view),
-    path('frontend/offline/<int:pk>/', frontend_view_offline),
+    path('frontend/<int:pk>/', frontend_view, name="frontend_view"),
+    path('frontend/offline/<int:pk>/', frontend_view_offline, name="frontend_view_offline"),
     path('api/contest/detail/<int:pk>', RetrieveContestApi.as_view())
 ]

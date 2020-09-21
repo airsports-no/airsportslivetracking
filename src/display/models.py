@@ -57,12 +57,12 @@ class Track(models.Model):
                                                                              gates[index]["latitude"],
                                                                              gates[index + 1]["longitude"],
                                                                              gates[index + 1]["latitude"],
-                                                                             gates[index + 1]["width"])
+                                                                             gates[index + 1]["width"] * 1852)
         gates[0]["gate_line"] = create_perpendicular_line_at_end(gates[1]["longitude"],
                                                                  gates[1]["latitude"],
                                                                  gates[0]["longitude"],
                                                                  gates[0]["latitude"],
-                                                                 gates[0]["width"])
+                                                                 gates[0]["width"] * 1852)
         return waypoints
 
     @staticmethod
@@ -95,11 +95,8 @@ class Track(models.Model):
                 (tp_gates[index - 1]["latitude"], tp_gates[index - 1]["longitude"]),
                 (tp_gates[index]["latitude"], tp_gates[index]["longitude"])) * 1000  # Convert to metres
         for index in range(1, len(tp_gates) - 1):
-            print(tp_gates[index])
-            print(tp_gates[index]["name"])
             tp_gates[index]["is_procedure_turn"] = is_procedure_turn(tp_gates[index]["bearing"],
                                                                      tp_gates[index + 1]["bearing"])
-            print("is_procedure_turn: {}".format(tp_gates[index]["is_procedure_turn"]))
             tp_gates[index]["turn_direction"] = "ccw" if bearing_difference(tp_gates[index]["bearing"],
                                                                             tp_gates[index + 1][
                                                                                 "bearing"]) > 0 else "cw"
@@ -119,8 +116,6 @@ def is_procedure_turn(bearing1, bearing2) -> bool:
     :param bearing2: degrees
     :return:
     """
-    print("First bearing: {}".format(bearing1))
-    print("Second bearing: {}".format(bearing2))
     return abs(bearing_difference(bearing1, bearing2)) > 90
 
 
@@ -129,9 +124,8 @@ def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
     epsg = ccrs.epsg(3857)
     x1, y1 = epsg.transform_point(x1, y1, pc)
     x2, y2 = epsg.transform_point(x2, y2, pc)
-    length_metres = length * 1852 / 2
     slope = (y2 - y1) / (x2 - x1)
-    dy = math.sqrt((length_metres / 2) ** 2 / (slope ** 2 + 1))
+    dy = math.sqrt((length / 2) ** 2 / (slope ** 2 + 1))
     dx = -slope * dy
     x1, y1 = pc.transform_point(x2 + dx, y2 + dy, epsg)
     x2, y2 = pc.transform_point(x2 - dx, y2 - dy, epsg)
@@ -179,7 +173,6 @@ class Contestant(models.Model):
         crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
         crossing_times[gates[0]["name"]] = crossing_time
         for gate in gates[1:]:
-            print(gate)
             crossing_time += datetime.timedelta(hours=(gate["gate_distance"] / 1852) / self.ground_speed)
             if gate.get("is_procedure_turn", False):
                 crossing_time += datetime.timedelta(minutes=1)

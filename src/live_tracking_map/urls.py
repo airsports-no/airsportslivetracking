@@ -18,8 +18,10 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path, include
 from django.views import static
 
+from display.views import ContestList
 
 urlpatterns = [
+    path('', ContestList.as_view()),
     path('admin/', admin.site.urls),
     path('display/', include("display.urls")),
     path('accounts/login/', LoginView.as_view(template_name='login.html'), name="login"),

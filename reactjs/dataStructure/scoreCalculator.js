@@ -1,5 +1,6 @@
 import {alongTrackDistance, crossTrackDistance, getBearing, getDistance, getHeadingDifference} from "./utilities"
 import {fractionOfLeg, intersect} from "./lineUtilities";
+import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
 
 const Scorecard = {
     missedGate: 100,
@@ -23,6 +24,11 @@ const TrackingStates = {
     finished: 6
 }
 
+const insideGates = {
+    inside: 0,
+    outside: 1
+}
+
 const TrackingStateText = ["Tracking", "Backtracking", "Procedure turn", "Failed procedure turn", "Deviating", "Waiting...", "Finished"]
 
 export class ScoreCalculator {
@@ -40,14 +46,64 @@ export class ScoreCalculator {
         this.currentSpeedEstimate = 0
         this.legLog = [this.contestantTrack.gates[0].name]
         this.outstandingGates = Array.from(this.contestantTrack.gates)
-
+        this.previousGateDistances = null
+        this.insideGates = null
     }
 
-    updateScore(gate, score, message, latitude, longitude) {
-        console.log(message)
+    calculateDistanceToOutstandingGates(currentPosition) {
+        const gateDistances = this.outstandingGates.map((gate) => {
+            return {
+                distance: getDistance(currentPosition.latitude, currentPosition.longitude, gate.latitude, gate.longitude),
+                gate: gate
+            }
+        })
+        gateDistances.sort((a, b) => {
+            if (a.distance > b.distance) return 1;
+            if (a.distance < b.distance) return -1;
+            return 0
+        })
+        return gateDistances
+    }
+
+    checkIfGateHasBeenMissed() {
+        if (!this.contestantTrack.startingLine.hasBeenPassed()) {
+            return
+        }
+        const currentPosition = this.contestantTrack.positions.slice(-1)[0]
+        const distances = this.calculateDistanceToOutstandingGates(currentPosition)
+        if (distances.length === 0) return
+        if (!this.insideGates) {
+            this.insideGates = {}
+            distances.map((item) => {
+                this.insideGates[item.gate.name] = false
+            })
+        }
+        const insides = {}
+        distances.map((item) => {
+            insides[item.gate.name] = item.distance < item.gate.insideDistance || (item.distance < item.gate.outsideDistance && this.insideGates[item.gate.name])
+        })
+        let haveSeenInside = false
+        for (const item of this.outstandingGates) {
+            if (haveSeenInside) {
+                insides[item.name] = false  // Only ever consider moving out of the first next gate
+                this.insideGates[item.name] = false
+            }
+            if (this.insideGates[item.name] && !insides[item.name]) {
+                // Have moved from inside to outside
+                this.updateScore(item, 0, "Left the vicinity of gate " + item.name + " without passing it", currentPosition.latitude, currentPosition.longitude, anomalyAnnotationIcon)
+                this.checkIntersections(item)
+            }
+            if (insides[item.name]) haveSeenInside = true
+
+        }
+        this.insideGates = insides
+    }
+
+    updateScore(gate, score, message, latitude, longitude, icon) {
+        // console.log(message)
         this.scoreLog.push(message)
         this.contestantTrack.contestant.updateLatestStatus(message)
-        this.contestantTrack.addAnnotation(latitude, longitude, message)
+        this.contestantTrack.addAnnotation(latitude, longitude, message, icon)
         // Must be done before global score update, otherwise it will be counted twice.
         this.updateScoreByGate(gate.name, score)
         // Must be done after score by gate
@@ -103,18 +159,18 @@ export class ScoreCalculator {
         while (i--) {
             let gate = this.outstandingGates[i]
             gate.missed = true
-            console.log("Missed gate " + this.outstandingGates[i].name)
+            // console.log("Missed gate " + this.outstandingGates[i].name)
             this.outstandingGates.splice(i, 1);
         }
 
     }
 
-    checkIntersections() {
+    checkIntersections(forceGate) {
         // Check starting line
         if (!this.contestantTrack.startingLine.hasBeenPassed()) {
             let intersectionTime = this.getTimeOfIntersectLastPosition(this.contestantTrack.startingLine)
             if (intersectionTime) {
-                console.log("Intersected gate " + this.contestantTrack.startingLine.name + " at time " + intersectionTime)
+                // console.log("Intersected gate " + this.contestantTrack.startingLine.name + " at time " + intersectionTime)
                 this.contestantTrack.startingLine.passingTime = intersectionTime
                 this.contestantTrack.startingLinePassingTimes.push(intersectionTime)
             }
@@ -123,40 +179,37 @@ export class ScoreCalculator {
         let i = this.outstandingGates.length
         let crossedGate = false
         while (i--) {
-            let intersectionTime = this.getTimeOfIntersectLastPosition(this.outstandingGates[i])
-            let gate = this.outstandingGates[i]
+            const gate = this.outstandingGates[i]
+            const intersectionTime = this.getTimeOfIntersectLastPosition(gate)
             if (intersectionTime) {
-                console.log("Intersected gate " + gate.name + " at time " + intersectionTime)
+                // console.log("Intersected gate " + gate.name + " at time " + intersectionTime)
                 gate.passingTime = intersectionTime
                 crossedGate = true;
             }
+            if (forceGate === gate) crossedGate = true
             if (crossedGate) {
                 if (gate.passingTime === -1) {
                     gate.missed = true
-                    console.log("Missed gate " + this.outstandingGates[i].name)
+                    // console.log("Missed gate " + this.outstandingGates[i].name)
                 }
                 this.outstandingGates.splice(i, 1);
             }
         }
-        // if (crossedGate) {
-        //     this.updateGateScore()
-        //     this.contestant.updateScore(this.scoreCalculator.getScore())
-        // }
     }
 
 
     calculateGateScore() {
         let index = 0
         let finished = false
+        const currentPosition = this.contestantTrack.positions.slice(-1)[0]
         this.contestantTrack.gates.slice(this.lastGate).forEach(gate => {
             if (finished) return
-            let s = ""
             if (gate.missed) {
                 index += 1
                 const s = this.scorecard.missedGate + " points for missing gate " + gate.name
-                this.updateScore(gate, this.scorecard.missedGate, s, gate.latitude, gate.longitude)
+                this.updateScore(gate, this.scorecard.missedGate, s, currentPosition.latitude, currentPosition.longitude, anomalyAnnotationIcon)
                 if (gate.isProcedureTurn) {
-                    this.updateScore(gate, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " for missing procedure turn at " + gate.name, gate.latitude, gate.longitude)
+                    this.updateScore(gate, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " for missing procedure turn at " + gate.name, gate.latitude, gate.longitude, anomalyAnnotationIcon)
                 }
             } else if (gate.passingTime !== -1) {
                 index += 1
@@ -164,22 +217,19 @@ export class ScoreCalculator {
                 const absoluteDifference = Math.abs(difference)
                 if (absoluteDifference > this.scorecard.gatePerfectLimitSeconds) {
                     const gateScore = Math.min(this.scorecard.maximumGateScore, (Math.floor(absoluteDifference) - this.scorecard.gateTimingPerSecond) * this.scorecard.gateTimingPerSecond)
-                    this.updateScore(gate, gateScore, gateScore + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s", gate.latitude, gate.longitude)
+                    this.updateScore(gate, gateScore, gateScore + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s", currentPosition.latitude, currentPosition.longitude, informationAnnotationIcon)
                 } else {
-                    this.updateScore(gate, 0, 0 + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s", gate.latitude, gate.longitude)
+                    this.updateScore(gate, 0, 0 + " points for passing gate " + gate.name + " off by " + Math.round(difference) + "s", currentPosition.latitude, currentPosition.longitude, informationAnnotationIcon)
                 }
             } else {
                 finished = true
-            }
-            if (!finished) {
-                this.contestantTrack.contestant.updateLatestStatus(this.scoreLog.slice(-1)[0])
             }
         });
         this.lastGate += index
     }
 
     updateTrackingState(state) {
-        console.log("Updating state " + TrackingStateText[state])
+        // console.log("Updating state " + TrackingStateText[state])
         if (this.trackingState !== state) {
             this.trackingState = state
             this.contestantTrack.contestant.updateTrackState(TrackingStateText[state])
@@ -221,7 +271,7 @@ export class ScoreCalculator {
         for (const guess of bestGuesses) {
             if (guess.absoluteCrossTrack < insideLegDistance && Math.abs(getHeadingDifference(bearing, guess.gate.bearing) < 60)) {
                 currentLeg = guess.gate
-                console.log("Choosing best leg because inside leg distance")
+                // console.log("Choosing best leg because inside leg distance")
                 break
             }
             if (!minimumDistance || guess.absoluteCrossTrack < minimumDistance) {
@@ -230,8 +280,8 @@ export class ScoreCalculator {
             }
         }
         if (currentLeg)
-            console.log("Choosing best leg " + currentLeg.name)
-        return currentLeg
+            // console.log("Choosing best leg " + currentLeg.name)
+            return currentLeg
     }
 
     calculateCurrentLeg() {
@@ -250,12 +300,6 @@ export class ScoreCalculator {
             distanceToLastGate = getDistance(lastGate.latitude, lastGate.longitude, currentPosition.latitude, currentPosition.longitude)
         const bearing = getBearing(previousPosition.latitude, previousPosition.longitude, currentPosition.latitude, currentPosition.longitude)
         const bestGuesses = this.guessCurrentLeg()
-        // console.log(bestGuesses)
-        //
-        // if (nextGate)
-        //     console.log("Next gate " + nextGate.name + " distance " + distanceToNextGate)
-        // if (lastGate)
-        //     console.log("Last gate " + lastGate.name + " distance " + distanceToLastGate)
         const bestGuess = this.sortOutBestLeg(bestGuesses, bearing, distanceToNextGate)
         let currentLeg;
         if (bestGuess === nextGate) {
@@ -295,7 +339,7 @@ export class ScoreCalculator {
         const speed = this.getSpeed()
         if ((speed === 0 || lastPosition.deviceTime > this.contestantTrack.contestant.finishedByTime) && !this.allGatesPassed()) {
             // Contestant has finished
-            console.log("Speed is zero or end time has been passed, assume contestant has finished")
+            // console.log("Speed is zero or end time has been passed, assume contestant has finished")
             this.missOutstandingGates()
             this.updateTrackingState(TrackingStates.finished)
             return
@@ -303,28 +347,25 @@ export class ScoreCalculator {
 
         const lookBack = 2
         let startIndex = Math.max(finishIndex - lookBack, 0)
-        const currentLeg = this.calculateCurrentLeg()
+        let currentLeg = this.calculateCurrentLeg()
         this.contestantTrack.contestant.updateCurrentLeg(currentLeg)
         const firstPosition = this.contestantTrack.positions[startIndex]
-        const lastGateFirst = this.getTurningPointBeforeNow(startIndex)
-        const lastGateLast = this.getTurningPointBeforeNow(finishIndex)
         const nextGateLast = this.getTurningPointAfterNow(finishIndex)
-        const nextGateFirst = this.getTurningPointAfterNow(startIndex)
-        if (!nextGateFirst && nextGateLast)
-            // Just before the starting gate
-            this.updateTrackingState(TrackingStates.tracking)
         if (!nextGateLast) {
             // We have passed the finish gate
             this.updateTrackingState(TrackingStates.finished)
             return
         }
-        // const nextGateFirst = this.getTurningPointAfterNow(startIndex)
+        const lastGateFirst = this.getTurningPointBeforeNow(startIndex)
+        const lastGateLast = this.getTurningPointBeforeNow(finishIndex)
         const bearing = getBearing(firstPosition.latitude, firstPosition.longitude, lastPosition.latitude, lastPosition.longitude)
         let bearingDifference
         if (currentLeg)
             bearingDifference = Math.abs(getHeadingDifference(bearing, currentLeg.bearing))
-        else
+        else {
             bearingDifference = Math.abs(getHeadingDifference(bearing, nextGateLast.bearing))
+            currentLeg = nextGateLast
+        }
         if (lastGateLast && lastGateLast.isProcedureTurn && !lastGateFirst.isProcedureTurn && this.trackingState !== TrackingStates.failedProcedureTurn) {
             // We have just passed a gate with a procedure turn
             this.updateTrackingState(TrackingStates.procedureTurn)
@@ -339,14 +380,14 @@ export class ScoreCalculator {
                 this.updateTrackingState(TrackingStates.tracking)
                 if (!this.currentProcedureTurnDirections.includes(this.currentProcedureTurnGate.turnDirection)) {
                     this.updateTrackingState(TrackingStates.failedProcedureTurn)
-                    this.updateScore(nextGateLast, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " points for Incorrect procedure turn at " + this.currentProcedureTurnGate.name, lastPosition.latitude, lastPosition.longitude)
+                    this.updateScore(nextGateLast, this.scorecard.missedProcedureTurn, this.scorecard.missedProcedureTurn + " points for incorrect procedure turn at " + this.currentProcedureTurnGate.name, lastPosition.latitude, lastPosition.longitude, anomalyAnnotationIcon)
                 }
             }
         } else {
             if (bearingDifference > 90) {
                 if (this.trackingState === TrackingStates.tracking) {
                     this.updateTrackingState(TrackingStates.backtracking)
-                    this.updateScore(nextGateLast, this.scorecard.backtracking, this.scorecard.backtracking + " points for backtracking at " + currentLeg.name, lastPosition.latitude, lastPosition.longitude)
+                    this.updateScore(nextGateLast, this.scorecard.backtracking, this.scorecard.backtracking + " points for backtracking at " + currentLeg.name, lastPosition.latitude, lastPosition.longitude, anomalyAnnotationIcon)
                 }
             }
             if (bearingDifference < 90) {
@@ -369,6 +410,7 @@ export class ScoreCalculator {
     }
 
     updateFinalScore() {
+        this.checkIfGateHasBeenMissed()
         this.checkIntersections()
         this.calculateGateScore()
         this.calculateTrackScore()

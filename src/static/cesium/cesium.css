@@ -73,11 +73,13 @@ html, body, #cesiumContainer {
 .myAirplaneIcon {
     text-align: center;
     line-height: 20px;
+    font-size: 12px;
 }
 
 .myAnnotationIcon {
     text-align: center;
-    line-height: 20px;
+    line-height: 40px;
+    font-size: 20px;
 }
 
 .myGateIcon {

@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from django.views.generic import View, TemplateView
+from django.views.generic import View, TemplateView, ListView
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 import logging
@@ -17,6 +17,7 @@ from display.serialisers import ContestSerialiser
 def frontend_view(request, pk):
     return render(request, "display/root.html", {"contest_id": pk, "live_mode": "true"})
 
+
 def frontend_view_offline(request, pk):
     return render(request, "display/root.html", {"contest_id": pk, "live_mode": "false"})
 
@@ -25,6 +26,10 @@ class RetrieveContestApi(RetrieveAPIView):
     serializer_class = ContestSerialiser
     queryset = Contest.objects.all()
     lookup_field = "pk"
+
+
+class ContestList(ListView):
+    model = Contest
 
 
 def import_track(request):

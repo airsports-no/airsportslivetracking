@@ -45,3 +45,11 @@ export function alongTrackDistance(lat1, lon1, lat, lon, crossTrackDistance) {
     const angularDistance13 = getDistance(lat1, lon1, lat, lon) / R
     return Math.acos(Math.cos(angularDistance13) / Math.cos(crossTrackDistance / R)) * R
 }
+
+export function sleep(milliseconds) {
+  const date = Date.now();
+  let currentDate = null;
+  do {
+    currentDate = Date.now();
+  } while (currentDate - date < milliseconds);
+}

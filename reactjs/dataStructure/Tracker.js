@@ -4,6 +4,7 @@ import {TraccarDevice, TraccarDeviceList} from "./TraccarDevices";
 import {TraccarDeviceTracks} from "./ContestantTrack";
 import axios from "axios";
 import {circle, divIcon, marker, polyline} from "leaflet"
+import {getDistance} from "./utilities";
 
 const DisplayTypes = {
     scoreboard: 0,
@@ -24,13 +25,26 @@ export class Tracker extends React.Component {
         this.turningPointsDisplay = this.contest.track.waypoints.map((waypoint) => {
             return <a href={"#"} onClick={() => {
                 this.setState({currentDisplay: DisplayTypes.turningpointstanding, turningPoint: waypoint.name})
-            }}>{waypoint.name}, </a>
+            }} key={"tplist" + waypoint.name}>{waypoint.name}, </a>
         })
-
-        this.initiateSession()
+        this.calculateGateRanges()
         this.renderTrack();
+        this.initiateSession()
     }
 
+    calculateGateRanges() {
+        this.contest.track.waypoints.map((gate) => {
+            const gateDistances = this.contest.track.waypoints.filter((loopGate) => {
+                return loopGate !== gate
+            }).map((loopGate) => {
+                return getDistance(loopGate.latitude, loopGate.longitude, gate.latitude, gate.longitude)
+            })
+
+            const minimumDistance = Math.min.apply(null, gateDistances)
+            gate.insideDistance = minimumDistance * 2 / 3
+            gate.outsideDistance = gate.insideDistance + 2000
+        })
+    }
 
     updateScoreCallback(contestant) {
         let existing = this.state.score;
@@ -75,16 +89,20 @@ export class Tracker extends React.Component {
             }, 1000)
         } else {
             console.log("Historic mode, rendering historic tracks")
-            this.historicTimeStep = 1
-            const interval = 1000
-            this.currentHistoricTime = new Date(this.startTime.getTime() + this.historicTimeStep * interval)
-            setInterval(() => {
-                // console.log("Rendering historic time: " + this.currentHistoricTime)
-                this.setState({currentTime: this.currentHistoricTime.toLocaleString()})
-                this.traccarDeviceTracks.renderHistoricTime(this.currentHistoricTime)
-                this.currentHistoricTime.setTime(this.currentHistoricTime.getTime() + this.historicTimeStep * interval)
-            }, interval)
-            // this.traccarDeviceTracks.renderHistoricTracks()
+            // this.historicTimeStep = 5
+            // const interval = 1000
+            // this.currentHistoricTime = new Date(this.startTime.getTime() + this.historicTimeStep * interval)
+            // setInterval(() => {
+            //     // console.log("Rendering historic time: " + this.currentHistoricTime)
+            //     this.setState({currentTime: this.currentHistoricTime.toLocaleString()})
+            //     this.traccarDeviceTracks.renderHistoricTime(this.currentHistoricTime)
+            //     this.currentHistoricTime.setTime(this.currentHistoricTime.getTime() + this.historicTimeStep * interval)
+            // }, interval)
+
+            this.currentHistoricTime = new Date(this.finishTime.getTime())
+            this.traccarDeviceTracks.renderHistoricTime(this.currentHistoricTime)
+            console.log("Done")
+
         }
     }
 
@@ -120,6 +138,13 @@ export class Tracker extends React.Component {
                 color: "blue"
             }).addTo(this.map)
         })
+        // Temporarily plot range circles
+        // this.contest.track.waypoints.map((waypoint) => {
+        //     circle([waypoint.latitude, waypoint.longitude], {
+        //         radius: waypoint.insideDistance,
+        //         color: "orange"
+        //     }).addTo(this.map)
+        // })
         let route = polyline(turningPoints, {
             color: "blue"
         }).addTo(this.map)

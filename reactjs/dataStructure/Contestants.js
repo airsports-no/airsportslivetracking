@@ -47,7 +47,7 @@ export class Contestant {
 
     updateLatestStatus(status) {
         this.latestStatus = status
-        console.log("Updating current status: " + status)
+        // console.log("Updating current status: " + status)
         this.updateScoreCallback(this)
     }
 

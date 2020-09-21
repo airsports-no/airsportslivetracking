@@ -31,9 +31,9 @@ def send(id, time, lat, lon, speed):
     requests.post("http://" + server + '/?' + urlencode(params))
 
 
-print(tracks)
+# print(tracks)
 print(maximum_index)
-for index in range(0, maximum_index, 10):
+for index in range(0, maximum_index, 1):
     for contestant_name, positions in tracks.items():
         if len(positions) > index:
             longitude, latitude = positions[index]

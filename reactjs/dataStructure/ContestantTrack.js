@@ -1,6 +1,8 @@
 import {ContestantList} from "./Contestants";
 import {ScoreCalculator} from "./scoreCalculator"
 import {divIcon, layerGroup, marker, polyline} from "leaflet"
+import {getDistance, sleep} from "./utilities";
+import {informationAnnotationIcon} from "./iconDefinitions";
 
 
 class Gate {
@@ -12,6 +14,8 @@ class Gate {
         this.y2 = gate.gate_line[3]
         this.latitude = gate.latitude
         this.longitude = gate.longitude
+        this.insideDistance = gate.insideDistance
+        this.outsideDistance = gate.outsideDistance
         this.isTurningPoint = gate.type === "tp"
         if (this.isTurningPoint) {
             this.distance = gate.distance
@@ -75,35 +79,30 @@ export class ContestantTrack {
         this.lineCollection = null;
         this.dot = null;
         this.annotationLayer = layerGroup()
+        const size = 24;
         this.airplaneIcon = divIcon({
             html: '<i class="fa fa-plane" style="color: ' + this.contestant.colour + '"><br/>' + this.contestant.displayString() + '</i>',
-            iconSize: [30, 30],
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
-        })
-        this.anomalyAnnotationIcon = divIcon({
-            html: '<i class="fas fa-exclamation-triangle" style="color: black"></i>',
-            iconSize: [40, 40],
-            className: "myAnnotationIcon"
-        })
-        this.informationAnnotationIcon = divIcon({
-            html: '<i class="fas fa-info-circle" style="color: black"></i>',
-            iconSize: [40, 40],
-            className: "myAnnotationIcon"
         })
     }
 
-    createLiveEntities(position) {
-        this.lineCollection = polyline([position], {
+
+    createLiveEntities(positions) {
+        const newest_position = positions.slice(-1)[0];
+
+        this.lineCollection = polyline(positions, {
             color: this.contestant.colour
         })
-        this.dot = marker(position, {icon: this.airplaneIcon}).bindTooltip(this.contestant.displayFull(), {
+        this.dot = marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(this.contestant.displayFull(), {
             permanent: false
         })
         this.showTrack()
     }
 
     addAnnotation(latitude, longitude, message, icon) {
-        if (icon == undefined) icon = this.informationAnnotationIcon
+        if (icon == undefined) icon = informationAnnotationIcon
         this.annotationLayer.addLayer(marker([latitude, longitude], {icon: icon}).bindTooltip(message, {
             permanent: false
         }))
@@ -137,8 +136,6 @@ export class ContestantTrack {
         if (this.displayed && this.dot) {
             this.lineCollection.removeFrom(this.map)
             this.dot.removeFrom(this.map)
-            // this.map.removeLayer(this.lineCollection)
-            // this.map.removeLayer(this.dot)
             this.displayed = false
         }
     }
@@ -153,14 +150,13 @@ export class ContestantTrack {
     appendPosition(positionReport, render) {
         // TODO
         // if (this.contestant.pilot !== "Steinar") return
-
         let a = new PositionReport(positionReport.latitude, positionReport.longitude, positionReport.altitude, positionReport.attributes.batteryLevel, new Date(positionReport.deviceTime), new Date(positionReport.serverTime), positionReport.speed, positionReport.course);
         if (!(this.contestant.takeOffTime < a.deviceTime < this.contestant.finishedByTime)) {
             return
         }
         this.positions.push(a);
         if (render) {
-            this.renderPositions(this.positions.slice(-Math.min(2, this.positions.length)));
+            this.renderPositions(this.positions.slice(-1));
         }
         this.scoreCalculator.updateFinalScore()
     }
@@ -179,19 +175,17 @@ export class ContestantTrack {
     }
 
     renderPositions(positions) {
-        let b = positions
+        let b = positions.map((p) => {
+            return [p.latitude, p.longitude]
+        })
         if (b.length) {
-            let newest_position = b.slice(-1)[0];
-            const newest_position_coordinates = [newest_position.latitude, newest_position.longitude]
             if (!this.dot) {
-                this.createLiveEntities(newest_position_coordinates)
+                this.createLiveEntities(b)
             } else {
                 this.dot.setLatLng(newest_position_coordinates)
-            }
-            if (b.length > 1) {
-                this.createPolyline(b.map((position) => {
-                    return [position.latitude, position.longitude]
-                }));
+                b.map((position) => {
+                    this.lineCollection.addLatLng(position)
+                })
             }
         }
     }
@@ -269,6 +263,7 @@ export class TraccarDeviceTracks {
 
     renderHistoricTime(historicTime) {
         this.tracks.map((track) => {
+            console.log(track.contestant.displayString())
             track.renderHistoricTime(historicTime)
         })
     }
