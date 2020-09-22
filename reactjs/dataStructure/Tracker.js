@@ -1,10 +1,7 @@
-import {w3cwebsocket as W3CWebSocket} from "websocket";
 import React from "react";
-import {TraccarDevice, TraccarDeviceList} from "./TraccarDevices";
-import {TraccarDeviceTracks} from "./ContestantTrack";
+import {ContestantTracks} from "./ContestantTrack";
 import axios from "axios";
 import {circle, divIcon, marker, polyline} from "leaflet"
-import {getDistance} from "./utilities";
 
 const DisplayTypes = {
     scoreboard: 0,
@@ -18,31 +15,37 @@ export class Tracker extends React.Component {
         this.contest = props.contest;
         this.startTime = new Date(this.contest.start_time)
         this.finishTime = new Date(this.contest.finish_time)
+        this.lastDataTime = new Date(this.startTime.getTime())
         this.liveMode = props.liveMode
-        console.log(this.startTime)
         this.map = props.map;
+        this.tracks = new ContestantTracks(this.map, this.startTime, this.finishTime, this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
         this.state = {score: {}, currentTime: new Date().toLocaleString(), currentDisplay: DisplayTypes.scoreboard}
         this.turningPointsDisplay = this.contest.track.waypoints.map((waypoint) => {
             return <a href={"#"} onClick={() => {
                 this.setState({currentDisplay: DisplayTypes.turningpointstanding, turningPoint: waypoint.name})
             }} key={"tplist" + waypoint.name}>{waypoint.name}, </a>
         })
-        this.calculateGateRanges()
         this.renderTrack();
-        this.initiateSession()
+        this.fetchNextData();
     }
 
-    calculateGateRanges() {
-        this.contest.track.waypoints.map((gate) => {
-            const gateDistances = this.contest.track.waypoints.filter((loopGate) => {
-                return loopGate !== gate
-            }).map((loopGate) => {
-                return getDistance(loopGate.latitude, loopGate.longitude, gate.latitude, gate.longitude)
-            })
-
-            const minimumDistance = Math.min.apply(null, gateDistances)
-            gate.insideDistance = minimumDistance * 2 / 3
-            gate.outsideDistance = gate.insideDistance + 2000
+    fetchNextData() {
+        axios.get("/display/api/contest/track_data/" + this.contest.id + "?from_time=" + this.lastDataTime.toISOString()).then((result) => {
+            console.log(result.data)
+            if (result.data.latest_time)
+                this.lastDataTime = new Date(result.data.latest_time)
+            this.tracks.addData(result.data.positions, result.data.annotations, result.data.contestant_tracks)
+            if (this.lastDataTime < this.finishTime) setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
+        }).catch(error=>{
+            if (error.response) {
+                console.log("Response data error: " + error)
+                if (this.lastDataTime < this.finishTime) setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
+            }else if( error.request){
+                console.log("Request data error: " + error)
+                if (this.lastDataTime < this.finishTime) setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
+            }else{
+                throw error
+            }
         })
     }
 
@@ -52,59 +55,6 @@ export class Tracker extends React.Component {
         this.setState({score: existing})
     }
 
-    async initiateSession() {
-        const result = await axios.get("http://" + this.contest.server_address + "/api/session?token=" + this.contest.server_token, {withCredentials: true})
-        // Required to wait for the promise to resolve
-        console.log(result)
-        console.log("Initiated session")
-        const devices_results = await axios.get("http://" + this.contest.server_address + "/api/devices", {withCredentials: true})
-        console.log("Device data:")
-        console.log(devices_results.data)
-        const devices = devices_results.data.map((data) => {
-            return new TraccarDevice(data.id, data.name, data.status, data.lastUpdate, data.category);
-        })
-
-        this.traccarDeviceList = new TraccarDeviceList(devices);
-        this.traccarDeviceTracks = new TraccarDeviceTracks(this.traccarDeviceList, this.map, this.startTime, this.finishTime, this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
-        // Fetch history
-        for (const track of this.traccarDeviceTracks.tracks) {
-            console.log("Get history for " + track.traccarDevice.name)
-            const res = await axios.get("http://" + this.contest.server_address + "/api/positions?deviceId=" + track.traccarDevice.id + "&from=" + this.startTime.toISOString() + "&to=" + this.finishTime.toISOString(), {withCredentials: true})
-            await console.log(res.data)
-            track.addPositionHistory(res.data)
-            if (this.liveMode) track.insertHistoryIntoLiveTrack()
-        }
-        if (this.liveMode) {
-            this.client = new W3CWebSocket("ws://" + this.contest.server_address + "/api/socket")
-
-            this.client.onopen = () => {
-                console.log("Client connected")
-            };
-            this.client.onmessage = (message) => {
-                let data = JSON.parse(message.data);
-                this.appendPositionReports(data);
-            };
-            setInterval(() => {
-                this.setState({currentTime: new Date().toLocaleString})
-            }, 1000)
-        } else {
-            console.log("Historic mode, rendering historic tracks")
-            // this.historicTimeStep = 5
-            // const interval = 1000
-            // this.currentHistoricTime = new Date(this.startTime.getTime() + this.historicTimeStep * interval)
-            // setInterval(() => {
-            //     // console.log("Rendering historic time: " + this.currentHistoricTime)
-            //     this.setState({currentTime: this.currentHistoricTime.toLocaleString()})
-            //     this.traccarDeviceTracks.renderHistoricTime(this.currentHistoricTime)
-            //     this.currentHistoricTime.setTime(this.currentHistoricTime.getTime() + this.historicTimeStep * interval)
-            // }, interval)
-
-            this.currentHistoricTime = new Date(this.finishTime.getTime())
-            this.traccarDeviceTracks.renderHistoricTime(this.currentHistoricTime)
-            console.log("Done")
-
-        }
-    }
 
     renderTrack() {
         for (const key in this.contest.track.waypoints) {
@@ -152,14 +102,6 @@ export class Tracker extends React.Component {
 
     }
 
-    appendPositionReports(data) {
-        if (data.positions) {
-            for (let position in data.positions) {
-                this.traccarDeviceTracks.appendPositionReport(data.positions[position])
-            }
-        }
-    }
-
     compareScore(a, b) {
         if (a.score > b.score) return 1;
         if (a.score < b.score) return -1;
@@ -170,9 +112,9 @@ export class Tracker extends React.Component {
     render() {
         let detailsDisplay
         if (this.state.currentDisplay === DisplayTypes.scoreboard) {
-            if (this.traccarDeviceTracks) {
-                this.traccarDeviceTracks.showAllTracks()
-                this.traccarDeviceTracks.hideAllAnnotations()
+            if (this.tracks) {
+                this.tracks.showAllTracks()
+                this.tracks.hideAllAnnotations()
             }
             let contestants = []
             for (const key in this.state.score) {
@@ -188,7 +130,7 @@ export class Tracker extends React.Component {
                 <td><a href={"#"}
                        onClick={() => this.setState({
                            currentDisplay: DisplayTypes.trackDetails,
-                           displayTrack: this.traccarDeviceTracks.getTrackForContestant(d)
+                           displayTrack: this.tracks.getTrackForContestant(d.id)
                        })}>{d.contestantNumber}</a></td>
                 <td>{d.displayString()}</td>
                 <td>{d.score}</td>
@@ -211,11 +153,11 @@ export class Tracker extends React.Component {
                 <tbody>{listItems}</tbody>
             </table>
         } else if (this.state.currentDisplay === DisplayTypes.trackDetails) {
-            if (this.traccarDeviceTracks) {
-                this.traccarDeviceTracks.hideAllButThisTrack(this.state.displayTrack)
-                this.traccarDeviceTracks.showAnnotationsForTrack(this.state.displayTrack)
+            if (this.tracks) {
+                this.tracks.hideAllButThisTrack(this.state.displayTrack)
+                this.tracks.showAnnotationsForTrack(this.state.displayTrack)
             }
-            const events = this.state.displayTrack.scoreCalculator.scoreLog.map((line, index) => {
+            const events = this.state.displayTrack.contestant.scoreLog.map((line, index) => {
                 return <li key={this.state.displayTrack.contestant.contestantNumber + "event" + index}>{line}</li>
             })
             detailsDisplay = <div><h2>{this.state.displayTrack.contestant.displayString()}</h2>
@@ -224,19 +166,19 @@ export class Tracker extends React.Component {
                 </ol>
             </div>
         } else if (this.state.currentDisplay === DisplayTypes.turningpointstanding) {
-            if (this.traccarDeviceTracks) {
-                this.traccarDeviceTracks.showAllTracks()
-                this.traccarDeviceTracks.hideAllAnnotations()
+            if (this.tracks) {
+                this.tracks.showAllTracks()
+                this.tracks.hideAllAnnotations()
             }
-            const scores = this.traccarDeviceTracks.tracks.filter((c) => {
-                return !Number.isNaN(c.scoreCalculator.getScoreByGate(this.state.turningPoint))
+            const scores = this.tracks.tracks.filter((c) => {
+                return !Number.isNaN(c.contestant.getScoreByGate(this.state.turningPoint))
             }).sort((a, b) => {
-                if (a.scoreCalculator.getScoreByGate(this.state.turningPoint) > b.scoreCalculator.getScoreByGate(this.state.turningPoint)) return 1;
-                if (a.scoreCalculator.getScoreByGate(this.state.turningPoint) < b.scoreCalculator.getScoreByGate(this.state.turningPoint)) return -1;
+                if (a.contestant.getScoreByGate(this.state.turningPoint) > b.contestant.getScoreByGate(this.state.turningPoint)) return 1;
+                if (a.contestant.getScoreByGate(this.state.turningPoint) < b.contestant.getScoreByGate(this.state.turningPoint)) return -1;
                 return 0
             }).map((c) => {
                 return <li
-                    key={this.state.turningPoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {c.scoreCalculator.getScoreByGate(this.state.turningPoint)} points</li>
+                    key={this.state.turningPoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {c.contestant.getScoreByGate(this.state.turningPoint)} points</li>
             })
             detailsDisplay = <div><h2>{this.state.turningPoint}</h2>
                 <ol>{scores}</ol>

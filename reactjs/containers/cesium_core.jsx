@@ -54,7 +54,7 @@ class CesiumContainer extends React.Component {
     render() {
         let TrackerDisplay = <div/>
         if (this.state.initiated)
-            TrackerDisplay = <Tracker map={this.map} contest={this.contest} liveMode={this.liveMode}/>
+            TrackerDisplay = <Tracker map={this.map} contest={this.contest} liveMode={this.liveMode} fetchInterval={2000}/>
         return (
             <div id='main_div'>
                 <div className = "score">

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from display.models import Contest, Aeroplane, Team, Track, Contestant
+from display.models import Contest, Aeroplane, Team, Track, Contestant, ContestantTrack
 
 
 class TrackSerialiser(serializers.ModelSerializer):
@@ -41,4 +41,13 @@ class ContestSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Contest
+        fields = "__all__"
+
+
+class ContestantTrackSerialiser(serializers.ModelSerializer):
+    score_log = serializers.JSONField()
+    score_per_gate = serializers.JSONField()
+
+    class Meta:
+        model = ContestantTrack
         fields = "__all__"

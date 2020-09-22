@@ -1,5 +1,6 @@
+import dateutil
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.views.generic import View, TemplateView, ListView
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
@@ -7,11 +8,16 @@ import logging
 import urllib.request
 import os
 
-from rest_framework.generics import RetrieveAPIView
+from rest_framework.decorators import api_view
+from rest_framework.generics import RetrieveAPIView, get_object_or_404
+from rest_framework.response import Response
 
 from display.forms import ImportTrackForm
-from display.models import Contest, Track
-from display.serialisers import ContestSerialiser
+from display.models import Contest, Track, ContestantTrack
+from display.serialisers import ContestSerialiser, ContestantTrackSerialiser
+from influx_facade import InfluxFacade
+
+logger = logging.getLogger(__name__)
 
 
 def frontend_view(request, pk):
@@ -30,6 +36,37 @@ class RetrieveContestApi(RetrieveAPIView):
 
 class ContestList(ListView):
     model = Contest
+
+
+@api_view(["GET"])
+def get_data_from_time_for_contest(request, contest_pk):
+    contest = get_object_or_404(Contest, pk=contest_pk)  # type: Contest
+    influx = InfluxFacade()
+    from_time = request.GET.get("from_time", contest.start_time.isoformat())
+    result_set = influx.get_positions_for_contest(contest_pk, from_time)
+    annotation_results = influx.get_annotations_for_contest(contest_pk, from_time)
+    positions = []
+    annotations = []
+    global_latest_time = None
+    for contestant in contest.contestant_set.all():
+        logger.debug("Contestant_pk: {}".format(contestant.pk))
+        position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
+        logger.debug(position_data)
+        if len(position_data):
+            latest_time = dateutil.parser.parse(position_data[-1]["time"])
+            global_latest_time = latest_time if not global_latest_time else max(latest_time, global_latest_time)
+            contest_data = {
+                "contestant_id": contestant.pk,
+                "position_data": position_data
+            }
+            positions.append(contest_data)
+        annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
+        if len(annotation_data):
+            annotations.append({"contestant_id": contestant.pk, "annotations": annotation_data})
+
+    return Response({"latest_time": global_latest_time, "positions": positions, "annotations": annotations,
+                     "contestant_tracks": [ContestantTrackSerialiser(item).data for item in
+                                           ContestantTrack.objects.filter(contestant__contest=contest)]})
 
 
 def import_track(request):

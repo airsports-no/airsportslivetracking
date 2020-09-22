@@ -13,3 +13,5 @@ numpy
 scipy
 drf-yasg
 fastkml
+influxdb
+websocket-client

@@ -22,12 +22,20 @@ export class Contestant {
         this.scoreByGate = {}
     }
 
+    getScoreByGate(gateName) {
+        if (this.scoreByGate.hasOwnProperty(gateName)) {
+            return this.scoreByGate[gateName]
+        }
+        return NaN
+    }
+
+
     displayString() {
         return this.pilot
     }
 
     displayFull() {
-        return "Contestant: " +this.contestantNumber + "<br/>Pilot: " + this.pilot + "<br/>Navigator: " + this.navigator + "<br/>Aeroplane: " + this.registrationNumber
+        return "Contestant: " + this.contestantNumber + "<br/>Pilot: " + this.pilot + "<br/>Navigator: " + this.navigator + "<br/>Aeroplane: " + this.registrationNumber
     }
 
     updateScore(score) {
@@ -40,8 +48,8 @@ export class Contestant {
         this.updateScoreCallback(this)
     }
 
-    updateCurrentLeg(gate) {
-        this.currentLeg = gate ? gate.name : ""
+    updateCurrentLeg(gateName) {
+        this.currentLeg = gateName
         this.updateScoreCallback(this)
     }
 
@@ -63,6 +71,10 @@ export class ContestantList {
         return contestantList.map((data) => {
             return new Contestant(data.id, data.contestant_number, data.team.aeroplane.registration, data.team.pilot, data.team.navigator, data.traccar_device_name, this.colours.pop().hex(), new Date(data.takeoff_time), new Date(data.finished_by_time), data.ground_speed, data.gate_times, updateScoreCallback)
         })
+    }
+
+    getContestantById(contestantId) {
+        return this.contestants.find((contestant) => contestant.id === contestantId)
     }
 
     getContestantForTracker(trackerName) {

@@ -14,3 +14,28 @@ services:
       - ./reactjs:/reactjs/
     ports:
       - "8002:8000"
+    depends_on:
+      - influx
+
+
+  tracker_processor:
+    command: ["bash", "-c", "python3 position_processor"]
+    container_name: tracker_processor
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/src/
+    depends_on:
+      - influx
+
+  influx:
+    image: influxdb
+    environment:
+      - INFLUXDB_DB=airsport
+      - INFLUXDB_USER=airsport
+      - INFLUXDB_USER_PASSWORD=notsecret
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"

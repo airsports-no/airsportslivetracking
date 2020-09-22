@@ -4,12 +4,14 @@ from collections import namedtuple
 from plistlib import Dict
 from typing import List
 import cartopy.crs as ccrs
+from django.core.exceptions import ObjectDoesNotExist
 
 from django.db import models
 
 # Create your models here.
 from display.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing
 from display.my_pickled_object_field import MyPickledObjectField
+from display.utilities import get_distance_to_other_gates
 
 
 def user_directory_path(instance, filename):
@@ -76,7 +78,17 @@ class Track(models.Model):
                                                           gates[0]["longitude"],
                                                           gates[0]["latitude"],
                                                           40),
+            "inside_distance": 0,
+            "outside_distance": 0,
         }
+
+    @staticmethod
+    def insert_gate_ranges(waypoints):
+        for main_gate in waypoints:
+            distances = list(get_distance_to_other_gates(main_gate, waypoints).values())
+            minimum_distance = min(distances)
+            main_gate["inside_distance"] = minimum_distance * 2 / 3
+            main_gate["outside_distance"] = 2000 + minimum_distance * 2 / 3
 
     @staticmethod
     def legs(waypoints) -> Dict:
@@ -100,7 +112,7 @@ class Track(models.Model):
             tp_gates[index]["turn_direction"] = "ccw" if bearing_difference(tp_gates[index]["bearing"],
                                                                             tp_gates[index + 1][
                                                                                 "bearing"]) > 0 else "cw"
-
+        Track.insert_gate_ranges(waypoints)
         return waypoints
 
 
@@ -138,7 +150,9 @@ class Team(models.Model):
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
-        return "{} and {} in {}".format(self.pilot, self.navigator, self.aeroplane)
+        if len(self.navigator) > 0:
+            return "{} and {} in {}".format(self.pilot, self.navigator, self.aeroplane)
+        return "{} in {}".format(self.pilot, self.aeroplane)
 
 
 class Contest(models.Model):
@@ -178,3 +192,42 @@ class Contestant(models.Model):
                 crossing_time += datetime.timedelta(minutes=1)
             crossing_times[gate["name"]] = crossing_time
         return crossing_times
+
+    @classmethod
+    def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):
+        try:
+            return cls.objects.get(traccar_device_name=device, takeoff_time__lte=stamp, finished_by_time__gte=stamp)
+        except ObjectDoesNotExist:
+            return None
+
+
+class ContestantTrack(models.Model):
+    contestant = models.OneToOneField(Contestant, on_delete=models.CASCADE)
+    score_log = MyPickledObjectField(default=list)
+    score_per_gate = MyPickledObjectField(default=dict)
+    score = models.FloatField(default=0)
+    current_state = models.CharField(max_length=200, default="Waiting...")
+    current_leg = models.CharField(max_length=100, default="")
+
+    @classmethod
+    def get_contestant_track_for_device_at_time(cls, device: str, stamp: datetime.datetime):
+        contestant = Contestant.get_contestant_for_device_at_time(device, stamp)
+        if contestant:
+            return cls.objects.get_or_create(contestant=contestant)[0]
+        return None
+
+    def update_score(self, score_per_gate, score, score_log):
+        self.score = score
+        self.score_per_gate = score_per_gate
+        self.score_log = score_log
+        self.save()
+
+    def updates_current_state(self, state: str):
+        if self.current_state != state:
+            self.current_state = state
+            self.save()
+
+    def update_current_leg(self, current_leg: str):
+        if self.current_leg != current_leg:
+            self.current_leg = current_leg
+            self.save()

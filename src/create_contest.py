@@ -9,6 +9,7 @@ if __name__ == "__main__":
     django.setup()
 from display.models import Team, Aeroplane, Contest, Track, Contestant
 
+Contest.objects.all().delete()
 aeroplane = Aeroplane.objects.first()
 now = datetime.now(timezone.utc).astimezone()
 contest = Contest.objects.create(name="Test contest",
@@ -17,7 +18,6 @@ contest = Contest.objects.create(name="Test contest",
                                  start_time=now, finish_time=now + timedelta(hours=2))
 
 for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
-    print(index)
     contestant_name = os.path.splitext(os.path.basename(file))[0]
     team, _ = Team.objects.get_or_create(pilot=contestant_name, navigator="", aeroplane=aeroplane)
     contestant = Contestant.objects.create(contest=contest, team=team, takeoff_time=now,

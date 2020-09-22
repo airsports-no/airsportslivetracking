@@ -2,7 +2,7 @@ import {ContestantList} from "./Contestants";
 import {ScoreCalculator} from "./scoreCalculator"
 import {divIcon, layerGroup, marker, polyline} from "leaflet"
 import {getDistance, sleep} from "./utilities";
-import {informationAnnotationIcon} from "./iconDefinitions";
+import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
 
 
 class Gate {
@@ -54,8 +54,7 @@ function compare(a, b) {
 }
 
 export class ContestantTrack {
-    constructor(traccarDevice, map, contestant, track, startTime, finishTime) {
-        this.traccarDevice = traccarDevice;
+    constructor(map, contestant, track, startTime, finishTime) {
         this.startTime = startTime
         this.finishTime = finishTime
         this.contestant = contestant
@@ -86,6 +85,22 @@ export class ContestantTrack {
             iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
         })
+        this.iconMap = {
+            anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
+        }
+    }
+
+    updateData(contestantTrack) {
+        this.contestant.updateScore(contestantTrack.score)
+        this.contestant.updateTrackState(contestantTrack.current_state)
+        try {
+            this.contestant.updateLatestStatus(contestantTrack.score_log.slice(-1)[0])
+        } catch (e) {
+
+        }
+        this.contestant.scoreLog = contestantTrack.score_log
+        this.contestant.scoreByGate = contestantTrack.score_per_gate
+        this.contestant.updateCurrentLeg(contestantTrack.current_leg)
     }
 
 
@@ -99,6 +114,12 @@ export class ContestantTrack {
             permanent: false
         })
         this.showTrack()
+    }
+
+    renderAnnotations(annotations) {
+        annotations.map((annotation) => {
+            this.addAnnotation(annotation.latitude, annotation.longitude, annotation.message, this.iconMap[annotation.type])
+        })
     }
 
     addAnnotation(latitude, longitude, message, icon) {
@@ -147,42 +168,12 @@ export class ContestantTrack {
     }
 
 
-    appendPosition(positionReport, render) {
-        // TODO
-        // if (this.contestant.pilot !== "Steinar") return
-        let a = new PositionReport(positionReport.latitude, positionReport.longitude, positionReport.altitude, positionReport.attributes.batteryLevel, new Date(positionReport.deviceTime), new Date(positionReport.serverTime), positionReport.speed, positionReport.course);
-        if (!(this.contestant.takeOffTime < a.deviceTime < this.contestant.finishedByTime)) {
-            return
-        }
-        this.positions.push(a);
-        if (render) {
-            this.renderPositions(this.positions.slice(-1));
-        }
-        this.scoreCalculator.updateFinalScore()
-    }
-
-    addPositionHistory(positions) {
-        this.historicPositions = positions
-    }
-
-    insertHistoryIntoLiveTrack() {
-        this.positions = []
-        // To be called only at the beginning, before we start receiving live positions
-        for (const positionReport of this.historicPositions) {
-            this.appendPosition(positionReport, false)
-        }
-        this.renderPositions(this.positions)
-    }
-
-    renderPositions(positions) {
-        let b = positions.map((p) => {
-            return [p.latitude, p.longitude]
-        })
+    renderPositions(b) {
         if (b.length) {
             if (!this.dot) {
                 this.createLiveEntities(b)
             } else {
-                this.dot.setLatLng(newest_position_coordinates)
+                this.dot.setLatLng(b.slice(-1)[0])
                 b.map((position) => {
                     this.lineCollection.addLatLng(position)
                 })
@@ -190,81 +181,51 @@ export class ContestantTrack {
         }
     }
 
-    renderHistoricTime(historicTime) {
-        if (!this.historicPositions.length) return
-        // historicPositions is the raw data, not wrapped into the appropriate class
-        const initialTrackTime = new Date(this.historicPositions[0].deviceTime)
-        // todo
-        const startTakeoffDifference = 0//this.contestant.takeoffTime - initialTrackTime
-        const toRender = this.historicPositions.filter((position) => {
-            const shiftedStartTime = new Date(this.startTime.getTime() + (new Date(position.deviceTime) - initialTrackTime) + startTakeoffDifference)
-            return this.lastRenderedTime < shiftedStartTime && shiftedStartTime <= historicTime
-        })
-        // console.log(this.contestant.pilot + ": Last rendered is " + this.lastRenderedTime + ", rendering until " + historicTime + ": " + toRender.length)
-        toRender.map((position) => {
-            this.appendPosition(position, true)
-        })
-        this.lastRenderedTime = new Date(historicTime.getTime())
-    }
-
 }
 
-export class TraccarDeviceTracks {
-    constructor(traccarDeviceList, map, startTime, finishTime, contestantList, track, updateScoreCallback) {
+export class ContestantTracks {
+    constructor(map, startTime, finishTime, contestantList, track, updateScoreCallback) {
         this.updateScoreCallback = updateScoreCallback
         this.startTime = startTime;
         this.finishTime = finishTime;
         this.track = track;
         this.contestants = new ContestantList(contestantList, updateScoreCallback)
-        this.traccarDeviceList = traccarDeviceList;
         this.map = map
         this.tracks = []
-        this.prePopulateContestantTracks()
     }
 
-
-    prePopulateContestantTracks() {
-        this.contestants.contestants.forEach(contestant => {
-            const track = new ContestantTrack(this.getTrackerForContestant(contestant), this.map, contestant, this.track, this.startTime, this.finishTime);
-            this.tracks.push(track);
-        })
-    }
-
-    getTrackForContestant(contestant) {
-        return this.tracks.find((track) => track.contestant.id === contestant.id)
-    }
-
-    getTrackForTraccarDevice(traccarDevice, atTime) {
-        let contestant = this.contestants.getContestantForTrackerForTime(traccarDevice.name, atTime)
-        if (!contestant) {
-            console.log("Found no contestant for device " + traccarDevice.name + " at time " + atTime)
-            return null;
-        }
-        let track = this.tracks.find((track) => track.contestant.id === contestant.id)
+    getTrackForContestant(contestantID) {
+        const contestant = this.contestants.getContestantById(contestantID)
+        let track = this.tracks.find((track) => track.contestant.id === contestantID)
         if (!track) {
-            console.log("Created new track for " + traccarDevice.name)
-            track = new ContestantTrack(traccarDevice, this.map, contestant, this.track, this.startTime, this.finishTime);
+            console.log("Created new track for " + contestant.displayString())
+            track = new ContestantTrack(this.map, contestant, this.track, this.startTime, this.finishTime);
             this.tracks.push(track);
         }
         return track;
     }
 
-    appendPositionReport(positionReport) {
-        let device = this.traccarDeviceList.deviceById(positionReport.deviceId);
-        let track = this.getTrackForTraccarDevice(device, new Date(positionReport.deviceTime));
-        if (track)
-            track.appendPosition(positionReport, true);
-    }
 
-    getTrackerForContestant(contestant) {
-        return this.traccarDeviceList.deviceByName(contestant.trackerName)
-    }
+    addData(positions, annotations, contestantTracks) {
+        positions.map((contestantReport) => {
+            let track = this.getTrackForContestant(contestantReport.contestant_id);
+            if (track) {
+                const positions = contestantReport.position_data.map((position) => {
+                    return [position.latitude, position.longitude]
+                })
+                track.renderPositions(positions);
+            }
+        })
+        annotations.map((annotationWrapper) => {
+            let track = this.getTrackForContestant(annotationWrapper.contestant_id);
+            if (track) {
 
-
-    renderHistoricTime(historicTime) {
-        this.tracks.map((track) => {
-            console.log(track.contestant.displayString())
-            track.renderHistoricTime(historicTime)
+                track.renderAnnotations(annotationWrapper.annotations);
+            }
+        })
+        contestantTracks.map((contestantTrack) => {
+            let track = this.getTrackForContestant(contestantTrack.contestant);
+            track.updateData(contestantTrack)
         })
     }
 
