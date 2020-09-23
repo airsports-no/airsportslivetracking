@@ -19,7 +19,7 @@ services:
 
 
   tracker_processor:
-    command: ["bash", "-c", "python3 position_processor"]
+    command: ["bash", "-c", "python3 position_processor.py"]
     container_name: tracker_processor
     build:
       context: .
