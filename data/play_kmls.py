@@ -31,14 +31,15 @@ def send(id, time, lat, lon, speed):
     requests.post("http://" + server + '/?' + urlencode(params))
 
 
+print(len(tracks))
 # print(tracks)
-print(maximum_index)
-count = 0
-for index in range(0, maximum_index, 4):
-    for contestant_name, positions in tracks.items():
-        if len(positions) > index:
-            count += 1
-            longitude, latitude = positions[index]
-            send(contestant_name, time.mktime(datetime.datetime.now(datetime.timezone.utc).astimezone().timetuple()), latitude, longitude, 0)
-    print(count)
-    time.sleep(0.5)
+# print(maximum_index)
+# count = 0
+# for index in range(0, maximum_index, 4):
+#     for contestant_name, positions in tracks.items():
+#         if len(positions) > index:
+#             count += 1
+#             longitude, latitude = positions[index]
+#             send(contestant_name, time.mktime(datetime.datetime.now(datetime.timezone.utc).astimezone().timetuple()), latitude, longitude, 0)
+#     print(count)
+#     time.sleep(0.5)

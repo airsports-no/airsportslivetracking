@@ -24,8 +24,9 @@ for file in glob.glob("tracks/*.gpx"):
                 positions.append((point.time, point.latitude, point.longitude))
     tracks[contestant] = positions
     maximum_index = max(maximum_index, len(positions))
+    print(contestant)
     print(len(positions))
-
+print(len(tracks))
 
 def send(id, time, lat, lon, speed):
     params = (('id', id), ('timestamp', int(time)), ('lat', lat), ('lon', lon), ('speed', speed))
@@ -33,15 +34,15 @@ def send(id, time, lat, lon, speed):
 
 
 # print(tracks)
-print(maximum_index)
-count = 0
-for index in range(0, maximum_index, 4):
-    for contestant_name, positions in tracks.items():
-        if len(positions) > index:
-            count += 1
-            stamp, latitude, longitude = positions[index]
-            stamp = stamp.astimezone()
-            send(contestant_name, time.mktime(stamp.timetuple()), latitude, longitude, 0)
-            # print(stamp)
-    print(count)
-    time.sleep(0.5)
+# print(maximum_index)
+# count = 0
+# for index in range(0, maximum_index, 4):
+#     for contestant_name, positions in tracks.items():
+#         if len(positions) > index:
+#             count += 1
+#             stamp, latitude, longitude = positions[index]
+#             stamp = stamp.astimezone()
+#             send(contestant_name, time.mktime(stamp.timetuple()), latitude, longitude, 0)
+#             # print(stamp)
+#     print(count)
+#     time.sleep(0.5)
