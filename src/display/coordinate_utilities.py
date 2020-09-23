@@ -1,7 +1,11 @@
+import logging
 import math
 from typing import Tuple
+from geopy import distance
 
 R = 6371000  # metres
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
@@ -9,20 +13,21 @@ def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, 
 
     :param start:
     :param finish:
-    :return: Distance in kilometres
+    :return: Distance in metres
     """
-    lat1 = start[0] * math.pi / 180
-    lon1 = start[1] * math.pi / 180
-    lat2 = finish[0] * math.pi / 180
-    lon2 = finish[1] * math.pi / 180
-    deltaLatitude = (lat2 - lat1)
-    deltaLongitude = (lon2 - lon1)
-
-    a = math.sin(deltaLatitude / 2) * math.sin(deltaLatitude / 2) + math.cos(lat1) * math.cos(lat2) * math.sin(
-        deltaLongitude / 2) * math.sin(deltaLongitude / 2)
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    d = R * c
-    return d
+    # lat1 = start[0] * math.pi / 180
+    # lon1 = start[1] * math.pi / 180
+    # lat2 = finish[0] * math.pi / 180
+    # lon2 = finish[1] * math.pi / 180
+    # deltaLatitude = (lat2 - lat1)
+    # deltaLongitude = (lon2 - lon1)
+    #
+    # a = math.sin(deltaLatitude / 2) * math.sin(deltaLatitude / 2) + math.cos(lat1) * math.cos(lat2) * math.sin(
+    #     deltaLongitude / 2) * math.sin(deltaLongitude / 2)
+    # c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    # d = R * c
+    # return d
+    return distance.distance(start, finish).km * 1000
 
 
 def calculate_bearing(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
@@ -97,4 +102,12 @@ def cross_track_distance(lat1, lon1, lat2, lon2, lat, lon):
 
 def along_track_distance(lat1, lon1, lat, lon, cross_track_distance):
     angular_distance13 = calculate_distance_lat_lon((lat1, lon1), (lat, lon)) / R
-    return math.acos(math.cos(angular_distance13) / math.cos(cross_track_distance / R)) * R
+    try:
+        return math.acos(math.cos(angular_distance13) / math.cos(cross_track_distance / R)) * R
+    except:
+        try:
+            logger.exception("Something failed when calculating along track distance: {} {}".format(
+                math.cos(angular_distance13), math.cos(cross_track_distance)))
+        except:
+            logger.exception("Failed even printing the error message")
+    return 0

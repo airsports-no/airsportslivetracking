@@ -102,6 +102,7 @@ class Calculator(threading.Thread):
         self.previous_gate_distances = None
         self.tracking_state = self.BEFORE_START
         self.inside_gates = None
+        self.scorecard = None
         self.score_by_gate = {}
         self.gates = []
         self.outstanding_gates = []
@@ -124,18 +125,20 @@ class Calculator(threading.Thread):
     def run(self):
         if not ContestantTrack.objects.filter(contestant=self.contestant):
             ContestantTrack.objects.create(contestant=self.contestant)
-
+        self.scorecard = self.contestant.scorecard
         self.gates = self.create_gates()
         self.outstanding_gates = list(self.gates)
         self.starting_line = Gate(self.contestant.contest.track.starting_line, self.gates[0].expected_time)
 
-        while datetime.now().astimezone() < self.contestant.finished_by_time and self.tracking_state != self.FINISHED:
+        # while datetime.now().astimezone() < self.contestant.finished_by_time and self.tracking_state != self.FINISHED:
+        while self.tracking_state != self.FINISHED:
             self.process_event.wait(self.loop_time)
             self.process_event.clear()
             while self.last_processed < len(self.track):
                 if len(self.track) > 1:
                     self.calculate_score()
                 self.last_processed = len(self.track)
+        logger.info("Terminating calculator for {}".format(self.contestant))
 
     def calculate_distance_to_outstanding_gates(self, current_position):
         gate_distances = [{"distance": distance_between_gates(current_position, gate), "gate": gate} for gate in
@@ -246,28 +249,29 @@ class Calculator(threading.Thread):
                 break
             if gate.missed:
                 index += 1
-                string = "{} points for missing gate {}".format(Scorecard.missed_gate, gate)
-                self.update_score(gate, Scorecard.missed_gate, string, current_position.latitude,
+                string = "{} points for missing gate {}".format(self.scorecard.missed_gate, gate)
+                self.update_score(gate, self.scorecard.missed_gate, string, current_position.latitude,
                                   current_position.longitude, "anomaly")
                 if gate.is_procedure_turn:
-                    self.update_score(gate, Scorecard.missed_gate,
-                                      "{} for missing procedure turn at gate {}".format(Scorecard.missed_procedure_turn,
-                                                                                        gate),
+                    self.update_score(gate, self.scorecard.missed_gate,
+                                      "{} for missing procedure turn at gate {}".format(
+                                          self.scorecard.missed_procedure_turn,
+                                          gate),
                                       current_position.latitude, current_position.longitude, "anomaly")
             elif gate.passing_time is not None:
                 index += 1
                 time_difference = (gate.passing_time - gate.expected_time).total_seconds()
                 absolute_time_difference = abs(time_difference)
-                if absolute_time_difference > Scorecard.gate_perfect_limit_seconds:
-                    gate_score = min(Scorecard.maximum_gate_score, round(
-                        absolute_time_difference - Scorecard.gate_perfect_limit_seconds) * Scorecard.gate_timing_per_second)
+                if absolute_time_difference > self.scorecard.gate_perfect_limit_seconds:
+                    gate_score = min(self.scorecard.maximum_gate_score, round(
+                        absolute_time_difference - self.scorecard.gate_perfect_limit_seconds) * self.scorecard.gate_timing_per_second)
                     self.update_score(gate, gate_score,
                                       "{} points for passing gate {} of by {}s".format(gate_score, gate,
                                                                                        round(time_difference)),
                                       current_position.latitude, current_position.longitude, "information")
                 else:
-                    self.update_score(gate, Scorecard.missed_gate,
-                                      "{} points for passing gate {} of by {}s".format(Scorecard.missed_gate, gate,
+                    self.update_score(gate, 0,
+                                      "{} points for passing gate {} of by {}s".format(0, gate,
                                                                                        round(time_difference)),
                                       current_position.latitude, current_position.longitude, "information")
             else:
@@ -420,17 +424,17 @@ class Calculator(threading.Thread):
                 self.update_tracking_state(self.TRACKING)
                 if self.current_procedure_turn_gate.turn_direction not in self.current_procedure_turn_directions:
                     self.update_tracking_state(self.FAILED_PROCEDURE_TURN)
-                    self.update_score(next_gate_last, Scorecard.missed_procedure_turn,
+                    self.update_score(next_gate_last, self.scorecard.missed_procedure_turn,
                                       "{} points for incorrect procedure turn at {}".format(
-                                          Scorecard.missed_procedure_turn, self.current_procedure_turn_gate),
+                                          self.scorecard.missed_procedure_turn, self.current_procedure_turn_gate),
                                       last_position.latitude, last_position.longitude, "anomaly")
 
         else:
             if bearing_difference > 90:
                 if self.tracking_state == self.TRACKING:
                     self.update_tracking_state(self.BACKTRACKING)
-                    self.update_score(next_gate_last, Scorecard.backtracking,
-                                      "{} points for backtracking at {} {}".format(Scorecard.backtracking,
+                    self.update_score(next_gate_last, self.scorecard.backtracking,
+                                      "{} points for backtracking at {} {}".format(self.scorecard.backtracking,
                                                                                    current_leg, next_gate_last),
                                       last_position.latitude, last_position.longitude, "anomaly")
             else:

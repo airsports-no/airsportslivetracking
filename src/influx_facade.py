@@ -52,9 +52,12 @@ class InfluxFacade:
             except KeyError:
                 logger.error("Could not find device {}.".format(position_data["deviceId"]))
             device_time = dateutil.parser.parse(position_data["deviceTime"])
+            # print(device_name)
+            # print(device_time)
             contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
+            # print(contestant)
             if contestant:
-                # logger.debug("Found contestant")
+                # logger.info("Found contestant")
                 data = {
                     "measurement": "device_position",
                     "tags": {
@@ -62,7 +65,7 @@ class InfluxFacade:
                         "contest": contestant.contest_id,
                         "device_id": position_data["deviceId"]
                     },
-                    "time": position_data["deviceTime"],
+                    "time": device_time.isoformat(),
                     "fields": {
                         "latitude": position_data["latitude"],
                         "longitude": position_data["longitude"],
@@ -74,18 +77,19 @@ class InfluxFacade:
                 }
                 data_record = dict(data["fields"])
                 data_record["time"] = data["time"]
+                # print(data)
                 try:
                     received_tracks[contestant].append(data_record)
                 except KeyError:
                     received_tracks[contestant] = [data_record]
                 positions_to_store.append(data)
-            else:
-                logger.debug("Found no contestant for device {} {} at {}".format(device_name, position_data["deviceId"],
-                                                                                 device_time))
+            # else:
+            #     logger.info("Found no contestant for device {} {} at {}".format(device_name, position_data["deviceId"],
+            #                                                                      device_time))
         if len(positions_to_store):
             self.put_data(positions_to_store)
         # else:
-        #     logger.debug("No positions to store")
+        #     logger.info("No positions to store")
         return received_tracks
 
     def put_data(self, data: List):
@@ -105,6 +109,22 @@ class InfluxFacade:
             from_time = from_time.isoformat()
         query = "select * from annotation where contest=$contest and time>$from_time;"
         bind_params = {'contest': str(contest_pk), 'from_time': from_time}
+        response = self.client.query(query, bind_params=bind_params)
+        return response
+
+    def get_positions_for_contestant(self, contestant_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
+        if isinstance(from_time, datetime.datetime):
+            from_time = from_time.isoformat()
+        query = "select * from device_position where contestant=$contestant and time>$from_time;"
+        bind_params = {'contestant': str(contestant_pk), 'from_time': from_time}
+        response = self.client.query(query, bind_params=bind_params)
+        return response
+
+    def get_annotations_for_contestant(self, contestant_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
+        if isinstance(from_time, datetime.datetime):
+            from_time = from_time.isoformat()
+        query = "select * from annotation where contestant=$contestant and time>$from_time;"
+        bind_params = {'contestant': str(contestant_pk), 'from_time': from_time}
         response = self.client.query(query, bind_params=bind_params)
         return response
 

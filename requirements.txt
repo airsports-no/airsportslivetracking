@@ -15,3 +15,4 @@ drf-yasg
 fastkml
 influxdb
 websocket-client
+geopy

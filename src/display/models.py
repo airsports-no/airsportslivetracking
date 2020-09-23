@@ -12,6 +12,7 @@ from django.db import models
 from display.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing
 from display.my_pickled_object_field import MyPickledObjectField
 from display.utilities import get_distance_to_other_gates
+from display.wind_utilities import calculate_ground_speed_combined
 
 
 def user_directory_path(instance, filename):
@@ -97,7 +98,7 @@ class Track(models.Model):
             gates[index]["distance"] = -1
             gates[index]["gate_distance"] = calculate_distance_lat_lon(
                 (gates[index - 1]["latitude"], gates[index - 1]["longitude"]),
-                (gates[index]["latitude"], gates[index]["longitude"])) * 1000  # Convert to metres
+                (gates[index]["latitude"], gates[index]["longitude"]))  # Convert to metres
         tp_gates = [item for item in waypoints if item["type"] == "tp"]
         for index in range(1, len(tp_gates)):
             tp_gates[index]["bearing"] = calculate_bearing(
@@ -105,7 +106,7 @@ class Track(models.Model):
                 (tp_gates[index]["latitude"], tp_gates[index]["longitude"]))
             tp_gates[index]["distance"] = calculate_distance_lat_lon(
                 (tp_gates[index - 1]["latitude"], tp_gates[index - 1]["longitude"]),
-                (tp_gates[index]["latitude"], tp_gates[index]["longitude"])) * 1000  # Convert to metres
+                (tp_gates[index]["latitude"], tp_gates[index]["longitude"]))  # Convert to metres
         for index in range(1, len(tp_gates) - 1):
             tp_gates[index]["is_procedure_turn"] = is_procedure_turn(tp_gates[index]["bearing"],
                                                                      tp_gates[index + 1]["bearing"])
@@ -114,6 +115,15 @@ class Track(models.Model):
                                                                                 "bearing"]) > 0 else "cw"
         Track.insert_gate_ranges(waypoints)
         return waypoints
+
+
+def get_next_turning_point(waypoints: List, gate_name: str) -> Dict:
+    found_current = False
+    for gate in waypoints:
+        if gate["name"] == gate_name:
+            found_current = True
+        if found_current and gate["type"] == "tp":
+            return gate
 
 
 def bearing_difference(bearing1, bearing2) -> float:
@@ -162,9 +172,24 @@ class Contest(models.Model):
     server_token = models.CharField(max_length=200, blank=True)
     start_time = models.DateTimeField()
     finish_time = models.DateTimeField()
+    wind_speed = models.FloatField(default=0)
+    wind_direction = models.FloatField(default=0)
 
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.isoformat())
+
+
+class Scorecard(models.Model):
+    name = models.CharField(max_length=100, default="default", unique=True)
+    missed_gate = models.FloatField(default=100)
+    gate_timing_per_second = models.FloatField(default=3)
+    gate_perfect_limit_seconds = models.FloatField(default=2)
+    maximum_gate_score = models.FloatField(default=100)
+    backtracking = models.FloatField(default=200)
+    missed_procedure_turn = models.FloatField(default=200)
+    below_minimum_altitude = models.FloatField(default=500)
+    takeoff_time_limit_seconds = models.FloatField(default=60)
+    missed_takeoff_gate = models.FloatField(default=100)
 
 
 class Contestant(models.Model):
@@ -173,12 +198,17 @@ class Contestant(models.Model):
     takeoff_time = models.DateTimeField()
     minutes_to_starting_point = models.FloatField(default=5)
     finished_by_time = models.DateTimeField(null=True)
-    ground_speed = models.FloatField(default=70)
+    air_speed = models.FloatField(default=70)
     contestant_number = models.IntegerField()
     traccar_device_name = models.CharField(max_length=100)
+    scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT, null=True)
 
     def __str__(self):
-        return "{}: {} in {}".format(self.contestant_number, self.team, self.contest)
+        return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.contest.name, self.takeoff_time, self.finished_by_time)
+
+    def get_groundspeed(self, bearing) -> float:
+        return calculate_ground_speed_combined(bearing, self.air_speed, self.contest.wind_speed,
+                                               self.contest.wind_direction)
 
     @property
     def gate_times(self) -> Dict:
@@ -187,16 +217,23 @@ class Contestant(models.Model):
         crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
         crossing_times[gates[0]["name"]] = crossing_time
         for gate in gates[1:]:
-            crossing_time += datetime.timedelta(hours=(gate["gate_distance"] / 1852) / self.ground_speed)
+            next_turning_point = get_next_turning_point(gates, gate["name"])
+            ground_speed = self.get_groundspeed(next_turning_point["bearing"])
+            # if self.team.pilot == "Anders":
+            #     print("{}: ground_speed: {}, bearing: {}".format(gate["name"], ground_speed,
+            #                                                      next_turning_point["bearing"]))
+            crossing_time += datetime.timedelta(
+                hours=(gate["gate_distance"] / 1852) / ground_speed)
+            crossing_times[gate["name"]] = crossing_time
             if gate.get("is_procedure_turn", False):
                 crossing_time += datetime.timedelta(minutes=1)
-            crossing_times[gate["name"]] = crossing_time
         return crossing_times
 
     @classmethod
     def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):
         try:
-            return cls.objects.get(traccar_device_name=device, takeoff_time__lte=stamp, finished_by_time__gte=stamp)
+            return cls.objects.get(traccar_device_name=device, takeoff_time__lte=stamp + datetime.timedelta(minutes=30),
+                                   finished_by_time__gte=stamp)
         except ObjectDoesNotExist:
             return None
 

@@ -24,7 +24,7 @@ influx.drop_database()
 influx.create_database()
 traccar = Traccar()
 devices = traccar.get_device_map()
-logger.debug("Devices {}".format(devices))
+logger.info("Devices {}".format(devices))
 
 calculators = {}
 

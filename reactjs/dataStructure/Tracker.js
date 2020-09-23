@@ -15,7 +15,7 @@ export class Tracker extends React.Component {
         this.contest = props.contest;
         this.startTime = new Date(this.contest.start_time)
         this.finishTime = new Date(this.contest.finish_time)
-        this.lastDataTime = new Date(this.startTime.getTime())
+        this.lastDataTime = {}
         this.liveMode = props.liveMode
         this.map = props.map;
         this.tracks = new ContestantTracks(this.map, this.startTime, this.finishTime, this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
@@ -30,23 +30,26 @@ export class Tracker extends React.Component {
     }
 
     fetchNextData() {
-        axios.get("/display/api/contest/track_data/" + this.contest.id + "?from_time=" + this.lastDataTime.toISOString()).then((result) => {
-            console.log(result.data)
-            if (result.data.latest_time)
-                this.lastDataTime = new Date(result.data.latest_time)
-            this.tracks.addData(result.data.positions, result.data.annotations, result.data.contestant_tracks)
-            if (this.lastDataTime < this.finishTime) setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
-        }).catch(error=>{
-            if (error.response) {
-                console.log("Response data error: " + error)
-                if (this.lastDataTime < this.finishTime) setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
-            }else if( error.request){
-                console.log("Request data error: " + error)
-                if (this.lastDataTime < this.finishTime) setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
-            }else{
-                throw error
-            }
-        })
+        for (const contestant of this.tracks.contestants.contestants) {
+            let tail = ""
+            if (this.lastDataTime.hasOwnProperty(contestant.id))
+                tail = "?from_time=" + this.lastDataTime[contestant.id].toISOString()
+            axios.get("/display/api/contestant/track_data/" + contestant.id + tail).then((result) => {
+                console.log(result.data)
+                if (result.data.latest_time)
+                    this.lastDataTime[contestant.id] = new Date(result.data.latest_time)
+                this.tracks.addData(result.data.positions, result.data.annotations, result.data.contestant_tracks)
+            }).catch(error => {
+                if (error.response) {
+                    console.log("Response data error: " + error)
+                } else if (error.request) {
+                    console.log("Request data error: " + error)
+                } else {
+                    throw error
+                }
+            })
+        }
+        setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
     }
 
     updateScoreCallback(contestant) {

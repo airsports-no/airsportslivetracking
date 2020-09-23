@@ -9,5 +9,5 @@ if __name__ == "__main__":
 from influx_facade import InfluxFacade
 
 influx = InfluxFacade()
-for item in influx.get_annotations_for_contest(15, datetime(2020, 9, 21, 0).astimezone()).get_points(tags = {"contestant":"220"}):
+for item in influx.get_positions_for_contestant(901, datetime(2020, 8, 1, 0).astimezone()).get_points():
     print(item)
