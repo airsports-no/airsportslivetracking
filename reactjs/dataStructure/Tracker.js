@@ -2,6 +2,9 @@ import React from "react";
 import {ContestantTracks} from "./ContestantTrack";
 import axios from "axios";
 import {circle, divIcon, marker, polyline} from "leaflet"
+import LinesEllipsis from 'react-lines-ellipsis'
+import "bootstrap/dist/css/bootstrap.min.css"
+import Table from "react-bootstrap/Table";
 
 const DisplayTypes = {
     scoreboard: 0,
@@ -21,12 +24,18 @@ export class Tracker extends React.Component {
         this.tracks = new ContestantTracks(this.map, this.startTime, this.finishTime, this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
         this.state = {score: {}, currentTime: new Date().toLocaleString(), currentDisplay: DisplayTypes.scoreboard}
         this.turningPointsDisplay = this.contest.track.waypoints.map((waypoint) => {
-            return <a href={"#"} onClick={() => {
+            return <li><a href={"#"} onClick={() => {
                 this.setState({currentDisplay: DisplayTypes.turningpointstanding, turningPoint: waypoint.name})
-            }} key={"tplist" + waypoint.name}>{waypoint.name}, </a>
+            }} key={"tplist" + waypoint.name}>{waypoint.name}</a></li>
         })
         this.renderTrack();
         this.fetchNextData();
+    }
+
+    getTrackingStateBackgroundClass(state){
+        if(["Tracking", "Procedure turn"].includes(state)) return "greenBackground";
+        if (["Backtracking", "Failed procedure turn"].includes(state)) return "redBackground"
+        return ""
     }
 
     fetchNextData() {
@@ -134,27 +143,27 @@ export class Tracker extends React.Component {
                        onClick={() => this.setState({
                            currentDisplay: DisplayTypes.trackDetails,
                            displayTrack: this.tracks.getTrackForContestant(d.id)
-                       })}>{d.contestantNumber}</a></td>
-                <td>{d.displayString()}</td>
+                       })}>{d.contestantNumber} {d.displayString()}</a></td>
                 <td>{d.score}</td>
-                <td>{d.trackState}</td>
-                <td>{d.latestStatus}</td>
+                <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
+                <td><LinesEllipsis text={d.latestStatus} maxLine={1}/></td>
                 <td>{d.currentLeg}</td>
+                <td style={{"background-color": d.colour}}>&nbsp;</td>
             </tr>);
-            detailsDisplay = <table border={1}>
+            detailsDisplay = <Table bordered hover striped size={"sm"}>
                 <thead>
                 <tr>
-                    <td>Rank</td>
                     <td>#</td>
-                    <td>Pilot</td>
+                    <td>Team</td>
                     <td>Score</td>
-                    <td>Tracking state</td>
+                    <td>State</td>
                     <td>Latest event</td>
-                    <td>Current leg</td>
+                    <td>Leg</td>
+                    <td/>
                 </tr>
                 </thead>
                 <tbody>{listItems}</tbody>
-            </table>
+            </Table>
         } else if (this.state.currentDisplay === DisplayTypes.trackDetails) {
             if (this.tracks) {
                 this.tracks.hideAllButThisTrack(this.state.displayTrack)
@@ -189,12 +198,13 @@ export class Tracker extends React.Component {
         }
         return (
             <div>
-                <h1>{this.liveMode ? "Live" : "Historic"} contest tracking</h1>
                 <h2><a href={"#"}
                        onClick={() => this.setState({currentDisplay: DisplayTypes.scoreboard})}>{this.contest.name}</a>
                 </h2>
                 <h2>{this.state.currentTime}</h2>
-                {this.turningPointsDisplay}
+                <ul className={"commaList"}>
+                    {this.turningPointsDisplay}
+                </ul>
                 {detailsDisplay}
             </div>
         );

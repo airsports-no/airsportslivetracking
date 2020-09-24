@@ -72,12 +72,14 @@ headers = {
 headers['Upgrade'] = 'websocket'
 
 if __name__ == "__main__":
-    websocket.enableTrace(True)
-    cookies = traccar.session.cookies.get_dict()
-    ws = websocket.WebSocketApp("ws://{}/api/socket".format(TRACCAR_ADDRESS),
-                                on_message=on_message,
-                                on_error=on_error,
-                                on_close=on_close,
-                                header=headers,
-                                cookie="; ".join(["%s=%s" % (i, j) for i, j in cookies.items()]))
-    ws.run_forever()
+    while True:
+        websocket.enableTrace(True)
+        cookies = traccar.session.cookies.get_dict()
+        ws = websocket.WebSocketApp("ws://{}/api/socket".format(TRACCAR_ADDRESS),
+                                    on_message=on_message,
+                                    on_error=on_error,
+                                    on_close=on_close,
+                                    header=headers,
+                                    cookie="; ".join(["%s=%s" % (i, j) for i, j in cookies.items()]))
+        ws.run_forever()
+        logger.warning("Websocket terminated, restarting")
