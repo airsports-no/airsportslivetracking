@@ -201,7 +201,6 @@ export class Tracker extends React.Component {
                 <h2><a href={"#"}
                        onClick={() => this.setState({currentDisplay: DisplayTypes.scoreboard})}>{this.contest.name}</a>
                 </h2>
-                <h2>{this.state.currentTime}</h2>
                 <ul className={"commaList"}>
                     {this.turningPointsDisplay}
                 </ul>
