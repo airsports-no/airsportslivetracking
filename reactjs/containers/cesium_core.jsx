@@ -4,6 +4,7 @@ import axios from "axios";
 import {Tracker} from "../dataStructure/Tracker";
 import {render} from "react-dom";
 import {map, tileLayer} from "leaflet"
+
 // import "leaflet/dist/leaflet.css"
 
 class CesiumContainer extends React.Component {
@@ -43,7 +44,9 @@ class CesiumContainer extends React.Component {
             zoomOffset: -1,
             accessToken: token
         }).addTo(this.map);
-
+        const logoContainer = document.getElementById("logoContainer")
+        const mapControlContainer = document.getElementsByClassName("leaflet-control")[0]
+        mapControlContainer.appendChild(logoContainer)
     }
 
     componentDidMount() {
@@ -54,13 +57,15 @@ class CesiumContainer extends React.Component {
     render() {
         let TrackerDisplay = <div/>
         if (this.state.initiated)
-            TrackerDisplay = <Tracker map={this.map} contest={this.contest} liveMode={this.liveMode} fetchInterval={5000}/>
+            TrackerDisplay =
+                <Tracker map={this.map} contest={this.contest} liveMode={this.liveMode} fetchInterval={5000}/>
         return (
             <div id='main_div'>
-                <div className = "score">
+                <div className="score">
                     {TrackerDisplay}
                 </div>
                 <div id="cesiumContainer"></div>
+                <div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/></div>
             </div>
         );
     }

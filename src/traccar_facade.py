@@ -40,6 +40,7 @@ class Traccar:
         devices = self.get_devices()
         for item in devices:
             self.delete_device(item["id"])
+        return [item["name"] for item in devices]
 
     def get_device_map(self) -> Dict:
         return {item["id"]: item["name"] for item in self.get_devices()}

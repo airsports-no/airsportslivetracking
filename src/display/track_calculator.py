@@ -337,36 +337,36 @@ class Calculator(threading.Thread):
         next_gate = self.get_turning_point_after_now(current_position_index)
         distance_to_next = 999999999999999
         if next_gate:
-            if self.contestant.contestant_number == 7:
-                logger.info("next_gate: {}".format(next_gate))
+            # if self.contestant.contestant_number == 7:
+            #     logger.info("next_gate: {}".format(next_gate))
             distance_to_next = distance_between_gates(current_position, next_gate)
         last_gate = self.get_turning_point_before_now(current_position_index)
         distance_to_last = 999999999999999
         if last_gate:
-            if self.contestant.contestant_number == 7:
-                logger.info("last_gate: {}".format(last_gate))
+            # if self.contestant.contestant_number == 7:
+            #     logger.info("last_gate: {}".format(last_gate))
 
             distance_to_last = distance_between_gates(current_position, last_gate)
         bearing = bearing_between(previous_position, current_position)
         best_guess = self.sort_out_best_leg(self.guess_current_leg(), bearing)
         if best_guess == next_gate:
-            if self.contestant.contestant_number == 7:
-                logger.info("Best guess == next_gate")
+            # if self.contestant.contestant_number == 7:
+            #     logger.info("Best guess == next_gate")
             current_leg = next_gate
         else:
             if distance_to_next < gate_range:
-                if self.contestant.contestant_number == 7:
-                    logger.info("Best guess is close to next_gate")
+                # if self.contestant.contestant_number == 7:
+                #     logger.info("Best guess is close to next_gate")
 
                 current_leg = next_gate
             elif distance_to_last < gate_range:
-                if self.contestant.contestant_number == 7:
-                    logger.info("Best guess is close to last_gate")
+                # if self.contestant.contestant_number == 7:
+                #     logger.info("Best guess is close to last_gate")
 
                 current_leg = next_gate
             else:
-                if self.contestant.contestant_number == 7:
-                    logger.info("Sticking with best guess {}".format(best_guess))
+                # if self.contestant.contestant_number == 7:
+                #     logger.info("Sticking with best guess {}".format(best_guess))
 
                 current_leg = best_guess
         return current_leg

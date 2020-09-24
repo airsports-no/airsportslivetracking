@@ -58,12 +58,24 @@
 
 .score {
     float: left;
-    width: 45%
+    width: 45%;
+    height: 100%;
 }
 
-html, body, #cesiumContainer {
-    /*width: 100%;*/
-    height: 800px;
+body {
+    height: 100%;
+    width: 100%;
+}
+
+#main_div {
+    height: 100%;
+    width: 100%;
+    position: fixed;
+}
+
+#cesiumContainer {
+    width: 55%;
+    height: 100%;
     /*margin: 0;*/
     /*padding: 0;*/
     /*overflow: hidden;*/
@@ -112,10 +124,19 @@ html, body, #cesiumContainer {
     content: ""
 }
 
-.greenBackground{
+.greenBackground {
     background-color: lightgreen;
 }
 
-.redBackground{
+.redBackground {
     background-color: lightcoral;
+}
+
+#logoContainer {
+    position: absolute;
+    z-index: 100;
+    top: 0;
+    left: 100px;
+    width: 200px;
+    height: 100px;
 }

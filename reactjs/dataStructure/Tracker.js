@@ -138,6 +138,7 @@ export class Tracker extends React.Component {
             let position = 1
             const listItems = contestants.map((d) => <tr
                 key={"leaderboard" + d.contestantNumber}>
+                <td style={{"background-color": d.colour}}>&nbsp;</td>
                 <td>{position++}</td>
                 <td><a href={"#"}
                        onClick={() => this.setState({
@@ -148,18 +149,17 @@ export class Tracker extends React.Component {
                 <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
                 <td><LinesEllipsis text={d.latestStatus} maxLine={1}/></td>
                 <td>{d.currentLeg}</td>
-                <td style={{"background-color": d.colour}}>&nbsp;</td>
             </tr>);
             detailsDisplay = <Table bordered hover striped size={"sm"}>
                 <thead>
                 <tr>
+                    <td/>
                     <td>#</td>
                     <td>Team</td>
                     <td>Score</td>
                     <td>State</td>
                     <td>Latest event</td>
                     <td>Leg</td>
-                    <td/>
                 </tr>
                 </thead>
                 <tbody>{listItems}</tbody>
