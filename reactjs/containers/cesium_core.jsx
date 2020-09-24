@@ -44,9 +44,9 @@ class CesiumContainer extends React.Component {
             zoomOffset: -1,
             accessToken: token
         }).addTo(this.map);
-        const logoContainer = document.getElementById("logoContainer")
-        const mapControlContainer = document.getElementsByClassName("leaflet-control")[0]
-        mapControlContainer.appendChild(logoContainer)
+        // const logoContainer = document.getElementById("logoContainer")
+        // const mapControlContainer = document.getElementsByClassName("leaflet-control")[0]
+        // mapControlContainer.appendChild(logoContainer)
     }
 
     componentDidMount() {
@@ -62,14 +62,14 @@ class CesiumContainer extends React.Component {
         return (
             <div id="map-holder">
                 <div id='main_div' className={"container-fluid fill"}>
-                    <div className={"row fill"}>
+                    <div className={"row fill ml-1"}>
                         <div className={"col-5"}>
                             {TrackerDisplay}
                         </div>
                         <div className={"col-7 fill"}>
                             <div id="cesiumContainer"></div>
-                            <div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>
-                            </div>
+                            {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
+                            {/*</div>*/}
                         </div>
                     </div>
                 </div>

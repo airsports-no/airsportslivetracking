@@ -2,7 +2,11 @@ import React from "react";
 import {ContestantTracks} from "./ContestantTrack";
 import axios from "axios";
 import {circle, divIcon, marker, polyline} from "leaflet"
-import LinesEllipsis from 'react-lines-ellipsis'
+
+import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
+// import LinesEllipsis from 'react-lines-ellipsis'
+// import responsiveHOC from 'react-lines-ellipsis/lib/responsiveHOC'
+// const ResponsiveEllipsis = responsiveHOC()(LinesEllipsis)
 import "bootstrap/dist/css/bootstrap.min.css"
 import Table from "react-bootstrap/Table";
 
@@ -32,8 +36,8 @@ export class Tracker extends React.Component {
         this.fetchNextData();
     }
 
-    getTrackingStateBackgroundClass(state){
-        if(["Tracking", "Procedure turn"].includes(state)) return "greenBackground";
+    getTrackingStateBackgroundClass(state) {
+        if (["Tracking", "Procedure turn"].includes(state)) return "greenBackground";
         if (["Backtracking", "Failed procedure turn"].includes(state)) return "redBackground"
         return ""
     }
@@ -147,7 +151,8 @@ export class Tracker extends React.Component {
                        })}>{d.contestantNumber} {d.displayString()}</a></td>
                 <td>{d.score}</td>
                 <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
-                <td><LinesEllipsis text={d.latestStatus} maxLine={1}/></td>
+                {/*<td><ResponsiveEllipsis text={d.latestStatus} maxLine={1}/></td>*/}
+                <td><EllipsisWithTooltip placement="bottom">{d.latestStatus}</EllipsisWithTooltip></td>
                 <td>{d.currentLeg}</td>
             </tr>);
             detailsDisplay = <Table bordered hover striped size={"sm"}>
@@ -197,14 +202,32 @@ export class Tracker extends React.Component {
             </div>
         }
         return (
-            <div>
-                <h2><a href={"#"}
-                       onClick={() => this.setState({currentDisplay: DisplayTypes.scoreboard})}>{this.contest.name}</a>
-                </h2>
-                <ul className={"commaList"}>
-                    {this.turningPointsDisplay}
-                </ul>
-                {detailsDisplay}
+            <div className={"row"}>
+                <div className={"row"}>
+                    <div className={"col-6"}>
+                        <h2><a href={"#"}
+                               onClick={() => this.setState({currentDisplay: DisplayTypes.scoreboard})}>{this.contest.name}</a>
+                        </h2>
+                    </div>
+                    <div className={"col-6"}>
+                        <img src={"/static/img/AirSportsLogo.png"} className={"img-fluid float-right"}/>
+                    </div>
+                </div>
+                <div className={"row"}>
+                    <div className={"col-12"}>
+                        Scores per gate:<br/>
+                        <ul className={"commaList"}>
+                            {this.turningPointsDisplay}
+                        </ul>
+                    </div>
+                </div>
+                <div className={"row"}>
+                    <div className={"col-12"}>
+                        {
+                            detailsDisplay
+                        }
+                    </div>
+                </div>
             </div>
         );
     }
