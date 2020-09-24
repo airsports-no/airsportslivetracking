@@ -60,12 +60,19 @@ class CesiumContainer extends React.Component {
             TrackerDisplay =
                 <Tracker map={this.map} contest={this.contest} liveMode={this.liveMode} fetchInterval={5000}/>
         return (
-            <div id='main_div'>
-                <div className="score">
-                    {TrackerDisplay}
+            <div id="map-holder">
+                <div id='main_div' className={"container-fluid fill"}>
+                    <div className={"row fill"}>
+                        <div className={"col-5"}>
+                            {TrackerDisplay}
+                        </div>
+                        <div className={"col-7 fill"}>
+                            <div id="cesiumContainer"></div>
+                            <div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div id="cesiumContainer"></div>
-                <div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/></div>
             </div>
         );
     }
