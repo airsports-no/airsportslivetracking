@@ -39,24 +39,32 @@ export class Contestant {
     }
 
     updateScore(score) {
-        this.score = score
-        this.updateScoreCallback(this)
+        if (this.score !== score) {
+            this.score = score
+            this.updateScoreCallback(this)
+        }
     }
 
     updateTrackState(state) {
-        this.trackState = state
-        this.updateScoreCallback(this)
+        if (this.trackState !== state) {
+            this.trackState = state
+            this.updateScoreCallback(this)
+        }
     }
 
     updateCurrentLeg(gateName) {
-        this.currentLeg = gateName
-        this.updateScoreCallback(this)
+        if (this.currentLeg !== gateName) {
+            this.currentLeg = gateName
+            this.updateScoreCallback(this)
+        }
     }
 
     updateLatestStatus(status) {
-        this.latestStatus = status
-        // console.log("Updating current status: " + status)
-        this.updateScoreCallback(this)
+        if (this.latestStatus !== status) {
+            this.latestStatus = status
+            // console.log("Updating current status: " + status)
+            this.updateScoreCallback(this)
+        }
     }
 
 }
