@@ -33,7 +33,12 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
     if contestant.pk not in calculators:
         calculators[contestant.pk] = Calculator(contestant, influx)
     calculator = calculators[contestant.pk]  # type: Calculator
-    calculator.add_positions(positions)
+    new_positions = []
+    for position in positions:
+        data = position["fields"]
+        data["time"] = position["time"]
+        new_positions.append(data)
+    calculator.add_positions(new_positions)
 
 
 def cleanup_calculators():
@@ -43,9 +48,10 @@ def cleanup_calculators():
 
 
 def build_and_push_position_data(data):
-    received_positions = influx.store_positions(devices, data.get("positions", []))
+    received_positions = influx.generate_position_data(devices, data.get("positions", []))
     for contestant, positions in received_positions.items():
         add_positions_to_calculator(contestant, positions)
+        influx.put_data(positions)
     cleanup_calculators()
 
 

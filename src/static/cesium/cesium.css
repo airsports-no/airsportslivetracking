@@ -114,3 +114,22 @@ html, body {
     height: 100px;
 }
 
+
+#data {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#data:hover {
+  overflow: visible;
+  white-space: normal;
+  width: auto;
+  position: absolute;
+  background-color: #FFF;
+}
+
+#data:hover+div {
+  margin-top: 20px;
+}

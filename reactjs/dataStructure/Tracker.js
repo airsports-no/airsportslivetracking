@@ -3,10 +3,10 @@ import {ContestantTracks} from "./ContestantTrack";
 import axios from "axios";
 import {circle, divIcon, marker, polyline} from "leaflet"
 
-// import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
-import LinesEllipsis from 'react-lines-ellipsis'
-import responsiveHOC from 'react-lines-ellipsis/lib/responsiveHOC'
-const ResponsiveEllipsis = responsiveHOC()(LinesEllipsis)
+import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
+// import LinesEllipsis from 'react-lines-ellipsis'
+// import responsiveHOC from 'react-lines-ellipsis/lib/responsiveHOC'
+// const ResponsiveEllipsis = responsiveHOC()(LinesEllipsis)
 import "bootstrap/dist/css/bootstrap.min.css"
 import Table from "react-bootstrap/Table";
 
@@ -151,8 +151,8 @@ export class Tracker extends React.Component {
                        })}>{d.contestantNumber} {d.displayString()}</a></td>
                 <td>{d.score}</td>
                 <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
-                <td><ResponsiveEllipsis text={d.latestStatus} maxLine={1}/></td>
-                {/*<td><EllipsisWithTooltip placement="bottom">{d.latestStatus}</EllipsisWithTooltip></td>*/}
+                {/*<td><ResponsiveEllipsis text={d.latestStatus} maxLine={1}/></td>*/}
+                <td><EllipsisWithTooltip placement="bottom">{d.latestStatus}</EllipsisWithTooltip></td>
                 <td>{d.currentLeg}</td>
             </tr>);
             detailsDisplay = <Table bordered hover striped size={"sm"}>

@@ -224,7 +224,7 @@ class Calculator(threading.Thread):
         except KeyError:
             self.score_by_gate[gate.name] = self.score
         self.influx.add_annotation(self.contestant, latitude, longitude, message, annotation_type,
-                                   self.track[-1].time + timedelta(seconds=3))
+                                   self.track[-1].time)
         self.score_log.append(message)
         self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)
 

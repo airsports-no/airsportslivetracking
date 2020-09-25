@@ -39,7 +39,7 @@ class InfluxFacade:
         }
         self.client.write_points([data])
 
-    def store_positions(self, devices, positions: List) -> Dict:
+    def generate_position_data(self, devices, positions: List) -> Dict:
         if len(positions) == 0:
             return {}
         # logger.debug("Received {} positions".format(len(positions)))
@@ -75,21 +75,10 @@ class InfluxFacade:
                         "course": position_data["course"]
                     }
                 }
-                data_record = dict(data["fields"])
-                data_record["time"] = data["time"]
-                # print(data)
                 try:
-                    received_tracks[contestant].append(data_record)
+                    received_tracks[contestant].append(data)
                 except KeyError:
-                    received_tracks[contestant] = [data_record]
-                positions_to_store.append(data)
-            # else:
-            #     logger.info("Found no contestant for device {} {} at {}".format(device_name, position_data["deviceId"],
-            #                                                                      device_time))
-        if len(positions_to_store):
-            self.put_data(positions_to_store)
-        # else:
-        #     logger.info("No positions to store")
+                    received_tracks[contestant] = [data]
         return received_tracks
 
     def put_data(self, data: List):
