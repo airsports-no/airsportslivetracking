@@ -157,7 +157,7 @@ class Calculator(threading.Thread):
         insides = {}
         for item in distances:
             insides[item["gate"].name] = item["distance"] < item["gate"].inside_distance or (
-                    item["distance"] < item["gate"].outside_distance and self.inside["gate"].name)
+                    item["distance"] < item["gate"].outside_distance and self.inside_gates[item["gate"].name])
         have_seen_inside = False
         for gate in self.outstanding_gates:  # type: Gate
             if have_seen_inside:
