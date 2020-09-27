@@ -111,7 +111,7 @@ export class ContestantTrack {
     createLiveEntities(positions) {
         const newest_position = positions.slice(-1)[0];
 
-        this.lineCollection = polyline(positions, {
+        this.lineCollection = L.polyline(positions, {
             color: this.contestant.colour
         })
         this.dot = L.marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(this.contestant.displayFull(), {
