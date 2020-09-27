@@ -51,6 +51,7 @@ class InfluxFacade:
                 device_name = devices[position_data["deviceId"]]
             except KeyError:
                 logger.error("Could not find device {}.".format(position_data["deviceId"]))
+                continue
             device_time = dateutil.parser.parse(position_data["deviceTime"])
             # print(device_name)
             # print(device_time)
