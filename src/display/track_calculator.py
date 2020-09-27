@@ -73,6 +73,7 @@ class Calculator(threading.Thread):
     DEVIATING = 4
     BEFORE_START = 5
     FINISHED = 6
+    STARTED = 7
 
     TRACKING_MAP = {
         TRACKING: "Tracking",
@@ -81,7 +82,8 @@ class Calculator(threading.Thread):
         FAILED_PROCEDURE_TURN: "Failed procedure turn",
         DEVIATING: "Deviating",
         BEFORE_START: "Waiting...",
-        FINISHED: "Finished"
+        FINISHED: "Finished",
+        STARTED: "Started"
     }
 
     def __init__(self, contestant: Contestant, influx: InfluxFacade):
@@ -202,6 +204,7 @@ class Calculator(threading.Thread):
             intersection_time = self.get_intersect_time(self.starting_line)
             if intersection_time:
                 logger.info("{}: Passing start line".format(self.contestant))
+                self.update_tracking_state(self.STARTED)
                 self.starting_line.passing_time = intersection_time
         i = len(self.outstanding_gates) - 1
         crossed_gate = False

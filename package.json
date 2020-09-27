@@ -51,6 +51,7 @@
     "dateformat": "^3.0.3",
     "file-loader": "^6.1.0",
     "leaflet": "^1.7.1",
+    "leaflet.markercluster": "^1.4.1",
     "react-bootstrap": "^1.3.0",
     "react-ellipsis-with-tooltip": "^1.1.1",
     "react-json-view": "^1.19.1",
