@@ -1,10 +1,13 @@
 import {ContestantList} from "./Contestants";
 import {ScoreCalculator} from "./scoreCalculator"
-import {divIcon, layerGroup, marker, polyline} from "leaflet"
+import 'leaflet'
+import 'leaflet.markercluster'
 import {getDistance, sleep} from "./utilities";
 import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
+import "leaflet.markercluster/dist/MarkerCluster.css"
+import "leaflet.markercluster/dist/MarkerCluster.Default.css"
 
-
+const L=window['L']
 class Gate {
     constructor(gate, expectedTime) {
         this.name = gate.name
@@ -75,11 +78,12 @@ export class ContestantTrack {
         this.contestant.updateScore(0)
         this.contestant.updateLatestStatus("")
         this.scoreCalculator = new ScoreCalculator(this)
+        this.markers = L.markerClusterGroup()
         this.lineCollection = null;
         this.dot = null;
-        this.annotationLayer = layerGroup()
+        this.annotationLayer = L.layerGroup()
         const size = 24;
-        this.airplaneIcon = divIcon({
+        this.airplaneIcon = L.divIcon({
             html: '<i class="fa fa-plane" style="color: ' + this.contestant.colour + '"><br/>' + this.contestant.displayString() + '</i>',
             iconSize: [size, size],
             iconAnchor: [size / 2, size / 2],
@@ -110,7 +114,7 @@ export class ContestantTrack {
         this.lineCollection = polyline(positions, {
             color: this.contestant.colour
         })
-        this.dot = marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(this.contestant.displayFull(), {
+        this.dot = L.marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(this.contestant.displayFull(), {
             permanent: false
         })
         this.showTrack()
@@ -124,21 +128,21 @@ export class ContestantTrack {
 
     addAnnotation(latitude, longitude, message, icon) {
         if (icon == undefined) icon = informationAnnotationIcon
-        this.annotationLayer.addLayer(marker([latitude, longitude], {icon: icon}).bindTooltip(message, {
+        this.markers.addLayer(L.marker([latitude, longitude], {icon: icon}).bindTooltip(message, {
             permanent: false
         }))
     }
 
     showAnnotations() {
         if (!this.displayAnnotations) {
-            this.annotationLayer.addTo(this.map)
+            this.markers.addTo(this.map)
             this.displayAnnotations = true
         }
     }
 
     hideAnnotations() {
         if (this.displayAnnotations) {
-            this.annotationLayer.removeFrom(this.map)
+            this.markers.removeFrom(this.map)
             this.displayAnnotations = false
         }
     }
