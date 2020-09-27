@@ -14,8 +14,8 @@ class Gate {
         this.y2 = gate.gate_line[3]
         this.latitude = gate.latitude
         this.longitude = gate.longitude
-        this.insideDistance = gate.insideDistance
-        this.outsideDistance = gate.outsideDistance
+        this.insideDistance = gate.inside_distance
+        this.outsideDistance = gate.outside_distance
         this.isTurningPoint = gate.type === "tp"
         if (this.isTurningPoint) {
             this.distance = gate.distance

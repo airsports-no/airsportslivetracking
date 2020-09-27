@@ -78,7 +78,7 @@ class Track(models.Model):
                                                           gates[1]["latitude"],
                                                           gates[0]["longitude"],
                                                           gates[0]["latitude"],
-                                                          40),
+                                                          40*1852),
             "inside_distance": 0,
             "outside_distance": 0,
         }

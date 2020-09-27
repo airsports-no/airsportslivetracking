@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
 import websocket
 from influx_facade import InfluxFacade
-from display.models import Contestant
+from display.models import Contestant, ContestantTrack
 from display.track_calculator import Calculator
 
 logger = logging.getLogger(__name__)
@@ -78,6 +78,7 @@ headers = {
 headers['Upgrade'] = 'websocket'
 
 if __name__ == "__main__":
+    ContestantTrack.objects.all().delete()
     while True:
         websocket.enableTrace(True)
         cookies = traccar.session.cookies.get_dict()

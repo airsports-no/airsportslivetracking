@@ -105,9 +105,10 @@ def along_track_distance(lat1, lon1, lat, lon, cross_track_distance):
     try:
         return math.acos(math.cos(angular_distance13) / math.cos(cross_track_distance / R)) * R
     except:
-        try:
-            logger.exception("Something failed when calculating along track distance: {} {}".format(
-                math.cos(angular_distance13), math.cos(cross_track_distance)))
-        except:
-            logger.exception("Failed even printing the error message")
-    return 0
+        # try:
+        #     logger.exception("Something failed when calculating along track distance: {} {} {}".format(
+        #         math.cos(angular_distance13), math.cos(cross_track_distance),
+        #         math.cos(angular_distance13) / math.cos(cross_track_distance / R)))
+        # except:
+        #     logger.exception("Failed even printing the error message")
+        return 999999999999

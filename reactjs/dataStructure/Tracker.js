@@ -111,6 +111,11 @@ export class Tracker extends React.Component {
         //         color: "orange"
         //     }).addTo(this.map)
         // })
+        // Plot starting line
+        // const gate = this.contest.track.starting_line
+        // polyline([[gate.gate_line[1], gate.gate_line[0]], [gate.gate_line[3], gate.gate_line[2]]], {
+        //             color: "red"
+        //         }).addTo(this.map)
         let route = polyline(turningPoints, {
             color: "blue"
         }).addTo(this.map)

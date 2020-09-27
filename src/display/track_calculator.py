@@ -146,24 +146,30 @@ class Calculator(threading.Thread):
         return sorted(gate_distances, key=lambda k: k["distance"])
 
     def check_if_gate_has_been_missed(self):
-        if not self.starting_line.has_been_passed():
-            return
+        # if not self.starting_line.has_been_passed():
+        #     return
         current_position = self.track[-1]
         distances = self.calculate_distance_to_outstanding_gates(current_position)
+        # logger.info("Distances: {}".format(distances))
         if len(distances) == 0:
             return
         if self.inside_gates is None:
-            self.inside_gates = {item["gate"].name: False for item in distances}
+            self.inside_gates = {gate.name: False for gate in self.outstanding_gates}
+        # logger.info("inside_gates: {}".format(self.inside_gates))
         insides = {}
         for item in distances:
             insides[item["gate"].name] = item["distance"] < item["gate"].inside_distance or (
                     item["distance"] < item["gate"].outside_distance and self.inside_gates[item["gate"].name])
+            # if insides[item["gate"].name]:
+            #     logger.info("Inside gate: {}".format(item["gate"].name))
         have_seen_inside = False
         for gate in self.outstanding_gates:  # type: Gate
             if have_seen_inside:
+                # logger.info("Have seen inside, setting gate {} to False".format(gate.name))
                 insides[gate.name] = False
                 self.inside_gates[gate.name] = False
             if self.inside_gates[gate.name] and not insides[gate.name]:
+                logger.info("Have left the vicinity of gate {}".format(gate.name))
                 self.update_score(gate, 0, "Left the vicinity of gate {} without passing it".format(gate),
                                   current_position.latitude, current_position.longitude, "anomaly")
                 self.check_intersections(force_gate=gate)
@@ -194,7 +200,7 @@ class Calculator(threading.Thread):
         # Check starting line
         if not self.starting_line.has_been_passed():
             intersection_time = self.get_intersect_time(self.starting_line)
-            if intersection_time is not None:
+            if intersection_time:
                 logger.info("{}: Passing start line".format(self.contestant))
                 self.starting_line.passing_time = intersection_time
         i = len(self.outstanding_gates) - 1
@@ -311,8 +317,8 @@ class Calculator(threading.Thread):
             if minimum_distance is None or guess["cross_track"] < minimum_distance:
                 minimum_distance = guess["cross_track"]
                 current_leg = guess["gate"]
-        if self.contestant.contestant_number == 7:
-            logger.info("Best guess leg: {}".format(current_leg))
+        # if self.contestant.contestant_number == 7:
+        #     logger.info("Best guess leg: {}".format(current_leg))
         return current_leg
 
     def get_turning_point_before_now(self, index) -> Optional[Gate]:
