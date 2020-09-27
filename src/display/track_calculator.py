@@ -148,8 +148,8 @@ class Calculator(threading.Thread):
         return sorted(gate_distances, key=lambda k: k["distance"])
 
     def check_if_gate_has_been_missed(self):
-        # if not self.starting_line.has_been_passed():
-        #     return
+        if not self.starting_line.has_been_passed():
+            return
         current_position = self.track[-1]
         distances = self.calculate_distance_to_outstanding_gates(current_position)
         # logger.info("Distances: {}".format(distances))
