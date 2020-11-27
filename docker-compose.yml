@@ -12,6 +12,7 @@ services:
       - ./assets:/assets/
       - ./src:/src/
       - ./reactjs:/reactjs/
+      - ./data:/data/
     ports:
       - "8002:8000"
     depends_on:
