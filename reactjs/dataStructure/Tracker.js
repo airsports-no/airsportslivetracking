@@ -25,11 +25,11 @@ const ScoreTypes = {
     relativeScorePercent: 1
 }
 
-function getScore(scoreType, minScore, contestant) {
+function getScore(scoreType, minScore, score) {
     if (scoreType === ScoreTypes.absoluteScore) {
-        return contestant.score
+        return score
     } else if (scoreType === ScoreTypes.relativeScorePercent) {
-        return ((100 * contestant.score / minScore) - 100).toFixed(1) + "%"
+        return ((100 * score / minScore) - 100).toFixed(1) + "%"
     }
 }
 
@@ -57,7 +57,7 @@ export class Tracker extends React.Component {
         this.state = {
             score: {},
             currentTime: new Date().toLocaleString(),
-            currentDisplay: DisplayTypes.scoreboard,
+            currentDisplay: DisplayTypes.simpleScoreboard,
             scoreType: ScoreTypes.absoluteScore
         }
         this.turningPointsDisplay = this.contest.track.waypoints.map((waypoint) => {
@@ -177,6 +177,9 @@ export class Tracker extends React.Component {
             }
         }
         contestants.sort(this.compareScore)
+        contestants = contestants.filter((contestant) => {
+            return contestant.trackState !== "Waiting..."
+        })
         const minimumScore = getMinimumScoreAboveZero(contestants)
         console.log("Minimum score: " + minimumScore)
         let position = 1
@@ -189,7 +192,7 @@ export class Tracker extends React.Component {
                        currentDisplay: DisplayTypes.trackDetails,
                        displayTrack: this.tracks.getTrackForContestant(d.id)
                    })}>{d.contestantNumber} {d.displayString()}</a></td>
-            <td>{getScore(this.state.scoreType, minimumScore, d)}</td>
+            <td>{getScore(this.state.scoreType, minimumScore, d.score)}</td>
             <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
             <td><ResponsiveEllipsis text={d.latestStatus} maxLine={1}/></td>
             {/*<td><EllipsisWithTooltip placement="bottom">{d.latestStatus}</EllipsisWithTooltip></td>*/}
@@ -223,6 +226,9 @@ export class Tracker extends React.Component {
             }
         }
         contestants.sort(this.compareScore)
+        contestants = contestants.filter((contestant) => {
+            return contestant.trackState !== "Waiting..."
+        })
         const minimumScore = getMinimumScoreAboveZero(contestants)
         let position = 1
         const listItems = contestants.map((d) => <tr
@@ -234,7 +240,7 @@ export class Tracker extends React.Component {
                        currentDisplay: DisplayTypes.trackDetails,
                        displayTrack: this.tracks.getTrackForContestant(d.id)
                    })}>{d.contestantNumber} {d.displayString()}</a></td>
-            <td>{getScore(this.state.scoreType, minimumScore, d)}</td>
+            <td>{getScore(this.state.scoreType, minimumScore, d.score)}</td>
             <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
             <td>{d.lastGate}</td>
             {/*<td>{moment.duration(d.lastGateTimeDifference, "seconds").format()}</td>*/}
@@ -276,15 +282,17 @@ export class Tracker extends React.Component {
             this.tracks.showAllTracks()
             this.tracks.hideAllAnnotations()
         }
-        const scores = this.tracks.tracks.filter((c) => {
+        let scores = this.tracks.tracks.filter((c) => {
             return !Number.isNaN(c.contestant.getScoreByGate(this.state.turningPoint))
-        }).sort((a, b) => {
+        })
+        const minimumTurningpointscore = scores.reduce((min, p) => p.contestant.getScoreByGate(this.state.turningPoint) < min ? p.contestant.getScoreByGate(this.state.turningPoint) : min, 999999999);
+        scores = scores.sort((a, b) => {
             if (a.contestant.getScoreByGate(this.state.turningPoint) > b.contestant.getScoreByGate(this.state.turningPoint)) return 1;
             if (a.contestant.getScoreByGate(this.state.turningPoint) < b.contestant.getScoreByGate(this.state.turningPoint)) return -1;
             return 0
         }).map((c) => {
             return <li
-                key={this.state.turningPoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {c.contestant.getScoreByGate(this.state.turningPoint)} points</li>
+                key={this.state.turningPoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {getScore(this.state.scoreType, minimumTurningpointscore, c.contestant.getScoreByGate(this.state.turningPoint))}</li>
         })
         return <div><h2>{this.state.turningPoint}</h2>
             <ol>{scores}</ol>

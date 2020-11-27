@@ -78,7 +78,23 @@ class Track(models.Model):
                                                           gates[1]["latitude"],
                                                           gates[0]["longitude"],
                                                           gates[0]["latitude"],
-                                                          40*1852),
+                                                          40 * 1852),
+            "inside_distance": 0,
+            "outside_distance": 0,
+        }
+
+
+    @staticmethod
+    def create_finish_line(gates) -> Dict:
+        return {
+            "name": "Finish line",
+            "latitude": gates[-1]["latitude"],
+            "longitude": gates[-1]["longitude"],
+            "gate_line": create_perpendicular_line_at_end(gates[-2]["longitude"],
+                                                          gates[-2]["latitude"],
+                                                          gates[-1]["longitude"],
+                                                          gates[-1]["latitude"],
+                                                          40 * 1852),
             "inside_distance": 0,
             "outside_distance": 0,
         }
@@ -204,7 +220,8 @@ class Contestant(models.Model):
     scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT, null=True)
 
     def __str__(self):
-        return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.contest.name, self.takeoff_time, self.finished_by_time)
+        return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.contest.name, self.takeoff_time,
+                                              self.finished_by_time)
 
     def get_groundspeed(self, bearing) -> float:
         return calculate_ground_speed_combined(bearing, self.air_speed, self.contest.wind_speed,
@@ -245,6 +262,10 @@ class ContestantTrack(models.Model):
     score = models.FloatField(default=0)
     current_state = models.CharField(max_length=200, default="Waiting...")
     current_leg = models.CharField(max_length=100, default="")
+    last_gate = models.CharField(max_length=100, default="")
+    last_gate_time_offset = models.FloatField(default=0)
+    past_starting_gate = models.BooleanField(default=False)
+    past_finish_gate = models.BooleanField(default=False)
 
     @classmethod
     def get_contestant_track_for_device_at_time(cls, device: str, stamp: datetime.datetime):
@@ -252,6 +273,11 @@ class ContestantTrack(models.Model):
         if contestant:
             return cls.objects.get_or_create(contestant=contestant)[0]
         return None
+
+    def update_last_gate(self, gate_name, time_difference):
+        self.last_gate = gate_name
+        self.last_gate_time_offset = time_difference
+        self.save()
 
     def update_score(self, score_per_gate, score, score_log):
         self.score = score
