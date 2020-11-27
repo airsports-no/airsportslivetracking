@@ -48,6 +48,8 @@ html, body {
     height: 100%;
 }
 
+table{height: 500px; overflow-y: scroll;display:block;}
+/*th { position: sticky; top: 0; }*/
 
 #cesiumContainer {
     width: 100%;

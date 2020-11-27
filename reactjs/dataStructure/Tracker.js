@@ -25,6 +25,14 @@ const ScoreTypes = {
     relativeScorePercent: 1
 }
 
+
+const ScoreTypeName = {
+    0: "Absolute score",
+    1: "Score percentage"
+}
+const scoreTypeList = [ScoreTypes.absoluteScore, ScoreTypes.relativeScorePercent]
+
+
 function getScore(scoreType, minScore, score) {
     if (scoreType === ScoreTypes.absoluteScore) {
         return score
@@ -299,6 +307,12 @@ export class Tracker extends React.Component {
         </div>
     }
 
+    scoreTypeLink(scoreType) {
+        const nextType = scoreTypeList[(scoreTypeList.indexOf(scoreType) + 1) % scoreTypeList.length]
+        return <a href={"#"}
+                  onClick={() => this.setState({scoreType: nextType})}>{ScoreTypeName[nextType]}</a>
+    }
+
     render() {
         if (this.props.displayTable) {
 
@@ -328,7 +342,7 @@ export class Tracker extends React.Component {
                     <div className={"row"}>
                         <div className={"col-6"}>
                             <h2><a href={"#"}
-                                   onClick={() => this.state.currentDisplay !== DisplayTypes.simpleScoreboard ? this.setState({currentDisplay: DisplayTypes.simpleScoreboard}) : this.setState({currentDisplay: DisplayTypes.scoreboard})}>{this.contest.name}</a>
+                                   onClick={() => this.setState({currentDisplay: DisplayTypes.simpleScoreboard})}>{this.contest.name}</a>
                             </h2>
                         </div>
                         <div className={"col-6"}>
@@ -344,9 +358,9 @@ export class Tracker extends React.Component {
                         </div>
                     </div>
                     <div className={"row"}>
-                        <a href={"#"}
-                           onClick={() => this.state.scoreType === ScoreTypes.absoluteScore ? this.setState({scoreType: ScoreTypes.relativeScorePercent}) : this.setState({scoreType: ScoreTypes.absoluteScore})}>Change
-                            score type</a>
+                        {this.scoreTypeLink(this.state.scoreType)} | <a href={"#"}
+                                                                 onClick={() => this.setState({currentDisplay: DisplayTypes.scoreboard})}> Detailed
+                        table</a>
                     </div>
 
                 </div>
