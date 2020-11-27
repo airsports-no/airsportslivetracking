@@ -14,9 +14,12 @@ class CesiumContainer extends React.Component {
         this.state = {initiated: false};
         this.client = null;
         this.viewer = null;
+        this.map = null;
         this.tracker = {contest: {name: ""}}
         this.contest_id = document.configuration.contest_id;
         this.liveMode = document.configuration.liveMode;
+        this.displayMap = document.configuration.displayMap;
+        this.displayTable = document.configuration.displayTable;
         this.contest = null;
         console.log("contest_id = " + this.contest_id)
     }
@@ -28,7 +31,9 @@ class CesiumContainer extends React.Component {
             this.contest = res.data;
             if (new Date() > new Date(this.contest.finish_time))
                 this.liveMode = false;
-            this.initialiseMap()
+            if (this.displayMap) {
+                this.initialiseMap();
+            }
             this.setState({initiated: true})
         });
     }
@@ -56,25 +61,56 @@ class CesiumContainer extends React.Component {
 
     render() {
         let TrackerDisplay = <div/>
-        if (this.state.initiated)
+        if (this.state.initiated) {
             TrackerDisplay =
-                <Tracker map={this.map} contest={this.contest} liveMode={this.liveMode} fetchInterval={5000}/>
-        return (
-            <div id="map-holder">
-                <div id='main_div' className={"container-fluid fill"}>
-                    <div className={"row fill ml-1"}>
-                        <div className={"col-5"}>
-                            {TrackerDisplay}
-                        </div>
-                        <div className={"col-7 fill"}>
-                            <div id="cesiumContainer"></div>
-                            {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
-                            {/*</div>*/}
+                <Tracker map={this.map} contest={this.contest} liveMode={this.liveMode} fetchInterval={5000}
+                         displayMap={this.displayMap} displayTable={this.displayTable}/>
+        }
+        if (this.displayTable && this.displayMap) {
+            return (
+                <div id="map-holder">
+                    <div id='main_div' className={"container-fluid fill"}>
+                        <div className={"row fill ml-1"}>
+                            <div className={"col-5"}>
+                                {TrackerDisplay}
+                            </div>
+                            <div className={"col-7 fill"}>
+                                <div id="cesiumContainer"/>
+                                {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
+                                {/*</div>*/}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        );
+            );
+        } else if (this.displayTable) {
+            return (
+                <div id="map-holder">
+                    <div id='main_div' className={"container-fluid fill"}>
+                        <div className={"row fill ml-1"}>
+                            <div className={"col-12"}>
+                                {TrackerDisplay}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        } else {
+            return (
+                <div id="map-holder">
+                    <div id='main_div' className={"container-fluid fill"}>
+                        <div className={"row fill ml-1"}>
+                            {TrackerDisplay}
+                            <div className={"col-12 fill"}>
+                                <div id="cesiumContainer"></div>
+                                {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
+                                {/*</div>*/}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )
+        }
     }
 }
 

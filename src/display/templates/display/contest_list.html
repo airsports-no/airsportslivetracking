@@ -25,11 +25,9 @@
             </td>
             <td>{{ object.finish_time }}</td>
             <td>
-{#                {% if now < object.finish_time %}#}
-                    <a href="{% url 'frontend_view' object.pk %}">Live view</a> |
-{#                {% else %}#}
-                    <a href="{% url 'frontend_view_offline' object.pk %}">Historic view</a>
-{#                {% endif %}#}
+                <a href="{% url 'frontend_view' object.pk %}">Live view</a> |
+                <a href="{% url 'frontend_view_table' object.pk %}">Table only</a> |
+                <a href="{% url 'frontend_view_map' object.pk %}">Map only</a>
             </td>
         </tr>
     {% endfor %}

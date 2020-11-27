@@ -7,7 +7,8 @@ import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinition
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
 
-const L=window['L']
+const L = window['L']
+
 class Gate {
     constructor(gate, expectedTime) {
         this.name = gate.name
@@ -56,35 +57,19 @@ function compare(a, b) {
     return 0
 }
 
-export class ContestantTrack {
-    constructor(map, contestant, track, startTime, finishTime) {
-        this.startTime = startTime
-        this.finishTime = finishTime
-        this.contestant = contestant
-        this.track = track
-        this.positions = []
-        this.historicPositions = []
-        this.map = map;
-        this.gates = []
+class TrackRenderer {
+    constructor(map, contestantTrack) {
+        this.map = map
+        this.contestantTrack = contestantTrack
         this.displayed = false
         this.displayAnnotations = false
-        this.lastRenderedTime = this.startTime
-        for (const index in this.track.waypoints) {
-            const gate = this.track.waypoints[index]
-            this.gates.push(new Gate(gate, new Date(this.contestant.gate_times[gate.name])))
-        }
-        this.startingLine = new Gate(this.track.starting_line, new Date(this.contestant.gate_times[this.track.waypoints[0].name]))
-        this.startingLinePassingTimes = [];
-        this.contestant.updateScore(0)
-        this.contestant.updateLatestStatus("")
-        this.scoreCalculator = new ScoreCalculator(this)
         this.markers = L.markerClusterGroup()
         this.lineCollection = null;
         this.dot = null;
         this.annotationLayer = L.layerGroup()
         const size = 24;
         this.airplaneIcon = L.divIcon({
-            html: '<i class="fa fa-plane" style="color: ' + this.contestant.colour + '"><br/>' + this.contestant.displayString() + '</i>',
+            html: '<i class="fa fa-plane" style="color: ' + this.contestantTrack.contestant.colour + '"><br/>' + this.contestantTrack.contestant.displayString() + '</i>',
             iconSize: [size, size],
             iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
@@ -92,29 +77,17 @@ export class ContestantTrack {
         this.iconMap = {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
         }
+
     }
 
-    updateData(contestantTrack) {
-        this.contestant.updateScore(contestantTrack.score)
-        this.contestant.updateTrackState(contestantTrack.current_state)
-        try {
-            this.contestant.updateLatestStatus(contestantTrack.score_log.slice(-1)[0])
-        } catch (e) {
-
-        }
-        this.contestant.scoreLog = contestantTrack.score_log
-        this.contestant.scoreByGate = contestantTrack.score_per_gate
-        this.contestant.updateCurrentLeg(contestantTrack.current_leg)
-    }
-
-
+    //private
     createLiveEntities(positions) {
         const newest_position = positions.slice(-1)[0];
 
         this.lineCollection = L.polyline(positions, {
-            color: this.contestant.colour
+            color: this.contestantTrack.contestant.colour
         })
-        this.dot = L.marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(this.contestant.displayFull(), {
+        this.dot = L.marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(this.contestantTrack.contestant.displayFull(), {
             permanent: false
         })
         this.showTrack()
@@ -151,8 +124,6 @@ export class ContestantTrack {
         if (!this.displayed && this.dot) {
             this.lineCollection.addTo(this.map)
             this.dot.addTo(this.map)
-            // this.map.addLayer(this.lineCollection)
-            // this.map.addLayer(this.dot)
             this.displayed = true
         }
     }
@@ -184,7 +155,88 @@ export class ContestantTrack {
             }
         }
     }
+}
 
+export class ContestantTrack {
+    constructor(map, contestant, track, startTime, finishTime) {
+        this.startTime = startTime
+        this.finishTime = finishTime
+        this.contestant = contestant
+        this.track = track
+        this.positions = []
+        this.historicPositions = []
+        if (map) {
+            this.trackRenderer = new TrackRenderer(map, this);
+        } else {
+            this.trackRenderer = null;
+        }
+        this.gates = []
+        for (const index in this.track.waypoints) {
+            const gate = this.track.waypoints[index]
+            this.gates.push(new Gate(gate, new Date(this.contestant.gate_times[gate.name])))
+        }
+        this.startingLine = new Gate(this.track.starting_line, new Date(this.contestant.gate_times[this.track.waypoints[0].name]))
+        this.startingLinePassingTimes = [];
+        this.contestant.updateScore(0)
+        this.contestant.updateLatestStatus("")
+        this.scoreCalculator = new ScoreCalculator(this)
+    }
+
+    updateData(contestantTrack) {
+        this.contestant.updateScore(contestantTrack.score)
+        this.contestant.updateTrackState(contestantTrack.current_state)
+        try {
+            this.contestant.updateLatestStatus(contestantTrack.score_log.slice(-1)[0])
+        } catch (e) {
+
+        }
+        this.contestant.scoreLog = contestantTrack.score_log
+        this.contestant.scoreByGate = contestantTrack.score_per_gate
+        this.contestant.updateCurrentLeg(contestantTrack.current_leg)
+        this.contestant.updateLastGateAndTimeDifference(contestantTrack.last_gate, contestantTrack.last_gate_time_offset)
+    }
+
+    hideTrack() {
+        if (this.trackRenderer) {
+            this.trackRenderer.hideTrack()
+        }
+    }
+
+    showTrack() {
+        if (this.trackRenderer) {
+            this.trackRenderer.showTrack()
+        }
+    }
+
+    hideAnnotations() {
+        if (this.trackRenderer) {
+            this.trackRenderer.hideAnnotations()
+        }
+    }
+
+    showAnnotations() {
+        if (this.trackRenderer) {
+            this.trackRenderer.showAnnotations()
+        }
+    }
+
+    addAnnotation(latitude, longitude, message, icon) {
+        if (this.trackRenderer) {
+            this.trackRenderer.addAnnotation(latitude, longitude, message, icon)
+        }
+    }
+
+    renderAnnotations(annotations) {
+        if (this.trackRenderer) {
+            this.trackRenderer.renderAnnotations(annotations)
+        }
+    }
+
+    renderPositions(b) {
+        if (this.trackRenderer) {
+            this.trackRenderer.renderPositions(b)
+        }
+    }
 }
 
 export class ContestantTracks {

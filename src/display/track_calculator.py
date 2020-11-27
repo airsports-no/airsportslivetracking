@@ -233,7 +233,7 @@ class Calculator(threading.Thread):
         except KeyError:
             self.score_by_gate[gate.name] = self.score
         self.influx.add_annotation(self.contestant, latitude, longitude, message, annotation_type,
-                                   self.track[-1].time)
+                                   self.track[-1].time)  # TODO: Annotations with the same time
         self.score_log.append(message)
         self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)
 
@@ -271,6 +271,7 @@ class Calculator(threading.Thread):
             elif gate.passing_time is not None:
                 index += 1
                 time_difference = (gate.passing_time - gate.expected_time).total_seconds()
+                self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
                 absolute_time_difference = abs(time_difference)
                 if absolute_time_difference > self.scorecard.gate_perfect_limit_seconds:
                     gate_score = min(self.scorecard.maximum_gate_score, round(

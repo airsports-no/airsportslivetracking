@@ -6,6 +6,9 @@ import {circle, divIcon, marker, polyline} from "leaflet"
 // import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
 import LinesEllipsis from 'react-lines-ellipsis'
 import responsiveHOC from 'react-lines-ellipsis/lib/responsiveHOC'
+
+var moment = require("moment");
+
 const ResponsiveEllipsis = responsiveHOC()(LinesEllipsis)
 import "bootstrap/dist/css/bootstrap.min.css"
 import Table from "react-bootstrap/Table";
@@ -13,8 +16,32 @@ import Table from "react-bootstrap/Table";
 const DisplayTypes = {
     scoreboard: 0,
     trackDetails: 1,
-    turningpointstanding: 2
+    turningpointstanding: 2,
+    simpleScoreboard: 3
 }
+
+const ScoreTypes = {
+    absoluteScore: 0,
+    relativeScorePercent: 1
+}
+
+function getScore(scoreType, minScore, contestant) {
+    if (scoreType === ScoreTypes.absoluteScore) {
+        return contestant.score
+    } else if (scoreType === ScoreTypes.relativeScorePercent) {
+        return ((100 * contestant.score / minScore) - 100).toFixed(1) + "%"
+    }
+}
+
+function getMinimumScoreAboveZero(contestants) {
+    return contestants.filter((p) => {
+        return p.score !== 0
+    }).reduce((min, p) => p.score < min ? p.score : min, 999999999);
+}
+
+// class FullTableRow extends React.Component{
+//
+// }
 
 export class Tracker extends React.Component {
     constructor(props) {
@@ -25,14 +52,22 @@ export class Tracker extends React.Component {
         this.lastDataTime = {}
         this.liveMode = props.liveMode
         this.map = props.map;
+        this.renderMap = props.displayMap
         this.tracks = new ContestantTracks(this.map, this.startTime, this.finishTime, this.contest.contestant_set, this.contest.track, (contestant) => this.updateScoreCallback(contestant));
-        this.state = {score: {}, currentTime: new Date().toLocaleString(), currentDisplay: DisplayTypes.scoreboard}
+        this.state = {
+            score: {},
+            currentTime: new Date().toLocaleString(),
+            currentDisplay: DisplayTypes.scoreboard,
+            scoreType: ScoreTypes.absoluteScore
+        }
         this.turningPointsDisplay = this.contest.track.waypoints.map((waypoint) => {
             return <li><a href={"#"} onClick={() => {
                 this.setState({currentDisplay: DisplayTypes.turningpointstanding, turningPoint: waypoint.name})
             }} key={"tplist" + waypoint.name}>{waypoint.name}</a></li>
         })
-        this.renderTrack();
+        if (this.renderMap) {
+            this.renderTrack();
+        }
         this.fetchNextData();
     }
 
@@ -130,111 +165,187 @@ export class Tracker extends React.Component {
     }
 
 
-    render() {
-        let detailsDisplay
-        if (this.state.currentDisplay === DisplayTypes.scoreboard) {
-            if (this.tracks) {
-                this.tracks.showAllTracks()
-                this.tracks.hideAllAnnotations()
-            }
-            let contestants = []
-            for (const key in this.state.score) {
-                if (this.state.score.hasOwnProperty(key)) {
-                    contestants.push(this.state.score[key])
-                }
-            }
-            contestants.sort(this.compareScore)
-            let position = 1
-            const listItems = contestants.map((d) => <tr
-                key={"leaderboard" + d.contestantNumber}>
-                <td style={{"background-color": d.colour}}>&nbsp;</td>
-                <td>{position++}</td>
-                <td><a href={"#"}
-                       onClick={() => this.setState({
-                           currentDisplay: DisplayTypes.trackDetails,
-                           displayTrack: this.tracks.getTrackForContestant(d.id)
-                       })}>{d.contestantNumber} {d.displayString()}</a></td>
-                <td>{d.score}</td>
-                <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
-                <td><ResponsiveEllipsis text={d.latestStatus} maxLine={1}/></td>
-                {/*<td><EllipsisWithTooltip placement="bottom">{d.latestStatus}</EllipsisWithTooltip></td>*/}
-                <td>{d.currentLeg}</td>
-            </tr>);
-            detailsDisplay = <Table bordered hover striped size={"sm"}>
-                <thead>
-                <tr>
-                    <td/>
-                    <td>#</td>
-                    <td>Team</td>
-                    <td>Score</td>
-                    <td>State</td>
-                    <td>Latest event</td>
-                    <td>Leg</td>
-                </tr>
-                </thead>
-                <tbody>{listItems}</tbody>
-            </Table>
-        } else if (this.state.currentDisplay === DisplayTypes.trackDetails) {
-            if (this.tracks) {
-                this.tracks.hideAllButThisTrack(this.state.displayTrack)
-                this.tracks.showAnnotationsForTrack(this.state.displayTrack)
-            }
-            const events = this.state.displayTrack.contestant.scoreLog.map((line, index) => {
-                return <li key={this.state.displayTrack.contestant.contestantNumber + "event" + index}>{line}</li>
-            })
-            detailsDisplay = <div><h2>{this.state.displayTrack.contestant.displayString()}</h2>
-                <ol>
-                    {events}
-                </ol>
-            </div>
-        } else if (this.state.currentDisplay === DisplayTypes.turningpointstanding) {
-            if (this.tracks) {
-                this.tracks.showAllTracks()
-                this.tracks.hideAllAnnotations()
-            }
-            const scores = this.tracks.tracks.filter((c) => {
-                return !Number.isNaN(c.contestant.getScoreByGate(this.state.turningPoint))
-            }).sort((a, b) => {
-                if (a.contestant.getScoreByGate(this.state.turningPoint) > b.contestant.getScoreByGate(this.state.turningPoint)) return 1;
-                if (a.contestant.getScoreByGate(this.state.turningPoint) < b.contestant.getScoreByGate(this.state.turningPoint)) return -1;
-                return 0
-            }).map((c) => {
-                return <li
-                    key={this.state.turningPoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {c.contestant.getScoreByGate(this.state.turningPoint)} points</li>
-            })
-            detailsDisplay = <div><h2>{this.state.turningPoint}</h2>
-                <ol>{scores}</ol>
-            </div>
+    displayScoreboard() {
+        if (this.tracks) {
+            this.tracks.showAllTracks()
+            this.tracks.hideAllAnnotations()
         }
-        return (
-            <div className={"row"}>
-                <div className={"row"}>
-                    <div className={"col-6"}>
-                        <h2><a href={"#"}
-                               onClick={() => this.setState({currentDisplay: DisplayTypes.scoreboard})}>{this.contest.name}</a>
-                        </h2>
-                    </div>
-                    <div className={"col-6"}>
-                        <img src={"/static/img/AirSportsLogo.png"} className={"img-fluid float-right"}/>
-                    </div>
-                </div>
-                <div className={"row"}>
-                    <div className={"col-12"}>
-                        Scores per gate:<br/>
-                        <ul className={"commaList"}>
-                            {this.turningPointsDisplay}
-                        </ul>
-                    </div>
-                </div>
-                <div className={"row fill"}>
-                    <div className={"col-12 fill"}>
-                        {
-                            detailsDisplay
-                        }
-                    </div>
+        let contestants = []
+        for (const key in this.state.score) {
+            if (this.state.score.hasOwnProperty(key)) {
+                contestants.push(this.state.score[key])
+            }
+        }
+        contestants.sort(this.compareScore)
+        const minimumScore = getMinimumScoreAboveZero(contestants)
+        console.log("Minimum score: " + minimumScore)
+        let position = 1
+        const listItems = contestants.map((d) => <tr
+            key={"leaderboard" + d.contestantNumber}>
+            <td style={{"backgroundColor": d.colour}}>&nbsp;</td>
+            <td>{position++}</td>
+            <td><a href={"#"}
+                   onClick={() => this.setState({
+                       currentDisplay: DisplayTypes.trackDetails,
+                       displayTrack: this.tracks.getTrackForContestant(d.id)
+                   })}>{d.contestantNumber} {d.displayString()}</a></td>
+            <td>{getScore(this.state.scoreType, minimumScore, d)}</td>
+            <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
+            <td><ResponsiveEllipsis text={d.latestStatus} maxLine={1}/></td>
+            {/*<td><EllipsisWithTooltip placement="bottom">{d.latestStatus}</EllipsisWithTooltip></td>*/}
+            <td>{d.currentLeg}</td>
+        </tr>);
+        return <Table bordered hover striped size={"sm"}>
+            <thead>
+            <tr>
+                <td/>
+                <td>#</td>
+                <td>Team</td>
+                <td>Score</td>
+                <td>State</td>
+                <td>Latest event</td>
+                <td>Leg</td>
+            </tr>
+            </thead>
+            <tbody>{listItems}</tbody>
+        </Table>
+    }
+
+    displaySimpleScoreBoard() {
+        if (this.tracks) {
+            this.tracks.showAllTracks()
+            this.tracks.hideAllAnnotations()
+        }
+        let contestants = []
+        for (const key in this.state.score) {
+            if (this.state.score.hasOwnProperty(key)) {
+                contestants.push(this.state.score[key])
+            }
+        }
+        contestants.sort(this.compareScore)
+        const minimumScore = getMinimumScoreAboveZero(contestants)
+        let position = 1
+        const listItems = contestants.map((d) => <tr
+            key={"leaderboard" + d.contestantNumber}>
+            <td style={{"backgroundColor": d.colour}}>&nbsp;</td>
+            <td>{position++}</td>
+            <td><a href={"#"}
+                   onClick={() => this.setState({
+                       currentDisplay: DisplayTypes.trackDetails,
+                       displayTrack: this.tracks.getTrackForContestant(d.id)
+                   })}>{d.contestantNumber} {d.displayString()}</a></td>
+            <td>{getScore(this.state.scoreType, minimumScore, d)}</td>
+            <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
+            <td>{d.lastGate}</td>
+            {/*<td>{moment.duration(d.lastGateTimeDifference, "seconds").format()}</td>*/}
+            <td>{d.lastGateTimeDifference}</td>
+        </tr>);
+        return <Table bordered hover striped size={"sm"}>
+            <thead>
+            <tr>
+                <td/>
+                <td>#</td>
+                <td>Team</td>
+                <td>Score</td>
+                <td>State</td>
+                <td>Latest gate</td>
+                <td>Time offset</td>
+            </tr>
+            </thead>
+            <tbody>{listItems}</tbody>
+        </Table>
+    }
+
+    displayTrackDetails() {
+        if (this.tracks) {
+            this.tracks.hideAllButThisTrack(this.state.displayTrack)
+            this.tracks.showAnnotationsForTrack(this.state.displayTrack)
+        }
+        const events = this.state.displayTrack.contestant.scoreLog.map((line, index) => {
+            return <li key={this.state.displayTrack.contestant.contestantNumber + "event" + index}>{line}</li>
+        })
+        return <div><h2>{this.state.displayTrack.contestant.displayString()}</h2>
+            <ol>
+                {events}
+            </ol>
+        </div>
+    }
+
+    displayTurningpointstanding() {
+        if (this.tracks) {
+            this.tracks.showAllTracks()
+            this.tracks.hideAllAnnotations()
+        }
+        const scores = this.tracks.tracks.filter((c) => {
+            return !Number.isNaN(c.contestant.getScoreByGate(this.state.turningPoint))
+        }).sort((a, b) => {
+            if (a.contestant.getScoreByGate(this.state.turningPoint) > b.contestant.getScoreByGate(this.state.turningPoint)) return 1;
+            if (a.contestant.getScoreByGate(this.state.turningPoint) < b.contestant.getScoreByGate(this.state.turningPoint)) return -1;
+            return 0
+        }).map((c) => {
+            return <li
+                key={this.state.turningPoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {c.contestant.getScoreByGate(this.state.turningPoint)} points</li>
+        })
+        return <div><h2>{this.state.turningPoint}</h2>
+            <ol>{scores}</ol>
+        </div>
+    }
+
+    render() {
+        if (this.props.displayTable) {
+
+            let displayLogo =
+                <img src={"/static/img/AirSportsLogo.png"} className={"img-fluid float-right"}/>
+            let detailsDisplay
+            if (this.state.currentDisplay === DisplayTypes.scoreboard) {
+                detailsDisplay = this.displayScoreboard()
+            } else if (this.state.currentDisplay === DisplayTypes.simpleScoreboard) {
+                detailsDisplay = this.displaySimpleScoreBoard()
+            } else if (this.state.currentDisplay === DisplayTypes.trackDetails) {
+                detailsDisplay = this.displayTrackDetails()
+            } else if (this.state.currentDisplay === DisplayTypes.turningpointstanding) {
+                detailsDisplay = this.displayTurningpointstanding()
+            }
+            let scorePerGate = <div className={"row"}>
+                <div className={"col-12"}>
+                    Scores per gate:<br/>
+                    <ul className={"commaList"}>
+                        {this.turningPointsDisplay}
+                    </ul>
                 </div>
             </div>
-        );
+
+            return (
+                <div className={"row"}>
+                    <div className={"row"}>
+                        <div className={"col-6"}>
+                            <h2><a href={"#"}
+                                   onClick={() => this.state.currentDisplay !== DisplayTypes.simpleScoreboard ? this.setState({currentDisplay: DisplayTypes.simpleScoreboard}) : this.setState({currentDisplay: DisplayTypes.scoreboard})}>{this.contest.name}</a>
+                            </h2>
+                        </div>
+                        <div className={"col-6"}>
+                            {this.state.currentDisplay !== DisplayTypes.simpleScoreboard ? displayLogo : <div/>}
+                        </div>
+                    </div>
+                    {this.state.currentDisplay !== DisplayTypes.simpleScoreboard ? scorePerGate : null}
+                    <div className={"row fill"}>
+                        <div className={"col-12 fill"}>
+                            {
+                                detailsDisplay
+                            }
+                        </div>
+                    </div>
+                    <div className={"row"}>
+                        <a href={"#"}
+                           onClick={() => this.state.scoreType === ScoreTypes.absoluteScore ? this.setState({scoreType: ScoreTypes.relativeScorePercent}) : this.setState({scoreType: ScoreTypes.absoluteScore})}>Change
+                            score type</a>
+                    </div>
+
+                </div>
+            );
+        }
+        return <div/>
     }
 
 }
+

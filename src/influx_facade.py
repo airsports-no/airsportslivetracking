@@ -23,11 +23,16 @@ class InfluxFacade:
         self.client = InfluxDBClient(host, port, user, password, dbname)
 
     def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):
+        try:
+            contestant.annotation_index += 1
+        except:
+            contestant.annotation_index = 0
         data = {
             "measurement": "annotation",
             "tags": {
                 "contestant": contestant.pk,
                 "contest": contestant.contest_id,
+                "annotation_number": contestant.annotation_index
             },
             "time": stamp.isoformat(),
             "fields": {

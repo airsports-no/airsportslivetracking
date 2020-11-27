@@ -18,9 +18,12 @@ export class Contestant {
         this.latestStatus = ""
         this.trackState = "Waiting..."
         this.currentLeg = ""
+        this.lastGate = ""
+        this.lastGateTimeDifference = 0
         this.updateScoreCallback = updateScoreCallback
         this.scoreByGate = {}
     }
+
 
     getScoreByGate(gateName) {
         if (this.scoreByGate.hasOwnProperty(gateName)) {
@@ -63,6 +66,14 @@ export class Contestant {
         if (this.latestStatus !== status) {
             this.latestStatus = status
             // console.log("Updating current status: " + status)
+            this.updateScoreCallback(this)
+        }
+    }
+
+    updateLastGateAndTimeDifference(gateName, timeDifference) {
+        if (this.lastGate !== gateName) {
+            this.lastGate = gateName
+            this.lastGateTimeDifference = timeDifference
             this.updateScoreCallback(this)
         }
     }

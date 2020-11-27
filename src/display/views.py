@@ -23,7 +23,18 @@ logger = logging.getLogger(__name__)
 
 
 def frontend_view(request, pk):
-    return render(request, "display/root.html", {"contest_id": pk, "live_mode": "true"})
+    return render(request, "display/root.html",
+                  {"contest_id": pk, "live_mode": "true", "display_map": "true", "display_table": "true"})
+
+
+def frontend_view_table(request, pk):
+    return render(request, "display/root.html",
+                  {"contest_id": pk, "live_mode": "true", "display_map": "false", "display_table": "true"})
+
+
+def frontend_view_map(request, pk):
+    return render(request, "display/root.html",
+                  {"contest_id": pk, "live_mode": "true", "display_map": "true", "display_table": "false"})
 
 
 def frontend_view_offline(request, pk):
