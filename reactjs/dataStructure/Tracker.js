@@ -206,7 +206,7 @@ export class Tracker extends React.Component {
             {/*<td><EllipsisWithTooltip placement="bottom">{d.latestStatus}</EllipsisWithTooltip></td>*/}
             <td>{d.currentLeg}</td>
         </tr>);
-        return <Table bordered hover striped size={"sm"}>
+        return <Table bordered hover striped size={"sm"} responsive>
             <thead>
             <tr>
                 <td/>
@@ -254,7 +254,7 @@ export class Tracker extends React.Component {
             {/*<td>{moment.duration(d.lastGateTimeDifference, "seconds").format()}</td>*/}
             <td>{d.lastGateTimeDifference}</td>
         </tr>);
-        return <Table bordered hover striped size={"sm"}>
+        return <Table bordered hover striped size={"sm"} responsive>
             <thead>
             <tr>
                 <td/>
@@ -341,6 +341,13 @@ export class Tracker extends React.Component {
                 <div className={"row"}>
                     <div className={"row"}>
                         <div className={"col-6"}>
+                            {this.scoreTypeLink(this.state.scoreType)} | <a href={"#"}
+                                                                            onClick={() => this.setState({currentDisplay: DisplayTypes.scoreboard})}> Detailed
+                            table</a>
+                        </div>
+                    </div>
+                    <div className={"row"}>
+                        <div className={"col-6"}>
                             <h2><a href={"#"}
                                    onClick={() => this.setState({currentDisplay: DisplayTypes.simpleScoreboard})}>{this.contest.name}</a>
                             </h2>
@@ -356,11 +363,6 @@ export class Tracker extends React.Component {
                                 detailsDisplay
                             }
                         </div>
-                    </div>
-                    <div className={"row"}>
-                        {this.scoreTypeLink(this.state.scoreType)} | <a href={"#"}
-                                                                 onClick={() => this.setState({currentDisplay: DisplayTypes.scoreboard})}> Detailed
-                        table</a>
                     </div>
 
                 </div>

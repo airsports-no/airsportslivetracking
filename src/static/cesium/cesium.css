@@ -48,7 +48,7 @@ html, body {
     height: 100%;
 }
 
-table{height: 500px; overflow-y: scroll;display:block;}
+/*table{height: 500px; overflow-y: scroll;display:block;}*/
 /*th { position: sticky; top: 0; }*/
 
 #cesiumContainer {
@@ -114,4 +114,25 @@ table{height: 500px; overflow-y: scroll;display:block;}
     left: 100px;
     width: 200px;
     height: 100px;
+}
+
+.table-fixed tbody {
+    height: 300px;
+    overflow-y: auto;
+    width: 100%;
+}
+
+.table-fixed thead,
+.table-fixed tbody,
+.table-fixed tr,
+.table-fixed td,
+.table-fixed th {
+    display: block;
+}
+
+.table-fixed tbody td,
+.table-fixed tbody th,
+.table-fixed thead > tr > th {
+    float: left;
+    position: relative;
 }
