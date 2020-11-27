@@ -1,10 +1,12 @@
 import distinctColors from "distinct-colors";
+import {pz} from "./utilities";
 
 
 export class Contestant {
     constructor(id, contestantNumber, registrationNumber, pilot, navigator, trackerName, colour, startTime, finishedByTime, plannedSpeed, gate_times, updateScoreCallback) {
         this.id = id
         this.contestantNumber = contestantNumber;
+        this.paddedContestantNumber = pz(this.contestantNumber, 2)
         this.registrationNumber = registrationNumber;
         this.pilot = pilot;
         this.navigator = navigator;
@@ -38,7 +40,7 @@ export class Contestant {
     }
 
     displayFull() {
-        return "Contestant: " + this.contestantNumber + "<br/>Pilot: " + this.pilot + "<br/>Navigator: " + this.navigator + "<br/>Aeroplane: " + this.registrationNumber
+        return "Contestant: " + this.paddedContestantNumber + "<br/>Pilot: " + this.pilot + "<br/>Navigator: " + this.navigator + "<br/>Aeroplane: " + this.registrationNumber
     }
 
     updateScore(score) {

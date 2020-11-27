@@ -2,7 +2,7 @@ import {ContestantList} from "./Contestants";
 import {ScoreCalculator} from "./scoreCalculator"
 import 'leaflet'
 import 'leaflet.markercluster'
-import {getDistance, sleep} from "./utilities";
+import {getDistance, pz, sleep} from "./utilities";
 import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
@@ -69,7 +69,7 @@ class TrackRenderer {
         this.annotationLayer = L.layerGroup()
         const size = 24;
         this.airplaneIcon = L.divIcon({
-            html: '<i class="fa fa-plane" style="color: ' + this.contestantTrack.contestant.colour + '"><br/>' + this.contestantTrack.contestant.displayString() + '</i>',
+            html: '<i class="fa fa-plane" style="color: ' + this.contestantTrack.contestant.colour + '"><br/>' + this.contestantTrack.contestant.paddedContestantNumber  + ' ' + this.contestantTrack.contestant.displayString() + '</i>',
             iconSize: [size, size],
             iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"

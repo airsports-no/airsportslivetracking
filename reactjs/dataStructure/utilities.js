@@ -53,3 +53,6 @@ export function sleep(milliseconds) {
     currentDate = Date.now();
   } while (currentDate - date < milliseconds);
 }
+
+export const pz = (n, z = 2, s= '0') =>
+	(n+'').length <= z ? (['','-'])[+(n<0)] + (s.repeat(z) + Math.abs(n)).slice(-1*z) : n + '';

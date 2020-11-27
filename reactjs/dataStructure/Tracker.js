@@ -8,6 +8,7 @@ import LinesEllipsis from 'react-lines-ellipsis'
 import responsiveHOC from 'react-lines-ellipsis/lib/responsiveHOC'
 
 var moment = require("moment");
+var momentDurationFormatSetup = require("moment-duration-format");
 
 const ResponsiveEllipsis = responsiveHOC()(LinesEllipsis)
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -199,7 +200,7 @@ export class Tracker extends React.Component {
                    onClick={() => this.setState({
                        currentDisplay: DisplayTypes.trackDetails,
                        displayTrack: this.tracks.getTrackForContestant(d.id)
-                   })}>{d.contestantNumber} {d.displayString()}</a></td>
+                   })}>{d.paddedContestantNumber} {d.displayString()}</a></td>
             <td>{getScore(this.state.scoreType, minimumScore, d.score)}</td>
             <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
             <td><ResponsiveEllipsis text={d.latestStatus} maxLine={1}/></td>
@@ -247,12 +248,12 @@ export class Tracker extends React.Component {
                    onClick={() => this.setState({
                        currentDisplay: DisplayTypes.trackDetails,
                        displayTrack: this.tracks.getTrackForContestant(d.id)
-                   })}>{d.contestantNumber} {d.displayString()}</a></td>
+                   })}>{d.paddedContestantNumber} {d.displayString()}</a></td>
             <td>{getScore(this.state.scoreType, minimumScore, d.score)}</td>
             <td className={this.getTrackingStateBackgroundClass(d.trackState)}>{d.trackState}</td>
             <td>{d.lastGate}</td>
-            {/*<td>{moment.duration(d.lastGateTimeDifference, "seconds").format()}</td>*/}
-            <td>{d.lastGateTimeDifference}</td>
+            <td>{moment.duration(d.lastGateTimeDifference, "seconds").format()}</td>
+            {/*<td>{d.lastGateTimeDifference}</td>*/}
         </tr>);
         return <Table bordered hover striped size={"sm"} responsive>
             <thead>
@@ -294,16 +295,36 @@ export class Tracker extends React.Component {
             return !Number.isNaN(c.contestant.getScoreByGate(this.state.turningPoint))
         })
         const minimumTurningpointscore = scores.reduce((min, p) => p.contestant.getScoreByGate(this.state.turningPoint) < min ? p.contestant.getScoreByGate(this.state.turningPoint) : min, 999999999);
+        let position = 1
         scores = scores.sort((a, b) => {
             if (a.contestant.getScoreByGate(this.state.turningPoint) > b.contestant.getScoreByGate(this.state.turningPoint)) return 1;
             if (a.contestant.getScoreByGate(this.state.turningPoint) < b.contestant.getScoreByGate(this.state.turningPoint)) return -1;
             return 0
         }).map((c) => {
-            return <li
-                key={this.state.turningPoint.name + "turningpoint" + c.contestant.contestantNumber}>{c.contestant.contestantNumber} {c.contestant.displayString()} with {getScore(this.state.scoreType, minimumTurningpointscore, c.contestant.getScoreByGate(this.state.turningPoint))}</li>
+            return <tr
+            key={"turningpoint" + this.state.turningPoint + c.contestant.contestantNumber}>
+            <td style={{"backgroundColor": c.contestant.colour}}>&nbsp;</td>
+            <td>{position++}</td>
+            <td><a href={"#"}
+                   onClick={() => this.setState({
+                       currentDisplay: DisplayTypes.trackDetails,
+                       displayTrack: this.tracks.getTrackForContestant(d.id)
+                   })}>{c.contestant.paddedContestantNumber} {c.contestant.displayString()}</a></td>
+            <td>{getScore(this.state.scoreType, minimumTurningpointscore, c.contestant.getScoreByGate(this.state.turningPoint))}</td>
+        </tr>
         })
         return <div><h2>{this.state.turningPoint}</h2>
-            <ol>{scores}</ol>
+            <Table bordered hover striped size={"sm"} responsive>
+            <thead>
+            <tr>
+                <td/>
+                <td>#</td>
+                <td>Team</td>
+                <td>Score</td>
+            </tr>
+            </thead>
+            <tbody>{scores}</tbody>
+        </Table>
         </div>
     }
 
