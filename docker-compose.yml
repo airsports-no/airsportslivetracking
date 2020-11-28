@@ -2,8 +2,30 @@
 
 version: '2'
 services:
+
+  swag:
+    image: ghcr.io/linuxserver/swag
+    container_name: swag
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - URL=airsports.no
+      - SUBDOMAINS=tracking,
+      - VALIDATION=http
+    volumes:
+      - ./swag/config:/config
+    ports:
+      - 443:443
+#      - 80:80 #optional
+    restart: unless-stopped
+
   tracker_web:
     command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py runserver 0.0.0.0:8000" ]
+#    command: [ "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
+
     container_name: tracker_web
     build:
       context: .
@@ -53,6 +75,7 @@ services:
       - ./traccar/configuration/traccar.xml:/opt/traccar/conf/traccar.xml
     ports:
       - 5000-5150:5000-5150
+      - 5000-5150:5000-5150/udp
       - 8082:8082
     depends_on:
       - mysql
