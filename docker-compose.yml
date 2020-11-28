@@ -34,6 +34,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
+      - ./static:/static
       - ./assets:/assets/
       - ./src:/src/
       - ./reactjs:/reactjs/
