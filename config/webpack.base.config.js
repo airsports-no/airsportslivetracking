@@ -27,7 +27,7 @@ module.exports = {
     },
 
     output: {
-        path: path.resolve('/assets/bundles/local/'),
+        path: path.resolve('/static/bundles/local/'),
         filename: "[name]-[hash].js",
         // Needed to compile multiline strings in Cesium
         sourcePrefix: ''
