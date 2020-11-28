@@ -25,7 +25,7 @@ exec gunicorn \
   --workers $NUM_WORKERS \
   --threads $NUM_THREADS \
   --timeout 30 \
-  --bind=:8000 \
+  --bind=:8002 \
   --log-level debug \
   --max-requests 1000 \
   --max-requests-jitter 50 \
