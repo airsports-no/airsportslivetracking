@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAME="tracker"                           #Name of the application (*)
+NAME="live_tracking_map"                           #Name of the application (*)
 DJANGODIR=/src/                               # Django project directory (*)
 NUM_WORKERS=10                                # how many worker processes should Gunicorn spawn (*)
 NUM_THREADS=5                                 # How many threads should each worker have
