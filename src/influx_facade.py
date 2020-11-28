@@ -8,6 +8,7 @@ from influxdb import InfluxDBClient
 from influxdb.resultset import ResultSet
 
 from display.models import ContestantTrack, Contestant
+from traccar_facade import Traccar
 
 host = "influx"
 port = 8086
@@ -44,7 +45,7 @@ class InfluxFacade:
         }
         self.client.write_points([data])
 
-    def generate_position_data(self, traccar_facade, positions: List) -> Dict:
+    def generate_position_data(self, traccar: Traccar, positions: List) -> Dict:
         if len(positions) == 0:
             return {}
         # logger.debug("Received {} positions".format(len(positions)))
@@ -53,11 +54,11 @@ class InfluxFacade:
         for position_data in positions:
             # logger.debug("Incoming position: {}".format(position_data))
             try:
-                device_name = self.devices[position_data["deviceId"]]
+                device_name = traccar.devices[position_data["deviceId"]]
             except KeyError:
-                self.devices = traccar_facade.get_device_map()
+                traccar.update_and_get_devices()
                 try:
-                    device_name = self.devices[position_data["deviceId"]]
+                    device_name = traccar.devices[position_data["deviceId"]]
                 except KeyError:
                     logger.error("Could not find device {}.".format(position_data["deviceId"]))
                     continue

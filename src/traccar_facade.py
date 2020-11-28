@@ -5,7 +5,6 @@ import requests
 from requests import Session
 
 
-
 class Traccar:
     def __init__(self, protocol, address, token):
         self.protocol = protocol
@@ -13,6 +12,7 @@ class Traccar:
         self.token = token
         self.base = "{}://{}".format(self.protocol, self.address)
         self.session = self.get_authenticated_session()
+        self.devices = None
 
     def get_authenticated_session(self) -> Session:
         session = requests.Session()
@@ -22,8 +22,9 @@ class Traccar:
             raise Exception("Failed authenticating session: {}".format(response.text))
         return session
 
-    def get_devices(self) -> List:
-        return self.session.get(self.base + "/api/devices").json()
+    def update_and_get_devices(self) -> List:
+        self.devices = self.session.get(self.base + "/api/devices").json()
+        return self.devices
 
     def delete_device(self, device_id):
         response = self.session.delete(self.base + "/api/devices/{}".format(device_id))
@@ -39,10 +40,10 @@ class Traccar:
             return response.json()
 
     def delete_all_devices(self):
-        devices = self.get_devices()
+        devices = self.update_and_get_devices()
         for item in devices:
             self.delete_device(item["id"])
         return [item["name"] for item in devices]
 
     def get_device_map(self) -> Dict:
-        return {item["id"]: item["name"] for item in self.get_devices()}
+        return {item["id"]: item["name"] for item in self.update_and_get_devices()}
