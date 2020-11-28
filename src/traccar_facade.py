@@ -4,17 +4,19 @@ from typing import List, Dict
 import requests
 from requests import Session
 
-from secret_configuration import TRACCAR_ADDRESS, TOKEN, PROTOCOL
 
 
 class Traccar:
-    def __init__(self):
-        self.base = "{}://{}".format(PROTOCOL, TRACCAR_ADDRESS)
+    def __init__(self, protocol, address, token):
+        self.protocol = protocol
+        self.address = address
+        self.token = token
+        self.base = "{}://{}".format(self.protocol, self.address)
         self.session = self.get_authenticated_session()
 
     def get_authenticated_session(self) -> Session:
         session = requests.Session()
-        string = self.base + "/api/session?token={}".format(TOKEN)
+        string = self.base + "/api/session?token={}".format(self.token)
         response = session.get(string)
         if response.status_code != 200:
             raise Exception("Failed authenticating session: {}".format(response.text))

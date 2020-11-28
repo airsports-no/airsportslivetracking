@@ -4,6 +4,7 @@ import os
 from pprint import pprint
 from typing import Set, List
 
+import secret_configuration
 from secret_configuration import TRACCAR_ADDRESS
 from traccar_facade import Traccar
 
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 influx = InfluxFacade()
 influx.drop_database()
 influx.create_database()
-traccar = Traccar()
+traccar = Traccar(secret_configuration.PROTOCOL, secret_configuration.TRACCAR_ADDRESS, secret_configuration.TOKEN)
 devices = traccar.get_device_map()
 logger.info("Devices {}".format(devices))
 
