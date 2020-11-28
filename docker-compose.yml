@@ -20,7 +20,7 @@ services:
       - ./swag/config:/config
     ports:
       - 443:443
-#      - 80:80 #optional
+      - 80:80 # Required for certificate validation
     restart: unless-stopped
 
   tracker_web:
