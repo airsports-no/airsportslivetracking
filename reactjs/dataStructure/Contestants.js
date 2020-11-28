@@ -84,7 +84,7 @@ export class Contestant {
 
 
 function getMaximumContestantNumber(contestants) {
-    return contestants.reduce((max, p) => p.contestantNumber > max ? p.contestantNumber : max, 0);
+    return contestants.reduce((max, p) => p.contestant_number > max ? p.contestant_number : max, 0);
 }
 
 export class ContestantList {
