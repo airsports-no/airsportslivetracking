@@ -9,7 +9,7 @@ import gpxpy
 import requests
 from fastkml import kml
 
-server = '192.168.1.2:5055'
+server = 'traccar:5055'
 
 maximum_index = 0
 tracks = {}

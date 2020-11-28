@@ -17,3 +17,5 @@ influxdb
 websocket-client
 geopy
 mysqlclient
+urllib
+gpxpy
