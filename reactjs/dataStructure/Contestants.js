@@ -83,14 +83,11 @@ export class Contestant {
 }
 
 
-function getMaximumContestantNumber(contestants) {
-    return contestants.reduce((max, p) => p.contestant_number > max ? p.contestant_number : max, 0);
-}
 
 export class ContestantList {
     constructor(contestantList, updateScoreCallback) {
-        const maximumContestants = getMaximumContestantNumber(contestantList)
-        this.colours = distinctColors({count: maximumContestants})
+        // const maximumContestants = getMaximumContestantNumber(contestantList)
+        this.colours = distinctColors({count: contestantList.length})
         this.contestants = this.loadContestants(contestantList, updateScoreCallback);
     }
 
