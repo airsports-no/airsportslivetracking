@@ -12,7 +12,7 @@ class Traccar:
         self.token = token
         self.base = "{}://{}".format(self.protocol, self.address)
         self.session = self.get_authenticated_session()
-        self.devices = None
+        self.device_map = None
 
     def get_authenticated_session(self) -> Session:
         session = requests.Session()
@@ -23,8 +23,7 @@ class Traccar:
         return session
 
     def update_and_get_devices(self) -> List:
-        self.devices = self.session.get(self.base + "/api/devices").json()
-        return self.devices
+        return self.session.get(self.base + "/api/devices").json()
 
     def delete_device(self, device_id):
         response = self.session.delete(self.base + "/api/devices/{}".format(device_id))
@@ -46,4 +45,5 @@ class Traccar:
         return [item["name"] for item in devices]
 
     def get_device_map(self) -> Dict:
-        return {item["id"]: item["name"] for item in self.update_and_get_devices()}
+        self.device_map = {item["id"]: item["name"] for item in self.update_and_get_devices()}
+        return self.device_map

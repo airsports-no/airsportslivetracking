@@ -21,8 +21,8 @@ from display.track_calculator import Calculator, calculator_factory
 
 logger = logging.getLogger(__name__)
 traccar = Traccar(secret_configuration.PROTOCOL, secret_configuration.TRACCAR_ADDRESS, secret_configuration.TOKEN)
+devices = traccar.get_device_map()
 influx = InfluxFacade()
-devices = traccar.update_and_get_devices()
 # influx.drop_database()
 # influx.create_database()
 

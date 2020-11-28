@@ -54,11 +54,11 @@ class InfluxFacade:
         for position_data in positions:
             # logger.debug("Incoming position: {}".format(position_data))
             try:
-                device_name = traccar.devices[position_data["deviceId"]]
+                device_name = traccar.device_map[position_data["deviceId"]]
             except KeyError:
-                traccar.update_and_get_devices()
+                traccar.get_device_map()
                 try:
-                    device_name = traccar.devices[position_data["deviceId"]]
+                    device_name = traccar.device_map[position_data["deviceId"]]
                 except KeyError:
                     logger.error("Could not find device {}.".format(position_data["deviceId"]))
                     continue
