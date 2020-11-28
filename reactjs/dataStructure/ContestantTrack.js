@@ -69,9 +69,9 @@ class TrackRenderer {
         this.annotationLayer = L.layerGroup()
         const size = 24;
         this.airplaneIcon = L.divIcon({
-            html: '<i class="fa fa-plane" style="color: ' + this.contestantTrack.contestant.colour + '"><br/>' + this.contestantTrack.contestant.paddedContestantNumber  + ' ' + this.contestantTrack.contestant.displayString() + '</i>',
+            html: '<i class="fa fa-plane" style="color: ' + this.contestantTrack.contestant.colour + '"><br/>' + this.contestantTrack.contestant.paddedContestantNumber + ' ' + this.contestantTrack.contestant.displayString() + '</i>',
             iconSize: [size, size],
-            iconAnchor: [size / 2, size / 2],
+            iconAnchor: [size, size/2],
             className: "myAirplaneIcon"
         })
         this.iconMap = {

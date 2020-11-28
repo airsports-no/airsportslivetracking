@@ -82,15 +82,20 @@ export class Contestant {
 
 }
 
+
+function getMaximumContestantNumber(contestants) {
+    return contestants.reduce((max, p) => p.contestantNumber > max ? p.contestantNumber : max, 0);
+}
+
 export class ContestantList {
     constructor(contestantList, updateScoreCallback) {
-        this.colours = distinctColors({count: contestantList.length})
+        this.colours = distinctColors({count: getMaximumContestantNumber(contestantList)})
         this.contestants = this.loadContestants(contestantList, updateScoreCallback);
     }
 
     loadContestants(contestantList, updateScoreCallback) {
         return contestantList.map((data) => {
-            return new Contestant(data.id, data.contestant_number, data.team.aeroplane.registration, data.team.pilot, data.team.navigator, data.traccar_device_name, this.colours.pop().hex(), new Date(data.takeoff_time), new Date(data.finished_by_time), data.ground_speed, data.gate_times, updateScoreCallback)
+            return new Contestant(data.id, data.contestant_number, data.team.aeroplane.registration, data.team.pilot, data.team.navigator, data.traccar_device_name, this.colours[data.contestant_number].hex(), new Date(data.takeoff_time), new Date(data.finished_by_time), data.ground_speed, data.gate_times, updateScoreCallback)
         })
     }
 

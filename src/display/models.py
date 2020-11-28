@@ -83,7 +83,6 @@ class Track(models.Model):
             "outside_distance": 0,
         }
 
-
     @staticmethod
     def create_finish_line(gates) -> Dict:
         return {
@@ -206,6 +205,9 @@ class Scorecard(models.Model):
     below_minimum_altitude = models.FloatField(default=500)
     takeoff_time_limit_seconds = models.FloatField(default=60)
     missed_takeoff_gate = models.FloatField(default=100)
+
+    def __str__(self):
+        return self.name
 
 
 class Contestant(models.Model):
