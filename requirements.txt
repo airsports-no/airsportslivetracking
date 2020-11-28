@@ -16,3 +16,4 @@ fastkml
 influxdb
 websocket-client
 geopy
+mysqlclient

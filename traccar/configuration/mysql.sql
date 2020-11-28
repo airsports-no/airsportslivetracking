@@ -1,6 +1,9 @@
 CREATE DATABASE IF NOT EXISTS traccar;
-CREATE USER 'traccar'@'localhost' IDENTIFIED BY 'traccar';
+CREATE DATABASE IF NOT EXISTS tracker;
+
 CREATE USER 'traccar'@'%' IDENTIFIED BY 'traccar';
-GRANT ALL PRIVILEGES ON traccar.* To 'traccar'@'localhost';
+CREATE USER 'tracker'@'%' IDENTIFIED BY 'tracker';
+
 GRANT ALL PRIVILEGES ON traccar.* To 'traccar'@'%';
+GRANT ALL PRIVILEGES ON tracker.* To 'tracker'@'%';
 FLUSH PRIVILEGES;
