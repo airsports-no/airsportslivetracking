@@ -21,7 +21,7 @@ from display.track_calculator import Calculator, calculator_factory
 
 logger = logging.getLogger(__name__)
 traccar = Traccar(secret_configuration.PROTOCOL, secret_configuration.TRACCAR_ADDRESS, secret_configuration.TOKEN)
-influx = InfluxFacade(traccar)
+influx = InfluxFacade()
 # influx.drop_database()
 # influx.create_database()
 
@@ -47,7 +47,7 @@ def cleanup_calculators():
 
 
 def build_and_push_position_data(data):
-    received_positions = influx.generate_position_data(data.get("positions", []))
+    received_positions = influx.generate_position_data(traccar, data.get("positions", []))
     for contestant, positions in received_positions.items():
         add_positions_to_calculator(contestant, positions)
         influx.put_data(positions)

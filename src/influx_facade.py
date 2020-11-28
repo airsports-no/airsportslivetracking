@@ -19,10 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class InfluxFacade:
-    def __init__(self, traccar):
+    def __init__(self):
         self.client = InfluxDBClient(host, port, user, password, dbname)
-        self.traccar = traccar
-        self.devices = self.traccar.get_device_map()
 
     def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):
         try:
@@ -46,7 +44,7 @@ class InfluxFacade:
         }
         self.client.write_points([data])
 
-    def generate_position_data(self, positions: List) -> Dict:
+    def generate_position_data(self, traccar_facade, positions: List) -> Dict:
         if len(positions) == 0:
             return {}
         # logger.debug("Received {} positions".format(len(positions)))
@@ -57,7 +55,7 @@ class InfluxFacade:
             try:
                 device_name = self.devices[position_data["deviceId"]]
             except KeyError:
-                self.devices = self.traccar.get_device_map()
+                self.devices = traccar_facade.get_device_map()
                 try:
                     device_name = self.devices[position_data["deviceId"]]
                 except KeyError:
