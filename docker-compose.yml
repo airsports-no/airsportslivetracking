@@ -3,7 +3,7 @@
 version: '2'
 services:
   tracker_web:
-    command: ["bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py runserver 0.0.0.0:8000"]
+    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py runserver 0.0.0.0:8000" ]
     container_name: tracker_web
     build:
       context: .
@@ -18,10 +18,10 @@ services:
     depends_on:
       - influx
 
-
   tracker_processor:
-    command: ["bash", "-c", "python3 position_processor.py"]
+    command: [ "bash", "-c", "python3 position_processor.py" ]
     container_name: tracker_processor
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
@@ -32,6 +32,7 @@ services:
 
   influx:
     image: influxdb
+    restart: always
     environment:
       - INFLUXDB_DB=airsport
       - INFLUXDB_USER=airsport
@@ -40,3 +41,32 @@ services:
     image: grafana/grafana
     ports:
       - "3000:3000"
+
+  traccar:
+    image: traccar/traccar
+    restart: unless-stopped
+    container_name: traccar
+    volumes:
+      - traccar-db:/opt/traccar/data/database
+      - ./traccar/configuration/traccar.xml:/opt/traccar/conf/traccar.xml
+    ports:
+      - 5000-5150:5000-5150
+      - 8082:8082
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mysql
+    restart: always
+    environment:
+      - MYSQL_DATABASE=traccar
+      - MYSQL_USER=traccar
+      - MYSQL_ROOT_PASSWORD=traccar
+      - MYSQL_PASSWORD=traccar
+    volumes:
+      - mysqldata:/var/lib/mysql/
+#      - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
+
+volumes:
+  mysqldata:
+  traccar-db:
