@@ -19,6 +19,7 @@ services:
       - VALIDATION=http
     volumes:
       - ./swag/config:/config
+      - ./assets:/assets/
       - ./static:/static
     ports:
       - 443:443
