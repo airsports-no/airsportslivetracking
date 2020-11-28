@@ -7,22 +7,10 @@ import dateutil
 
 from display.coordinate_utilities import line_intersect, fraction_of_leg, cross_track_distance, along_track_distance, \
     get_heading_difference, calculate_distance_lat_lon, calculate_bearing
-from display.models import Contestant, ContestantTrack
+from display.models import Contestant, ContestantTrack, Contest
 from influx_facade import InfluxFacade
 
 logger = logging.getLogger(__name__)
-
-
-class Scorecard:
-    missed_gate = 100
-    gate_timing_per_second = 3
-    gate_perfect_limit_seconds = 2
-    maximum_gate_score = 100
-    backtracking = 200
-    missed_procedure_turn = 200
-    below_minimum_altitude = 500
-    takeoff_time_limit_seconds = 60
-    missed_takeoff_gate = 100
 
 
 class Position:
@@ -66,6 +54,56 @@ class Gate:
 
 
 class Calculator(threading.Thread):
+    def __init__(self, contestant: Contestant, influx: InfluxFacade):
+        super().__init__()
+        self.contestant = contestant
+        self.influx = influx
+        self.gates = []
+        self.track = []
+        self.score = 0
+        self.score_by_gate = {}
+        self.score_log = []
+        self.process_event = threading.Event()
+        self.contestant_track, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
+        self.scorecard = self.contestant.scorecard
+        self.gates = self.create_gates()
+        self.outstanding_gates = list(self.gates)
+        self.starting_line = Gate(self.contestant.contest.track.starting_line, self.gates[0].expected_time)
+
+
+    def update_score(self, gate: Gate, score: float, message: str, latitude: float, longitude: float,
+                     annotation_type: str):
+        logger.info("UPDATE_SCORE {}: {}".format(self.contestant, message))
+        self.score += score
+        try:
+            self.score_by_gate[gate.name] += score
+        except KeyError:
+            self.score_by_gate[gate.name] = self.score
+        self.influx.add_annotation(self.contestant, latitude, longitude, message, annotation_type,
+                                   self.track[-1].time)  # TODO: Annotations with the same time
+        self.score_log.append(message)
+        self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)
+
+
+    def create_gates(self) -> List:
+        waypoints = self.contestant.contest.track.waypoints
+        expected_times = self.contestant.gate_times
+        gates = []
+        for item in waypoints:
+            gates.append(Gate(item, expected_times[item["name"]]))
+        return gates
+
+    def add_positions(self, positions):
+        self.track.extend([Position(**position) for position in positions])
+        self.process_event.set()
+
+
+def calculator_factory(contestant: Contestant, influx: InfluxFacade) -> Calculator:
+    if contestant.contest.contest_type == Contest.PRECISION:
+        return PrecisionCalculator(contestant, influx)
+
+
+class PrecisionCalculator(Calculator):
     TRACKING = 0
     BACKTRACKING = 1
     PROCEDURE_TURN = 2
@@ -87,15 +125,9 @@ class Calculator(threading.Thread):
     }
 
     def __init__(self, contestant: Contestant, influx: InfluxFacade):
-        super().__init__()
-        self.contestant = contestant
-        self.influx = influx
-        self.track = []
-        self.process_event = threading.Event()
+        super().__init__(contestant, influx)
         self.loop_time = 60
         self.last_processed = 0
-        self.score = 0
-        self.score_log = []
         self.current_procedure_turn_gate = None
         self.current_procedure_turn_directions = []
         self.last_gate = 0
@@ -105,34 +137,13 @@ class Calculator(threading.Thread):
         self.tracking_state = self.BEFORE_START
         self.inside_gates = None
         self.scorecard = None
-        self.score_by_gate = {}
-        self.gates = []
         self.outstanding_gates = []
         self.starting_line = None
         self.start()
         logger.info("Started calculator for contestant {}".format(contestant))
 
-    def create_gates(self) -> List:
-        waypoints = self.contestant.contest.track.waypoints
-        expected_times = self.contestant.gate_times
-        gates = []
-        for item in waypoints:
-            gates.append(Gate(item, expected_times[item["name"]]))
-        return gates
-
-    def add_positions(self, positions):
-        self.track.extend([Position(**position) for position in positions])
-        self.process_event.set()
 
     def run(self):
-        if not ContestantTrack.objects.filter(contestant=self.contestant):
-            ContestantTrack.objects.create(contestant=self.contestant)
-        self.scorecard = self.contestant.scorecard
-        self.gates = self.create_gates()
-        self.outstanding_gates = list(self.gates)
-        self.starting_line = Gate(self.contestant.contest.track.starting_line, self.gates[0].expected_time)
-
-        # while datetime.now().astimezone() < self.contestant.finished_by_time and self.tracking_state != self.FINISHED:
         while self.tracking_state != self.FINISHED:
             self.process_event.wait(self.loop_time)
             self.process_event.clear()
@@ -224,18 +235,6 @@ class Calculator(threading.Thread):
                 self.outstanding_gates.pop(i)
             i -= 1
 
-    def update_score(self, gate: Gate, score: float, message: str, latitude: float, longitude: float,
-                     annotation_type: str):
-        logger.info("UPDATE_SCORE {}: {}".format(self.contestant, message))
-        self.score += score
-        try:
-            self.score_by_gate[gate.name] += score
-        except KeyError:
-            self.score_by_gate[gate.name] = self.score
-        self.influx.add_annotation(self.contestant, latitude, longitude, message, annotation_type,
-                                   self.track[-1].time)  # TODO: Annotations with the same time
-        self.score_log.append(message)
-        self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)
 
     def update_tracking_state(self, tracking_state: int):
         if tracking_state == self.tracking_state:

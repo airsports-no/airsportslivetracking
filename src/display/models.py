@@ -181,7 +181,15 @@ class Team(models.Model):
 
 
 class Contest(models.Model):
+    PRECISION = 0
+    ANR = 1
+    CONTEST_TYPES = (
+        (PRECISION, "Precision"),
+        (ANR, "ANR")
+    )
+
     name = models.CharField(max_length=200)
+    contest_type = models.IntegerField(choices=CONTEST_TYPES, default=PRECISION)
     track = models.ForeignKey(Track, on_delete=models.SET_NULL, null=True)
     server_address = models.CharField(max_length=200, blank=True)
     server_token = models.CharField(max_length=200, blank=True)
@@ -251,6 +259,7 @@ class Contestant(models.Model):
     @classmethod
     def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):
         try:
+            # Device belongs to contestant from 30 minutes before takeoff
             return cls.objects.get(traccar_device_name=device, takeoff_time__lte=stamp + datetime.timedelta(minutes=30),
                                    finished_by_time__gte=stamp)
         except ObjectDoesNotExist:
@@ -268,13 +277,6 @@ class ContestantTrack(models.Model):
     last_gate_time_offset = models.FloatField(default=0)
     past_starting_gate = models.BooleanField(default=False)
     past_finish_gate = models.BooleanField(default=False)
-
-    @classmethod
-    def get_contestant_track_for_device_at_time(cls, device: str, stamp: datetime.datetime):
-        contestant = Contestant.get_contestant_for_device_at_time(device, stamp)
-        if contestant:
-            return cls.objects.get_or_create(contestant=contestant)[0]
-        return None
 
     def update_last_gate(self, gate_name, time_difference):
         self.last_gate = gate_name

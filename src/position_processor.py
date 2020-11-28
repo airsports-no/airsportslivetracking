@@ -16,23 +16,21 @@ if __name__ == "__main__":
 
 import websocket
 from influx_facade import InfluxFacade
-from display.models import Contestant, ContestantTrack
-from display.track_calculator import Calculator
+from display.models import Contestant
+from display.track_calculator import Calculator, calculator_factory
 
 logger = logging.getLogger(__name__)
-influx = InfluxFacade()
-influx.drop_database()
-influx.create_database()
 traccar = Traccar(secret_configuration.PROTOCOL, secret_configuration.TRACCAR_ADDRESS, secret_configuration.TOKEN)
-devices = traccar.get_device_map()
-logger.info("Devices {}".format(devices))
+influx = InfluxFacade(traccar)
+# influx.drop_database()
+# influx.create_database()
 
 calculators = {}
 
 
 def add_positions_to_calculator(contestant: Contestant, positions: List):
     if contestant.pk not in calculators:
-        calculators[contestant.pk] = Calculator(contestant, influx)
+        calculators[contestant.pk] = calculator_factory(contestant, influx)
     calculator = calculators[contestant.pk]  # type: Calculator
     new_positions = []
     for position in positions:
@@ -49,7 +47,7 @@ def cleanup_calculators():
 
 
 def build_and_push_position_data(data):
-    received_positions = influx.generate_position_data(devices, data.get("positions", []))
+    received_positions = influx.generate_position_data(data.get("positions", []))
     for contestant, positions in received_positions.items():
         add_positions_to_calculator(contestant, positions)
         influx.put_data(positions)
@@ -79,7 +77,7 @@ headers = {
 headers['Upgrade'] = 'websocket'
 
 if __name__ == "__main__":
-    ContestantTrack.objects.all().delete()
+    # ContestantTrack.objects.all().delete()
     while True:
         websocket.enableTrace(True)
         cookies = traccar.session.cookies.get_dict()
