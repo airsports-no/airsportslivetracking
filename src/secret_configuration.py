@@ -1,4 +1,5 @@
-# TRACCAR_ADDRESS = "home.kolaf.net:8082"
+LOCAL_TRACCAR_ADDRESS = "home.kolaf.net:8082"
+LOCAL_TOKEN = "tmHlxecekbZHPodeoYBah8t8MQ2TfuH8"
 TRACCAR_ADDRESS = "traccar:8082"
 PROTOCOL = "http"
 TOKEN = "Fujvpqg8oJWrlhuaHcXXvfRIMfdwGThs"

@@ -18,8 +18,8 @@ RUN pip3 install -Ur /requirements.txt
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 COPY config /config
-COPY config/gunicorn.sh /
-RUN chmod 755 /gunicorn.sh
+COPY wait-for-it.sh config/gunicorn.sh /
+RUN chmod 755 /gunicorn.sh /wait-for-it.sh
 
 
 ###### INSTALL JAVASCRIPT PACKAGES ######

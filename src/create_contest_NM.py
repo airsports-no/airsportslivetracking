@@ -4,9 +4,10 @@ import glob
 import os
 import sys
 
+from secret_configuration import LOCAL_TRACCAR_ADDRESS, LOCAL_TOKEN
 from traccar_facade import Traccar
 
-traccar = Traccar()
+traccar = Traccar("http", LOCAL_TRACCAR_ADDRESS, LOCAL_TOKEN)
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")

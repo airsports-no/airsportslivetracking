@@ -3,33 +3,11 @@
 version: '2'
 services:
 
-  swag:
-    image: ghcr.io/linuxserver/swag
-    container_name: swag
-    cap_add:
-      - NET_ADMIN
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - ONLY_SUBDOMAINS=true
-      - URL=airsports.no
-      - SUBDOMAINS=tracking,traccar
-      - EMAIL=frankose@ifi.uio.no
-      - VALIDATION=http
-    volumes:
-      - ./swag/config:/config
-      - ./assets:/assets/
-      - ./static:/static
-    ports:
-      - 443:443
-      - 80:80 # Required for certificate validation
-    restart: unless-stopped
 
   tracker_web:
-#    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py runserver 0.0.0.0:8000" ]
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack &) && cd /src && python3 manage.py initadmin && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
+               "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py runserver 0.0.0.0:8000" ]
+#    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack &) && cd /src && python3 manage.py initadmin && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
 
     container_name: tracker_web
     build:
@@ -48,8 +26,8 @@ services:
       - influx
 
   tracker_processor:
-    command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "bash", "-c", "python3 position_processor.py" ]
+    command: ["/wait-for-it.sh", "mysql:3306", "--",
+        "bash", "-c", "python3 position_processor.py" ]
     container_name: tracker_processor
     restart: unless-stopped
     build:
