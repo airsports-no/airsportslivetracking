@@ -19,6 +19,7 @@ services:
       - VALIDATION=http
     volumes:
       - ./swag/config:/config
+      - ./static:/static
     ports:
       - 443:443
       - 80:80 # Required for certificate validation
