@@ -16,8 +16,8 @@ class Calculator(threading.Thread):
         super().__init__()
         self.contestant = contestant
         self.influx = influx
-        self.gates = []
         self.track = []
+        self.pending_points = []
         self.score = 0
         self.score_by_gate = {}
         self.score_log = []
@@ -50,5 +50,5 @@ class Calculator(threading.Thread):
         return gates
 
     def add_positions(self, positions):
-        self.track.extend([Position(**position) for position in positions])
+        self.pending_points.extend([Position(**position) for position in positions])
         self.process_event.set()

@@ -39,7 +39,6 @@ class PrecisionCalculator(Calculator):
     def __init__(self, contestant: "Contestant", influx: "InfluxFacade"):
         super().__init__(contestant, influx)
         self.loop_time = 60
-        self.last_processed = 0
         self.current_procedure_turn_gate = None
         self.current_procedure_turn_directions = []
         self.last_gate = 0
@@ -48,18 +47,16 @@ class PrecisionCalculator(Calculator):
         self.previous_gate_distances = None
         self.tracking_state = self.BEFORE_START
         self.inside_gates = None
-        self.outstanding_gates = []
-        self.start()
-        logger.info("Started calculator for contestant {}".format(contestant))
 
     def run(self):
+        logger.info("Started calculator for contestant {}".format(self.contestant))
         while self.tracking_state != self.FINISHED:
             self.process_event.wait(self.loop_time)
             self.process_event.clear()
-            while self.last_processed < len(self.track):
+            while len(self.pending_points) > 0:
+                self.track.append(self.pending_points.pop(0))
                 if len(self.track) > 1:
                     self.calculate_score()
-                self.last_processed = len(self.track)
         logger.info("Terminating calculator for {}".format(self.contestant))
 
     def calculate_distance_to_outstanding_gates(self, current_position):

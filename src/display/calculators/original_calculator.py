@@ -103,7 +103,6 @@ class OriginalCalculator(threading.Thread):
         self.gates = self.create_gates()
         self.outstanding_gates = list(self.gates)
         self.starting_line = Gate(self.contestant.contest.track.starting_line, self.gates[0].expected_time)
-        logger.info("Started calculator for contestant {}".format(contestant))
 
     def create_gates(self) -> List:
         waypoints = self.contestant.contest.track.waypoints
@@ -118,6 +117,7 @@ class OriginalCalculator(threading.Thread):
         self.process_event.set()
 
     def run(self):
+        logger.info("Started calculator for contestant {}".format(self.contestant))
 
         # while datetime.now().astimezone() < self.contestant.finished_by_time and self.tracking_state != self.FINISHED:
         while self.tracking_state != self.FINISHED:
