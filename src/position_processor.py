@@ -32,6 +32,7 @@ calculators = {}
 def add_positions_to_calculator(contestant: Contestant, positions: List):
     if contestant.pk not in calculators:
         calculators[contestant.pk] = calculator_factory(contestant, influx)
+        calculators[contestant.pk].start()
     calculator = calculators[contestant.pk]  # type: Calculator
     new_positions = []
     for position in positions:

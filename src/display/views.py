@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import List
 
 import dateutil
 from django.shortcuts import render, redirect
@@ -122,12 +123,16 @@ def import_track(request):
         form = ImportTrackForm(request.POST, request.FILES)
         if form.is_valid():
             name = form.cleaned_data["name"]
-            data = request.FILES['file'].readlines()
-            track_data = []
-            for line in data[1:]:
-                line = [item.strip() for item in line.decode(encoding="UTF-8").split(",")]
-                track_data.append({"name": line[0], "longitude": float(line[1]), "latitude": float(line[2]),
-                                   "type": line[3], "width": float(line[4])})
-            Track.create(name=name, waypoints=track_data)
+            data = [item.decode(encoding = "UTF-8") for item in request.FILES['file'].readlines()]
+            create_track_from_csv(name, data[1:])
             return redirect("/")
     return render(request, "display/import_track_form.html", {"form": form})
+
+
+def create_track_from_csv(name: str, lines: List[str]) -> Track:
+    track_data = []
+    for line in lines:
+        line = [item.strip() for item in line.split(",")]
+        track_data.append({"name": line[0], "longitude": float(line[1]), "latitude": float(line[2]),
+                           "type": line[3], "width": float(line[4])})
+    return Track.create(name=name, waypoints=track_data)

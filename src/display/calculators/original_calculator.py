@@ -13,7 +13,6 @@ from influx_facade import InfluxFacade
 logger = logging.getLogger(__name__)
 
 
-
 class Position:
     def __init__(self, time, latitude, longitude, altitude, speed, course, battery_level):
         self.time = dateutil.parser.parse(time)
@@ -80,6 +79,7 @@ class OriginalCalculator(threading.Thread):
         self.contestant = contestant
         self.influx = influx
         self.track = []
+        self.pending_points = []
         self.process_event = threading.Event()
         self.loop_time = 60
         self.last_processed = 0
@@ -98,7 +98,11 @@ class OriginalCalculator(threading.Thread):
         self.gates = []
         self.outstanding_gates = []
         self.starting_line = None
-        self.start()
+        ContestantTrack.objects.get_or_create(contestant=self.contestant)
+        self.scorecard = self.contestant.scorecard
+        self.gates = self.create_gates()
+        self.outstanding_gates = list(self.gates)
+        self.starting_line = Gate(self.contestant.contest.track.starting_line, self.gates[0].expected_time)
         logger.info("Started calculator for contestant {}".format(contestant))
 
     def create_gates(self) -> List:
@@ -110,25 +114,19 @@ class OriginalCalculator(threading.Thread):
         return gates
 
     def add_positions(self, positions):
-        self.track.extend([Position(**position) for position in positions])
+        self.pending_points.extend([Position(**position) for position in positions])
         self.process_event.set()
 
     def run(self):
-        if not ContestantTrack.objects.filter(contestant=self.contestant):
-            ContestantTrack.objects.create(contestant=self.contestant)
-        self.scorecard = self.contestant.scorecard
-        self.gates = self.create_gates()
-        self.outstanding_gates = list(self.gates)
-        self.starting_line = Gate(self.contestant.contest.track.starting_line, self.gates[0].expected_time)
 
         # while datetime.now().astimezone() < self.contestant.finished_by_time and self.tracking_state != self.FINISHED:
         while self.tracking_state != self.FINISHED:
             self.process_event.wait(self.loop_time)
             self.process_event.clear()
-            while self.last_processed < len(self.track):
+            while len(self.pending_points) > 0:
+                self.track.append(self.pending_points.pop(0))
                 if len(self.track) > 1:
                     self.calculate_score()
-                self.last_processed = len(self.track)
         logger.info("Terminating calculator for {}".format(self.contestant))
 
     def calculate_distance_to_outstanding_gates(self, current_position):
