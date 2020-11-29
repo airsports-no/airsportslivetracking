@@ -8,9 +8,13 @@ if __name__ == "__main__":
     django.setup()
 
 from traccar_facade import Traccar
+from display.models import TraccarCredentials, ContestantTrack
 from influx_facade import InfluxFacade
 
-traccar = Traccar()
+configuration = TraccarCredentials.objects.get()
+
+traccar = Traccar.create_from_configuration(configuration)
+
 deleted = traccar.delete_all_devices()
 for item in deleted:
     traccar.create_device(item)
@@ -18,3 +22,4 @@ for item in deleted:
 influx = InfluxFacade()
 influx.drop_database()
 influx.create_database()
+ContestantTrack.objects.all().delete()

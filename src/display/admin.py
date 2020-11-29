@@ -1,7 +1,10 @@
 from django.contrib import admin
 
 # Register your models here.
-from display.models import Contest, Track, Aeroplane, Team, Contestant
+from display.models import Contest, Track, Aeroplane, Team, Contestant, TraccarCredentials
+from solo.admin import SingletonModelAdmin
+
+admin.site.register(TraccarCredentials, SingletonModelAdmin)
 
 
 class ContestantInline(admin.TabularInline):

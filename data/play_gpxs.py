@@ -1,15 +1,13 @@
-import datetime
 import glob
 import os
 import time
 from urllib.parse import urlencode
 
-import dateutil
 import gpxpy
 import requests
-from fastkml import kml
 
-server = 'traccar:5055'
+# server = 'traccar:5055'
+server = 'localhost:5055'
 
 maximum_index = 0
 tracks = {}

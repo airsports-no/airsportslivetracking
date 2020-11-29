@@ -2,27 +2,26 @@
 import datetime
 import glob
 import os
-import sys
 
-from secret_configuration import LOCAL_TRACCAR_ADDRESS, LOCAL_TOKEN
 from traccar_facade import Traccar
-
-traccar = Traccar("http", LOCAL_TRACCAR_ADDRESS, LOCAL_TOKEN)
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
 
     django.setup()
-from display.models import Team, Aeroplane, Contest, Track, Contestant, Scorecard
+from display.models import Team, Aeroplane, Contest, Track, Contestant, Scorecard, TraccarCredentials
+
+configuration = TraccarCredentials.objects.get()
+traccar = Traccar.create_from_configuration(configuration)
 
 Contest.objects.all().delete()
 aeroplane = Aeroplane.objects.first()
 contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="NM contest",
-                                 track=Track.objects.get(name="NM 2020"), server_address="home.kolaf.net:8082",
-                                 server_token="FydcKTi7Lnat5wHhMGTCs0ykEpNAAOdj",
+                                 track=Track.objects.get(name="NM 2020"), server_address=" ",
+                                 server_token=" ",
                                  start_time=contest_start_time, finish_time=contest_finish_time, wind_direction=165,
                                  wind_speed=8)
 contestants = {
@@ -76,15 +75,6 @@ class_two_scorecard, _ = Scorecard.objects.get_or_create(missed_gate=100,
                                                          missed_takeoff_gate=100
                                                          )
 
-missed_gate = 100
-gate_timing_per_second = 3
-gate_perfect_limit_seconds = 2
-maximum_gate_score = 100
-backtracking = 200
-missed_procedure_turn = 200
-below_minimum_altitude = 500
-takeoff_time_limit_seconds = 60
-missed_takeoff_gate = 100
 
 for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
     contestant_name = os.path.splitext(os.path.basename(file))[0]

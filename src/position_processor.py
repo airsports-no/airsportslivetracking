@@ -1,12 +1,8 @@
 import json
 import logging
 import os
-from pprint import pprint
-from typing import Set, List
+from typing import List, TYPE_CHECKING
 
-import secret_configuration
-from secret_configuration import TRACCAR_ADDRESS
-from traccar_facade import Traccar
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -14,18 +10,22 @@ if __name__ == "__main__":
 
     django.setup()
 
+if TYPE_CHECKING:
+    from display.calculators.calculator import Calculator
+from traccar_facade import Traccar
+
 import websocket
 from influx_facade import InfluxFacade
-from display.models import Contestant
-from display.track_calculator import Calculator, calculator_factory
+from display.models import Contestant, TraccarCredentials
+from display.calculators.calculator_factory import calculator_factory
 
 logger = logging.getLogger(__name__)
-traccar = Traccar(secret_configuration.PROTOCOL, secret_configuration.TRACCAR_ADDRESS, secret_configuration.TOKEN)
+
+configuration = TraccarCredentials.objects.get()
+
+traccar = Traccar.create_from_configuration(configuration)
 devices = traccar.get_device_map()
 influx = InfluxFacade()
-# influx.drop_database()
-# influx.create_database()
-
 calculators = {}
 
 
@@ -78,11 +78,10 @@ headers = {
 headers['Upgrade'] = 'websocket'
 
 if __name__ == "__main__":
-    # ContestantTrack.objects.all().delete()
     while True:
         websocket.enableTrace(True)
         cookies = traccar.session.cookies.get_dict()
-        ws = websocket.WebSocketApp("ws://{}/api/socket".format(TRACCAR_ADDRESS),
+        ws = websocket.WebSocketApp("ws://{}/api/socket".format(configuration.address),
                                     on_message=on_message,
                                     on_error=on_error,
                                     on_close=on_close,

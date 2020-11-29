@@ -1,8 +1,11 @@
 import datetime
-from typing import List, Dict
+from typing import List, Dict, TYPE_CHECKING
 
 import requests
 from requests import Session
+
+if TYPE_CHECKING:
+    from display.models import TraccarCredentials
 
 
 class Traccar:
@@ -13,6 +16,10 @@ class Traccar:
         self.base = "{}://{}".format(self.protocol, self.address)
         self.session = self.get_authenticated_session()
         self.device_map = None
+
+    @classmethod
+    def create_from_configuration(cls, configuration: "TraccarCredentials") -> "Traccar":
+        return cls(configuration.protocol, configuration.address, configuration.token)
 
     def get_authenticated_session(self) -> Session:
         session = requests.Session()

@@ -18,3 +18,5 @@ websocket-client
 geopy
 mysqlclient
 gpxpy
+parameterized
+django-solo

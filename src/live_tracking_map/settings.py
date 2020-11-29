@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -39,7 +40,7 @@ INSTALLED_APPS = [
     'display.apps.DisplayConfig',
     'rest_framework',
     'webpack_loader',
-    # 'display'
+    "solo"
 ]
 
 MIDDLEWARE = [
@@ -83,19 +84,25 @@ WEBPACK_LOADER = {
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": "tracker",
-        "USER": "tracker",
-        "PASSWORD": "tracker",
-        "HOST": "mysql"
+IS_UNIT_TESTING = any(s in sys.argv for s in ("test", "jenkins"))
+
+if IS_UNIT_TESTING:  # Use sqlite3 when running tests
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        }
     }
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': BASE_DIR / 'db.sqlite3',
-    # }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": "tracker",
+            "USER": "tracker",
+            "PASSWORD": "tracker",
+            "HOST": "mysql"
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators

@@ -6,8 +6,8 @@ services:
 
   tracker_web:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "/wait-for-it.sh", "influx:8086", "--",
                "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py runserver 0.0.0.0:8000" ]
-#    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack &) && cd /src && python3 manage.py initadmin && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
 
     container_name: tracker_web
     build:
@@ -26,8 +26,10 @@ services:
       - influx
 
   tracker_processor:
-    command: ["/wait-for-it.sh", "mysql:3306", "--",
-        "bash", "-c", "python3 position_processor.py" ]
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "/wait-for-it.sh", "traccar:8082", "--",
+               "/wait-for-it.sh", "influx:8086", "--",
+               "bash", "-c", "python3 position_processor.py" ]
     container_name: tracker_processor
     restart: unless-stopped
     build:
@@ -37,6 +39,7 @@ services:
       - ./src:/src/
     depends_on:
       - influx
+      - traccar
       - mysql
 
   influx:
@@ -70,14 +73,14 @@ services:
     container_name: mysql
     restart: always
     environment:
-#      - MYSQL_DATABASE=traccar
-#      - MYSQL_USER=traccar
+      #      - MYSQL_DATABASE=traccar
+      #      - MYSQL_USER=traccar
       - MYSQL_ROOT_PASSWORD=traccar
-#      - MYSQL_PASSWORD=traccar
+    #      - MYSQL_PASSWORD=traccar
     volumes:
-      - mysqldata:/var/lib/mysql/
+      #      - mysqldata:/var/lib/mysql/
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
 
 volumes:
-  mysqldata:
+  #  mysqldata:
   traccar-db:

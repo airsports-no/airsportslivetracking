@@ -15,18 +15,6 @@ def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, 
     :param finish:
     :return: Distance in metres
     """
-    # lat1 = start[0] * math.pi / 180
-    # lon1 = start[1] * math.pi / 180
-    # lat2 = finish[0] * math.pi / 180
-    # lon2 = finish[1] * math.pi / 180
-    # deltaLatitude = (lat2 - lat1)
-    # deltaLongitude = (lon2 - lon1)
-    #
-    # a = math.sin(deltaLatitude / 2) * math.sin(deltaLatitude / 2) + math.cos(lat1) * math.cos(lat2) * math.sin(
-    #     deltaLongitude / 2) * math.sin(deltaLongitude / 2)
-    # c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    # d = R * c
-    # return d
     return distance.distance(start, finish).km * 1000
 
 
