@@ -6,8 +6,8 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 // var CompressionPlugin = require("compression-webpack-plugin");
 // var BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
-const cesiumSource = 'node_modules/cesium/Source';
-const cesiumWorkers = '../Build/Cesium/Workers';
+// const cesiumSource = 'node_modules/cesium/Source';
+// const cesiumWorkers = '../Build/Cesium/Workers';
 module.exports = {
     context: path.resolve(__dirname, '../'),
     mode: 'development',

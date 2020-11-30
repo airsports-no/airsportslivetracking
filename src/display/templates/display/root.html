@@ -30,11 +30,11 @@
         integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
         crossorigin="anonymous"></script>
 
-<div id="cesiumContainerRoot">
+<div id="root">
     <img class="center" src="{% static 'img/loading.gif' %}" alt="loading..."/>
 </div>
 {% render_bundle 'vendors' %}
-{% render_bundle 'cesium_core' %}
+{% render_bundle 'Root' %}
 <script src="{% static 'js/csrf.js' %}"></script>
 </body>
 </html>

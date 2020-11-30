@@ -113,7 +113,8 @@ def get_data_from_time_for_contestant(request, contestant_pk):
         contestant_track = [ContestantTrackSerialiser(contestant.contestanttrack).data]
     else:
         contestant_track = []
-    return Response({"latest_time": global_latest_time, "positions": positions, "annotations": annotations,
+    return Response({"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
+                     "annotations": annotations,
                      "contestant_tracks": contestant_track})
 
 
@@ -123,7 +124,7 @@ def import_track(request):
         form = ImportTrackForm(request.POST, request.FILES)
         if form.is_valid():
             name = form.cleaned_data["name"]
-            data = [item.decode(encoding = "UTF-8") for item in request.FILES['file'].readlines()]
+            data = [item.decode(encoding="UTF-8") for item in request.FILES['file'].readlines()]
             create_track_from_csv(name, data[1:])
             return redirect("/")
     return render(request, "display/import_track_form.html", {"form": form})

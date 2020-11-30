@@ -1,71 +1,32 @@
 import 'regenerator-runtime/runtime'
-import React from "react";
 import axios from "axios";
 import {Tracker} from "../dataStructure/Tracker";
 import {render} from "react-dom";
 import {map, tileLayer} from "leaflet"
+import Contest from "./Contest";
+import {connect} from "react-redux";
+import React, {Component} from "react";
 
 // import "leaflet/dist/leaflet.css"
 
-class CesiumContainer extends React.Component {
+class ConnectedTrackingContainer extends Component {
     constructor(props) {
         super(props);
-        // console.log(this.props)
-        this.state = {initiated: false};
         this.client = null;
         this.viewer = null;
         this.map = null;
-        this.tracker = {contest: {name: ""}}
-        this.contest_id = document.configuration.contest_id;
-        this.liveMode = document.configuration.liveMode;
+        this.contestId = document.configuration.contest_id;
         this.displayMap = document.configuration.displayMap;
         this.displayTable = document.configuration.displayTable;
-        this.contest = null;
-        console.log("contest_id = " + this.contest_id)
     }
 
-    fetchContest(contestId) {
-        axios.get("/display/api/contest/detail/" + contestId).then(res => {
-            console.log("contest data:")
-            console.log(res)
-            this.contest = res.data;
-            if (new Date() > new Date(this.contest.finish_time))
-                this.liveMode = false;
-            if (this.displayMap) {
-                this.initialiseMap();
-            }
-            this.setState({initiated: true})
-        });
-    }
 
-    initialiseMap() {
-        this.map = map('cesiumContainer')
-        const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
-        tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
-            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-            maxZoom: 18,
-            id: 'mapbox/streets-v11',
-            tileSize: 512,
-            zoomOffset: -1,
-            accessToken: token
-        }).addTo(this.map);
-        // const logoContainer = document.getElementById("logoContainer")
-        // const mapControlContainer = document.getElementsByClassName("leaflet-control")[0]
-        // mapControlContainer.appendChild(logoContainer)
-    }
 
-    componentDidMount() {
-        this.fetchContest(this.contest_id)
-        // this.viewer.zoomTo(this.viewer.entities);
-    }
 
     render() {
-        let TrackerDisplay = <div/>
-        if (this.state.initiated) {
-            TrackerDisplay =
-                <Tracker map={this.map} contest={this.contest} liveMode={this.liveMode} fetchInterval={5000}
-                         displayMap={this.displayMap} displayTable={this.displayTable}/>
-        }
+        const TrackerDisplay =
+            <Contest map={this.map} contestId={this.contestId} fetchInterval={5000}
+                     displayMap={this.displayMap} displayTable={this.displayTable}/>
         if (this.displayTable && this.displayMap) {
             return (
                 <div id="map-holder">
@@ -114,10 +75,5 @@ class CesiumContainer extends React.Component {
     }
 }
 
-render(
-    <CesiumContainer/>,
-    document
-        .getElementById(
-            'cesiumContainerRoot'
-        ))
-;
+const TrackingContainer=connect()(ConnectedTrackingContainer)
+export default TrackingContainer
