@@ -105,10 +105,10 @@ def get_data_from_time_for_contestant(request, contestant_pk):
             "contestant_id": contestant.pk,
             "position_data": position_data
         }
-        positions.append(contest_data)
+        positions=position_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
     if len(annotation_data):
-        annotations.append({"contestant_id": contestant.pk, "annotations": annotation_data})
+        annotations = annotation_data
     if hasattr(contestant, "contestanttrack"):
         contestant_track = [ContestantTrackSerialiser(contestant.contestanttrack).data]
     else:

@@ -30,7 +30,7 @@ function rootReducer(state = initialState, action) {
             ...state,
             contestantData: {
                 ...state.contestantData,
-                [action.payload.contestant.id]: action.payload
+                [action.payload.contestant_id]: action.payload
             }
         }
     }

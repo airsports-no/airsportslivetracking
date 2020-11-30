@@ -2,6 +2,8 @@ import React, {Component} from "react";
 import {fetchContest} from "../actions";
 import {connect} from "react-redux";
 import {circle, divIcon, map, marker, polyline, tileLayer} from "leaflet";
+import ContestantTrack from "./ContestantTrack";
+import distinctColors from "distinct-colors";
 
 const mapStateToProps = (state, props) => ({
     contest: state.contest
@@ -95,7 +97,15 @@ class ConnectedContest extends Component {
 
     render() {
         if (this.props.contest !== undefined) {
-            return <h1>{this.props.contest.name}</h1>
+            const colours = distinctColors({count: this.props.contest.contestant_set.length})
+            return <div>
+                <h1>{this.props.contest.name}</h1>
+                {this.props.contest.contestant_set.map((contestant, index) => {
+                    return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={5000} contestantId={contestant.id} colour={colours[index]}
+                                            contestantNumber={contestant.contestant_number}
+                                            contestantName={contestant.team.pilot}/>
+                })}
+            </div>
         }
         return <div/>
     }
