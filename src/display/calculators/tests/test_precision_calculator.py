@@ -40,8 +40,8 @@ class TestFullTrack(TransactionTestCase):
                                                     traccar_device_name="Test contestant", contestant_number=1,
                                                     scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed)
 
-    def load_track_points(self):
-        with open("display/calculators/tests/test_contestant_correct_track.gpx", "r") as i:
+    def load_track_points(self, filename):
+        with open(filename, "r") as i:
             gpx = gpxpy.parse(i)
         positions = []
         for track in gpx.tracks:
@@ -53,21 +53,30 @@ class TestFullTrack(TransactionTestCase):
                          "altitude": point.elevation, "speed": 0, "course": 0, "battery_level": 100})
         return positions
 
-    def test_correct_scoring_correct_track_original(self):
-        positions = self.load_track_points()
-        calculator = OriginalCalculator(self.contestant, Mock())
-        calculator.start()
-        calculator.add_positions(positions)
-        calculator.join()
-        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(280, contestant_track.score)
+    # def test_correct_scoring_correct_track_original(self):
+    #     positions = self.load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
+    #     calculator = OriginalCalculator(self.contestant, Mock())
+    #     calculator.start()
+    #     calculator.add_positions(positions)
+    #     calculator.join()
+    #     contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+    #     self.assertEqual(280, contestant_track.score)
 
 
     def test_correct_scoring_correct_track_precision(self):
-        positions = self.load_track_points()
+        positions = self.load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
         calculator = PrecisionCalculator(self.contestant, Mock())
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(280, contestant_track.score)
+
+    def test_correct_scoring_bad_track_precision(self):
+        positions = self.load_track_points("display/calculators/tests/Steinar.gpx")
+        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator.start()
+        calculator.add_positions(positions)
+        calculator.join()
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        self.assertEqual(2600, contestant_track.score)

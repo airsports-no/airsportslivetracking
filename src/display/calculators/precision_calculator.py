@@ -16,48 +16,28 @@ logger = logging.getLogger(__name__)
 
 
 class PrecisionCalculator(Calculator):
-    TRACKING = 0
-    BACKTRACKING = 1
-    PROCEDURE_TURN = 2
-    FAILED_PROCEDURE_TURN = 3
     DEVIATING = 4
-    BEFORE_START = 5
-    FINISHED = 6
-    STARTED = 7
-
-    TRACKING_MAP = {
-        TRACKING: "Tracking",
+    BACKTRACKING = 5
+    PROCEDURE_TURN = 6
+    FAILED_PROCEDURE_TURN = 7
+    TRACKING_MAP = dict(Calculator.TRACKING_MAP)
+    TRACKING_MAP.update({
         BACKTRACKING: "Backtracking",
         PROCEDURE_TURN: "Procedure turn",
         FAILED_PROCEDURE_TURN: "Failed procedure turn",
         DEVIATING: "Deviating",
-        BEFORE_START: "Waiting...",
-        FINISHED: "Finished",
-        STARTED: "Started"
-    }
+    })
 
     def __init__(self, contestant: "Contestant", influx: "InfluxFacade"):
         super().__init__(contestant, influx)
-        self.loop_time = 60
         self.current_procedure_turn_gate = None
         self.current_procedure_turn_directions = []
         self.last_gate = 0
         self.last_bearing = None
         self.current_speed_estimate = 0
         self.previous_gate_distances = None
-        self.tracking_state = self.BEFORE_START
         self.inside_gates = None
 
-    def run(self):
-        logger.info("Started calculator for contestant {}".format(self.contestant))
-        while self.tracking_state != self.FINISHED:
-            self.process_event.wait(self.loop_time)
-            self.process_event.clear()
-            while len(self.pending_points) > 0:
-                self.track.append(self.pending_points.pop(0))
-                if len(self.track) > 1:
-                    self.calculate_score()
-        logger.info("Terminating calculator for {}".format(self.contestant))
 
     def calculate_distance_to_outstanding_gates(self, current_position):
         gate_distances = [{"distance": distance_between_gates(current_position, gate), "gate": gate} for gate in
@@ -102,51 +82,6 @@ class PrecisionCalculator(Calculator):
         self.check_intersections()
         self.calculate_gate_score()
         self.calculate_track_score()
-
-    def get_intersect_time(self, gate: "Gate"):
-        if len(self.track) > 1:
-            segment = self.track[-2:]  # type: List[Position]
-            intersection = line_intersect(segment[0].longitude, segment[0].latitude, segment[1].longitude,
-                                          segment[1].latitude, gate.x1, gate.y1, gate.x2, gate.y2)
-            if intersection:
-                fraction = fraction_of_leg(segment[0].longitude, segment[0].latitude, segment[1].longitude,
-                                           segment[1].latitude, intersection[0], intersection[1])
-                time_difference = (segment[1].time - segment[0].time).total_seconds()
-                return segment[0].time + timedelta(seconds=fraction * time_difference)
-        return None
-
-    def check_intersections(self, force_gate: Optional["Gate"] = None):
-        # Check starting line
-        if not self.starting_line.has_been_passed():
-            intersection_time = self.get_intersect_time(self.starting_line)
-            if intersection_time:
-                logger.info("{}: Passing start line".format(self.contestant))
-                self.update_tracking_state(self.STARTED)
-                self.starting_line.passing_time = intersection_time
-        i = len(self.outstanding_gates) - 1
-        crossed_gate = False
-        while i >= 0:
-            gate = self.outstanding_gates[i]
-            intersection_time = self.get_intersect_time(gate)
-            if intersection_time:
-                logger.info("{}: Crossed gate {}".format(self.contestant, gate))
-                gate.passing_time = intersection_time
-                crossed_gate = True
-            if force_gate == gate:
-                crossed_gate = True
-            if crossed_gate:
-                if gate.passing_time is None:
-                    logger.info("{}: Missed gate {}".format(self.contestant, gate))
-                    gate.missed = True
-                self.outstanding_gates.pop(i)
-            i -= 1
-
-    def update_tracking_state(self, tracking_state: int):
-        if tracking_state == self.tracking_state:
-            return
-        logger.info("{}: Changing state to {}".format(self.contestant, self.TRACKING_MAP[tracking_state]))
-        self.tracking_state = tracking_state
-        self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
     def update_current_leg(self, current_leg):
         if current_leg:

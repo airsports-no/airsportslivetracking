@@ -11,4 +11,4 @@ from display.calculators.original_calculator import OriginalCalculator
 
 def calculator_factory(contestant: "Contestant", influx: "InfluxFacade") -> "Calculator":
     if contestant.contest.contest_type == Contest.PRECISION:
-        return OriginalCalculator(contestant, influx)
+        return PrecisionCalculator(contestant, influx)
