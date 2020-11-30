@@ -47,7 +47,7 @@ class ConnectedContestantTrack extends Component {
         } else {
             this.props.fetchContestantData(this.contestantId)
         }
-        // setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
+        setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
     }
 
 
