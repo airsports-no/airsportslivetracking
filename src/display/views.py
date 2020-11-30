@@ -88,24 +88,21 @@ def get_data_from_time_for_contest(request, contest_pk):
 def get_data_from_time_for_contestant(request, contestant_pk):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
     influx = InfluxFacade()
-    from_time = request.GET.get("from_time", (contestant.contest.start_time - timedelta(minutes=30)).isoformat())
+    default_start_time = contestant.contest.start_time - timedelta(minutes=30)
+    from_time = request.GET.get("from_time", default_start_time.isoformat())
+    from_time_datetime = dateutil.parser.parse(from_time)
     logger.info("Fetching data from time {}".format(from_time))
-    result_set = influx.get_positions_for_contestant(contestant_pk, from_time)
+    result_set = influx.get_positions_for_contestant(contestant_pk, default_start_time.isoformat())
     annotation_results = influx.get_annotations_for_contestant(contestant_pk, from_time)
-    positions = []
     annotations = []
     global_latest_time = None
     logger.debug("Contestant_pk: {}".format(contestant.pk))
     position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
-    logger.debug(position_data)
-    if len(position_data):
-        latest_time = dateutil.parser.parse(position_data[-1]["time"])
-        global_latest_time = latest_time
-        contest_data = {
-            "contestant_id": contestant.pk,
-            "position_data": position_data
-        }
-        positions = position_data
+    filtered_position_data = [item for item in position_data if
+                              dateutil.parser.parse(item["time"]) > from_time_datetime]
+    if len(position_data)>0:
+        global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
+    positions = filtered_position_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
     if len(annotation_data):
         annotations = annotation_data
