@@ -47,6 +47,7 @@ class ContestSerialiser(serializers.ModelSerializer):
 class ContestantTrackSerialiser(serializers.ModelSerializer):
     score_log = serializers.JSONField()
     score_per_gate = serializers.JSONField()
+    contestant = ContestantSerialiser()
 
     class Meta:
         model = ContestantTrack

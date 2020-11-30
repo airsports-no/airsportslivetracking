@@ -20,7 +20,7 @@ class ConnectedContestantTrack extends Component {
         this.map = props.map
         this.colour = props.colour
         this.contestantNumber = props.contestantNumber
-        this.paddedContestantNumber = this.paddedContestantNumber = pz(this.contestantNumber, 2)
+        this.paddedContestantNumber = pz(this.contestantNumber, 2)
         this.contestantName = props.contestantName
         this.contestantId = props.contestantId
         this.markers = L.markerClusterGroup()

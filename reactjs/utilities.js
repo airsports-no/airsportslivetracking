@@ -47,12 +47,24 @@ export function alongTrackDistance(lat1, lon1, lat, lon, crossTrackDistance) {
 }
 
 export function sleep(milliseconds) {
-  const date = Date.now();
-  let currentDate = null;
-  do {
-    currentDate = Date.now();
-  } while (currentDate - date < milliseconds);
+    const date = Date.now();
+    let currentDate = null;
+    do {
+        currentDate = Date.now();
+    } while (currentDate - date < milliseconds);
 }
 
-export const pz = (n, z = 2, s= '0') =>
-	(n+'').length <= z ? (['','-'])[+(n<0)] + (s.repeat(z) + Math.abs(n)).slice(-1*z) : n + '';
+export const pz = (n, z = 2, s = '0') =>
+    (n + '').length <= z ? (['', '-'])[+(n < 0)] + (s.repeat(z) + Math.abs(n)).slice(-1 * z) : n + '';
+
+export function compareScore(a, b) {
+    if (a.score > b.score) return 1;
+    if (a.score < b.score) return -1;
+    return 0
+}
+
+export function compareContestantNumber(a, b) {
+    if (a.contestant_number > b.contestant_number) return 1;
+    if (a.contestant_number < b.contestant_number) return -1;
+    return 0
+}

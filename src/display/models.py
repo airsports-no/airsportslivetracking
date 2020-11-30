@@ -243,6 +243,9 @@ class Contestant(models.Model):
     traccar_device_name = models.CharField(max_length=100)
     scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT, null=True)
 
+    class Meta:
+        unique_together = ("contest", "contestant_number")
+
     def __str__(self):
         return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.contest.name, self.takeoff_time,
                                               self.finished_by_time)

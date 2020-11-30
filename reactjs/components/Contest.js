@@ -4,6 +4,8 @@ import {connect} from "react-redux";
 import {circle, divIcon, map, marker, polyline, tileLayer} from "leaflet";
 import ContestantTrack from "./ContestantTrack";
 import distinctColors from "distinct-colors";
+import {compareContestantNumber} from "../utilities";
+import ContestantRankTable from "./contestantRankTable";
 
 const mapStateToProps = (state, props) => ({
     contest: state.contest
@@ -12,6 +14,7 @@ const mapStateToProps = (state, props) => ({
 class ConnectedContest extends Component {
     constructor(props) {
         super(props);
+        this.state = {colourMap: {}}
     }
 
     componentDidMount() {
@@ -19,6 +22,16 @@ class ConnectedContest extends Component {
         if (this.props.displayMap) {
             this.initialiseMap();
         }
+    }
+
+    buildColourMap() {
+        const colours = distinctColors({count: this.props.contest.contestant_set.length})
+        this.props.contest.contestant_set.sort(compareContestantNumber)
+        let colourMap={}
+        this.props.contest.contestant_set.map((contestant, index) => {
+            colourMap[contestant.id] = colours[index]
+        })
+        return colourMap
     }
 
 
@@ -97,14 +110,16 @@ class ConnectedContest extends Component {
 
     render() {
         if (this.props.contest !== undefined) {
-            const colours = distinctColors({count: this.props.contest.contestant_set.length})
+            const colourMap = this.buildColourMap()
             return <div>
                 <h1>{this.props.contest.name}</h1>
                 {this.props.contest.contestant_set.map((contestant, index) => {
-                    return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={5000} contestantId={contestant.id} colour={colours[index]}
+                    return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={5000}
+                                            contestantId={contestant.id} colour={colourMap[contestant.id]}
                                             contestantNumber={contestant.contestant_number}
                                             contestantName={contestant.team.pilot}/>
                 })}
+                <ContestantRankTable colourMap={colourMap}/>
             </div>
         }
         return <div/>
