@@ -6,8 +6,8 @@ from urllib.parse import urlencode
 import gpxpy
 import requests
 
-# server = 'traccar:5055'
-server = 'localhost:5055'
+server = 'traccar:5055'
+# server = 'localhost:5055'
 
 maximum_index = 0
 tracks = {}
@@ -31,7 +31,6 @@ def send(id, time, lat, lon, speed):
     requests.post("http://" + server + '/?' + urlencode(params))
 
 
-print(tracks)
 print(maximum_index)
 count = 0
 for index in range(0, maximum_index, 4):

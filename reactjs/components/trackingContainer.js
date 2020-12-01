@@ -1,8 +1,4 @@
 import 'regenerator-runtime/runtime'
-import axios from "axios";
-import {Tracker} from "../dataStructure/Tracker";
-import {render} from "react-dom";
-import {map, tileLayer} from "leaflet"
 import Contest from "./Contest";
 import {connect} from "react-redux";
 import React, {Component} from "react";
@@ -19,8 +15,6 @@ class ConnectedTrackingContainer extends Component {
         this.displayMap = document.configuration.displayMap;
         this.displayTable = document.configuration.displayTable;
     }
-
-
 
 
     render() {
@@ -75,5 +69,5 @@ class ConnectedTrackingContainer extends Component {
     }
 }
 
-const TrackingContainer=connect()(ConnectedTrackingContainer)
+const TrackingContainer = connect()(ConnectedTrackingContainer)
 export default TrackingContainer
