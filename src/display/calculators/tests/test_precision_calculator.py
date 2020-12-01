@@ -92,4 +92,4 @@ class TestFullTrack(TransactionTestCase):
         print(contestant_track.score_log)
         self.assertTrue("200 points for incorrect procedure turn at TP1" in contestant_track.score_log)
         self.assertTrue("200 points for incorrect procedure turn at TP4" in contestant_track.score_log)
-        self.assertTrue("200 points for incorrect procedure turn at TP6" in contestant_track.score_log)
+        self.assertTrue("200 for missing procedure turn at TP6" in contestant_track.score_log)
