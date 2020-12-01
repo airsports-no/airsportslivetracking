@@ -7,6 +7,7 @@ import {
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
 const initialState = {
+    contest: {track: {waypoints: []}},
     contestantData: {},
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
     displayTracks: null

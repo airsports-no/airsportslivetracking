@@ -24,7 +24,7 @@ class ConnectedContestantAbbreviatedRankTable extends Component {
         contestants.sort(compareScore)
         const cm = this.props.colourMap
         const items = contestants.map((contestant, index) => {
-            return <AbbreviatedRank key={"abbrev" + contestant.contestant.id} rank={index}
+            return <AbbreviatedRank key={"abbrev" + contestant.contestant.id} rank={index + 1}
                                     contestantNumber={contestant.contestant.contestant_number}
                                     contestantName={contestant.contestant.team.pilot}
                                     contestantId={contestant.contestant.id}

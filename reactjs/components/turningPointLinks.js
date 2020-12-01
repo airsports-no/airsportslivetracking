@@ -1,6 +1,7 @@
 import React, {Component} from "react";
 import {setDisplay} from "../actions";
 import {TURNING_POINT_DISPLAY} from "../constants/display-types";
+import {connect} from "react-redux";
 
 const mapDispatchToProps = (dispatch, props) => ({
     displayTurningPointsStandings: turningPoint => dispatch(setDisplay({
@@ -10,7 +11,7 @@ const mapDispatchToProps = (dispatch, props) => ({
 })
 
 const mapStateToProps = (state, props) => ({
-    turningPoints: state.contest.track.waoypoints.map((a) => {
+    turningPoints: state.contest.track.waypoints.map((a) => {
         return a.name
     })
 })
@@ -18,7 +19,6 @@ const mapStateToProps = (state, props) => ({
 class ConnectedTurningPointLinks extends Component {
     constructor(props) {
         super(props);
-        this.turningPoints = props.turningPoints
         this.handleClick = this.handleClick.bind(this);
     }
 
@@ -27,11 +27,13 @@ class ConnectedTurningPointLinks extends Component {
     }
 
     render() {
-        this.turningPoints.map((turningPoint) => {
-            return <li><a href={"#"} onClick={() => {
-                this.handleClick(turningPoint)
-            }} key={"tplist" + turningPoint.name}>{turningPoint.name}</a></li>
-        })
+        return <ul className={"commaList"}>
+            {this.props.turningPoints.map((turningPoint) => {
+                return <li key={"tplist" + turningPoint}><a href={"#"} onClick={() => {
+                    this.handleClick(turningPoint)
+                }} >{turningPoint}</a></li>
+            })}
+        </ul>
     }
 }
 

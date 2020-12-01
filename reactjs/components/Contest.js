@@ -6,8 +6,10 @@ import ContestantTrack from "./ContestantTrack";
 import distinctColors from "distinct-colors";
 import {compareContestantNumber} from "../utilities";
 import ContestantAbbreviatedRankTable from "./contestantAbbreviatedRankTable";
-import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} from "../constants/display-types";
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
+import TurningPointLinks from "./turningPointLinks";
+import TurningPointDisplay from "./turningPointDisplay";
 
 const mapStateToProps = (state, props) => ({
     contest: state.contest,
@@ -118,16 +120,20 @@ class ConnectedContest extends Component {
     }
 
     render() {
-        if (this.props.contest !== undefined) {
+        if (this.props.contest.contestant_set !== undefined) {
             const colourMap = this.buildColourMap()
             let display = <div/>
             if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
                 display = <ContestantAbbreviatedRankTable colourMap={colourMap}/>
             } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                 display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
+            } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
+                display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}
+                                               colourMap={colourMap}/>
             }
             return <div>
                 <a href={"#"} onClick={this.handleContestHeadingClick}><h1>{this.props.contest.name}</h1></a>
+                <TurningPointLinks/>
                 {this.props.contest.contestant_set.map((contestant, index) => {
                     return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={5000}
                                             contestantId={contestant.id} colour={colourMap[contestant.id]}
