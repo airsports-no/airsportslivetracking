@@ -1,11 +1,14 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {pz} from "../utilities";
+import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
+import {displayOnlyContestantTrack, setDisplay} from "../actions";
+
 var moment = require("moment");
 var momentDurationFormatSetup = require("moment-duration-format");
 
 const mapStateToProps = (state, props) => ({
-    contestantData: state.contestantData[props.contestantId]!==undefined?state.contestantData[props.contestantId].contestant_track:null
+    contestantData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null
 })
 
 function getTrackingStateBackgroundClass(state) {
@@ -15,16 +18,28 @@ function getTrackingStateBackgroundClass(state) {
 }
 
 class ConnectedAbbreviatedRank extends Component {
+    constructor(props) {
+        super(props)
+        this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
+    }
+
+    handleContestantLinkClick(contestantId) {
+        this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
+        this.props.displayOnlyContestantTrack(contestantId)
+    }
+
 
     render() {
-        if (!this.props.contestantData){
+        if (!this.props.contestantData) {
             return <div/>
         }
         return <tr
             key={"leaderboard" + this.props.contestantNumber}>
             <td style={{"backgroundColor": this.props.colour}}>&nbsp;</td>
             <td>{this.props.rank}</td>
-            <td>{pz(this.props.contestantNumber, 2)} {this.props.contestantName}</td>
+            <td><a href={"#"}
+                   onClick={() => this.handleContestantLinkClick(this.props.contestantId)}>{pz(this.props.contestantNumber, 2)} {this.props.contestantName}</a>
+            </td>
             <td>{this.props.contestantData.score}</td>
             <td className={getTrackingStateBackgroundClass(this.props.contestantData.current_state)}>{this.props.contestantData.current_state}</td>
             <td>{this.props.contestantData.last_gate}</td>
@@ -34,5 +49,5 @@ class ConnectedAbbreviatedRank extends Component {
     }
 }
 
-const AbbreviatedRank = connect(mapStateToProps)(ConnectedAbbreviatedRank)
+const AbbreviatedRank = connect(mapStateToProps, {setDisplay, displayOnlyContestantTrack})(ConnectedAbbreviatedRank)
 export default AbbreviatedRank

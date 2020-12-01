@@ -1,20 +1,29 @@
 import React, {Component} from "react";
-import {fetchContest} from "../actions";
+import {displayAllTracks, fetchContest, setDisplay} from "../actions";
 import {connect} from "react-redux";
 import {circle, divIcon, map, marker, polyline, tileLayer} from "leaflet";
 import ContestantTrack from "./ContestantTrack";
 import distinctColors from "distinct-colors";
 import {compareContestantNumber} from "../utilities";
-import ContestantRankTable from "./contestantRankTable";
+import ContestantAbbreviatedRankTable from "./contestantAbbreviatedRankTable";
+import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import ContestantDetailsDisplay from "./contestantDetailsDisplay";
 
 const mapStateToProps = (state, props) => ({
-    contest: state.contest
+    contest: state.contest,
+    currentDisplay: state.currentDisplay
 })
 
 class ConnectedContest extends Component {
     constructor(props) {
         super(props);
         this.state = {colourMap: {}}
+        this.handleContestHeadingClick = this.handleContestHeadingClick.bind(this)
+    }
+
+    handleContestHeadingClick() {
+        this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        this.props.displayAllTracks();
     }
 
     componentDidMount() {
@@ -27,7 +36,7 @@ class ConnectedContest extends Component {
     buildColourMap() {
         const colours = distinctColors({count: this.props.contest.contestant_set.length})
         this.props.contest.contestant_set.sort(compareContestantNumber)
-        let colourMap={}
+        let colourMap = {}
         this.props.contest.contestant_set.map((contestant, index) => {
             colourMap[contestant.id] = colours[index]
         })
@@ -111,15 +120,21 @@ class ConnectedContest extends Component {
     render() {
         if (this.props.contest !== undefined) {
             const colourMap = this.buildColourMap()
+            let display = <div/>
+            if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
+                display = <ContestantAbbreviatedRankTable colourMap={colourMap}/>
+            } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
+                display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
+            }
             return <div>
-                <h1>{this.props.contest.name}</h1>
+                <a href={"#"} onClick={this.handleContestHeadingClick}><h1>{this.props.contest.name}</h1></a>
                 {this.props.contest.contestant_set.map((contestant, index) => {
                     return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={5000}
                                             contestantId={contestant.id} colour={colourMap[contestant.id]}
                                             contestantNumber={contestant.contestant_number}
                                             contestantName={contestant.team.pilot}/>
                 })}
-                <ContestantRankTable colourMap={colourMap}/>
+                {display}
             </div>
         }
         return <div/>
@@ -128,5 +143,5 @@ class ConnectedContest extends Component {
 }
 
 const
-    Contest = connect(mapStateToProps, {fetchContest})(ConnectedContest);
+    Contest = connect(mapStateToProps, {fetchContest, setDisplay, displayAllTracks})(ConnectedContest);
 export default Contest;

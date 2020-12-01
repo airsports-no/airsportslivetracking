@@ -12,7 +12,7 @@ const mapStateToProps = (state, props) => ({
 })
 
 
-class ConnectedContestantRankTable extends Component {
+class ConnectedContestantAbbreviatedRankTable extends Component {
     render() {
         let contestants = this.props.contestants
         if (contestants.length === 0) {
@@ -48,5 +48,5 @@ class ConnectedContestantRankTable extends Component {
     }
 }
 
-const ContestantRankTable = connect(mapStateToProps)(ConnectedContestantRankTable)
-export default ContestantRankTable
+const ContestantAbbreviatedRankTable = connect(mapStateToProps)(ConnectedContestantAbbreviatedRankTable)
+export default ContestantAbbreviatedRankTable

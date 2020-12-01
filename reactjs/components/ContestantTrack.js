@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {fetchContestantData} from "../actions";
+import {fetchContestantData, setDisplay} from "../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
 import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
@@ -11,7 +11,8 @@ import {pz} from "../utilities";
 const L = window['L']
 
 const mapStateToProps = (state, props) => ({
-    contestantData: state.contestantData[props.contestantId]
+    contestantData: state.contestantData[props.contestantId],
+    displayTracks: state.displayTracks
 })
 
 class ConnectedContestantTrack extends Component {
@@ -66,6 +67,20 @@ class ConnectedContestantTrack extends Component {
                 this.renderAnnotations(this.props.contestantData.annotations)
             }
         }
+        const displayTracks = this.props.displayTracks;
+        if (!displayTracks) {
+            this.showTrack()
+            this.hideAnnotations()
+        } else {
+            if (displayTracks.includes(this.contestantId)) {
+                this.showTrack()
+                this.showAnnotations()
+            } else {
+                this.hideTrack()
+                this.hideAnnotations()
+            }
+        }
+
     }
 
     createLiveEntities(positions) {

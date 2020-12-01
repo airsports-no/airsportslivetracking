@@ -1,17 +1,21 @@
 import {
-    ADD_CONTESTANT,
+    ADD_CONTESTANT, DISPLAY_ALL_TRACKS, EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
     GET_CONTEST_SUCCESSFUL,
     GET_CONTESTANT_DATA_SUCCESSFUL,
     SET_DISPLAY
 } from "../constants/action-types";
 import axios from "axios";
 
-export function addContestant(payload) {
-    return {type: ADD_CONTESTANT, payload}
-}
-
 export function setDisplay(payload) {
     return {type: SET_DISPLAY, payload}
+}
+
+export function displayOnlyContestantTrack(contestantId) {
+    return {type: EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT, payload: {contestantId: contestantId}}
+}
+
+export function displayAllTracks() {
+    return {type: DISPLAY_ALL_TRACKS}
 }
 
 export const fetchContest = (contestId) => (dispatch) => {
