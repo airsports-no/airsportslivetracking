@@ -250,6 +250,8 @@ class Contestant(models.Model):
         return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.contest.name, self.takeoff_time,
                                               self.finished_by_time)
 
+
+
     def get_groundspeed(self, bearing) -> float:
         return calculate_ground_speed_combined(bearing, self.air_speed, self.contest.wind_speed,
                                                self.contest.wind_direction)

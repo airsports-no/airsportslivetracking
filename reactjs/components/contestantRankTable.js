@@ -1,14 +1,12 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {compareScore, pz} from "../utilities";
+import {compareScore, contestantShortForm, pz} from "../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import "bootstrap/dist/css/bootstrap.min.css"
 import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
 import {
-    displayLatestStatus,
     displayOnlyContestantTrack,
-    hideLatestStatus,
     setDisplay,
     toggleExpandedHeader
 } from "../actions";
@@ -69,7 +67,7 @@ class ConnectedContestantRankTable extends Component {
                 contestantNumber: contestant_track.contestant.contestant_number,
                 contestantId: contestant_track.contestant.id,
                 rank: index + 1,
-                name: pz(contestant_track.contestant.contestant_number, 2) + ": " + contestant_track.contestant.team.pilot,
+                name: contestantShortForm(contestant_track.contestant),
                 score: contestant_track.score,
                 currentState: contestant_track.current_state,
                 lastGate: contestant_track.last_gate,

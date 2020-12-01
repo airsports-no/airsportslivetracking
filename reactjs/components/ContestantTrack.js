@@ -6,12 +6,12 @@ import 'leaflet.markercluster'
 import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
-import {pz} from "../utilities";
+import {contestantLongForm, contestantShortForm} from "../utilities";
 
 const L = window['L']
 
 const mapStateToProps = (state, props) => ({
-    contestantData: state.contestantData[props.contestantId],
+    contestantData: state.contestantData[props.contestant.id],
     displayTracks: state.displayTracks
 })
 
@@ -20,17 +20,14 @@ class ConnectedContestantTrack extends Component {
         super(props);
         this.map = props.map
         this.colour = props.colour
-        this.contestantNumber = props.contestantNumber
-        this.paddedContestantNumber = pz(this.contestantNumber, 2)
-        this.contestantName = props.contestantName
-        this.contestantId = props.contestantId
+        this.contestant = props.contestant
         this.markers = L.markerClusterGroup()
         this.lineCollection = null;
         this.dot = null;
         this.annotationLayer = L.layerGroup()
         const size = 24;
         this.airplaneIcon = L.divIcon({
-            html: '<i class="fa fa-plane" style="color: ' + this.colour + '"><br/>' + this.paddedContestantNumber + ' ' + this.contestantName + '</i>',
+            html: '<i class="fa fa-plane" style="color: ' + this.colour + '"><br/>' + contestantShortForm(props.contestant) + '</i>',
             iconSize: [size, size],
             iconAnchor: [size, size / 2],
             className: "myAirplaneIcon"
@@ -44,9 +41,9 @@ class ConnectedContestantTrack extends Component {
 
     fetchNextData() {
         if (this.props.contestantData !== undefined) {
-            this.props.fetchContestantData(this.contestantId, new Date(this.props.contestantData.latest_time))
+            this.props.fetchContestantData(this.contestant.id, new Date(this.props.contestantData.latest_time))
         } else {
-            this.props.fetchContestantData(this.contestantId)
+            this.props.fetchContestantData(this.contestant.id)
         }
         setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
     }
@@ -73,7 +70,7 @@ class ConnectedContestantTrack extends Component {
                 this.showTrack()
                 this.hideAnnotations()
             } else {
-                if (displayTracks.includes(this.contestantId)) {
+                if (displayTracks.includes(this.contestant.id)) {
                     this.showTrack()
                     this.showAnnotations()
                 } else {
@@ -90,7 +87,7 @@ class ConnectedContestantTrack extends Component {
         this.lineCollection = L.polyline(positions, {
             color: this.colour
         })
-        this.dot = L.marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(this.contestantName, {
+        this.dot = L.marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
         })
         this.showTrack()

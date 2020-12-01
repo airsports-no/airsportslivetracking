@@ -68,3 +68,11 @@ export function compareContestantNumber(a, b) {
     if (a.contestant_number < b.contestant_number) return -1;
     return 0
 }
+
+export function contestantShortForm(contestant) {
+    return pz(contestant.contestant_number, 2) + " " + contestant.team.pilot
+}
+
+export function contestantLongForm(contestant) {
+    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + contestant.team.pilot + "<br/>Navigator: " + contestant.team.navigator + "<br/>Aeroplane: " + contestant.team.aeroplane.registration
+}

@@ -1,7 +1,8 @@
 import React, {Component} from "react";
-import Table from "react-bootstrap/Table";
-import {pz} from "../utilities";
+import {contestantShortForm} from "../utilities";
 import {connect} from "react-redux";
+import BootstrapTable from "react-bootstrap-table-next";
+import paginationFactory from "react-bootstrap-table2-paginator";
 
 const mapStateToProps = (state, props) => {
     let scores = [];
@@ -11,9 +12,10 @@ const mapStateToProps = (state, props) => {
             if (value) {
                 if (value.score_per_gate.hasOwnProperty(props.turningPointName)) {
                     scores.push({
+                        colour: "",
                         score: value.score_per_gate[props.turningPointName],
                         contestantId: contestantId,
-                        contestantName: value.contestant.team.pilot,
+                        contestantName: contestantShortForm(value.contestant),
                         contestantNumber: value.contestant.contestant_number
                     })
                 }
@@ -25,33 +27,66 @@ const mapStateToProps = (state, props) => {
 
 
 class ConnectedTurningPointDisplay extends Component {
+    constructor(props) {
+        super(props);
+        this.numberStyle = this.numberStyle.bind(this)
+    }
+
+    numberStyle(cell, row, rowIndex, colIndex) {
+        return {backgroundColor: this.props.colourMap[row.contestantNumber]}
+    }
+
     render() {
         let scores = this.props.turningPointScores.sort((a, b) => {
             if (a.score > b.score) return 1;
             if (a.score < b.score) return -1;
             return 0
         }).map((c, index) => {
-            return <tr
-                key={"turningpoint" + this.props.turningPointName + c.contestantNumber}>
-                <td style={{"backgroundColor": this.props.colourMap[c.contestantId]}}>&nbsp;</td>
-                <td>{index + 1}</td>
-                <td>{pz(c.contestantNumber, 2)} {c.contestantName}</td>
-                <td>{c.score}</td>
-            </tr>
+            return {
+                ...c,
+                rank: index + 1
+            }
         })
-        return <div><h2>{this.props.turningPointName}</h2>
-            <Table bordered hover striped size={"sm"} responsive>
-                <thead>
-                <tr>
-                    <td/>
-                    <td>#</td>
-                    <td>Team</td>
-                    <td>Score</td>
-                </tr>
-                </thead>
-                <tbody>{scores}</tbody>
-            </Table>
-        </div>
+        const columns = [
+            {
+                dataField: "colour",
+                text: "  ",
+                style: this.numberStyle
+
+            },
+            {
+                dataField: "rank",
+                text: "Rank"
+            },
+            {
+                dataField: "contestantNumber",
+                text: "#",
+                hidden: true
+            },
+            {
+                dataField: "contestantId",
+                text: "",
+                hidden: true
+            },
+            {
+                dataField: "contestantName",
+                text: "Contestant"
+            },
+            {
+                dataField: "score",
+                text: "Score"
+            },
+        ]
+
+
+        const paginationOptions = {
+            sizePerPage: 15,
+            hideSizePerPage: true,
+            hidePageListOnlyOnePage: true
+        };
+        return <BootstrapTable keyField={"rank"} data={scores} columns={columns}
+                               bootstrap4 striped hover condensed pagination={paginationFactory(paginationOptions)}/>
+
 
     }
 }

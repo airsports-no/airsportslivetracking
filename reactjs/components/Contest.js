@@ -136,9 +136,8 @@ class ConnectedContest extends Component {
                 <TurningPointLinks/>
                 {this.props.contest.contestant_set.map((contestant, index) => {
                     return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={5000}
-                                            contestantId={contestant.id} colour={colourMap[contestant.contestant_number]}
-                                            contestantNumber={contestant.contestant_number}
-                                            contestantName={contestant.team.pilot}/>
+                                            contestant={contestant}
+                                            colour={colourMap[contestant.contestant_number]}/>
                 })}
                 {display}
             </div>
