@@ -155,11 +155,11 @@ module.exports = {
         modules: ['node_modules', 'bower_components'],
         extensions:
             ['.js', '.jsx'],
-        alias:
-            {
-                // CesiumJS module name
-                cesium: path.resolve(__dirname + "../../", cesiumSource)
-            }
+        // alias:
+        //     {
+        //         // CesiumJS module name
+        //         cesium: path.resolve(__dirname + "../../", cesiumSource)
+        //     }
     }
     ,
 };

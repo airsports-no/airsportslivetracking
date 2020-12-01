@@ -5,7 +5,7 @@ import {circle, divIcon, map, marker, polyline, tileLayer} from "leaflet";
 import ContestantTrack from "./ContestantTrack";
 import distinctColors from "distinct-colors";
 import {compareContestantNumber} from "../utilities";
-import ContestantAbbreviatedRankTable from "./contestantAbbreviatedRankTable";
+import ContestantRankTable from "./contestantAbbreviatedRankTable";
 import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} from "../constants/display-types";
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
 import TurningPointLinks from "./turningPointLinks";
@@ -40,7 +40,7 @@ class ConnectedContest extends Component {
         this.props.contest.contestant_set.sort(compareContestantNumber)
         let colourMap = {}
         this.props.contest.contestant_set.map((contestant, index) => {
-            colourMap[contestant.id] = colours[index]
+            colourMap[contestant.contestant_number] = colours[index]
         })
         return colourMap
     }
@@ -124,7 +124,7 @@ class ConnectedContest extends Component {
             const colourMap = this.buildColourMap()
             let display = <div/>
             if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
-                display = <ContestantAbbreviatedRankTable colourMap={colourMap}/>
+                display = <ContestantRankTable colourMap={colourMap}/>
             } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                 display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
             } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
@@ -136,7 +136,7 @@ class ConnectedContest extends Component {
                 <TurningPointLinks/>
                 {this.props.contest.contestant_set.map((contestant, index) => {
                     return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={5000}
-                                            contestantId={contestant.id} colour={colourMap[contestant.id]}
+                                            contestantId={contestant.id} colour={colourMap[contestant.contestant_number]}
                                             contestantNumber={contestant.contestant_number}
                                             contestantName={contestant.team.pilot}/>
                 })}
