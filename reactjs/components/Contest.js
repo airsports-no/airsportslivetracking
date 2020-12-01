@@ -5,7 +5,7 @@ import {circle, divIcon, map, marker, polyline, tileLayer} from "leaflet";
 import ContestantTrack from "./ContestantTrack";
 import distinctColors from "distinct-colors";
 import {compareContestantNumber} from "../utilities";
-import ContestantRankTable from "./contestantAbbreviatedRankTable";
+import ContestantRankTable from "./contestantRankTable";
 import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} from "../constants/display-types";
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
 import TurningPointLinks from "./turningPointLinks";

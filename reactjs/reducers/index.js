@@ -1,8 +1,12 @@
 import {
-    ADD_CONTESTANT, DISPLAY_ALL_TRACKS, DISPLAY_TRACK_FOR_CONTESTANT, EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
+    ADD_CONTESTANT,
+    DISPLAY_ALL_TRACKS,
+    DISPLAY_TRACK_FOR_CONTESTANT,
+    EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
     GET_CONTEST_SUCCESSFUL,
-    GET_CONTESTANT_DATA_SUCCESSFUL, HIDE_ALL_TRACKS,
-    SET_DISPLAY
+    GET_CONTESTANT_DATA_SUCCESSFUL,
+    HIDE_ALL_TRACKS,
+    SET_DISPLAY, TOGGLE_EXPANDED_HEADER
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -10,7 +14,8 @@ const initialState = {
     contest: {track: {waypoints: []}},
     contestantData: {},
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
-    displayTracks: null
+    displayTracks: null,
+    displayExpandedHeader: false
 };
 
 function rootReducer(state = initialState, action) {
@@ -60,6 +65,11 @@ function rootReducer(state = initialState, action) {
     if (action.type === EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT) {
         return Object.assign({}, state, {
             displayTracks: [action.payload.contestantId]
+        });
+    }
+    if (action.type === TOGGLE_EXPANDED_HEADER) {
+        return Object.assign({}, state, {
+            displayExpandedHeader: !state.displayExpandedHeader
         });
     }
     return state;

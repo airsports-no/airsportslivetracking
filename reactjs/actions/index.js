@@ -1,10 +1,9 @@
 import {
-    ADD_CONTESTANT, DISPLAY_ALL_TRACKS, EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
+    DISPLAY_ALL_TRACKS, EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
     GET_CONTEST_SUCCESSFUL,
     GET_CONTESTANT_DATA_SUCCESSFUL,
-    SET_DISPLAY
+    SET_DISPLAY, TOGGLE_EXPANDED_HEADER
 } from "../constants/action-types";
-import axios from "axios";
 
 export function setDisplay(payload) {
     return {type: SET_DISPLAY, payload}
@@ -17,6 +16,11 @@ export function displayOnlyContestantTrack(contestantId) {
 export function displayAllTracks() {
     return {type: DISPLAY_ALL_TRACKS}
 }
+
+export function toggleExpandedHeader(){
+    return {type: TOGGLE_EXPANDED_HEADER}
+}
+
 
 export const fetchContest = (contestId) => (dispatch) => {
     $.ajax({
