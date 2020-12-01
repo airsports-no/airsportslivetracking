@@ -78,6 +78,12 @@ def fraction_of_leg(x1, y1, x2, y2, intersect_x, intersect_y):
 
 
 def get_heading_difference(heading1, heading2):
+    """
+    From first heading to 2nd heading
+    :param heading1:
+    :param heading2:
+    :return:
+    """
     return (heading2 - heading1 + 540) % 360 - 180
 
 

@@ -80,3 +80,16 @@ class TestFullTrack(TransactionTestCase):
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(2600, contestant_track.score)
+
+
+    def test_missed_procedure_turn(self):
+        positions = self.load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
+        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator.start()
+        calculator.add_positions(positions)
+        calculator.join()
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        print(contestant_track.score_log)
+        self.assertTrue("200 points for incorrect procedure turn at TP1" in contestant_track.score_log)
+        self.assertTrue("200 points for incorrect procedure turn at TP4" in contestant_track.score_log)
+        self.assertTrue("200 points for incorrect procedure turn at TP6" in contestant_track.score_log)
