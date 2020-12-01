@@ -48,7 +48,9 @@ class ConnectedContest extends Component {
 
     componentDidUpdate(previousProps) {
         if (this.props.contest !== previousProps.contest) {
-            this.renderTrack()
+            if (this.props.displayMap) {
+                this.renderTrack()
+            }
         }
     }
 
@@ -122,24 +124,31 @@ class ConnectedContest extends Component {
     render() {
         if (this.props.contest.contestant_set !== undefined) {
             const colourMap = this.buildColourMap()
-            let display = <div/>
-            if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
-                display = <ContestantRankTable colourMap={colourMap}/>
-            } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
-                display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
-            } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
-                display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}
-                                               colourMap={colourMap}/>
+            let tableDisplay = <div/>
+            if (this.props.displayTable) {
+                let display = <div/>
+                if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
+                    display = <ContestantRankTable colourMap={colourMap}/>
+                } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
+                    display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
+                } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
+                    display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}
+                                                   colourMap={colourMap}/>
+                }
+                tableDisplay = <div>
+                    <a href={"#"} onClick={this.handleContestHeadingClick}><h1>{this.props.contest.name}</h1></a>
+                    <TurningPointLinks/>
+                    {display}
+                </div>
             }
-            return <div>
-                <a href={"#"} onClick={this.handleContestHeadingClick}><h1>{this.props.contest.name}</h1></a>
-                <TurningPointLinks/>
-                {this.props.contest.contestant_set.map((contestant, index) => {
+            let mapDisplay = this.props.contest.contestant_set.map((contestant, index) => {
                     return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={5000}
-                                            contestant={contestant}
+                                            contestant={contestant} displayMap={this.props.displayMap}
                                             colour={colourMap[contestant.contestant_number]}/>
-                })}
-                {display}
+                });
+            return <div>
+                {mapDisplay}
+                {tableDisplay}
             </div>
         }
         return <div/>

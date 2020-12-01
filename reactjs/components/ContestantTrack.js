@@ -45,7 +45,7 @@ class ConnectedContestantTrack extends Component {
         } else {
             this.props.fetchContestantData(this.contestant.id)
         }
-        setTimeout(() => this.fetchNextData(), this.props.fetchInterval)
+        setTimeout(() => this.fetchNextData(), this.props.fetchInterval / 2 + Math.random() * this.props.fetchInterval)
     }
 
 
@@ -53,29 +53,31 @@ class ConnectedContestantTrack extends Component {
     }
 
     componentDidUpdate(previousProps) {
-        if (this.props.contestantData!==undefined) {
-            if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
-                if (this.props.contestantData.positions.length > 0) {
-                    const positions = this.props.contestantData.positions.map((position) => {
-                        return [position.latitude, position.longitude]
-                    })
-                    this.renderPositions(positions)
+        if (this.props.displayMap) {
+            if (this.props.contestantData !== undefined) {
+                if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
+                    if (this.props.contestantData.positions.length > 0) {
+                        const positions = this.props.contestantData.positions.map((position) => {
+                            return [position.latitude, position.longitude]
+                        })
+                        this.renderPositions(positions)
+                    }
+                    if (this.props.contestantData.annotations.length > 0) {
+                        this.renderAnnotations(this.props.contestantData.annotations)
+                    }
                 }
-                if (this.props.contestantData.annotations.length > 0) {
-                    this.renderAnnotations(this.props.contestantData.annotations)
-                }
-            }
-            const displayTracks = this.props.displayTracks;
-            if (!displayTracks) {
-                this.showTrack()
-                this.hideAnnotations()
-            } else {
-                if (displayTracks.includes(this.contestant.id)) {
+                const displayTracks = this.props.displayTracks;
+                if (!displayTracks) {
                     this.showTrack()
-                    this.showAnnotations()
-                } else {
-                    this.hideTrack()
                     this.hideAnnotations()
+                } else {
+                    if (displayTracks.includes(this.contestant.id)) {
+                        this.showTrack()
+                        this.showAnnotations()
+                    } else {
+                        this.hideTrack()
+                        this.hideAnnotations()
+                    }
                 }
             }
         }
