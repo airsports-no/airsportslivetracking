@@ -101,9 +101,9 @@ services:
       - MYSQL_ROOT_PASSWORD=traccar
 #      - MYSQL_PASSWORD=traccar
     volumes:
-#      - mysqldata:/var/lib/mysql/
+      - mysqldata:/var/lib/mysql/
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
 
 volumes:
-#  mysqldata:
+  mysqldata:
   traccar-db:
