@@ -31,7 +31,7 @@ class Calculator(threading.Thread):
         self.loop_time = 60
         self.contestant = contestant
         self.influx = influx
-        self.track = []
+        self.track = []  # type: List[Position]
         self.pending_points = []
         self.score = 0
         self.score_by_gate = {}
@@ -138,12 +138,20 @@ class Calculator(threading.Thread):
                 self.outstanding_gates.pop(i)
             i -= 1
         if not crossed_gate and len(self.outstanding_gates) > 0:
-            extended_next_gate = self.outstanding_gates[0]
+            extended_next_gate = self.outstanding_gates[0]  # type: Gate
             intersection_time = self.get_intersect_time_infinite_gate(extended_next_gate)
             if intersection_time:
-                logger.info("{}: Crossed extended gate {} (but missed the gate)".format(self.contestant, extended_next_gate))
-                extended_next_gate.missed = True
-
+                logger.info("{}: Crossed extended gate {} (but maybe missed the gate)".format(self.contestant,
+                                                                                              extended_next_gate))
+                extended_next_gate.maybe_missed_time = self.track[-1].time
+        if len(self.outstanding_gates) > 0:
+            gate = self.outstanding_gates[0]
+            if gate.maybe_missed_time and (self.track[-1].time - gate.maybe_missed_time).total_seconds() > 60:
+                logger.info("{}: Did not cross {} within 60 seconds of extended crossing, so missing gate".format(
+                    self.contestant,
+                    gate))
+                gate.missed = True
+                self.outstanding_gates.pop(0)
 
     def calculate_score(self):
         pass

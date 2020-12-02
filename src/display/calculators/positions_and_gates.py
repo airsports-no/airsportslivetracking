@@ -41,6 +41,7 @@ class Gate:
         self.turn_direction = gate.get("turn_direction", "")
         self.passing_time = None
         self.missed = False
+        self.maybe_missed_time = None
         self.expected_time = expected_time
 
     def __str__(self):
