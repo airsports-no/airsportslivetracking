@@ -4,7 +4,6 @@ from unittest.mock import Mock
 import gpxpy
 from django.test import TestCase, TransactionTestCase
 
-from display.calculators.original_calculator import OriginalCalculator
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.models import Aeroplane, Contest, Scorecard, Team, Contestant, ContestantTrack
 from display.views import create_track_from_csv
@@ -53,16 +52,6 @@ class TestFullTrack(TransactionTestCase):
                          "altitude": point.elevation, "speed": 0, "course": 0, "battery_level": 100})
         return positions
 
-    # def test_correct_scoring_correct_track_original(self):
-    #     positions = self.load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
-    #     calculator = OriginalCalculator(self.contestant, Mock())
-    #     calculator.start()
-    #     calculator.add_positions(positions)
-    #     calculator.join()
-    #     contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-    #     self.assertEqual(280, contestant_track.score)
-
-
     def test_correct_scoring_correct_track_precision(self):
         positions = self.load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
         calculator = PrecisionCalculator(self.contestant, Mock())
@@ -80,7 +69,6 @@ class TestFullTrack(TransactionTestCase):
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(2600, contestant_track.score)
-
 
     def test_missed_procedure_turn(self):
         positions = self.load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")

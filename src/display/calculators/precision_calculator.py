@@ -251,6 +251,7 @@ class PrecisionCalculator(Calculator):
         if not next_gate_last:
             logger.info("{}: No more turning points, terminating".format(self.contestant))
             self.update_tracking_state(self.FINISHED)
+            self.contestant.contestanttrack.set_calculator_finished()
             return
         last_gate_first = self.get_turning_point_before_now(start_index)  # Gate we passed a few steps earlier
         last_gate_last = self.get_turning_point_before_now(finish_index)  # Gate we just passed
@@ -278,30 +279,23 @@ class PrecisionCalculator(Calculator):
         if self.tracking_state == self.PROCEDURE_TURN:
             if self.last_bearing:
                 self.current_procedure_turn_slices.append(get_heading_difference(self.last_bearing, bearing))
-                # turn_direction = "cw" if get_heading_difference(self.last_bearing, bearing) > 0 else "ccw"
-                # self.current_procedure_turn_directions.append(turn_direction)
-
-            if (last_position.time - self.current_procedure_turn_start_time).total_seconds() > 180:
                 total_turn = sum(self.current_procedure_turn_slices)
-                logger.info("Turned a total of {} degrees as part of procedure turn of {} at gate {} ".format(total_turn,
-                                                                                                             self.current_procedure_turn_bearing_difference,
-                                                                                                             self.current_procedure_turn_gate))
-                self.update_tracking_state(self.TRACKING)
-                if abs(total_turn - self.current_procedure_turn_bearing_difference) >= 60:
-                    self.update_tracking_state(self.FAILED_PROCEDURE_TURN)
-                    self.update_score(next_gate_last, self.scorecard.missed_procedure_turn,
-                                      "{} points for incorrect procedure turn at {}".format(
-                                          self.scorecard.missed_procedure_turn, self.current_procedure_turn_gate),
-                                      last_position.latitude, last_position.longitude, "anomaly")
-            # if bearing_difference < 50:
-            #     self.update_tracking_state(self.TRACKING)
-            #     if self.current_procedure_turn_gate.turn_direction not in self.current_procedure_turn_directions:
-            #         self.update_tracking_state(self.FAILED_PROCEDURE_TURN)
-            #         self.update_score(next_gate_last, self.scorecard.missed_procedure_turn,
-            #                           "{} points for incorrect procedure turn at {}".format(
-            #                               self.scorecard.missed_procedure_turn, self.current_procedure_turn_gate),
-            #                           last_position.latitude, last_position.longitude, "anomaly")
+                logger.info(
+                    "{}: Turned a total of {} degrees as part of procedure turn of {} at gate {} ".format(
+                        self.contestant, total_turn,
+                        self.current_procedure_turn_bearing_difference,
+                        self.current_procedure_turn_gate))
+                if abs(total_turn - self.current_procedure_turn_bearing_difference) < 60:
+                    self.update_tracking_state(self.TRACKING)
+                    logger.info("{}: Procedure turn completed successfully".format(self.contestant))
 
+                if (last_position.time - self.current_procedure_turn_start_time).total_seconds() > 180:
+                    if abs(total_turn - self.current_procedure_turn_bearing_difference) >= 60:
+                        self.update_tracking_state(self.FAILED_PROCEDURE_TURN)
+                        self.update_score(next_gate_last, self.scorecard.missed_procedure_turn,
+                                          "{} points for incorrect procedure turn at {}".format(
+                                              self.scorecard.missed_procedure_turn, self.current_procedure_turn_gate),
+                                          last_position.latitude, last_position.longitude, "anomaly")
         else:
             if bearing_difference > 90:
                 if self.tracking_state == self.TRACKING:

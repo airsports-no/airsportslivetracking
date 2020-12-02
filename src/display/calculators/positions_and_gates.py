@@ -23,6 +23,12 @@ class Gate:
         self.y1 = gate_line[1]
         self.x2 = gate_line[2]
         self.y2 = gate_line[3]
+        gate_line_infinite = gate["gate_line_infinite"]
+        self.x1_infinite = gate_line_infinite[0]
+        self.y1_infinite = gate_line_infinite[1]
+        self.x2_infinite = gate_line_infinite[2]
+        self.y2_infinite = gate_line_infinite[3]
+
         self.latitude = gate["latitude"]
         self.longitude = gate["longitude"]
         self.inside_distance = gate["inside_distance"]

@@ -45,6 +45,8 @@ services:
   influx:
     image: influxdb
     restart: always
+    volumes:
+      - influxdb:/var/lib/influxdb
     environment:
       - INFLUXDB_DB=airsport
       - INFLUXDB_USER=airsport
@@ -78,9 +80,10 @@ services:
       - MYSQL_ROOT_PASSWORD=traccar
     #      - MYSQL_PASSWORD=traccar
     volumes:
-      - mysqldata2:/var/lib/mysql/
+      - mysqldata:/var/lib/mysql/
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
 
 volumes:
-  mysqldata2:
+  influxdb:
+  mysqldata:
   traccar-db:

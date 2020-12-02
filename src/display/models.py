@@ -33,6 +33,7 @@ class TraccarCredentials(SingletonModel):
     class Meta:
         verbose_name = "Traccar credentials"
 
+
 class Aeroplane(models.Model):
     registration = models.CharField(max_length=20)
 
@@ -75,42 +76,28 @@ class Track(models.Model):
                                                                              gates[index + 1]["longitude"],
                                                                              gates[index + 1]["latitude"],
                                                                              gates[index + 1]["width"] * 1852)
+            gates[index + 1]["gate_line_infinite"] = create_perpendicular_line_at_end(gates[index]["longitude"],
+                                                                                      gates[index]["latitude"],
+                                                                                      gates[index + 1]["longitude"],
+                                                                                      gates[index + 1]["latitude"],
+                                                                                      40 * 1852)
+
         gates[0]["gate_line"] = create_perpendicular_line_at_end(gates[1]["longitude"],
                                                                  gates[1]["latitude"],
                                                                  gates[0]["longitude"],
                                                                  gates[0]["latitude"],
                                                                  gates[0]["width"] * 1852)
+        gates[0]["gate_line_infinite"] = create_perpendicular_line_at_end(gates[1]["longitude"],
+                                                                          gates[1]["latitude"],
+                                                                          gates[0]["longitude"],
+                                                                          gates[0]["latitude"],
+                                                                          40 * 1852)
+
         return waypoints
 
     @staticmethod
     def create_starting_line(gates) -> Dict:
-        return {
-            "name": "Starting line",
-            "latitude": gates[0]["latitude"],
-            "longitude": gates[0]["longitude"],
-            "gate_line": create_perpendicular_line_at_end(gates[1]["longitude"],
-                                                          gates[1]["latitude"],
-                                                          gates[0]["longitude"],
-                                                          gates[0]["latitude"],
-                                                          40 * 1852),
-            "inside_distance": 0,
-            "outside_distance": 0,
-        }
-
-    @staticmethod
-    def create_finish_line(gates) -> Dict:
-        return {
-            "name": "Finish line",
-            "latitude": gates[-1]["latitude"],
-            "longitude": gates[-1]["longitude"],
-            "gate_line": create_perpendicular_line_at_end(gates[-2]["longitude"],
-                                                          gates[-2]["latitude"],
-                                                          gates[-1]["longitude"],
-                                                          gates[-1]["latitude"],
-                                                          40 * 1852),
-            "inside_distance": 0,
-            "outside_distance": 0,
-        }
+        return gates[0]
 
     @staticmethod
     def insert_gate_ranges(waypoints):
@@ -250,8 +237,6 @@ class Contestant(models.Model):
         return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.contest.name, self.takeoff_time,
                                               self.finished_by_time)
 
-
-
     def get_groundspeed(self, bearing) -> float:
         return calculate_ground_speed_combined(bearing, self.air_speed, self.contest.wind_speed,
                                                self.contest.wind_direction)
@@ -296,6 +281,7 @@ class ContestantTrack(models.Model):
     last_gate_time_offset = models.FloatField(default=0)
     past_starting_gate = models.BooleanField(default=False)
     past_finish_gate = models.BooleanField(default=False)
+    calculator_finished = models.BooleanField(default=False)
 
     def update_last_gate(self, gate_name, time_difference):
         self.last_gate = gate_name
@@ -317,3 +303,7 @@ class ContestantTrack(models.Model):
         if self.current_leg != current_leg:
             self.current_leg = current_leg
             self.save()
+
+    def set_calculator_finished(self):
+        self.calculator_finished = True
+        self.save()

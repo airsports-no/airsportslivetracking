@@ -3,7 +3,6 @@ import logging
 import os
 from typing import List, TYPE_CHECKING
 
-
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
@@ -16,7 +15,7 @@ from traccar_facade import Traccar
 
 import websocket
 from influx_facade import InfluxFacade
-from display.models import Contestant, TraccarCredentials
+from display.models import Contestant, TraccarCredentials, ContestantTrack
 from display.calculators.calculator_factory import calculator_factory
 
 logger = logging.getLogger(__name__)
@@ -31,6 +30,9 @@ calculators = {}
 
 def add_positions_to_calculator(contestant: Contestant, positions: List):
     if contestant.pk not in calculators:
+        contestant_track, _ = ContestantTrack.objects.get_or_create(contestant=contestant)
+        if contestant_track.calculator_finished:
+            return
         calculators[contestant.pk] = calculator_factory(contestant, influx)
         calculators[contestant.pk].start()
     calculator = calculators[contestant.pk]  # type: Calculator

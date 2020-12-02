@@ -38,7 +38,7 @@ class Calculator(threading.Thread):
         self.score_log = []
         self.tracking_state = self.BEFORE_START
         self.process_event = threading.Event()
-        self.contestant_track, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
+        _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
         self.scorecard = self.contestant.scorecard
         self.gates = self.create_gates()
         self.outstanding_gates = list(self.gates)
@@ -99,6 +99,19 @@ class Calculator(threading.Thread):
                 return segment[0].time + timedelta(seconds=fraction * time_difference)
         return None
 
+    def get_intersect_time_infinite_gate(self, gate: "Gate"):
+        if len(self.track) > 1:
+            segment = self.track[-2:]  # type: List[Position]
+            intersection = line_intersect(segment[0].longitude, segment[0].latitude, segment[1].longitude,
+                                          segment[1].latitude, gate.x1_infinite, gate.y1_infinite, gate.x2_infinite,
+                                          gate.y2_infinite)
+            if intersection:
+                fraction = fraction_of_leg(segment[0].longitude, segment[0].latitude, segment[1].longitude,
+                                           segment[1].latitude, intersection[0], intersection[1])
+                time_difference = (segment[1].time - segment[0].time).total_seconds()
+                return segment[0].time + timedelta(seconds=fraction * time_difference)
+        return None
+
     def check_intersections(self, force_gate: Optional["Gate"] = None):
         # Check starting line
         if not self.starting_line.has_been_passed():
@@ -124,6 +137,13 @@ class Calculator(threading.Thread):
                     gate.missed = True
                 self.outstanding_gates.pop(i)
             i -= 1
+        if not crossed_gate and len(self.outstanding_gates) > 0:
+            extended_next_gate = self.outstanding_gates[0]
+            intersection_time = self.get_intersect_time_infinite_gate(extended_next_gate)
+            if intersection_time:
+                logger.info("{}: Crossed extended gate {} (but missed the gate)".format(self.contestant, extended_next_gate))
+                extended_next_gate.missed = True
+
 
     def calculate_score(self):
         pass

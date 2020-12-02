@@ -6,7 +6,6 @@ if TYPE_CHECKING:
     from display.calculators.calculator import Calculator
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.models import Contest
-from display.calculators.original_calculator import OriginalCalculator
 
 
 def calculator_factory(contestant: "Contestant", influx: "InfluxFacade") -> "Calculator":
