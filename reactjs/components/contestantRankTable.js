@@ -71,7 +71,11 @@ class ConnectedContestantRankTable extends Component {
                 score: contestant_track.score,
                 currentState: contestant_track.current_state,
                 lastGate: contestant_track.last_gate,
-                lastGateTimeOffset: moment.duration(contestant_track.last_gate_time_offset, "seconds").format(),
+                lastGateTimeOffset: moment.duration(contestant_track.last_gate_time_offset, "seconds").format([
+                    moment.duration(1, "second"),
+                    moment.duration(1, "minute"),
+                    moment.duration(1, "hour")
+                ], "d [days] hh:mm:ss"),
                 latestStatus: contestant_track.score_log.length > 0 ? contestant_track.score_log[contestant_track.score_log.length - 1] : ""
             }
         })
@@ -88,7 +92,7 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "rank",
-                text: "Rank"
+                text: "#"
             },
             {
                 dataField: "contestantNumber",
@@ -127,11 +131,11 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "lastGate",
-                text: "Last gate"
+                text: "Gate"
             },
             {
                 dataField: "lastGateTimeOffset",
-                text: "Time offset"
+                text: "Offset"
             }
         ]
 
