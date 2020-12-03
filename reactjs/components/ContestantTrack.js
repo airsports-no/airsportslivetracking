@@ -52,7 +52,7 @@ class ConnectedContestantTrack extends Component {
         }
         // This must be done second so that we at least fetched data once
         const now = new Date()
-        if (now > finishedByTime && (now.getTime() - this.lastNewData.getTime() > 300 * 1000)) {
+        if (now > finishedByTime && this.lastNewData && (now.getTime() - this.lastNewData.getTime() > 300 * 1000)) {
             console.log("Done fetching contestant " + this.props)
         } else {
             setTimeout(() => this.fetchNextData(), this.props.fetchInterval)// / 2 + Math.random() * this.props.fetchInterval)
