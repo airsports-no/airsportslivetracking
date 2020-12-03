@@ -20,4 +20,6 @@ mysqlclient
 gpxpy
 parameterized
 django-solo
+redis
+hiredis
 django-redis-cache
