@@ -40,12 +40,20 @@ class ConnectedContestantTrack extends Component {
     }
 
     fetchNextData() {
+        const finishedByTime = new Date(this.props.contestant.finished_by_time)
+        let latestTime = null;
         if (this.props.contestantData !== undefined) {
-            this.props.fetchContestantData(this.contestant.id, new Date(this.props.contestantData.latest_time))
+            latestTime = new Date(this.props.contestantData.latest_time)
+            this.props.fetchContestantData(this.contestant.id, latestTime)
         } else {
             this.props.fetchContestantData(this.contestant.id)
         }
-        setTimeout(() => this.fetchNextData(), this.props.fetchInterval)// / 2 + Math.random() * this.props.fetchInterval)
+        // This must be done second so that we at least fetched data once
+        if (new Date() > finishedByTime) {
+            console.log("Done fetching contestant " + this.props)
+        } else {
+            setTimeout(() => this.fetchNextData(), this.props.fetchInterval)// / 2 + Math.random() * this.props.fetchInterval)
+        }
     }
 
 

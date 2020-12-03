@@ -142,7 +142,7 @@ class ConnectedContest extends Component {
                 </div>
             }
             let mapDisplay = this.props.contest.contestant_set.map((contestant, index) => {
-                    return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={5000}
+                    return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}
                                             contestant={contestant} displayMap={this.props.displayMap}
                                             colour={colourMap[contestant.contestant_number]}/>
                 });
