@@ -20,3 +20,4 @@ mysqlclient
 gpxpy
 parameterized
 django-solo
+python-memcached

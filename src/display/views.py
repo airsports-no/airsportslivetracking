@@ -1,7 +1,9 @@
+import datetime
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
 
 import dateutil
+from django.core.cache import cache
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, Http404
 from django.views.generic import View, TemplateView, ListView
@@ -86,10 +88,18 @@ def get_data_from_time_for_contest(request, contest_pk):
 
 @api_view(["GET"])
 def get_data_from_time_for_contestant(request, contestant_pk):
+    from_time = request.GET.get("from_time")
+    return Response(
+        cache.get_or_set("contestant_{}".format(contestant_pk), lambda: generate_data(contestant_pk, from_time),
+                         timeout=300))
+
+
+def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
     influx = InfluxFacade()
     default_start_time = contestant.contest.start_time - timedelta(minutes=30)
-    from_time = request.GET.get("from_time", default_start_time.isoformat())
+    if from_time is None:
+        from_time = default_start_time.isoformat()
     from_time_datetime = dateutil.parser.parse(from_time)
     logger.info("Fetching data from time {}".format(from_time))
     result_set = influx.get_positions_for_contestant(contestant_pk, default_start_time.isoformat())
@@ -100,7 +110,7 @@ def get_data_from_time_for_contestant(request, contestant_pk):
     position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
     filtered_position_data = [item for item in position_data if
                               dateutil.parser.parse(item["time"]) > from_time_datetime]
-    if len(position_data)>0:
+    if len(position_data) > 0:
         global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
     positions = filtered_position_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
@@ -110,9 +120,9 @@ def get_data_from_time_for_contestant(request, contestant_pk):
         contestant_track = ContestantTrackSerialiser(contestant.contestanttrack).data
     else:
         contestant_track = None
-    return Response({"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
-                     "annotations": annotations,
-                     "contestant_track": contestant_track})
+    return {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
+            "annotations": annotations,
+            "contestant_track": contestant_track}
 
 
 def import_track(request):

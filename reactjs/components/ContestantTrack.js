@@ -12,7 +12,8 @@ const L = window['L']
 
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestant.id],
-    displayTracks: state.displayTracks
+    displayTracks: state.displayTracks,
+    lastDataTime: state.lastDataTime[props.contestant.id]
 })
 
 class ConnectedContestantTrack extends Component {
@@ -49,7 +50,8 @@ class ConnectedContestantTrack extends Component {
             this.props.fetchContestantData(this.contestant.id)
         }
         // This must be done second so that we at least fetched data once
-        if (new Date() > finishedByTime) {
+        const now = new Date()
+        if (now > finishedByTime && this.props.lastDataTime !== undefined && (now.getTime() - this.props.lastDataTime.getTime() > 300 * 1000)) {
             console.log("Done fetching contestant " + this.props)
         } else {
             setTimeout(() => this.fetchNextData(), this.props.fetchInterval)// / 2 + Math.random() * this.props.fetchInterval)

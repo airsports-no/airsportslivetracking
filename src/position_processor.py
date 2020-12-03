@@ -3,6 +3,8 @@ import logging
 import os
 from typing import List, TYPE_CHECKING
 
+from django.core.cache import cache
+
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
@@ -55,6 +57,7 @@ def build_and_push_position_data(data):
     for contestant, positions in received_positions.items():
         add_positions_to_calculator(contestant, positions)
         influx.put_data(positions)
+        cache.delete("contestant_{}".format(contestant.pk))
     cleanup_calculators()
 
 
