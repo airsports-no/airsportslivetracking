@@ -104,6 +104,11 @@ class InfluxFacade:
         response = self.client.query(query, bind_params=bind_params)
         return response
 
+    def get_number_of_positions_in_database(self)->int:
+        query = "select count(*) from device_position;"
+        response = self.client.query(query)
+        return response
+
     def get_annotations_for_contest(self, contest_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
         if isinstance(from_time, datetime.datetime):
             from_time = from_time.isoformat()
