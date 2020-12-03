@@ -15,7 +15,6 @@ const initialState = {
     contestantData: {},
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
     displayTracks: null,
-    lastDataTime: {},
     displayExpandedHeader: false
 };
 
@@ -38,10 +37,6 @@ function rootReducer(state = initialState, action) {
     if (action.type === GET_CONTESTANT_DATA_SUCCESSFUL) {
         return {
             ...state,
-            lastDataTime: {
-                ...state.lastDataTime,
-                [action.payload.contestant_id]: new Date(),
-            },
             contestantData: {
                 ...state.contestantData,
                 [action.payload.contestant_id]: action.payload

@@ -13,7 +13,6 @@ const L = window['L']
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestant.id],
     displayTracks: state.displayTracks,
-    lastDataTime: state.lastDataTime[props.contestant.id]
 })
 
 class ConnectedContestantTrack extends Component {
@@ -25,6 +24,8 @@ class ConnectedContestantTrack extends Component {
         this.markers = L.markerClusterGroup()
         this.lineCollection = null;
         this.dot = null;
+        this.previousLastTime = null;
+        this.lastNewData = null;
         this.annotationLayer = L.layerGroup()
         const size = 24;
         this.airplaneIcon = L.divIcon({
@@ -51,7 +52,7 @@ class ConnectedContestantTrack extends Component {
         }
         // This must be done second so that we at least fetched data once
         const now = new Date()
-        if (now > finishedByTime && this.props.lastDataTime !== undefined && (now.getTime() - this.props.lastDataTime.getTime() > 300 * 1000)) {
+        if (now > finishedByTime && (now.getTime() - this.lastNewData.getTime() > 300 * 1000)) {
             console.log("Done fetching contestant " + this.props)
         } else {
             setTimeout(() => this.fetchNextData(), this.props.fetchInterval)// / 2 + Math.random() * this.props.fetchInterval)
@@ -63,6 +64,12 @@ class ConnectedContestantTrack extends Component {
     }
 
     componentDidUpdate(previousProps) {
+        if (this.props.contestantData !== undefined) {
+            if (previousProps.contestantData !== undefined && this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
+                this.lastNewData = new Date();
+            }
+        }
+
         if (this.props.displayMap) {
             if (this.props.contestantData !== undefined) {
                 if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
