@@ -57,7 +57,7 @@ def build_and_push_position_data(data):
     for contestant, positions in received_positions.items():
         add_positions_to_calculator(contestant, positions)
         influx.put_data(positions)
-        cache.delete("contestant_{}".format(contestant.pk))
+        cache.delete_pattern("contestant_{}_*".format(contestant.pk))
     cleanup_calculators()
 
 

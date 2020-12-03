@@ -24,7 +24,7 @@ services:
     depends_on:
       - mysql
       - influx
-      - memcached
+      - redis
 
   tracker_processor:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
@@ -42,7 +42,7 @@ services:
       - influx
       - traccar
       - mysql
-      - memcached
+      - redis
 
   influx:
     image: influxdb
@@ -85,9 +85,9 @@ services:
       - mysqldata:/var/lib/mysql/
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
 
-  memcached:
-    image: memcached
-    container_name: memcached
+  redis:
+    image: redis
+    container_name: redis
 
 volumes:
   influxdb:

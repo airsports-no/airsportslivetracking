@@ -20,4 +20,4 @@ mysqlclient
 gpxpy
 parameterized
 django-solo
-python-memcached
+django-redis-cache
