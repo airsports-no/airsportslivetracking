@@ -89,9 +89,7 @@ def get_data_from_time_for_contest(request, contest_pk):
 @api_view(["GET"])
 def get_data_from_time_for_contestant(request, contestant_pk):
     from_time = request.GET.get("from_time")
-    return Response(
-        cache.get_or_set("contestant_{}".format(contestant_pk), lambda: generate_data(contestant_pk, from_time),
-                         timeout=300))
+    return Response(generate_data(contestant_pk, from_time))
 
 
 def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
