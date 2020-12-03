@@ -104,7 +104,7 @@ class InfluxFacade:
         response = self.client.query(query, bind_params=bind_params)
         return response
 
-    def get_number_of_positions_in_database(self)->int:
+    def get_number_of_positions_in_database(self) -> int:
         query = "select count(*) from device_position;"
         response = self.client.query(query)
         return response
