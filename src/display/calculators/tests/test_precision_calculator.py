@@ -59,7 +59,7 @@ class TestFullTrack(TransactionTestCase):
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(280, contestant_track.score)
+        self.assertEqual(150, contestant_track.score)
 
     def test_correct_scoring_bad_track_precision(self):
         positions = self.load_track_points("display/calculators/tests/Steinar.gpx")
