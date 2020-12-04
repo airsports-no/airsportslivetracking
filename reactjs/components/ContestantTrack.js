@@ -167,7 +167,10 @@ class ConnectedContestantTrack extends Component {
             if (!this.dot) {
                 this.createLiveEntities(b)
             } else {
-                this.dot.setLatLng(b.slice(-1)[0])
+                const s=b.slice(-1)[0]
+                if(s) {
+                    this.dot.setLatLng(b.slice(-1)[0])
+                }
                 b.map((position) => {
                     this.lineCollection.addLatLng(position)
                 })
