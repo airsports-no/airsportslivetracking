@@ -1,11 +1,15 @@
 import logging
 import math
 from typing import Tuple
-from geopy import distance
+from geopy.distance import geodesic, great_circle
 
 R = 6371000  # metres
 
 logger = logging.getLogger(__name__)
+
+
+def to_rad(value) -> float:
+    return value * math.pi / 180
 
 
 def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
@@ -15,7 +19,14 @@ def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, 
     :param finish:
     :return: Distance in metres
     """
-    return distance.distance(start, finish).km * 1000
+    # return geodesic(start, finish).km * 1000  # This is the most correct
+    return great_circle(start, finish).km * 1000  # This is closer to flight contest
+    # This is what flight contest uses
+    # latitude_difference = finish[0] - start[0]
+    # longitude_difference = finish[1] - start[1]
+    # latitude_distance = 60 * latitude_difference
+    # longitude_distance = 60 * longitude_difference * math.cos(to_rad((start[0] + finish[0]) / 2))
+    # return math.sqrt(latitude_distance ** 2 + longitude_distance ** 2)*1852
 
 
 def calculate_bearing(start: Tuple[float, float], finish: Tuple[float, float]) -> float:

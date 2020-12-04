@@ -114,7 +114,7 @@ class Track(models.Model):
             gates[index]["distance"] = -1
             gates[index]["gate_distance"] = calculate_distance_lat_lon(
                 (gates[index - 1]["latitude"], gates[index - 1]["longitude"]),
-                (gates[index]["latitude"], gates[index]["longitude"]))  # Convert to metres
+                (gates[index]["latitude"], gates[index]["longitude"]))
         tp_gates = [item for item in waypoints if item["type"] == "tp"]
         for index in range(1, len(tp_gates)):
             tp_gates[index]["bearing"] = calculate_bearing(
@@ -122,7 +122,7 @@ class Track(models.Model):
                 (tp_gates[index]["latitude"], tp_gates[index]["longitude"]))
             tp_gates[index]["distance"] = calculate_distance_lat_lon(
                 (tp_gates[index - 1]["latitude"], tp_gates[index - 1]["longitude"]),
-                (tp_gates[index]["latitude"], tp_gates[index]["longitude"]))  # Convert to metres
+                (tp_gates[index]["latitude"], tp_gates[index]["longitude"]))
         for index in range(1, len(tp_gates) - 1):
             tp_gates[index]["is_procedure_turn"] = is_procedure_turn(tp_gates[index]["bearing"],
                                                                      tp_gates[index + 1]["bearing"])

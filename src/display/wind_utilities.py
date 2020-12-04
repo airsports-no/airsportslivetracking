@@ -10,7 +10,7 @@ def calculate_wind_correction_angle(true_track, airspeed, wind_speed, wind_direc
 def calculate_wind_correction_angle_relative_angle(airspeed, wind_speed, relative_angle):
     relative_angle = relative_angle * np.pi / 180
     angle = np.arcsin(wind_speed * np.sin(relative_angle) / airspeed)
-    return angle * 180 / np.pi
+    return -angle * 180 / np.pi
 
 
 def calculate_ground_speed(true_track, airspeed, wind_correction_angle, wind_speed, wind_direction):
