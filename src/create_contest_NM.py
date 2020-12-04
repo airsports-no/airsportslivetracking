@@ -50,7 +50,7 @@ contestants = {
 }
 traccar.delete_all_devices()
 for item in contestants.keys():
-    traccar.create_device(item)
+    traccar.create_device(item, item)
 class_one_scorecard, _ = Scorecard.objects.get_or_create(missed_gate=100,
                                                          gate_timing_per_second=3,
                                                          gate_perfect_limit_seconds=2,

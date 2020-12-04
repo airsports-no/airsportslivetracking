@@ -38,8 +38,8 @@ class Traccar:
         print(response.text)
         return response.status_code == 204
 
-    def create_device(self, device_name):
-        response = self.session.post(self.base + "/api/devices", json={"uniqueId": device_name, "name": device_name})
+    def create_device(self, device_name, identifier):
+        response = self.session.post(self.base + "/api/devices", json={"uniqueId": identifier, "name": device_name})
         print(response)
         print(response.text)
         if response.status_code == 200:
@@ -49,7 +49,7 @@ class Traccar:
         devices = self.update_and_get_devices()
         for item in devices:
             self.delete_device(item["id"])
-        return [item["name"] for item in devices]
+        return devices
 
     def get_device_map(self) -> Dict:
         self.device_map = {item["id"]: item["name"] for item in self.update_and_get_devices()}

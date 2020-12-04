@@ -17,7 +17,7 @@ traccar = Traccar.create_from_configuration(configuration)
 
 deleted = traccar.delete_all_devices()
 for item in deleted:
-    traccar.create_device(item)
+    traccar.create_device(item["name"], item["uniqueId"])
 
 influx = InfluxFacade()
 influx.drop_database()
