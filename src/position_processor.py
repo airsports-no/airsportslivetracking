@@ -58,7 +58,6 @@ def build_and_push_position_data(data):
         add_positions_to_calculator(contestant, positions)
         influx.put_data(positions)
         key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant.pk)
-        logger.info("Clearing key {}".format(key))
         cache.delete_pattern(key)
     cleanup_calculators()
 
