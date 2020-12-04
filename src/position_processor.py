@@ -57,7 +57,7 @@ def build_and_push_position_data(data):
     for contestant, positions in received_positions.items():
         add_positions_to_calculator(contestant, positions)
         influx.put_data(positions)
-        cache.delete_pattern("contestant_{}_*".format(contestant.pk))
+        cache.delete_pattern("contestant.{}.*".format(contestant.pk))
     cleanup_calculators()
 
 
@@ -84,6 +84,7 @@ headers = {
 headers['Upgrade'] = 'websocket'
 
 if __name__ == "__main__":
+    cache.clear()
     while True:
         websocket.enableTrace(True)
         cookies = traccar.session.cookies.get_dict()

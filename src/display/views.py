@@ -90,7 +90,7 @@ def get_data_from_time_for_contest(request, contest_pk):
 def get_data_from_time_for_contestant(request, contestant_pk):
     from_time = request.GET.get("from_time")
     return Response(
-        cache.get_or_set("contestant_{}_{}".format(contestant_pk, from_time),
+        cache.get_or_set("contestant.{}.{}".format(contestant_pk, from_time),
                          lambda: generate_data(contestant_pk, from_time),
                          timeout=300))
 
