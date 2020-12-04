@@ -17,7 +17,7 @@ from traccar_facade import Traccar
 
 import websocket
 from influx_facade import InfluxFacade
-from display.models import Contestant, TraccarCredentials, ContestantTrack
+from display.models import Contestant, TraccarCredentials, ContestantTrack, CONTESTANT_CACHE_KEY
 from display.calculators.calculator_factory import calculator_factory
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,9 @@ def build_and_push_position_data(data):
     for contestant, positions in received_positions.items():
         add_positions_to_calculator(contestant, positions)
         influx.put_data(positions)
-        cache.delete_pattern("contestant.{}.*".format(contestant.pk))
+        key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant.pk)
+        logger.info("Clearing key {}".format(key))
+        cache.delete_pattern(key)
     cleanup_calculators()
 
 

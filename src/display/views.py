@@ -1,7 +1,7 @@
 import datetime
 from datetime import timedelta
 from typing import List, Optional
-
+import redis_lock
 import dateutil
 from django.core.cache import cache
 from django.shortcuts import render, redirect
@@ -13,12 +13,13 @@ import logging
 import urllib.request
 import os
 
+from redis import Redis
 from rest_framework.decorators import api_view
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.response import Response
 
 from display.forms import ImportTrackForm
-from display.models import Contest, Track, ContestantTrack, Contestant
+from display.models import Contest, Track, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY
 from display.serialisers import ContestSerialiser, ContestantTrackSerialiser
 from influx_facade import InfluxFacade
 
@@ -86,13 +87,20 @@ def get_data_from_time_for_contest(request, contest_pk):
                                            ContestantTrack.objects.filter(contestant__contest=contest)]})
 
 
+connection = Redis("redis")
+
+
 @api_view(["GET"])
 def get_data_from_time_for_contestant(request, contestant_pk):
     from_time = request.GET.get("from_time")
-    return Response(
-        cache.get_or_set("contestant.{}.{}".format(contestant_pk, from_time),
-                         lambda: generate_data(contestant_pk, from_time),
-                         timeout=300))
+    key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk, from_time)
+    logger.info("Fetching key {}".format(key))
+    response = cache.get(key)
+    if response is None:
+        with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk)):
+            response = generate_data(contestant_pk, from_time)
+            cache.set(key, response, timeout=300)
+    return Response(response)
 
 
 def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):

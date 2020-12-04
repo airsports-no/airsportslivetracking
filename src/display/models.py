@@ -267,6 +267,9 @@ class Contestant(models.Model):
             return None
 
 
+CONTESTANT_CACHE_KEY = "contestant"
+
+
 class ContestantTrack(models.Model):
     contestant = models.OneToOneField(Contestant, on_delete=models.CASCADE)
     score_log = MyPickledObjectField(default=list)
