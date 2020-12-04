@@ -250,9 +250,6 @@ class Contestant(models.Model):
         for gate in gates[1:]:
             next_turning_point = get_next_turning_point(gates, gate["name"])
             ground_speed = self.get_groundspeed(next_turning_point["bearing"])
-            # if self.team.pilot == "Anders":
-            #     print("{}: ground_speed: {}, bearing: {}".format(gate["name"], ground_speed,
-            #                                                      next_turning_point["bearing"]))
             crossing_time += datetime.timedelta(
                 hours=(gate["gate_distance"] / 1852) / ground_speed)
             crossing_times[gate["name"]] = crossing_time
