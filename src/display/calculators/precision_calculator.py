@@ -92,6 +92,8 @@ class PrecisionCalculator(Calculator):
         else:
             self.contestant.contestanttrack.update_current_leg("")
 
+    TIME_FORMAT = "%H:%M:%S"
+
     def calculate_gate_score(self):
         index = 0
         finished = False
@@ -119,13 +121,17 @@ class PrecisionCalculator(Calculator):
                     gate_score = min(self.scorecard.maximum_gate_score, round(
                         absolute_time_difference - self.scorecard.gate_perfect_limit_seconds) * self.scorecard.gate_timing_per_second)
                     self.update_score(gate, gate_score,
-                                      "{} points for passing gate {} of by {}s".format(gate_score, gate,
-                                                                                       round(time_difference)),
+                                      "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
+                                          gate_score, gate,
+                                          round(time_difference), gate.expected_time.strftime(self.TIME_FORMAT),
+                                          gate.passing_time.strftime(self.TIME_FORMAT)),
                                       current_position.latitude, current_position.longitude, "information")
                 else:
                     self.update_score(gate, 0,
-                                      "{} points for passing gate {} of by {}s".format(0, gate,
-                                                                                       round(time_difference)),
+                                      "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
+                                          0, gate, round(time_difference),
+                                          gate.expected_time.strftime(self.TIME_FORMAT),
+                                          gate.passing_time.strftime(self.TIME_FORMAT)),
                                       current_position.latitude, current_position.longitude, "information")
             else:
                 finished = True
