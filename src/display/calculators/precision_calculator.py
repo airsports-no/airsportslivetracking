@@ -47,7 +47,7 @@ class PrecisionCalculator(Calculator):
         return sorted(gate_distances, key=lambda k: k["distance"])
 
     def check_if_gate_has_been_missed(self):
-        if not self.starting_line.has_been_passed():
+        if not self.any_gate_passed():
             return
         current_position = self.track[-1]
         distances = self.calculate_distance_to_outstanding_gates(current_position)
@@ -103,13 +103,15 @@ class PrecisionCalculator(Calculator):
             if gate.missed:
                 index += 1
                 if gate.gate_check:
-                    string = "{} points for missing gate {}".format(self.scorecard.missed_gate, gate)
-                    self.update_score(gate, self.scorecard.missed_gate, string, current_position.latitude,
+                    score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
+                    string = "{} points for missing gate {}".format(score, gate)
+                    self.update_score(gate, score, string, current_position.latitude,
                                       current_position.longitude, "anomaly")
                     if gate.is_procedure_turn:
-                        self.update_score(gate, self.scorecard.missed_gate,
+                        score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type)
+                        self.update_score(gate, score,
                                           "{} for missing procedure turn at {}".format(
-                                              self.scorecard.missed_procedure_turn,
+                                              score,
                                               gate),
                                           current_position.latitude, current_position.longitude, "anomaly")
             elif gate.passing_time is not None:
@@ -117,23 +119,14 @@ class PrecisionCalculator(Calculator):
                 if gate.time_check:
                     time_difference = (gate.passing_time - gate.expected_time).total_seconds()
                     self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
-                    absolute_time_difference = abs(time_difference)
-                    if absolute_time_difference > self.scorecard.gate_perfect_limit_seconds:
-                        gate_score = min(self.scorecard.maximum_gate_score, round(
-                            absolute_time_difference - self.scorecard.gate_perfect_limit_seconds) * self.scorecard.gate_timing_per_second)
-                        self.update_score(gate, gate_score,
-                                          "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
-                                              gate_score, gate,
-                                              round(time_difference), gate.expected_time.strftime(self.TIME_FORMAT),
-                                              gate.passing_time.strftime(self.TIME_FORMAT)),
-                                          current_position.latitude, current_position.longitude, "information")
-                    else:
-                        self.update_score(gate, 0,
-                                          "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
-                                              0, gate, round(time_difference),
-                                              gate.expected_time.strftime(self.TIME_FORMAT),
-                                              gate.passing_time.strftime(self.TIME_FORMAT)),
-                                          current_position.latitude, current_position.longitude, "information")
+                    gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time,
+                                                                                    gate.passing_time)
+                    self.update_score(gate, gate_score,
+                                      "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
+                                          gate_score, gate,
+                                          round(time_difference), gate.expected_time.strftime(self.TIME_FORMAT),
+                                          gate.passing_time.strftime(self.TIME_FORMAT)),
+                                      current_position.latitude, current_position.longitude, "information")
             else:
                 finished = True
         self.last_gate += index
@@ -239,7 +232,7 @@ class PrecisionCalculator(Calculator):
     def calculate_track_score(self):
         if self.tracking_state == self.FINISHED:
             return
-        if not self.starting_line.has_been_passed() and not self.any_gate_passed():
+        if not self.any_gate_passed():
             return
         last_position = self.track[-1]  # type: Position
         finish_index = len(self.track) - 1
@@ -304,9 +297,11 @@ class PrecisionCalculator(Calculator):
                 if (last_position.time - self.current_procedure_turn_start_time).total_seconds() > 180:
                     if abs(total_turn - self.current_procedure_turn_bearing_difference) >= 60:
                         self.update_tracking_state(self.FAILED_PROCEDURE_TURN)
-                        self.update_score(next_gate_last, self.scorecard.missed_procedure_turn,
+                        score = self.scorecard.get_procedure_turn_penalty_for_gate_type(
+                            self.current_procedure_turn_gate.type)
+                        self.update_score(next_gate_last, score,
                                           "{} points for incorrect procedure turn at {}".format(
-                                              self.scorecard.missed_procedure_turn, self.current_procedure_turn_gate),
+                                              score, self.current_procedure_turn_gate),
                                           last_position.latitude, last_position.longitude, "anomaly")
         else:
             if bearing_difference > 90:

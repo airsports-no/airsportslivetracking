@@ -1,7 +1,7 @@
 import datetime
 import math
 from plistlib import Dict
-from typing import List
+from typing import List, Optional
 import cartopy.crs as ccrs
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -94,7 +94,6 @@ class Track(models.Model):
         return gates[0]
 
 
-
 def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
     found_current = False
     for gate in waypoints:
@@ -167,18 +166,83 @@ class Contest(models.Model):
 
 class Scorecard(models.Model):
     name = models.CharField(max_length=100, default="default", unique=True)
-    missed_gate = models.FloatField(default=100)
-    gate_timing_per_second = models.FloatField(default=3)
-    gate_perfect_limit_seconds = models.FloatField(default=2)
-    maximum_gate_score = models.FloatField(default=100)
     backtracking = models.FloatField(default=200)
-    missed_procedure_turn = models.FloatField(default=200)
     below_minimum_altitude = models.FloatField(default=500)
-    takeoff_time_limit_seconds = models.FloatField(default=60)
-    missed_takeoff_gate = models.FloatField(default=100)
+
+    takeoff_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+                                              related_name="takeoff")
+    landing_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+                                              related_name="landing")
+    turning_point_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+                                                    related_name="turning_point")
+    starting_point_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+                                                     related_name="starting")
+    finish_point_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+                                                   related_name="finish")
+    secret_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+                                             related_name="secret")
 
     def __str__(self):
         return self.name
+
+    def get_gate_scorecard(self, gate_type: str) -> "GateScore":
+        if gate_type == "tp":
+            gate_score = self.turning_point_gate_score
+        elif gate_type == "sp":
+            gate_score = self.starting_point_gate_score
+        elif gate_type == "fp":
+            gate_score = self.finish_point_gate_score
+        elif gate_type == "secret":
+            gate_score = self.secret_gate_score
+        elif gate_type == "to":
+            gate_score = self.takeoff_gate_score
+        elif gate_type == "ldg":
+            gate_score = self.landing_gate_score
+        else:
+            raise ValueError("Unknown gate type '{}'".format(gate_type))
+        if gate_score is None:
+            raise ValueError("Undefined gate score for '{}'".format(gate_type))
+        return gate_score
+
+    def get_gate_timing_score_for_gate_type(self, gate_type: str, planned_time: datetime.datetime,
+                                            actual_time: Optional[datetime.datetime]) -> float:
+        gate_score = self.get_gate_scorecard(gate_type)
+        return gate_score.calculate_score(planned_time, actual_time)
+
+    def get_procedure_turn_penalty_for_gate_type(self, gate_type: str) -> float:
+        gate_score = self.get_gate_scorecard(gate_type)
+        return gate_score.missed_procedure_turn
+
+
+class GateScore(models.Model):
+    earliest_limit = models.FloatField(default=60)
+    latest_limit = models.FloatField(default=60)
+    graceperiod_before = models.FloatField(default=3)
+    graceperiod_after = models.FloatField(default=3)
+    maximum_penalty = models.FloatField(default=100)
+    penalty_per_second = models.FloatField(default=2)
+    missed_penalty = models.FloatField(default=100)
+    missed_procedure_turn = models.FloatField(default=200)
+
+    def calculate_score(self, planned_time: datetime.datetime, actual_time: Optional[datetime.datetime]) -> float:
+        """
+
+        :param planned_time:
+        :param actual_time: If None the gate is missed
+        :return:
+        """
+        if actual_time is None:
+            return self.missed_penalty
+        time_difference = (actual_time - planned_time).total_seconds()
+        if -self.graceperiod_before < time_difference < self.graceperiod_after:
+            return 0
+        else:
+            if time_difference > 0:
+                grace_limit = self.graceperiod_after
+            else:
+                grace_limit = self.graceperiod_before
+            return min(self.maximum_penalty, round(
+                (abs(time_difference) - grace_limit) * self.penalty_per_second))
 
 
 class Contestant(models.Model):
@@ -209,7 +273,7 @@ class Contestant(models.Model):
         gates = self.contest.track.waypoints
         crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
         crossing_times[gates[0].name] = crossing_time
-        for index in range(len(gates)-1):  # type: Waypoint
+        for index in range(len(gates) - 1):  # type: Waypoint
             gate = gates[index]
             next_gate = gates[index + 1]
             ground_speed = self.get_groundspeed(gate.bearing_next)

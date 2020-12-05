@@ -26,7 +26,7 @@ class Gate:
         gate_line_infinite = gate.gate_line_infinite
         self.y1_infinite, self.x1_infinite = gate_line_infinite[0]
         self.y2_infinite, self.x2_infinite = gate_line_infinite[1]
-
+        self.type = gate.type
         self.latitude = gate.latitude
         self.longitude = gate.longitude
         self.inside_distance = gate.inside_distance

@@ -5,7 +5,7 @@ import gpxpy
 from django.test import TestCase, TransactionTestCase
 
 from display.calculators.precision_calculator import PrecisionCalculator
-from display.models import Aeroplane, Contest, Scorecard, Team, Contestant, ContestantTrack
+from display.models import Aeroplane, Contest, Scorecard, Team, Contestant, ContestantTrack, GateScore
 from display.views import create_track_from_csv
 
 
@@ -22,16 +22,23 @@ class TestFullTrack(TransactionTestCase):
                                               start_time=contest_start_time, finish_time=contest_finish_time,
                                               wind_direction=165,
                                               wind_speed=8)
-        scorecard = Scorecard.objects.create(missed_gate=100,
-                                             gate_timing_per_second=3,
-                                             gate_perfect_limit_seconds=2,
-                                             maximum_gate_score=100,
-                                             backtracking=200,
-                                             missed_procedure_turn=200,
-                                             below_minimum_altitude=500,
-                                             takeoff_time_limit_seconds=60,
-                                             missed_takeoff_gate=100
-                                             )
+        scorecard = Scorecard.objects.create(
+            backtracking=200,
+            below_minimum_altitude=500,
+        )
+        scores = {
+            "graceperiod_before": 2,
+            "graceperiod_after": 2,
+            "maximum_penalty": 100,
+            "penalty_per_second": 3,
+            "missed_penalty": 100,
+            "missed_procedure_turn": 200
+        }
+        scorecard.starting_point_gate_score = GateScore.objects.create(**scores)
+        scorecard.finish_point_gate_score = GateScore.objects.create(**scores)
+        scorecard.turning_point_gate_score = GateScore.objects.create(**scores)
+        scorecard.secret_gate_score = GateScore.objects.create(**scores)
+        scorecard.save()
         team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(contest=self.contest, team=team, takeoff_time=start_time,
@@ -59,7 +66,7 @@ class TestFullTrack(TransactionTestCase):
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(150, contestant_track.score)
+        self.assertEqual(146, contestant_track.score)
 
     def test_correct_scoring_bad_track_precision(self):
         positions = self.load_track_points("display/calculators/tests/Steinar.gpx")

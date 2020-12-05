@@ -18,12 +18,14 @@ class Calculator(threading.Thread):
     STARTED = 1
     FINISHED = 2
     TRACKING = 3
+    TAKEOFF = 4
 
     TRACKING_MAP = {
         TRACKING: "Tracking",
         BEFORE_START: "Waiting...",
         FINISHED: "Finished",
-        STARTED: "Started"
+        STARTED: "Started",
+        TAKEOFF: "Takeoff"
     }
 
     def __init__(self, contestant: "Contestant", influx: "InfluxFacade"):
@@ -41,8 +43,8 @@ class Calculator(threading.Thread):
         _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
         self.scorecard = self.contestant.scorecard
         self.gates = self.create_gates()
+        self.takeoff_gate = None
         self.outstanding_gates = list(self.gates)
-        self.starting_line = Gate(self.contestant.contest.track.starting_line, self.gates[0].expected_time)
 
     def run(self):
         logger.info("Started calculator for contestant {}".format(self.contestant))
@@ -68,7 +70,7 @@ class Calculator(threading.Thread):
         self.score_log.append(message)
         self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)
 
-    def create_gates(self) -> List:
+    def create_gates(self) -> List[Gate]:
         waypoints = self.contestant.contest.track.waypoints
         expected_times = self.contestant.gate_times
         gates = []
@@ -115,12 +117,13 @@ class Calculator(threading.Thread):
 
     def check_intersections(self, force_gate: Optional["Gate"] = None):
         # Check starting line
-        if not self.starting_line.has_been_passed():
-            intersection_time = self.get_intersect_time(self.starting_line)
-            if intersection_time:
-                logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
-                self.update_tracking_state(self.STARTED)
-                self.starting_line.passing_time = intersection_time
+        # if not self.starting_line.has_been_passed():
+        #
+        #     intersection_time = self.get_intersect_time(self.starting_line)
+        #     if intersection_time:
+        #         logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
+        #         self.update_tracking_state(self.STARTED)
+        #         self.starting_line.passing_time = intersection_time
         i = len(self.outstanding_gates) - 1
         crossed_gate = False
         while i >= 0:
@@ -130,6 +133,10 @@ class Calculator(threading.Thread):
                 logger.info("{}: Crossed gate {}".format(self.contestant, gate))
                 gate.passing_time = intersection_time
                 crossed_gate = True
+                if gate.type == "sp":
+                    self.update_tracking_state(self.STARTED)
+                elif gate.type == "tp":
+                    self.update_tracking_state(self.TAKEOFF)
             if force_gate == gate:
                 crossed_gate = True
             if crossed_gate:
