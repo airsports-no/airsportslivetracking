@@ -1,11 +1,10 @@
 import logging
-from datetime import timedelta
-from typing import Optional, TYPE_CHECKING, List
+from typing import Optional, TYPE_CHECKING
 
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import distance_between_gates, cross_track_gate, along_track_gate, \
     bearing_between
-from display.coordinate_utilities import line_intersect, fraction_of_leg, get_heading_difference
+from display.coordinate_utilities import get_heading_difference
 from display.models import Contestant
 
 if TYPE_CHECKING:
@@ -81,7 +80,7 @@ class PrecisionCalculator(Calculator):
         self.inside_gates = insides
 
     def calculate_score(self):
-        self.check_if_gate_has_been_missed()
+        # self.check_if_gate_has_been_missed()
         self.check_intersections()
         self.calculate_gate_score()
         self.calculate_track_score()
@@ -98,41 +97,43 @@ class PrecisionCalculator(Calculator):
         index = 0
         finished = False
         current_position = self.track[-1]
-        for gate in self.gates[self.last_gate:]:
+        for gate in self.gates[self.last_gate:]:  # type: Gate
             if finished:
                 break
             if gate.missed:
                 index += 1
-                string = "{} points for missing gate {}".format(self.scorecard.missed_gate, gate)
-                self.update_score(gate, self.scorecard.missed_gate, string, current_position.latitude,
-                                  current_position.longitude, "anomaly")
-                if gate.is_procedure_turn:
-                    self.update_score(gate, self.scorecard.missed_gate,
-                                      "{} for missing procedure turn at {}".format(
-                                          self.scorecard.missed_procedure_turn,
-                                          gate),
-                                      current_position.latitude, current_position.longitude, "anomaly")
+                if gate.gate_check:
+                    string = "{} points for missing gate {}".format(self.scorecard.missed_gate, gate)
+                    self.update_score(gate, self.scorecard.missed_gate, string, current_position.latitude,
+                                      current_position.longitude, "anomaly")
+                    if gate.is_procedure_turn:
+                        self.update_score(gate, self.scorecard.missed_gate,
+                                          "{} for missing procedure turn at {}".format(
+                                              self.scorecard.missed_procedure_turn,
+                                              gate),
+                                          current_position.latitude, current_position.longitude, "anomaly")
             elif gate.passing_time is not None:
                 index += 1
-                time_difference = (gate.passing_time - gate.expected_time).total_seconds()
-                self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
-                absolute_time_difference = abs(time_difference)
-                if absolute_time_difference > self.scorecard.gate_perfect_limit_seconds:
-                    gate_score = min(self.scorecard.maximum_gate_score, round(
-                        absolute_time_difference - self.scorecard.gate_perfect_limit_seconds) * self.scorecard.gate_timing_per_second)
-                    self.update_score(gate, gate_score,
-                                      "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
-                                          gate_score, gate,
-                                          round(time_difference), gate.expected_time.strftime(self.TIME_FORMAT),
-                                          gate.passing_time.strftime(self.TIME_FORMAT)),
-                                      current_position.latitude, current_position.longitude, "information")
-                else:
-                    self.update_score(gate, 0,
-                                      "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
-                                          0, gate, round(time_difference),
-                                          gate.expected_time.strftime(self.TIME_FORMAT),
-                                          gate.passing_time.strftime(self.TIME_FORMAT)),
-                                      current_position.latitude, current_position.longitude, "information")
+                if gate.time_check:
+                    time_difference = (gate.passing_time - gate.expected_time).total_seconds()
+                    self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
+                    absolute_time_difference = abs(time_difference)
+                    if absolute_time_difference > self.scorecard.gate_perfect_limit_seconds:
+                        gate_score = min(self.scorecard.maximum_gate_score, round(
+                            absolute_time_difference - self.scorecard.gate_perfect_limit_seconds) * self.scorecard.gate_timing_per_second)
+                        self.update_score(gate, gate_score,
+                                          "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
+                                              gate_score, gate,
+                                              round(time_difference), gate.expected_time.strftime(self.TIME_FORMAT),
+                                              gate.passing_time.strftime(self.TIME_FORMAT)),
+                                          current_position.latitude, current_position.longitude, "information")
+                    else:
+                        self.update_score(gate, 0,
+                                          "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
+                                              0, gate, round(time_difference),
+                                              gate.expected_time.strftime(self.TIME_FORMAT),
+                                              gate.passing_time.strftime(self.TIME_FORMAT)),
+                                          current_position.latitude, current_position.longitude, "information")
             else:
                 finished = True
         self.last_gate += index
@@ -140,7 +141,7 @@ class PrecisionCalculator(Calculator):
     def guess_current_leg(self):
         current_position = self.track[-1]
         inside_legs = []
-        turning_points = [gate for gate in self.gates if gate.is_turning_point]
+        turning_points = self.gates
         for index in range(1, len(turning_points)):
             previous_gate = turning_points[index - 1]  # type: Gate
             next_gate = turning_points[index]  # type: Gate
@@ -169,14 +170,14 @@ class PrecisionCalculator(Calculator):
         return current_leg
 
     def get_turning_point_before_now(self, index) -> Optional["Gate"]:
-        gates = [gate for gate in self.gates if gate.is_turning_point and (
+        gates = [gate for gate in self.gates if (
                 gate.has_been_passed() and (not gate.passing_time or gate.passing_time < self.track[index].time))]
         if len(gates):
             return gates[-1]
         return None
 
     def get_turning_point_after_now(self, index) -> Optional["Gate"]:
-        gates = [gate for gate in self.gates if gate.is_turning_point and not gate.missed and (
+        gates = [gate for gate in self.gates if not gate.missed and (
                 not gate.passing_time or gate.passing_time > self.track[index].time)]
         if len(gates):
             return gates[0]
@@ -250,7 +251,11 @@ class PrecisionCalculator(Calculator):
             return
         look_back = 2
         start_index = max(finish_index - look_back, 0)
-        current_leg = self.calculate_current_leg()
+        last_gate_last = self.get_turning_point_before_now(finish_index)  # Gate we just passed
+        first_gate_last = self.get_turning_point_before_now(start_index)  # Gate we just passed
+        # current_leg = self.calculate_current_leg()
+        current_leg = last_gate_last
+        # logger.info("Current leg: {} - {}".format(current_leg, current_leg.bearing))
         self.update_current_leg(current_leg)
         first_position = self.track[start_index]
         next_gate_last = self.get_turning_point_after_now(finish_index)
@@ -260,22 +265,23 @@ class PrecisionCalculator(Calculator):
             self.contestant.contestanttrack.set_calculator_finished()
             return
         last_gate_first = self.get_turning_point_before_now(start_index)  # Gate we passed a few steps earlier
-        last_gate_last = self.get_turning_point_before_now(finish_index)  # Gate we just passed
 
         bearing = bearing_between(first_position, last_position)
-        if current_leg:
-            bearing_difference = abs(get_heading_difference(bearing, current_leg.bearing))
-        else:
-            bearing_difference = abs(get_heading_difference(bearing, next_gate_last.bearing))
-            current_leg = next_gate_last
+        # logger.info("Current bearing: {}".format(bearing))
+
+        # if current_leg:
+        bearing_difference = abs(get_heading_difference(bearing, current_leg.bearing))
+        # else:
+        #     bearing_difference = abs(get_heading_difference(bearing, next_gate_last.bearing))
+        #     current_leg = next_gate_last
         if last_gate_last and last_gate_first != last_gate_last and last_gate_last.is_procedure_turn and self.tracking_state not in (
                 self.FAILED_PROCEDURE_TURN, self.PROCEDURE_TURN):
             self.update_tracking_state(self.PROCEDURE_TURN)
             self.current_procedure_turn_slices = []
             self.current_procedure_turn_directions = []
             self.current_procedure_turn_gate = last_gate_last
-            self.current_procedure_turn_bearing_difference = get_heading_difference(last_gate_last.bearing,
-                                                                                    next_gate_last.bearing)
+            self.current_procedure_turn_bearing_difference = get_heading_difference(first_gate_last.bearing,
+                                                                                    last_gate_last.bearing)
             if self.current_procedure_turn_bearing_difference > 0:
                 self.current_procedure_turn_bearing_difference -= 360
             else:

@@ -15,8 +15,10 @@ configuration = TraccarCredentials.objects.get()
 
 traccar = Traccar.create_from_configuration(configuration)
 
-deleted = traccar.delete_all_devices()
+deleted = traccar.update_and_get_devices()
+# Group ID = 1
 for item in deleted:
+    traccar.delete_device(item["id"])
     traccar.create_device(item["name"], item["uniqueId"])
 
 influx = InfluxFacade()

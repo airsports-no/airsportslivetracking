@@ -73,7 +73,7 @@ class Calculator(threading.Thread):
         expected_times = self.contestant.gate_times
         gates = []
         for item in waypoints:
-            gates.append(Gate(item, expected_times[item["name"]]))
+            gates.append(Gate(item, expected_times[item.name]))
         return gates
 
     def add_positions(self, positions):
@@ -92,6 +92,7 @@ class Calculator(threading.Thread):
             segment = self.track[-2:]  # type: List[Position]
             intersection = line_intersect(segment[0].longitude, segment[0].latitude, segment[1].longitude,
                                           segment[1].latitude, gate.x1, gate.y1, gate.x2, gate.y2)
+
             if intersection:
                 fraction = fraction_of_leg(segment[0].longitude, segment[0].latitude, segment[1].longitude,
                                            segment[1].latitude, intersection[0], intersection[1])
@@ -117,7 +118,7 @@ class Calculator(threading.Thread):
         if not self.starting_line.has_been_passed():
             intersection_time = self.get_intersect_time(self.starting_line)
             if intersection_time:
-                logger.info("{}: Passing start line".format(self.contestant))
+                logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
                 self.update_tracking_state(self.STARTED)
                 self.starting_line.passing_time = intersection_time
         i = len(self.outstanding_gates) - 1

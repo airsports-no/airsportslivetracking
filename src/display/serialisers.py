@@ -3,9 +3,32 @@ from rest_framework import serializers
 from display.models import Contest, Aeroplane, Team, Track, Contestant, ContestantTrack
 
 
+class WaypointSerialiser(serializers.Serializer):
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    name = serializers.CharField(max_length=200)
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
+    elevation = serializers.FloatField()
+    width = serializers.FloatField()
+    gate_line = serializers.JSONField()
+    gate_line_infinite = serializers.JSONField()
+    time_check = serializers.BooleanField()
+    gate_check = serializers.BooleanField()
+    end_curved = serializers.BooleanField()
+    type = serializers.CharField(max_length=50)
+    distance_next = serializers.FloatField()
+    bearing_next = serializers.FloatField()
+    is_procedure_turn = serializers.BooleanField()
+
+
 class TrackSerialiser(serializers.ModelSerializer):
-    waypoints = serializers.JSONField()
-    starting_line = serializers.JSONField()
+    waypoints = WaypointSerialiser(many=True)
+    starting_line = WaypointSerialiser
 
     class Meta:
         model = Track

@@ -71,20 +71,22 @@ class ConnectedContest extends Component {
     }
 
     renderTrack() {
-        for (const key in this.props.contest.track.waypoints) {
-            if (this.props.contest.track.waypoints.hasOwnProperty(key)) {
-                let gate = this.props.contest.track.waypoints[key];
-                polyline([[gate.gate_line[1], gate.gate_line[0]], [gate.gate_line[3], gate.gate_line[2]]], {
-                    color: "blue"
-                }).addTo(this.map)
-            }
-        }
+        this.props.contest.track.waypoints.filter((waypoint) => {
+            return waypoint.gate_check
+        }).map((gate) => {
+            polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
+                color: "blue"
+            }).addTo(this.map)
+            // }
+        })
         let turningPoints = this.props.contest.track.waypoints.filter((waypoint) => {
-            return waypoint.type === "tp"
+            return true //waypoint.type === "tp"
         }).map((waypoint) => {
             return [waypoint.latitude, waypoint.longitude]
         });
-        this.props.contest.track.waypoints.map((waypoint) => {
+        this.props.contest.track.waypoints.filter((waypoint) => {
+            return waypoint.gate_check
+        }).map((waypoint) => {
             marker([waypoint.latitude, waypoint.longitude], {
                 color: "blue",
                 icon: divIcon({
@@ -142,10 +144,10 @@ class ConnectedContest extends Component {
                 </div>
             }
             let mapDisplay = this.props.contest.contestant_set.map((contestant, index) => {
-                    return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}
-                                            contestant={contestant} displayMap={this.props.displayMap}
-                                            colour={colourMap[contestant.contestant_number]}/>
-                });
+                return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}
+                                        contestant={contestant} displayMap={this.props.displayMap}
+                                        colour={colourMap[contestant.contestant_number]}/>
+            });
             return <div>
                 {mapDisplay}
                 {tableDisplay}

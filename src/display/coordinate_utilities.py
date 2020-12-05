@@ -60,6 +60,22 @@ def calculate_fractional_distance_point_lat_lon(start: Tuple[float, float], fini
     return (finalLatitude, finalLongitude)
 
 
+def extend_line(start: Tuple[float, float], finish: Tuple[float, float], distance: float) -> Tuple[
+    Tuple[float, float], Tuple[float, float]]:
+    """
+
+    :param start: degrees
+    :param finish: degrees
+    :param distance: nauticalMiles
+    :return:
+    """
+    line_length = calculate_distance_lat_lon(start, finish)
+    distance_scale = 1852*distance / (2 * line_length)
+    new_finish = calculate_fractional_distance_point_lat_lon(start, finish, 1 + distance_scale)
+    new_start = calculate_fractional_distance_point_lat_lon(finish, start, 1 + distance_scale)
+    return new_start, new_finish
+
+
 def line_intersect(x1, y1, x2, y2, x3, y3, x4, y4):
     # Check if none of the lines are of length 0
     if (x1 == x2 and y1 == y2) or (x3 == x4 and y3 == y4):

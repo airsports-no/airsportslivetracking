@@ -18,6 +18,7 @@ from rest_framework.decorators import api_view
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.response import Response
 
+from display.convert_flightcontest_gpx import create_track_from_gpx, create_track_from_csv
 from display.forms import ImportTrackForm
 from display.models import Contest, Track, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY
 from display.serialisers import ContestSerialiser, ContestantTrackSerialiser
@@ -139,16 +140,15 @@ def import_track(request):
         form = ImportTrackForm(request.POST, request.FILES)
         if form.is_valid():
             name = form.cleaned_data["name"]
-            data = [item.decode(encoding="UTF-8") for item in request.FILES['file'].readlines()]
-            create_track_from_csv(name, data[1:])
+            file_type = form.cleaned_data["file_type"]
+            print(file_type)
+            if file_type == form.CSV:
+                data = [item.decode(encoding="UTF-8") for item in request.FILES['file'].readlines()]
+                create_track_from_csv(name, data[1:])
+            elif file_type == form.FLIGHTCONTEST_GPX:
+                create_track_from_gpx(name, request.FILES["file"])
             return redirect("/")
     return render(request, "display/import_track_form.html", {"form": form})
 
 
-def create_track_from_csv(name: str, lines: List[str]) -> Track:
-    track_data = []
-    for line in lines:
-        line = [item.strip() for item in line.split(",")]
-        track_data.append({"name": line[0], "longitude": float(line[1]), "latitude": float(line[2]),
-                           "type": line[3], "width": float(line[4])})
-    return Track.create(name=name, waypoints=track_data)
+

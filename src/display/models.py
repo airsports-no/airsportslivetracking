@@ -1,6 +1,5 @@
 import datetime
 import math
-from collections import namedtuple
 from plistlib import Dict
 from typing import List
 import cartopy.crs as ccrs
@@ -11,9 +10,8 @@ from django.db import models
 # Create your models here.
 from solo.models import SingletonModel
 
-from display.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing
 from display.my_pickled_object_field import MyPickledObjectField
-from display.utilities import get_distance_to_other_gates
+from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 
 
@@ -41,9 +39,6 @@ class Aeroplane(models.Model):
         return self.registration
 
 
-Waypoint = namedtuple("Waypoint", "name latitude longitude start_point finish_point is_secret")
-
-
 class Track(models.Model):
     name = models.CharField(max_length=200)
     waypoints = MyPickledObjectField(default=list)
@@ -55,7 +50,6 @@ class Track(models.Model):
     @classmethod
     def create(cls, name: str, waypoints: List[Dict]) -> "Track":
         waypoints = cls.add_gate_data(waypoints)
-        waypoints = cls.legs(waypoints)
         starting_line = cls.create_starting_line(waypoints)
         object = cls(name=name, waypoints=waypoints, starting_line=starting_line)
         object.save()
@@ -99,47 +93,15 @@ class Track(models.Model):
     def create_starting_line(gates) -> Dict:
         return gates[0]
 
-    @staticmethod
-    def insert_gate_ranges(waypoints):
-        for main_gate in waypoints:
-            distances = list(get_distance_to_other_gates(main_gate, waypoints).values())
-            minimum_distance = min(distances)
-            main_gate["inside_distance"] = minimum_distance * 2 / 3
-            main_gate["outside_distance"] = 2000 + minimum_distance * 2 / 3
-
-    @staticmethod
-    def legs(waypoints) -> Dict:
-        gates = [item for item in waypoints if item["type"] in ("tp", "secret")]
-        for index in range(1, len(gates)):
-            gates[index]["distance"] = -1
-            gates[index]["gate_distance"] = calculate_distance_lat_lon(
-                (gates[index - 1]["latitude"], gates[index - 1]["longitude"]),
-                (gates[index]["latitude"], gates[index]["longitude"]))
-        tp_gates = [item for item in waypoints if item["type"] == "tp"]
-        for index in range(1, len(tp_gates)):
-            tp_gates[index]["bearing"] = calculate_bearing(
-                (tp_gates[index - 1]["latitude"], tp_gates[index - 1]["longitude"]),
-                (tp_gates[index]["latitude"], tp_gates[index]["longitude"]))
-            tp_gates[index]["distance"] = calculate_distance_lat_lon(
-                (tp_gates[index - 1]["latitude"], tp_gates[index - 1]["longitude"]),
-                (tp_gates[index]["latitude"], tp_gates[index]["longitude"]))
-        for index in range(1, len(tp_gates) - 1):
-            tp_gates[index]["is_procedure_turn"] = is_procedure_turn(tp_gates[index]["bearing"],
-                                                                     tp_gates[index + 1]["bearing"])
-            tp_gates[index]["turn_direction"] = "ccw" if bearing_difference(tp_gates[index]["bearing"],
-                                                                            tp_gates[index + 1][
-                                                                                "bearing"]) > 0 else "cw"
-        Track.insert_gate_ranges(waypoints)
-        return waypoints
 
 
-def get_next_turning_point(waypoints: List, gate_name: str) -> Dict:
+def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
     found_current = False
     for gate in waypoints:
-        if gate["name"] == gate_name:
-            found_current = True
-        if found_current and gate["type"] == "tp":
+        if found_current:
             return gate
+        if gate.name == gate_name:
+            found_current = True
 
 
 def bearing_difference(bearing1, bearing2) -> float:
@@ -167,7 +129,7 @@ def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
     dx = -slope * dy
     x1, y1 = pc.transform_point(x2 + dx, y2 + dy, epsg)
     x2, y2 = pc.transform_point(x2 - dx, y2 - dy, epsg)
-    return [x1, y1, x2, y2]
+    return [[x1, y1], [x2, y2]]
 
 
 class Team(models.Model):
@@ -244,16 +206,17 @@ class Contestant(models.Model):
     @property
     def gate_times(self) -> Dict:
         crossing_times = {}
-        gates = [item for item in self.contest.track.waypoints if item["type"] in ("tp", "secret")]
+        gates = self.contest.track.waypoints
         crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
-        crossing_times[gates[0]["name"]] = crossing_time
-        for gate in gates[1:]:
-            next_turning_point = get_next_turning_point(gates, gate["name"])
-            ground_speed = self.get_groundspeed(next_turning_point["bearing"])
+        crossing_times[gates[0].name] = crossing_time
+        for index in range(len(gates)-1):  # type: Waypoint
+            gate = gates[index]
+            next_gate = gates[index + 1]
+            ground_speed = self.get_groundspeed(gate.bearing_next)
             crossing_time += datetime.timedelta(
-                hours=(gate["gate_distance"] / 1852) / ground_speed)
-            crossing_times[gate["name"]] = crossing_time
-            if gate.get("is_procedure_turn", False):
+                hours=(gate.distance_next / 1852) / ground_speed)
+            crossing_times[next_gate.name] = crossing_time
+            if next_gate.is_procedure_turn:
                 crossing_time += datetime.timedelta(minutes=1)
         return crossing_times
 
