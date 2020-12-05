@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import {displayAllTracks, fetchContest, setDisplay} from "../actions";
 import {connect} from "react-redux";
-import {circle, divIcon, map, marker, polyline, tileLayer} from "leaflet";
+import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
 import ContestantTrack from "./ContestantTrack";
 import distinctColors from "distinct-colors";
 import {compareContestantNumber} from "../utilities";
@@ -10,6 +10,8 @@ import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} 
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
 import TurningPointLinks from "./turningPointLinks";
 import TurningPointDisplay from "./turningPointDisplay";
+
+const L = window['L']
 
 const mapStateToProps = (state, props) => ({
     contest: state.contest,
@@ -55,7 +57,10 @@ class ConnectedContest extends Component {
     }
 
     initialiseMap() {
-        this.map = map('cesiumContainer')
+        this.map = L.map('cesiumContainer', {
+            zoomDelta: 0.25,
+            zoomSnap: 0.25,
+        })
         const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
         tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
             attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
