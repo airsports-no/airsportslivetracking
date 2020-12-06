@@ -103,8 +103,8 @@ class Test2017WPFC(TransactionTestCase):
         self.contest = Contest.objects.create(name="NM contest",
                                               track=track,
                                               start_time=contest_start_time, finish_time=contest_finish_time,
-                                              wind_direction=165,
-                                              wind_speed=0)
+                                              wind_direction=60,
+                                              wind_speed=20)
         self.team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=self.aeroplane)
         self.scorecard = Scorecard.objects.create(
             backtracking=200,

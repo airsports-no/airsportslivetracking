@@ -4,7 +4,7 @@ from typing import Optional, TYPE_CHECKING
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import distance_between_gates, cross_track_gate, along_track_gate, \
     bearing_between
-from display.coordinate_utilities import get_heading_difference
+from display.coordinate_utilities import get_heading_difference, calculate_distance_lat_lon
 from display.models import Contestant
 
 if TYPE_CHECKING:
@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 class PrecisionCalculator(Calculator):
+    """
+    Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
+    """
     DEVIATING = 8
     BACKTRACKING = 5
     PROCEDURE_TURN = 6
@@ -110,6 +113,7 @@ class PrecisionCalculator(Calculator):
                     string = "{} points for missing gate {}".format(score, gate)
                     self.update_score(gate, score, string, current_position.latitude,
                                       current_position.longitude, "anomaly")
+                    # Commented out because of A.2.2.16
                     # if gate.is_procedure_turn:
                     #     score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type)
                     #     self.update_score(gate, score,
@@ -280,6 +284,7 @@ class PrecisionCalculator(Calculator):
         #     current_leg = next_gate_last
         if last_gate_last and last_gate_first != last_gate_last and last_gate_last.is_procedure_turn and self.tracking_state not in (
                 self.FAILED_PROCEDURE_TURN, self.PROCEDURE_TURN):
+            # A.2.2.15
             self.update_tracking_state(self.PROCEDURE_TURN)
             self.current_procedure_turn_slices = []
             self.current_procedure_turn_directions = []
@@ -296,11 +301,11 @@ class PrecisionCalculator(Calculator):
             if self.last_bearing:
                 self.current_procedure_turn_slices.append(get_heading_difference(self.last_bearing, bearing))
                 total_turn = sum(self.current_procedure_turn_slices)
-                logger.info(
-                    "{}: Turned a total of {} degrees as part of procedure turn of {} at gate {} ".format(
-                        self.contestant, total_turn,
-                        self.current_procedure_turn_bearing_difference,
-                        self.current_procedure_turn_gate))
+                # logger.info(
+                #     "{}: Turned a total of {} degrees as part of procedure turn of {} at gate {} ".format(
+                #         self.contestant, total_turn,
+                #         self.current_procedure_turn_bearing_difference,
+                #         self.current_procedure_turn_gate))
                 if abs(total_turn - self.current_procedure_turn_bearing_difference) < 60:
                     self.update_tracking_state(self.TRACKING)
                     logger.info("{}: Procedure turn completed successfully".format(self.contestant))
@@ -317,8 +322,12 @@ class PrecisionCalculator(Calculator):
         else:
             if bearing_difference > 90:
                 if self.tracking_state == self.TRACKING:
-                    self.backtracking_start_time = last_position.time
-                    self.update_tracking_state(self.BACKTRACKING_TEMPORARY)
+                    # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
+                    if last_gate_last and calculate_distance_lat_lon(
+                            (last_gate_last.latitude, last_gate_last.longitude),
+                            (last_position.latitude, last_position.longitude)) / 1852 > 0.5:
+                        self.backtracking_start_time = last_position.time
+                        self.update_tracking_state(self.BACKTRACKING_TEMPORARY)
                 if self.tracking_state == self.BACKTRACKING_TEMPORARY:
                     if (
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
