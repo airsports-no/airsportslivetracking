@@ -15,16 +15,18 @@ logger = logging.getLogger(__name__)
 
 
 class PrecisionCalculator(Calculator):
-    DEVIATING = 4
+    DEVIATING = 8
     BACKTRACKING = 5
     PROCEDURE_TURN = 6
     FAILED_PROCEDURE_TURN = 7
+    BACKTRACKING_TEMPORARY = 9
     TRACKING_MAP = dict(Calculator.TRACKING_MAP)
     TRACKING_MAP.update({
         BACKTRACKING: "Backtracking",
         PROCEDURE_TURN: "Procedure turn",
         FAILED_PROCEDURE_TURN: "Failed procedure turn",
         DEVIATING: "Deviating",
+        BACKTRACKING_TEMPORARY: "Off-track"
     })
 
     def __init__(self, contestant: "Contestant", influx: "InfluxFacade"):
@@ -34,6 +36,7 @@ class PrecisionCalculator(Calculator):
         self.current_procedure_turn_slices = []
         self.current_procedure_turn_bearing_difference = 0
         self.current_procedure_turn_start_time = None
+        self.backtracking_start_time = None
 
         self.last_gate = 0
         self.last_bearing = None
@@ -107,13 +110,13 @@ class PrecisionCalculator(Calculator):
                     string = "{} points for missing gate {}".format(score, gate)
                     self.update_score(gate, score, string, current_position.latitude,
                                       current_position.longitude, "anomaly")
-                    if gate.is_procedure_turn:
-                        score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type)
-                        self.update_score(gate, score,
-                                          "{} for missing procedure turn at {}".format(
-                                              score,
-                                              gate),
-                                          current_position.latitude, current_position.longitude, "anomaly")
+                    # if gate.is_procedure_turn:
+                    #     score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type)
+                    #     self.update_score(gate, score,
+                    #                       "{} for missing procedure turn at {}".format(
+                    #                           score,
+                    #                           gate),
+                    #                       current_position.latitude, current_position.longitude, "anomaly")
             elif gate.passing_time is not None:
                 index += 1
                 if gate.time_check:
@@ -174,6 +177,14 @@ class PrecisionCalculator(Calculator):
                 not gate.passing_time or gate.passing_time > self.track[index].time)]
         if len(gates):
             return gates[0]
+        return None
+
+    def get_extended_gate_turning_point_before_now(self, index) -> Optional["Gate"]:
+        gates = [gate for gate in self.gates if (
+                gate.has_extended_been_passed() and (
+                not gate.extended_passing_time or gate.extended_passing_time < self.track[index].time))]
+        if len(gates):
+            return gates[-1]
         return None
 
     def calculate_current_leg(self) -> "Gate":
@@ -244,7 +255,7 @@ class PrecisionCalculator(Calculator):
             return
         look_back = 2
         start_index = max(finish_index - look_back, 0)
-        last_gate_last = self.get_turning_point_before_now(finish_index)  # Gate we just passed
+        last_gate_last = self.get_extended_gate_turning_point_before_now(finish_index)  # Gate we just passed
         first_gate_last = self.get_turning_point_before_now(start_index)  # Gate we just passed
         # current_leg = self.calculate_current_leg()
         current_leg = last_gate_last
@@ -306,11 +317,17 @@ class PrecisionCalculator(Calculator):
         else:
             if bearing_difference > 90:
                 if self.tracking_state == self.TRACKING:
-                    self.update_tracking_state(self.BACKTRACKING)
-                    self.update_score(next_gate_last, self.scorecard.backtracking,
-                                      "{} points for backtracking at {} {}".format(self.scorecard.backtracking,
-                                                                                   current_leg, next_gate_last),
-                                      last_position.latitude, last_position.longitude, "anomaly")
+                    self.backtracking_start_time = last_position.time
+                    self.update_tracking_state(self.BACKTRACKING_TEMPORARY)
+                if self.tracking_state == self.BACKTRACKING_TEMPORARY:
+                    if (
+                            last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
+                        self.update_tracking_state(self.BACKTRACKING)
+                        self.backtracking_start_time = None
+                        self.update_score(next_gate_last, self.scorecard.backtracking,
+                                          "{} points for backtracking at {} {}".format(self.scorecard.backtracking,
+                                                                                       current_leg, next_gate_last),
+                                          last_position.latitude, last_position.longitude, "anomaly")
             else:
                 self.update_tracking_state(self.TRACKING)
         self.last_bearing = bearing

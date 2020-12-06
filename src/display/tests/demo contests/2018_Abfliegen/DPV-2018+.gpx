@@ -1,0 +1,758 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<gpx version='1.1' creator='Flight Contest - flightcontest.de - Version 4'>
+  <extensions>
+    <flightcontest>
+      <observationsettings turnpoint='AssignPhoto' turnpointmapmeasurement='yes' enroutephoto='InputName' enroutephotomeasurement='Map' enroutecanvas='None' enroutecanvasmeasurement='None' useprocedureturn='yes' />
+      <enroutephotosigns>
+        <enroutephotosign photoname='6' viewpos='1' />
+        <enroutephotosign photoname='5' viewpos='2' />
+        <enroutephotosign photoname='1' viewpos='3' />
+        <enroutephotosign photoname='11' viewpos='4' />
+        <enroutephotosign photoname='2' viewpos='5' />
+        <enroutephotosign photoname='8' viewpos='6' />
+        <enroutephotosign photoname='4' viewpos='7' />
+        <enroutephotosign photoname='3' viewpos='8' />
+        <enroutephotosign photoname='7' viewpos='9' />
+        <enroutephotosign photoname='12' viewpos='10' />
+        <enroutephotosign photoname='16' viewpos='11' />
+        <enroutephotosign photoname='13' viewpos='12' />
+        <enroutephotosign photoname='10' viewpos='13' />
+        <enroutephotosign photoname='15' viewpos='14' />
+        <enroutephotosign photoname='14' viewpos='15' />
+        <enroutephotosign photoname='9' viewpos='16' />
+      </enroutephotosigns>
+    </flightcontest>
+  </extensions>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <route number='1' />
+      </flightcontest>
+    </extensions>
+    <name>DPV-2018+</name>
+    <rtept lat='51.522934384375' lon='13.9054492564'>
+      <name>SP</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.4074406916' lon='14.1431660895'>
+      <name>TP1</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.48753372862' lon='14.1900491585'>
+      <name>SC1</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.6379191878' lon='14.2786068708'>
+      <name>TP2</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.61916767247' lon='14.01815219593'>
+      <name>SC2</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.6021510250' lon='13.7877441111'>
+      <name>TP3</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.529501278365' lon='13.7125006630'>
+      <name>SC3</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.4418223166' lon='13.6219437093'>
+      <name>SC4</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.4174916667' lon='13.5968972222'>
+      <name>TP4</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.3417936665' lon='13.5370058204'>
+      <name>TP5</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.379433880505' lon='13.7473366922'>
+      <name>SC5</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.4054083333' lon='13.8941083333'>
+      <name>TP6</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='51.4626611111' lon='13.7925861111'>
+      <name>FP</name>
+      <ele>0E+4</ele>
+    </rtept>
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TO' number='1' lat='51.4918857478' lon='13.8816078939' alt='0' width='0.03' dir='254' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>T/O</name>
+    <rtept lat='51.4921260632' lon='13.8814972182' />
+    <rtept lat='51.4916454324' lon='13.8817185690' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SP' number='1' lat='51.522934384375' lon='13.9054492564' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='B' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SP</name>
+    <rtept lat='51.529505679675' lon='13.9136862481' />
+    <rtept lat='51.516363089075' lon='13.8972134533' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='1' lat='51.4074406916' lon='14.1431660895' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='D' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP1</name>
+    <rtept lat='51.4140119869' lon='14.1513822574' />
+    <rtept lat='51.4008693963' lon='14.1349511023' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='1' lat='51.48753372862' lon='14.1900491585' alt='0' width='2.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC1</name>
+    <rtept lat='51.49324572002' lon='14.1649027686' />
+    <rtept lat='51.48182173722' lon='14.2151923983' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='2' lat='51.6379191878' lon='14.2786068708' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='A' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP2</name>
+    <rtept lat='51.6407839043' lon='14.2659975525' />
+    <rtept lat='51.6350544713' lon='14.2912153926' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='2' lat='51.61916767247' lon='14.01815219593' alt='0' width='2.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC2</name>
+    <rtept lat='51.60261198177' lon='14.02124419193' />
+    <rtept lat='51.63572336317' lon='14.01505907173' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='3' lat='51.6021510250' lon='13.7877441111' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='G' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP3</name>
+    <rtept lat='51.5938760064' lon='13.7893284145' />
+    <rtept lat='51.6104260436' lon='13.7861595190' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='3' lat='51.529501278365' lon='13.7125006630' alt='0' width='2.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC3</name>
+    <rtept lat='51.520479228765' lon='13.7350242599' />
+    <rtept lat='51.538523327965' lon='13.6899726022' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='4' lat='51.4418223166' lon='13.6219437093' alt='0' width='2.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC4</name>
+    <rtept lat='51.4328067812' lon='13.6444307712' />
+    <rtept lat='51.4508378520' lon='13.5994522079' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='4' lat='51.4174916667' lon='13.5968972222' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='F' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP4</name>
+    <rtept lat='51.4129905094' lon='13.6081421330' />
+    <rtept lat='51.4219928240' lon='13.5856512040' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='5' lat='51.3417936665' lon='13.5370058204' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='E' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP5</name>
+    <rtept lat='51.3381038367' lon='13.5489666663' />
+    <rtept lat='51.3454834963' lon='13.5250440116' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='5' lat='51.379433880505' lon='13.7473366922' alt='0' width='2.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC5</name>
+    <rtept lat='51.395455530305' lon='13.7399786575' />
+    <rtept lat='51.363412230705' lon='13.7546921518' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='6' lat='51.4054083333' lon='13.8941083333' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='H' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP6</name>
+    <rtept lat='51.4134254603' lon='13.8904629858' />
+    <rtept lat='51.3973912063' lon='13.8977530417' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='FP' number='1' lat='51.4626611111' lon='13.7925861111' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='C' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>FP</name>
+    <rtept lat='51.4564811577' lon='13.7836137100' />
+    <rtept lat='51.4688410645' lon='13.8015597273' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='LDG' number='1' lat='51.491780655555' lon='13.880467020555' alt='0' width='0.03' dir='254' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>LDG</name>
+    <rtept lat='51.492020970955' lon='13.880356345055' />
+    <rtept lat='51.491540340155' lon='13.880577695455' />
+  </rte>
+  <rte>
+    <name>Procedure turn TP1</name>
+    <rtept lat='51.4074406916' lon='14.1431660895' />
+    <rtept lat='51.3991536684' lon='14.1601999012' />
+    <rtept lat='51.3991536684' lon='14.1601975855' />
+    <rtept lat='51.3989384716' lon='14.1606242469' />
+    <rtept lat='51.3987141145' lon='14.1610386085' />
+    <rtept lat='51.3984808708' lon='14.1614401656' />
+    <rtept lat='51.3982390244' lon='14.1618284289' />
+    <rtept lat='51.3979888701' lon='14.1622029254' />
+    <rtept lat='51.3977307126' lon='14.1625631988' />
+    <rtept lat='51.3974648664' lon='14.1629088101' />
+    <rtept lat='51.3971916555' lon='14.1632393385' />
+    <rtept lat='51.3969114128' lon='14.1635543811' />
+    <rtept lat='51.3966244795' lon='14.1638535543' />
+    <rtept lat='51.3963312054' lon='14.1641364937' />
+    <rtept lat='51.3960319477' lon='14.1644028547' />
+    <rtept lat='51.3957270711' lon='14.1646523127' />
+    <rtept lat='51.3954169469' lon='14.1648845641' />
+    <rtept lat='51.3951019531' lon='14.1650993261' />
+    <rtept lat='51.3947824733' lon='14.1652963370' />
+    <rtept lat='51.3944588969' lon='14.1654753571' />
+    <rtept lat='51.3941316181' lon='14.1656361683' />
+    <rtept lat='51.3938010355' lon='14.1657785750' />
+    <rtept lat='51.3934675520' lon='14.1659024039' />
+    <rtept lat='51.3931315738' lon='14.1660075042' />
+    <rtept lat='51.3927935104' lon='14.1660937482' />
+    <rtept lat='51.3924537735' lon='14.1661610309' />
+    <rtept lat='51.3921127771' lon='14.1662092705' />
+    <rtept lat='51.3917709366' lon='14.1662384086' />
+    <rtept lat='51.3914286686' lon='14.1662484098' />
+    <rtept lat='51.3910863900' lon='14.1662392622' />
+    <rtept lat='51.3907445178' lon='14.1662109771' />
+    <rtept lat='51.3904034686' lon='14.1661635892' />
+    <rtept lat='51.3900636579' lon='14.1660971565' />
+    <rtept lat='51.3897254996' lon='14.1660117600' />
+    <rtept lat='51.3893894058' lon='14.1659075041' />
+    <rtept lat='51.3890557860' lon='14.1657845159' />
+    <rtept lat='51.3887250466' lon='14.1656429455' />
+    <rtept lat='51.3883975905' lon='14.1654829656' />
+    <rtept lat='51.3880738168' lon='14.1653047712' />
+    <rtept lat='51.3877541198' lon='14.1651085796' />
+    <rtept lat='51.3874388892' lon='14.1648946301' />
+    <rtept lat='51.3871285089' lon='14.1646631834' />
+    <rtept lat='51.3868233571' lon='14.1644145216' />
+    <rtept lat='51.3865238056' lon='14.1641489478' />
+    <rtept lat='51.3862302193' lon='14.1638667858' />
+    <rtept lat='51.3859429560' lon='14.1635683793' />
+    <rtept lat='51.3856623656' lon='14.1632540920' />
+    <rtept lat='51.3853887900' lon='14.1629243069' />
+    <rtept lat='51.3851225624' lon='14.1625794259' />
+    <rtept lat='51.3848640073' lon='14.1622198692' />
+    <rtept lat='51.3846134397' lon='14.1618460749' />
+    <rtept lat='51.3843711647' lon='14.1614584984' />
+    <rtept lat='51.3841374777' lon='14.1610576119' />
+    <rtept lat='51.3839126633' lon='14.1606439038' />
+    <rtept lat='51.3836969954' lon='14.1602178781' />
+    <rtept lat='51.3834907368' lon='14.1597800539' />
+    <rtept lat='51.3832941388' lon='14.1593309644' />
+    <rtept lat='51.3831074408' lon='14.1588711568' />
+    <rtept lat='51.3829308704' lon='14.1584011912' />
+    <rtept lat='51.3827646427' lon='14.1579216401' />
+    <rtept lat='51.3826089602' lon='14.1574330876' />
+    <rtept lat='51.3824640126' lon='14.1569361287' />
+    <rtept lat='51.3823299764' lon='14.1564313689' />
+    <rtept lat='51.3822070151' lon='14.1559194230' />
+    <rtept lat='51.3820952783' lon='14.1554009145' />
+    <rtept lat='51.3819949022' lon='14.1548764750' />
+    <rtept lat='51.3819060092' lon='14.1543467432' />
+    <rtept lat='51.3818287074' lon='14.1538123644' />
+    <rtept lat='51.3817630912' lon='14.1532739894' />
+    <rtept lat='51.3817092404' lon='14.1527322740' />
+    <rtept lat='51.3816672206' lon='14.1521878779' />
+    <rtept lat='51.3816370831' lon='14.1516414643' />
+    <rtept lat='51.3816188646' lon='14.1510936985' />
+    <rtept lat='51.3816125872' lon='14.1505452478' />
+    <rtept lat='51.3816182586' lon='14.1499967802' />
+    <rtept lat='51.3816358719' lon='14.1494489636' />
+    <rtept lat='51.3816654057' lon='14.1489024654' />
+    <rtept lat='51.3817068239' lon='14.1483579510' />
+    <rtept lat='51.3817600761' lon='14.1478160837' />
+    <rtept lat='51.3818250974' lon='14.1472775235' />
+    <rtept lat='51.3819018086' lon='14.1467429263' />
+    <rtept lat='51.3819901163' lon='14.1462129432' />
+    <rtept lat='51.3820899127' lon='14.1456882198' />
+    <rtept lat='51.3822010765' lon='14.1451693953' />
+    <rtept lat='51.3823234721' lon='14.1446571014' />
+    <rtept lat='51.3824569503' lon='14.1441519623' />
+    <rtept lat='51.3826013487' lon='14.1436545931' />
+    <rtept lat='51.3827564912' lon='14.1431655998' />
+    <rtept lat='51.3829221888' lon='14.1426855780' />
+    <rtept lat='51.3830982397' lon='14.1422151123' />
+    <rtept lat='51.3832844294' lon='14.1417547759' />
+    <rtept lat='51.3834805310' lon='14.1413051296' />
+    <rtept lat='51.3836863056' lon='14.1408667210' />
+    <rtept lat='51.3839015024' lon='14.1404400843' />
+    <rtept lat='51.3841258595' lon='14.1400257392' />
+    <rtept lat='51.3843591032' lon='14.1396241906' />
+    <rtept lat='51.3846009496' lon='14.1392359275' />
+    <rtept lat='51.3848511039' lon='14.1388614230' />
+    <rtept lat='51.3851092614' lon='14.1385011335' />
+    <rtept lat='51.3853751076' lon='14.1381554979' />
+    <rtept lat='51.3856483185' lon='14.1378249373' />
+    <rtept lat='51.3859285612' lon='14.1375098547' />
+    <rtept lat='51.3862154945' lon='14.1372106338' />
+    <rtept lat='51.3865087686' lon='14.1369276394' />
+    <rtept lat='51.3868080263' lon='14.1366612163' />
+    <rtept lat='51.3871129029' lon='14.1364116893' />
+    <rtept lat='51.3874230271' lon='14.1361793625' />
+    <rtept lat='51.3877380209' lon='14.1359645191' />
+    <rtept lat='51.3880575007' lon='14.1357674209' />
+    <rtept lat='51.3883810771' lon='14.1355883083' />
+    <rtept lat='51.3887083559' lon='14.1354273997' />
+    <rtept lat='51.3890389385' lon='14.1352848912' />
+    <rtept lat='51.3893724220' lon='14.1351609568' />
+    <rtept lat='51.3897084002' lon='14.1350557475' />
+    <rtept lat='51.3900464636' lon='14.1349693918' />
+    <rtept lat='51.3903862005' lon='14.1349019951' />
+    <rtept lat='51.3907271969' lon='14.1348536397' />
+    <rtept lat='51.3910690374' lon='14.1348243847' />
+    <rtept lat='51.3914113054' lon='14.1348142660' />
+    <rtept lat='51.3917535840' lon='14.1348232961' />
+    <rtept lat='51.3920954562' lon='14.1348514642' />
+    <rtept lat='51.3924365054' lon='14.1348987363' />
+    <rtept lat='51.3927763161' lon='14.1349650549' />
+    <rtept lat='51.3931144744' lon='14.1350503395' />
+    <rtept lat='51.3934505682' lon='14.1351544863' />
+    <rtept lat='51.3937841880' lon='14.1352773687' />
+    <rtept lat='51.3941149274' lon='14.1354188372' />
+    <rtept lat='51.3944423835' lon='14.1355787195' />
+    <rtept lat='51.3947661572' lon='14.1357568211' />
+    <rtept lat='51.3947811753' lon='14.1357632616' />
+    <rtept lat='51.4074406916' lon='14.1431660895' />
+  </rte>
+  <rte>
+    <name>Procedure turn TP2</name>
+    <rtept lat='51.6379191878' lon='14.2786068708' />
+    <rtept lat='51.6512439206' lon='14.2864675843' />
+    <rtept lat='51.6512439206' lon='14.2864653795' />
+    <rtept lat='51.6515286121' lon='14.2866424475' />
+    <rtept lat='51.6518092949' lon='14.2868354224' />
+    <rtept lat='51.6520856273' lon='14.2870440693' />
+    <rtept lat='51.6523572725' lon='14.2872681341' />
+    <rtept lat='51.6526238995' lon='14.2875073438' />
+    <rtept lat='51.6528851836' lon='14.2877614072' />
+    <rtept lat='51.6531408063' lon='14.2880300149' />
+    <rtept lat='51.6533904563' lon='14.2883128395' />
+    <rtept lat='51.6536338294' lon='14.2886095366' />
+    <rtept lat='51.6538706290' lon='14.2889197447' />
+    <rtept lat='51.6541005667' lon='14.2892430860' />
+    <rtept lat='51.6543233624' lon='14.2895791665' />
+    <rtept lat='51.6545387445' lon='14.2899275768' />
+    <rtept lat='51.6547464507' lon='14.2902878923' />
+    <rtept lat='51.6549462280' lon='14.2906596742' />
+    <rtept lat='51.6551378328' lon='14.2910424694' />
+    <rtept lat='51.6553210318' lon='14.2914358114' />
+    <rtept lat='51.6554956018' lon='14.2918392211' />
+    <rtept lat='51.6556613301' lon='14.2922522069' />
+    <rtept lat='51.6558180148' lon='14.2926742654' />
+    <rtept lat='51.6559654650' lon='14.2931048825' />
+    <rtept lat='51.6561035009' lon='14.2935435335' />
+    <rtept lat='51.6562319546' lon='14.2939896836' />
+    <rtept lat='51.6563506694' lon='14.2944427894' />
+    <rtept lat='51.6564595007' lon='14.2949022987' />
+    <rtept lat='51.6565583160' lon='14.2953676514' />
+    <rtept lat='51.6566469948' lon='14.2958382804' />
+    <rtept lat='51.6567254291' lon='14.2963136123' />
+    <rtept lat='51.6567935233' lon='14.2967930678' />
+    <rtept lat='51.6568511945' lon='14.2972760625' />
+    <rtept lat='51.6568983725' lon='14.2977620079' />
+    <rtept lat='51.6569349996' lon='14.2982503117' />
+    <rtept lat='51.6569610314' lon='14.2987403789' />
+    <rtept lat='51.6569764360' lon='14.2992316121' />
+    <rtept lat='51.6569811948' lon='14.2997234129' />
+    <rtept lat='51.6569753019' lon='14.3002151816' />
+    <rtept lat='51.6569587645' lon='14.3007063192' />
+    <rtept lat='51.6569316028' lon='14.3011962270' />
+    <rtept lat='51.6568938498' lon='14.3016843079' />
+    <rtept lat='51.6568455515' lon='14.3021699672' />
+    <rtept lat='51.6567867668' lon='14.3026526130' />
+    <rtept lat='51.6567175674' lon='14.3031316571' />
+    <rtept lat='51.6566380374' lon='14.3036065157' />
+    <rtept lat='51.6565482739' lon='14.3040766101' />
+    <rtept lat='51.6564483861' lon='14.3045413674' />
+    <rtept lat='51.6563384958' lon='14.3050002212' />
+    <rtept lat='51.6562187369' lon='14.3054526125' />
+    <rtept lat='51.6560892552' lon='14.3058979898' />
+    <rtept lat='51.6559502086' lon='14.3063358105' />
+    <rtept lat='51.6558017663' lon='14.3067655411' />
+    <rtept lat='51.6556441094' lon='14.3071866578' />
+    <rtept lat='51.6554774298' lon='14.3075986476' />
+    <rtept lat='51.6553019306' lon='14.3080010084' />
+    <rtept lat='51.6551178257' lon='14.3083932499' />
+    <rtept lat='51.6549253393' lon='14.3087748943' />
+    <rtept lat='51.6547247060' lon='14.3091454765' />
+    <rtept lat='51.6545161702' lon='14.3095045450' />
+    <rtept lat='51.6542999860' lon='14.3098516623' />
+    <rtept lat='51.6540764168' lon='14.3101864054' />
+    <rtept lat='51.6538457349' lon='14.3105083667' />
+    <rtept lat='51.6536082214' lon='14.3108171538' />
+    <rtept lat='51.6533641657' lon='14.3111123906' />
+    <rtept lat='51.6531138651' lon='14.3113937174' />
+    <rtept lat='51.6528576246' lon='14.3116607915' />
+    <rtept lat='51.6525957563' lon='14.3119132877' />
+    <rtept lat='51.6523285793' lon='14.3121508983' />
+    <rtept lat='51.6520564192' lon='14.3123733339' />
+    <rtept lat='51.6517796075' lon='14.3125803238' />
+    <rtept lat='51.6514984814' lon='14.3127716157' />
+    <rtept lat='51.6512133835' lon='14.3129469767' />
+    <rtept lat='51.6509246611' lon='14.3131061934' />
+    <rtept lat='51.6506326660' lon='14.3132490719' />
+    <rtept lat='51.6503377539' lon='14.3133754382' />
+    <rtept lat='51.6500402842' lon='14.3134851386' />
+    <rtept lat='51.6497406192' lon='14.3135780396' />
+    <rtept lat='51.6494391240' lon='14.3136540280' />
+    <rtept lat='51.6491361661' lon='14.3137130116' />
+    <rtept lat='51.6488321144' lon='14.3137549185' />
+    <rtept lat='51.6485273394' lon='14.3137796980' />
+    <rtept lat='51.6482222125' lon='14.3137873201' />
+    <rtept lat='51.6479171054' lon='14.3137777755' />
+    <rtept lat='51.6476123898' lon='14.3137510761' />
+    <rtept lat='51.6473084370' lon='14.3137072546' />
+    <rtept lat='51.6470056173' lon='14.3136463646' />
+    <rtept lat='51.6467042996' lon='14.3135684803' />
+    <rtept lat='51.6464048510' lon='14.3134736970' />
+    <rtept lat='51.6461076364' lon='14.3133621302' />
+    <rtept lat='51.6458130179' lon='14.3132339159' />
+    <rtept lat='51.6455213545' lon='14.3130892106' />
+    <rtept lat='51.6452330014' lon='14.3129281907' />
+    <rtept lat='51.6449483099' lon='14.3127510525' />
+    <rtept lat='51.6446676271' lon='14.3125580120' />
+    <rtept lat='51.6443912947' lon='14.3123493044' />
+    <rtept lat='51.6441196495' lon='14.3121251841' />
+    <rtept lat='51.6438530225' lon='14.3118859244' />
+    <rtept lat='51.6435917384' lon='14.3116318168' />
+    <rtept lat='51.6433361157' lon='14.3113631709' />
+    <rtept lat='51.6430864657' lon='14.3110803142' />
+    <rtept lat='51.6428430926' lon='14.3107835913' />
+    <rtept lat='51.6426062930' lon='14.3104733638' />
+    <rtept lat='51.6423763553' lon='14.3101500097' />
+    <rtept lat='51.6421535596' lon='14.3098139229' />
+    <rtept lat='51.6419381775' lon='14.3094655130' />
+    <rtept lat='51.6417304713' lon='14.3091052044' />
+    <rtept lat='51.6415306940' lon='14.3087334361' />
+    <rtept lat='51.6413390892' lon='14.3083506609' />
+    <rtept lat='51.6411558902' lon='14.3079573454' />
+    <rtept lat='51.6409813202' lon='14.3075539685' />
+    <rtept lat='51.6408155919' lon='14.3071410216' />
+    <rtept lat='51.6406589072' lon='14.3067190079' />
+    <rtept lat='51.6405114570' lon='14.3062884413' />
+    <rtept lat='51.6403734211' lon='14.3058498464' />
+    <rtept lat='51.6402449674' lon='14.3054037575' />
+    <rtept lat='51.6401262526' lon='14.3049507178' />
+    <rtept lat='51.6400174213' lon='14.3044912793' />
+    <rtept lat='51.6399186060' lon='14.3040260015' />
+    <rtept lat='51.6398299272' lon='14.3035554513' />
+    <rtept lat='51.6397514929' lon='14.3030802017' />
+    <rtept lat='51.6396833987' lon='14.3026008316' />
+    <rtept lat='51.6396257275' lon='14.3021179250' />
+    <rtept lat='51.6395785495' lon='14.3016320699' />
+    <rtept lat='51.6395539262' lon='14.3013181526' />
+    <rtept lat='51.6379191878' lon='14.2786068708' />
+  </rte>
+  <rte>
+    <name>Procedure turn TP5</name>
+    <rtept lat='51.3417936665' lon='13.5370058204' />
+    <rtept lat='51.3281273139' lon='13.5262036984' />
+    <rtept lat='51.3281273139' lon='13.5262019045' />
+    <rtept lat='51.3279181444' lon='13.5260292395' />
+    <rtept lat='51.3277128670' lon='13.5258449981' />
+    <rtept lat='51.3275117320' lon='13.5256494047' />
+    <rtept lat='51.3273149842' lon='13.5254426977' />
+    <rtept lat='51.3271228635' lon='13.5252251290' />
+    <rtept lat='51.3269356039' lon='13.5249969637' />
+    <rtept lat='51.3267534336' lon='13.5247584799' />
+    <rtept lat='51.3265765745' lon='13.5245099680' />
+    <rtept lat='51.3264052420' lon='13.5242517309' />
+    <rtept lat='51.3262396449' lon='13.5239840831' />
+    <rtept lat='51.3260799851' lon='13.5237073509' />
+    <rtept lat='51.3259264569' lon='13.5234218713' />
+    <rtept lat='51.3257792475' lon='13.5231279921' />
+    <rtept lat='51.3256385361' lon='13.5228260714' />
+    <rtept lat='51.3255044943' lon='13.5225164770' />
+    <rtept lat='51.3253772853' lon='13.5221995860' />
+    <rtept lat='51.3252570642' lon='13.5218757845' />
+    <rtept lat='51.3251439773' lon='13.5215454668' />
+    <rtept lat='51.3250381626' lon='13.5212090355' />
+    <rtept lat='51.3249397488' lon='13.5208669004' />
+    <rtept lat='51.3248488559' lon='13.5205194781' />
+    <rtept lat='51.3247655946' lon='13.5201671920' />
+    <rtept lat='51.3246900665' lon='13.5198104711' />
+    <rtept lat='51.3246223634' lon='13.5194497500' />
+    <rtept lat='51.3245625679' lon='13.5190854681' />
+    <rtept lat='51.3245107528' lon='13.5187180691' />
+    <rtept lat='51.3244669813' lon='13.5183480006' />
+    <rtept lat='51.3244313067' lon='13.5179757133' />
+    <rtept lat='51.3244037724' lon='13.5176016606' />
+    <rtept lat='51.3243844120' lon='13.5172262983' />
+    <rtept lat='51.3243732492' lon='13.5168500836' />
+    <rtept lat='51.3243702974' lon='13.5164734746' />
+    <rtept lat='51.3243755603' lon='13.5160969302' />
+    <rtept lat='51.3243890314' lon='13.5157209090' />
+    <rtept lat='51.3244106945' lon='13.5153458690' />
+    <rtept lat='51.3244405229' lon='13.5149722671' />
+    <rtept lat='51.3244784806' lon='13.5146005583' />
+    <rtept lat='51.3245245211' lon='13.5142311954' />
+    <rtept lat='51.3245785883' lon='13.5138646284' />
+    <rtept lat='51.3246406165' lon='13.5135013037' />
+    <rtept lat='51.3247105301' lon='13.5131416639' />
+    <rtept lat='51.3247882438' lon='13.5127861471' />
+    <rtept lat='51.3248736630' lon='13.5124351863' />
+    <rtept lat='51.3249666836' lon='13.5120892092' />
+    <rtept lat='51.3250671922' lon='13.5117486370' />
+    <rtept lat='51.3251750665' lon='13.5114138848' />
+    <rtept lat='51.3252901750' lon='13.5110853602' />
+    <rtept lat='51.3254123775' lon='13.5107634635' />
+    <rtept lat='51.3255415250' lon='13.5104485869' />
+    <rtept lat='51.3256774602' lon='13.5101411138' />
+    <rtept lat='51.3258200176' lon='13.5098414189' />
+    <rtept lat='51.3259690234' lon='13.5095498673' />
+    <rtept lat='51.3261242960' lon='13.5092668142' />
+    <rtept lat='51.3262856464' lon='13.5089926044' />
+    <rtept lat='51.3264528779' lon='13.5087275720' />
+    <rtept lat='51.3266257867' lon='13.5084720400' />
+    <rtept lat='51.3268041623' lon='13.5082263195' />
+    <rtept lat='51.3269877873' lon='13.5079907101' />
+    <rtept lat='51.3271764380' lon='13.5077654987' />
+    <rtept lat='51.3273698845' lon='13.5075509599' />
+    <rtept lat='51.3275678911' lon='13.5073473550' />
+    <rtept lat='51.3277702167' lon='13.5071549321' />
+    <rtept lat='51.3279766146' lon='13.5069739258' />
+    <rtept lat='51.3281868335' lon='13.5068045566' />
+    <rtept lat='51.3284006172' lon='13.5066470308' />
+    <rtept lat='51.3286177053' lon='13.5065015406' />
+    <rtept lat='51.3288378333' lon='13.5063682632' />
+    <rtept lat='51.3290607329' lon='13.5062473611' />
+    <rtept lat='51.3292861327' lon='13.5061389816' />
+    <rtept lat='51.3295137579' lon='13.5060432569' />
+    <rtept lat='51.3297433313' lon='13.5059603038' />
+    <rtept lat='51.3299745732' lon='13.5058902233' />
+    <rtept lat='51.3302072018' lon='13.5058331009' />
+    <rtept lat='51.3304409337' lon='13.5057890064' />
+    <rtept lat='51.3306754842' lon='13.5057579935' />
+    <rtept lat='51.3309105675' lon='13.5057401001' />
+    <rtept lat='51.3311458971' lon='13.5057353482' />
+    <rtept lat='51.3313811864' lon='13.5057437436' />
+    <rtept lat='51.3316161487' lon='13.5057652762' />
+    <rtept lat='51.3318504977' lon='13.5057999199' />
+    <rtept lat='51.3320839480' lon='13.5058476325' />
+    <rtept lat='51.3323162150' lon='13.5059083561' />
+    <rtept lat='51.3325470159' lon='13.5059820167' />
+    <rtept lat='51.3327760693' lon='13.5060685246' />
+    <rtept lat='51.3330030963' lon='13.5061677747' />
+    <rtept lat='51.3332278202' lon='13.5062796460' />
+    <rtept lat='51.3334499673' lon='13.5064040023' />
+    <rtept lat='51.3336692669' lon='13.5065406923' />
+    <rtept lat='51.3338854519' lon='13.5066895493' />
+    <rtept lat='51.3340982587' lon='13.5068503923' />
+    <rtept lat='51.3343074282' lon='13.5070230252' />
+    <rtept lat='51.3345127056' lon='13.5072072377' />
+    <rtept lat='51.3347138406' lon='13.5074028056' />
+    <rtept lat='51.3349105884' lon='13.5076094905' />
+    <rtept lat='51.3351027091' lon='13.5078270408' />
+    <rtept lat='51.3352899687' lon='13.5080551913' />
+    <rtept lat='51.3354721390' lon='13.5082936642' />
+    <rtept lat='51.3356489981' lon='13.5085421690' />
+    <rtept lat='51.3358203306' lon='13.5088004028' />
+    <rtept lat='51.3359859277' lon='13.5090680510' />
+    <rtept lat='51.3361455875' lon='13.5093447877' />
+    <rtept lat='51.3362991157' lon='13.5096302755' />
+    <rtept lat='51.3364463251' lon='13.5099241667' />
+    <rtept lat='51.3365870365' lon='13.5102261032' />
+    <rtept lat='51.3367210783' lon='13.5105357171' />
+    <rtept lat='51.3368482873' lon='13.5108526311' />
+    <rtept lat='51.3369685084' lon='13.5111764591' />
+    <rtept lat='51.3370815953' lon='13.5115068066' />
+    <rtept lat='51.3371874100' lon='13.5118432709' />
+    <rtept lat='51.3372858238' lon='13.5121854420' />
+    <rtept lat='51.3373767167' lon='13.5125329031' />
+    <rtept lat='51.3374599780' lon='13.5128852308' />
+    <rtept lat='51.3375355061' lon='13.5132419956' />
+    <rtept lat='51.3375944123' lon='13.5135513936' />
+    <rtept lat='51.3417936665' lon='13.5370058204' />
+  </rte>
+  <rte>
+    <name>Procedure turn TP6</name>
+    <rtept lat='51.4054083333' lon='13.8941083333' />
+    <rtept lat='51.4093863743' lon='13.9165940743' />
+    <rtept lat='51.4093863744' lon='13.9165920106' />
+    <rtept lat='51.4094585444' lon='13.9170288339' />
+    <rtept lat='51.4095211607' lon='13.9174694297' />
+    <rtept lat='51.4095741467' lon='13.9179132611' />
+    <rtept lat='51.4096174381' lon='13.9183597873' />
+    <rtept lat='51.4096509820' lon='13.9188084639' />
+    <rtept lat='51.4096747376' lon='13.9192587443' />
+    <rtept lat='51.4096886760' lon='13.9197100798' />
+    <rtept lat='51.4096927800' lon='13.9201619202' />
+    <rtept lat='51.4096870449' lon='13.9206137150' />
+    <rtept lat='51.4096714775' lon='13.9210649135' />
+    <rtept lat='51.4096460968' lon='13.9215149659' />
+    <rtept lat='51.4096109337' lon='13.9219633238' />
+    <rtept lat='51.4095660311' lon='13.9224094407' />
+    <rtept lat='51.4095114437' lon='13.9228527730' />
+    <rtept lat='51.4094472380' lon='13.9232927804' />
+    <rtept lat='51.4093734922' lon='13.9237289267' />
+    <rtept lat='51.4092902961' lon='13.9241606804' />
+    <rtept lat='51.4091977512' lon='13.9245875153' />
+    <rtept lat='51.4090959701' lon='13.9250089114' />
+    <rtept lat='51.4089850769' lon='13.9254243550' />
+    <rtept lat='51.4088652067' lon='13.9258333400' />
+    <rtept lat='51.4087365055' lon='13.9262353679' />
+    <rtept lat='51.4085991302' lon='13.9266299489' />
+    <rtept lat='51.4084532481' lon='13.9270166021' />
+    <rtept lat='51.4082990368' lon='13.9273948565' />
+    <rtept lat='51.4081366845' lon='13.9277642510' />
+    <rtept lat='51.4079663887' lon='13.9281243356' />
+    <rtept lat='51.4077883570' lon='13.9284746716' />
+    <rtept lat='51.4076028063' lon='13.9288148321' />
+    <rtept lat='51.4074099627' lon='13.9291444027' />
+    <rtept lat='51.4072100611' lon='13.9294629817' />
+    <rtept lat='51.4070033451' lon='13.9297701811' />
+    <rtept lat='51.4067900665' lon='13.9300656266' />
+    <rtept lat='51.4065704852' lon='13.9303489582' />
+    <rtept lat='51.4063448686' lon='13.9306198309' />
+    <rtept lat='51.4061134918' lon='13.9308779146' />
+    <rtept lat='51.4058766364' lon='13.9311228949' />
+    <rtept lat='51.4056345913' lon='13.9313544734' />
+    <rtept lat='51.4053876511' lon='13.9315723682' />
+    <rtept lat='51.4051361169' lon='13.9317763136' />
+    <rtept lat='51.4048802950' lon='13.9319660615' />
+    <rtept lat='51.4046204971' lon='13.9321413806' />
+    <rtept lat='51.4043570398' lon='13.9323020575' />
+    <rtept lat='51.4040902441' lon='13.9324478966' />
+    <rtept lat='51.4038204349' lon='13.9325787202' />
+    <rtept lat='51.4035479410' lon='13.9326943692' />
+    <rtept lat='51.4032730944' lon='13.9327947027' />
+    <rtept lat='51.4029962299' lon='13.9328795986' />
+    <rtept lat='51.4027176850' lon='13.9329489536' />
+    <rtept lat='51.4024377988' lon='13.9330026834' />
+    <rtept lat='51.4021569125' lon='13.9330407226' />
+    <rtept lat='51.4018753683' lon='13.9330630251' />
+    <rtept lat='51.4015935091' lon='13.9330695638' />
+    <rtept lat='51.4013116784' lon='13.9330603309' />
+    <rtept lat='51.4010302195' lon='13.9330353378' />
+    <rtept lat='51.4007494754' lon='13.9329946150' />
+    <rtept lat='51.4004697881' lon='13.9329382125' />
+    <rtept lat='51.4001914983' lon='13.9328661989' />
+    <rtept lat='51.3999149451' lon='13.9327786622' />
+    <rtept lat='51.3996404655' lon='13.9326757092' />
+    <rtept lat='51.3993683938' lon='13.9325574653' />
+    <rtept lat='51.3990990615' lon='13.9324240749' />
+    <rtept lat='51.3988327969' lon='13.9322757006' />
+    <rtept lat='51.3985699242' lon='13.9321125232' />
+    <rtept lat='51.3983107637' lon='13.9319347416' />
+    <rtept lat='51.3980556312' lon='13.9317425726' />
+    <rtept lat='51.3978048376' lon='13.9315362504' />
+    <rtept lat='51.3975586883' lon='13.9313160264' />
+    <rtept lat='51.3973174834' lon='13.9310821690' />
+    <rtept lat='51.3970815165' lon='13.9308349632' />
+    <rtept lat='51.3968510753' lon='13.9305747103' />
+    <rtept lat='51.3966264405' lon='13.9303017273' />
+    <rtept lat='51.3964078858' lon='13.9300163469' />
+    <rtept lat='51.3961956775' lon='13.9297189168' />
+    <rtept lat='51.3959900740' lon='13.9294097995' />
+    <rtept lat='51.3957913259' lon='13.9290893714' />
+    <rtept lat='51.3955996754' lon='13.9287580231' />
+    <rtept lat='51.3954153559' lon='13.9284161582' />
+    <rtept lat='51.3952385920' lon='13.9280641932' />
+    <rtept lat='51.3950695990' lon='13.9277025569' />
+    <rtept lat='51.3949085829' lon='13.9273316898' />
+    <rtept lat='51.3947557398' lon='13.9269520437' />
+    <rtept lat='51.3946112560' lon='13.9265640812' />
+    <rtept lat='51.3944753074' lon='13.9261682748' />
+    <rtept lat='51.3943480598' lon='13.9257651066' />
+    <rtept lat='51.3942296680' lon='13.9253550678' />
+    <rtept lat='51.3941202765' lon='13.9249386579' />
+    <rtept lat='51.3940200184' lon='13.9245163840' />
+    <rtept lat='51.3939290159' lon='13.9240887606' />
+    <rtept lat='51.3938473798' lon='13.9236563086' />
+    <rtept lat='51.3937752098' lon='13.9232195546' />
+    <rtept lat='51.3937125935' lon='13.9227790307' />
+    <rtept lat='51.3936596075' lon='13.9223352734' />
+    <rtept lat='51.3936163161' lon='13.9218888233' />
+    <rtept lat='51.3935827722' lon='13.9214402241' />
+    <rtept lat='51.3935590166' lon='13.9209900224' />
+    <rtept lat='51.3935450782' lon='13.9205387663' />
+    <rtept lat='51.3935409742' lon='13.9200870056' />
+    <rtept lat='51.3935467093' lon='13.9196352906' />
+    <rtept lat='51.3935622767' lon='13.9191841713' />
+    <rtept lat='51.3935876574' lon='13.9187341973' />
+    <rtept lat='51.3936228205' lon='13.9182859168' />
+    <rtept lat='51.3936677231' lon='13.9178398756' />
+    <rtept lat='51.3937223105' lon='13.9173966171' />
+    <rtept lat='51.3937865162' lon='13.9169566812' />
+    <rtept lat='51.3938602620' lon='13.9165206037' />
+    <rtept lat='51.3939434581' lon='13.9160889159' />
+    <rtept lat='51.3940360030' lon='13.9156621436' />
+    <rtept lat='51.3941377841' lon='13.9152408065' />
+    <rtept lat='51.3942486773' lon='13.9148254179' />
+    <rtept lat='51.3943685475' lon='13.9144164839' />
+    <rtept lat='51.3944972487' lon='13.9140145025' />
+    <rtept lat='51.3946346240' lon='13.9136199634' />
+    <rtept lat='51.3947805061' lon='13.9132333472' />
+    <rtept lat='51.3949347174' lon='13.9128551249' />
+    <rtept lat='51.3950970697' lon='13.9124857572' />
+    <rtept lat='51.3952673655' lon='13.9121256941' />
+    <rtept lat='51.3954453972' lon='13.9117753742' />
+    <rtept lat='51.3956278076' lon='13.9114387222' />
+    <rtept lat='51.4054083333' lon='13.8941083333' />
+  </rte>
+  <wpt lat='51.4918857478' lon='13.8816078939'>
+    <sym>airport</sym>
+  </wpt>
+  <wpt lat='51.522934384375' lon='13.9054492564'>
+    <sym>start</sym>
+  </wpt>
+  <wpt lat='51.4626611111' lon='13.7925861111'>
+    <sym>finish</sym>
+  </wpt>
+  <wpt lat='51.491780655555' lon='13.880467020555'>
+    <sym>airport</sym>
+  </wpt>
+</gpx>

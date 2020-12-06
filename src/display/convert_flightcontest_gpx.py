@@ -1,12 +1,12 @@
 # from lxml import etree
 import logging
 from plistlib import Dict
-from typing import List
+from typing import List, Tuple
 
 import gpxpy
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing
-from display.models import Track, is_procedure_turn, create_perpendicular_line_at_end
+from display.models import Track, is_procedure_turn, create_perpendicular_line_at_end, Scorecard
 from gpxpy.gpx import GPX
 
 from display.waypoint import Waypoint
@@ -14,12 +14,13 @@ from display.waypoint import Waypoint
 logger = logging.getLogger(__name__)
 
 
-
 def create_track_from_gpx(track_name: str, file) -> Track:
     logger.debug("Loading GPX track {}".format(track_name))
     gpx = gpxpy.parse(file)
     track = []
     waypoint_map = {}
+    landing_gate = None
+    takeoff_gate = None
     for route in gpx.routes:
         for flightcontest in route.extensions:
             route_extension = flightcontest.find("route")
@@ -59,14 +60,27 @@ def create_track_from_gpx(track_name: str, file) -> Track:
                 waypoint.end_curved = gate_extension.attrib["endcurved"] == "yes"
                 waypoint.type = gate_extension.attrib["type"].lower()
                 waypoint.gate_line_infinite = extend_line(waypoint.gate_line[0], waypoint.gate_line[1], 40)
+                if waypoint.type == "to":
+                    assert not takeoff_gate
+                    takeoff_gate = waypoint
+
+                if waypoint.type == "ldg":
+                    assert not landing_gate
+                    landing_gate = waypoint
 
     calculate_and_update_legs(track)
     insert_gate_ranges(track)
 
     starting_line = track[0]
-    object = Track(name=track_name, waypoints=track, starting_line=starting_line)
+    object = Track(name=track_name, waypoints=track, starting_line=starting_line, takeoff_gate=takeoff_gate,
+                   landing_gate=landing_gate)
     object.save()
     return object
+
+
+def calculate_extended_gate(waypoint: Waypoint, scorecard: "Scorecard") -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    return extend_line(waypoint.gate_line[0], waypoint.gate_line[1],
+                       scorecard.get_extended_gate_width_for_gate_type(waypoint.type))
 
 
 def create_track_from_csv(track_name: str, lines: List[str]) -> Track:
@@ -95,7 +109,8 @@ def create_track_from_csv(track_name: str, lines: List[str]) -> Track:
         # Switch from longitude, Latitude tool attitude, longitude
         gates[index + 1].gate_line[0].reverse()
         gates[index + 1].gate_line[1].reverse()
-        gates[index + 1].gate_line_infinite = extend_line(gates[index + 1].gate_line[0], gates[index + 1].gate_line[1], 40)
+        gates[index + 1].gate_line_infinite = extend_line(gates[index + 1].gate_line[0], gates[index + 1].gate_line[1],
+                                                          40)
 
     gates[0].gate_line = create_perpendicular_line_at_end(gates[1].longitude,
                                                           gates[1].latitude,

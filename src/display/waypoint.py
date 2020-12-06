@@ -6,6 +6,7 @@ class Waypoint:
         self.elevation = 0  # type: float
         self.gate_line = []
         self.gate_line_infinite = None
+        self.gate_line_extended = None
         self.width = 0  # type: float
         self.time_check = False
         self.gate_check = False

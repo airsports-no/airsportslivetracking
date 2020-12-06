@@ -43,6 +43,8 @@ class Track(models.Model):
     name = models.CharField(max_length=200)
     waypoints = MyPickledObjectField(default=list)
     starting_line = MyPickledObjectField(default=list)
+    takeoff_gate = MyPickledObjectField(default=None, null=True)
+    landing_gate = MyPickledObjectField(default=None, null=True)
 
     def __str__(self):
         return self.name
@@ -153,8 +155,6 @@ class Contest(models.Model):
     name = models.CharField(max_length=200)
     contest_type = models.IntegerField(choices=CONTEST_TYPES, default=PRECISION)
     track = models.ForeignKey(Track, on_delete=models.SET_NULL, null=True)
-    server_address = models.CharField(max_length=200, blank=True)
-    server_token = models.CharField(max_length=200, blank=True)
     start_time = models.DateTimeField()
     finish_time = models.DateTimeField()
     wind_speed = models.FloatField(default=0)
@@ -167,6 +167,7 @@ class Contest(models.Model):
 class Scorecard(models.Model):
     name = models.CharField(max_length=100, default="default", unique=True)
     backtracking = models.FloatField(default=200)
+    backtracking_grace_time_seconds = models.FloatField(default=5)
     below_minimum_altitude = models.FloatField(default=500)
 
     takeoff_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
@@ -213,10 +214,19 @@ class Scorecard(models.Model):
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.missed_procedure_turn
 
+    def get_bad_crossing_extended_gate_penalty_for_gate_type(self, gate_type: str) -> float:
+        gate_score = self.get_gate_scorecard(gate_type)
+        return gate_score.bad_crossing_extended_gate_penalty
+
+    def get_extended_gate_width_for_gate_type(self, gate_type: str) -> float:
+        gate_score = self.get_gate_scorecard(gate_type)
+        return gate_score.extended_gate_width
+
 
 class GateScore(models.Model):
-    earliest_limit = models.FloatField(default=60)
-    latest_limit = models.FloatField(default=60)
+    extended_gate_width = models.FloatField(default=0,
+                                            help_text="For SP it is 2 (1 nm each side), for tp with procedure turn it is 6")
+    bad_crossing_extended_gate_penalty = models.FloatField(default=200)
     graceperiod_before = models.FloatField(default=3)
     graceperiod_after = models.FloatField(default=3)
     maximum_penalty = models.FloatField(default=100)

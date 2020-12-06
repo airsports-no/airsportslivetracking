@@ -4,8 +4,10 @@ from datetime import timedelta
 from typing import List, TYPE_CHECKING, Optional
 
 from display.calculators.positions_and_gates import Gate, Position
+from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg
 from display.models import ContestantTrack, Contestant
+from display.waypoint import Waypoint
 
 if TYPE_CHECKING:
     from influx_facade import InfluxFacade
@@ -43,7 +45,16 @@ class Calculator(threading.Thread):
         _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
         self.scorecard = self.contestant.scorecard
         self.gates = self.create_gates()
-        self.takeoff_gate = None
+
+        self.starting_line = self.gates[0]
+        self.takeoff_gate = Gate(self.contestant.contest.track.takeoff_gate,
+                                 self.contestant.takeoff_time,
+                                 calculate_extended_gate(self.contestant.contest.track.takeoff_gate,
+                                                         self.scorecard)) if self.contestant.contest.track.takeoff_gate else None
+        self.landing_gate = Gate(self.contestant.contest.track.landing_gate,
+                                 self.contestant.finished_by_time,
+                                 calculate_extended_gate(self.contestant.contest.track.landing_gate,
+                                                         self.scorecard)) if self.contestant.contest.track.landing_gate else None
         self.outstanding_gates = list(self.gates)
 
     def run(self):
@@ -74,8 +85,8 @@ class Calculator(threading.Thread):
         waypoints = self.contestant.contest.track.waypoints
         expected_times = self.contestant.gate_times
         gates = []
-        for item in waypoints:
-            gates.append(Gate(item, expected_times[item.name]))
+        for item in waypoints:  # type: Waypoint
+            gates.append(Gate(item, expected_times[item.name], calculate_extended_gate(item, self.scorecard)))
         return gates
 
     def add_positions(self, positions):
@@ -89,54 +100,52 @@ class Calculator(threading.Thread):
         self.tracking_state = tracking_state
         self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
-    def get_intersect_time(self, gate: "Gate"):
-        if len(self.track) > 1:
-            segment = self.track[-2:]  # type: List[Position]
-            intersection = line_intersect(segment[0].longitude, segment[0].latitude, segment[1].longitude,
-                                          segment[1].latitude, gate.x1, gate.y1, gate.x2, gate.y2)
-
-            if intersection:
-                fraction = fraction_of_leg(segment[0].longitude, segment[0].latitude, segment[1].longitude,
-                                           segment[1].latitude, intersection[0], intersection[1])
-                time_difference = (segment[1].time - segment[0].time).total_seconds()
-                return segment[0].time + timedelta(seconds=fraction * time_difference)
-        return None
-
-    def get_intersect_time_infinite_gate(self, gate: "Gate"):
-        if len(self.track) > 1:
-            segment = self.track[-2:]  # type: List[Position]
-            intersection = line_intersect(segment[0].longitude, segment[0].latitude, segment[1].longitude,
-                                          segment[1].latitude, gate.x1_infinite, gate.y1_infinite, gate.x2_infinite,
-                                          gate.y2_infinite)
-            if intersection:
-                fraction = fraction_of_leg(segment[0].longitude, segment[0].latitude, segment[1].longitude,
-                                           segment[1].latitude, intersection[0], intersection[1])
-                time_difference = (segment[1].time - segment[0].time).total_seconds()
-                return segment[0].time + timedelta(seconds=fraction * time_difference)
-        return None
+    def check_extended_intersections(self):
+        i = len(self.outstanding_gates) - 1
+        crossed_gate = False
+        while i >= 0:
+            gate = self.outstanding_gates[i]  # type
+            intersection_time = gate.get_gate_extended_intersection_time(self.track)
+            if intersection_time:
+                gate.crossed_
 
     def check_intersections(self, force_gate: Optional["Gate"] = None):
+        # Check takeoff if exists
+        if self.takeoff_gate is not None:
+            if not self.takeoff_gate.has_been_passed():
+                intersection_time = self.takeoff_gate.get_gate_intersection_time(self.track)
+                if intersection_time:
+                    logger.info("{}: Passing takeoff line {}".format(self.contestant, intersection_time))
+                    self.update_tracking_state(self.TAKEOFF)
+                    self.takeoff_gate.passing_time = intersection_time
+                else:
+                    return
         # Check starting line
-        # if not self.starting_line.has_been_passed():
-        #
-        #     intersection_time = self.get_intersect_time(self.starting_line)
-        #     if intersection_time:
-        #         logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
-        #         self.update_tracking_state(self.STARTED)
-        #         self.starting_line.passing_time = intersection_time
+        if not self.starting_line.has_been_passed():
+            # First check extended and see if we are in the correct direction
+            intersection_time = self.starting_line.get_gate_extended_intersection_time(self.track)
+            if intersection_time:
+                if self.starting_line.is_passed_in_correct_direction_track(self.track):
+                    # Start the clock
+                    logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
+                    self.update_tracking_state(self.STARTED)
+                    self.starting_line.passing_time = intersection_time
+                else:
+                    # Add penalty for crossing in the wrong direction
+                    score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
+                    self.update_score(self.starting_line, score,
+                                      "{} points for crossing extended starting gate backwards".format(score),
+                                      self.track[-1].latitude, self.track[-1].longitude, "anomaly")
         i = len(self.outstanding_gates) - 1
         crossed_gate = False
         while i >= 0:
             gate = self.outstanding_gates[i]
-            intersection_time = self.get_intersect_time(gate)
+            intersection_time = gate.get_gate_intersection_time(self.track)
             if intersection_time:
-                logger.info("{}: Crossed gate {}".format(self.contestant, gate))
+                logger.info("{}: Crossed gate {} at {}".format(self.contestant, gate, intersection_time))
                 gate.passing_time = intersection_time
+                gate.extended_passing_time = intersection_time
                 crossed_gate = True
-                if gate.type == "sp":
-                    self.update_tracking_state(self.STARTED)
-                elif gate.type == "tp":
-                    self.update_tracking_state(self.TAKEOFF)
             if force_gate == gate:
                 crossed_gate = True
             if crossed_gate:
@@ -145,17 +154,26 @@ class Calculator(threading.Thread):
                     gate.missed = True
                 self.outstanding_gates.pop(i)
             i -= 1
+        if len(self.outstanding_gates) > 0:
+            extended_next_gate = self.outstanding_gates[0]  # type: Gate
+            if extended_next_gate.type != "sp":
+                intersection_time = extended_next_gate.get_gate_extended_intersection_time(self.track)
+                if intersection_time:
+                    extended_next_gate.extended_passing_time = intersection_time
         if not crossed_gate and len(self.outstanding_gates) > 0:
             extended_next_gate = self.outstanding_gates[0]  # type: Gate
-            intersection_time = self.get_intersect_time_infinite_gate(extended_next_gate)
-            if intersection_time:
-                logger.info("{}: Crossed extended gate {} (but maybe missed the gate)".format(self.contestant,
-                                                                                              extended_next_gate))
-                extended_next_gate.maybe_missed_time = self.track[-1].time
+            if extended_next_gate.type != "sp":
+                intersection_time = extended_next_gate.get_gate_infinite_intersection_time(self.track)
+                if intersection_time and extended_next_gate.is_passed_in_correct_direction_track(self.track):
+                    logger.info("{}: Crossed extended gate {} (but maybe missed the gate) at {}".format(self.contestant,
+                                                                                                        extended_next_gate,
+                                                                                                        self.track[
+                                                                                                            -1].time))
+                    extended_next_gate.maybe_missed_time = self.track[-1].time
         if len(self.outstanding_gates) > 0:
             gate = self.outstanding_gates[0]
             if gate.maybe_missed_time and (self.track[-1].time - gate.maybe_missed_time).total_seconds() > 15:
-                logger.info("{}: Did not cross {} within 60 seconds of extended crossing, so missing gate".format(
+                logger.info("{}: Did not cross {} within 15 seconds of extended crossing, so missing gate".format(
                     self.contestant,
                     gate))
                 gate.missed = True

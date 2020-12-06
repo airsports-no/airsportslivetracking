@@ -29,6 +29,8 @@ class WaypointSerialiser(serializers.Serializer):
 class TrackSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
     starting_line = WaypointSerialiser
+    landing_gate = WaypointSerialiser
+    takeoff_gate = WaypointSerialiser
 
     class Meta:
         model = Track
