@@ -85,6 +85,27 @@ class PrecisionCalculator(Calculator):
                 have_seen_inside = True
         self.inside_gates = insides
 
+    def check_intersections(self, force_gate: Optional["Gate"] = None):
+        # Check starting line
+        if not self.starting_line.has_been_passed():
+            # First check extended and see if we are in the correct direction
+            # Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
+            # A 2.2.14
+            intersection_time = self.starting_line.get_gate_extended_intersection_time(self.track)
+            if intersection_time:
+                if self.starting_line.is_passed_in_correct_direction_track(self.track):
+                    # Start the clock
+                    logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
+                    self.update_tracking_state(self.STARTED)
+                    self.starting_line.passing_time = intersection_time
+                else:
+                    # Add penalty for crossing in the wrong direction
+                    score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
+                    self.update_score(self.starting_line, score,
+                                      "{} points for crossing extended starting gate backwards".format(score),
+                                      self.track[-1].latitude, self.track[-1].longitude, "anomaly")
+        super(PrecisionCalculator, self).check_intersections(force_gate=force_gate)
+
     def calculate_score(self):
         # self.check_if_gate_has_been_missed()
         self.check_intersections()
@@ -320,7 +341,7 @@ class PrecisionCalculator(Calculator):
                                               score, self.current_procedure_turn_gate),
                                           last_position.latitude, last_position.longitude, "anomaly")
         else:
-            if bearing_difference > 90:
+            if bearing_difference > self.scorecard.backtracking_bearing_difference:
                 if self.tracking_state == self.TRACKING:
                     # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
                     if last_gate_last and calculate_distance_lat_lon(
@@ -333,8 +354,8 @@ class PrecisionCalculator(Calculator):
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
                         self.backtracking_start_time = None
-                        self.update_score(next_gate_last, self.scorecard.backtracking,
-                                          "{} points for backtracking at {} {}".format(self.scorecard.backtracking,
+                        self.update_score(next_gate_last, self.scorecard.backtracking_penalty,
+                                          "{} points for backtracking at {} {}".format(self.scorecard.backtracking_penalty,
                                                                                        current_leg, next_gate_last),
                                           last_position.latitude, last_position.longitude, "anomaly")
             else:

@@ -1,6 +1,6 @@
 import logging
 import math
-from typing import Tuple
+from typing import Tuple, Optional
 from geopy.distance import geodesic, great_circle
 
 R = 6371000  # metres
@@ -60,8 +60,8 @@ def calculate_fractional_distance_point_lat_lon(start: Tuple[float, float], fini
     return (finalLatitude, finalLongitude)
 
 
-def extend_line(start: Tuple[float, float], finish: Tuple[float, float], distance: float) -> Tuple[
-    Tuple[float, float], Tuple[float, float]]:
+def extend_line(start: Tuple[float, float], finish: Tuple[float, float], distance: float) -> Optional[Tuple[
+    Tuple[float, float], Tuple[float, float]]]:
     """
 
     :param start: degrees
@@ -69,6 +69,8 @@ def extend_line(start: Tuple[float, float], finish: Tuple[float, float], distanc
     :param distance: nauticalMiles
     :return:
     """
+    if distance == 0:
+        return None
     line_length = calculate_distance_lat_lon(start, finish)
     distance_scale = 1852*distance / (2 * line_length)
     new_finish = calculate_fractional_distance_point_lat_lon(start, finish, 1 + distance_scale)

@@ -75,7 +75,7 @@ class Gate:
         return None
 
     def get_gate_extended_intersection_time(self, track: List[Position]) -> Optional[datetime]:
-        if len(track) > 1:
+        if len(track) > 1 and self.gate_line_extended:
             return get_intersect_time(track[-2], track[-1], self.gate_line_extended[0], self.gate_line_extended[1])
         return None
 

@@ -6,6 +6,7 @@ from django.test import TestCase, TransactionTestCase
 
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.convert_flightcontest_gpx import create_track_from_gpx
+from display.default_scorecards import default_scorecard_fai_precision_2020
 from display.models import Aeroplane, Contest, Scorecard, Team, Contestant, ContestantTrack, GateScore
 from display.views import create_track_from_csv
 
@@ -106,28 +107,29 @@ class Test2017WPFC(TransactionTestCase):
                                               wind_direction=60,
                                               wind_speed=20)
         self.team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=self.aeroplane)
-        self.scorecard = Scorecard.objects.create(
-            backtracking=200,
-            below_minimum_altitude=500,
-        )
-        self.scores = {
-            "extended_gate_width": 6,  # The correct for turning points with procedure turns
-            "bad_crossing_extended_gate_penalty": 100,
-            "graceperiod_before": 2,
-            "graceperiod_after": 2,
-            "maximum_penalty": 100,
-            "penalty_per_second": 3,
-            "missed_penalty": 100,
-            "missed_procedure_turn": 200
-        }
-        self.scorecard.starting_point_gate_score = GateScore.objects.create(**{**self.scores, "extended_gate_width": 2})
-        self.scorecard.takeoff_gate_score = GateScore.objects.create(
-            **{**self.scores, "graceperiod_before": 0, "graceperiod_after": 60, "penalty_per_second": 100})
-        self.scorecard.landing_gate_score = GateScore.objects.create(**self.scores)
-        self.scorecard.finish_point_gate_score = GateScore.objects.create(**self.scores)
-        self.scorecard.turning_point_gate_score = GateScore.objects.create(**self.scores)
-        self.scorecard.secret_gate_score = GateScore.objects.create(**self.scores)
-        self.scorecard.save()
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+        # self.scorecard = Scorecard.objects.create(
+        #     backtracking=200,
+        #     below_minimum_altitude=500,
+        # )
+        # self.scores = {
+        #     "extended_gate_width": 6,  # The correct for turning points with procedure turns
+        #     "bad_crossing_extended_gate_penalty": 100,
+        #     "graceperiod_before": 2,
+        #     "graceperiod_after": 2,
+        #     "maximum_penalty": 100,
+        #     "penalty_per_second": 3,
+        #     "missed_penalty": 100,
+        #     "missed_procedure_turn": 200
+        # }
+        # self.scorecard.starting_point_gate_score = GateScore.objects.create(**{**self.scores, "extended_gate_width": 2})
+        # self.scorecard.takeoff_gate_score = GateScore.objects.create(
+        #     **{**self.scores, "graceperiod_before": 0, "graceperiod_after": 60, "penalty_per_second": 100})
+        # self.scorecard.landing_gate_score = GateScore.objects.create(**self.scores)
+        # self.scorecard.finish_point_gate_score = GateScore.objects.create(**self.scores)
+        # self.scorecard.turning_point_gate_score = GateScore.objects.create(**self.scores)
+        # self.scorecard.secret_gate_score = GateScore.objects.create(**self.scores)
+        # self.scorecard.save()
 
     def test_101(self):
         track = load_track_points(

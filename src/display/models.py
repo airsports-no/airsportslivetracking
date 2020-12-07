@@ -166,9 +166,10 @@ class Contest(models.Model):
 
 class Scorecard(models.Model):
     name = models.CharField(max_length=100, default="default", unique=True)
-    backtracking = models.FloatField(default=200)
+    backtracking_penalty = models.FloatField(default=200)
+    backtracking_bearing_difference = models.FloatField(default = 200)
     backtracking_grace_time_seconds = models.FloatField(default=5)
-    below_minimum_altitude = models.FloatField(default=500)
+    below_minimum_altitude_penalty = models.FloatField(default=500)
 
     takeoff_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
                                               related_name="takeoff")
