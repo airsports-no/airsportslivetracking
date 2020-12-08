@@ -49,7 +49,7 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
 
 
 class TeamSerialiser(serializers.ModelSerializer):
-    aeroplane = AeroplaneSerialiser()
+    aeroplane = SlugRelatedField(slug_field="registration", queryset=Aeroplane.objects.all())
 
     class Meta:
         model = Team
@@ -66,7 +66,9 @@ class ContestantSerialiser(serializers.ModelSerializer):
     team = TeamSerialiser()
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the track file) and the values are $date-time strings (with time zone)")
-    scorecard = ChoicesSlugRelatedField(slug_field="name", queryset=Scorecard.objects.all())
+    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
+                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                     ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
 
     class Meta:
         model = Contestant

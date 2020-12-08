@@ -150,16 +150,21 @@ class Contest(models.Model):
     ANR = 1
     CONTEST_TYPES = (
         (PRECISION, "Precision"),
-        (ANR, "ANR")
+        # (ANR, "ANR")
     )
 
     name = models.CharField(max_length=200)
-    contest_type = models.IntegerField(choices=CONTEST_TYPES, default=PRECISION)
+    contest_calculator_type = models.IntegerField(choices=CONTEST_TYPES, default=PRECISION,
+                                                  help_text="Supported contest calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
+                                                      CONTEST_TYPES))
     track = models.ForeignKey(Track, on_delete=models.SET_NULL, null=True)
-    start_time = models.DateTimeField()
-    finish_time = models.DateTimeField()
-    wind_speed = models.FloatField(default=0)
-    wind_direction = models.FloatField(default=0)
+    start_time = models.DateTimeField(help_text="The start time of the contest. Not really important, but nice to have")
+    finish_time = models.DateTimeField(
+        help_text="The finish time of the contest. Not really important, but nice to have")
+    wind_speed = models.FloatField(default=0,
+                                   help_text="The contest wind speed. This is used to calculate gate times if these are not predefined.")
+    wind_direction = models.FloatField(default=0,
+                                       help_text="The contest wind direction. This is used to calculate gate times if these are not predefined.")
 
     # created_by = models.ForeignKey(User, on_delete=models.CASCADE)
 
@@ -262,13 +267,21 @@ class GateScore(models.Model):
 class Contestant(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
-    takeoff_time = models.DateTimeField()
-    minutes_to_starting_point = models.FloatField(default=5)
-    finished_by_time = models.DateTimeField(null=True)
-    air_speed = models.FloatField(default=70)
-    contestant_number = models.IntegerField()
-    traccar_device_name = models.CharField(max_length=100)
-    scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT, null=True)
+    takeoff_time = models.DateTimeField(
+        help_text="The time the take of gate (if it exists) should be crossed. Otherwise it is the time power should be applied")
+    minutes_to_starting_point = models.FloatField(default=5,
+                                                  help_text="The number of minutes from the take-off time until the starting point")
+    finished_by_time = models.DateTimeField(null=True,
+                                            help_text="The time it is expected that the contest has finished and landed (used among other things for knowing when the tracker is busy). Is also used for the gate time for the landing gate")
+    air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
+    contestant_number = models.PositiveIntegerField(help_text="A unique number for the contestant in this contest")
+    traccar_device_name = models.CharField(max_length=100,
+                                           help_text="ID of physical tracking device that will be brought into the plane")
+    scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT, null=True,
+                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                      lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
+    predefined_gate_times = MyPickledObjectField(default=None, null=True, blank=True,
+                                                 help_text="Dictionary of gates and their starting times (with time zone)")
 
     class Meta:
         unique_together = ("contest", "contestant_number")
@@ -284,6 +297,8 @@ class Contestant(models.Model):
 
     @property
     def gate_times(self) -> Dict:
+        if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
+            return self.predefined_gate_times
         crossing_times = {}
         gates = self.contest.track.waypoints
         crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)

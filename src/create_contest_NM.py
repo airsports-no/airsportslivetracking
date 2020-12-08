@@ -52,7 +52,7 @@ traccar.delete_all_devices()
 for item in contestants.keys():
     traccar.create_device(item, item)
 
-scorecard=get_default_scorecard()
+scorecard = get_default_scorecard()
 
 for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
     contestant_name = os.path.splitext(os.path.basename(file))[0]

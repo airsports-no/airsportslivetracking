@@ -9,5 +9,5 @@ from display.models import Contest
 
 
 def calculator_factory(contestant: "Contestant", influx: "InfluxFacade") -> "Calculator":
-    if contestant.contest.contest_type == Contest.PRECISION:
+    if contestant.contest.contest_calculator_type == Contest.PRECISION:
         return PrecisionCalculator(contestant, influx)
