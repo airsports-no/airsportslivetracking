@@ -17,8 +17,20 @@ from django.contrib import admin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path, include
 from django.views import static
+from drf_yasg import openapi
+from drf_yasg.views import get_schema_view
+from rest_framework import permissions
 
 from display.views import ContestList
+
+docs = get_schema_view(
+    openapi.Info(
+        title='Contest tracking API',
+        default_version='v1',
+        description="Full API for Airsports tracker",
+    ),
+    permission_classes=(permissions.AllowAny,),
+)
 
 urlpatterns = [
     path('', ContestList.as_view()),
@@ -26,5 +38,6 @@ urlpatterns = [
     path('display/', include("display.urls")),
     path('accounts/login/', LoginView.as_view(template_name='login.html'), name="login"),
     path('accounts/logout/', LogoutView.as_view(), name="logout"),
+    path('docs/', docs.with_ui()),
 
 ]

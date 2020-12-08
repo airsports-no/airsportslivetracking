@@ -22,6 +22,9 @@ for item in deleted:
     traccar.create_device(item["name"], item["uniqueId"])
 
 influx = InfluxFacade()
+print("Dropping database")
 influx.drop_database()
+print("Creating new database")
 influx.create_database()
+print("Deleting all tracks")
 ContestantTrack.objects.all().delete()

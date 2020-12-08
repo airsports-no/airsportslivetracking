@@ -24,7 +24,7 @@ class TestContestantGatesCalculation(TestCase):
                                              gate_perfect_limit_seconds=2,
                                              maximum_gate_score=100,
                                              backtracking=200,
-                                             missed_procedure_turn=200,
+                                             missed_procedure_turn_penalty=200,
                                              below_minimum_altitude=500,
                                              takeoff_time_limit_seconds=60,
                                              missed_takeoff_gate=100

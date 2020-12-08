@@ -45,6 +45,7 @@ class Calculator(threading.Thread):
         _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
         self.scorecard = self.contestant.scorecard
         self.gates = self.create_gates()
+        self.position_update_lock = threading.Lock()
 
         self.starting_line = self.gates[0]
         self.takeoff_gate = Gate(self.contestant.contest.track.takeoff_gate,
@@ -63,7 +64,8 @@ class Calculator(threading.Thread):
             self.process_event.wait(self.loop_time)
             self.process_event.clear()
             while len(self.pending_points) > 0:
-                self.track.append(self.pending_points.pop(0))
+                with self.position_update_lock:
+                    self.track.append(self.pending_points.pop(0))
                 if len(self.track) > 1:
                     self.calculate_score()
         logger.info("Terminating calculator for {}".format(self.contestant))
@@ -90,7 +92,8 @@ class Calculator(threading.Thread):
         return gates
 
     def add_positions(self, positions):
-        self.pending_points.extend([Position(**position) for position in positions])
+        with self.position_update_lock:
+            self.pending_points.extend([Position(**position) for position in positions])
         self.process_event.set()
 
     def update_tracking_state(self, tracking_state: int):
@@ -156,10 +159,11 @@ class Calculator(threading.Thread):
                     extended_next_gate.maybe_missed_time = self.track[-1].time
         if len(self.outstanding_gates) > 0:
             gate = self.outstanding_gates[0]
-            if gate.maybe_missed_time and (self.track[-1].time - gate.maybe_missed_time).total_seconds() > 15:
-                logger.info("{}: Did not cross {} within 15 seconds of extended crossing, so missing gate".format(
+            time_limit = 10
+            if gate.maybe_missed_time and (self.track[-1].time - gate.maybe_missed_time).total_seconds() > time_limit:
+                logger.info("{}: Did not cross {} within {} seconds of extended crossing, so missing gate".format(
                     self.contestant,
-                    gate))
+                    gate, time_limit))
                 gate.missed = True
                 self.outstanding_gates.pop(0)
 

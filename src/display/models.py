@@ -3,6 +3,7 @@ import math
 from plistlib import Dict
 from typing import List, Optional
 import cartopy.crs as ccrs
+from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 
 from django.db import models
@@ -160,6 +161,8 @@ class Contest(models.Model):
     wind_speed = models.FloatField(default=0)
     wind_direction = models.FloatField(default=0)
 
+    # created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.isoformat())
 
@@ -167,7 +170,7 @@ class Contest(models.Model):
 class Scorecard(models.Model):
     name = models.CharField(max_length=100, default="default", unique=True)
     backtracking_penalty = models.FloatField(default=200)
-    backtracking_bearing_difference = models.FloatField(default = 200)
+    backtracking_bearing_difference = models.FloatField(default=90)
     backtracking_grace_time_seconds = models.FloatField(default=5)
     below_minimum_altitude_penalty = models.FloatField(default=500)
 
@@ -213,7 +216,7 @@ class Scorecard(models.Model):
 
     def get_procedure_turn_penalty_for_gate_type(self, gate_type: str) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.missed_procedure_turn
+        return gate_score.missed_procedure_turn_penalty
 
     def get_bad_crossing_extended_gate_penalty_for_gate_type(self, gate_type: str) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
@@ -233,7 +236,7 @@ class GateScore(models.Model):
     maximum_penalty = models.FloatField(default=100)
     penalty_per_second = models.FloatField(default=2)
     missed_penalty = models.FloatField(default=100)
-    missed_procedure_turn = models.FloatField(default=200)
+    missed_procedure_turn_penalty = models.FloatField(default=200)
 
     def calculate_score(self, planned_time: datetime.datetime, actual_time: Optional[datetime.datetime]) -> float:
         """
@@ -252,8 +255,8 @@ class GateScore(models.Model):
                 grace_limit = self.graceperiod_after
             else:
                 grace_limit = self.graceperiod_before
-            return min(self.maximum_penalty, round(
-                (abs(time_difference) - grace_limit) * self.penalty_per_second))
+            return min(self.maximum_penalty,
+                       (round(abs(time_difference) - grace_limit)) * self.penalty_per_second)
 
 
 class Contestant(models.Model):
@@ -271,8 +274,9 @@ class Contestant(models.Model):
         unique_together = ("contest", "contestant_number")
 
     def __str__(self):
-        return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.contest.name, self.takeoff_time,
-                                              self.finished_by_time)
+        return "{} - {}".format(self.contestant_number, self.team)
+        # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.contest.name, self.takeoff_time,
+        #                                       self.finished_by_time)
 
     def get_groundspeed(self, bearing) -> float:
         return calculate_ground_speed_combined(bearing, self.air_speed, self.contest.wind_speed,

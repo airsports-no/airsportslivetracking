@@ -1,6 +1,11 @@
-from rest_framework import serializers
+import base64
 
-from display.models import Contest, Aeroplane, Team, Track, Contestant, ContestantTrack
+from rest_framework import serializers
+from rest_framework.fields import FileField, DateTimeField, CharField
+from rest_framework.relations import SlugRelatedField
+
+from display.models import Contest, Aeroplane, Team, Track, Contestant, ContestantTrack, Scorecard
+from display.show_slug_choices import ChoicesSlugRelatedField
 
 
 class WaypointSerialiser(serializers.Serializer):
@@ -44,20 +49,29 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
 
 
 class TeamSerialiser(serializers.ModelSerializer):
-    aeroplane = AeroplaneSerialiser(read_only=True)
+    aeroplane = AeroplaneSerialiser()
 
     class Meta:
         model = Team
         fields = "__all__"
 
 
+class ScorecardSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = Scorecard
+        fields = ("name",)
+
+
 class ContestantSerialiser(serializers.ModelSerializer):
-    team = TeamSerialiser(read_only=True)
-    gate_times = serializers.JSONField()
+    team = TeamSerialiser()
+    gate_times = serializers.JSONField(
+        help_text="Dictionary where the keys are gate names (must match the gate names in the track file) and the values are $date-time strings (with time zone)")
+    scorecard = ChoicesSlugRelatedField(slug_field="name", queryset=Scorecard.objects.all())
 
     class Meta:
         model = Contestant
-        fields = "__all__"
+        # fields = "__all__"
+        exclude = ("contest",)
 
 
 class ContestSerialiser(serializers.ModelSerializer):
@@ -70,6 +84,9 @@ class ContestSerialiser(serializers.ModelSerializer):
 
 
 class ContestantTrackSerialiser(serializers.ModelSerializer):
+    """
+    Used for output to the frontend
+    """
     score_log = serializers.JSONField()
     score_per_gate = serializers.JSONField()
     contestant = ContestantSerialiser()
@@ -77,3 +94,31 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
     class Meta:
         model = ContestantTrack
         fields = "__all__"
+
+
+class ExternalContestSerialiser(serializers.ModelSerializer):
+    contestant_set = ContestantSerialiser(many=True)
+    track_file = serializers.CharField(write_only=True, read_only=False, required=True,
+                                       help_text="Base64 encoded gpx file")
+
+    class Meta:
+        model = Contest
+        exclude = ("track",)
+
+    def validate_track_file(self, value):
+        if value:
+            try:
+                base64.decodebytes(bytes(value, 'utf-8'))
+            except Exception as e:
+                raise serializers.ValidationError("track_file must be in a valid base64 string format.")
+        return value
+
+    def create(self, validated_data):
+        contestant_set = validated_data.pop("contestant_set", None)
+        track_file = validated_data.pop("track_file", None)
+
+        vdes_message = VdesMessage.objects.create(**validated_data, producer_mmsi=producer_mmsi)
+        if destination_data:
+            dest = [VdesDestination(vdes_message=vdes_message, **item) for item in destination_data]
+            VdesDestination.objects.bulk_create(dest)
+        VdesMessageStatus.objects.create(vdes_message=vdes_message)

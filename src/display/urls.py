@@ -2,8 +2,9 @@ from django.conf.urls import url
 from django.urls import path
 from django.views.generic import TemplateView, RedirectView
 
-from display.views import frontend_view, RetrieveContestApi, import_track, frontend_view_offline, \
-    get_data_from_time_for_contest, get_data_from_time_for_contestant, frontend_view_table, frontend_view_map
+from display.views import frontend_view, RetrieveContestApi, import_track, \
+    get_data_from_time_for_contest, get_data_from_time_for_contestant, frontend_view_table, frontend_view_map, \
+    ImportFCContest
 
 urlpatterns = [
     path('importtrack', import_track, name="import_track"),
@@ -13,5 +14,6 @@ urlpatterns = [
     # path('frontend/offline/<int:pk>/', frontend_view_offline, name="frontend_view_offline"),
     path('api/contest/detail/<int:pk>', RetrieveContestApi.as_view()),
     path('api/contest/track_data/<int:contest_pk>', get_data_from_time_for_contest),
-    path('api/contestant/track_data/<int:contestant_pk>', get_data_from_time_for_contestant)
+    path('api/contest/fc/import', ImportFCContest.as_view()),
+    path('api/contestant/track_data/<int:contestant_pk>', get_data_from_time_for_contestant),
 ]

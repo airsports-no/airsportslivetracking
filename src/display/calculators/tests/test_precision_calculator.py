@@ -6,7 +6,6 @@ from django.test import TestCase, TransactionTestCase
 
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.convert_flightcontest_gpx import create_track_from_gpx
-from display.default_scorecards import default_scorecard_fai_precision_2020
 from display.models import Aeroplane, Contest, Scorecard, Team, Contestant, ContestantTrack, GateScore
 from display.views import create_track_from_csv
 
@@ -37,25 +36,27 @@ class TestFullTrack(TransactionTestCase):
                                               start_time=contest_start_time, finish_time=contest_finish_time,
                                               wind_direction=165,
                                               wind_speed=8)
-        scorecard = Scorecard.objects.create(
-            backtracking=200,
-            below_minimum_altitude=500,
-        )
-        scores = {
-            "extended_gate_width": 2,
-            "bad_crossing_extended_gate_penalty": 100,
-            "graceperiod_before": 2,
-            "graceperiod_after": 2,
-            "maximum_penalty": 100,
-            "penalty_per_second": 3,
-            "missed_penalty": 100,
-            "missed_procedure_turn": 200
-        }
-        scorecard.starting_point_gate_score = GateScore.objects.create(**scores)
-        scorecard.finish_point_gate_score = GateScore.objects.create(**scores)
-        scorecard.turning_point_gate_score = GateScore.objects.create(**scores)
-        scorecard.secret_gate_score = GateScore.objects.create(**scores)
-        scorecard.save()
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+        scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+        # scorecard = Scorecard.objects.create(
+        #     backtracking=200,
+        #     below_minimum_altitude=500,
+        # )
+        # scores = {
+        #     "extended_gate_width": 2,
+        #     "bad_crossing_extended_gate_penalty": 100,
+        #     "graceperiod_before": 2,
+        #     "graceperiod_after": 2,
+        #     "maximum_penalty": 100,
+        #     "penalty_per_second": 3,
+        #     "missed_penalty": 100,
+        #     "missed_procedure_turn_penalty": 200
+        # }
+        # scorecard.starting_point_gate_score = GateScore.objects.create(**scores)
+        # scorecard.finish_point_gate_score = GateScore.objects.create(**scores)
+        # scorecard.turning_point_gate_score = GateScore.objects.create(**scores)
+        # scorecard.secret_gate_score = GateScore.objects.create(**scores)
+        # scorecard.save()
         team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(contest=self.contest, team=team, takeoff_time=start_time,
@@ -104,9 +105,10 @@ class Test2017WPFC(TransactionTestCase):
         self.contest = Contest.objects.create(name="NM contest",
                                               track=track,
                                               start_time=contest_start_time, finish_time=contest_finish_time,
-                                              wind_direction=60,
-                                              wind_speed=20)
+                                              wind_direction=160,
+                                              wind_speed=18)
         self.team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=self.aeroplane)
+        from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         # self.scorecard = Scorecard.objects.create(
         #     backtracking=200,
@@ -120,7 +122,7 @@ class Test2017WPFC(TransactionTestCase):
         #     "maximum_penalty": 100,
         #     "penalty_per_second": 3,
         #     "missed_penalty": 100,
-        #     "missed_procedure_turn": 200
+        #     "missed_procedure_turn_penalty": 200
         # }
         # self.scorecard.starting_point_gate_score = GateScore.objects.create(**{**self.scores, "extended_gate_width": 2})
         # self.scorecard.takeoff_gate_score = GateScore.objects.create(

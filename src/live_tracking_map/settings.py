@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 ADMINS = [("kolaf", "frankose@gmail.com")]
 
@@ -39,7 +40,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'display.apps.DisplayConfig',
     'rest_framework',
+    'rest_framework.authtoken',
     'webpack_loader',
+    'drf_yasg',
     "solo"
 ]
 
@@ -51,6 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'live_tracking_map.middleware.HandleKnownExceptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'live_tracking_map.urls'
@@ -79,6 +83,9 @@ WEBPACK_LOADER = {
         'BUNDLE_DIR_NAME': 'bundles/local/',  # end with slash
         'STATS_FILE': '/webpack-stats-local.json'
     }
+}
+
+REST_FRAMEWORK = {
 }
 
 # Database

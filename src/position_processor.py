@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import threading
 from typing import List, TYPE_CHECKING
 
 from django.core.cache import cache
@@ -28,6 +29,7 @@ traccar = Traccar.create_from_configuration(configuration)
 devices = traccar.get_device_map()
 influx = InfluxFacade()
 calculators = {}
+calculator_lock = threading.Lock()
 
 
 def add_positions_to_calculator(contestant: Contestant, positions: List):
@@ -53,13 +55,19 @@ def cleanup_calculators():
 
 
 def build_and_push_position_data(data):
-    received_positions = influx.generate_position_data(traccar, data.get("positions", []))
-    for contestant, positions in received_positions.items():
-        add_positions_to_calculator(contestant, positions)
-        influx.put_data(positions)
-        key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant.pk)
-        cache.delete_pattern(key)
-    cleanup_calculators()
+    logger.info("Received data")
+    with calculator_lock:
+        received_positions = influx.generate_position_data(traccar, data.get("positions", []))
+        for contestant, positions in received_positions.items():
+            logger.info("Positions for {}".format(contestant))
+            add_positions_to_calculator(contestant, positions)
+            logger.info("Positions to calculator for {}".format(contestant))
+            influx.put_data(positions)
+            logger.info("Positions to influx for {}".format(contestant))
+            key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant.pk)
+            logger.info("Clearing cache for {}".format(contestant))
+            cache.delete_pattern(key)
+        cleanup_calculators()
 
 
 def on_message(ws, message):

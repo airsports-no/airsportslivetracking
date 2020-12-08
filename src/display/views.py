@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import List, Optional
 import redis_lock
 import dateutil
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, Http404
@@ -13,15 +14,20 @@ import logging
 import urllib.request
 import os
 
+from drf_yasg.app_settings import swagger_settings
+from drf_yasg.utils import swagger_auto_schema
 from redis import Redis
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from display.convert_flightcontest_gpx import create_track_from_gpx, create_track_from_csv
 from display.forms import ImportTrackForm
 from display.models import Contest, Track, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY
-from display.serialisers import ContestSerialiser, ContestantTrackSerialiser
+from display.serialisers import ContestSerialiser, ContestantTrackSerialiser, ExternalContestSerialiser
+from display.show_slug_choices import ShowChoicesMetadata, ShowChoicesFieldInspector
 from influx_facade import InfluxFacade
 
 logger = logging.getLogger(__name__)
@@ -40,10 +46,6 @@ def frontend_view_table(request, pk):
 def frontend_view_map(request, pk):
     return render(request, "display/root.html",
                   {"contest_id": pk, "live_mode": "true", "display_map": "true", "display_table": "false"})
-
-
-def frontend_view_offline(request, pk):
-    return render(request, "display/root.html", {"contest_id": pk, "live_mode": "false"})
 
 
 class RetrieveContestApi(RetrieveAPIView):
@@ -151,4 +153,20 @@ def import_track(request):
     return render(request, "display/import_track_form.html", {"form": form})
 
 
+class ImportFCContest(LoginRequiredMixin, APIView):
+    metadata_class = ShowChoicesMetadata
 
+    @swagger_auto_schema(
+        operation_description="Method to post FC Contest",
+        request_body=ExternalContestSerialiser,
+        responses={200: ExternalContestSerialiser(),
+                   400: 'Bad Request'},
+        tags=['contest'],
+        field_inspectors=[ShowChoicesFieldInspector]
+    )
+    def post(self, request):
+        serialiser = ExternalContestSerialiser(data=request.data)
+        if serialiser.is_valid():
+            serialiser.save()
+            return Response(serialiser.data)
+        return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)

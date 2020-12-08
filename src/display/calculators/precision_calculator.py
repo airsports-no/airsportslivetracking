@@ -278,7 +278,7 @@ class PrecisionCalculator(Calculator):
             logger.info("{}: Speed is 0, terminating".format(self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
-        look_back = 2
+        look_back = 1
         start_index = max(finish_index - look_back, 0)
         last_gate_last = self.get_extended_gate_turning_point_before_now(finish_index)  # Gate we just passed
         first_gate_last = self.get_turning_point_before_now(start_index)  # Gate we just passed
@@ -347,18 +347,33 @@ class PrecisionCalculator(Calculator):
                     if last_gate_last and calculate_distance_lat_lon(
                             (last_gate_last.latitude, last_gate_last.longitude),
                             (last_position.latitude, last_position.longitude)) / 1852 > 0.5:
+                        logger.info(
+                            "{} {}: Started backtracking, let's see if this goes on for more than {} seconds".format(
+                                self.contestant, last_position.time, self.scorecard.backtracking_grace_time_seconds))
                         self.backtracking_start_time = last_position.time
                         self.update_tracking_state(self.BACKTRACKING_TEMPORARY)
+                    else:
+                        logger.info(
+                            "{} {}: Backtracking within 0.5 NM of passing a gate, ignoring".format(self.contestant,
+                                                                                                   last_position.time))
                 if self.tracking_state == self.BACKTRACKING_TEMPORARY:
                     if (
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
                         self.backtracking_start_time = None
                         self.update_score(next_gate_last, self.scorecard.backtracking_penalty,
-                                          "{} points for backtracking at {} {}".format(self.scorecard.backtracking_penalty,
-                                                                                       current_leg, next_gate_last),
+                                          "{} points for backtracking at {} {}".format(
+                                              self.scorecard.backtracking_penalty,
+                                              current_leg, next_gate_last),
                                           last_position.latitude, last_position.longitude, "anomaly")
             else:
+                if self.tracking_state == self.BACKTRACKING:
+                    logger.info("{} {}: Done backtracking".format(self.contestant,
+                                                                  last_position.time))
+                elif self.tracking_state == self.BACKTRACKING_TEMPORARY:
+                    logger.info("{} {}: Resumed tracking within time limits, so no penalty".format(self.contestant,
+                                                                                                   last_position.time))
+
                 self.update_tracking_state(self.TRACKING)
         self.last_bearing = bearing
 

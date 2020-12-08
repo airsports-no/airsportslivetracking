@@ -11,6 +11,7 @@ if __name__ == "__main__":
 
     django.setup()
 from display.models import Team, Aeroplane, Contest, Track, Contestant, Scorecard, TraccarCredentials
+from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 
 configuration = TraccarCredentials.objects.get()
 traccar = Traccar.create_from_configuration(configuration)
@@ -20,8 +21,7 @@ aeroplane = Aeroplane.objects.first()
 contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="NM contest",
-                                 track=Track.objects.get(name="NM 2020"), server_address=" ",
-                                 server_token=" ",
+                                 track=Track.objects.get(name="NM 2020"),
                                  start_time=contest_start_time, finish_time=contest_finish_time, wind_direction=165,
                                  wind_speed=8)
 contestants = {
@@ -51,30 +51,8 @@ contestants = {
 traccar.delete_all_devices()
 for item in contestants.keys():
     traccar.create_device(item, item)
-class_one_scorecard, _ = Scorecard.objects.get_or_create(missed_gate=100,
-                                                         gate_timing_per_second=3,
-                                                         gate_perfect_limit_seconds=2,
-                                                         maximum_gate_score=100,
-                                                         backtracking=200,
-                                                         missed_procedure_turn=200,
-                                                         below_minimum_altitude=500,
-                                                         takeoff_time_limit_seconds=60,
-                                                         missed_takeoff_gate=100
-                                                         )
-class_one_scorecard.name = "Class 1"
-class_one_scorecard.save()
 
-class_two_scorecard, _ = Scorecard.objects.get_or_create(missed_gate=100,
-                                                         gate_timing_per_second=3,
-                                                         gate_perfect_limit_seconds=2,
-                                                         maximum_gate_score=100,
-                                                         backtracking=200,
-                                                         missed_procedure_turn=200,
-                                                         below_minimum_altitude=500,
-                                                         takeoff_time_limit_seconds=60,
-                                                         missed_takeoff_gate=100
-                                                         )
-
+scorecard=get_default_scorecard()
 
 for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
     contestant_name = os.path.splitext(os.path.basename(file))[0]
@@ -85,10 +63,10 @@ for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
     start_time = start_time - datetime.timedelta(hours=2)
     start_time = start_time.astimezone()
     print(start_time)
-    if contestant_class == 1:
-        scorecard = class_one_scorecard
-    else:
-        scorecard = class_two_scorecard
+    # if contestant_class == 1:
+    #     scorecard = class_one_scorecard
+    # else:
+    #     scorecard = class_two_scorecard
     contestant = Contestant.objects.create(contest=contest, team=team, takeoff_time=start_time,
                                            finished_by_time=start_time + datetime.timedelta(hours=2),
                                            traccar_device_name=contestant_name, contestant_number=index,
