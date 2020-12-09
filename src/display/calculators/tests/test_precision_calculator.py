@@ -37,30 +37,12 @@ class TestFullTrack(TransactionTestCase):
                                                              finish_time=navigation_task_finish_time)
         from display.default_scorecards import default_scorecard_fai_precision_2020
         scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
-        # scorecard = Scorecard.objects.create(
-        #     backtracking=200,
-        #     below_minimum_altitude=500,
-        # )
-        # scores = {
-        #     "extended_gate_width": 2,
-        #     "bad_crossing_extended_gate_penalty": 100,
-        #     "graceperiod_before": 2,
-        #     "graceperiod_after": 2,
-        #     "maximum_penalty": 100,
-        #     "penalty_per_second": 3,
-        #     "missed_penalty": 100,
-        #     "missed_procedure_turn_penalty": 200
-        # }
-        # scorecard.starting_point_gate_score = GateScore.objects.create(**scores)
-        # scorecard.finish_point_gate_score = GateScore.objects.create(**scores)
-        # scorecard.turning_point_gate_score = GateScore.objects.create(**scores)
-        # scorecard.secret_gate_score = GateScore.objects.create(**scores)
-        # scorecard.save()
         crew = Crew.objects.create(pilot="Test contestant", navigator="")
         team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team,
                                                     takeoff_time=start_time,
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     traccar_device_name="Test contestant", contestant_number=1,
                                                     scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed,
@@ -112,28 +94,6 @@ class Test2017WPFC(TransactionTestCase):
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
-        # self.scorecard = Scorecard.objects.create(
-        #     backtracking=200,
-        #     below_minimum_altitude=500,
-        # )
-        # self.scores = {
-        #     "extended_gate_width": 6,  # The correct for turning points with procedure turns
-        #     "bad_crossing_extended_gate_penalty": 100,
-        #     "graceperiod_before": 2,
-        #     "graceperiod_after": 2,
-        #     "maximum_penalty": 100,
-        #     "penalty_per_second": 3,
-        #     "missed_penalty": 100,
-        #     "missed_procedure_turn_penalty": 200
-        # }
-        # self.scorecard.starting_point_gate_score = GateScore.objects.create(**{**self.scores, "extended_gate_width": 2})
-        # self.scorecard.takeoff_gate_score = GateScore.objects.create(
-        #     **{**self.scores, "graceperiod_before": 0, "graceperiod_after": 60, "penalty_per_second": 100})
-        # self.scorecard.landing_gate_score = GateScore.objects.create(**self.scores)
-        # self.scorecard.finish_point_gate_score = GateScore.objects.create(**self.scores)
-        # self.scorecard.turning_point_gate_score = GateScore.objects.create(**self.scores)
-        # self.scorecard.secret_gate_score = GateScore.objects.create(**self.scores)
-        # self.scorecard.save()
 
     def test_101(self):
         track = load_track_points(
@@ -142,6 +102,7 @@ class Test2017WPFC(TransactionTestCase):
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
                                                     takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     traccar_device_name="Test contestant", contestant_number=1,
                                                     scorecard=self.scorecard, minutes_to_starting_point=8,
                                                     air_speed=speed, wind_direction=160,

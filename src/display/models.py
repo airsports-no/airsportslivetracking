@@ -286,6 +286,8 @@ class Contestant(models.Model):
         help_text="A unique number for the contestant in this navigation task")
     traccar_device_name = models.CharField(max_length=100,
                                            help_text="ID of physical tracking device that will be brought into the plane")
+    tracker_start_time = models.DateTimeField(
+        help_text="When the tracker is handed to the contestant, can have no changes to the track after this.")
     scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT, null=True,
                                   help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                       lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
@@ -295,7 +297,6 @@ class Contestant(models.Model):
                                    help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
     wind_direction = models.FloatField(default=0,
                                        help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
-
 
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
@@ -332,7 +333,7 @@ class Contestant(models.Model):
     def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):
         try:
             # Device belongs to contestant from 30 minutes before takeoff
-            return cls.objects.get(traccar_device_name=device, takeoff_time__lte=stamp + datetime.timedelta(minutes=30),
+            return cls.objects.get(traccar_device_name=device, tracker_start_time__lte=stamp,
                                    finished_by_time__gte=stamp)
         except ObjectDoesNotExist:
             return None
