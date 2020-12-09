@@ -16,8 +16,9 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSeria
     def get_permissions_map(self, created):
         user = self.context["request"].user
         return {
-            "update_contest": [user],
+            "change_contest": [user],
             "delete_contest": [user],
+            "publish_contest": [user],
             "view_contest": [user]
         }
 

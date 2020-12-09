@@ -155,12 +155,12 @@ class Team(models.Model):
 
 
 class Contest(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     is_public = models.BooleanField(default=False)
 
     class Meta:
         permissions = (
-            ("publish_contest", "Publish contest"),
+            ("publish_contest", "Can publish contest"),
         )
 
     def __str__(self):
@@ -190,7 +190,7 @@ class NavigationTask(models.Model):
 
     class Meta:
         permissions = (
-            ("publish_navigationtask", "Publish navigation task"),
+            ("publish_navigationtask", "Can publish navigation task"),
         )
 
     def __str__(self):
