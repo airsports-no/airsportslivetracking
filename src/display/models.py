@@ -35,6 +35,8 @@ class TraccarCredentials(SingletonModel):
 
 class Aeroplane(models.Model):
     registration = models.CharField(max_length=20)
+    colour = models.CharField(max_length=40)
+    type = models.CharField(max_length=50)
 
     def __str__(self):
         return self.registration
@@ -134,15 +136,19 @@ def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
     return [[x1, y1], [x2, y2]]
 
 
-class Team(models.Model):
+class Crew(models.Model):
     pilot = models.CharField(max_length=200)
     navigator = models.CharField(max_length=200, blank=True)
-    aeroplane = models.ForeignKey(Aeroplane, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
         if len(self.navigator) > 0:
             return "{} and {} in {}".format(self.pilot, self.navigator, self.aeroplane)
         return "{} in {}".format(self.pilot, self.aeroplane)
+
+
+class Team(models.Model):
+    aeroplane = models.ForeignKey(Aeroplane, on_delete=models.SET_NULL, null=True)
+    crew = models.ForeignKey(Crew, on_delete=models.SET_NULL, null=True)
 
 
 class Contest(models.Model):
@@ -165,8 +171,13 @@ class Contest(models.Model):
                                    help_text="The contest wind speed. This is used to calculate gate times if these are not predefined.")
     wind_direction = models.FloatField(default=0,
                                        help_text="The contest wind direction. This is used to calculate gate times if these are not predefined.")
+    is_public = models.BooleanField(default=False,
+                                    help_text="The contest is only viewable by unauthenticated users or users without object permissions if this is True")
 
-    # created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    class Meta:
+        permissions = (
+            ("publish_contest", "Publish contest"),
+        )
 
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.isoformat())

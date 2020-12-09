@@ -27,3 +27,4 @@ python-redis-lock
 gpx_converter
 lxml
 drf-yasg
+django-guardian

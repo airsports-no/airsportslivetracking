@@ -74,5 +74,5 @@ export function contestantShortForm(contestant) {
 }
 
 export function contestantLongForm(contestant) {
-    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + contestant.team.pilot + "<br/>Navigator: " + contestant.team.navigator + "<br/>Aeroplane: " + contestant.team.aeroplane
+    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + contestant.team.pilot + "<br/>Navigator: " + contestant.team.navigator + "<br/>Aeroplane: " + contestant.team.aeroplane.registration
 }

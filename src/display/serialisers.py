@@ -1,10 +1,12 @@
 import base64
 
+from guardian.shortcuts import assign_perm
 from rest_framework import serializers
 from rest_framework.fields import FileField, DateTimeField, CharField
 from rest_framework.relations import SlugRelatedField
 
-from display.models import Contest, Aeroplane, Team, Track, Contestant, ContestantTrack, Scorecard
+from display.convert_flightcontest_gpx import create_track_from_gpx
+from display.models import Contest, Aeroplane, Team, Track, Contestant, ContestantTrack, Scorecard, Crew
 from display.show_slug_choices import ChoicesSlugRelatedField
 
 
@@ -48,8 +50,15 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class CrewSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = Crew
+        fields = "__all__"
+
+
 class TeamSerialiser(serializers.ModelSerializer):
-    aeroplane = SlugRelatedField(slug_field="registration", queryset=Aeroplane.objects.all())
+    aeroplane = AeroplaneSerialiser()
+    crew = CrewSerialiser()
 
     class Meta:
         model = Team
@@ -118,9 +127,18 @@ class ExternalContestSerialiser(serializers.ModelSerializer):
     def create(self, validated_data):
         contestant_set = validated_data.pop("contestant_set", None)
         track_file = validated_data.pop("track_file", None)
-
-        vdes_message = VdesMessage.objects.create(**validated_data, producer_mmsi=producer_mmsi)
-        if destination_data:
-            dest = [VdesDestination(vdes_message=vdes_message, **item) for item in destination_data]
-            VdesDestination.objects.bulk_create(dest)
-        VdesMessageStatus.objects.create(vdes_message=vdes_message)
+        track = create_track_from_gpx(validated_data["name"], base64.decodebytes(track_file))
+        contest = Contest.objects.create(**validated_data, track=track)
+        user = self.context["request"].user
+        assign_perm("publish_contest", user, contest)
+        assign_perm("delete_contest", user, contest)
+        assign_perm("view_contest", user, contest)
+        for contestant_data in contestant_set:
+            team_data = contestant_data.pop("team")
+            aeroplane_data = team_data.pop("aeroplane")
+            crew_data = team_data.pop("crew")
+            aeroplane, _ = Aeroplane.objects.get_or_create(defaults=aeroplane_data,
+                                                           registration=aeroplane_data["registration"])
+            crew, _ = Crew.objects.get_or_create(**crew_data)
+            team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
+            Contestant.objects.create(**contestant_data, team=team)

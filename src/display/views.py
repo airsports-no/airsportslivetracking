@@ -1,8 +1,11 @@
 import datetime
 from datetime import timedelta
 from typing import List, Optional
+
+import guardian
 import redis_lock
 import dateutil
+from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.shortcuts import render, redirect
@@ -16,10 +19,12 @@ import os
 
 from drf_yasg.app_settings import swagger_settings
 from drf_yasg.utils import swagger_auto_schema
+from guardian.decorators import permission_required_or_403
 from redis import Redis
 from rest_framework import status
 from rest_framework.decorators import api_view
-from rest_framework.generics import RetrieveAPIView, get_object_or_404
+from rest_framework.generics import RetrieveAPIView, get_object_or_404, DestroyAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -153,6 +158,8 @@ def import_track(request):
     return render(request, "display/import_track_form.html", {"form": form})
 
 
+# Everything below he is related to management and requires authentication
+
 class ImportFCContest(LoginRequiredMixin, APIView):
     metadata_class = ShowChoicesMetadata
 
@@ -164,9 +171,19 @@ class ImportFCContest(LoginRequiredMixin, APIView):
         tags=['contest'],
         field_inspectors=[ShowChoicesFieldInspector]
     )
+    @permission_required('display.create_contest')
     def post(self, request):
-        serialiser = ExternalContestSerialiser(data=request.data)
+        serialiser = ExternalContestSerialiser(data=request.data, context={"request":request})
         if serialiser.is_valid():
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeleteContestApi(DestroyAPIView):
+    serializer_class = ContestSerialiser
+    permission_classes = [IsAuthenticated]
+
+    @permission_required_or_403("delete_contest", (Contest, "pk", "pk"))
+    def delete(self, request, *args, **kwargs):
+        super().delete(request, *args, **kwargs)

@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'webpack_loader',
     'drf_yasg',
-    "solo"
+    "solo",
+    "guardian"
 ]
 
 MIDDLEWARE = [
@@ -84,6 +85,11 @@ WEBPACK_LOADER = {
         'STATS_FILE': '/webpack-stats-local.json'
     }
 }
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  # this is default
+    'guardian.backends.ObjectPermissionBackend',
+)
 
 REST_FRAMEWORK = {
 }
