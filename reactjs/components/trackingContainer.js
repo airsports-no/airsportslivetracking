@@ -24,7 +24,7 @@ class ConnectedTrackingContainer extends Component {
         if (this.displayTable && this.displayMap) {
             return (
                 <div id="map-holder">
-                    <div id='main_div' className={"container-fluid fill"}>
+                    <div id='main_div' className={"fill"}>
                         <div className={"row fill ml-1"}>
                             <div className={"col-5"}>
                                 {TrackerDisplay}
@@ -41,7 +41,7 @@ class ConnectedTrackingContainer extends Component {
         } else if (this.displayTable) {
             return (
                 <div id="map-holder">
-                    <div id='main_div' className={"container-fluid fill"}>
+                    <div id='main_div' className={"fill"}>
                         <div className={"row fill ml-1"}>
                             <div className={"col-12"}>
                                 {TrackerDisplay}
@@ -53,7 +53,7 @@ class ConnectedTrackingContainer extends Component {
         } else {
             return (
                 <div id="map-holder">
-                    <div id='main_div' className={"container-fluid fill"}>
+                    <div id='main_div' className={"fill"}>
                         <div className={"row fill ml-1"}>
                             {TrackerDisplay}
                             <div className={"col-12 fill"}>

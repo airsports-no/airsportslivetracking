@@ -1,40 +1,13 @@
+{% extends "base.html" %}
 {% load render_bundle from webpack_loader %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-    <!-- Make the app on mobile take up the full browser screen and disable user scaling. -->
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
-          crossorigin=""/>
-    <script src="https://kit.fontawesome.com/9a2f9df054.js" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="{% static 'cesium/cesium.css' %}" media="screen">
-    <title>AirSports</title>
-</head>
-<body>
-<script>
-    document.configuration = {
-        navigation_task_id: {{ navigation_task_id }},
-        liveMode: {{ live_mode }},
-        displayMap: {{ display_map }},
-        displayTable: {{ display_table }}
-    }
-</script>
-<script
-        src="https://code.jquery.com/jquery-3.3.1.min.js"
-        integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-        crossorigin="anonymous"></script>
-
-<div id="root">
-    <img class="center" src="{% static 'img/loading.gif' %}" alt="loading..."/>
+{% block content %}
+    <div class="row">
+        <div id="root">
+            <img class="center" src="{% static 'img/loading.gif' %}" alt="loading..."/>
+        </div>
+    </div>
 </div>
 {% render_bundle 'vendors' %}
 {% render_bundle 'Root' %}
-<script src="{% static 'js/csrf.js' %}"></script>
-</body>
-</html>
+{% endblock %}
