@@ -9,13 +9,34 @@ class ContestPermissions(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ['GET']:
-            return request.user.has_perm('view_contest', obj) or obj.is_public
+            return request.user.has_perm('view_contest', obj)
         if request.method in ['POST']:
             return request.user.has_perm('add_contest', obj) or request.user.has_perm('add_contest')
         if request.method in ['PUT', 'PATCH']:
             return request.user.has_perm('change_contest', obj)
         if request.method in ['DELETE']:
             return request.user.has_perm('delete_contest', obj)
+        return False
+
+
+class ContestPublicPermissions(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in ['GET']:
+            return obj.is_public
+        return False
+
+
+class NavigationTaskPublicPermissions(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in ['GET']:
+            return obj.is_public and obj.contest.is_public
+        return False
+
+
+class ContestantPublicPermissions(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in ['GET']:
+            return obj.navigation_task.is_public
         return False
 
 
@@ -27,7 +48,7 @@ class NavigationTaskPermissions(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ['GET']:
-            return request.user.has_perm('view_navigationtask', obj) or obj.is_public
+            return request.user.has_perm('view_navigationtask', obj)
         if request.method in ['POST']:
             return request.user.has_perm('add_navigationtask', obj) or request.user.has_perm('add_navigationtask')
         if request.method in ['PUT', 'PATCH']:

@@ -5,7 +5,7 @@ from django.urls import path, include
 
 router = routers.DefaultRouter()
 router.register(r'contests', ContestViewSet, basename="contests")
-router.register(r'navigationtasks', NavigationTaskViewSet, basename="navigationtasks")
+# router.register(r'navigationtasks', NavigationTaskViewSet, basename="navigationtasks")
 
 navigation_task_router = routers.NestedSimpleRouter(router, r'contests', lookup="contest")
 navigation_task_router.register(r'importnavigationtask', ImportFCNavigationTask, basename="importnavigationtask")

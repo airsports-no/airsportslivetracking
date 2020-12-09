@@ -23,7 +23,7 @@ from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import get_objects_for_user
 from redis import Redis
 from rest_framework import status, permissions
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, action
 from rest_framework.generics import RetrieveAPIView, get_object_or_404, DestroyAPIView, CreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -33,7 +33,8 @@ from rest_framework.viewsets import ModelViewSet
 from display.convert_flightcontest_gpx import create_track_from_gpx, create_track_from_csv
 from display.forms import ImportTrackForm
 from display.models import NavigationTask, Track, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY, Contest
-from display.permissions import ContestPermissions, NavigationTaskPermissions
+from display.permissions import ContestPermissions, NavigationTaskPermissions, \
+    ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions
 from display.serialisers import NavigationTaskSerialiser, ContestantTrackSerialiser, ExternalNavigationTaskSerialiser, \
     ContestSerialiser, ContestantSerialiser
 from display.show_slug_choices import ShowChoicesMetadata, ShowChoicesFieldInspector
@@ -128,47 +129,60 @@ def import_track(request):
 
 
 # Everything below he is related to management and requires authentication
-class ContestViewSet(ModelViewSet):
+class IsPublicMixin:
+    @action(detail=True, methods=["post"])
+    def publish(self, request, pk=None):
+        object = self.get_object()
+        object.is_public = True
+        object.save()
+
+    @action(detail=True, methods=["post"])
+    def hide(self, request, pk=None):
+        object = self.get_object()
+        object.is_public = False
+        object.save()
+
+
+class ContestViewSet(IsPublicMixin, ModelViewSet):
     queryset = Contest.objects.all()
     serializer_class = ContestSerialiser
-    permission_classes = [permissions.IsAuthenticated & ContestPermissions]
-
-    def get_queryset(self):
-        return list(get_objects_for_user(self.request.user, "view_contest", klass=self.queryset)) + list(
-            self.queryset.filter(is_public=True))
-
-
-class NavigationTaskViewSet(ModelViewSet):
-    queryset = NavigationTask.objects.all()
-    serializer_class = NavigationTaskSerialiser
-    permission_classes = (NavigationTaskPermissions,)
-    lookup_url_kwarg = "pk"
+    permission_classes = [ContestPublicPermissions | permissions.IsAuthenticated & NavigationTaskPermissions]
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_navigationtask",
-                                    klass=self.queryset) & self.queryset.filter(is_public=True)
+                                    klass=self.queryset) | self.queryset.filter(is_public=True)
+
+
+class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
+    queryset = NavigationTask.objects.all()
+    serializer_class = NavigationTaskSerialiser
+    permission_classes = [NavigationTaskPublicPermissions | permissions.IsAuthenticated & NavigationTaskPermissions]
+
+    def get_queryset(self):
+        return get_objects_for_user(self.request.user, "view_navigationtask",
+                                    klass=self.queryset) | self.queryset.filter(is_public=True)
 
 
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     serializer_class = ContestantSerialiser
-    permission_classes = (permissions.IsAuthenticated, NavigationTaskPermissions)
+    permission_classes = [permissions.IsAuthenticated & NavigationTaskPermissions]
 
     def get_queryset(self):
-        return list(get_objects_for_user(self.request.user, "view_navigationtask", klass=self.queryset)) + list(
-            self.queryset.filter(navigation_task__is_public=True))
+        return get_objects_for_user(self.request.user, "view_navigationtask",
+                                    klass=self.queryset) | self.queryset.filter(navigation_task__is_public=True)
 
 
 class ImportFCNavigationTask(ModelViewSet):
     queryset = NavigationTask.objects.all()
     serializer_class = ExternalNavigationTaskSerialiser
-    permission_classes = (permissions.IsAuthenticated, NavigationTaskPermissions)
+    permission_classes = [permissions.IsAuthenticated & NavigationTaskPermissions]
 
     metadata_class = ShowChoicesMetadata
 
-    http_method_names = ["post", "delete"]
+    http_method_names = ["post"]
 
-    lookup_key = "contest_id"
+    lookup_key = "contest_pk"
 
     def post(self, request, *args, **kwargs):
         contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
