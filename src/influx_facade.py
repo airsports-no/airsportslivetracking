@@ -32,7 +32,7 @@ class InfluxFacade:
             "measurement": "annotation",
             "tags": {
                 "contestant": contestant.pk,
-                "contest": contestant.contest_id,
+                "navigation_task": contestant.navigation_task_id,
                 "annotation_number": contestant.annotation_index
             },
             "time": stamp.isoformat(),
@@ -73,7 +73,7 @@ class InfluxFacade:
                     "measurement": "device_position",
                     "tags": {
                         "contestant": contestant.pk,
-                        "contest": contestant.contest_id,
+                        "navigation_task": contestant.navigation_task_id,
                         "device_id": position_data["deviceId"]
                     },
                     "time": device_time.isoformat(),
@@ -96,11 +96,11 @@ class InfluxFacade:
         self.client.write_points(data)
         logger.debug("Successfully put {} position".format(len(data)))
 
-    def get_positions_for_contest(self, contest_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
+    def get_positions_for_contest(self, navigation_task_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
         if isinstance(from_time, datetime.datetime):
             from_time = from_time.isoformat()
-        query = "select * from device_position where contest=$contest and time>$from_time;"
-        bind_params = {'contest': str(contest_pk), 'from_time': from_time}
+        query = "select * from device_position where navigation_task=$navigation_task and time>$from_time;"
+        bind_params = {'navigation_task': str(navigation_task_pk), 'from_time': from_time}
         response = self.client.query(query, bind_params=bind_params)
         return response
 
@@ -109,11 +109,11 @@ class InfluxFacade:
         response = self.client.query(query)
         return response
 
-    def get_annotations_for_contest(self, contest_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
+    def get_annotations_for_navigation_task(self, navigation_task_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
         if isinstance(from_time, datetime.datetime):
             from_time = from_time.isoformat()
-        query = "select * from annotation where contest=$contest and time>$from_time;"
-        bind_params = {'contest': str(contest_pk), 'from_time': from_time}
+        query = "select * from annotation where navigation_task=$navigation_task and time>$from_time;"
+        bind_params = {'navigation_task': str(navigation_task_pk), 'from_time': from_time}
         response = self.client.query(query, bind_params=bind_params)
         return response
 

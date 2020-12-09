@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from display.models import Contest, Track, Aeroplane, Team, Contestant, TraccarCredentials, ContestantTrack, Scorecard, \
+from display.models import NavigationTask, Track, Aeroplane, Team, Contestant, TraccarCredentials, ContestantTrack, Scorecard, \
     GateScore
 from solo.admin import SingletonModelAdmin
 
@@ -36,13 +36,13 @@ class ContestantInline(admin.TabularInline):
     #     GateScoreInLine,
     # )
 
-class ContestAdmin(admin.ModelAdmin):
+class NavigationTaskAdmin(admin.ModelAdmin):
     inlines = (
         ContestantInline,
     )
 
 
-admin.site.register(Contest, ContestAdmin)
+admin.site.register(NavigationTask, NavigationTaskAdmin)
 admin.site.register(Scorecard)
 admin.site.register(Track)
 admin.site.register(GateScore)

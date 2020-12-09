@@ -1,6 +1,6 @@
 import {
     DISPLAY_ALL_TRACKS, EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
-    GET_CONTEST_SUCCESSFUL,
+    GET_NAVIGATION_TASK_SUCCESSFUL,
     GET_CONTESTANT_DATA_SUCCESSFUL,
     SET_DISPLAY, TOGGLE_EXPANDED_HEADER
 } from "../constants/action-types";
@@ -22,12 +22,12 @@ export function toggleExpandedHeader(){
 }
 
 
-export const fetchContest = (contestId) => (dispatch) => {
+export const fetchNavigationTask = (navigationTaskId) => (dispatch) => {
     $.ajax({
-        url: "/display/api/contest/detail/" + contestId,
+        url: "/display/api/navigationtask/detail/" + navigationTaskId,
         datatype: 'json',
         cache: false,
-        success: value => dispatch({type: GET_CONTEST_SUCCESSFUL, payload: value}),
+        success: value => dispatch({type: GET_NAVIGATION_TASK_SUCCESSFUL, payload: value}),
         error: error => console.log(error)
     });
 }

@@ -35,8 +35,8 @@ class TraccarCredentials(SingletonModel):
 
 class Aeroplane(models.Model):
     registration = models.CharField(max_length=20)
-    colour = models.CharField(max_length=40)
-    type = models.CharField(max_length=50)
+    colour = models.CharField(max_length=40, blank=True)
+    type = models.CharField(max_length=50, blank=True)
 
     def __str__(self):
         return self.registration
@@ -151,32 +151,33 @@ class Team(models.Model):
     crew = models.ForeignKey(Crew, on_delete=models.SET_NULL, null=True)
 
 
-class Contest(models.Model):
+class NavigationTask(models.Model):
     PRECISION = 0
     ANR = 1
-    CONTEST_TYPES = (
+    NAVIGATION_TASK_TYPES = (
         (PRECISION, "Precision"),
         # (ANR, "ANR")
     )
 
     name = models.CharField(max_length=200)
-    contest_calculator_type = models.IntegerField(choices=CONTEST_TYPES, default=PRECISION,
-                                                  help_text="Supported contest calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
-                                                      CONTEST_TYPES))
+    calculator_type = models.IntegerField(choices=NAVIGATION_TASK_TYPES, default=PRECISION,
+                                          help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
+                                              NAVIGATION_TASK_TYPES))
     track = models.ForeignKey(Track, on_delete=models.SET_NULL, null=True)
-    start_time = models.DateTimeField(help_text="The start time of the contest. Not really important, but nice to have")
+    start_time = models.DateTimeField(
+        help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(
-        help_text="The finish time of the contest. Not really important, but nice to have")
+        help_text="The finish time of the navigation test. Not really important, but nice to have")
     wind_speed = models.FloatField(default=0,
-                                   help_text="The contest wind speed. This is used to calculate gate times if these are not predefined.")
+                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
     wind_direction = models.FloatField(default=0,
-                                       help_text="The contest wind direction. This is used to calculate gate times if these are not predefined.")
+                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
     is_public = models.BooleanField(default=False,
-                                    help_text="The contest is only viewable by unauthenticated users or users without object permissions if this is True")
+                                    help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
 
     class Meta:
         permissions = (
-            ("publish_contest", "Publish contest"),
+            ("publish_navigationtask", "Publish navigation test"),
         )
 
     def __str__(self):
@@ -277,15 +278,16 @@ class GateScore(models.Model):
 
 class Contestant(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
-    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
+    navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE)
     takeoff_time = models.DateTimeField(
         help_text="The time the take of gate (if it exists) should be crossed. Otherwise it is the time power should be applied")
     minutes_to_starting_point = models.FloatField(default=5,
                                                   help_text="The number of minutes from the take-off time until the starting point")
     finished_by_time = models.DateTimeField(null=True,
-                                            help_text="The time it is expected that the contest has finished and landed (used among other things for knowing when the tracker is busy). Is also used for the gate time for the landing gate")
+                                            help_text="The time it is expected that the navigation task has finished and landed (used among other things for knowing when the tracker is busy). Is also used for the gate time for the landing gate")
     air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
-    contestant_number = models.PositiveIntegerField(help_text="A unique number for the contestant in this contest")
+    contestant_number = models.PositiveIntegerField(
+        help_text="A unique number for the contestant in this navigation task")
     traccar_device_name = models.CharField(max_length=100,
                                            help_text="ID of physical tracking device that will be brought into the plane")
     scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT, null=True,
@@ -295,23 +297,23 @@ class Contestant(models.Model):
                                                  help_text="Dictionary of gates and their starting times (with time zone)")
 
     class Meta:
-        unique_together = ("contest", "contestant_number")
+        unique_together = ("navigation_task", "contestant_number")
 
     def __str__(self):
         return "{} - {}".format(self.contestant_number, self.team)
-        # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.contest.name, self.takeoff_time,
+        # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.navigation_task.name, self.takeoff_time,
         #                                       self.finished_by_time)
 
     def get_groundspeed(self, bearing) -> float:
-        return calculate_ground_speed_combined(bearing, self.air_speed, self.contest.wind_speed,
-                                               self.contest.wind_direction)
+        return calculate_ground_speed_combined(bearing, self.air_speed, self.navigation_task.wind_speed,
+                                               self.navigation_task.wind_direction)
 
     @property
     def gate_times(self) -> Dict:
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
             return self.predefined_gate_times
         crossing_times = {}
-        gates = self.contest.track.waypoints
+        gates = self.navigation_task.track.waypoints
         crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
         crossing_times[gates[0].name] = crossing_time
         for index in range(len(gates) - 1):  # type: Waypoint

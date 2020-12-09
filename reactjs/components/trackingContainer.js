@@ -1,5 +1,5 @@
 import 'regenerator-runtime/runtime'
-import Contest from "./Contest";
+import NavigationTask from "./navigationTask";
 import {connect} from "react-redux";
 import React, {Component} from "react";
 
@@ -11,7 +11,7 @@ class ConnectedTrackingContainer extends Component {
         this.client = null;
         this.viewer = null;
         this.map = null;
-        this.contestId = document.configuration.contest_id;
+        this.navigationTaskId = document.configuration.navigation_task_id;
         this.displayMap = document.configuration.displayMap;
         this.displayTable = document.configuration.displayTable;
     }
@@ -19,8 +19,8 @@ class ConnectedTrackingContainer extends Component {
 
     render() {
         const TrackerDisplay =
-            <Contest map={this.map} contestId={this.contestId} fetchInterval={5000}
-                     displayMap={this.displayMap} displayTable={this.displayTable}/>
+            <NavigationTask map={this.map} navigationTaskId={this.navigationTaskId} fetchInterval={5000}
+                            displayMap={this.displayMap} displayTable={this.displayTable}/>
         if (this.displayTable && this.displayMap) {
             return (
                 <div id="map-holder">

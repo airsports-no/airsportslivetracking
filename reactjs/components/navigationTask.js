@@ -1,8 +1,8 @@
 import React, {Component} from "react";
-import {displayAllTracks, fetchContest, setDisplay} from "../actions";
+import {displayAllTracks, fetchNavigationTask, setDisplay} from "../actions";
 import {connect} from "react-redux";
 import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
-import ContestantTrack from "./ContestantTrack";
+import ContestantTrack from "./contestantTrack";
 import distinctColors from "distinct-colors";
 import {compareContestantNumber} from "../utilities";
 import ContestantRankTable from "./contestantRankTable";
@@ -14,34 +14,34 @@ import TurningPointDisplay from "./turningPointDisplay";
 const L = window['L']
 
 const mapStateToProps = (state, props) => ({
-    contest: state.contest,
+    navigationTask: state.navigationTask,
     currentDisplay: state.currentDisplay
 })
 
-class ConnectedContest extends Component {
+class ConnectedNavigationTask extends Component {
     constructor(props) {
         super(props);
         this.state = {colourMap: {}}
-        this.handleContestHeadingClick = this.handleContestHeadingClick.bind(this)
+        this.handleNavigationTaskHeadingClick = this.handleNavigationTaskHeadingClick.bind(this)
     }
 
-    handleContestHeadingClick() {
+    handleNavigationTaskHeadingClick() {
         this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
         this.props.displayAllTracks();
     }
 
     componentDidMount() {
-        this.props.fetchContest(this.props.contestId);
+        this.props.fetchNavigationTask(this.props.navigationTaskId);
         if (this.props.displayMap) {
             this.initialiseMap();
         }
     }
 
     buildColourMap() {
-        const colours = distinctColors({count: this.props.contest.contestant_set.length})
-        this.props.contest.contestant_set.sort(compareContestantNumber)
+        const colours = distinctColors({count: this.props.navigationTask.contestant_set.length})
+        this.props.navigationTask.contestant_set.sort(compareContestantNumber)
         let colourMap = {}
-        this.props.contest.contestant_set.map((contestant, index) => {
+        this.props.navigationTask.contestant_set.map((contestant, index) => {
             colourMap[contestant.contestant_number] = colours[index]
         })
         return colourMap
@@ -49,7 +49,7 @@ class ConnectedContest extends Component {
 
 
     componentDidUpdate(previousProps) {
-        if (this.props.contest !== previousProps.contest) {
+        if (this.props.navigationTask !== previousProps.navigationTask) {
             if (this.props.displayMap) {
                 this.renderTrack()
             }
@@ -76,7 +76,7 @@ class ConnectedContest extends Component {
     }
 
     renderTrack() {
-        this.props.contest.track.waypoints.filter((waypoint) => {
+        this.props.navigationTask.track.waypoints.filter((waypoint) => {
             return waypoint.gate_check
         }).map((gate) => {
             polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
@@ -84,12 +84,12 @@ class ConnectedContest extends Component {
             }).addTo(this.map)
             // }
         })
-        let turningPoints = this.props.contest.track.waypoints.filter((waypoint) => {
+        let turningPoints = this.props.navigationTask.track.waypoints.filter((waypoint) => {
             return true //waypoint.type === "tp"
         }).map((waypoint) => {
             return [waypoint.latitude, waypoint.longitude]
         });
-        this.props.contest.track.waypoints.filter((waypoint) => {
+        this.props.navigationTask.track.waypoints.filter((waypoint) => {
             return waypoint.gate_check
         }).map((waypoint) => {
             marker([waypoint.latitude, waypoint.longitude], {
@@ -101,7 +101,7 @@ class ConnectedContest extends Component {
                 })
             }).bindTooltip(waypoint.name, {permanent: false}).addTo(this.map)
         });
-        this.props.contest.track.waypoints.filter((waypoint) => {
+        this.props.navigationTask.track.waypoints.filter((waypoint) => {
             return waypoint.is_procedure_turn
         }).map((waypoint) => {
             circle([waypoint.latitude, waypoint.longitude], {
@@ -110,14 +110,14 @@ class ConnectedContest extends Component {
             }).addTo(this.map)
         })
         // Temporarily plot range circles
-        // this.props.contest.track.waypoints.map((waypoint) => {
+        // this.props.navigationTask.track.waypoints.map((waypoint) => {
         //     circle([waypoint.latitude, waypoint.longitude], {
         //         radius: waypoint.insideDistance,
         //         color: "orange"
         //     }).addTo(this.map)
         // })
         // Plot starting line
-        // const gate = this.props.contest.track.starting_line
+        // const gate = this.props.navigationTask.track.starting_line
         // polyline([[gate.gate_line[1], gate.gate_line[0]], [gate.gate_line[3], gate.gate_line[2]]], {
         //             color: "red"
         //         }).addTo(this.map)
@@ -129,7 +129,7 @@ class ConnectedContest extends Component {
     }
 
     render() {
-        if (this.props.contest.contestant_set !== undefined) {
+        if (this.props.navigationTask.contestant_set !== undefined) {
             const colourMap = this.buildColourMap()
             let tableDisplay = <div/>
             if (this.props.displayTable) {
@@ -143,12 +143,12 @@ class ConnectedContest extends Component {
                                                    colourMap={colourMap}/>
                 }
                 tableDisplay = <div>
-                    <a href={"#"} onClick={this.handleContestHeadingClick}><h1>{this.props.contest.name}</h1></a>
+                    <a href={"#"} onClick={this.handleNavigationTaskHeadingClick}><h1>{this.props.navigationTask.name}</h1></a>
                     <TurningPointLinks/>
                     {display}
                 </div>
             }
-            let mapDisplay = this.props.contest.contestant_set.map((contestant, index) => {
+            let mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
                 return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}
                                         contestant={contestant} displayMap={this.props.displayMap}
                                         colour={colourMap[contestant.contestant_number]}/>
@@ -164,5 +164,5 @@ class ConnectedContest extends Component {
 }
 
 const
-    Contest = connect(mapStateToProps, {fetchContest, setDisplay, displayAllTracks})(ConnectedContest);
-export default Contest;
+    NavigationTask = connect(mapStateToProps, {fetchNavigationTask, setDisplay, displayAllTracks})(ConnectedNavigationTask);
+export default NavigationTask;

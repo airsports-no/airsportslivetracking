@@ -6,7 +6,7 @@ from django.test import TestCase, TransactionTestCase
 
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.convert_flightcontest_gpx import create_track_from_gpx
-from display.models import Aeroplane, Contest, Scorecard, Team, Contestant, ContestantTrack, GateScore
+from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore
 from display.views import create_track_from_csv
 
 
@@ -27,13 +27,13 @@ def load_track_points(filename):
 class TestFullTrack(TransactionTestCase):
     def setUp(self):
         with open("display/calculators/tests/NM.csv", "r") as file:
-            track = create_track_from_csv("contest", file.readlines()[1:])
-        contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
-        contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
+            track = create_track_from_csv("navigation_task", file.readlines()[1:])
+        navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
+        navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        self.contest = Contest.objects.create(name="NM contest",
+        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                               track=track,
-                                              start_time=contest_start_time, finish_time=contest_finish_time,
+                                              start_time=navigation_task_start_time, finish_time=navigation_task_finish_time,
                                               wind_direction=165,
                                               wind_speed=8)
         from display.default_scorecards import default_scorecard_fai_precision_2020
@@ -59,7 +59,7 @@ class TestFullTrack(TransactionTestCase):
         # scorecard.save()
         team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
-        self.contestant = Contestant.objects.create(contest=self.contest, team=team, takeoff_time=start_time,
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team, takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     traccar_device_name="Test contestant", contestant_number=1,
                                                     scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed)
@@ -98,13 +98,13 @@ class TestFullTrack(TransactionTestCase):
 class Test2017WPFC(TransactionTestCase):
     def setUp(self):
         with open("display/tests/demo contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
-            track = create_track_from_gpx("contest", file)
-        contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
-        contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
+            track = create_track_from_gpx("navigation_task", file)
+        navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
+        navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        self.contest = Contest.objects.create(name="NM contest",
+        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                               track=track,
-                                              start_time=contest_start_time, finish_time=contest_finish_time,
+                                              start_time=navigation_task_start_time, finish_time=navigation_task_finish_time,
                                               wind_direction=160,
                                               wind_speed=18)
         self.team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=self.aeroplane)
@@ -137,7 +137,7 @@ class Test2017WPFC(TransactionTestCase):
         track = load_track_points(
             "display/tests/demo contests/2017_WPFC/101_-_Aircraft-039_-_1._Nav._-_Navigation_Flight_Results_(Edition_2).gpx")
         start_time, speed = datetime.datetime(2015, 1, 1, 7, 30, tzinfo=datetime.timezone.utc), 80
-        self.contestant = Contestant.objects.create(contest=self.contest, team=self.team, takeoff_time=start_time,
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team, takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     traccar_device_name="Test contestant", contestant_number=1,
                                                     scorecard=self.scorecard, minutes_to_starting_point=8,

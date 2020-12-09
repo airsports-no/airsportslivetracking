@@ -48,14 +48,14 @@ class Calculator(threading.Thread):
         self.position_update_lock = threading.Lock()
 
         self.starting_line = self.gates[0]
-        self.takeoff_gate = Gate(self.contestant.contest.track.takeoff_gate,
+        self.takeoff_gate = Gate(self.contestant.navigation_task.track.takeoff_gate,
                                  self.contestant.takeoff_time,
-                                 calculate_extended_gate(self.contestant.contest.track.takeoff_gate,
-                                                         self.scorecard)) if self.contestant.contest.track.takeoff_gate else None
-        self.landing_gate = Gate(self.contestant.contest.track.landing_gate,
+                                 calculate_extended_gate(self.contestant.navigation_task.track.takeoff_gate,
+                                                         self.scorecard)) if self.contestant.navigation_task.track.takeoff_gate else None
+        self.landing_gate = Gate(self.contestant.navigation_task.track.landing_gate,
                                  self.contestant.finished_by_time,
-                                 calculate_extended_gate(self.contestant.contest.track.landing_gate,
-                                                         self.scorecard)) if self.contestant.contest.track.landing_gate else None
+                                 calculate_extended_gate(self.contestant.navigation_task.track.landing_gate,
+                                                         self.scorecard)) if self.contestant.navigation_task.track.landing_gate else None
         self.outstanding_gates = list(self.gates)
 
     def run(self):
@@ -84,7 +84,7 @@ class Calculator(threading.Thread):
         self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)
 
     def create_gates(self) -> List[Gate]:
-        waypoints = self.contestant.contest.track.waypoints
+        waypoints = self.contestant.navigation_task.track.waypoints
         expected_times = self.contestant.gate_times
         gates = []
         for item in waypoints:  # type: Waypoint

@@ -21,11 +21,11 @@ from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 
-from display.views import ContestList
+from display.views import NavigationTaskList
 
 docs = get_schema_view(
     openapi.Info(
-        title='Contest tracking API',
+        title='Airsports tracking API',
         default_version='v1',
         description="Full API for Airsports tracker",
     ),
@@ -33,7 +33,7 @@ docs = get_schema_view(
 )
 
 urlpatterns = [
-    path('', ContestList.as_view()),
+    path('', NavigationTaskList.as_view()),
     path('admin/', admin.site.urls),
     path('display/', include("display.urls")),
     path('accounts/login/', LoginView.as_view(template_name='login.html'), name="login"),

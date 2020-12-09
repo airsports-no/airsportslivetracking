@@ -2,21 +2,21 @@ import datetime
 
 from django.test import TestCase
 
-from display.models import Aeroplane, Contest, Scorecard, Team, Contestant
+from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant
 from display.views import create_track_from_csv
 
 
 class TestContestantGatesCalculation(TestCase):
     def setUp(self):
         with open("display/tests/NM.csv", "r") as file:
-            track = create_track_from_csv("contest", file.readlines()[1:])
-        contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
-        contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
+            track = create_track_from_csv("navigation_task", file.readlines()[1:])
+        navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
+        navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        self.contest = Contest.objects.create(name="NM contest",
+        self.navigation_task = NavigationTask.objects.create(name="NM navigation test",
                                               track=track, server_address=" ",
                                               server_token=" ",
-                                              start_time=contest_start_time, finish_time=contest_finish_time,
+                                              start_time=navigation_task_start_time, finish_time=navigation_task_finish_time,
                                               wind_direction=165,
                                               wind_speed=8)
         scorecard = Scorecard.objects.create(missed_gate=100,
@@ -31,7 +31,7 @@ class TestContestantGatesCalculation(TestCase):
                                              )
         team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 8, 5, tzinfo=datetime.timezone.utc), 75
-        self.contestant = Contestant.objects.create(contest=self.contest, team=team, takeoff_time=start_time,
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team, takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     traccar_device_name="Test contestant", contestant_number=1,
                                                     scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed)

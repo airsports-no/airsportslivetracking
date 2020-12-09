@@ -3,7 +3,7 @@ import {
     DISPLAY_ALL_TRACKS,
     DISPLAY_TRACK_FOR_CONTESTANT,
     EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
-    GET_CONTEST_SUCCESSFUL,
+    GET_NAVIGATION_TASK_SUCCESSFUL,
     GET_CONTESTANT_DATA_SUCCESSFUL,
     HIDE_ALL_TRACKS,
     SET_DISPLAY, TOGGLE_EXPANDED_HEADER
@@ -11,7 +11,7 @@ import {
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
 const initialState = {
-    contest: {track: {waypoints: []}},
+    navigationTask: {track: {waypoints: []}},
     contestantData: {},
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
     displayTracks: null,
@@ -29,9 +29,9 @@ function rootReducer(state = initialState, action) {
             currentDisplay: action.payload
         })
     }
-    if (action.type === GET_CONTEST_SUCCESSFUL) {
+    if (action.type === GET_NAVIGATION_TASK_SUCCESSFUL) {
         return Object.assign({}, state, {
-            contest: action.payload
+            navigationTask: action.payload
         })
     }
     if (action.type === GET_CONTESTANT_DATA_SUCCESSFUL) {

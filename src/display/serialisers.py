@@ -6,7 +6,7 @@ from rest_framework.fields import FileField, DateTimeField, CharField
 from rest_framework.relations import SlugRelatedField
 
 from display.convert_flightcontest_gpx import create_track_from_gpx
-from display.models import Contest, Aeroplane, Team, Track, Contestant, ContestantTrack, Scorecard, Crew
+from display.models import NavigationTask, Aeroplane, Team, Track, Contestant, ContestantTrack, Scorecard, Crew
 from display.show_slug_choices import ChoicesSlugRelatedField
 
 
@@ -82,15 +82,15 @@ class ContestantSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Contestant
         # fields = "__all__"
-        exclude = ("contest",)
+        exclude = ("navigation_task",)
 
 
-class ContestSerialiser(serializers.ModelSerializer):
+class NavigationTaskSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantSerialiser(many=True, read_only=True)
     track = TrackSerialiser(read_only=True)
 
     class Meta:
-        model = Contest
+        model = NavigationTask
         fields = "__all__"
 
 
@@ -107,13 +107,13 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class ExternalContestSerialiser(serializers.ModelSerializer):
+class ExternalNavigationTaskSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantSerialiser(many=True)
     track_file = serializers.CharField(write_only=True, read_only=False, required=True,
                                        help_text="Base64 encoded gpx file")
 
     class Meta:
-        model = Contest
+        model = NavigationTask
         exclude = ("track",)
 
     def validate_track_file(self, value):
@@ -128,11 +128,11 @@ class ExternalContestSerialiser(serializers.ModelSerializer):
         contestant_set = validated_data.pop("contestant_set", None)
         track_file = validated_data.pop("track_file", None)
         track = create_track_from_gpx(validated_data["name"], base64.decodebytes(track_file))
-        contest = Contest.objects.create(**validated_data, track=track)
+        navigation_task = NavigationTask.objects.create(**validated_data, track=track)
         user = self.context["request"].user
-        assign_perm("publish_contest", user, contest)
-        assign_perm("delete_contest", user, contest)
-        assign_perm("view_contest", user, contest)
+        assign_perm("publish_navigationtask", user, navigation_task)
+        assign_perm("delete_navigationtask", user, navigation_task)
+        assign_perm("view_navigationtask", user, navigation_task)
         for contestant_data in contestant_set:
             team_data = contestant_data.pop("team")
             aeroplane_data = team_data.pop("aeroplane")
