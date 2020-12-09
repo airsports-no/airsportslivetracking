@@ -144,11 +144,12 @@ class ContestViewSet(ModelViewSet):
 class NavigationTaskViewSet(ModelViewSet):
     queryset = NavigationTask.objects.all()
     serializer_class = NavigationTaskSerialiser
-    permission_classes = (permissions.IsAuthenticated, NavigationTaskPermissions)
+    permission_classes = (NavigationTaskPermissions, )
+    lookup_url_kwarg = "pk"
+
 
     def get_queryset(self):
-        return list(get_objects_for_user(self.request.user, "view_navigationtask", klass=self.queryset)) + list(
-            self.queryset.filter(is_public=True))
+        return get_objects_for_user(self.request.user, "view_navigationtask", klass=self.queryset) & self.queryset.filter(is_public=True)
 
 
 class ContestantViewSet(ModelViewSet):
