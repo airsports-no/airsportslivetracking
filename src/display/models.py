@@ -142,13 +142,29 @@ class Crew(models.Model):
 
     def __str__(self):
         if len(self.navigator) > 0:
-            return "{} and {} in {}".format(self.pilot, self.navigator, self.aeroplane)
-        return "{} in {}".format(self.pilot, self.aeroplane)
+            return "{} and {}".format(self.pilot, self.navigator)
+        return "{}".format(self.pilot)
 
 
 class Team(models.Model):
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.SET_NULL, null=True)
     crew = models.ForeignKey(Crew, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return "{} in {}".format(self.crew, self.aeroplane)
+
+
+class Contest(models.Model):
+    name = models.CharField(max_length=100)
+    is_public = models.BooleanField(default=False)
+
+    class Meta:
+        permissions = (
+            ("publish_contest", "Publish contest"),
+        )
+
+    def __str__(self):
+        return self.name
 
 
 class NavigationTask(models.Model):
@@ -160,6 +176,7 @@ class NavigationTask(models.Model):
     )
 
     name = models.CharField(max_length=200)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, null=True)
     calculator_type = models.IntegerField(choices=NAVIGATION_TASK_TYPES, default=PRECISION,
                                           help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
                                               NAVIGATION_TASK_TYPES))
@@ -173,7 +190,7 @@ class NavigationTask(models.Model):
 
     class Meta:
         permissions = (
-            ("publish_navigationtask", "Publish navigation test"),
+            ("publish_navigationtask", "Publish navigation task"),
         )
 
     def __str__(self):

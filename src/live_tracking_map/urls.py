@@ -16,12 +16,11 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path, include
-from django.views import static
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
-
 from display.views import NavigationTaskList
+from . import api
 
 docs = get_schema_view(
     openapi.Info(
@@ -39,5 +38,6 @@ urlpatterns = [
     path('accounts/login/', LoginView.as_view(template_name='login.html'), name="login"),
     path('accounts/logout/', LogoutView.as_view(), name="logout"),
     path('docs/', docs.with_ui()),
+    path("api/v1/", include(api.urlpatters))
 
 ]

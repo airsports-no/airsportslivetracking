@@ -20,18 +20,22 @@ import os
 from drf_yasg.app_settings import swagger_settings
 from drf_yasg.utils import swagger_auto_schema
 from guardian.decorators import permission_required_or_403
+from guardian.shortcuts import get_objects_for_user
 from redis import Redis
-from rest_framework import status
+from rest_framework import status, permissions
 from rest_framework.decorators import api_view
-from rest_framework.generics import RetrieveAPIView, get_object_or_404, DestroyAPIView
+from rest_framework.generics import RetrieveAPIView, get_object_or_404, DestroyAPIView, CreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 
 from display.convert_flightcontest_gpx import create_track_from_gpx, create_track_from_csv
 from display.forms import ImportTrackForm
-from display.models import NavigationTask, Track, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY
-from display.serialisers import NavigationTaskSerialiser, ContestantTrackSerialiser, ExternalNavigationTaskSerialiser
+from display.models import NavigationTask, Track, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY, Contest
+from display.permissions import ContestPermissions, NavigationTaskPermissions
+from display.serialisers import NavigationTaskSerialiser, ContestantTrackSerialiser, ExternalNavigationTaskSerialiser, \
+    ContestSerialiser, ContestantSerialiser
 from display.show_slug_choices import ShowChoicesMetadata, ShowChoicesFieldInspector
 from influx_facade import InfluxFacade
 
@@ -61,7 +65,6 @@ class RetrieveNavigationTaskApi(RetrieveAPIView):
 
 class NavigationTaskList(ListView):
     model = NavigationTask
-
 
 
 connection = Redis("redis")
@@ -128,31 +131,52 @@ def import_track(request):
 
 
 # Everything below he is related to management and requires authentication
+class ContestViewSet(ModelViewSet):
+    queryset = Contest.objects.all()
+    serializer_class = ContestSerialiser
+    permission_classes = [permissions.IsAuthenticated & ContestPermissions]
 
-class ImportFCNavigationTask(LoginRequiredMixin, APIView):
+    def get_queryset(self):
+        return list(get_objects_for_user(self.request.user, "view_contest", klass=self.queryset)) + list(
+            self.queryset.filter(is_public=True))
+
+
+class NavigationTaskViewSet(ModelViewSet):
+    queryset = NavigationTask.objects.all()
+    serializer_class = NavigationTaskSerialiser
+    permission_classes = (permissions.IsAuthenticated, NavigationTaskPermissions)
+
+    def get_queryset(self):
+        return list(get_objects_for_user(self.request.user, "view_navigationtask", klass=self.queryset)) + list(
+            self.queryset.filter(is_public=True))
+
+
+class ContestantViewSet(ModelViewSet):
+    queryset = Contestant.objects.all()
+    serializer_class = ContestantSerialiser
+    permission_classes = (permissions.IsAuthenticated, NavigationTaskPermissions)
+
+    def get_queryset(self):
+        return list(get_objects_for_user(self.request.user, "view_navigationtask", klass=self.queryset)) + list(
+            self.queryset.filter(navigation_task__is_public=True))
+
+
+class ImportFCNavigationTask(ModelViewSet):
+    queryset = NavigationTask.objects.all()
+    serializer_class = ExternalNavigationTaskSerialiser
+    permission_classes = (permissions.IsAuthenticated, NavigationTaskPermissions)
+
     metadata_class = ShowChoicesMetadata
 
-    @swagger_auto_schema(
-        operation_description="Method to post FC NavigationTask",
-        request_body=ExternalNavigationTaskSerialiser,
-        responses={200: ExternalNavigationTaskSerialiser(),
-                   400: 'Bad Request'},
-        tags=['navigationtask'],
-        field_inspectors=[ShowChoicesFieldInspector]
-    )
-    @permission_required('display.create_navigationtask')
-    def post(self, request):
-        serialiser = ExternalNavigationTaskSerialiser(data=request.data, context={"request":request})
+    http_method_names = ["post", "delete"]
+
+    lookup_key = "contest_id"
+
+    def post(self, request, *args, **kwargs):
+        contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
+        serialiser = ExternalNavigationTaskSerialiser(data=request.data,
+                                                      context={"request": request, "contest": contest})
         if serialiser.is_valid():
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class DeleteNavigationTaskApi(DestroyAPIView):
-    serializer_class = NavigationTaskSerialiser
-    permission_classes = [IsAuthenticated]
-
-    @permission_required_or_403("delete_navigationtask", (NavigationTask, "pk", "pk"))
-    def delete(self, request, *args, **kwargs):
-        super().delete(request, *args, **kwargs)

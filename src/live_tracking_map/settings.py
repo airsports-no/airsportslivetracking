@@ -86,6 +86,8 @@ WEBPACK_LOADER = {
     }
 }
 
+AUTH_PASSWORD_VALIDATORS = []
+
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',  # this is default
     'guardian.backends.ObjectPermissionBackend',

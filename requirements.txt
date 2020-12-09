@@ -28,3 +28,5 @@ gpx_converter
 lxml
 drf-yasg
 django-guardian
+djangorestframework-guardian
+drf-nested-routers

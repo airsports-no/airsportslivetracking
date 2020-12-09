@@ -1,13 +1,25 @@
 import base64
 
-from guardian.shortcuts import assign_perm
 from rest_framework import serializers
-from rest_framework.fields import FileField, DateTimeField, CharField
 from rest_framework.relations import SlugRelatedField
+from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from display.convert_flightcontest_gpx import create_track_from_gpx
-from display.models import NavigationTask, Aeroplane, Team, Track, Contestant, ContestantTrack, Scorecard, Crew
-from display.show_slug_choices import ChoicesSlugRelatedField
+from display.models import NavigationTask, Aeroplane, Team, Track, Contestant, ContestantTrack, Scorecard, Crew, Contest
+
+
+class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
+    class Meta:
+        model = Contest
+        fields = "__all__"
+
+    def get_permissions_map(self, created):
+        user = self.context["request"].user
+        return {
+            "update_contest": [user],
+            "delete_contest": [user],
+            "view_contest": [user]
+        }
 
 
 class WaypointSerialiser(serializers.Serializer):
@@ -107,7 +119,7 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class ExternalNavigationTaskSerialiser(serializers.ModelSerializer):
+class ExternalNavigationTaskSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     contestant_set = ContestantSerialiser(many=True)
     track_file = serializers.CharField(write_only=True, read_only=False, required=True,
                                        help_text="Base64 encoded gpx file")
@@ -115,6 +127,14 @@ class ExternalNavigationTaskSerialiser(serializers.ModelSerializer):
     class Meta:
         model = NavigationTask
         exclude = ("track",)
+
+    def get_permissions_map(self, created):
+        user = self.context["request"].user
+        return {
+            "publish_navigationtask": [user],
+            "delete_navigationtask": [user],
+            "view_navigationtask": [user]
+        }
 
     def validate_track_file(self, value):
         if value:
@@ -128,11 +148,7 @@ class ExternalNavigationTaskSerialiser(serializers.ModelSerializer):
         contestant_set = validated_data.pop("contestant_set", None)
         track_file = validated_data.pop("track_file", None)
         track = create_track_from_gpx(validated_data["name"], base64.decodebytes(track_file))
-        navigation_task = NavigationTask.objects.create(**validated_data, track=track)
-        user = self.context["request"].user
-        assign_perm("publish_navigationtask", user, navigation_task)
-        assign_perm("delete_navigationtask", user, navigation_task)
-        assign_perm("view_navigationtask", user, navigation_task)
+        navigation_task = NavigationTask.objects.create(**validated_data, track=track, contest=self.context["contest"])
         for contestant_data in contestant_set:
             team_data = contestant_data.pop("team")
             aeroplane_data = team_data.pop("aeroplane")
@@ -142,3 +158,4 @@ class ExternalNavigationTaskSerialiser(serializers.ModelSerializer):
             crew, _ = Crew.objects.get_or_create(**crew_data)
             team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
             Contestant.objects.create(**contestant_data, team=team)
+        return navigation_task

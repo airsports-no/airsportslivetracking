@@ -11,6 +11,5 @@ urlpatterns = [
     path('frontend/<int:pk>/', frontend_view, name="frontend_view"),
     # path('frontend/offline/<int:pk>/', frontend_view_offline, name="frontend_view_offline"),
     path('api/navigationtask/detail/<int:pk>', RetrieveNavigationTaskApi.as_view()),
-    path('api/navigationtask/fc/import', ImportFCNavigationTask.as_view()),
     path('api/contestant/track_data/<int:contestant_pk>', get_data_from_time_for_contestant),
 ]
