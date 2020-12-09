@@ -57,14 +57,11 @@ def frontend_view_map(request, pk):
                   {"navigation_task_id": pk, "live_mode": "true", "display_map": "true", "display_table": "false"})
 
 
-class RetrieveNavigationTaskApi(RetrieveAPIView):
-    serializer_class = NavigationTaskSerialiser
-    queryset = NavigationTask.objects.all()
-    lookup_field = "pk"
-
-
 class NavigationTaskList(ListView):
     model = NavigationTask
+
+    def get_queryset(self):
+        return NavigationTask.objects.filter(is_public=True)
 
 
 connection = Redis("redis")
@@ -144,12 +141,12 @@ class ContestViewSet(ModelViewSet):
 class NavigationTaskViewSet(ModelViewSet):
     queryset = NavigationTask.objects.all()
     serializer_class = NavigationTaskSerialiser
-    permission_classes = (NavigationTaskPermissions, )
+    permission_classes = (NavigationTaskPermissions,)
     lookup_url_kwarg = "pk"
 
-
     def get_queryset(self):
-        return get_objects_for_user(self.request.user, "view_navigationtask", klass=self.queryset) & self.queryset.filter(is_public=True)
+        return get_objects_for_user(self.request.user, "view_navigationtask",
+                                    klass=self.queryset) & self.queryset.filter(is_public=True)
 
 
 class ContestantViewSet(ModelViewSet):
