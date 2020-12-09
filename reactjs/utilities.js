@@ -70,9 +70,9 @@ export function compareContestantNumber(a, b) {
 }
 
 export function contestantShortForm(contestant) {
-    return pz(contestant.contestant_number, 2) + " " + contestant.team.pilot
+    return pz(contestant.contestant_number, 2) + " " + contestant.team.crew ? contestant.team.crew.pilot : "Unknown"
 }
 
 export function contestantLongForm(contestant) {
-    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + contestant.team.pilot + "<br/>Navigator: " + contestant.team.navigator + "<br/>Aeroplane: " + contestant.team.aeroplane.registration
+    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + contestant.team.crew ? contestant.team.crew.pilot : "Unknown" + "<br/>Navigator: " + contestant.team.crew ? contestant.team.crew.navigator : "Unknown" + "<br/>Aeroplane: " + contestant.team.aeroplane.registration
 }
