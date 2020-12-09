@@ -2,7 +2,8 @@ import datetime
 
 from django.test import TestCase
 
-from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant
+from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
+from display.models import Aeroplane, NavigationTask, Team, Contestant, Crew
 from display.views import create_track_from_csv
 
 
@@ -14,27 +15,20 @@ class TestContestantGatesCalculation(TestCase):
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation test",
-                                              track=track, server_address=" ",
-                                              server_token=" ",
-                                              start_time=navigation_task_start_time, finish_time=navigation_task_finish_time,
-                                              wind_direction=165,
-                                              wind_speed=8)
-        scorecard = Scorecard.objects.create(missed_gate=100,
-                                             gate_timing_per_second=3,
-                                             gate_perfect_limit_seconds=2,
-                                             maximum_gate_score=100,
-                                             backtracking=200,
-                                             missed_procedure_turn_penalty=200,
-                                             below_minimum_altitude=500,
-                                             takeoff_time_limit_seconds=60,
-                                             missed_takeoff_gate=100
-                                             )
-        team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=aeroplane)
+                                                             track=track,
+                                                             start_time=navigation_task_start_time,
+                                                             finish_time=navigation_task_finish_time)
+        scorecard = get_default_scorecard()
+        crew = Crew.objects.create(pilot="Test contestant", navigator="")
+        team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 8, 5, tzinfo=datetime.timezone.utc), 75
-        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team, takeoff_time=start_time,
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team,
+                                                    takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     traccar_device_name="Test contestant", contestant_number=1,
-                                                    scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed)
+                                                    scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed,
+                                                    wind_direction=165,
+                                                    wind_speed=8)
 
     def test_gate_times(self):
         gate_times = self.contestant.gate_times

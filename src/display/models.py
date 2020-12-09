@@ -168,10 +168,6 @@ class NavigationTask(models.Model):
         help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(
         help_text="The finish time of the navigation test. Not really important, but nice to have")
-    wind_speed = models.FloatField(default=0,
-                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
-    wind_direction = models.FloatField(default=0,
-                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
     is_public = models.BooleanField(default=False,
                                     help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
 
@@ -295,6 +291,11 @@ class Contestant(models.Model):
                                       lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
     predefined_gate_times = MyPickledObjectField(default=None, null=True, blank=True,
                                                  help_text="Dictionary of gates and their starting times (with time zone)")
+    wind_speed = models.FloatField(default=0,
+                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
+    wind_direction = models.FloatField(default=0,
+                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
+
 
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
@@ -305,8 +306,8 @@ class Contestant(models.Model):
         #                                       self.finished_by_time)
 
     def get_groundspeed(self, bearing) -> float:
-        return calculate_ground_speed_combined(bearing, self.air_speed, self.navigation_task.wind_speed,
-                                               self.navigation_task.wind_direction)
+        return calculate_ground_speed_combined(bearing, self.air_speed, self.wind_speed,
+                                               self.wind_direction)
 
     @property
     def gate_times(self) -> Dict:

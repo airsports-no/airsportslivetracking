@@ -99,23 +99,23 @@ REST_FRAMEWORK = {
 
 IS_UNIT_TESTING = any(s in sys.argv for s in ("test", "jenkins"))
 
-if IS_UNIT_TESTING:  # Use sqlite3 when running tests
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-        }
+# if IS_UNIT_TESTING:  # Use sqlite3 when running tests
+#     DATABASES = {
+#         'default': {
+#             'ENGINE': 'django.db.backends.sqlite3',
+#             'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+#         }
+#     }
+# else:
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "tracker",
+        "USER": "tracker",
+        "PASSWORD": "tracker",
+        "HOST": "mysql"
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.mysql",
-            "NAME": "tracker",
-            "USER": "tracker",
-            "PASSWORD": "tracker",
-            "HOST": "mysql"
-        }
-    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators

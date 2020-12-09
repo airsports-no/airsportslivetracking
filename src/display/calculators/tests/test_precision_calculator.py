@@ -6,7 +6,7 @@ from django.test import TestCase, TransactionTestCase
 
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.convert_flightcontest_gpx import create_track_from_gpx
-from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore
+from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew
 from display.views import create_track_from_csv
 
 
@@ -32,10 +32,9 @@ class TestFullTrack(TransactionTestCase):
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
-                                              track=track,
-                                              start_time=navigation_task_start_time, finish_time=navigation_task_finish_time,
-                                              wind_direction=165,
-                                              wind_speed=8)
+                                                             track=track,
+                                                             start_time=navigation_task_start_time,
+                                                             finish_time=navigation_task_finish_time)
         from display.default_scorecards import default_scorecard_fai_precision_2020
         scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         # scorecard = Scorecard.objects.create(
@@ -57,12 +56,15 @@ class TestFullTrack(TransactionTestCase):
         # scorecard.turning_point_gate_score = GateScore.objects.create(**scores)
         # scorecard.secret_gate_score = GateScore.objects.create(**scores)
         # scorecard.save()
-        team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=aeroplane)
+        crew = Crew.objects.create(pilot="Test contestant", navigator="")
+        team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
-        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team, takeoff_time=start_time,
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team,
+                                                    takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     traccar_device_name="Test contestant", contestant_number=1,
-                                                    scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed)
+                                                    scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed,
+                                                    wind_direction=165, wind_speed=8)
 
     def test_correct_scoring_correct_track_precision(self):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
@@ -71,7 +73,7 @@ class TestFullTrack(TransactionTestCase):
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(146, contestant_track.score)
+        self.assertEqual(144, contestant_track.score)
 
     def test_correct_scoring_bad_track_precision(self):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
@@ -80,7 +82,7 @@ class TestFullTrack(TransactionTestCase):
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(2200, contestant_track.score)
+        self.assertEqual(2000, contestant_track.score)
 
     def test_missed_procedure_turn(self):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
@@ -103,11 +105,11 @@ class Test2017WPFC(TransactionTestCase):
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
-                                              track=track,
-                                              start_time=navigation_task_start_time, finish_time=navigation_task_finish_time,
-                                              wind_direction=160,
-                                              wind_speed=18)
-        self.team = Team.objects.create(pilot="Test contestant", navigator="", aeroplane=self.aeroplane)
+                                                             track=track,
+                                                             start_time=navigation_task_start_time,
+                                                             finish_time=navigation_task_finish_time)
+        crew = Crew.objects.create(pilot="Test contestant", navigator="")
+        self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         # self.scorecard = Scorecard.objects.create(
@@ -137,14 +139,16 @@ class Test2017WPFC(TransactionTestCase):
         track = load_track_points(
             "display/tests/demo contests/2017_WPFC/101_-_Aircraft-039_-_1._Nav._-_Navigation_Flight_Results_(Edition_2).gpx")
         start_time, speed = datetime.datetime(2015, 1, 1, 7, 30, tzinfo=datetime.timezone.utc), 80
-        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team, takeoff_time=start_time,
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     traccar_device_name="Test contestant", contestant_number=1,
                                                     scorecard=self.scorecard, minutes_to_starting_point=8,
-                                                    air_speed=speed)
+                                                    air_speed=speed, wind_direction=160,
+                                                    wind_speed=18)
         calculator = PrecisionCalculator(self.contestant, Mock())
         calculator.start()
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(999, contestant_track.score)
+        self.assertEqual(1107, contestant_track.score)
