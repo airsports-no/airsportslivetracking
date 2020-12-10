@@ -40,6 +40,7 @@ class Gate:
         self.time_check = gate.time_check
         self.distance = gate.distance_next
         self.bearing = gate.bearing_next
+        self.bearing_from_previous = gate.bearing_from_previous
         self.is_procedure_turn = gate.is_procedure_turn
         self.passing_time = None
         self.extended_passing_time = None
@@ -57,7 +58,7 @@ class Gate:
         return self.extended_passing_time is not None
 
     def is_passed_in_correct_direction_bearing(self, track_bearing) -> bool:
-        return abs(bearing_difference(track_bearing, self.bearing)) < 90
+        return abs(bearing_difference(track_bearing, self.bearing_from_previous)) < 90
 
     def is_passed_in_correct_direction_track(self, track) -> bool:
         if len(track) > 1:
@@ -66,19 +67,19 @@ class Gate:
         return False
 
     def get_gate_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
-        if len(track) > 1:
-            return get_intersect_time(projector, track[-2], track[-1], self.gate_line[0], self.gate_line[1])
+        if len(track) > 2:
+            return get_intersect_time(projector, track[-3], track[-1], self.gate_line[0], self.gate_line[1])
         return None
 
     def get_gate_infinite_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
-        if len(track) > 1:
-            return get_intersect_time(projector, track[-2], track[-1], self.gate_line_infinite[0],
+        if len(track) > 2:
+            return get_intersect_time(projector, track[-3], track[-1], self.gate_line_infinite[0],
                                       self.gate_line_infinite[1])
         return None
 
     def get_gate_extended_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
-        if len(track) > 1 and self.gate_line_extended:
-            return get_intersect_time(projector, track[-2], track[-1], self.gate_line_extended[0],
+        if len(track) > 2 and self.gate_line_extended:
+            return get_intersect_time(projector, track[-3], track[-1], self.gate_line_extended[0],
                                       self.gate_line_extended[1])
         return None
 

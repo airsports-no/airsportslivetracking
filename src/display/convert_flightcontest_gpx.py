@@ -77,7 +77,8 @@ def create_track_from_gpx(track_name: str, file) -> Track:
     return object
 
 
-def calculate_extended_gate(waypoint: Waypoint, scorecard: "Scorecard") -> Tuple[Tuple[float, float], Tuple[float, float]]:
+def calculate_extended_gate(waypoint: Waypoint, scorecard: "Scorecard") -> Tuple[
+    Tuple[float, float], Tuple[float, float]]:
     return extend_line(waypoint.gate_line[0], waypoint.gate_line[1],
                        scorecard.get_extended_gate_width_for_gate_type(waypoint.type))
 
@@ -136,6 +137,14 @@ def calculate_and_update_legs(waypoints: List[Waypoint]):
                                                                 (next_gate.latitude, next_gate.longitude))
         current_gate.bearing_next = calculate_bearing((current_gate.latitude, current_gate.longitude),
                                                       (next_gate.latitude, next_gate.longitude))
+    for index in range(1, len(gates)):
+        current_gate = gates[index]
+        previous_gate = gates[index - 1]
+        current_gate.distance_previous = calculate_distance_lat_lon((current_gate.latitude, current_gate.longitude),
+                                                                    (previous_gate.latitude, previous_gate.longitude))
+        current_gate.bearing_from_previous = calculate_bearing((previous_gate.latitude, previous_gate.longitude),
+                                                               (current_gate.latitude, current_gate.longitude))
+
     for index in range(0, len(waypoints) - 1):
         current_gate = gates[index]
         next_gate = gates[index + 1]

@@ -135,7 +135,7 @@ class Calculator(threading.Thread):
             i -= 1
         if not crossed_gate and len(self.outstanding_gates) > 0:
             extended_next_gate = self.outstanding_gates[0]  # type: Gate
-            if extended_next_gate.type != "sp" and not extended_next_gate.extended_passing_time:
+            if extended_next_gate.type != "sp" and not extended_next_gate.extended_passing_time and extended_next_gate.is_procedure_turn:
                 intersection_time = extended_next_gate.get_gate_extended_intersection_time(self.projector, self.track)
                 if intersection_time:
                     extended_next_gate.extended_passing_time = intersection_time
@@ -143,8 +143,6 @@ class Calculator(threading.Thread):
                                                                                                      intersection_time,
                                                                                                      extended_next_gate))
 
-        if not crossed_gate and len(self.outstanding_gates) > 0:
-            extended_next_gate = self.outstanding_gates[0]  # type: Gate
             if extended_next_gate.type != "sp" and not extended_next_gate.maybe_missed_time:
                 intersection_time = extended_next_gate.get_gate_infinite_intersection_time(self.projector, self.track)
                 if intersection_time and extended_next_gate.is_passed_in_correct_direction_track(self.track):
