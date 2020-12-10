@@ -5,7 +5,7 @@ from typing import List, TYPE_CHECKING, Optional
 
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
-from display.coordinate_utilities import line_intersect, fraction_of_leg
+from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector
 from display.models import ContestantTrack, Contestant
 from display.waypoint import Waypoint
 
@@ -48,6 +48,7 @@ class Calculator(threading.Thread):
         self.position_update_lock = threading.Lock()
 
         self.starting_line = self.gates[0]
+        self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
         self.takeoff_gate = Gate(self.contestant.navigation_task.track.takeoff_gate,
                                  self.contestant.takeoff_time,
                                  calculate_extended_gate(self.contestant.navigation_task.track.takeoff_gate,
@@ -103,22 +104,13 @@ class Calculator(threading.Thread):
         self.tracking_state = tracking_state
         self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
-    def check_extended_intersections(self):
-        i = len(self.outstanding_gates) - 1
-        crossed_gate = False
-        while i >= 0:
-            gate = self.outstanding_gates[i]  # type
-            intersection_time = gate.get_gate_extended_intersection_time(self.track)
-            if intersection_time:
-                gate.crossed_
-
     def check_intersections(self, force_gate: Optional["Gate"] = None):
         # Check takeoff if exists
         if self.takeoff_gate is not None:
             if not self.takeoff_gate.has_been_passed():
-                intersection_time = self.takeoff_gate.get_gate_intersection_time(self.track)
+                intersection_time = self.takeoff_gate.get_gate_intersection_time(self.projector, self.track)
                 if intersection_time:
-                    logger.info("{}: Passing takeoff line {}".format(self.contestant, intersection_time))
+                    logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
                     self.update_tracking_state(self.TAKEOFF)
                     self.takeoff_gate.passing_time = intersection_time
                 else:
@@ -127,9 +119,9 @@ class Calculator(threading.Thread):
         crossed_gate = False
         while i >= 0:
             gate = self.outstanding_gates[i]
-            intersection_time = gate.get_gate_intersection_time(self.track)
+            intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
             if intersection_time:
-                logger.info("{}: Crossed gate {} at {}".format(self.contestant, gate, intersection_time))
+                logger.info("{} {}: Crossed gate {}".format(self.contestant, intersection_time, gate))
                 gate.passing_time = intersection_time
                 gate.extended_passing_time = intersection_time
                 crossed_gate = True
@@ -137,32 +129,35 @@ class Calculator(threading.Thread):
                 crossed_gate = True
             if crossed_gate:
                 if gate.passing_time is None:
-                    logger.info("{}: Missed gate {}".format(self.contestant, gate))
+                    logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))
                     gate.missed = True
                 self.outstanding_gates.pop(i)
             i -= 1
-        if len(self.outstanding_gates) > 0:
-            extended_next_gate = self.outstanding_gates[0]  # type: Gate
-            if extended_next_gate.type != "sp":
-                intersection_time = extended_next_gate.get_gate_extended_intersection_time(self.track)
-                if intersection_time:
-                    extended_next_gate.extended_passing_time = intersection_time
         if not crossed_gate and len(self.outstanding_gates) > 0:
             extended_next_gate = self.outstanding_gates[0]  # type: Gate
-            if extended_next_gate.type != "sp":
-                intersection_time = extended_next_gate.get_gate_infinite_intersection_time(self.track)
+            if extended_next_gate.type != "sp" and not extended_next_gate.extended_passing_time:
+                intersection_time = extended_next_gate.get_gate_extended_intersection_time(self.projector, self.track)
+                if intersection_time:
+                    extended_next_gate.extended_passing_time = intersection_time
+                    logger.info("{} {}: Crossed extended gate {} (but maybe missed the gate)".format(self.contestant,
+                                                                                                     intersection_time,
+                                                                                                     extended_next_gate))
+
+        if not crossed_gate and len(self.outstanding_gates) > 0:
+            extended_next_gate = self.outstanding_gates[0]  # type: Gate
+            if extended_next_gate.type != "sp" and not extended_next_gate.maybe_missed_time:
+                intersection_time = extended_next_gate.get_gate_infinite_intersection_time(self.projector, self.track)
                 if intersection_time and extended_next_gate.is_passed_in_correct_direction_track(self.track):
-                    logger.info("{}: Crossed extended gate {} (but maybe missed the gate) at {}".format(self.contestant,
-                                                                                                        extended_next_gate,
-                                                                                                        self.track[
-                                                                                                            -1].time))
+                    logger.info("{} {}: Crossed infinite gate {} (but maybe missed the gate)".format(self.contestant,
+                                                                                                     intersection_time,
+                                                                                                     extended_next_gate))
                     extended_next_gate.maybe_missed_time = self.track[-1].time
         if len(self.outstanding_gates) > 0:
             gate = self.outstanding_gates[0]
             time_limit = 10
             if gate.maybe_missed_time and (self.track[-1].time - gate.maybe_missed_time).total_seconds() > time_limit:
-                logger.info("{}: Did not cross {} within {} seconds of extended crossing, so missing gate".format(
-                    self.contestant,
+                logger.info("{} {}: Did not cross {} within {} seconds of infinite crossing, so missing gate".format(
+                    self.contestant, self.track[-1].time,
                     gate, time_limit))
                 gate.missed = True
                 self.outstanding_gates.pop(0)

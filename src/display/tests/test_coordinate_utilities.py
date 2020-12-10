@@ -1,7 +1,8 @@
 from unittest import TestCase
 from parameterized import parameterized
 
-from display.coordinate_utilities import calculate_bearing, get_heading_difference, extend_line
+from display.coordinate_utilities import calculate_bearing, get_heading_difference, extend_line, \
+    fraction_of_leg, Projector
 
 
 class TestCoordinateUtilities(TestCase):
@@ -34,3 +35,18 @@ class TestCoordinateUtilities(TestCase):
         self.assertAlmostEqual(expected_start[1], actual_start[1], 2)
         self.assertAlmostEqual(expected_finish[0], actual_finish[0], 2)
         self.assertAlmostEqual(expected_finish[1], actual_finish[1], 2)
+
+    def test_pyproj_line_intersect(self):
+        projector = Projector(60, 11)
+        intersection = projector.intersect((60, 11), (62, 11), (61, 10), (61, 12))
+        print(intersection)
+        self.assertAlmostEqual(intersection[0], 61.0036, 3)
+        self.assertAlmostEqual(intersection[1], 11)
+
+    @parameterized.expand([
+        ((60, 10), (60, 12), (60, 11), 0.5, "horizontal"),
+        ((60, 10), (62, 10), (61, 10), 0.5, "vertical")
+    ])
+    def test_fraction_of_leg(self, start, finish, intersect, expected_fraction, direction):
+        fraction = fraction_of_leg(start, finish, intersect)
+        self.assertAlmostEqual(expected_fraction, fraction, 4, msg=direction)

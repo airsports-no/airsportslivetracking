@@ -59,7 +59,6 @@ def create_track_from_gpx(track_name: str, file) -> Track:
                 waypoint.planning_test = gate_extension.attrib["noplanningtest"] == "no"
                 waypoint.end_curved = gate_extension.attrib["endcurved"] == "yes"
                 waypoint.type = gate_extension.attrib["type"].lower()
-                waypoint.gate_line_infinite = extend_line(waypoint.gate_line[0], waypoint.gate_line[1], 40)
                 if waypoint.type == "to":
                     assert not takeoff_gate
                     takeoff_gate = waypoint
@@ -109,8 +108,6 @@ def create_track_from_csv(track_name: str, lines: List[str]) -> Track:
         # Switch from longitude, Latitude tool attitude, longitude
         gates[index + 1].gate_line[0].reverse()
         gates[index + 1].gate_line[1].reverse()
-        gates[index + 1].gate_line_infinite = extend_line(gates[index + 1].gate_line[0], gates[index + 1].gate_line[1],
-                                                          40)
 
     gates[0].gate_line = create_perpendicular_line_at_end(gates[1].longitude,
                                                           gates[1].latitude,
@@ -119,7 +116,6 @@ def create_track_from_csv(track_name: str, lines: List[str]) -> Track:
                                                           gates[0].width * 1852)
     gates[0].gate_line[0].reverse()
     gates[0].gate_line[1].reverse()
-    gates[0].gate_line_infinite = extend_line(gates[0].gate_line[0], gates[0].gate_line[1], 40)
 
     calculate_and_update_legs(track)
     insert_gate_ranges(track)

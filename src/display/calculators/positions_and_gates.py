@@ -5,7 +5,8 @@ from typing import Tuple, List, Optional
 import dateutil
 
 from display.convert_flightcontest_gpx import Waypoint
-from display.coordinate_utilities import line_intersect, fraction_of_leg, calculate_bearing
+from display.coordinate_utilities import line_intersect, fraction_of_leg, calculate_bearing, nv_intersect, \
+    Projector
 from display.models import bearing_difference
 
 logger = logging.getLogger(__name__)
@@ -64,33 +65,39 @@ class Gate:
                 calculate_bearing((track[-2].latitude, track[-2].longitude), (track[-1].latitude, track[-1].longitude)))
         return False
 
-    def get_gate_intersection_time(self, track: List[Position]) -> Optional[datetime]:
+    def get_gate_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
         if len(track) > 1:
-            return get_intersect_time(track[-2], track[-1], self.gate_line[0], self.gate_line[1])
+            return get_intersect_time(projector, track[-2], track[-1], self.gate_line[0], self.gate_line[1])
         return None
 
-    def get_gate_infinite_intersection_time(self, track: List[Position]) -> Optional[datetime]:
+    def get_gate_infinite_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
         if len(track) > 1:
-            return get_intersect_time(track[-2], track[-1], self.gate_line_infinite[0], self.gate_line_infinite[1])
+            return get_intersect_time(projector, track[-2], track[-1], self.gate_line_infinite[0],
+                                      self.gate_line_infinite[1])
         return None
 
-    def get_gate_extended_intersection_time(self, track: List[Position]) -> Optional[datetime]:
+    def get_gate_extended_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
         if len(track) > 1 and self.gate_line_extended:
-            return get_intersect_time(track[-2], track[-1], self.gate_line_extended[0], self.gate_line_extended[1])
+            return get_intersect_time(projector, track[-2], track[-1], self.gate_line_extended[0],
+                                      self.gate_line_extended[1])
         return None
 
 
-def get_intersect_time(track_segment_start: Position, track_segment_finish: Position, gate_start, gate_finish) -> \
+def get_intersect_time(projector: Projector, track_segment_start: Position, track_segment_finish: Position, gate_start,
+                       gate_finish) -> \
         Optional[datetime]:
-    intersection = line_intersect(track_segment_start.longitude, track_segment_start.latitude,
-                                  track_segment_finish.longitude,
-                                  track_segment_finish.latitude, gate_start[1], gate_start[0], gate_finish[1],
-                                  gate_finish[0])
+    # intersection = line_intersect(track_segment_start.longitude, track_segment_start.latitude,
+    #                               track_segment_finish.longitude,
+    #                               track_segment_finish.latitude, gate_start[1], gate_start[0], gate_finish[1],
+    #                               gate_finish[0])
+    intersection = projector.intersect((track_segment_start.latitude, track_segment_start.longitude),
+                                       (track_segment_finish.latitude, track_segment_finish.longitude),
+                                       gate_start, gate_finish)
 
     if intersection:
-        fraction = fraction_of_leg(track_segment_start.longitude, track_segment_start.latitude,
-                                   track_segment_finish.longitude,
-                                   track_segment_finish.latitude, intersection[0], intersection[1])
+        fraction = fraction_of_leg((track_segment_start.latitude, track_segment_start.longitude),
+                                   (track_segment_finish.latitude, track_segment_finish.longitude),
+                                   intersection)
         time_difference = (track_segment_finish.time - track_segment_start.time).total_seconds()
         return track_segment_start.time + timedelta(seconds=fraction * time_difference)
     return None

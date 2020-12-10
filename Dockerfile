@@ -5,6 +5,7 @@ ENV PYTHONUNBUFFERED 1
 RUN apt-get update && apt-get install -y python3.6 python3-pip curl build-essential vim libproj-dev proj-data proj-bin libgeos-dev libgdal-dev
 RUN curl -sL https://deb.nodesource.com/setup_10.x -o nodesource_setup.sh && bash nodesource_setup.sh && apt-get update && apt-get install -y nodejs && rm nodesource_setup.sh
 
+RUN pip3 install -U pip
 
 ###### INSTALL PYTHON PACKAGES ######
 ENV LC_CTYPE C.UTF-8
@@ -14,6 +15,9 @@ ENV LANG C.UTF-8
 RUN pip3 install cython numpy
 COPY requirements.txt /
 RUN pip3 install -Ur /requirements.txt
+RUN pip3 uninstall --yes shapely
+RUN pip3 uninstall --yes cartopy
+RUN pip3 install shapely cartopy --no-binary shapely --no-binary cartopy
 
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######

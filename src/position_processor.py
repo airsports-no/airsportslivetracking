@@ -55,17 +55,17 @@ def cleanup_calculators():
 
 
 def build_and_push_position_data(data):
-    logger.info("Received data")
+    # logger.info("Received data")
     with calculator_lock:
         received_positions = influx.generate_position_data(traccar, data.get("positions", []))
         for contestant, positions in received_positions.items():
-            logger.info("Positions for {}".format(contestant))
+            # logger.info("Positions for {}".format(contestant))
             add_positions_to_calculator(contestant, positions)
-            logger.info("Positions to calculator for {}".format(contestant))
+            # logger.info("Positions to calculator for {}".format(contestant))
             influx.put_data(positions)
-            logger.info("Positions to influx for {}".format(contestant))
+            # logger.info("Positions to influx for {}".format(contestant))
             key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant.pk)
-            logger.info("Clearing cache for {}".format(contestant))
+            # logger.info("Clearing cache for {}".format(contestant))
             cache.delete_pattern(key)
         cleanup_calculators()
 

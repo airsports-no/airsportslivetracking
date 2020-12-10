@@ -2,6 +2,7 @@ import logging
 import math
 from typing import Tuple, Optional
 from geopy.distance import geodesic, great_circle
+import nvector as nv
 
 R = 6371000  # metres
 
@@ -72,7 +73,7 @@ def extend_line(start: Tuple[float, float], finish: Tuple[float, float], distanc
     if distance == 0:
         return None
     line_length = calculate_distance_lat_lon(start, finish)
-    distance_scale = 1852*distance / (2 * line_length)
+    distance_scale = 1852 * distance / (2 * line_length)
     new_finish = calculate_fractional_distance_point_lat_lon(start, finish, 1 + distance_scale)
     new_start = calculate_fractional_distance_point_lat_lon(finish, start, 1 + distance_scale)
     return new_start, new_finish
@@ -101,9 +102,54 @@ def line_intersect(x1, y1, x2, y2, x3, y3, x4, y4):
     return x, y
 
 
-def fraction_of_leg(x1, y1, x2, y2, intersect_x, intersect_y):
-    return calculate_distance_lat_lon((x1, y1), (intersect_x, intersect_y)) / calculate_distance_lat_lon((x1, y1),
-                                                                                                         (x2, y2))
+import pyproj
+from pyproj import CRS, Transformer
+from shapely.geometry import Point
+from shapely.ops import transform
+from functools import partial
+
+
+class Projector:
+    def __init__(self, latitude, longitude):
+        WGS84 = CRS.from_string('epsg:4326')
+        proj4str = '+proj=aeqd +lat_0=%s +lon_0=%s +x_0=0 +y_0=0' % (latitude, longitude)
+        AEQD = CRS.from_proj4(proj4str)
+        self.to_projection = Transformer.from_crs(WGS84, AEQD, always_xy=True)
+        self.from_projection = Transformer.from_crs(AEQD, WGS84, always_xy=True)
+
+    def intersect(self, start1, stop1, start2, stop2):
+        start1 = self.to_projection.transform(*reversed(start1))
+        stop1 = self.to_projection.transform(*reversed(stop1))
+        start2 = self.to_projection.transform(*reversed(start2))
+        stop2 = self.to_projection.transform(*reversed(stop2))
+
+        intersection = line_intersect(*start1, *stop1, *start2, *stop2)
+        if intersection is None:
+            return None
+        converted = self.from_projection.transform(*intersection)
+        return converted[1], converted[0]
+
+
+def nv_intersect(start1, stop1, start2, stop2):
+    pointA1 = nv.GeoPoint(start1[0], start1[1], degrees=True)
+    pointA2 = nv.GeoPoint(stop1[0], stop1[1], degrees=True)
+    pointB1 = nv.GeoPoint(start2[0], start2[1], degrees=True)
+    pointB2 = nv.GeoPoint(stop2[0], stop2[1], degrees=True)
+    pathA = nv.GeoPath(pointA1, pointA2)
+    pathB = nv.GeoPath(pointB1, pointB2)
+    if pathA == pathB:
+        return None
+    c = pathA.intersect(pathB)
+    c_geo = c.to_geo_point()
+    m1 = (c_geo.latitude_deg - start1[0]) / (c_geo.longitude_deg - start1[1])
+    m2 = (c_geo.latitude_deg - stop1[0]) / (c_geo.longitude_deg - stop1[1])
+    if m1 == m2:
+        return c_geo.latitude_deg, c_geo.longitude_deg
+    return None
+
+
+def fraction_of_leg(start, finish, intersect_point):
+    return calculate_distance_lat_lon(start, intersect_point) / calculate_distance_lat_lon(start, finish)
 
 
 def get_heading_difference(heading1, heading2):

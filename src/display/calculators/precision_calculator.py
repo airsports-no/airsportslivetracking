@@ -91,7 +91,7 @@ class PrecisionCalculator(Calculator):
             # First check extended and see if we are in the correct direction
             # Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
             # A 2.2.14
-            intersection_time = self.starting_line.get_gate_extended_intersection_time(self.track)
+            intersection_time = self.starting_line.get_gate_extended_intersection_time(self.projector, self.track)
             if intersection_time:
                 if self.starting_line.is_passed_in_correct_direction_track(self.track):
                     # Start the clock

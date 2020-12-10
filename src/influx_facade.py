@@ -94,7 +94,7 @@ class InfluxFacade:
 
     def put_data(self, data: List):
         self.client.write_points(data)
-        logger.debug("Successfully put {} position".format(len(data)))
+        # logger.debug("Successfully put {} position".format(len(data)))
 
     def get_positions_for_contest(self, navigation_task_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
         if isinstance(from_time, datetime.datetime):

@@ -25,7 +25,7 @@ class Waypoint:
 
     @property
     def gate_line_infinite(self):
-        if self._gate_line_infinite is None:
+        if self._gate_line_infinite is None or len(self._gate_line_infinite) == 0:
             self._gate_line_infinite = extend_line(self.gate_line[0], self.gate_line[1], 40)
         return self._gate_line_infinite
 
