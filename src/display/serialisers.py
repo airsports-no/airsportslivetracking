@@ -40,6 +40,7 @@ class WaypointSerialiser(serializers.Serializer):
     gate_line_infinite = serializers.JSONField()
     time_check = serializers.BooleanField()
     gate_check = serializers.BooleanField()
+    planning_test = serializers.BooleanField()
     end_curved = serializers.BooleanField()
     type = serializers.CharField(max_length=50)
     distance_next = serializers.FloatField()
@@ -65,7 +66,6 @@ class TrackSerialiser(serializers.ModelSerializer):
         waypoint.elevation = waypoint_data["elevation"]
         waypoint.gate_line = waypoint_data["gate_line"]
         waypoint.gate_line_infinite = waypoint_data["gate_line_infinite"]
-        waypoint.gate_line_extended = waypoint_data["gate_line_extended"]
         waypoint.width = waypoint_data["width"]
         waypoint.time_check = waypoint_data["time_check"]
         waypoint.gate_check = waypoint_data["gate_check"]
@@ -76,8 +76,8 @@ class TrackSerialiser(serializers.ModelSerializer):
         waypoint.bearing_next = waypoint_data["bearing_next"]
         waypoint.is_procedure_turn = waypoint_data["is_procedure_turn"]
 
-        waypoint.inside_distance = waypoint_data["inside_distance"]
-        waypoint.outside_distance = waypoint_data["outside_distance"]
+        # waypoint.inside_distance = waypoint_data["inside_distance"]
+        # waypoint.outside_distance = waypoint_data["outside_distance"]
         return waypoint
 
     def create(self, validated_data):
@@ -85,19 +85,20 @@ class TrackSerialiser(serializers.ModelSerializer):
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
         track = Track.objects.create(waypoints=waypoints,
-                                     starting_line=self._create_waypoint(validated_data["starting_line"]),
-                                     london_gate=self._create_waypoint(validated_data["landing_gate"]),
-                                     takeoff_gate=self._create_waypoint(validated_data["takeoff_gate"]))
+                                     starting_line=self._create_waypoint(validated_data.pop("starting_line")),
+                                     landing_gate=self._create_waypoint(validated_data.pop("landing_gate")),
+                                     takeoff_gate=self._create_waypoint(validated_data.pop("takeoff_gate")),
+                                     **validated_data)
         return track
 
     def update(self, instance, validated_data):
         waypoints = []
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
-        instance.waypoints=waypoints
-        instance.starting_line=self._create_waypoint(validated_data["starting_line"])
-        instance.london_gate=self._create_waypoint(validated_data["landing_gate"])
-        instance.takeoff_gate=self._create_waypoint(validated_data["takeoff_gate"])
+        instance.waypoints = waypoints
+        instance.starting_line = self._create_waypoint(validated_data["starting_line"])
+        instance.london_gate = self._create_waypoint(validated_data["landing_gate"])
+        instance.takeoff_gate = self._create_waypoint(validated_data["takeoff_gate"])
         return instance
 
 
@@ -138,7 +139,6 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Contestant
-        # fields = "__all__"
         exclude = ("navigation_task", "predefined_gate_times")
 
 
@@ -151,14 +151,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Contestant
-        # fields = "__all__"
-        exclude = ("navigation_task", "predefined_gate_times")
+        exclude = ("predefined_gate_times",)
 
 
 class NavigationTaskSerialiser(serializers.ModelSerializer):
-    # contestant_set = ContestantNestedSerialiser(many=True, read_only=True)
-    # track = TrackSerialiser(read_only=True)
-
     class Meta:
         model = NavigationTask
         fields = "__all__"

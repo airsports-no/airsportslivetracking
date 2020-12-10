@@ -1884,7 +1884,7 @@ with open("display/tests/demo contests/2017_WPFC/Route-1-Blue.gpx", "r") as f:
     track_string = base64.b64encode(f.read().encode('utf-8')).decode('utf-8')
 
 data["track_file"] = track_string
-print(json.dumps(data))
+
 
 
 class TestImportSerialiser(TransactionTestCase):
