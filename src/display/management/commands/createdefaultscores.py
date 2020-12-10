@@ -1,7 +1,9 @@
 from django.core.management import BaseCommand
 
+from display.default_scorecards.create_scorecards import create_scorecards
+
 
 class Command(BaseCommand):
 
     def handle(self, *args, **options):
-        import display.default_scorecards.default_scorecard_fai_precision_2020
+        create_scorecards()

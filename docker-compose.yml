@@ -27,10 +27,10 @@ services:
     restart: unless-stopped
 
   tracker_web:
-#    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py runserver 0.0.0.0:8000" ]
+    #    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && python3 manage.py runserver 0.0.0.0:8000" ]
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "python3 manage.py migrate && cd / && npm run webpack && cd /src && python3 manage.py initadmin && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
+               "bash", "-c", "python3 manage.py migrate && cd / && npm run webpack && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
 
     container_name: tracker_web
     build:
@@ -100,10 +100,10 @@ services:
     container_name: mysql
     restart: always
     environment:
-#      - MYSQL_DATABASE=traccar
-#      - MYSQL_USER=traccar
+      #      - MYSQL_DATABASE=traccar
+      #      - MYSQL_USER=traccar
       - MYSQL_ROOT_PASSWORD=traccar
-#      - MYSQL_PASSWORD=traccar
+    #      - MYSQL_PASSWORD=traccar
     volumes:
       - mysqldata:/var/lib/mysql/
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql

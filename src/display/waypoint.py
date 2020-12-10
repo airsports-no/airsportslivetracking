@@ -1,3 +1,6 @@
+from display.coordinate_utilities import extend_line
+
+
 class Waypoint:
     def __init__(self, name: str):
         self.name = name
@@ -5,7 +8,7 @@ class Waypoint:
         self.longitude = 0  # type: float
         self.elevation = 0  # type: float
         self.gate_line = []
-        self.gate_line_infinite = None
+        self._gate_line_infinite = None
         self.gate_line_extended = None
         self.width = 0  # type: float
         self.time_check = False
@@ -20,6 +23,15 @@ class Waypoint:
         self.inside_distance = 0
         self.outside_distance = 0
 
+    @property
+    def gate_line_infinite(self):
+        if self._gate_line_infinite is None:
+            self._gate_line_infinite = extend_line(self.gate_line[0], self.gate_line[1], 40)
+        return self._gate_line_infinite
+
+    @gate_line_infinite.setter
+    def gate_line_infinite(self, value):
+        self._gate_line_infinite = value
+
     def __str__(self):
         return "{}: {}, {}, {}".format(self.name, self.latitude, self.longitude, self.elevation)
-

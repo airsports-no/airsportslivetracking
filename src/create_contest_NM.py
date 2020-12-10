@@ -10,19 +10,23 @@ if __name__ == "__main__":
     import django
 
     django.setup()
-from display.models import Team, Aeroplane, NavigationTask, Track, Contestant, Scorecard, TraccarCredentials, Crew
+from display.models import Team, Aeroplane, NavigationTask, Track, Contestant, Scorecard, TraccarCredentials, Crew, \
+    Contest
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 
 configuration = TraccarCredentials.objects.get()
 traccar = Traccar.create_from_configuration(configuration)
 
+Contest.objects.all().delete()
 NavigationTask.objects.all().delete()
 aeroplane = Aeroplane.objects.first()
 contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
-navigation_task = NavigationTask.objects.create(name="NM 2020 Navigation task",
+contest = Contest.objects.create(name="NM 2020", is_public=True)
+navigation_task = NavigationTask.objects.create(name="NM 2020 Navigation task", contest=contest,
                                                 track=Track.objects.get(name="NM 2020"),
-                                                start_time=contest_start_time, finish_time=contest_finish_time)
+                                                start_time=contest_start_time, finish_time=contest_finish_time,
+                                                is_public=True)
 contestants = {
     "Anders": (datetime.datetime(2020, 8, 1, 10, 0), 75, 1),
     "Arild": (datetime.datetime(2020, 8, 1, 10, 10), 70, 1),
@@ -69,10 +73,11 @@ for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
     #     scorecard = class_two_scorecard
     contestant = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,
                                            finished_by_time=start_time + datetime.timedelta(hours=2),
+                                           tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                            traccar_device_name=contestant_name, contestant_number=index,
                                            scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed,
                                            wind_direction=165, wind_speed=8)
-print(navigation_task.pk)
-# for contestant in Contestant.objects.filter(contest__pk = 7):
-#     contestant.takeoff_time = contestant.navigation_task.start_time
-#     contestant.finished_by_time = contestant.navigation_task.finish_time
+    print(navigation_task.pk)
+    # for contestant in Contestant.objects.filter(contest__pk = 7):
+    #     contestant.takeoff_time = contestant.navigation_task.start_time
+    #     contestant.finished_by_time = contestant.navigation_task.finish_time

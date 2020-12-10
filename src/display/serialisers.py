@@ -37,7 +37,6 @@ class WaypointSerialiser(serializers.Serializer):
     elevation = serializers.FloatField()
     width = serializers.FloatField()
     gate_line = serializers.JSONField()
-    gate_line_infinite = serializers.JSONField()
     time_check = serializers.BooleanField()
     gate_check = serializers.BooleanField()
     planning_test = serializers.BooleanField()
@@ -65,7 +64,6 @@ class TrackSerialiser(serializers.ModelSerializer):
         waypoint.longitude = waypoint_data["longitude"]
         waypoint.elevation = waypoint_data["elevation"]
         waypoint.gate_line = waypoint_data["gate_line"]
-        waypoint.gate_line_infinite = waypoint_data["gate_line_infinite"]
         waypoint.width = waypoint_data["width"]
         waypoint.time_check = waypoint_data["time_check"]
         waypoint.gate_check = waypoint_data["gate_check"]

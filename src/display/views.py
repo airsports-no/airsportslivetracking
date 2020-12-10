@@ -133,6 +133,15 @@ def import_track(request):
 class IsPublicMixin:
     @action(detail=True, methods=["put"])
     def publish(self, request, **kwargs):
+        """
+        Makes the object publicly visible to anonymous users. If a contest is  hidden, all associated tasks will also
+        be hidden. If a contest is visible,
+        then task visibility is controlled by the individual tasks.
+
+        :param request:
+        :param kwargs:
+        :return:
+        """
         object = self.get_object()
         object.is_public = True
         object.save()
@@ -140,6 +149,15 @@ class IsPublicMixin:
 
     @action(detail=True, methods=["put"])
     def hide(self, request, **kwargs):
+        """
+        Makes the object invisible to anonymous users. It will only be visible to users who have specific rights to
+        view that object. If a contest is  hidden, all associated tasks will also be hidden. If a contest is visible,
+        then task visibility is controlled by the individual tasks.
+
+        :param request:
+        :param kwargs:
+        :return:
+        """
         object = self.get_object()
         object.is_public = False
         object.save()
@@ -147,6 +165,11 @@ class IsPublicMixin:
 
 
 class ContestViewSet(IsPublicMixin, ModelViewSet):
+    """
+    A contest is a high level wrapper for multiple tasks. Currently it mostly consists of a name and a is_public
+    flag which controls its visibility for anonymous users.GET Returns a list of contests either owned by the user
+    or publicly divisible POST Allows the user to post a new contest and become the owner of that contest.
+    """
     queryset = Contest.objects.all()
     serializer_class = ContestSerialiser
     permission_classes = [ContestPublicPermissions | permissions.IsAuthenticated & NavigationTaskPermissions]
@@ -199,6 +222,15 @@ class ContestantViewSet(ModelViewSet):
 
 
 class ImportFCNavigationTask(ModelViewSet):
+    """
+    This is a shortcut to post a new navigation task to the tracking system. It requires the existence of a contest to
+    which it will belong. The entire task with contestants and their associated times, crews, and aircraft, together
+    with the track can be posted to the single endpoint.
+
+    track_file is a utf-8 string that contains a base 64 encoded gpx route file of the format that FC exports. A new
+    track object lacquers will be created every time this function is called, but it is possible to reuse tracks if
+    required. This is currently not supported through this endpoint, but this may change in the future.
+    """
     queryset = NavigationTask.objects.all()
     serializer_class = ExternalNavigationTaskNestedSerialiser
     permission_classes = [permissions.IsAuthenticated & NavigationTaskPermissions]
