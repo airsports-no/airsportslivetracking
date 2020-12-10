@@ -24,7 +24,7 @@ export function toggleExpandedHeader(){
 
 export const fetchNavigationTask = (navigationTaskId) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/navigationtasks/" + navigationTaskId,
+        url: "/api/v1/nestednavigationtasks/" + navigationTaskId,
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_NAVIGATION_TASK_SUCCESSFUL, payload: value}),

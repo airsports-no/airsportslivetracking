@@ -149,6 +149,7 @@ class Crew(models.Model):
 class Team(models.Model):
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.SET_NULL, null=True)
     crew = models.ForeignKey(Crew, on_delete=models.SET_NULL, null=True)
+    nation = models.CharField(max_length=100)
 
     def __str__(self):
         return "{} in {}".format(self.crew, self.aeroplane)
@@ -180,7 +181,7 @@ class NavigationTask(models.Model):
     calculator_type = models.IntegerField(choices=NAVIGATION_TASK_TYPES, default=PRECISION,
                                           help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
                                               NAVIGATION_TASK_TYPES))
-    track = models.ForeignKey(Track, on_delete=models.SET_NULL, null=True)
+    track = models.ForeignKey(Track, on_delete=models.PROTECT, null=True)
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(
@@ -345,6 +346,10 @@ class Contestant(models.Model):
             if next_gate.is_procedure_turn:
                 crossing_time += datetime.timedelta(minutes=1)
         return crossing_times
+
+    @gate_times.setter
+    def gate_times(self, value):
+        self.predefined_gate_times = value
 
     @classmethod
     def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):

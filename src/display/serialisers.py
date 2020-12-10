@@ -48,13 +48,15 @@ class WaypointSerialiser(serializers.Serializer):
 
 class TrackSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
-    starting_line = WaypointSerialiser
-    landing_gate = WaypointSerialiser
-    takeoff_gate = WaypointSerialiser
+    starting_line = WaypointSerialiser()
+    landing_gate = WaypointSerialiser()
+    takeoff_gate = WaypointSerialiser()
 
     class Meta:
         model = Track
         fields = "__all__"
+
+    # TODO: Create
 
 
 class AeroplaneSerialiser(serializers.ModelSerializer):
@@ -69,7 +71,7 @@ class CrewSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class TeamSerialiser(serializers.ModelSerializer):
+class TeamNestedSerialiser(serializers.ModelSerializer):
     aeroplane = AeroplaneSerialiser()
     crew = CrewSerialiser()
 
@@ -84,8 +86,8 @@ class ScorecardSerialiser(serializers.ModelSerializer):
         fields = ("name",)
 
 
-class ContestantSerialiser(serializers.ModelSerializer):
-    team = TeamSerialiser()
+class ContestantNestedSerialiser(serializers.ModelSerializer):
+    team = TeamNestedSerialiser()
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the track file) and the values are $date-time strings (with time zone)")
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
@@ -95,11 +97,33 @@ class ContestantSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Contestant
         # fields = "__all__"
-        exclude = ("navigation_task",)
+        exclude = ("navigation_task", "predefined_gate_times")
+
+
+class ContestantSerialiser(serializers.ModelSerializer):
+    gate_times = serializers.JSONField(
+        help_text="Dictionary where the keys are gate names (must match the gate names in the track file) and the values are $date-time strings (with time zone)")
+    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
+                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                     ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
+
+    class Meta:
+        model = Contestant
+        # fields = "__all__"
+        exclude = ("navigation_task", "predefined_gate_times")
 
 
 class NavigationTaskSerialiser(serializers.ModelSerializer):
-    contestant_set = ContestantSerialiser(many=True, read_only=True)
+    # contestant_set = ContestantNestedSerialiser(many=True, read_only=True)
+    # track = TrackSerialiser(read_only=True)
+
+    class Meta:
+        model = NavigationTask
+        fields = "__all__"
+
+
+class NavigationTaskNestedSerialiser(serializers.ModelSerializer):
+    contestant_set = ContestantNestedSerialiser(many=True, read_only=True)
     track = TrackSerialiser(read_only=True)
 
     class Meta:
@@ -107,21 +131,21 @@ class NavigationTaskSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class ContestantTrackSerialiser(serializers.ModelSerializer):
+class ContestantTrackNestedSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
     """
     score_log = serializers.JSONField()
     score_per_gate = serializers.JSONField()
-    contestant = ContestantSerialiser()
+    contestant = ContestantNestedSerialiser()
 
     class Meta:
         model = ContestantTrack
         fields = "__all__"
 
 
-class ExternalNavigationTaskSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
-    contestant_set = ContestantSerialiser(many=True)
+class ExternalNavigationTaskNestedSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
+    contestant_set = ContestantNestedSerialiser(many=True)
     track_file = serializers.CharField(write_only=True, read_only=False, required=True,
                                        help_text="Base64 encoded gpx file")
 
@@ -148,7 +172,8 @@ class ExternalNavigationTaskSerialiser(ObjectPermissionsAssignmentMixin, seriali
     def create(self, validated_data):
         contestant_set = validated_data.pop("contestant_set", None)
         track_file = validated_data.pop("track_file", None)
-        track = create_track_from_gpx(validated_data["name"], base64.decodebytes(track_file))
+        track = create_track_from_gpx(validated_data["name"], base64.decodebytes(track_file.encode("utf-8")))
+        print(self.context)
         navigation_task = NavigationTask.objects.create(**validated_data, track=track, contest=self.context["contest"])
         for contestant_data in contestant_set:
             team_data = contestant_data.pop("team")
@@ -157,6 +182,6 @@ class ExternalNavigationTaskSerialiser(ObjectPermissionsAssignmentMixin, seriali
             aeroplane, _ = Aeroplane.objects.get_or_create(defaults=aeroplane_data,
                                                            registration=aeroplane_data["registration"])
             crew, _ = Crew.objects.get_or_create(**crew_data)
-            team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
-            Contestant.objects.create(**contestant_data, team=team)
+            team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
+            Contestant.objects.create(**contestant_data, team=team, navigation_task = navigation_task)
         return navigation_task

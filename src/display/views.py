@@ -35,8 +35,9 @@ from display.forms import ImportTrackForm
 from display.models import NavigationTask, Track, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY, Contest
 from display.permissions import ContestPermissions, NavigationTaskPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions
-from display.serialisers import NavigationTaskSerialiser, ContestantTrackSerialiser, ExternalNavigationTaskSerialiser, \
-    ContestSerialiser, ContestantSerialiser
+from display.serialisers import NavigationTaskSerialiser, ContestantTrackNestedSerialiser, \
+    ExternalNavigationTaskNestedSerialiser, \
+    ContestSerialiser, ContestantNestedSerialiser, NavigationTaskNestedSerialiser, TrackSerialiser, ContestantSerialiser
 from display.show_slug_choices import ShowChoicesMetadata, ShowChoicesFieldInspector
 from influx_facade import InfluxFacade
 
@@ -103,7 +104,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     if len(annotation_data):
         annotations = annotation_data
     if hasattr(contestant, "contestanttrack"):
-        contestant_track = ContestantTrackSerialiser(contestant.contestanttrack).data
+        contestant_track = ContestantTrackNestedSerialiser(contestant.contestanttrack).data
     else:
         contestant_track = None
     return {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
@@ -130,17 +131,19 @@ def import_track(request):
 
 # Everything below he is related to management and requires authentication
 class IsPublicMixin:
-    @action(detail=True, methods=["post"])
-    def publish(self, request, pk=None):
+    @action(detail=True, methods=["put"])
+    def publish(self, request, **kwargs):
         object = self.get_object()
         object.is_public = True
         object.save()
+        return Response({'is_public': object.is_public})
 
-    @action(detail=True, methods=["post"])
-    def hide(self, request, pk=None):
+    @action(detail=True, methods=["put"])
+    def hide(self, request, **kwargs):
         object = self.get_object()
         object.is_public = False
         object.save()
+        return Response({'is_public': object.is_public})
 
 
 class ContestViewSet(IsPublicMixin, ModelViewSet):
@@ -163,10 +166,32 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
                                     klass=self.queryset) | self.queryset.filter(is_public=True)
 
 
+class TrackViewSet(ModelViewSet):
+    queryset = Track.objects.all()
+    serializer_class = TrackSerialiser
+    permission_classes = [permissions.IsAuthenticated]
+
+    http_method_names = ['get', 'post', 'delete']
+
+
+class NavigationTaskNestedViewSet(IsPublicMixin, ModelViewSet):
+    queryset = NavigationTask.objects.all()
+    serializer_class = NavigationTaskNestedSerialiser
+    permission_classes = [NavigationTaskPublicPermissions | permissions.IsAuthenticated & NavigationTaskPermissions]
+
+    http_method_names = ['get']
+
+    def get_queryset(self):
+        return get_objects_for_user(self.request.user, "view_navigationtask",
+                                    klass=self.queryset) | self.queryset.filter(is_public=True)
+
+
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     serializer_class = ContestantSerialiser
     permission_classes = [permissions.IsAuthenticated & NavigationTaskPermissions]
+
+    http_method_names = ['get', 'post', 'delete', 'patch']
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_navigationtask",
@@ -175,7 +200,7 @@ class ContestantViewSet(ModelViewSet):
 
 class ImportFCNavigationTask(ModelViewSet):
     queryset = NavigationTask.objects.all()
-    serializer_class = ExternalNavigationTaskSerialiser
+    serializer_class = ExternalNavigationTaskNestedSerialiser
     permission_classes = [permissions.IsAuthenticated & NavigationTaskPermissions]
 
     metadata_class = ShowChoicesMetadata
@@ -184,10 +209,10 @@ class ImportFCNavigationTask(ModelViewSet):
 
     lookup_key = "contest_pk"
 
-    def post(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
-        serialiser = ExternalNavigationTaskSerialiser(data=request.data,
-                                                      context={"request": request, "contest": contest})
+        serialiser = ExternalNavigationTaskNestedSerialiser(data=request.data,
+                                                            context={"request": request, "contest": contest})
         if serialiser.is_valid():
             serialiser.save()
             return Response(serialiser.data)
