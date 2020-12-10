@@ -6,6 +6,7 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from display.convert_flightcontest_gpx import create_track_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Track, Contestant, ContestantTrack, Scorecard, Crew, Contest
+from display.waypoint import Waypoint
 
 
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
@@ -56,7 +57,48 @@ class TrackSerialiser(serializers.ModelSerializer):
         model = Track
         fields = "__all__"
 
-    # TODO: Create
+    @staticmethod
+    def _create_waypoint(waypoint_data) -> Waypoint:
+        waypoint = Waypoint(waypoint_data["name"])
+        waypoint.latitude = waypoint_data["latitude"]
+        waypoint.longitude = waypoint_data["longitude"]
+        waypoint.elevation = waypoint_data["elevation"]
+        waypoint.gate_line = waypoint_data["gate_line"]
+        waypoint.gate_line_infinite = waypoint_data["gate_line_infinite"]
+        waypoint.gate_line_extended = waypoint_data["gate_line_extended"]
+        waypoint.width = waypoint_data["width"]
+        waypoint.time_check = waypoint_data["time_check"]
+        waypoint.gate_check = waypoint_data["gate_check"]
+        waypoint.planning_test = waypoint_data["planning_test"]
+        waypoint.end_curved = waypoint_data["end_curved"]
+        waypoint.type = waypoint_data["type"]
+        waypoint.distance_next = waypoint_data["distance_next"]
+        waypoint.bearing_next = waypoint_data["bearing_next"]
+        waypoint.is_procedure_turn = waypoint_data["is_procedure_turn"]
+
+        waypoint.inside_distance = waypoint_data["inside_distance"]
+        waypoint.outside_distance = waypoint_data["outside_distance"]
+        return waypoint
+
+    def create(self, validated_data):
+        waypoints = []
+        for waypoint_data in validated_data.pop("waypoints"):
+            waypoints.append(self._create_waypoint(waypoint_data))
+        track = Track.objects.create(waypoints=waypoints,
+                                     starting_line=self._create_waypoint(validated_data["starting_line"]),
+                                     london_gate=self._create_waypoint(validated_data["landing_gate"]),
+                                     takeoff_gate=self._create_waypoint(validated_data["takeoff_gate"]))
+        return track
+
+    def update(self, instance, validated_data):
+        waypoints = []
+        for waypoint_data in validated_data.pop("waypoints"):
+            waypoints.append(self._create_waypoint(waypoint_data))
+        instance.waypoints=waypoints
+        instance.starting_line=self._create_waypoint(validated_data["starting_line"])
+        instance.london_gate=self._create_waypoint(validated_data["landing_gate"])
+        instance.takeoff_gate=self._create_waypoint(validated_data["takeoff_gate"])
+        return instance
 
 
 class AeroplaneSerialiser(serializers.ModelSerializer):
@@ -183,5 +225,5 @@ class ExternalNavigationTaskNestedSerialiser(ObjectPermissionsAssignmentMixin, s
                                                            registration=aeroplane_data["registration"])
             crew, _ = Crew.objects.get_or_create(**crew_data)
             team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
-            Contestant.objects.create(**contestant_data, team=team, navigation_task = navigation_task)
+            Contestant.objects.create(**contestant_data, team=team, navigation_task=navigation_task)
         return navigation_task

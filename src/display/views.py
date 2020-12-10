@@ -171,7 +171,7 @@ class TrackViewSet(ModelViewSet):
     serializer_class = TrackSerialiser
     permission_classes = [permissions.IsAuthenticated]
 
-    http_method_names = ['get', 'post', 'delete']
+    http_method_names = ['get', 'post', 'delete', 'put']
 
 
 class NavigationTaskNestedViewSet(IsPublicMixin, ModelViewSet):
