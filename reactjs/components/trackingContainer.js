@@ -19,7 +19,7 @@ class ConnectedTrackingContainer extends Component {
 
     render() {
         const TrackerDisplay =
-            <NavigationTask map={this.map} navigationTaskId={this.navigationTaskId} fetchInterval={5000}
+            <NavigationTask map={this.map} navigationTaskId={this.navigationTaskId} fetchInterval={2000}
                             displayMap={this.displayMap} displayTable={this.displayTable}/>
         if (this.displayTable && this.displayMap) {
             return (

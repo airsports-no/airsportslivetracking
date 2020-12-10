@@ -106,7 +106,7 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "name",
-                text: "Contestant"
+                text: "Team"
             },
             {
                 dataField: "score",

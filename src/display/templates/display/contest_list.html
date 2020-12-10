@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+    <H1>Contests</H1>
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Task</th>
+            <th>Start time</th>
+            <th>Finish time</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+
+        {% for contest in object_list %}
+            <tr>
+                <td colspan="5"><span style="text-align: center"><h3>{{ contest.name }}</h3></span></td>
+            </tr>
+            {% for object in contest.navigationtask_set.all %}
+                <tr>
+                    <td>{{ object.name }}</td>
+                    <td>
+                        {{ object.start_time }}
+                    </td>
+                    <td>{{ object.finish_time }}</td>
+                    <td>
+                        <a href="{% url 'frontend_view' object.pk %}">Live view</a> |
+                        <a href="{% url 'frontend_view_table' object.pk %}">Table only</a> |
+                        <a href="{% url 'frontend_view_map' object.pk %}">Map only</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        {% endfor %}
+    </table>
+    <a href="/admin/display/contest/">Configuration</a> | <a href="{% url 'import_track' %}">Import track</a>
+{% endblock %}

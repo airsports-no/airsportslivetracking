@@ -66,6 +66,13 @@ class NavigationTaskList(ListView):
         return NavigationTask.objects.filter(is_public=True)
 
 
+class ContestList(ListView):
+    model = Contest
+
+    def get_queryset(self):
+        return Contest.objects.filter(is_public=True)
+
+
 connection = Redis("redis")
 
 

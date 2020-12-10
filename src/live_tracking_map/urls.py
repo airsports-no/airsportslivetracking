@@ -19,7 +19,7 @@ from django.urls import path, include
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
-from display.views import NavigationTaskList
+from display.views import NavigationTaskList, ContestList
 from . import api
 
 docs = get_schema_view(
@@ -32,7 +32,7 @@ docs = get_schema_view(
 )
 
 urlpatterns = [
-    path('', NavigationTaskList.as_view()),
+    path('', ContestList.as_view()),
     path('admin/', admin.site.urls),
     path('display/', include("display.urls")),
     path('accounts/login/', LoginView.as_view(template_name='login.html'), name="login"),

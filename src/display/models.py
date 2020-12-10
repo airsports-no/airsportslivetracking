@@ -193,6 +193,7 @@ class NavigationTask(models.Model):
         permissions = (
             ("publish_navigationtask", "Can publish navigation task"),
         )
+        ordering = ("start_time", "finish_time")
 
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.isoformat())
