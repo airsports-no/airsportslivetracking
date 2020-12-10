@@ -149,7 +149,7 @@ class ConnectedNavigationTask extends Component {
                 </div>
             }
             let mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
-                return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={2000}
+                return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={4000}
                                         contestant={contestant} displayMap={this.props.displayMap}
                                         colour={colourMap[contestant.contestant_number]}/>
             });
