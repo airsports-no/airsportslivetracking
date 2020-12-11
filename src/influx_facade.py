@@ -144,7 +144,7 @@ class InfluxFacade:
     def get_positions_for_contestant(self, contestant_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
         if isinstance(from_time, datetime.datetime):
             from_time = from_time.isoformat()
-        query = "select * from device_position where contestant=$contestant and time>$from_time;"
+        query = "select * from device_position where contestant=$contestant;"
         bind_params = {'contestant': str(contestant_pk), 'from_time': from_time}
         response = self.client.query(query, bind_params=bind_params)
         return response
