@@ -159,7 +159,7 @@ class PrecisionCalculator(Calculator):
         next_gate = self.outstanding_gates[0]
         bearing = bearing_between(first_position, last_position)
         bearing_difference = abs(get_heading_difference(bearing, self.last_gate.bearing))
-        # todo Check that we have just passed over a gate that is a procedure turn (either the regular line or the extended line).
+        # logger.info(bearing_difference)
         if just_passed_gate and self.last_gate.is_procedure_turn and self.tracking_state not in (
                 self.FAILED_PROCEDURE_TURN, self.PROCEDURE_TURN):
             # A.2.2.15
@@ -217,7 +217,6 @@ class PrecisionCalculator(Calculator):
                     if (
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
-                        self.backtracking_start_time = None
                         self.update_score(self.last_gate, self.scorecard.backtracking_penalty,
                                           "{} points for backtracking at {} {}".format(
                                               self.scorecard.backtracking_penalty,
@@ -225,11 +224,15 @@ class PrecisionCalculator(Calculator):
                                           last_position.latitude, last_position.longitude, "anomaly")
             else:
                 if self.tracking_state == self.BACKTRACKING:
-                    logger.info("{} {}: Done backtracking".format(self.contestant,
-                                                                  last_position.time))
+                    logger.info("{} {}: Done backtracking for {} seconds".format(self.contestant,
+                                                                                 last_position.time, (
+                                                                                             last_position.time - self.backtracking_start_time).total_seconds()))
                 elif self.tracking_state == self.BACKTRACKING_TEMPORARY:
-                    logger.info("{} {}: Resumed tracking within time limits, so no penalty".format(self.contestant,
-                                                                                                   last_position.time))
+                    logger.info(
+                        "{} {}: Resumed tracking within time limits ({} seconds), so no penalty".format(self.contestant,
+                                                                                                        last_position.time,
+                                                                                                        (
+                                                                                                                    last_position.time - self.backtracking_start_time).total_seconds()))
 
                 self.update_tracking_state(self.TRACKING)
         self.last_bearing = bearing

@@ -1,7 +1,0 @@
-Competition: 23. FAI World Precision Flying Championship 2017 
-
-1. Navigation Route-1-Blue
-Legs: 8
-Procedure turns: Yes (3)
-Curved legs: No
-Secret check points: Yes (14)
