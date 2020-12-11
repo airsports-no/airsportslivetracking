@@ -80,8 +80,6 @@ connection = Redis("redis")
 def get_data_from_time_for_contestant(request, contestant_pk):
     from_time = request.GET.get("from_time")
     key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk, from_time)
-    response = generate_data(contestant_pk, from_time)
-    return Response(response)
     response = cache.get(key)
     if response is None:
         logger.info("Cache miss {}".format(contestant_pk))
