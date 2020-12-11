@@ -38,8 +38,6 @@ class ConnectedContestantTrack extends Component {
         this.iconMap = {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
         }
-        this.fetchNextData()
-
     }
 
     fetchNextData(setNewTimeout) {
