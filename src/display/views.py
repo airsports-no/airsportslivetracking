@@ -82,11 +82,14 @@ def get_data_from_time_for_contestant(request, contestant_pk):
     key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk, from_time)
     response = cache.get(key)
     if response is None:
+        logger.info("Cache miss {}".format(contestant_pk))
         with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk)):
             response = cache.get(key)
+            logger.info("Cache miss second time {}".format(contestant_pk))
             if response is None:
                 response = generate_data(contestant_pk, from_time)
                 cache.set(key, response)
+                logger.info("Completed updating cash {}".format(contestant_pk))
     return Response(response)
 
 
@@ -116,6 +119,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
         contestant_track = ContestantTrackNestedSerialiser(contestant.contestanttrack).data
     else:
         contestant_track = None
+    logger.info("Completed fetching data {}".format(contestant.pk))
     return {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
             "annotations": annotations,
             "contestant_track": contestant_track}
