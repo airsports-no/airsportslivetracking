@@ -100,12 +100,12 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     if from_time is None:
         from_time = default_start_time.isoformat()
     from_time_datetime = dateutil.parser.parse(from_time)
-    logger.info("Fetching data from time {}".format(from_time))
+    logger.info("Fetching data from time {} {}".format(from_time, contestant.pk))
     result_set = influx.get_positions_for_contestant(contestant_pk, default_start_time.isoformat())
     annotation_results = influx.get_annotations_for_contestant(contestant_pk, from_time)
     annotations = []
     global_latest_time = None
-    logger.debug("Contestant_pk: {}".format(contestant.pk))
+    logger.info("Completed fetching positions for {}".format(contestant.pk))
     position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
     filtered_position_data = [item for item in position_data if
                               dateutil.parser.parse(item["time"]) > from_time_datetime]
@@ -119,7 +119,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
         contestant_track = ContestantTrackNestedSerialiser(contestant.contestanttrack).data
     else:
         contestant_track = None
-    logger.info("Completed fetching data {}".format(contestant.pk))
+    logger.info("Completed generating data {}".format(contestant.pk))
     return {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
             "annotations": annotations,
             "contestant_track": contestant_track}

@@ -159,13 +159,19 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
     '/assets',
 ]
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s %(name)-15s: %(funcName)-15s %(levelname)-8s %(message)s',
+            'datefmt': '%d/%m/%Y %H:%M:%S'
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'standard'
         },
     },
     'root': {
