@@ -46,7 +46,8 @@ class Calculator(threading.Thread):
         self.scorecard = self.contestant.scorecard
         self.gates = self.create_gates()
         self.position_update_lock = threading.Lock()
-
+        self.last_gate = None
+        self.previous_last_gate = None
         self.starting_line = self.gates[0]
         self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
         self.takeoff_gate = Gate(self.contestant.navigation_task.track.takeoff_gate,
@@ -104,6 +105,10 @@ class Calculator(threading.Thread):
         self.tracking_state = tracking_state
         self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
+    def pop_gate(self, index):
+        self.previous_last_gate = self.last_gate
+        self.last_gate = self.outstanding_gates.pop(index)
+
     def check_intersections(self, force_gate: Optional["Gate"] = None):
         # Check takeoff if exists
         if self.takeoff_gate is not None:
@@ -131,7 +136,7 @@ class Calculator(threading.Thread):
                 if gate.passing_time is None:
                     logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))
                     gate.missed = True
-                self.outstanding_gates.pop(i)
+                self.pop_gate(i)
             i -= 1
         if not crossed_gate and len(self.outstanding_gates) > 0:
             extended_next_gate = self.outstanding_gates[0]  # type: Gate
@@ -158,7 +163,7 @@ class Calculator(threading.Thread):
                     self.contestant, self.track[-1].time,
                     gate, time_limit))
                 gate.missed = True
-                self.outstanding_gates.pop(0)
+                self.pop_gate(0)
 
     def calculate_score(self):
         pass
