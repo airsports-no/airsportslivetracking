@@ -84,7 +84,7 @@ def get_data_from_time_for_contestant(request, contestant_pk):
     if response is None:
         with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk)):
             response = generate_data(contestant_pk, from_time)
-            cache.set(key, response, timeout=300)
+            cache.set(key, response)
     return Response(response)
 
 
