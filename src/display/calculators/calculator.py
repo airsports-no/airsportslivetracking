@@ -74,15 +74,16 @@ class Calculator(threading.Thread):
 
     def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,
                      annotation_type: str):
-        logger.info("UPDATE_SCORE {}: {}".format(self.contestant, message))
+        internal_message = "{}: {}".format(gate.name, message)
+        logger.info("UPDATE_SCORE {}: {}".format(self.contestant, internal_message))
         self.score += score
         try:
             self.score_by_gate[gate.name] += score
         except KeyError:
             self.score_by_gate[gate.name] = self.score
-        self.influx.add_annotation(self.contestant, latitude, longitude, message, annotation_type,
+        self.influx.add_annotation(self.contestant, latitude, longitude, internal_message, annotation_type,
                                    self.track[-1].time)  # TODO: Annotations with the same time
-        self.score_log.append(message)
+        self.score_log.append(internal_message)
         self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)
 
     def create_gates(self) -> List[Gate]:

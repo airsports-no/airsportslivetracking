@@ -93,7 +93,7 @@ class PrecisionCalculator(Calculator):
                 index += 1
                 if gate.gate_check:
                     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
-                    string = "{} points for missing gate {}".format(score, gate)
+                    string = "{} points for missing gate".format(score)
                     self.update_score(gate, score, string, current_position.latitude,
                                       current_position.longitude, "anomaly")
                     # Commented out because of A.2.2.16
@@ -112,8 +112,8 @@ class PrecisionCalculator(Calculator):
                     gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time,
                                                                                     gate.passing_time)
                     self.update_score(gate, gate_score,
-                                      "{} points for passing gate {} of by {}s (planned: {},  actual: {})".format(
-                                          gate_score, gate,
+                                      "{} points for passing gate off by {}s (planned: {},  actual: {})".format(
+                                          gate_score,
                                           round(time_difference), gate.expected_time.strftime(self.TIME_FORMAT),
                                           gate.passing_time.strftime(self.TIME_FORMAT)),
                                       current_position.latitude, current_position.longitude, "information")
@@ -218,9 +218,8 @@ class PrecisionCalculator(Calculator):
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
                         self.update_score(self.last_gate, self.scorecard.backtracking_penalty,
-                                          "{} points for backtracking at {} {}".format(
-                                              self.scorecard.backtracking_penalty,
-                                              self.last_gate, next_gate),
+                                          "{} points for backtracking".format(
+                                              self.scorecard.backtracking_penalty),
                                           last_position.latitude, last_position.longitude, "anomaly")
             else:
                 if self.tracking_state == self.BACKTRACKING:

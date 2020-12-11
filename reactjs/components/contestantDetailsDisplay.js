@@ -1,6 +1,9 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {contestantShortForm} from "../utilities";
+import paginationFactory from "react-bootstrap-table2-paginator";
+import BootstrapTable from "react-bootstrap-table-next";
+import "bootstrap/dist/css/bootstrap.min.css"
 
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
@@ -8,17 +11,28 @@ const mapStateToProps = (state, props) => ({
 
 class ConnectedContestantDetailsDisplay extends Component {
     render() {
+        const columns = [
+            {
+                dataField: "message",
+                text: "Message",
+            }
+        ]
         if (!this.props.contestantData) {
             return <div/>
         }
         const events = this.props.contestantData.score_log.map((line, index) => {
-            return <li key={this.props.contestantData.contestant.contestant_number + "event" + index}>{line}</li>
+            return {
+                message: line
+            }
         })
-        return <div><h2>{contestantShortForm(this.props.contestantData.contestant)}</h2>
-            <ol>
-                {events}
-            </ol>
-        </div>
+        const paginationOptions = {
+            sizePerPage: 20,
+            hideSizePerPage: true,
+            hidePageListOnlyOnePage: true
+        };
+
+        return <BootstrapTable keyField={"rank"} data={events} columns={columns}
+                               bootstrap4 striped hover condensed pagination={paginationFactory(paginationOptions)}/>
 
     }
 }
