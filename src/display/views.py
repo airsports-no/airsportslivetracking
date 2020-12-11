@@ -112,7 +112,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     if len(filtered_position_data) > 0:
         reduced_data = [filtered_position_data[0]]
         for item in filtered_position_data:
-            if dateutil.parser.parse(item["time"]) > dateutil.parser.parse(reduced_data["time"]) + datetime.timedelta(
+            if dateutil.parser.parse(item["time"]) > dateutil.parser.parse(reduced_data[-1]["time"]) + datetime.timedelta(
                     seconds=10):
                 reduced_data.append(item)
     else:
