@@ -38,7 +38,7 @@ class ConnectedContestantTrack extends Component {
         this.iconMap = {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
         }
-        setTimeout(() => this.fetchNextData(), 2 + Math.random() * this.props.fetchInterval)
+        setTimeout(() => this.fetchNextData(), (2 + Math.random() * this.props.fetchInterval)*1000)
 
     }
 
