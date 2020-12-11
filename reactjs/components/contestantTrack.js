@@ -38,7 +38,6 @@ class ConnectedContestantTrack extends Component {
         this.iconMap = {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
         }
-        this.fetchNextData()
 
     }
 
@@ -64,6 +63,7 @@ class ConnectedContestantTrack extends Component {
 
 
     componentDidMount() {
+        this.fetchNextData()
     }
 
     componentDidUpdate(previousProps) {
