@@ -2,7 +2,7 @@ import {
     DISPLAY_ALL_TRACKS, EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
     GET_NAVIGATION_TASK_SUCCESSFUL,
     GET_CONTESTANT_DATA_SUCCESSFUL,
-    SET_DISPLAY, TOGGLE_EXPANDED_HEADER
+    SET_DISPLAY, TOGGLE_EXPANDED_HEADER, GET_CONTESTANT_DATA_FAILED, GET_CONTESTANT_DATA_REQUEST
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -17,7 +17,7 @@ export function displayAllTracks() {
     return {type: DISPLAY_ALL_TRACKS}
 }
 
-export function toggleExpandedHeader(){
+export function toggleExpandedHeader() {
     return {type: TOGGLE_EXPANDED_HEADER}
 }
 
@@ -34,6 +34,7 @@ export const fetchNavigationTask = (navigationTaskId) => (dispatch) => {
 
 
 export const fetchContestantData = (contestantId, fromTime) => (dispatch) => {
+    dispatch({type: GET_CONTESTANT_DATA_REQUEST, id: contestantId})
     let url = "/display/api/contestant/track_data/" + contestantId
     if (fromTime !== undefined) {
         url += "?from_time=" + fromTime.toISOString()
@@ -43,6 +44,6 @@ export const fetchContestantData = (contestantId, fromTime) => (dispatch) => {
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: value}),
-        error: error => console.log(error)
+        error: error => dispatch({type: GET_CONTESTANT_DATA_FAILED, id: contestantId}),
     });
 }

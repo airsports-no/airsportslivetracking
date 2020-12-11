@@ -6,7 +6,7 @@ import {
     GET_NAVIGATION_TASK_SUCCESSFUL,
     GET_CONTESTANT_DATA_SUCCESSFUL,
     HIDE_ALL_TRACKS,
-    SET_DISPLAY, TOGGLE_EXPANDED_HEADER
+    SET_DISPLAY, TOGGLE_EXPANDED_HEADER, GET_CONTESTANT_DATA_REQUEST, GET_CONTESTANT_DATA_FAILED
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -15,7 +15,8 @@ const initialState = {
     contestantData: {},
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
     displayTracks: null,
-    displayExpandedHeader: false
+    displayExpandedHeader: false,
+    isFetchingContestantData: {}
 };
 
 function rootReducer(state = initialState, action) {
@@ -34,12 +35,34 @@ function rootReducer(state = initialState, action) {
             navigationTask: action.payload
         })
     }
+    if (action.type === GET_CONTESTANT_DATA_REQUEST) {
+        return Object.assign({}, state, {
+            ...state,
+            isFetchingContestantData: {
+                ...state.isFetchingContestantData,
+                [action.id]: true
+            }
+        })
+    }
+    if (action.type === GET_CONTESTANT_DATA_FAILED) {
+        return Object.assign({}, state, {
+            ...state,
+            isFetchingContestantData: {
+                ...state.isFetchingContestantData,
+                [action.id]: false
+            }
+        })
+    }
     if (action.type === GET_CONTESTANT_DATA_SUCCESSFUL) {
         return {
             ...state,
             contestantData: {
                 ...state.contestantData,
                 [action.payload.contestant_id]: action.payload
+            },
+            isFetchingContestantData: {
+                ...state.isFetchingContestantData,
+                [action.payload.contestant_id]: false
             }
         }
     }

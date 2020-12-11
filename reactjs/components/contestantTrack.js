@@ -13,6 +13,7 @@ const L = window['L']
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestant.id],
     displayTracks: state.displayTracks,
+    isFetching: state.isFetchingContestantData[props.contestant.id]
 })
 
 class ConnectedContestantTrack extends Component {
@@ -44,11 +45,13 @@ class ConnectedContestantTrack extends Component {
     fetchNextData() {
         const finishedByTime = new Date(this.props.contestant.finished_by_time)
         let latestTime = null;
-        if (this.props.contestantData !== undefined) {
-            latestTime = new Date(this.props.contestantData.latest_time)
-            this.props.fetchContestantData(this.contestant.id, latestTime)
-        } else {
-            this.props.fetchContestantData(this.contestant.id)
+        if (!this.props.isFetching) {
+            if (this.props.contestantData !== undefined) {
+                latestTime = new Date(this.props.contestantData.latest_time)
+                this.props.fetchContestantData(this.contestant.id, latestTime)
+            } else {
+                this.props.fetchContestantData(this.contestant.id)
+            }
         }
         // This must be done second so that we at least fetched data once
         const now = new Date()
@@ -167,8 +170,8 @@ class ConnectedContestantTrack extends Component {
             if (!this.dot) {
                 this.createLiveEntities(b)
             } else {
-                const s=b.slice(-1)[0]
-                if(s) {
+                const s = b.slice(-1)[0]
+                if (s) {
                     this.dot.setLatLng(b.slice(-1)[0])
                 }
                 b.map((position) => {
