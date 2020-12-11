@@ -109,9 +109,17 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
     filtered_position_data = [item for item in position_data if
                               dateutil.parser.parse(item["time"]) > from_time_datetime]
+    if len(filtered_position_data) > 0:
+        reduced_data = [filtered_position_data[0]]
+        for item in filtered_position_data:
+            if dateutil.parser.parse(item["time"]) > dateutil.parser.parse(reduced_data["time"]) + datetime.timedelta(
+                    seconds=10):
+                reduced_data.append(item)
+    else:
+        reduced_data = []
     if len(position_data) > 0:
         global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
-    positions = filtered_position_data
+    positions = reduced_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
     if len(annotation_data):
         annotations = annotation_data
