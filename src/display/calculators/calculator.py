@@ -157,7 +157,7 @@ class Calculator(threading.Thread):
                     extended_next_gate.maybe_missed_time = self.track[-1].time
         if len(self.outstanding_gates) > 0:
             gate = self.outstanding_gates[0]
-            time_limit = 10
+            time_limit = 2
             if gate.maybe_missed_time and (self.track[-1].time - gate.maybe_missed_time).total_seconds() > time_limit:
                 logger.info("{} {}: Did not cross {} within {} seconds of infinite crossing, so missing gate".format(
                     self.contestant, self.track[-1].time,

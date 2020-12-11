@@ -45,6 +45,29 @@ class InfluxFacade:
         }
         self.client.write_points([data])
 
+    def generate_position_data_for_contestant(self, contestant: Contestant, positions: List) -> List:
+        data = []
+        for position_data in positions:
+            device_time = dateutil.parser.parse(position_data["deviceTime"])
+            data.append({
+                "measurement": "device_position",
+                "tags": {
+                    "contestant": contestant.pk,
+                    "navigation_task": contestant.navigation_task_id,
+                    "device_id": position_data["deviceId"]
+                },
+                "time": device_time.isoformat(),
+                "fields": {
+                    "latitude": position_data["latitude"],
+                    "longitude": position_data["longitude"],
+                    "altitude": position_data["altitude"],
+                    "battery_level": position_data["attributes"].get("batteryLevel", -1.0),
+                    "speed": position_data["speed"],
+                    "course": position_data["course"]
+                }
+            })
+        return data
+
     def generate_position_data(self, traccar: Traccar, positions: List) -> Dict:
         if len(positions) == 0:
             return {}
@@ -109,7 +132,8 @@ class InfluxFacade:
         response = self.client.query(query)
         return response
 
-    def get_annotations_for_navigation_task(self, navigation_task_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
+    def get_annotations_for_navigation_task(self, navigation_task_pk,
+                                            from_time: Union[datetime.datetime, str]) -> ResultSet:
         if isinstance(from_time, datetime.datetime):
             from_time = from_time.isoformat()
         query = "select * from annotation where navigation_task=$navigation_task and time>$from_time;"

@@ -25,8 +25,9 @@ logger = logging.getLogger(__name__)
 
 configuration = TraccarCredentials.objects.get()
 
-traccar = Traccar.create_from_configuration(configuration)
-devices = traccar.get_device_map()
+if __name__ == "__main__":
+    traccar = Traccar.create_from_configuration(configuration)
+    devices = traccar.get_device_map()
 influx = InfluxFacade()
 calculators = {}
 calculator_lock = threading.Lock()
