@@ -38,11 +38,11 @@ class ConnectedContestantTrack extends Component {
         this.iconMap = {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
         }
-        setTimeout(() => this.fetchNextData(), (2 + Math.random() * this.props.fetchInterval)*1000)
+        this.fetchNextData()
 
     }
 
-    fetchNextData() {
+    fetchNextData(setNewTimeout) {
         const finishedByTime = new Date(this.props.contestant.finished_by_time)
         let latestTime = null;
         if (!this.props.isFetching) {
@@ -58,12 +58,19 @@ class ConnectedContestantTrack extends Component {
         if (now > finishedByTime && this.lastNewData && (now.getTime() - this.lastNewData.getTime() > 300 * 1000)) {
             console.log("Stop fetching contestant " + this.contestant.contestant_number)
         } else {
-            setTimeout(() => this.fetchNextData(), this.props.fetchInterval)// / 2 + Math.random() * this.props.fetchInterval)
+            if (setNewTimeout) {
+                this.timeout = setTimeout(() => this.fetchNextData(), this.props.fetchInterval, true)// / 2 + Math.random() * this.props.fetchInterval)
+            }
         }
     }
 
 
     componentDidMount() {
+        this.fetchNextData(true)
+    }
+
+    componentWillUnmount(){
+        clearTimeout(this.timeout)
     }
 
     componentDidUpdate(previousProps) {
