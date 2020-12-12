@@ -58,8 +58,8 @@ export const pz = (n, z = 2, s = '0') =>
     (n + '').length <= z ? (['', '-'])[+(n < 0)] + (s.repeat(z) + Math.abs(n)).slice(-1 * z) : n + '';
 
 export function compareScore(a, b) {
-    if (a.score > b.score) return 1;
-    if (a.score < b.score) return -1;
+    if (a.track.score > b.track.score) return 1;
+    if (a.track.score < b.track.score) return -1;
     return 0
 }
 

@@ -10,6 +10,7 @@ import {
     setDisplay,
     toggleExpandedHeader
 } from "../actions";
+import {Loading} from "./basicComponents";
 
 var moment = require("moment");
 var momentDurationFormatSetup = require("moment-duration-format");
@@ -22,7 +23,10 @@ function getTrackingStateBackgroundClass(state) {
 
 const mapStateToProps = (state, props) => ({
     contestants: Object.keys(state.contestantData).map((key, index) => {
-        return state.contestantData[key].contestant_track
+        return {
+            track: state.contestantData[key].contestant_track,
+            initialLoading: state.initialLoadingContestantData[key]
+        }
     }),
     displayExpandedHeader: state.displayExpandedHeader
 })
@@ -35,7 +39,7 @@ class ConnectedContestantRankTable extends Component {
         this.numberStyle = this.numberStyle.bind(this)
         this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
         this.handleStateHeaderClick = this.handleStateHeaderClick.bind(this)
-
+        this.getStateFormat = this.getStateFormat.bind(this)
     }
 
     handleStateHeaderClick() {
@@ -56,31 +60,47 @@ class ConnectedContestantRankTable extends Component {
         return {backgroundColor: this.props.colourMap[row.contestantNumber]}
     }
 
+    anyContestantLoading() {
+        let loading = false
+        this.props.contestants.map((contestant, index) => {
+            loading = loading || contestant.initialLoading
+        })
+        return loading
+    }
+
+
     buildData() {
         const contestants = this.props.contestants.filter((contestant) => {
             return contestant && contestant.current_state !== "Waiting..."
         })
         contestants.sort(compareScore)
-        return contestants.map((contestant_track, index) => {
+        return contestants.map((contestant, index) => {
             return {
                 colour: "",
-                contestantNumber: contestant_track.contestant.contestant_number,
-                contestantId: contestant_track.contestant.id,
+                contestantNumber: contestant.track.contestant.contestant_number,
+                contestantId: contestant.track.contestant.id,
                 rank: index + 1,
-                name: contestantShortForm(contestant_track.contestant),
-                score: contestant_track.score,
-                currentState: contestant_track.current_state,
-                lastGate: contestant_track.last_gate,
-                lastGateTimeOffset: moment.duration(contestant_track.last_gate_time_offset, "seconds").format([
+                name: contestantShortForm(contestant.track.contestant),
+                score: contestant.track.score,
+                currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
+                initialLoading: contestant.initialLoading,
+                lastGate: contestant.track.last_gate,
+                lastGateTimeOffset: moment.duration(contestant.track.last_gate_time_offset, "seconds").format([
                     moment.duration(1, "second"),
                     moment.duration(1, "minute"),
                     moment.duration(1, "hour")
                 ], "d [days] hh:mm:ss"),
-                latestStatus: contestant_track.score_log.length > 0 ? contestant_track.score_log[contestant_track.score_log.length - 1] : ""
+                latestStatus: contestant.track.score_log.length > 0 ? contestant.track.score_log[contestant.track.score_log.length - 1] : ""
             }
         })
     }
 
+    getStateFormat(cell, row) {
+        if (row.initialLoading) {
+            return <Loading/>
+        }
+        return <div>{cell}</div>
+    }
 
     render() {
         const columns = [
@@ -122,7 +142,8 @@ class ConnectedContestantRankTable extends Component {
                     onClick: (e, column, columnIndex) => {
                         this.handleStateHeaderClick()
                     }
-                }
+                },
+                // formatter: this.getStateFormat
             },
             {
                 dataField: "latestStatus",
@@ -150,9 +171,13 @@ class ConnectedContestantRankTable extends Component {
             hideSizePerPage: true,
             hidePageListOnlyOnePage: true
         };
-        return <BootstrapTable keyField={"rank"} data={this.buildData()} columns={columns}
-                               bootstrap4 striped hover condensed pagination={paginationFactory(paginationOptions)}
-                               rowEvents={rowEvents}/>
+        const loading = this.anyContestantLoading() ? <Loading/> : <div/>
+        return <div>
+            {loading}
+            <BootstrapTable keyField={"rank"} data={this.buildData()} columns={columns}
+                            bootstrap4 striped hover condensed pagination={paginationFactory(paginationOptions)}
+                            rowEvents={rowEvents}/>
+        </div>
     }
 }
 

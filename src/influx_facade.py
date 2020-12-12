@@ -1,7 +1,7 @@
 import datetime
 import logging
 from plistlib import Dict
-from typing import List, Union, Set
+from typing import List, Union, Set, Optional
 
 import dateutil
 from influxdb import InfluxDBClient
@@ -141,11 +141,16 @@ class InfluxFacade:
         response = self.client.query(query, bind_params=bind_params)
         return response
 
-    def get_positions_for_contestant(self, contestant_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
+    def get_positions_for_contestant(self, contestant_pk, from_time: Union[datetime.datetime, str],
+                                     limit: Optional[int] = None) -> ResultSet:
         if isinstance(from_time, datetime.datetime):
             from_time = from_time.isoformat()
-        query = "select * from device_position where contestant=$contestant;"
+        query = "select * from device_position where contestant=$contestant and time>$from_time"
         bind_params = {'contestant': str(contestant_pk), 'from_time': from_time}
+        if limit is not None:
+            query += " limit $limit"
+            bind_params["limit"] = limit
+        query += ";"
         response = self.client.query(query, bind_params=bind_params)
         return response
 

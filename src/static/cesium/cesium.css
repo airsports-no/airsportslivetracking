@@ -1,21 +1,14 @@
-.backdrop {
-    display: inline-block;
-    background: rgba(42, 42, 42, 0.7);
-    border-radius: 5px;
-    border: 1px solid #444;
-    padding: 5px 10px;
-    color: #fff;
-    line-height: 150%;
-    font-size: small;
+.center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    /*width: 150px;*/
 }
 
 #heightSliderLabel, #heightValue {
     vertical-align: top;
 }
 
-.backdrop a:link, .backdrop a:visited, .backdrop a:hover {
-    color: #fff
-}
 
 .loadingIndicator {
     display: none;

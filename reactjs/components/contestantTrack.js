@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {fetchContestantData, setDisplay} from "../actions";
+import {fetchContestantData, initialLoading, initialLoadingComplete, setDisplay} from "../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
 import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
@@ -13,7 +13,8 @@ const L = window['L']
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestant.id],
     displayTracks: state.displayTracks,
-    isFetching: state.isFetchingContestantData[props.contestant.id]
+    isFetching: state.isFetchingContestantData[props.contestant.id],
+    initialLoading: state.initialLoadingContestantData[props.contestant.id]
 })
 
 class ConnectedContestantTrack extends Component {
@@ -38,10 +39,11 @@ class ConnectedContestantTrack extends Component {
         this.iconMap = {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
         }
-        this.fetchNextData()
+        this.props.initialLoading(this.contestant.id)
+        this.fetchNextData(false)
     }
 
-    fetchNextData() {
+    fetchNextData(scheduleNext) {
         const finishedByTime = new Date(this.props.contestant.finished_by_time)
         let latestTime = null;
         if (!this.props.isFetching) {
@@ -57,7 +59,9 @@ class ConnectedContestantTrack extends Component {
         if (now > finishedByTime && this.lastNewData && (now.getTime() - this.lastNewData.getTime() > 300 * 1000)) {
             console.log("Stop fetching contestant " + this.contestant.contestant_number)
         } else {
+            if (scheduleNext) {
                 this.timeout = setTimeout(() => this.fetchNextData(), this.props.fetchInterval, true)// / 2 + Math.random() * this.props.fetchInterval)
+            }
         }
     }
 
@@ -65,7 +69,7 @@ class ConnectedContestantTrack extends Component {
     componentDidMount() {
     }
 
-    componentWillUnmount(){
+    componentWillUnmount() {
         // clearTimeout(this.timeout)
     }
 
@@ -75,7 +79,7 @@ class ConnectedContestantTrack extends Component {
                 this.lastNewData = new Date();
             }
         }
-
+        let finishedInitialLoading = true;
         if (this.props.displayMap) {
             if (this.props.contestantData !== undefined) {
                 if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
@@ -90,16 +94,28 @@ class ConnectedContestantTrack extends Component {
                     }
                 }
                 const displayTracks = this.props.displayTracks;
-                if (!displayTracks) {
-                    this.showTrack()
-                    this.hideAnnotations()
-                } else {
-                    if (displayTracks.includes(this.contestant.id)) {
+                if (this.props.contestantData.more_data) {
+                    clearTimeout(this.timeout)
+                    this.fetchNextData(false)
+                    finishedInitialLoading=false;
+                } else if (this.props.initialLoading) {
+                    this.props.initialLoadingComplete(this.contestant.id);
+                    // this.showTrack()
+                    clearTimeout(this.timeout)
+                    this.timeout = setTimeout(() => this.fetchNextData(), this.props.fetchInterval, true)
+                }
+                if (finishedInitialLoading) {
+                    if (!displayTracks) {
                         this.showTrack()
-                        this.showAnnotations()
-                    } else {
-                        this.hideTrack()
                         this.hideAnnotations()
+                    } else {
+                        if (displayTracks.includes(this.contestant.id)) {
+                            this.showTrack()
+                            this.showAnnotations()
+                        } else {
+                            this.hideTrack()
+                            this.hideAnnotations()
+                        }
                     }
                 }
             }
@@ -115,7 +131,6 @@ class ConnectedContestantTrack extends Component {
         this.dot = L.marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
         })
-        this.showTrack()
     }
 
     renderAnnotations(annotations) {
@@ -190,5 +205,9 @@ class ConnectedContestantTrack extends Component {
 
 }
 
-const ContestantTrack = connect(mapStateToProps, {fetchContestantData})(ConnectedContestantTrack);
+const ContestantTrack = connect(mapStateToProps, {
+    fetchContestantData,
+    initialLoading,
+    initialLoadingComplete
+})(ConnectedContestantTrack);
 export default ContestantTrack;

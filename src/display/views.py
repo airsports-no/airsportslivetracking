@@ -94,6 +94,8 @@ def get_data_from_time_for_contestant(request, contestant_pk):
 
 
 def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
+    LIMIT = 1000
+    TIME_INTERVAL = 10
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
     influx = InfluxFacade()
     default_start_time = contestant.navigation_task.start_time - timedelta(minutes=30)
@@ -101,24 +103,25 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
         from_time = default_start_time.isoformat()
     from_time_datetime = dateutil.parser.parse(from_time)
     logger.info("Fetching data from time {} {}".format(from_time, contestant.pk))
-    result_set = influx.get_positions_for_contestant(contestant_pk, default_start_time.isoformat())
+    result_set = influx.get_positions_for_contestant(contestant_pk, from_time, limit=LIMIT)
     annotation_results = influx.get_annotations_for_contestant(contestant_pk, from_time)
     annotations = []
-    global_latest_time = None
     logger.info("Completed fetching positions for {}".format(contestant.pk))
     position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
-    filtered_position_data = [item for item in position_data if
-                              dateutil.parser.parse(item["time"]) > from_time_datetime]
-    if len(filtered_position_data) > 0:
-        reduced_data = [filtered_position_data[0]]
-        for item in filtered_position_data:
-            if dateutil.parser.parse(item["time"]) > dateutil.parser.parse(reduced_data[-1]["time"]) + datetime.timedelta(
-                    seconds=10):
+    more_data = len(position_data) == LIMIT
+    if len(position_data) > 0:
+        reduced_data = [position_data[0]]
+        for item in position_data:
+            if dateutil.parser.parse(item["time"]) > dateutil.parser.parse(
+                    reduced_data[-1]["time"]) + datetime.timedelta(
+                    seconds=TIME_INTERVAL):
                 reduced_data.append(item)
     else:
         reduced_data = []
     if len(position_data) > 0:
         global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
+    else:
+        global_latest_time = from_time_datetime
     positions = reduced_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
     if len(annotation_data):
@@ -130,7 +133,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     logger.info("Completed generating data {}".format(contestant.pk))
     return {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
             "annotations": annotations,
-            "contestant_track": contestant_track}
+            "contestant_track": contestant_track, "more_data": more_data}
 
 
 def import_track(request):

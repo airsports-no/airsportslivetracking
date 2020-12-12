@@ -1,8 +1,14 @@
 import {
-    DISPLAY_ALL_TRACKS, EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
+    DISPLAY_ALL_TRACKS,
+    EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
     GET_NAVIGATION_TASK_SUCCESSFUL,
     GET_CONTESTANT_DATA_SUCCESSFUL,
-    SET_DISPLAY, TOGGLE_EXPANDED_HEADER, GET_CONTESTANT_DATA_FAILED, GET_CONTESTANT_DATA_REQUEST
+    SET_DISPLAY,
+    TOGGLE_EXPANDED_HEADER,
+    GET_CONTESTANT_DATA_FAILED,
+    GET_CONTESTANT_DATA_REQUEST,
+    INITIAL_LOADING,
+    INITIAL_LOADING_COMPLETE
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -19,6 +25,14 @@ export function displayAllTracks() {
 
 export function toggleExpandedHeader() {
     return {type: TOGGLE_EXPANDED_HEADER}
+}
+
+export function initialLoading(contestantId) {
+    return {type: INITIAL_LOADING, contestantId: contestantId}
+}
+
+export function initialLoadingComplete(contestantId) {
+    return {type: INITIAL_LOADING_COMPLETE, contestantId: contestantId}
 }
 
 
