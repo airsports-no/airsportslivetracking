@@ -9,6 +9,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
 # Create your models here.
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from solo.models import SingletonModel
 
 from display.my_pickled_object_field import MyPickledObjectField
@@ -402,3 +404,8 @@ class ContestantTrack(models.Model):
     def set_calculator_finished(self):
         self.calculator_finished = True
         self.save()
+
+
+@receiver(post_save, sender=Contestant)
+def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs):
+    ContestantTrack.objects.get_or_create(contestant=instance)
