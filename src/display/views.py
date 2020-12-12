@@ -104,10 +104,15 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     from_time_datetime = dateutil.parser.parse(from_time)
     logger.info("Fetching data from time {} {}".format(from_time, contestant.pk))
     result_set = influx.get_positions_for_contestant(contestant_pk, from_time, limit=LIMIT)
-    annotation_results = influx.get_annotations_for_contestant(contestant_pk, from_time)
-    annotations = []
     logger.info("Completed fetching positions for {}".format(contestant.pk))
     position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
+    if len(position_data) > 0:
+        global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
+    else:
+        global_latest_time = from_time_datetime
+    annotation_results = influx.get_annotations_for_contestant(contestant_pk, from_time, global_latest_time)
+    annotations = []
+
     more_data = len(position_data) == LIMIT
     if len(position_data) > 0:
         reduced_data = [position_data[0]]
@@ -118,10 +123,6 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
                 reduced_data.append(item)
     else:
         reduced_data = []
-    if len(position_data) > 0:
-        global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
-    else:
-        global_latest_time = from_time_datetime
     positions = reduced_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
     if len(annotation_data):

@@ -154,11 +154,14 @@ class InfluxFacade:
         response = self.client.query(query, bind_params=bind_params)
         return response
 
-    def get_annotations_for_contestant(self, contestant_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
+    def get_annotations_for_contestant(self, contestant_pk, from_time: Union[datetime.datetime, str],
+                                       until_time: Union[datetime.datetime, str]) -> ResultSet:
         if isinstance(from_time, datetime.datetime):
             from_time = from_time.isoformat()
-        query = "select * from annotation where contestant=$contestant and time>$from_time;"
-        bind_params = {'contestant': str(contestant_pk), 'from_time': from_time}
+        if isinstance(until_time, datetime.datetime):
+            until_time = until_time.isoformat()
+        query = "select * from annotation where contestant=$contestant and time>$from_time and time<=$until_time;"
+        bind_params = {'contestant': str(contestant_pk), 'from_time': from_time, "until_time": until_time}
         response = self.client.query(query, bind_params=bind_params)
         return response
 
