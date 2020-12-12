@@ -10,7 +10,7 @@ import {
     TOGGLE_EXPANDED_HEADER,
     GET_CONTESTANT_DATA_REQUEST,
     GET_CONTESTANT_DATA_FAILED,
-    INITIAL_LOADING_COMPLETE, INITIAL_LOADING
+    INITIAL_LOADING_COMPLETE, INITIAL_LOADING, CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -38,7 +38,30 @@ function rootReducer(state = initialState, action) {
             "contestant_track": contestant_track, "more_data": more_data}*/
         let contestantData = {}
         let contestants = {}
+        let initialLoading = {}
         action.payload.contestant_set.map((contestant) => {
+            contestantData[contestant.id] = {
+                latest_time: state.contestantData[contestant.id]?state.contestantData[contestant.id].latest_time:"1970-01-01T00:00:00Z",
+                positions: [],
+                annotations: [],
+                more_data: true,
+                contestant_track: contestant.contestanttrack
+            }
+            contestants[contestant.id] = contestant
+            // initialLoading[contestant.id] = true
+        })
+        return Object.assign({}, state, {
+            ...state,
+            contestantData: contestantData,
+            navigationTask: action.payload,
+            contestants: contestants,
+            // initialLoadingContestantData:initialLoading
+        })
+    }
+    if (action.type === CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL) {
+        let contestantData = {}
+        let contestants = {}
+        action.payload.map((contestant) => {
             contestantData[contestant.id] = {
                 latest_time: "1970-01-01T00:00:00Z",
                 positions: [],
@@ -51,7 +74,6 @@ function rootReducer(state = initialState, action) {
         return Object.assign({}, state, {
             ...state,
             contestantData: contestantData,
-            navigationTask: action.payload,
             contestants: contestants
         })
     }

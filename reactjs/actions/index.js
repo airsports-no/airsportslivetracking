@@ -8,7 +8,7 @@ import {
     GET_CONTESTANT_DATA_FAILED,
     GET_CONTESTANT_DATA_REQUEST,
     INITIAL_LOADING,
-    INITIAL_LOADING_COMPLETE
+    INITIAL_LOADING_COMPLETE, CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -46,6 +46,15 @@ export const fetchNavigationTask = (navigationTaskId) => (dispatch) => {
     });
 }
 
+export const fetchNewContestants = (contest, navigationTask)=>(dispatch) =>{
+    $.ajax({
+        url: "/api/v1/contests/" + "/navigationtasks/" + navigationTaskId + "/contestants/",
+        datatype: 'json',
+        cache: false,
+        success: value => dispatch({type: CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL, payload: value}),
+        error: error => console.log(error)
+    });
+}
 
 export const fetchContestantData = (contestantId, fromTime) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_REQUEST, id: contestantId})

@@ -83,7 +83,7 @@ def get_data_from_time_for_contestant(request, contestant_pk):
     response = cache.get(key)
     if response is None:
         logger.info("Cache miss {}".format(contestant_pk))
-        with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk)):
+        with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk), expire=30, auto_renewal=True):
             response = cache.get(key)
             logger.info("Cache miss second time {}".format(contestant_pk))
             if response is None:
@@ -94,7 +94,7 @@ def get_data_from_time_for_contestant(request, contestant_pk):
 
 
 def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
-    LIMIT = 1000
+    LIMIT = 2000
     TIME_INTERVAL = 10
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
     influx = InfluxFacade()
@@ -132,8 +132,8 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     else:
         contestant_track = None
     logger.info("Completed generating data {}".format(contestant.pk))
-    if len(positions) == 0:
-        return {}
+    # if len(positions) == 0:
+    #     return {}
     data = {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
             "annotations": annotations, "more_data": more_data}
     # if len(positions) > 0:

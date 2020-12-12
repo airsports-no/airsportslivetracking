@@ -23,6 +23,7 @@ class ConnectedNavigationTask extends Component {
         super(props);
         this.state = {colourMap: {}}
         this.handleNavigationTaskHeadingClick = this.handleNavigationTaskHeadingClick.bind(this)
+        this.rendered = false
     }
 
     handleNavigationTaskHeadingClick() {
@@ -30,8 +31,13 @@ class ConnectedNavigationTask extends Component {
         this.props.displayAllTracks();
     }
 
-    componentDidMount() {
+    fetchNavigationTask(){
         this.props.fetchNavigationTask(this.props.navigationTaskId);
+        setTimeout(()=>this.fetchNavigationTask(), 300000)
+    }
+
+    componentDidMount() {
+        this.fetchNavigationTask()
         if (this.props.displayMap) {
             this.initialiseMap();
         }
@@ -49,9 +55,10 @@ class ConnectedNavigationTask extends Component {
 
 
     componentDidUpdate(previousProps) {
-        if (this.props.navigationTask !== previousProps.navigationTask) {
-            if (this.props.displayMap) {
+        if (this.props.navigationTask.route !== previousProps.navigationTask.route) {
+            if (this.props.displayMap&&!this.rendered) {
                 this.renderRoute()
+                this.rendered = true;
             }
         }
     }

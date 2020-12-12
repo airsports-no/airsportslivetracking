@@ -60,7 +60,7 @@ class ConnectedContestantTrack extends Component {
             console.log("Stop fetching contestant " + this.contestant.contestant_number)
         } else {
             if (scheduleNext) {
-                this.timeout = setTimeout(() => this.fetchNextData(), this.props.fetchInterval, true)// / 2 + Math.random() * this.props.fetchInterval)
+                this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)// / 2 + Math.random() * this.props.fetchInterval)
             }
         }
     }
@@ -101,7 +101,7 @@ class ConnectedContestantTrack extends Component {
                 } else if (this.props.initialLoading) {
                     // this.showTrack()
                     clearTimeout(this.timeout)
-                    this.timeout = setTimeout(() => this.fetchNextData(), this.props.fetchInterval, true)
+                    this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)
                     this.props.initialLoadingComplete(this.contestant.id);
                 }
                 if (finishedInitialLoading) {
