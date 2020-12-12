@@ -11,6 +11,7 @@ import {
     toggleExpandedHeader
 } from "../actions";
 import {Loading} from "./basicComponents";
+import ProgressBar from 'react-bootstrap/ProgressBar';
 
 var moment = require("moment");
 var momentDurationFormatSetup = require("moment-duration-format");
@@ -66,6 +67,16 @@ class ConnectedContestantRankTable extends Component {
             loading = loading || contestant.initialLoading
         })
         return loading
+    }
+
+    getPercentageCompletedLoading() {
+        let count = 0;
+        this.props.contestants.map((contestant, index) => {
+            if (!contestant.initialLoading) {
+                count++;
+            }
+        })
+        return Math.round(100 * count / this.props.numberOfContestants)
     }
 
 
@@ -171,7 +182,8 @@ class ConnectedContestantRankTable extends Component {
             hideSizePerPage: true,
             hidePageListOnlyOnePage: true
         };
-        const loading = this.anyContestantLoading() ? <Loading/> : <div/>
+        const now = this.getPercentageCompletedLoading();
+        const loading = this.anyContestantLoading() ? <ProgressBar now={now} label={now + "%"}/> : <div/>
         return <div>
             {loading}
             <BootstrapTable keyField={"rank"} data={this.buildData()} columns={columns}

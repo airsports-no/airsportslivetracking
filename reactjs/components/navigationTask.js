@@ -135,7 +135,7 @@ class ConnectedNavigationTask extends Component {
             if (this.props.displayTable) {
                 let display = <div/>
                 if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
-                    display = <ContestantRankTable colourMap={colourMap}/>
+                    display = <ContestantRankTable colourMap={colourMap} numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                 } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                     display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
                 } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
