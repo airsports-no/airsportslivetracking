@@ -19,9 +19,11 @@ class ConnectedTrackLoadingIndicator extends Component {
     }
 
     render() {
+        if (this.props.numberOfContestants === 0) {
+            return <div/>
+        }
         const now = this.getPercentageCompletedLoading();
-        const loading = now !== 100 ? <ProgressBar now={now} label={now + "%"}/> : <div/>
-        return loading
+        return now !== 100 ? <ProgressBar now={now} label={now + "%"}/> : <div/>
     }
 }
 
