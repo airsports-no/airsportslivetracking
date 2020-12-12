@@ -119,7 +119,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
         for item in position_data:
             if dateutil.parser.parse(item["time"]) > dateutil.parser.parse(
                     reduced_data[-1]["time"]) + datetime.timedelta(
-                    seconds=TIME_INTERVAL):
+                seconds=TIME_INTERVAL):
                 reduced_data.append(item)
     else:
         reduced_data = []
@@ -132,9 +132,13 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     else:
         contestant_track = None
     logger.info("Completed generating data {}".format(contestant.pk))
-    return {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
-            "annotations": annotations,
-            "contestant_track": contestant_track, "more_data": more_data}
+    if len(positions) == 0:
+        return {}
+    data = {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
+            "annotations": annotations, "more_data": more_data}
+    # if len(positions) > 0:
+    data["contestant_track"] = contestant_track
+    return data
 
 
 def import_route(request):

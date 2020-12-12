@@ -139,7 +139,6 @@ class ContestantTrackNestedSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-
 class ContestantNestedSerialiser(serializers.ModelSerializer):
     team = TeamNestedSerialiser()
     gate_times = serializers.JSONField(
@@ -147,7 +146,8 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-    contestant_track = ContestantTrackNestedSerialiser
+    contestanttrack = ContestantTrackNestedSerialiser()
+
     class Meta:
         model = Contestant
         exclude = ("navigation_task", "predefined_gate_times")
@@ -178,7 +178,6 @@ class NavigationTaskNestedSerialiser(serializers.ModelSerializer):
     class Meta:
         model = NavigationTask
         fields = "__all__"
-
 
 
 class ExternalNavigationTaskNestedSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):

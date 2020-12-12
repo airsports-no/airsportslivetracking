@@ -26,7 +26,8 @@ const mapStateToProps = (state, props) => ({
     contestants: Object.keys(state.contestantData).map((key, index) => {
         return {
             track: state.contestantData[key].contestant_track,
-            initialLoading: state.initialLoadingContestantData[key]
+            initialLoading: state.initialLoadingContestantData[key],
+            contestant: state.contestants[key]
         }
     }),
     displayExpandedHeader: state.displayExpandedHeader
@@ -88,10 +89,10 @@ class ConnectedContestantRankTable extends Component {
         return contestants.map((contestant, index) => {
             return {
                 colour: "",
-                contestantNumber: contestant.track.contestant.contestant_number,
-                contestantId: contestant.track.contestant.id,
+                contestantNumber: contestant.contestant.contestant_number,
+                contestantId: contestant.contestant.id,
                 rank: index + 1,
-                name: contestantShortForm(contestant.track.contestant),
+                name: contestantShortForm(contestant.contestant),
                 score: contestant.track.score,
                 currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
                 initialLoading: contestant.initialLoading,

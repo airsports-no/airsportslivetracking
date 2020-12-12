@@ -99,10 +99,10 @@ class ConnectedContestantTrack extends Component {
                     this.fetchNextData(false)
                     finishedInitialLoading=false;
                 } else if (this.props.initialLoading) {
-                    this.props.initialLoadingComplete(this.contestant.id);
                     // this.showTrack()
                     clearTimeout(this.timeout)
                     this.timeout = setTimeout(() => this.fetchNextData(), this.props.fetchInterval, true)
+                    this.props.initialLoadingComplete(this.contestant.id);
                 }
                 if (finishedInitialLoading) {
                     if (!displayTracks) {
