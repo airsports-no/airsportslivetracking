@@ -59,5 +59,6 @@ export const fetchContestantData = (contestantId, fromTime) => (dispatch) => {
         cache: false,
         success: value => dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: value}),
         error: error => dispatch({type: GET_CONTESTANT_DATA_FAILED, id: contestantId}),
+        timeout: 10000
     });
 }
