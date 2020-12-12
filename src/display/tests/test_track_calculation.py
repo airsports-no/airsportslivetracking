@@ -2,25 +2,25 @@ import json
 
 from django.test import TestCase
 
-from display.convert_flightcontest_gpx import create_track_from_gpx
-from display.serialisers import WaypointSerialiser, TrackSerialiser
+from display.convert_flightcontest_gpx import create_route_from_gpx
+from display.serialisers import WaypointSerialiser, RouteSerialiser
 
 
 class TestGPX(TestCase):
     def test_importing(self):
         with open("display/tests/flightcontest_curved_export.gpx", "r") as i:
-            track = create_track_from_gpx("test_track", i)
-            self.assertEqual("TP11", track.waypoints[53].name)
-            self.assertTrue(track.waypoints[53].is_procedure_turn)
+            route = create_route_from_gpx("test_route", i)
+            self.assertEqual("TP11", route.waypoints[53].name)
+            self.assertTrue(route.waypoints[53].is_procedure_turn)
 
     def test_waypoint_serialiseing(self):
         with open("display/tests/flightcontest_curved_export.gpx", "r") as i:
-            track = create_track_from_gpx("test_track", i)
-            serialiser = WaypointSerialiser(track.waypoints, many=True)
+            route = create_route_from_gpx("test_route", i)
+            serialiser = WaypointSerialiser(route.waypoints, many=True)
             print(json.dumps(serialiser.data, sort_keys=True, indent=2))
 
-    def test_track_serialiseing(self):
+    def test_route_serialiseing(self):
         with open("display/tests/flightcontest_curved_export.gpx", "r") as i:
-            track = create_track_from_gpx("test_track", i)
-            track_serialiser = TrackSerialiser(track)
-            print(json.dumps(track_serialiser.data, sort_keys=True, indent=2))
+            route = create_route_from_gpx("test_route", i)
+            route_serialiser = RouteSerialiser(route)
+            print(json.dumps(route_serialiser.data, sort_keys=True, indent=2))

@@ -7,15 +7,15 @@ if __name__ == "__main__":
     import django
 
     django.setup()
-from display.models import Team, Aeroplane, NavigationTask, Track, Contestant
+from display.models import Team, Aeroplane, NavigationTask, Route, Contestant
 
 NavigationTask.objects.all().delete()
 aeroplane = Aeroplane.objects.first()
 now = datetime.now(timezone.utc).astimezone()
 navigation_task = NavigationTask.objects.create(name="Test navigation_task",
-                                 track=Track.objects.get(name="NM 2020"), server_address="home.kolaf.net:8082",
-                                 server_token="FydcKTi7Lnat5wHhMGTCs0ykEpNAAOdj",
-                                 start_time=now, finish_time=now + timedelta(hours=2))
+                                                route=Route.objects.get(name="NM 2020"), server_address="home.kolaf.net:8082",
+                                                server_token="FydcKTi7Lnat5wHhMGTCs0ykEpNAAOdj",
+                                                start_time=now, finish_time=now + timedelta(hours=2))
 
 for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
     contestant_name = os.path.splitext(os.path.basename(file))[0]

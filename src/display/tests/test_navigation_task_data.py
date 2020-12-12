@@ -99,7 +99,7 @@ data = {
   "start_time": "2020-08-01T06:00:00Z"
 }
 
-expected_track = {
+expected_route = {
     "id": 10,
     "waypoints": [
         {
@@ -228,7 +228,7 @@ expected_track = {
             "latitude": 48.3659277833,
             "longitude": 16.7906361333,
             "elevation": 1000.0,
-            "width": 1,
+            "width": 1.0,
             "gate_line": [
                 [
                     48.3625548211,
@@ -240,7 +240,7 @@ expected_track = {
                 ]
             ],
             
-            "time_check": False,
+            "time_check": True,
             "gate_check": True,
             "end_curved": False,"planning_test":True, 
             "type": "tp",
@@ -751,10 +751,10 @@ expected_track = {
     "name": "2017 WPFC Route 1 Blue"
 }
 
-with open("display/tests/demo contests/2017_WPFC/Route-1-Blue.gpx", "r") as f:
-    track_string = base64.b64encode(f.read().encode('utf-8')).decode('utf-8')
+with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as f:
+    route_string = base64.b64encode(f.read().encode('utf-8')).decode('utf-8')
 
-data["track_file"] = track_string
+data["route_file"] = route_string
 
 
 
@@ -796,11 +796,11 @@ class TestImportFCNavigationTask(APITestCase):
         print(res.json())
         task = self.client.get("/api/v1/contests/{}/navigationtasks/{}/".format(self.contest.pk, navigation_task_id))
         self.assertEqual(200, task.status_code, "Failed to GET navigationtask")
-        track_id = task.json()["track"]
-        task = self.client.get("/api/v1/tracks/{}/".format(track_id))
+        route_id = task.json()["route"]
+        task = self.client.get("/api/v1/routes/{}/".format(route_id))
         self.assertEqual(200, task.status_code, "Failed to GET navigationtask")
-        track = task.json()
-        self.assertEqual(len(expected_track["waypoints"]), len(track["waypoints"]))
-        for index, waypoint in enumerate(track["waypoints"]):
-            self.assertDictEqual(expected_track["waypoints"][index], waypoint)
-            self.assertListEqual(expected_track["waypoints"][index]["gate_line"], waypoint["gate_line"])
+        route = task.json()
+        self.assertEqual(len(expected_route["waypoints"]), len(route["waypoints"]))
+        for index, waypoint in enumerate(route["waypoints"]):
+            self.assertDictEqual(expected_route["waypoints"][index], waypoint)
+            self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])

@@ -50,14 +50,14 @@ class Calculator(threading.Thread):
         self.previous_last_gate = None
         self.starting_line = self.gates[0]
         self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
-        self.takeoff_gate = Gate(self.contestant.navigation_task.track.takeoff_gate,
+        self.takeoff_gate = Gate(self.contestant.navigation_task.route.takeoff_gate,
                                  self.contestant.takeoff_time,
-                                 calculate_extended_gate(self.contestant.navigation_task.track.takeoff_gate,
-                                                         self.scorecard)) if self.contestant.navigation_task.track.takeoff_gate else None
-        self.landing_gate = Gate(self.contestant.navigation_task.track.landing_gate,
+                                 calculate_extended_gate(self.contestant.navigation_task.route.takeoff_gate,
+                                                         self.scorecard)) if self.contestant.navigation_task.route.takeoff_gate else None
+        self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
                                  self.contestant.finished_by_time,
-                                 calculate_extended_gate(self.contestant.navigation_task.track.landing_gate,
-                                                         self.scorecard)) if self.contestant.navigation_task.track.landing_gate else None
+                                 calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
+                                                         self.scorecard)) if self.contestant.navigation_task.route.landing_gate else None
         self.outstanding_gates = list(self.gates)
 
     def run(self):
@@ -87,7 +87,7 @@ class Calculator(threading.Thread):
         self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)
 
     def create_gates(self) -> List[Gate]:
-        waypoints = self.contestant.navigation_task.track.waypoints
+        waypoints = self.contestant.navigation_task.route.waypoints
         expected_times = self.contestant.gate_times
         gates = []
         for item in waypoints:  # type: Waypoint

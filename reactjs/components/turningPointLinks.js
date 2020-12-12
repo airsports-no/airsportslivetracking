@@ -11,7 +11,7 @@ const mapDispatchToProps = (dispatch, props) => ({
 })
 
 const mapStateToProps = (state, props) => ({
-    turningPoints: state.navigationTask.track.waypoints.map((a) => {
+    turningPoints: state.navigationTask.route.waypoints.map((a) => {
         return a.name
     })
 })

@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from display.models import NavigationTask, Track, Aeroplane, Team, Contestant, TraccarCredentials, ContestantTrack, \
+from display.models import NavigationTask, Route, Aeroplane, Team, Contestant, TraccarCredentials, ContestantTrack, \
     Scorecard, \
     GateScore, Contest
 from solo.admin import SingletonModelAdmin
@@ -44,7 +44,7 @@ class NavigationTaskAdmin(admin.ModelAdmin):
 
 admin.site.register(NavigationTask, NavigationTaskAdmin)
 admin.site.register(Scorecard)
-admin.site.register(Track)
+admin.site.register(Route)
 admin.site.register(Contest)
 admin.site.register(GateScore)
 admin.site.register(Aeroplane)

@@ -5,9 +5,9 @@ import gpxpy
 from django.test import TestCase, TransactionTestCase
 
 from display.calculators.precision_calculator import PrecisionCalculator
-from display.convert_flightcontest_gpx import create_track_from_gpx
+from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew
-from display.views import create_track_from_csv
+from display.views import create_route_from_csv
 
 
 def load_track_points(filename):
@@ -27,12 +27,12 @@ def load_track_points(filename):
 class TestFullTrack(TransactionTestCase):
     def setUp(self):
         with open("display/calculators/tests/NM.csv", "r") as file:
-            track = create_track_from_csv("navigation_task", file.readlines()[1:])
+            route = create_route_from_csv("navigation_task", file.readlines()[1:])
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
-                                                             track=track,
+                                                             route=route,
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         from display.default_scorecards import default_scorecard_fai_precision_2020
@@ -82,12 +82,12 @@ class TestFullTrack(TransactionTestCase):
 class Test2017WPFC(TransactionTestCase):
     def setUp(self):
         with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
-            track = create_track_from_gpx("navigation_task", file)
+            route = create_route_from_gpx("navigation_task", file)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
-                                                             track=track,
+                                                             route=route,
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(pilot="Test contestant", navigator="")

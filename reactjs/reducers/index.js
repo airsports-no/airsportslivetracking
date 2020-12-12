@@ -15,7 +15,7 @@ import {
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
 const initialState = {
-    navigationTask: {track: {waypoints: []}},
+    navigationTask: {route: {waypoints: []}},
     contestantData: {},
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
     displayTracks: null,

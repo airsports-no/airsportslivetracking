@@ -15,7 +15,7 @@ if __name__ == "__main__":
     django.setup()
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Track, Contestant, ContestantTrack
+from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack
 from influx_facade import InfluxFacade
 from display.calculators.calculator_factory import calculator_factory
 
@@ -62,7 +62,7 @@ contest_start_time = datetime.datetime(2014, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2014, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="WPFC 2017", is_public=True)
 navigation_task = NavigationTask.objects.create(name="Route-1-Blue ", contest=contest,
-                                                track=Track.objects.get(name="2017 Route-1-Blue"),
+                                                route=Route.objects.get(name="2017 Route-1-Blue"),
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
                                                 is_public=True)
 

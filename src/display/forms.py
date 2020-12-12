@@ -1,7 +1,7 @@
 from django import forms
 
 
-class ImportTrackForm(forms.Form):
+class ImportRouteForm(forms.Form):
     CSV = "0"
     FLIGHTCONTEST_GPX = "1"
     FILE_TYPES = (

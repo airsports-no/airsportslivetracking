@@ -4,18 +4,18 @@ from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Aeroplane, NavigationTask, Team, Contestant, Crew
-from display.views import create_track_from_csv
+from display.views import create_route_from_csv
 
 
 class TestContestantGatesCalculation(TestCase):
     def setUp(self):
         with open("display/tests/NM.csv", "r") as file:
-            track = create_track_from_csv("navigation_task", file.readlines()[1:])
+            route = create_route_from_csv("navigation_task", file.readlines()[1:])
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation test",
-                                                             track=track,
+                                                             route=route,
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         scorecard = get_default_scorecard()

@@ -30,14 +30,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from display.convert_flightcontest_gpx import create_track_from_gpx, create_track_from_csv
-from display.forms import ImportTrackForm
-from display.models import NavigationTask, Track, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY, Contest
+from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv
+from display.forms import ImportRouteForm
+from display.models import NavigationTask, Route, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY, Contest
 from display.permissions import ContestPermissions, NavigationTaskPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions
 from display.serialisers import NavigationTaskSerialiser, ContestantTrackNestedSerialiser, \
     ExternalNavigationTaskNestedSerialiser, \
-    ContestSerialiser, ContestantNestedSerialiser, NavigationTaskNestedSerialiser, TrackSerialiser, ContestantSerialiser
+    ContestSerialiser, ContestantNestedSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, ContestantSerialiser
 from display.show_slug_choices import ShowChoicesMetadata, ShowChoicesFieldInspector
 from influx_facade import InfluxFacade
 
@@ -137,21 +137,21 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
             "contestant_track": contestant_track, "more_data": more_data}
 
 
-def import_track(request):
-    form = ImportTrackForm()
+def import_route(request):
+    form = ImportRouteForm()
     if request.method == "POST":
-        form = ImportTrackForm(request.POST, request.FILES)
+        form = ImportRouteForm(request.POST, request.FILES)
         if form.is_valid():
             name = form.cleaned_data["name"]
             file_type = form.cleaned_data["file_type"]
             print(file_type)
             if file_type == form.CSV:
                 data = [item.decode(encoding="UTF-8") for item in request.FILES['file'].readlines()]
-                create_track_from_csv(name, data[1:])
+                create_route_from_csv(name, data[1:])
             elif file_type == form.FLIGHTCONTEST_GPX:
-                create_track_from_gpx(name, request.FILES["file"])
+                create_route_from_gpx(name, request.FILES["file"])
             return redirect("/")
-    return render(request, "display/import_track_form.html", {"form": form})
+    return render(request, "display/import_route_form.html", {"form": form})
 
 
 # Everything below he is related to management and requires authentication
@@ -214,9 +214,9 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
                                     klass=self.queryset) | self.queryset.filter(is_public=True)
 
 
-class TrackViewSet(ModelViewSet):
-    queryset = Track.objects.all()
-    serializer_class = TrackSerialiser
+class RouteViewSet(ModelViewSet):
+    queryset = Route.objects.all()
+    serializer_class = RouteSerialiser
     permission_classes = [permissions.IsAuthenticated]
 
     http_method_names = ['get', 'post', 'delete', 'put']
@@ -250,10 +250,10 @@ class ImportFCNavigationTask(ModelViewSet):
     """
     This is a shortcut to post a new navigation task to the tracking system. It requires the existence of a contest to
     which it will belong. The entire task with contestants and their associated times, crews, and aircraft, together
-    with the track can be posted to the single endpoint.
+    with the route can be posted to the single endpoint.
 
-    track_file is a utf-8 string that contains a base 64 encoded gpx route file of the format that FC exports. A new
-    track object lacquers will be created every time this function is called, but it is possible to reuse tracks if
+    route_file is a utf-8 string that contains a base 64 encoded gpx route file of the format that FC exports. A new
+    route object will be created every time this function is called, but it is possible to reuse routes if
     required. This is currently not supported through this endpoint, but this may change in the future.
     """
     queryset = NavigationTask.objects.all()

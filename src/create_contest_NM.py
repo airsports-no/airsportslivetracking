@@ -10,7 +10,7 @@ if __name__ == "__main__":
     import django
 
     django.setup()
-from display.models import Team, Aeroplane, NavigationTask, Track, Contestant, Scorecard, TraccarCredentials, Crew, \
+from display.models import Team, Aeroplane, NavigationTask, Route, Contestant, Scorecard, TraccarCredentials, Crew, \
     Contest
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 
@@ -24,7 +24,7 @@ contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="NM 2020", is_public=True)
 navigation_task = NavigationTask.objects.create(name="NM 2020 Navigation task", contest=contest,
-                                                track=Track.objects.get(name="NM 2020"),
+                                                route=Route.objects.get(name="NM 2020"),
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
                                                 is_public=True)
 contestants = {

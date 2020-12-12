@@ -51,7 +51,7 @@ class ConnectedNavigationTask extends Component {
     componentDidUpdate(previousProps) {
         if (this.props.navigationTask !== previousProps.navigationTask) {
             if (this.props.displayMap) {
-                this.renderTrack()
+                this.renderRoute()
             }
         }
     }
@@ -75,8 +75,8 @@ class ConnectedNavigationTask extends Component {
         // mapControlContainer.appendChild(logoContainer)
     }
 
-    renderTrack() {
-        this.props.navigationTask.track.waypoints.filter((waypoint) => {
+    renderRoute() {
+        this.props.navigationTask.route.waypoints.filter((waypoint) => {
             return waypoint.gate_check
         }).map((gate) => {
             polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
@@ -84,12 +84,12 @@ class ConnectedNavigationTask extends Component {
             }).addTo(this.map)
             // }
         })
-        let turningPoints = this.props.navigationTask.track.waypoints.filter((waypoint) => {
+        let turningPoints = this.props.navigationTask.route.waypoints.filter((waypoint) => {
             return true //waypoint.type === "tp"
         }).map((waypoint) => {
             return [waypoint.latitude, waypoint.longitude]
         });
-        this.props.navigationTask.track.waypoints.filter((waypoint) => {
+        this.props.navigationTask.route.waypoints.filter((waypoint) => {
             return waypoint.gate_check
         }).map((waypoint) => {
             marker([waypoint.latitude, waypoint.longitude], {
@@ -101,7 +101,7 @@ class ConnectedNavigationTask extends Component {
                 })
             }).bindTooltip(waypoint.name, {permanent: false}).addTo(this.map)
         });
-        this.props.navigationTask.track.waypoints.filter((waypoint) => {
+        this.props.navigationTask.route.waypoints.filter((waypoint) => {
             return waypoint.is_procedure_turn
         }).map((waypoint) => {
             circle([waypoint.latitude, waypoint.longitude], {

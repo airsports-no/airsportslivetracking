@@ -44,7 +44,7 @@ class Aeroplane(models.Model):
         return self.registration
 
 
-class Track(models.Model):
+class Route(models.Model):
     name = models.CharField(max_length=200)
     waypoints = MyPickledObjectField(default=list)
     starting_line = MyPickledObjectField(default=list)
@@ -55,7 +55,7 @@ class Track(models.Model):
         return self.name
 
     @classmethod
-    def create(cls, name: str, waypoints: List[Dict]) -> "Track":
+    def create(cls, name: str, waypoints: List[Dict]) -> "Route":
         waypoints = cls.add_gate_data(waypoints)
         starting_line = cls.create_starting_line(waypoints)
         object = cls(name=name, waypoints=waypoints, starting_line=starting_line)
@@ -183,7 +183,7 @@ class NavigationTask(models.Model):
     calculator_type = models.IntegerField(choices=NAVIGATION_TASK_TYPES, default=PRECISION,
                                           help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
                                               NAVIGATION_TASK_TYPES))
-    track = models.ForeignKey(Track, on_delete=models.PROTECT, null=True)
+    route = models.ForeignKey(Route, on_delete=models.PROTECT, null=True)
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(
@@ -308,7 +308,7 @@ class Contestant(models.Model):
     traccar_device_name = models.CharField(max_length=100,
                                            help_text="ID of physical tracking device that will be brought into the plane")
     tracker_start_time = models.DateTimeField(
-        help_text="When the tracker is handed to the contestant, can have no changes to the track after this.")
+        help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this.")
     scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT, null=True,
                                   help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                       lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
@@ -336,7 +336,7 @@ class Contestant(models.Model):
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
             return self.predefined_gate_times
         crossing_times = {}
-        gates = self.navigation_task.track.waypoints
+        gates = self.navigation_task.route.waypoints
         crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
         crossing_times[gates[0].name] = crossing_time
         for index in range(len(gates) - 1):  # type: Waypoint

@@ -6,7 +6,7 @@ from typing import List, Tuple
 import gpxpy
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing
-from display.models import Track, is_procedure_turn, create_perpendicular_line_at_end, Scorecard
+from display.models import Route, is_procedure_turn, create_perpendicular_line_at_end, Scorecard
 from gpxpy.gpx import GPX
 
 from display.waypoint import Waypoint
@@ -14,10 +14,10 @@ from display.waypoint import Waypoint
 logger = logging.getLogger(__name__)
 
 
-def create_track_from_gpx(track_name: str, file) -> Track:
-    logger.debug("Loading GPX track {}".format(track_name))
+def create_route_from_gpx(route_name: str, file) -> Route:
+    logger.debug("Loading GPX route {}".format(route_name))
     gpx = gpxpy.parse(file)
-    track = []
+    waypoints = []
     waypoint_map = {}
     landing_gate = None
     takeoff_gate = None
@@ -31,7 +31,7 @@ def create_track_from_gpx(track_name: str, file) -> Track:
                 #                                              point.name))
                 for point in route.points:
                     waypoint_map[point.name] = Waypoint(point.name)
-                    track.append(waypoint_map[point.name])
+                    waypoints.append(waypoint_map[point.name])
                     # print("This is route number {}".format(route_extension.attrib["number"]))
 
     for route in gpx.routes:
@@ -67,11 +67,11 @@ def create_track_from_gpx(track_name: str, file) -> Track:
                     assert not landing_gate
                     landing_gate = waypoint
 
-    calculate_and_update_legs(track)
-    insert_gate_ranges(track)
+    calculate_and_update_legs(waypoints)
+    insert_gate_ranges(waypoints)
 
-    starting_line = track[0]
-    object = Track(name=track_name, waypoints=track, starting_line=starting_line, takeoff_gate=takeoff_gate,
+    starting_line = waypoints[0]
+    object = Route(name=route_name, waypoints=waypoints, starting_line=starting_line, takeoff_gate=takeoff_gate,
                    landing_gate=landing_gate)
     object.save()
     return object
@@ -83,8 +83,8 @@ def calculate_extended_gate(waypoint: Waypoint, scorecard: "Scorecard") -> Tuple
                        scorecard.get_extended_gate_width_for_gate_type(waypoint.type))
 
 
-def create_track_from_csv(track_name: str, lines: List[str]) -> Track:
-    track = []
+def create_route_from_csv(route_name: str, lines: List[str]) -> Route:
+    waypoint_list = []
     for line in lines:
         line = [item.strip() for item in line.split(",")]
         waypoint = Waypoint(line[0])
@@ -97,9 +97,9 @@ def create_track_from_csv(track_name: str, lines: List[str]) -> Track:
         waypoint.gate_check = True
         waypoint.planning_test = True
         waypoint.elevation = False
-        track.append(waypoint)
+        waypoint_list.append(waypoint)
 
-    gates = [item for item in track if item.type in ("tp", "secret")]
+    gates = [item for item in waypoint_list if item.type in ("tp", "secret")]
     for index in range(len(gates) - 1):
         gates[index + 1].gate_line = create_perpendicular_line_at_end(gates[index].longitude,
                                                                       gates[index].latitude,
@@ -118,11 +118,11 @@ def create_track_from_csv(track_name: str, lines: List[str]) -> Track:
     gates[0].gate_line[0].reverse()
     gates[0].gate_line[1].reverse()
 
-    calculate_and_update_legs(track)
-    insert_gate_ranges(track)
+    calculate_and_update_legs(waypoint_list)
+    insert_gate_ranges(waypoint_list)
 
-    starting_line = track[0]
-    object = Track(name=track_name, waypoints=track, starting_line=starting_line)
+    starting_line = waypoint_list[0]
+    object = Route(name=route_name, waypoints=waypoint_list, starting_line=starting_line)
     object.save()
     return object
 

@@ -4,8 +4,8 @@ from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
-from display.convert_flightcontest_gpx import create_track_from_gpx
-from display.models import NavigationTask, Aeroplane, Team, Track, Contestant, ContestantTrack, Scorecard, Crew, Contest
+from display.convert_flightcontest_gpx import create_route_from_gpx
+from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, Contest
 from display.waypoint import Waypoint
 
 
@@ -47,14 +47,14 @@ class WaypointSerialiser(serializers.Serializer):
     is_procedure_turn = serializers.BooleanField()
 
 
-class TrackSerialiser(serializers.ModelSerializer):
+class RouteSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
     starting_line = WaypointSerialiser()
     landing_gate = WaypointSerialiser()
     takeoff_gate = WaypointSerialiser()
 
     class Meta:
-        model = Track
+        model = Route
         fields = "__all__"
 
     @staticmethod
@@ -82,12 +82,12 @@ class TrackSerialiser(serializers.ModelSerializer):
         waypoints = []
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
-        track = Track.objects.create(waypoints=waypoints,
+        route = Route.objects.create(waypoints=waypoints,
                                      starting_line=self._create_waypoint(validated_data.pop("starting_line")),
                                      landing_gate=self._create_waypoint(validated_data.pop("landing_gate")),
                                      takeoff_gate=self._create_waypoint(validated_data.pop("takeoff_gate")),
                                      **validated_data)
-        return track
+        return route
 
     def update(self, instance, validated_data):
         waypoints = []
@@ -127,14 +127,27 @@ class ScorecardSerialiser(serializers.ModelSerializer):
         fields = ("name",)
 
 
+class ContestantTrackNestedSerialiser(serializers.ModelSerializer):
+    """
+    Used for output to the frontend
+    """
+    score_log = serializers.JSONField()
+    score_per_gate = serializers.JSONField()
+
+    class Meta:
+        model = ContestantTrack
+        fields = "__all__"
+
+
+
 class ContestantNestedSerialiser(serializers.ModelSerializer):
     team = TeamNestedSerialiser()
     gate_times = serializers.JSONField(
-        help_text="Dictionary where the keys are gate names (must match the gate names in the track file) and the values are $date-time strings (with time zone)")
+        help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-
+    contestant_track = ContestantTrackNestedSerialiser
     class Meta:
         model = Contestant
         exclude = ("navigation_task", "predefined_gate_times")
@@ -142,7 +155,7 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
 
 class ContestantSerialiser(serializers.ModelSerializer):
     gate_times = serializers.JSONField(
-        help_text="Dictionary where the keys are gate names (must match the gate names in the track file) and the values are $date-time strings (with time zone)")
+        help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
@@ -160,34 +173,22 @@ class NavigationTaskSerialiser(serializers.ModelSerializer):
 
 class NavigationTaskNestedSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedSerialiser(many=True, read_only=True)
-    track = TrackSerialiser(read_only=True)
+    route = RouteSerialiser(read_only=True)
 
     class Meta:
         model = NavigationTask
         fields = "__all__"
 
-
-class ContestantTrackNestedSerialiser(serializers.ModelSerializer):
-    """
-    Used for output to the frontend
-    """
-    score_log = serializers.JSONField()
-    score_per_gate = serializers.JSONField()
-    contestant = ContestantNestedSerialiser()
-
-    class Meta:
-        model = ContestantTrack
-        fields = "__all__"
 
 
 class ExternalNavigationTaskNestedSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     contestant_set = ContestantNestedSerialiser(many=True)
-    track_file = serializers.CharField(write_only=True, read_only=False, required=True,
+    route_file = serializers.CharField(write_only=True, read_only=False, required=True,
                                        help_text="Base64 encoded gpx file")
 
     class Meta:
         model = NavigationTask
-        exclude = ("track",)
+        exclude = ("route",)
 
     def get_permissions_map(self, created):
         user = self.context["request"].user
@@ -197,20 +198,20 @@ class ExternalNavigationTaskNestedSerialiser(ObjectPermissionsAssignmentMixin, s
             "view_navigationtask": [user]
         }
 
-    def validate_track_file(self, value):
+    def validate_route_file(self, value):
         if value:
             try:
                 base64.decodebytes(bytes(value, 'utf-8'))
             except Exception as e:
-                raise serializers.ValidationError("track_file must be in a valid base64 string format.")
+                raise serializers.ValidationError("route_file must be in a valid base64 string format.")
         return value
 
     def create(self, validated_data):
         contestant_set = validated_data.pop("contestant_set", None)
-        track_file = validated_data.pop("track_file", None)
-        track = create_track_from_gpx(validated_data["name"], base64.decodebytes(track_file.encode("utf-8")))
+        route_file = validated_data.pop("route_file", None)
+        route = create_route_from_gpx(validated_data["name"], base64.decodebytes(route_file.encode("utf-8")))
         print(self.context)
-        navigation_task = NavigationTask.objects.create(**validated_data, track=track, contest=self.context["contest"])
+        navigation_task = NavigationTask.objects.create(**validated_data, route=route, contest=self.context["contest"])
         for contestant_data in contestant_set:
             team_data = contestant_data.pop("team")
             aeroplane_data = team_data.pop("aeroplane")
