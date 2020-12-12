@@ -83,7 +83,7 @@ class ConnectedContestantRankTable extends Component {
 
     buildData() {
         const contestants = this.props.contestants.filter((contestant) => {
-            return contestant && contestant.current_state !== "Waiting..."
+            return contestant != null
         })
         contestants.sort(compareScore)
         return contestants.map((contestant, index) => {

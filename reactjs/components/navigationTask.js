@@ -33,7 +33,7 @@ class ConnectedNavigationTask extends Component {
 
     fetchNavigationTask(){
         this.props.fetchNavigationTask(this.props.navigationTaskId);
-        setTimeout(()=>this.fetchNavigationTask(), 300000)
+        setTimeout(()=>this.fetchNavigationTask(), 30000)
     }
 
     componentDidMount() {
