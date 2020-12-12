@@ -24,6 +24,7 @@ class ConnectedContestantDetailsDisplay extends Component {
         }
         const events = this.props.contestantData.score_log.map((line, index) => {
             return {
+                key: this.props.contestantData.contestant_id + "details" + index,
                 message: line
             }
         })
@@ -35,7 +36,7 @@ class ConnectedContestantDetailsDisplay extends Component {
         const loading = this.props.initialLoading ? <Loading/> : <div/>
         return <div>
             {loading}
-            <BootstrapTable keyField={"rank"} data={events} columns={columns}
+            <BootstrapTable keyField={"key"} data={events} columns={columns}
                             bootstrap4 striped hover condensed pagination={paginationFactory(paginationOptions)}/>
         </div>
 

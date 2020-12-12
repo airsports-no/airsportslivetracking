@@ -11,7 +11,6 @@ import {
     toggleExpandedHeader
 } from "../actions";
 import {Loading} from "./basicComponents";
-import ProgressBar from 'react-bootstrap/ProgressBar';
 
 var moment = require("moment");
 var momentDurationFormatSetup = require("moment-duration-format");
@@ -62,24 +61,6 @@ class ConnectedContestantRankTable extends Component {
         return {backgroundColor: this.props.colourMap[row.contestantNumber]}
     }
 
-    anyContestantLoading() {
-        let loading = false
-        this.props.contestants.map((contestant, index) => {
-            loading = loading || contestant.initialLoading
-        })
-        return loading
-    }
-
-    getPercentageCompletedLoading() {
-        let count = 0;
-        this.props.contestants.map((contestant, index) => {
-            if (!contestant.initialLoading) {
-                count++;
-            }
-        })
-        return Math.round(100 * count / this.props.numberOfContestants)
-    }
-
 
     buildData() {
         const contestants = this.props.contestants.filter((contestant) => {
@@ -88,6 +69,7 @@ class ConnectedContestantRankTable extends Component {
         contestants.sort(compareScore)
         return contestants.map((contestant, index) => {
             return {
+                key: contestant.contestant.id + "rack" + index,
                 colour: "",
                 contestantNumber: contestant.contestant.contestant_number,
                 contestantId: contestant.contestant.id,
@@ -183,11 +165,8 @@ class ConnectedContestantRankTable extends Component {
             hideSizePerPage: true,
             hidePageListOnlyOnePage: true
         };
-        const now = this.getPercentageCompletedLoading();
-        const loading = this.anyContestantLoading() ? <ProgressBar now={now} label={now + "%"}/> : <div/>
         return <div>
-            {loading}
-            <BootstrapTable keyField={"rank"} data={this.buildData()} columns={columns}
+            <BootstrapTable keyField={"key"} data={this.buildData()} columns={columns}
                             bootstrap4 striped hover condensed pagination={paginationFactory(paginationOptions)}
                             rowEvents={rowEvents}/>
         </div>

@@ -10,12 +10,13 @@ import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} 
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
 import TurningPointLinks from "./turningPointLinks";
 import TurningPointDisplay from "./turningPointDisplay";
+import TrackLoadingIndicator from "./trackLoadingIndicator";
 
 const L = window['L']
 
 const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
-    currentDisplay: state.currentDisplay
+    currentDisplay: state.currentDisplay,
 })
 
 class ConnectedNavigationTask extends Component {
@@ -31,9 +32,9 @@ class ConnectedNavigationTask extends Component {
         this.props.displayAllTracks();
     }
 
-    fetchNavigationTask(){
+    fetchNavigationTask() {
         this.props.fetchNavigationTask(this.props.navigationTaskId);
-        setTimeout(()=>this.fetchNavigationTask(), 300000)
+        setTimeout(() => this.fetchNavigationTask(), 300000)
     }
 
     componentDidMount() {
@@ -42,6 +43,7 @@ class ConnectedNavigationTask extends Component {
             this.initialiseMap();
         }
     }
+
 
     buildColourMap() {
         const colours = distinctColors({count: this.props.navigationTask.contestant_set.length})
@@ -56,7 +58,7 @@ class ConnectedNavigationTask extends Component {
 
     componentDidUpdate(previousProps) {
         if (this.props.navigationTask.route !== previousProps.navigationTask.route) {
-            if (this.props.displayMap&&!this.rendered) {
+            if (this.props.displayMap && !this.rendered) {
                 this.renderRoute()
                 this.rendered = true;
             }
@@ -142,7 +144,8 @@ class ConnectedNavigationTask extends Component {
             if (this.props.displayTable) {
                 let display = <div/>
                 if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
-                    display = <ContestantRankTable colourMap={colourMap} numberOfContestants={this.props.navigationTask.contestant_set.length}/>
+                    display = <ContestantRankTable colourMap={colourMap}
+                                                   numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                 } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                     display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
                 } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
@@ -150,7 +153,9 @@ class ConnectedNavigationTask extends Component {
                                                    colourMap={colourMap}/>
                 }
                 tableDisplay = <div>
-                    <a href={"#"} onClick={this.handleNavigationTaskHeadingClick}><h1>{this.props.navigationTask.name}</h1></a>
+                    <a href={"#"} onClick={this.handleNavigationTaskHeadingClick}>
+                        <h1>{this.props.navigationTask.name}</h1></a>
+                    <TrackLoadingIndicator numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                     <TurningPointLinks/>
                     {display}
                 </div>
@@ -171,5 +176,9 @@ class ConnectedNavigationTask extends Component {
 }
 
 const
-    NavigationTask = connect(mapStateToProps, {fetchNavigationTask, setDisplay, displayAllTracks})(ConnectedNavigationTask);
+    NavigationTask = connect(mapStateToProps, {
+        fetchNavigationTask,
+        setDisplay,
+        displayAllTracks
+    })(ConnectedNavigationTask);
 export default NavigationTask;

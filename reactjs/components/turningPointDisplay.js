@@ -9,14 +9,16 @@ const mapStateToProps = (state, props) => {
     if (state.contestantData !== undefined) {
         for (const contestantId in state.contestantData) {
             let value = state.contestantData[contestantId].contestant_track
+            const contestant=state.contestants[contestantId]
+            const initialLoading=state.initialLoadingContestantData[contestantId]
             if (value) {
                 if (value.score_per_gate.hasOwnProperty(props.turningPointName)) {
                     scores.push({
                         colour: "",
-                        score: value.score_per_gate[props.turningPointName],
+                        score: initialLoading?"Loading...":value.score_per_gate[props.turningPointName],
                         contestantId: contestantId,
-                        contestantName: contestantShortForm(value.contestant),
-                        contestantNumber: value.contestant.contestant_number
+                        contestantName: contestantShortForm(contestant),
+                        contestantNumber: contestant.contestant_number
                     })
                 }
             }
