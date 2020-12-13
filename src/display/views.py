@@ -35,7 +35,7 @@ from rest_framework.viewsets import ModelViewSet, ViewSet
 from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv
 from display.forms import ImportRouteForm
 from display.models import NavigationTask, Route, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY, Contest
-from display.permissions import ContestPermissions, NavigationTaskPermissions, \
+from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ImportNavigationTaskPermissions, ContestantNavigationTaskPermissions, RoutePermissions
 from display.serialisers import NavigationTaskSerialiser, ContestantTrackSerialiser, \
@@ -160,7 +160,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     return data
 
 
-@permission_required("display.add_route")
+@permission_required("display.add_route", login_url='/accounts/login/')
 def import_route(request):
     form = ImportRouteForm()
     if request.method == "POST":
@@ -186,7 +186,7 @@ def import_route(request):
 
 # Everything below he is related to management and requires authentication
 class IsPublicMixin:
-    def check_permissions(self, user: User):
+    def check_publish_permissions(self, user: User):
         object = self.get_object()
         if isinstance(object, Contest):
             if user.has_perm("publish_contest", object) or user.has_perm("change_contest", object):
@@ -207,7 +207,7 @@ class IsPublicMixin:
         :param kwargs:
         :return:
         """
-        self.check_permissions(request.user)
+        self.check_publish_permissions(request.user)
         object = self.get_object()
         object.is_public = True
         object.save()
@@ -224,7 +224,7 @@ class IsPublicMixin:
         :param kwargs:
         :return:
         """
-        self.check_permissions(request.user)
+        self.check_publish_permissions(request.user)
         object = self.get_object()
         object.is_public = False
         object.save()
@@ -239,17 +239,18 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     """
     queryset = Contest.objects.all()
     serializer_class = ContestSerialiser
-    permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
+    permission_classes = [permissions.IsAuthenticated & ContestPermissions | ContestPublicPermissions]
 
     def get_queryset(self):
-        return get_objects_for_user(self.request.user, "view_navigationtask",
+        return get_objects_for_user(self.request.user, "view_contest",
                                     klass=self.queryset) | self.queryset.filter(is_public=True)
 
 
 class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
     queryset = NavigationTask.objects.all()
     serializer_class = NavigationTaskSerialiser
-    permission_classes = [NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskPermissions)]
+    permission_classes = [
+        NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)]
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_navigationtask",
@@ -267,7 +268,8 @@ class RouteViewSet(ModelViewSet):
 class NavigationTaskNestedViewSet(IsPublicMixin, ModelViewSet):
     queryset = NavigationTask.objects.all()
     serializer_class = NavigationTaskNestedSerialiser
-    permission_classes = [NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskPermissions)]
+    permission_classes = [
+        NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)]
 
     http_method_names = ['get']
 
@@ -322,6 +324,8 @@ class ImportFCNavigationTask(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
+        if not request.user.has_perm("modify_contest", contest):
+            raise PermissionDenied("You're not allowed to add navigation tasks to the contest '{}'".format(contest))
         serialiser = ExternalNavigationTaskNestedSerialiser(data=request.data,
                                                             context={"request": request, "contest": contest})
         if serialiser.is_valid():

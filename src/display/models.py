@@ -161,11 +161,6 @@ class Contest(models.Model):
     name = models.CharField(max_length=100, unique=True)
     is_public = models.BooleanField(default=False)
 
-    class Meta:
-        permissions = (
-            ("publish_contest", "Can publish contest"),
-        )
-
     def __str__(self):
         return self.name
 
@@ -192,9 +187,6 @@ class NavigationTask(models.Model):
                                     help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
 
     class Meta:
-        permissions = (
-            ("publish_navigationtask", "Can publish navigation task"),
-        )
         ordering = ("start_time", "finish_time")
 
     def __str__(self):
