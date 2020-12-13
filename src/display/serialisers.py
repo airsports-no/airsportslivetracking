@@ -127,7 +127,60 @@ class ScorecardSerialiser(serializers.ModelSerializer):
         fields = ("name",)
 
 
-class ContestantTrackNestedSerialiser(serializers.ModelSerializer):
+class PositionSerialiser(serializers.Serializer):
+    """
+    {
+        "0": {
+            "time": "2015-01-01T07:15:54Z",
+            "altitude": 177.7005608388,
+            "battery_level": 1,
+            "contestant": "310",
+            "course": 0,
+            "device_id": "2017_101",
+            "latitude": 48.10305,
+            "longitude": 16.93245,
+            "navigation_task": "31",
+            "speed": 0
+        }
+    }
+    """
+
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
+    altitude = serializers.FloatField()
+    time = serializers.DateTimeField()
+
+
+class TrackSerialiser(serializers.Serializer):
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    positions = PositionSerialiser(many=True)
+
+
+class ContestantTrackWithTrackPointsSerialiser(serializers.ModelSerializer):
+    """
+    Used for output to the frontend
+    """
+    score_log = serializers.JSONField()
+    score_per_gate = serializers.JSONField()
+    track = PositionSerialiser(many=True)
+
+    class Meta:
+        model = ContestantTrack
+        fields = "__all__"
+
+
+class ContestantTrackSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
     """
@@ -146,7 +199,7 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-    contestanttrack = ContestantTrackNestedSerialiser(required=False)
+    contestanttrack = ContestantTrackSerialiser(required=False)
 
     class Meta:
         model = Contestant

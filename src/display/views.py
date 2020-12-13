@@ -28,16 +28,17 @@ from rest_framework.generics import RetrieveAPIView, get_object_or_404, DestroyA
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ViewSet
 
 from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv
 from display.forms import ImportRouteForm
 from display.models import NavigationTask, Route, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY, Contest
 from display.permissions import ContestPermissions, NavigationTaskPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions
-from display.serialisers import NavigationTaskSerialiser, ContestantTrackNestedSerialiser, \
+from display.serialisers import NavigationTaskSerialiser, ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedSerialiser, \
-    ContestSerialiser, ContestantNestedSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, ContestantSerialiser
+    ContestSerialiser, ContestantNestedSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, \
+    ContestantSerialiser, ContestantTrackWithTrackPointsSerialiser
 from display.show_slug_choices import ShowChoicesMetadata, ShowChoicesFieldInspector
 from influx_facade import InfluxFacade
 
@@ -80,10 +81,13 @@ connection = Redis("redis")
 def get_data_from_time_for_contestant(request, contestant_pk):
     from_time = request.GET.get("from_time")
     key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk, from_time)
+    response = generate_data(contestant_pk, from_time)
+    return Response(response)
     response = cache.get(key)
     if response is None:
         logger.info("Cache miss {}".format(contestant_pk))
-        with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk), expire=30, auto_renewal=True):
+        with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk), expire=30,
+                             auto_renewal=True):
             response = cache.get(key)
             logger.info("Cache miss second time {}".format(contestant_pk))
             if response is None:
@@ -93,11 +97,13 @@ def get_data_from_time_for_contestant(request, contestant_pk):
     return Response(response)
 
 
+influx = InfluxFacade()
+
+
 def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
-    LIMIT = 2000
+    LIMIT = None
     TIME_INTERVAL = 10
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
-    influx = InfluxFacade()
     default_start_time = contestant.navigation_task.start_time - timedelta(minutes=30)
     if from_time is None:
         from_time = default_start_time.isoformat()
@@ -114,21 +120,28 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     annotations = []
 
     more_data = len(position_data) == LIMIT
-    if len(position_data) > 0:
-        reduced_data = [position_data[0]]
-        for item in position_data:
-            if dateutil.parser.parse(item["time"]) > dateutil.parser.parse(
-                    reduced_data[-1]["time"]) + datetime.timedelta(
-                seconds=TIME_INTERVAL):
-                reduced_data.append(item)
-    else:
-        reduced_data = []
+    # if len(position_data) > 0:
+    #     reduced_data = [position_data[0]]
+    #     for item in position_data:
+    #         if dateutil.parser.parse(item["time"]) > dateutil.parser.parse(
+    #                 reduced_data[-1]["time"]) + datetime.timedelta(
+    #             seconds=TIME_INTERVAL):
+    #             reduced_data.append(item)
+    # else:
+    #     reduced_data = []
+    # positions = reduced_data
+    reduced_data = []
+    for item in position_data:
+        reduced_data.append({
+            "latitude": item["latitude"],
+            "longitude": item["longitude"]
+        })
     positions = reduced_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
     if len(annotation_data):
         annotations = annotation_data
     if hasattr(contestant, "contestanttrack"):
-        contestant_track = ContestantTrackNestedSerialiser(contestant.contestanttrack).data
+        contestant_track = ContestantTrackSerialiser(contestant.contestanttrack).data
     else:
         contestant_track = None
     logger.info("Completed generating data {}".format(contestant.pk))
@@ -248,6 +261,18 @@ class ContestantViewSet(ModelViewSet):
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_navigationtask",
                                     klass=self.queryset) | self.queryset.filter(navigation_task__is_public=True)
+
+
+class ContestantTrackViewSet(ViewSet):
+    def retrieve(self, request, pk=None):
+        contestant = get_object_or_404(Contestant, pk=pk)
+        contestant_track = contestant.contestanttrack
+        result_set = influx.get_positions_for_contestant(pk, contestant.tracker_start_time)
+        logger.info("Completed fetching positions for {}".format(contestant.pk))
+        position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
+        contestant_track.track = position_data
+        serialiser = ContestantTrackWithTrackPointsSerialiser(contestant_track)
+        return Response(serialiser.data)
 
 
 class ImportFCNavigationTask(ModelViewSet):
