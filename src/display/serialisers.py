@@ -146,7 +146,7 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-    contestanttrack = ContestantTrackNestedSerialiser()
+    contestanttrack = ContestantTrackNestedSerialiser(required=False)
 
     class Meta:
         model = Contestant

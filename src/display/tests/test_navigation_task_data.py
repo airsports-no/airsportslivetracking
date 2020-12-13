@@ -602,7 +602,7 @@ expected_route = {
             "latitude": 48.2458833333,
             "longitude": 16.7047222167,
             "elevation": 1000.0,
-            "width": 1,
+            "width": 1.0,
             "gate_line": [
                 [
                     48.2478608593,
@@ -614,7 +614,7 @@ expected_route = {
                 ]
             ],
             
-            "time_check": False,
+            "time_check": True,
             "gate_check": True,
             "end_curved": False,"planning_test":True, 
             "type": "tp",
@@ -804,3 +804,11 @@ class TestImportFCNavigationTask(APITestCase):
         for index, waypoint in enumerate(route["waypoints"]):
             self.assertDictEqual(expected_route["waypoints"][index], waypoint)
             self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])
+
+
+    def test_doc_example(self):
+        with open('../documentation/importnavigationtask.json','r') as i:
+            data=json.load(i)
+        res = self.client.post(
+            "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data, format="json")
+        self.assertEqual(200, res.status_code, "Failed to POST importnavigationtask")
