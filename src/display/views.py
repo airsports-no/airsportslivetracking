@@ -7,6 +7,7 @@ import redis_lock
 import dateutil
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, Http404
@@ -20,10 +21,11 @@ import os
 from drf_yasg.app_settings import swagger_settings
 from drf_yasg.utils import swagger_auto_schema
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import get_objects_for_user
+from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
 from rest_framework import status, permissions
-from rest_framework.decorators import api_view, action
+from rest_framework.decorators import api_view, action, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import RetrieveAPIView, get_object_or_404, DestroyAPIView, CreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -34,7 +36,8 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
 from display.forms import ImportRouteForm
 from display.models import NavigationTask, Route, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY, Contest
 from display.permissions import ContestPermissions, NavigationTaskPermissions, \
-    ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions
+    ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
+    ImportNavigationTaskPermissions, ContestantNavigationTaskPermissions, RoutePermissions
 from display.serialisers import NavigationTaskSerialiser, ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedSerialiser, \
     ContestSerialiser, ContestantNestedSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, \
@@ -77,22 +80,27 @@ class ContestList(ListView):
 connection = Redis("redis")
 
 
-@api_view(["GET"])
-def get_data_from_time_for_contestant(request, contestant_pk):
-    from_time = request.GET.get("from_time")
-    key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk, from_time)
-    response = cache.get(key)
-    if response is None:
-        logger.info("Cache miss {}".format(contestant_pk))
-        with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk), expire=30,
-                             auto_renewal=True):
-            response = cache.get(key)
-            logger.info("Cache miss second time {}".format(contestant_pk))
-            if response is None:
-                response = generate_data(contestant_pk, from_time)
-                cache.set(key, response)
-                logger.info("Completed updating cash {}".format(contestant_pk))
-    return Response(response)
+class GetDataFromTimeForContestant(RetrieveAPIView):
+    permission_classes = [
+        ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskPermissions)]
+    lookup_url_kwarg = "contestant_pk"
+
+    def get(self, request, *args, **kwargs):
+        contestant = self.get_object()  # type: Contestant
+        from_time = request.GET.get("from_time")
+        key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant.pk, from_time)
+        response = cache.get(key)
+        if response is None:
+            logger.info("Cache miss {}".format(contestant.pk))
+            with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant.pk), expire=30,
+                                 auto_renewal=True):
+                response = cache.get(key)
+                logger.info("Cache miss second time {}".format(contestant.pk))
+                if response is None:
+                    response = generate_data(contestant.pk, from_time)
+                    cache.set(key, response)
+                    logger.info("Completed updating cash {}".format(contestant.pk))
+        return Response(response)
 
 
 influx = InfluxFacade()
@@ -152,6 +160,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     return data
 
 
+@permission_required("display.add_route")
 def import_route(request):
     form = ImportRouteForm()
     if request.method == "POST":
@@ -160,17 +169,33 @@ def import_route(request):
             name = form.cleaned_data["name"]
             file_type = form.cleaned_data["file_type"]
             print(file_type)
+            route = None
             if file_type == form.CSV:
                 data = [item.decode(encoding="UTF-8") for item in request.FILES['file'].readlines()]
-                create_route_from_csv(name, data[1:])
+                route = create_route_from_csv(name, data[1:])
             elif file_type == form.FLIGHTCONTEST_GPX:
-                create_route_from_gpx(name, request.FILES["file"])
+                route = create_route_from_gpx(name, request.FILES["file"])
+            if route is not None:
+                assign_perm("view_route", request.user, route)
+                assign_perm("delete_route", request.user, route)
+                assign_perm("change_route", request.user, route)
+
             return redirect("/")
     return render(request, "display/import_route_form.html", {"form": form})
 
 
 # Everything below he is related to management and requires authentication
 class IsPublicMixin:
+    def check_permissions(self, user: User):
+        object = self.get_object()
+        if isinstance(object, Contest):
+            if user.has_perm("publish_contest", object) or user.has_perm("change_contest", object):
+                return True
+        if isinstance(object, NavigationTask):
+            if user.has_perm("publish_navigationtask", object) or user.has_perm("change_navigationtask", object):
+                return True
+        raise PermissionDenied("User does not have permission to publish {}".format(object))
+
     @action(detail=True, methods=["put"])
     def publish(self, request, **kwargs):
         """
@@ -182,6 +207,7 @@ class IsPublicMixin:
         :param kwargs:
         :return:
         """
+        self.check_permissions(request.user)
         object = self.get_object()
         object.is_public = True
         object.save()
@@ -198,6 +224,7 @@ class IsPublicMixin:
         :param kwargs:
         :return:
         """
+        self.check_permissions(request.user)
         object = self.get_object()
         object.is_public = False
         object.save()
@@ -212,7 +239,7 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     """
     queryset = Contest.objects.all()
     serializer_class = ContestSerialiser
-    permission_classes = [ContestPublicPermissions | permissions.IsAuthenticated & NavigationTaskPermissions]
+    permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_navigationtask",
@@ -222,7 +249,7 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
 class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
     queryset = NavigationTask.objects.all()
     serializer_class = NavigationTaskSerialiser
-    permission_classes = [NavigationTaskPublicPermissions | permissions.IsAuthenticated & NavigationTaskPermissions]
+    permission_classes = [NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskPermissions)]
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_navigationtask",
@@ -232,7 +259,7 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
 class RouteViewSet(ModelViewSet):
     queryset = Route.objects.all()
     serializer_class = RouteSerialiser
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated & RoutePermissions]
 
     http_method_names = ['get', 'post', 'delete', 'put']
 
@@ -240,7 +267,7 @@ class RouteViewSet(ModelViewSet):
 class NavigationTaskNestedViewSet(IsPublicMixin, ModelViewSet):
     queryset = NavigationTask.objects.all()
     serializer_class = NavigationTaskNestedSerialiser
-    permission_classes = [NavigationTaskPublicPermissions | permissions.IsAuthenticated & NavigationTaskPermissions]
+    permission_classes = [NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskPermissions)]
 
     http_method_names = ['get']
 
@@ -252,7 +279,7 @@ class NavigationTaskNestedViewSet(IsPublicMixin, ModelViewSet):
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     serializer_class = ContestantSerialiser
-    permission_classes = [permissions.IsAuthenticated & NavigationTaskPermissions]
+    permission_classes = [permissions.IsAuthenticated & ContestantNavigationTaskPermissions]
 
     http_method_names = ['get', 'post', 'delete', 'patch']
 
@@ -285,7 +312,7 @@ class ImportFCNavigationTask(ModelViewSet):
     """
     queryset = NavigationTask.objects.all()
     serializer_class = ExternalNavigationTaskNestedSerialiser
-    permission_classes = [permissions.IsAuthenticated & NavigationTaskPermissions]
+    permission_classes = [permissions.IsAuthenticated & ImportNavigationTaskPermissions]
 
     metadata_class = ShowChoicesMetadata
 

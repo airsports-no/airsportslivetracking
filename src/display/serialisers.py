@@ -1,5 +1,6 @@
 import base64
 
+from guardian.shortcuts import assign_perm
 from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
@@ -262,6 +263,10 @@ class ExternalNavigationTaskNestedSerialiser(ObjectPermissionsAssignmentMixin, s
         contestant_set = validated_data.pop("contestant_set", None)
         route_file = validated_data.pop("route_file", None)
         route = create_route_from_gpx(validated_data["name"], base64.decodebytes(route_file.encode("utf-8")))
+        user = self.context["request"].user
+        assign_perm("view_route", user, route)
+        assign_perm("delete_route", user, route)
+        assign_perm("change_route", user, route)
         print(self.context)
         navigation_task = NavigationTask.objects.create(**validated_data, route=route, contest=self.context["contest"])
         for contestant_data in contestant_set:

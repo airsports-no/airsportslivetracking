@@ -40,12 +40,14 @@ class ContestantPublicPermissions(permissions.BasePermission):
         return False
 
 
-class NavigationTaskPermissions(permissions.BasePermission):
-    # def has_permission(self, request, view):
-    #     if request.method in ['POST']:
-    #         return request.user.has_perm('add_navigationtask')
-    #     return False
+class ImportNavigationTaskPermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in ['POST']:
+            return request.user.has_perm('add_navigationtask')
+        return False
 
+
+class NavigationTaskPermissions(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in ['GET']:
             return request.user.has_perm('view_navigationtask', obj)
@@ -55,4 +57,30 @@ class NavigationTaskPermissions(permissions.BasePermission):
             return request.user.has_perm('change_navigationtask', obj)
         if request.method in ['DELETE']:
             return request.user.has_perm('delete_navigationtask', obj)
+        return False
+
+
+class ContestantNavigationTaskPermissions(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in ['GET']:
+            return request.user.has_perm('view_navigationtask', obj.navigation_task)
+        if request.method in ['POST']:
+            return request.user.has_perm('add_navigationtask', obj.navigation_task)
+        if request.method in ['PUT', 'PATCH']:
+            return request.user.has_perm('change_navigationtask', obj.navigation_task)
+        if request.method in ['DELETE']:
+            return request.user.has_perm('delete_navigationtask', obj.navigation_task)
+        return False
+
+
+class RoutePermissions(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in ['GET']:
+            return request.user.has_perm('view_route', obj.navigation_task)
+        if request.method in ['POST']:
+            return request.user.has_perm('add_route', obj.navigation_task)
+        if request.method in ['PUT', 'PATCH']:
+            return request.user.has_perm('change_route', obj.navigation_task)
+        if request.method in ['DELETE']:
+            return request.user.has_perm('delete_route', obj.navigation_task)
         return False
