@@ -11,6 +11,8 @@ class ContestPermissions(permissions.BasePermission):
             return request.user.has_perm('display.add_contest')
         if request.method in ['PUT', 'PATCH']:
             return request.user.has_perm('display.change_contest')
+        if request.method in ['DELETE']:
+            return request.user.has_perm('display.delete_contest')
         return request.method in SAFE_METHODS
 
     def has_object_permission(self, request, view, obj):

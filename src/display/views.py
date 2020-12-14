@@ -321,7 +321,7 @@ class ContestantViewSet(ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def track(self, request, pk=None, **kwargs):
-        contestant = get_object_or_404(self.get_queryset(), pk=pk)
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
         contestant_track = contestant.contestanttrack
         result_set = influx.get_positions_for_contestant(pk, contestant.tracker_start_time)
         logger.info("Completed fetching positions for {}".format(contestant.pk))
@@ -339,7 +339,7 @@ class ContestantViewSet(ModelViewSet):
         :param kwargs:
         :return:
         """
-        contestant = self.get_object()  # type: Contestant
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
         from_time = request.GET.get("from_time")
         key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant.pk, from_time)
         response = cache.get(key)

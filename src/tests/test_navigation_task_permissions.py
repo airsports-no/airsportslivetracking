@@ -76,9 +76,17 @@ class TestCreateNavigationTask(APITestCase):
 class TestAccessNavigationTask(APITestCase):
     def setUp(self):
         self.user_owner = User.objects.create(username="withpermissions")
-        self.user_owner.user_permissions.add(Permission.objects.get(codename="add_contest"),
-                                             Permission.objects.get(codename="change_contest"))
+        self.user_owner.user_permissions.add(
+            Permission.objects.get(codename="add_contest"),
+            Permission.objects.get(codename="change_contest"),
+            Permission.objects.get(codename="delete_contest")
+        )
         self.user_someone_else = User.objects.create(username="withoutpermissions")
+        self.user_someone_else.user_permissions.add(
+            Permission.objects.get(codename="add_contest"),
+            Permission.objects.get(codename="change_contest"),
+            Permission.objects.get(codename="delete_contest")
+        )
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False})
         print(result.json())
@@ -89,6 +97,11 @@ class TestAccessNavigationTask(APITestCase):
         print(result.content)
         self.navigation_task = NavigationTask.objects.get(pk=result.json()["id"])
         self.different_user_with_object_permissions = User.objects.create(username="objectpermissions")
+        self.different_user_with_object_permissions.user_permissions.add(
+            Permission.objects.get(codename="add_contest"),
+            Permission.objects.get(codename="change_contest"),
+            Permission.objects.get(codename="delete_contest")
+        )
         assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
@@ -100,7 +113,7 @@ class TestAccessNavigationTask(APITestCase):
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.assertEqual(10, result.json()["wind_speed"])
+        self.assertEqual(0, result.json()["calculator_type"])
 
     def test_put_navigation_task_from_other_user_with_permissions(self):
         self.client.force_login(user=self.different_user_with_object_permissions)
@@ -119,7 +132,6 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.delete(
             reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
-
 
     def test_publish_navigation_task_as_other_user_with_permissions(self):
         self.client.force_login(user=self.different_user_with_object_permissions)
@@ -198,7 +210,6 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertFalse(result.json()["is_public"])
 
     def test_publish_navigation_task_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
@@ -206,7 +217,6 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertFalse(result.json()["is_public"])
 
     def test_publish_navigation_task_as_creator(self):
         self.client.force_login(user=self.user_owner)
@@ -238,6 +248,51 @@ class TestAccessNavigationTask(APITestCase):
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
+
+    def test_delete_public_navigation_task_without_login(self):
+        self.contest.is_public = True
+        self.contest.save()
+        self.navigation_task.is_public = True
+        self.navigation_task.save()
+        self.client.logout()
+        result = self.client.delete(
+            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_delete_public_navigation_task_as_someone_else(self):
+        self.client.force_login(user=self.user_someone_else)
+        self.contest.is_public = True
+        self.contest.save()
+        self.navigation_task.is_public = True
+        self.navigation_task.save()
+        result = self.client.delete(
+            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+
+
+    def test_delete_navigation_task_without_login(self):
+        self.client.logout()
+        result = self.client.delete(
+            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_delete_navigation_task_as_someone_else(self):
+        self.client.force_login(user=self.user_someone_else)
+        result = self.client.delete(
+            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_delete_navigation_task_as_creator(self):
+        self.client.force_login(user=self.user_owner)
+        result = self.client.delete(
+            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        print(result)
+        print(result.content)
+        self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_view_public_navigation_task_without_login(self):
         self.contest.is_public = True

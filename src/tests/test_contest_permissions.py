@@ -39,15 +39,24 @@ class TestAccessContest(APITestCase):
     def setUp(self):
         self.user_owner = User.objects.create(username="withpermissions")
         self.user_owner.user_permissions.add(Permission.objects.get(codename="add_contest"),
-                                             Permission.objects.get(codename="change_contest"))
+                                             Permission.objects.get(codename="change_contest"),
+                                             Permission.objects.get(codename="delete_contest"))
         self.user_owner.refresh_from_db()
         self.user_someone_else = User.objects.create(username="withoutpermissions")
+        self.user_someone_else.user_permissions.add(Permission.objects.get(codename="add_contest"),
+                                             Permission.objects.get(codename="change_contest"),
+                                             Permission.objects.get(codename="delete_contest"))
+
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
         self.different_user_with_object_permissions = User.objects.create(username="objectpermissions")
+        self.different_user_with_object_permissions.user_permissions.add(Permission.objects.get(codename="add_contest"),
+                                             Permission.objects.get(codename="change_contest"),
+                                             Permission.objects.get(codename="delete_contest"))
+
         assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
@@ -67,12 +76,12 @@ class TestAccessContest(APITestCase):
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.assertEqual(30, result.json()["wind_speed"])
+        self.assertEqual("TestContest2", result.json()["name"])
 
     def test_patch_contestant_from_other_user_with_permissions(self):
         self.client.force_login(user=self.different_user_with_object_permissions)
         data = {"is_public": True}
-        result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
+        result = self.client.patch(reverse("contests-detail", kwargs={'pk': self.contest_id}),
                                  data=data)
         print(result)
         print(result.content)
@@ -104,7 +113,7 @@ class TestAccessContest(APITestCase):
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
                                  data={"name": "TestContest2"})
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_modify_contest_as_creator(self):
         self.client.force_login(user=self.user_owner)
@@ -113,20 +122,19 @@ class TestAccessContest(APITestCase):
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual("TestContest2", result.json()["name"])
 
     def test_publish_contest_without_login(self):
         self.client.logout()
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertFalse(result.json()["is_public"])
 
     def test_publish_contest_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertFalse(result.json()["is_public"])
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_publish_contest_as_creator(self):
         self.client.force_login(user=self.user_owner)
@@ -157,6 +165,33 @@ class TestAccessContest(APITestCase):
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
+
+    def test_delete_public_contest_without_login(self):
+        self.client.logout()
+        self.contest.is_public = True
+        self.contest.save()
+        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_delete_contest_without_login(self):
+        self.client.logout()
+        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_delete_contest_as_someone_else(self):
+        self.client.force_login(user=self.user_someone_else)
+        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_contest_as_creator(self):
+        self.client.force_login(user=self.user_owner)
+        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        print(result)
+        print(result.content)
+        self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_view_public_contest_without_login(self):
         self.contest.is_public = True
