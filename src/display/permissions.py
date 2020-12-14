@@ -57,7 +57,10 @@ class ContestantPublicPermissions(permissions.BasePermission):
 
 class NavigationTaskContestPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
-        contest = get_object_or_404(Contest, pk=view.kwargs["contest_pk"])
+        pk = view.kwargs.get("contest_pk")
+        if not pk:
+            return True
+        contest = get_object_or_404(Contest, pk=pk)
         return request.user.has_perm("display.change_contest", contest)
 
     def has_object_permission(self, request, view, obj):
@@ -74,7 +77,10 @@ class NavigationTaskContestPermissions(permissions.BasePermission):
 
 class ContestantNavigationTaskContestPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
-        contest = get_object_or_404(Contest, pk=view.kwargs["contest_pk"])
+        pk = view.kwargs.get("contest_pk")
+        if not pk:
+            return True
+        contest = get_object_or_404(Contest, pk=pk)
         return request.user.has_perm("display.change_contest", contest)
 
     def has_object_permission(self, request, view, obj):

@@ -37,18 +37,24 @@ logger = logging.getLogger(__name__)
 
 
 def frontend_view(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
     return render(request, "display/root.html",
-                  {"navigation_task_id": pk, "live_mode": "true", "display_map": "true", "display_table": "true"})
+                  {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
+                   "display_map": "true", "display_table": "true"})
 
 
 def frontend_view_table(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
     return render(request, "display/root.html",
-                  {"navigation_task_id": pk, "live_mode": "true", "display_map": "false", "display_table": "true"})
+                  {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
+                   "display_map": "false", "display_table": "true"})
 
 
 def frontend_view_map(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
     return render(request, "display/root.html",
-                  {"navigation_task_id": pk, "live_mode": "true", "display_map": "true", "display_table": "false"})
+                  {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
+                   "display_map": "true", "display_table": "false"})
 
 
 class NavigationTaskList(ListView):
@@ -72,6 +78,12 @@ class GetDataFromTimeForContestant(RetrieveAPIView):
     permission_classes = [
         ContestantPublicPermissions | permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions]
     lookup_url_kwarg = "contestant_pk"
+
+    def get_queryset(self):
+        contests = get_objects_for_user(self.request.user, "change_contest",
+                                        klass=Contest)
+        return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
+                                                                                      navigation_task__contest__is_public=True))
 
     def get(self, request, *args, **kwargs):
         contestant = self.get_object()  # type: Contestant
@@ -304,8 +316,14 @@ class ContestantViewSet(ModelViewSet):
 
 
 class ContestantTrackViewSet(ViewSet):
+    def get_queryset(self):
+        contests = get_objects_for_user(self.request.user, "change_contest",
+                                        klass=Contest)
+        return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
+                                                                                      navigation_task__contest__is_public=True))
+
     def retrieve(self, request, pk=None):
-        contestant = get_object_or_404(Contestant, pk=pk)
+        contestant = get_object_or_404(self.get_queryset(), pk=pk)
         contestant_track = contestant.contestanttrack
         result_set = influx.get_positions_for_contestant(pk, contestant.tracker_start_time)
         logger.info("Completed fetching positions for {}".format(contestant.pk))

@@ -295,3 +295,101 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.get(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_view_public_contest_hidden_navigation_task_contestant_without_privileges(self):
+        self.contest.is_public = True
+        self.contest.save()
+        self.navigation_task.is_public = False
+        self.navigation_task.save()
+        self.client.force_login(self.user_someone_else)
+        url = reverse("contestants-detail",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
+        result = self.client.get(url)
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_view_hidden_contest_public_navigation_task_contestant_without_privileges(self):
+        self.contest.is_public = False
+        self.contest.save()
+        self.navigation_task.is_public = True
+        self.navigation_task.save()
+        self.client.force_login(self.user_someone_else)
+        url = reverse("contestants-detail",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
+        result = self.client.get(url)
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_contestant_track_public_contest_public_navigation_task_without_login(self):
+        self.contest.is_public = True
+        self.contest.save()
+        self.navigation_task.is_public = True
+        self.navigation_task.save()
+        self.client.logout()
+        url = reverse("tracks-detail",
+                      kwargs={"pk": self.contestant.pk})
+        result = self.client.get(url)
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+
+    def test_get_contestant_track_hidden_contest_public_navigation_task_without_login(self):
+        self.contest.is_public = False
+        self.contest.save()
+        self.navigation_task.is_public = True
+        self.navigation_task.save()
+        self.client.logout()
+        url = reverse("tracks-detail",
+                      kwargs={"pk": self.contestant.pk})
+        result = self.client.get(url)
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_contestant_track_public_contest_hidden_navigation_task_without_login(self):
+        self.contest.is_public = True
+        self.contest.save()
+        self.navigation_task.is_public = False
+        self.navigation_task.save()
+        self.client.logout()
+        url = reverse("tracks-detail",
+                      kwargs={"pk": self.contestant.pk})
+        result = self.client.get(url)
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_contestant_track_public_contest_public_navigation_task_without_privileges(self):
+        self.contest.is_public = True
+        self.contest.save()
+        self.navigation_task.is_public = True
+        self.navigation_task.save()
+        self.client.force_login(self.user_someone_else)
+        url = reverse("tracks-detail",
+                      kwargs={"pk": self.contestant.pk})
+        result = self.client.get(url)
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+
+    def test_get_contestant_track_hidden_contest_public_navigation_task_without_privileges(self):
+        self.contest.is_public = False
+        self.contest.save()
+        self.navigation_task.is_public = True
+        self.navigation_task.save()
+        self.client.force_login(self.user_someone_else)
+        url = reverse("tracks-detail",
+                      kwargs={"pk": self.contestant.pk})
+        result = self.client.get(url)
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_contestant_track_public_contest_hidden_navigation_task_without_provisions(self):
+        self.contest.is_public = True
+        self.contest.save()
+        self.navigation_task.is_public = False
+        self.navigation_task.save()
+        self.client.force_login(self.user_someone_else)
+        url = reverse("tracks-detail",
+                      kwargs={"pk": self.contestant.pk})
+        result = self.client.get(url)
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)

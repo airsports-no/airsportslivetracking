@@ -36,9 +36,9 @@ export function initialLoadingComplete(contestantId) {
 }
 
 
-export const fetchNavigationTask = (navigationTaskId) => (dispatch) => {
+export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/nestednavigationtasks/" + navigationTaskId,
+        url: "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId,
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_NAVIGATION_TASK_SUCCESSFUL, payload: value}),

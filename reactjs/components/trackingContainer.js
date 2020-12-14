@@ -12,6 +12,7 @@ class ConnectedTrackingContainer extends Component {
         this.viewer = null;
         this.map = null;
         this.navigationTaskId = document.configuration.navigation_task_id;
+        this.contestId = document.configuration.contest_id;
         this.displayMap = document.configuration.displayMap;
         this.displayTable = document.configuration.displayTable;
     }
@@ -19,7 +20,8 @@ class ConnectedTrackingContainer extends Component {
 
     render() {
         const TrackerDisplay =
-            <NavigationTask map={this.map} navigationTaskId={this.navigationTaskId} fetchInterval={2000}
+            <NavigationTask map={this.map} contest_id={this.contestId} navigationTaskId={this.navigationTaskId}
+                            fetchInterval={2000}
                             displayMap={this.displayMap} displayTable={this.displayTable}/>
         if (this.displayTable && this.displayMap) {
             return (
