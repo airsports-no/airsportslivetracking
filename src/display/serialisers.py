@@ -252,9 +252,9 @@ class NavigationTaskNestedSerialiser(serializers.ModelSerializer):
         route_serialiser = RouteSerialiser(data=route)
         route_serialiser.is_valid(raise_exception=True)
         route = route_serialiser.save()
-        assign_perm("view_route", user, route)
-        assign_perm("delete_route", user, route)
-        assign_perm("change_route", user, route)
+        # assign_perm("view_route", user, route)
+        # assign_perm("delete_route", user, route)
+        # assign_perm("change_route", user, route)
         navigation_task = NavigationTask.objects.create(**validated_data, route=route)
         for contestant_data in contestant_set:
             contestant_serialiser = ContestantNestedSerialiser(data=contestant_data,
@@ -288,9 +288,9 @@ class ExternalNavigationTaskNestedSerialiser(serializers.ModelSerializer):
         user = self.context["request"].user
         validated_data["contest"] = self.context["contest"]
         validated_data["route"] = route
-        assign_perm("view_route", user, route)
-        assign_perm("delete_route", user, route)
-        assign_perm("change_route", user, route)
+        # assign_perm("view_route", user, route)
+        # assign_perm("delete_route", user, route)
+        # assign_perm("change_route", user, route)
         print(self.context)
         navigation_task = NavigationTask.objects.create(**validated_data)
         for contestant_data in contestant_set:
