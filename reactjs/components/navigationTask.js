@@ -155,17 +155,19 @@ class ConnectedNavigationTask extends Component {
                 tableDisplay = <div>
                     <a href={"#"} onClick={this.handleNavigationTaskHeadingClick}>
                         <h1>{this.props.navigationTask.name}</h1></a>
-                    <TrackLoadingIndicator numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                     <TurningPointLinks/>
                     {display}
                 </div>
             }
             let mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
-                return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={6000}
-                                        contestant={contestant} displayMap={this.props.displayMap}
+                return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}
+                                        contestant={contestant} contestId={this.props.contestId}
+                                        navigationTaskId={this.props.navigationTaskId}
+                                        displayMap={this.props.displayMap}
                                         colour={colourMap[contestant.contestant_number]}/>
             });
             return <div>
+                <TrackLoadingIndicator numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                 {mapDisplay}
                 {tableDisplay}
             </div>

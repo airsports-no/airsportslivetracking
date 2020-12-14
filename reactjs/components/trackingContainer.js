@@ -20,7 +20,7 @@ class ConnectedTrackingContainer extends Component {
 
     render() {
         const TrackerDisplay =
-            <NavigationTask map={this.map} contest_id={this.contestId} navigationTaskId={this.navigationTaskId}
+            <NavigationTask map={this.map} contestId={this.contestId} navigationTaskId={this.navigationTaskId}
                             fetchInterval={2000}
                             displayMap={this.displayMap} displayTable={this.displayTable}/>
         if (this.displayTable && this.displayMap) {
@@ -57,8 +57,8 @@ class ConnectedTrackingContainer extends Component {
                 <div id="map-holder">
                     <div id='main_div' className={"fill"}>
                         <div className={"row fill ml-1"}>
-                            {TrackerDisplay}
                             <div className={"col-12 fill"}>
+                                {TrackerDisplay}
                                 <div id="cesiumContainer"></div>
                                 {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
                                 {/*</div>*/}

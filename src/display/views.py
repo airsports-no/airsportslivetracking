@@ -116,6 +116,9 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     if from_time is None:
         from_time = default_start_time.isoformat()
     from_time_datetime = dateutil.parser.parse(from_time)
+    # This is to differentiate the first request from later requests. The first request will with from time epoch 0
+    if from_time_datetime < default_start_time:
+        from_time_datetime = default_start_time
     logger.info("Fetching data from time {} {}".format(from_time, contestant.pk))
     result_set = influx.get_positions_for_contestant(contestant_pk, from_time, limit=LIMIT)
     logger.info("Completed fetching positions for {}".format(contestant.pk))
@@ -127,7 +130,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     annotation_results = influx.get_annotations_for_contestant(contestant_pk, from_time, global_latest_time)
     annotations = []
 
-    more_data = len(position_data) == LIMIT
+    more_data = len(position_data) == LIMIT and len(position_data) > 0
     # if len(position_data) > 0:
     #     reduced_data = [position_data[0]]
     #     for item in position_data:
@@ -316,15 +319,8 @@ class ContestantViewSet(ModelViewSet):
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-class ContestantTrackViewSet(ViewSet):
-    def get_queryset(self):
-        contests = get_objects_for_user(self.request.user, "change_contest",
-                                        klass=Contest)
-        return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
-                                                                                      navigation_task__contest__is_public=True))
-
-    def retrieve(self, request, pk=None):
+    @action(detail=True, methods=["get"])
+    def track(self, request, pk=None, **kwars):
         contestant = get_object_or_404(self.get_queryset(), pk=pk)
         contestant_track = contestant.contestanttrack
         result_set = influx.get_positions_for_contestant(pk, contestant.tracker_start_time)
@@ -333,6 +329,31 @@ class ContestantTrackViewSet(ViewSet):
         contestant_track.track = position_data
         serialiser = ContestantTrackWithTrackPointsSerialiser(contestant_track)
         return Response(serialiser.data)
+
+    @action(detail=True, methods=["get"])
+    def track_frontend(self, request, *args, **kwargs):
+        """
+        For internal use only. Provides data in the format that the frontend requires
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        contestant = self.get_object()  # type: Contestant
+        from_time = request.GET.get("from_time")
+        key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant.pk, from_time)
+        response = cache.get(key)
+        if response is None:
+            logger.info("Cache miss {}".format(contestant.pk))
+            with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant.pk), expire=30,
+                                 auto_renewal=True):
+                response = cache.get(key)
+                logger.info("Cache miss second time {}".format(contestant.pk))
+                if response is None:
+                    response = generate_data(contestant.pk, from_time)
+                    cache.set(key, response)
+                    logger.info("Completed updating cash {}".format(contestant.pk))
+        return Response(response)
 
 
 class ImportFCNavigationTask(ModelViewSet):

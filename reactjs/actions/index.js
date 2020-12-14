@@ -46,19 +46,10 @@ export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) =
     });
 }
 
-export const fetchNewContestants = (contest, navigationTask)=>(dispatch) =>{
-    $.ajax({
-        url: "/api/v1/contests/" + "/navigationtasks/" + navigationTaskId + "/contestants/",
-        datatype: 'json',
-        cache: false,
-        success: value => dispatch({type: CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL, payload: value}),
-        error: error => console.log(error)
-    });
-}
 
-export const fetchContestantData = (contestantId, fromTime) => (dispatch) => {
+export const fetchContestantData = (contestId, navigationTaskId, contestantId, fromTime) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_REQUEST, id: contestantId})
-    let url = "/display/api/contestant/track_data/" + contestantId
+    let url = "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/contestants/" + contestantId + "/track_frontend"
     if (fromTime !== undefined) {
         url += "?from_time=" + fromTime.toISOString()
     }

@@ -58,25 +58,6 @@ function rootReducer(state = initialState, action) {
             // initialLoadingContestantData:initialLoading
         })
     }
-    if (action.type === CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL) {
-        let contestantData = {}
-        let contestants = {}
-        action.payload.map((contestant) => {
-            contestantData[contestant.id] = {
-                latest_time: "1970-01-01T00:00:00Z",
-                positions: [],
-                annotations: [],
-                more_data: true,
-                contestant_track: contestant.contestanttrack
-            }
-            contestants[contestant.id] = contestant
-        })
-        return Object.assign({}, state, {
-            ...state,
-            contestantData: contestantData,
-            contestants: contestants
-        })
-    }
     if (action.type === INITIAL_LOADING) {
         return Object.assign({}, state, {
             ...state,

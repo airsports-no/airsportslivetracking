@@ -328,7 +328,7 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = True
         self.navigation_task.save()
         self.client.logout()
-        url = reverse("tracks-detail",
+        url = reverse("contestants-detail",
                       kwargs={"pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
@@ -340,7 +340,7 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = True
         self.navigation_task.save()
         self.client.logout()
-        url = reverse("tracks-detail",
+        url = reverse("contestants-detail",
                       kwargs={"pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
@@ -352,7 +352,7 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = False
         self.navigation_task.save()
         self.client.logout()
-        url = reverse("tracks-detail",
+        url = reverse("contestants-detail",
                       kwargs={"pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
@@ -364,7 +364,7 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = True
         self.navigation_task.save()
         self.client.force_login(self.user_someone_else)
-        url = reverse("tracks-detail",
+        url = reverse("contestants-detail",
                       kwargs={"pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
@@ -376,7 +376,7 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = True
         self.navigation_task.save()
         self.client.force_login(self.user_someone_else)
-        url = reverse("tracks-detail",
+        url = reverse("contestants-detail",
                       kwargs={"pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
@@ -388,7 +388,7 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = False
         self.navigation_task.save()
         self.client.force_login(self.user_someone_else)
-        url = reverse("tracks-detail",
+        url = reverse("contestants-detail",
                       kwargs={"pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)

@@ -49,9 +49,9 @@ class ConnectedContestantTrack extends Component {
         if (!this.props.isFetching) {
             if (this.props.contestantData !== undefined) {
                 latestTime = new Date(this.props.contestantData.latest_time)
-                this.props.fetchContestantData(this.contestant.id, latestTime)
+                this.props.fetchContestantData(this.props.contestId, this.props.navigationTaskId, this.contestant.id, latestTime)
             } else {
-                this.props.fetchContestantData(this.contestant.id)
+                this.props.fetchContestantData(this.props.contestId, this.props.navigationTaskId, this.contestant.id)
             }
         }
         // This must be done second so that we at least fetched data once
@@ -80,6 +80,20 @@ class ConnectedContestantTrack extends Component {
             }
         }
         let finishedInitialLoading = true;
+        const displayTracks = this.props.displayTracks;
+        if (this.props.contestantData !== undefined) {
+            if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
+                if (this.props.contestantData.more_data) {
+                    clearTimeout(this.timeout)
+                    this.fetchNextData(false)
+                    finishedInitialLoading = false;
+                } else if (this.props.initialLoading) {
+                    clearTimeout(this.timeout)
+                    this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)
+                    this.props.initialLoadingComplete(this.contestant.id);
+                }
+            }
+        }
         if (this.props.displayMap) {
             if (this.props.contestantData !== undefined) {
                 if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
@@ -92,17 +106,6 @@ class ConnectedContestantTrack extends Component {
                     if (this.props.contestantData.annotations.length > 0) {
                         this.renderAnnotations(this.props.contestantData.annotations)
                     }
-                }
-                const displayTracks = this.props.displayTracks;
-                if (this.props.contestantData.more_data) {
-                    clearTimeout(this.timeout)
-                    this.fetchNextData(false)
-                    finishedInitialLoading=false;
-                } else if (this.props.initialLoading) {
-                    // this.showTrack()
-                    clearTimeout(this.timeout)
-                    this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)
-                    this.props.initialLoadingComplete(this.contestant.id);
                 }
                 if (finishedInitialLoading) {
                     if (!displayTracks) {
