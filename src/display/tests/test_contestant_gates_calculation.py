@@ -3,7 +3,7 @@ import datetime
 from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Aeroplane, NavigationTask, Team, Contestant, Crew
+from display.models import Aeroplane, NavigationTask, Team, Contestant, Crew, Contest
 from display.views import create_route_from_csv
 
 
@@ -15,7 +15,7 @@ class TestContestantGatesCalculation(TestCase):
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation test",
-                                                             route=route,
+                                                             route=route,contest = Contest.objects.create(name = "contest"),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         scorecard = get_default_scorecard()

@@ -6,7 +6,8 @@ from django.test import TestCase, TransactionTestCase
 
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.convert_flightcontest_gpx import create_route_from_gpx
-from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew
+from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew, \
+    Contest
 from display.views import create_route_from_csv
 
 
@@ -33,6 +34,7 @@ class TestFullTrack(TransactionTestCase):
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
+                                                             contest=Contest.objects.create(name="contest"),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         from display.default_scorecards import default_scorecard_fai_precision_2020
@@ -88,6 +90,7 @@ class Test2017WPFC(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
+                                                             contest=Contest.objects.create(name="contest"),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(pilot="Test contestant", navigator="")
@@ -112,4 +115,5 @@ class Test2017WPFC(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1149, contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
+        self.assertEqual(1149,
+                         contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
