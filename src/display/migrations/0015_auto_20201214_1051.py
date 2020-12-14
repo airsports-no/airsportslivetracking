@@ -50,7 +50,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(create_missing_models),        migrations.AlterModelOptions(
+        migrations.RunPython(create_missing_models),
+        migrations.AlterModelOptions(
             name='navigationtask',
             options={'ordering': ('start_time', 'finish_time')},
         ),
