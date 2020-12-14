@@ -328,11 +328,14 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = True
         self.navigation_task.save()
         self.client.logout()
-        url = reverse("contestants-detail",
-                      kwargs={"pk": self.contestant.pk})
+        url = reverse("contestants-track",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
+        self.assertTrue("/track" in url)
         result = self.client.get(url)
-        print(result)
+        print(result.json())
         self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(result.json()["track"], [])
 
     def test_get_contestant_track_hidden_contest_public_navigation_task_without_login(self):
         self.contest.is_public = False
@@ -340,8 +343,9 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = True
         self.navigation_task.save()
         self.client.logout()
-        url = reverse("contestants-detail",
-                      kwargs={"pk": self.contestant.pk})
+        url = reverse("contestants-track",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
@@ -352,8 +356,9 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = False
         self.navigation_task.save()
         self.client.logout()
-        url = reverse("contestants-detail",
-                      kwargs={"pk": self.contestant.pk})
+        url = reverse("contestants-track",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
@@ -364,8 +369,9 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = True
         self.navigation_task.save()
         self.client.force_login(self.user_someone_else)
-        url = reverse("contestants-detail",
-                      kwargs={"pk": self.contestant.pk})
+        url = reverse("contestants-track",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
@@ -376,8 +382,9 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = True
         self.navigation_task.save()
         self.client.force_login(self.user_someone_else)
-        url = reverse("contestants-detail",
-                      kwargs={"pk": self.contestant.pk})
+        url = reverse("contestants-track",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
@@ -388,8 +395,9 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = False
         self.navigation_task.save()
         self.client.force_login(self.user_someone_else)
-        url = reverse("contestants-detail",
-                      kwargs={"pk": self.contestant.pk})
+        url = reverse("contestants-track",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)

@@ -1,6 +1,9 @@
 from django.contrib import admin
 
 # Register your models here.
+from guardian.admin import GuardedModelAdmin
+from guardian.shortcuts import assign_perm
+
 from display.models import NavigationTask, Route, Aeroplane, Team, Contestant, TraccarCredentials, ContestantTrack, \
     Scorecard, \
     GateScore, Contest
@@ -42,10 +45,19 @@ class NavigationTaskAdmin(admin.ModelAdmin):
     )
 
 
+class ContestAdmin(GuardedModelAdmin):
+    def save_model(self, request, obj, form, change):
+        result = super().save_model(request, obj, form, change)
+        assign_perm("change_contest", request.user, obj),
+        assign_perm("delete_contest", request.user, obj),
+        assign_perm("view_contest", request.user, obj),
+        return result
+
+
 admin.site.register(NavigationTask, NavigationTaskAdmin)
 admin.site.register(Scorecard)
 admin.site.register(Route)
-admin.site.register(Contest)
+admin.site.register(Contest, ContestAdmin)
 admin.site.register(GateScore)
 admin.site.register(Aeroplane)
 admin.site.register(Team)

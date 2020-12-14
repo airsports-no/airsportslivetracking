@@ -320,7 +320,7 @@ class ContestantViewSet(ModelViewSet):
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["get"])
-    def track(self, request, pk=None, **kwars):
+    def track(self, request, pk=None, **kwargs):
         contestant = get_object_or_404(self.get_queryset(), pk=pk)
         contestant_track = contestant.contestanttrack
         result_set = influx.get_positions_for_contestant(pk, contestant.tracker_start_time)
