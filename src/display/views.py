@@ -4,16 +4,18 @@ from typing import Optional
 
 import redis_lock
 import dateutil
-from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.decorators import permission_required, login_required
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db.models import Q
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views.generic import ListView
 import logging
 from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
 from rest_framework import status, permissions
+from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
@@ -361,3 +363,11 @@ class ImportFCNavigationTask(ModelViewSet):
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@login_required()
+def renew_token(request):
+    user = request.user
+    Token.objects.filter(user=user).delete()
+    Token.objects.create(user=user)
+    return redirect(reverse("token"))

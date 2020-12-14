@@ -16,6 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path, include
+from django.views.generic import RedirectView, TemplateView
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
@@ -35,8 +36,9 @@ urlpatterns = [
     path('', ContestList.as_view()),
     path('admin/', admin.site.urls),
     path('display/', include("display.urls")),
-    path('accounts/login/', LoginView.as_view(template_name='login.html'), name="login"),
-    path('accounts/logout/', LogoutView.as_view(), name="logout"),
+    path('accounts/token/', TemplateView.as_view(template_name="token.html"), name="token"),
+    path('accounts/password_change/done/', RedirectView.as_view(url='/', permanent=False)),
+    path('accounts/', include('django.contrib.auth.urls')),
     path('docs/', docs.with_ui()),
     path("api/v1/", include(api.urlpatters))
 
