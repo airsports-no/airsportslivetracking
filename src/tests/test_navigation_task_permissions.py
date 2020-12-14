@@ -2,6 +2,7 @@ import datetime
 
 from django.contrib.auth.models import User, Permission
 from django.urls import reverse
+from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -87,6 +88,47 @@ class TestAccessNavigationTask(APITestCase):
                                   data=NAVIGATION_TASK_DATA, format="json")
         print(result.content)
         self.navigation_task = NavigationTask.objects.get(pk=result.json()["id"])
+        self.different_user_with_object_permissions = User.objects.create(username="objectpermissions")
+        assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
+        assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
+        assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
+
+    def test_view_navigation_task_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        result = self.client.get(
+            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        print(result)
+        print(result.json())
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(10, result.json()["wind_speed"])
+
+    def test_put_navigation_task_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        data = dict(NAVIGATION_TASK_DATA)
+        data["name"] = "Putting a new name"
+
+        result = self.client.put(
+            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),
+            data=data, format="json")
+        print(result)
+        print(result.content)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_delete_navigation_task_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        result = self.client.delete(
+            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
+
+
+    def test_publish_navigation_task_as_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        result = self.client.put(
+            reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        print(result)
+        print(result.content)
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertTrue(result.json()["is_public"])
 
     def test_put_navigation_task_without_login(self):
         self.client.logout()
@@ -156,6 +198,7 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(result.json()["is_public"])
 
     def test_publish_navigation_task_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
@@ -163,6 +206,7 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(result.json()["is_public"])
 
     def test_publish_navigation_task_as_creator(self):
         self.client.force_login(user=self.user_owner)
@@ -171,6 +215,7 @@ class TestAccessNavigationTask(APITestCase):
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertTrue(result.json()["is_public"])
 
     def test_view_navigation_task_without_login(self):
         self.client.logout()

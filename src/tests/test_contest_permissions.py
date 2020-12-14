@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User, Permission
 from django.urls import reverse
+from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase, APIClient
@@ -46,6 +47,50 @@ class TestAccessContest(APITestCase):
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
+        self.different_user_with_object_permissions = User.objects.create(username="objectpermissions")
+        assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
+        assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
+        assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
+
+    def test_view_contest_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        print(result)
+        print(result.json())
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual("TestContest", result.json()["name"])
+
+    def test_put_contestant_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
+                                 data={"name": "TestContest2"})
+        print(result)
+        print(result.content)
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(30, result.json()["wind_speed"])
+
+    def test_patch_contestant_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        data = {"is_public": True}
+        result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
+                                 data=data)
+        print(result)
+        print(result.content)
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertTrue(result.json()["is_public"])
+
+    def test_delete_contestant_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_publish_contest_as_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
+        print(result)
+        print(result.content)
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertTrue(result.json()["is_public"])
 
     def test_modify_contest_without_login(self):
         self.client.logout()
@@ -74,12 +119,14 @@ class TestAccessContest(APITestCase):
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(result.json()["is_public"])
 
     def test_publish_contest_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(result.json()["is_public"])
 
     def test_publish_contest_as_creator(self):
         self.client.force_login(user=self.user_owner)
@@ -87,6 +134,7 @@ class TestAccessContest(APITestCase):
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertTrue(result.json()["is_public"])
 
     def test_view_contest_without_login(self):
         self.client.logout()

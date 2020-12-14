@@ -2,6 +2,7 @@ import datetime
 
 from django.contrib.auth.models import User, Permission
 from django.urls import reverse
+from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -125,6 +126,56 @@ class TestAccessNavigationTask(APITestCase):
                                                                       "navigationtask_pk": self.navigation_task.pk}),
                                   data=CONTESTANT_DATA, format="json")
         self.contestant = Contestant.objects.get(pk=result.json()["id"])
+        self.different_user_with_object_permissions = User.objects.create(username="objectpermissions")
+        assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
+        assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
+        assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
+
+    def test_view_contestant_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        url = reverse("contestants-detail",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
+        result = self.client.get(url)
+        print(result)
+        print(result.json())
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(10, result.json()["wind_speed"])
+
+    def test_put_contestant_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        data = dict(CONTESTANT_DATA)
+        data["wind_speed"] = 30
+        url = reverse("contestants-detail",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
+        result = self.client.put(url,
+                                 data=data, format="json")
+        print(result)
+        print(result.content)
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(30, result.json()["wind_speed"])
+
+    def test_patch_contestant_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        data = {"wind_speed": 30}
+        url = reverse("contestants-detail",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
+        result = self.client.patch(url,
+                                   data=data, format="json")
+        print(result)
+        print(result.content)
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(30, result.json()["wind_speed"])
+
+    def test_delete_contestant_from_other_user_with_permissions(self):
+        self.client.force_login(user=self.different_user_with_object_permissions)
+        url = reverse("contestants-detail",
+                      kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
+                              "pk": self.contestant.pk})
+        result = self.client.delete(url)
+        self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_put_contestant_without_login(self):
         self.client.logout()
