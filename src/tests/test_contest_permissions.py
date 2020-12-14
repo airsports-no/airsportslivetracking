@@ -1,7 +1,8 @@
 from django.contrib.auth.models import User, Permission
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.authtoken.models import Token
+from rest_framework.test import APITestCase, APIClient
 
 from display.models import Contest
 
@@ -136,3 +137,20 @@ class TestAccessContest(APITestCase):
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
+
+
+class TestTokenAuthentication(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create(username="user")
+        self.user.user_permissions.add(Permission.objects.get(codename="add_contest"),
+                                       Permission.objects.get(codename="change_contest"))
+        self.token = Token.objects.create(user=self.user)
+
+    def test_post_contest(self):
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION='Token {}'.format(self.token.key))
+        result = client.post(reverse("contests-list"),
+                             data={"name": "My test contest"}, format="json"
+                             )
+
+        self.assertEqual(result.status_code, status.HTTP_201_CREATED)
