@@ -149,8 +149,8 @@ class Crew(models.Model):
 
 
 class Team(models.Model):
-    aeroplane = models.ForeignKey(Aeroplane, on_delete=models.SET_NULL, null=True)
-    crew = models.ForeignKey(Crew, on_delete=models.SET_NULL, null=True)
+    aeroplane = models.ForeignKey(Aeroplane, on_delete=models.PROTECT)
+    crew = models.ForeignKey(Crew, on_delete=models.PROTECT)
     nation = models.CharField(max_length=100)
 
     def __str__(self):
@@ -174,11 +174,11 @@ class NavigationTask(models.Model):
     )
 
     name = models.CharField(max_length=200)
-    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, null=True)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
     calculator_type = models.IntegerField(choices=NAVIGATION_TASK_TYPES, default=PRECISION,
                                           help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
                                               NAVIGATION_TASK_TYPES))
-    route = models.ForeignKey(Route, on_delete=models.PROTECT, null=True)
+    route = models.ForeignKey(Route, on_delete=models.PROTECT)
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(
@@ -301,7 +301,7 @@ class Contestant(models.Model):
                                            help_text="ID of physical tracking device that will be brought into the plane")
     tracker_start_time = models.DateTimeField(
         help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this.")
-    scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT, null=True,
+    scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT,
                                   help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                       lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
     predefined_gate_times = MyPickledObjectField(default=None, null=True, blank=True,
