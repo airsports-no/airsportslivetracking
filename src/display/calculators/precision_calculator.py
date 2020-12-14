@@ -48,7 +48,7 @@ class PrecisionCalculator(Calculator):
         self.previous_gate_distances = None
         self.inside_gates = None
 
-    def check_intersections(self, force_gate: Optional["Gate"] = None):
+    def check_intersections(self):
         # Check starting line
         if not self.starting_line.has_been_passed():
             # First check extended and see if we are in the correct direction
@@ -67,7 +67,7 @@ class PrecisionCalculator(Calculator):
                     self.update_score(self.starting_line, score,
                                       "{} points for crossing extended starting gate backwards".format(score),
                                       self.track[-1].latitude, self.track[-1].longitude, "anomaly")
-        super(PrecisionCalculator, self).check_intersections(force_gate=force_gate)
+        super(PrecisionCalculator, self).check_intersections()
 
     def calculate_score(self):
         self.check_intersections()
@@ -225,13 +225,13 @@ class PrecisionCalculator(Calculator):
                 if self.tracking_state == self.BACKTRACKING:
                     logger.info("{} {}: Done backtracking for {} seconds".format(self.contestant,
                                                                                  last_position.time, (
-                                                                                             last_position.time - self.backtracking_start_time).total_seconds()))
+                                                                                         last_position.time - self.backtracking_start_time).total_seconds()))
                 elif self.tracking_state == self.BACKTRACKING_TEMPORARY:
                     logger.info(
                         "{} {}: Resumed tracking within time limits ({} seconds), so no penalty".format(self.contestant,
                                                                                                         last_position.time,
                                                                                                         (
-                                                                                                                    last_position.time - self.backtracking_start_time).total_seconds()))
+                                                                                                                last_position.time - self.backtracking_start_time).total_seconds()))
 
                 self.update_tracking_state(self.TRACKING)
         self.last_bearing = bearing

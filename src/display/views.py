@@ -1,48 +1,36 @@
 import datetime
 from datetime import timedelta
-from typing import List, Optional
+from typing import Optional
 
-import guardian
 import redis_lock
 import dateutil
 from django.contrib.auth.decorators import permission_required
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db.models import Q
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, Http404
-from django.views.generic import View, TemplateView, ListView
-from django.views.decorators.csrf import csrf_exempt
-from django.conf import settings
+from django.views.generic import ListView
 import logging
-import urllib.request
-import os
-
-from drf_yasg.app_settings import swagger_settings
-from drf_yasg.utils import swagger_auto_schema
-from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
 from rest_framework import status, permissions
-from rest_framework.decorators import api_view, action, permission_classes
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.generics import RetrieveAPIView, get_object_or_404, DestroyAPIView, CreateAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ViewSet
 
 from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv
 from display.forms import ImportRouteForm
-from display.models import NavigationTask, Route, ContestantTrack, Contestant, CONTESTANT_CACHE_KEY, Contest
+from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
-    ImportNavigationTaskPermissions, ContestantNavigationTaskPermissions, RoutePermissions
-from display.serialisers import NavigationTaskSerialiser, ContestantTrackSerialiser, \
+    ContestantNavigationTaskContestPermissions, RoutePermissions
+from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedSerialiser, \
-    ContestSerialiser, ContestantNestedSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, \
-    ContestantSerialiser, ContestantTrackWithTrackPointsSerialiser
-from display.show_slug_choices import ShowChoicesMetadata, ShowChoicesFieldInspector
+    ContestSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, \
+    ContestantTrackWithTrackPointsSerialiser, ContestantNestedSerialiser
+from display.show_slug_choices import ShowChoicesMetadata
 from influx_facade import InfluxFacade
 
 logger = logging.getLogger(__name__)
@@ -82,7 +70,7 @@ connection = Redis("redis")
 
 class GetDataFromTimeForContestant(RetrieveAPIView):
     permission_classes = [
-        ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskPermissions)]
+        ContestantPublicPermissions | permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions]
     lookup_url_kwarg = "contestant_pk"
 
     def get(self, request, *args, **kwargs):
@@ -187,14 +175,14 @@ def import_route(request):
 # Everything below he is related to management and requires authentication
 class IsPublicMixin:
     def check_publish_permissions(self, user: User):
-        object = self.get_object()
-        if isinstance(object, Contest):
-            if user.has_perm("publish_contest", object) or user.has_perm("change_contest", object):
+        instance = self.get_object()
+        if isinstance(instance, Contest):
+            if user.has_perm("change_contest", instance):
                 return True
-        if isinstance(object, NavigationTask):
-            if user.has_perm("publish_navigationtask", object) or user.has_perm("change_navigationtask", object):
+        if isinstance(instance, NavigationTask):
+            if user.has_perm("change_contest", instance.contest):
                 return True
-        raise PermissionDenied("User does not have permission to publish {}".format(object))
+        raise PermissionDenied("User does not have permission to publish {}".format(instance))
 
     @action(detail=True, methods=["put"])
     def publish(self, request, **kwargs):
@@ -208,10 +196,10 @@ class IsPublicMixin:
         :return:
         """
         self.check_publish_permissions(request.user)
-        object = self.get_object()
-        object.is_public = True
-        object.save()
-        return Response({'is_public': object.is_public})
+        instance = self.get_object()
+        instance.is_public = True
+        instance.save()
+        return Response({'is_public': instance.is_public})
 
     @action(detail=True, methods=["put"])
     def hide(self, request, **kwargs):
@@ -225,10 +213,10 @@ class IsPublicMixin:
         :return:
         """
         self.check_publish_permissions(request.user)
-        object = self.get_object()
-        object.is_public = False
-        object.save()
-        return Response({'is_public': object.is_public})
+        instance = self.get_object()
+        instance.is_public = False
+        instance.save()
+        return Response({'is_public': instance.is_public})
 
 
 class ContestViewSet(IsPublicMixin, ModelViewSet):
@@ -239,7 +227,7 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     """
     queryset = Contest.objects.all()
     serializer_class = ContestSerialiser
-    permission_classes = [permissions.IsAuthenticated & ContestPermissions | ContestPublicPermissions]
+    permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_contest",
@@ -248,13 +236,29 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
 
 class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
     queryset = NavigationTask.objects.all()
-    serializer_class = NavigationTaskSerialiser
+    serializer_class = NavigationTaskNestedSerialiser
     permission_classes = [
         NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)]
 
-    def get_queryset(self):
-        return get_objects_for_user(self.request.user, "view_navigationtask",
-                                    klass=self.queryset) | self.queryset.filter(is_public=True)
+    http_method_names = ['get', 'post', 'delete', 'put']
+
+    def get_queryset(
+            self):
+        contests = get_objects_for_user(self.request.user, "view_contest",
+                                        klass=Contest)
+        return NavigationTask.objects.filter(Q(contest__in=contests) | Q(is_public=True, contest__is_public=True))
+
+    def create(self, request, *args, **kwargs):
+        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        serialiser = self.get_serializer(data=request.data,
+                                         context={"request": request, "contest": contest})
+        if serialiser.is_valid():
+            serialiser.save()
+            return Response(serialiser.data)
+        return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        raise PermissionDenied("It is not possible to modify existing navigation tasks except to publish or hide them")
 
 
 class RouteViewSet(ModelViewSet):
@@ -265,29 +269,38 @@ class RouteViewSet(ModelViewSet):
     http_method_names = ['get', 'post', 'delete', 'put']
 
 
-class NavigationTaskNestedViewSet(IsPublicMixin, ModelViewSet):
-    queryset = NavigationTask.objects.all()
-    serializer_class = NavigationTaskNestedSerialiser
-    permission_classes = [
-        NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)]
-
-    http_method_names = ['get']
-
-    def get_queryset(self):
-        return get_objects_for_user(self.request.user, "view_navigationtask",
-                                    klass=self.queryset) | self.queryset.filter(is_public=True)
-
-
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
-    serializer_class = ContestantSerialiser
-    permission_classes = [permissions.IsAuthenticated & ContestantNavigationTaskPermissions]
-
-    http_method_names = ['get', 'post', 'delete', 'patch']
+    serializer_class = ContestantNestedSerialiser
+    permission_classes = [
+        ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)]
 
     def get_queryset(self):
-        return get_objects_for_user(self.request.user, "view_navigationtask",
-                                    klass=self.queryset) | self.queryset.filter(navigation_task__is_public=True)
+        contests = get_objects_for_user(self.request.user, "change_contest",
+                                        klass=Contest)
+        return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
+                                                                                      navigation_task__contest__is_public=True))
+
+    def create(self, request, *args, **kwargs):
+        navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        serialiser = self.get_serializer(data=request.data,
+                                         context={"request": request, "navigation_task": navigation_task})
+        if serialiser.is_valid():
+            serialiser.save()
+            return Response(serialiser.data)
+        return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        instance = self.get_object()
+        partial = kwargs.pop('partial', False)
+        serialiser = self.get_serializer(instance=instance, data=request.data,
+                                         context={"request": request, "navigation_task": navigation_task},
+                                         partial=partial)
+        if serialiser.is_valid():
+            serialiser.save()
+            return Response(serialiser.data)
+        return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ContestantTrackViewSet(ViewSet):
@@ -314,7 +327,7 @@ class ImportFCNavigationTask(ModelViewSet):
     """
     queryset = NavigationTask.objects.all()
     serializer_class = ExternalNavigationTaskNestedSerialiser
-    permission_classes = [permissions.IsAuthenticated & ImportNavigationTaskPermissions]
+    permission_classes = [permissions.IsAuthenticated & NavigationTaskContestPermissions]
 
     metadata_class = ShowChoicesMetadata
 
@@ -324,8 +337,6 @@ class ImportFCNavigationTask(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
-        if not request.user.has_perm("modify_contest", contest):
-            raise PermissionDenied("You're not allowed to add navigation tasks to the contest '{}'".format(contest))
         serialiser = ExternalNavigationTaskNestedSerialiser(data=request.data,
                                                             context={"request": request, "contest": contest})
         if serialiser.is_valid():

@@ -64,7 +64,7 @@ class TestFullTrack(TransactionTestCase):
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(2000, contestant_track.score)
+        self.assertEqual(1800, contestant_track.score)
 
     def test_missed_procedure_turn(self):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
@@ -74,8 +74,8 @@ class TestFullTrack(TransactionTestCase):
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         print(contestant_track.score_log)
-        self.assertTrue("200 points for incorrect procedure turn at TP1" in contestant_track.score_log)
-        self.assertTrue("200 points for incorrect procedure turn at TP4" in contestant_track.score_log)
+        self.assertTrue("TP1: 200 points for incorrect procedure turn at TP1" in contestant_track.score_log)
+        self.assertTrue("TP4: 200 points for incorrect procedure turn at TP4" in contestant_track.score_log)
         self.assertTrue("200 for missing procedure turn at TP6" not in contestant_track.score_log)
 
 

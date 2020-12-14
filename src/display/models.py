@@ -327,8 +327,10 @@ class Contestant(models.Model):
     def gate_times(self) -> Dict:
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
             return self.predefined_gate_times
-        crossing_times = {}
         gates = self.navigation_task.route.waypoints
+        if len(gates) == 0:
+            return {}
+        crossing_times = {}
         crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
         crossing_times[gates[0].name] = crossing_time
         for index in range(len(gates) - 1):  # type: Waypoint

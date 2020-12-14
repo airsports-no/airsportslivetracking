@@ -36,8 +36,8 @@ class TestCreateContest(APITestCase):
 class TestAccessContest(APITestCase):
     def setUp(self):
         self.user_owner = User.objects.create(username="withpermissions")
-        permission = Permission.objects.get(codename="add_contest")
-        self.user_owner.user_permissions.add(permission)
+        self.user_owner.user_permissions.add(Permission.objects.get(codename="add_contest"),
+                                             Permission.objects.get(codename="change_contest"))
         self.user_owner.refresh_from_db()
         self.user_someone_else = User.objects.create(username="withoutpermissions")
         self.client.force_login(user=self.user_owner)
@@ -51,14 +51,14 @@ class TestAccessContest(APITestCase):
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
                                  data={"name": "TestContest2"})
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_modify_contest_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
                                  data={"name": "TestContest2"})
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_modify_contest_as_creator(self):
         self.client.force_login(user=self.user_owner)
@@ -72,13 +72,13 @@ class TestAccessContest(APITestCase):
         self.client.logout()
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_publish_contest_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_publish_contest_as_creator(self):
         self.client.force_login(user=self.user_owner)

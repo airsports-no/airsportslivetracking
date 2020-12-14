@@ -106,11 +106,13 @@ class Calculator(threading.Thread):
         self.tracking_state = tracking_state
         self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
-    def pop_gate(self, index):
-        self.previous_last_gate = self.last_gate
-        self.last_gate = self.outstanding_gates.pop(index)
+    def pop_gate(self, index, update_last: bool = True):
+        gate = self.outstanding_gates.pop(index)
+        if update_last:
+            self.previous_last_gate = self.last_gate
+            self.last_gate = gate
 
-    def check_intersections(self, force_gate: Optional["Gate"] = None):
+    def check_intersections(self):
         # Check takeoff if exists
         if self.takeoff_gate is not None:
             if not self.takeoff_gate.has_been_passed():
@@ -123,6 +125,7 @@ class Calculator(threading.Thread):
                     return
         i = len(self.outstanding_gates) - 1
         crossed_gate = False
+
         while i >= 0:
             gate = self.outstanding_gates[i]
             intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
@@ -131,13 +134,12 @@ class Calculator(threading.Thread):
                 gate.passing_time = intersection_time
                 gate.extended_passing_time = intersection_time
                 crossed_gate = True
-            if force_gate == gate:
-                crossed_gate = True
             if crossed_gate:
                 if gate.passing_time is None:
                     logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))
                     gate.missed = True
-                self.pop_gate(i)
+                self.pop_gate(i,
+                              not gate.missed)  # Only update the last gate with the one that was crossed, not the one we detect is missed because of it.
             i -= 1
         if not crossed_gate and len(self.outstanding_gates) > 0:
             extended_next_gate = self.outstanding_gates[0]  # type: Gate
