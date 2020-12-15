@@ -9,8 +9,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
 # Create your models here.
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from rest_framework.exceptions import ValidationError
 from solo.models import SingletonModel
 
 from display.my_pickled_object_field import MyPickledObjectField
@@ -286,17 +287,23 @@ class GateScore(models.Model):
 
 
 class Contestant(models.Model):
+    TRACCAR = 0
+    TRACKING_SERVICES = (
+        (TRACCAR, "Traccar"),
+    )
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE)
     takeoff_time = models.DateTimeField(
         help_text="The time the take of gate (if it exists) should be crossed. Otherwise it is the time power should be applied")
     minutes_to_starting_point = models.FloatField(default=5,
                                                   help_text="The number of minutes from the take-off time until the starting point")
-    finished_by_time = models.DateTimeField(null=True,
-                                            help_text="The time it is expected that the navigation task has finished and landed (used among other things for knowing when the tracker is busy). Is also used for the gate time for the landing gate")
+    finished_by_time = models.DateTimeField(
+        help_text="The time it is expected that the navigation task has finished and landed (used among other things for knowing when the tracker is busy). Is also used for the gate time for the landing gate")
     air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
     contestant_number = models.PositiveIntegerField(
         help_text="A unique number for the contestant in this navigation task")
+    tracking_service = models.IntegerField(default=TRACCAR, choices=TRACKING_SERVICES,
+                                           help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
     traccar_device_name = models.CharField(max_length=100,
                                            help_text="ID of physical tracking device that will be brought into the plane")
     tracker_start_time = models.DateTimeField(
@@ -322,6 +329,26 @@ class Contestant(models.Model):
     def get_groundspeed(self, bearing) -> float:
         return calculate_ground_speed_combined(bearing, self.air_speed, self.wind_speed,
                                                self.wind_direction)
+
+    def clean(self):
+        # Validate single-use tracker
+        overlapping_trackers = Contestant.objects.filter(tracking_service=self.tracking_service,
+                                                         traccar_device_name=self.traccar_device_name,
+                                                         tracker_start_time__lte=self.finished_by_time,
+                                                         finished_by_time__gte=self.tracker_start_time)
+        if overlapping_trackers.count() > 0:
+            intervals = []
+            for contestant in overlapping_trackers:
+                smallest_end = min(contestant.finished_by_time, self.finished_by_time)
+                largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
+                intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
+            raise ValidationError(
+                "The tracker '{}' is in use by other contestants for the intervals: {}".format(self.traccar_device_name,
+                                                                                               intervals))
+        # Validate takeoff time after tracker start
+        if self.tracker_start_time > self.takeoff_time:
+            raise ValidationError("Tracker start time '{}' is after takeoff time '{}' for contestant number {}".format(
+                self.tracker_start_time, self.takeoff_time, self.contestant_number))
 
     @property
     def gate_times(self) -> Dict:
@@ -403,3 +430,8 @@ class ContestantTrack(models.Model):
 @receiver(post_save, sender=Contestant)
 def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs):
     ContestantTrack.objects.get_or_create(contestant=instance)
+
+
+@receiver(pre_save, sender=Contestant)
+def validate_contestant(sender, instance: Contestant, **kwargs):
+    instance.clean()
