@@ -165,9 +165,9 @@ class ConnectedContestantRankTable extends Component {
             hideSizePerPage: true,
             hidePageListOnlyOnePage: true
         };
-        return <div>
+        return <div className={'card'}>
             <BootstrapTable keyField={"key"} data={this.buildData()} columns={columns}
-                            bootstrap4 striped hover condensed pagination={paginationFactory(paginationOptions)}
+                            bootstrap4 striped hover table-responsive condensed pagination={paginationFactory(paginationOptions)}
                             rowEvents={rowEvents}/>
         </div>
     }

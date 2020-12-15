@@ -14,6 +14,7 @@ import TrackLoadingIndicator from "./trackLoadingIndicator";
 
 const L = window['L']
 
+
 const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
     currentDisplay: state.currentDisplay,
@@ -23,11 +24,19 @@ class ConnectedNavigationTask extends Component {
     constructor(props) {
         super(props);
         this.state = {colourMap: {}}
-        this.handleNavigationTaskHeadingClick = this.handleNavigationTaskHeadingClick.bind(this)
+        this.resetToAllContestants = this.resetToAllContestants.bind(this)
+        this.handleMapTurningPointClick = this.handleMapTurningPointClick.bind(this)
         this.rendered = false
     }
 
-    handleNavigationTaskHeadingClick() {
+    handleMapTurningPointClick(turningPoint) {
+        this.props.setDisplay({
+            displayType: TURNING_POINT_DISPLAY,
+            turningPoint: turningPoint
+        })
+    }
+
+    resetToAllContestants() {
         this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
         this.props.displayAllTracks();
     }
@@ -69,7 +78,7 @@ class ConnectedNavigationTask extends Component {
         this.map = L.map('cesiumContainer', {
             zoomDelta: 0.25,
             zoomSnap: 0.25,
-        })
+        }).on('click', () => this.resetToAllContestants())
         const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
         tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
             attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
@@ -108,7 +117,9 @@ class ConnectedNavigationTask extends Component {
                     iconSize: [20, 20],
                     className: "myGateIcon"
                 })
-            }).bindTooltip(waypoint.name, {permanent: false}).addTo(this.map)
+            }).bindTooltip(waypoint.name, {permanent: false}).on('click', () => {
+                this.handleMapTurningPointClick(waypoint.name)
+            }).addTo(this.map)
         });
         this.props.navigationTask.route.waypoints.filter((waypoint) => {
             return waypoint.is_procedure_turn
@@ -153,9 +164,9 @@ class ConnectedNavigationTask extends Component {
                                                    colourMap={colourMap}/>
                 }
                 tableDisplay = <div>
-                    <a href={"#"} onClick={this.handleNavigationTaskHeadingClick}>
+                    <a href={"#"} onClick={this.resetToAllContestants}>
                         <h1>{this.props.navigationTask.name}</h1></a>
-                    <TurningPointLinks/>
+                    {this.props.displayMap ? <div/> : <TurningPointLinks/>}
                     {display}
                 </div>
             }
@@ -177,10 +188,9 @@ class ConnectedNavigationTask extends Component {
 
 }
 
-const
-    NavigationTask = connect(mapStateToProps, {
-        fetchNavigationTask,
-        setDisplay,
-        displayAllTracks
-    })(ConnectedNavigationTask);
+const NavigationTask = connect(mapStateToProps, {
+    fetchNavigationTask,
+    setDisplay,
+    displayAllTracks,
+})(ConnectedNavigationTask);
 export default NavigationTask;

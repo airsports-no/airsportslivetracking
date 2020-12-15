@@ -1,3 +1,23 @@
+.backdrop {
+    display: block;
+    background: rgba(42, 42, 42, 0.9);
+    border-radius: 5px;
+    border: 1px solid #444;
+    padding: 5px 10px;
+    color: #fff;
+    line-height: 150%;
+    font-size: small;
+}
+
+#mapTable{
+    position: fixed;
+    width: 20%;
+    height: 55%;
+    left: 50px;
+    top: 50px;
+    z-index: 2;
+}
+
 .center {
     display: block;
     margin-left: auto;
@@ -50,6 +70,7 @@ html, body {
     min-height: 100%;
     min-width: 100%;
     display: block;
+    z-index: 1;
 }
 
 .myAirplaneIcon {

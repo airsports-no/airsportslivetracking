@@ -1,12 +1,19 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {fetchContestantData, initialLoading, initialLoadingComplete, setDisplay} from "../actions";
+import {
+    displayOnlyContestantTrack,
+    fetchContestantData,
+    initialLoading,
+    initialLoadingComplete,
+    setDisplay
+} from "../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
 import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
 import {contestantLongForm, contestantShortForm} from "../utilities";
+import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
 
 const L = window['L']
 
@@ -41,7 +48,16 @@ class ConnectedContestantTrack extends Component {
         }
         this.props.initialLoading(this.contestant.id)
         this.fetchNextData(false)
+        this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
     }
+
+    handleContestantLinkClick(e, contestantId) {
+        L.DomEvent.stopPropagation(e)
+        this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
+        this.props.displayOnlyContestantTrack(contestantId)
+    }
+
+
 
     fetchNextData(scheduleNext) {
         const finishedByTime = new Date(this.props.contestant.finished_by_time)
@@ -130,10 +146,10 @@ class ConnectedContestantTrack extends Component {
 
         this.lineCollection = L.polyline(positions, {
             color: this.colour
-        })
+        }).on('click', (e) => this.handleContestantLinkClick(e, this.contestant.id))
         this.dot = L.marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
-        })
+        }).on('click', (e) => this.handleContestantLinkClick(e, this.contestant.id))
     }
 
     renderAnnotations(annotations) {
@@ -211,6 +227,8 @@ class ConnectedContestantTrack extends Component {
 const ContestantTrack = connect(mapStateToProps, {
     fetchContestantData,
     initialLoading,
-    initialLoadingComplete
+    initialLoadingComplete,
+    setDisplay,
+    displayOnlyContestantTrack
 })(ConnectedContestantTrack);
 export default ContestantTrack;
