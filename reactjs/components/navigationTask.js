@@ -164,10 +164,14 @@ class ConnectedNavigationTask extends Component {
                                                    colourMap={colourMap}/>
                 }
                 tableDisplay = <div>
-                    <a href={"#"} onClick={this.resetToAllContestants}>
-                        <h1>{this.props.navigationTask.name}</h1></a>
-                    {this.props.displayMap ? <div/> : <TurningPointLinks/>}
-                    {display}
+                    <div className={"card text-light collapse bg-dark"} id={"insetMenu"} aria-expanded={false}
+                         aria-controls={"insetMenu"}>
+                    <h3>{this.props.navigationTask.name}</h3>
+                        {/*<a href={"#"} onClick={this.resetToAllContestants}>*/}
+                        {/*    <h1>{this.props.navigationTask.name}</h1></a>*/}
+                        {this.props.displayMap ? <div/> : <TurningPointLinks/>}
+                        {display}
+                    </div>
                 </div>
             }
             let mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
@@ -178,7 +182,6 @@ class ConnectedNavigationTask extends Component {
                                         colour={colourMap[contestant.contestant_number]}/>
             });
             return <div>
-                <TrackLoadingIndicator numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                 {mapDisplay}
                 {tableDisplay}
             </div>

@@ -39,11 +39,11 @@ class ConnectedContestantRankTable extends Component {
         this.rowStyle = this.rowStyle.bind(this)
         this.numberStyle = this.numberStyle.bind(this)
         this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
-        this.handleStateHeaderClick = this.handleStateHeaderClick.bind(this)
+        this.handleExpandHeaderClick = this.handleExpandHeaderClick.bind(this)
         this.getStateFormat = this.getStateFormat.bind(this)
     }
 
-    handleStateHeaderClick() {
+    handleExpandHeaderClick() {
         this.props.toggleExpandedHeader()
     }
 
@@ -96,6 +96,11 @@ class ConnectedContestantRankTable extends Component {
         return <div>{cell}</div>
     }
 
+
+    getTrackProgressFormat(cell, row) {
+
+    }
+
     render() {
         const columns = [
             {
@@ -106,7 +111,12 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "rank",
-                text: "#"
+                text: "#",
+                headerEvents: {
+                    onClick: (e, column, columnIndex) => {
+                        this.handleExpandHeaderClick()
+                    }
+                },
             },
             {
                 dataField: "contestantNumber",
@@ -127,30 +137,38 @@ class ConnectedContestantRankTable extends Component {
                 text: "Score"
             },
             {
+                dataField: "progress",
+                text: "Progress",
+                formatter: this.getTrackProgressFormat
+            },
+            {
+                dataField: "projectedScore",
+                text: "Projected score"
+            },
+            {
                 dataField: "currentState",
                 text: "State",
+                hidden: !this.props.displayExpandedHeader,
+
                 classes: function callback(cell, row, rowIndex, colIndex) {
                     return getTrackingStateBackgroundClass(cell)
-                },
-                headerEvents: {
-                    onClick: (e, column, columnIndex) => {
-                        this.handleStateHeaderClick()
-                    }
                 },
                 // formatter: this.getStateFormat
             },
             {
                 dataField: "latestStatus",
                 text: "Latest status",
-                hidden: !this.props.displayExpandedHeader
+                hidden: true//!this.props.displayExpandedHeader
             },
             {
                 dataField: "lastGate",
-                text: "Gate"
+                text: "Gate",
+                hidden: !this.props.displayExpandedHeader
             },
             {
                 dataField: "lastGateTimeOffset",
-                text: "Offset"
+                text: "Offset",
+                hidden: !this.props.displayExpandedHeader
             }
         ]
 
@@ -165,11 +183,10 @@ class ConnectedContestantRankTable extends Component {
             hideSizePerPage: true,
             hidePageListOnlyOnePage: true
         };
-        return <div className={'card'}>
-            <BootstrapTable keyField={"key"} data={this.buildData()} columns={columns}
-                            bootstrap4 striped hover table-responsive condensed pagination={paginationFactory(paginationOptions)}
-                            rowEvents={rowEvents}/>
-        </div>
+        return <BootstrapTable keyField={"key"} data={this.buildData()} columns={columns}
+                               classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
+                               bootstrap4 striped hover condensed //pagination={paginationFactory(paginationOptions)}
+                               rowEvents={rowEvents}/>
     }
 }
 

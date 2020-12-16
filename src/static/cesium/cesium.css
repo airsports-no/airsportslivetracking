@@ -1,21 +1,45 @@
 .backdrop {
-    display: block;
-    background: rgba(42, 42, 42, 0.9);
-    border-radius: 5px;
-    border: 1px solid #444;
-    padding: 5px 10px;
-    color: #fff;
-    line-height: 150%;
-    font-size: small;
+    display: inline-block;
+    /*background: rgba(42, 42, 42, 0.9);*/
+    /*border-radius: 5px;*/
+    /*border: 1px solid #444;*/
+    /*padding: 5px 10px;*/
+    font-size: x-large;
+    overflow-y: auto;
+    left: 70px;
+    top:70px;
+    position: fixed;
 }
 
-#mapTable{
+.compactTable {
     position: fixed;
-    width: 20%;
-    height: 55%;
-    left: 50px;
-    top: 50px;
+    width: 500px;
+    max-height: 50%;
     z-index: 2;
+}
+
+.largeTable {
+    position: fixed;
+    right: 70px;
+    max-height: 50%;
+    z-index: 2;
+}
+
+
+#logoButton {
+    height: 44px;
+    width: 44px;
+}
+
+#menuButton{
+    bottom: 20px;
+    right: 20px;
+    position: fixed;
+    z-index: 2;
+}
+
+.menuButtonImage{
+
 }
 
 .center {
@@ -39,7 +63,6 @@
     margin-left: -33px;
     width: 66px;
     height: 66px;
-    background: url(Source/Images/ajax-loader.gif) center no-repeat;
 }
 
 #map-holder {
@@ -130,23 +153,3 @@ html, body {
     height: 100px;
 }
 
-.table-fixed tbody {
-    height: 300px;
-    overflow-y: auto;
-    width: 100%;
-}
-
-.table-fixed thead,
-.table-fixed tbody,
-.table-fixed tr,
-.table-fixed td,
-.table-fixed th {
-    display: block;
-}
-
-.table-fixed tbody td,
-.table-fixed tbody th,
-.table-fixed thead > tr > th {
-    float: left;
-    position: relative;
-}

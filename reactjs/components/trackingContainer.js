@@ -2,8 +2,14 @@ import 'regenerator-runtime/runtime'
 import NavigationTask from "./navigationTask";
 import {connect} from "react-redux";
 import React, {Component} from "react";
+import TrackLoadingIndicator from "./trackLoadingIndicator";
 
 // import "leaflet/dist/leaflet.css"
+
+const mapStateToProps = (state, props) => ({
+    navigationTask: state.navigationTask,
+    displayExpandedHeader: state.displayExpandedHeader
+})
 
 class ConnectedTrackingContainer extends Component {
     constructor(props) {
@@ -56,10 +62,18 @@ class ConnectedTrackingContainer extends Component {
             return (
                 <div id="map-holder">
                     <div id='main_div' className={"fill"}>
+                        {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
+                            numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
                         <div className={"row fill ml-1"}>
                             <div className={"col-12 fill"}>
+                    <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"} id={"menuButton"}>
+                        <img id={'logoButton'}
+                        alt={"Menu toggle"}
+                        src={"/static/img/button.jpg"}/>
+                    </a>
+
                                 <div id="cesiumContainer"></div>
-                                <div id="mapTable" className="backdrop">{TrackerDisplay}</div>
+                                <div id className={"backdrop " + (this.props.displayExpandedHeader?"largeTable":"compactTable")}>{TrackerDisplay}</div>
                                 {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
                                 {/*</div>*/}
                             </div>
@@ -71,5 +85,5 @@ class ConnectedTrackingContainer extends Component {
     }
 }
 
-const TrackingContainer = connect()(ConnectedTrackingContainer)
+const TrackingContainer = connect(mapStateToProps)(ConnectedTrackingContainer)
 export default TrackingContainer

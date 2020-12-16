@@ -37,7 +37,9 @@ class ConnectedContestantDetailsDisplay extends Component {
         return <div>
             {loading}
             <BootstrapTable keyField={"key"} data={events} columns={columns}
-                            bootstrap4 striped hover condensed pagination={paginationFactory(paginationOptions)}/>
+                            classes={"table-dark table-responsive"} wrapperClasses={"text-dark bg-dark"}
+                            bootstrap4 striped hover condensed //pagination={paginationFactory(paginationOptions)}
+            />
         </div>
 
     }
