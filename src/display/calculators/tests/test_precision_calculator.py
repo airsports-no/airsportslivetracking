@@ -38,16 +38,17 @@ class TestFullTrack(TransactionTestCase):
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         from display.default_scorecards import default_scorecard_fai_precision_2020
-        scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         crew = Crew.objects.create(pilot="Test contestant", navigator="")
-        team = Team.objects.create(crew=crew, aeroplane=aeroplane)
+        self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
-        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team,
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
                                                     takeoff_time=start_time,
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     traccar_device_name="Test contestant", contestant_number=1,
-                                                    scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed,
+                                                    scorecard=self.scorecard, minutes_to_starting_point=6,
+                                                    air_speed=speed,
                                                     wind_direction=165, wind_speed=8)
 
     def test_correct_scoring_correct_track_precision(self):
@@ -58,6 +59,23 @@ class TestFullTrack(TransactionTestCase):
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(144, contestant_track.score)
+
+    def test_helge_track_precision(self):
+        start_time, speed = datetime.datetime(2020, 8, 1, 10, 55, tzinfo=datetime.timezone.utc), 75
+        contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                               takeoff_time=start_time,
+                                               tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                               finished_by_time=start_time + datetime.timedelta(hours=2),
+                                               traccar_device_name="contestant", contestant_number=2,
+                                               scorecard=self.scorecard, minutes_to_starting_point=6, air_speed=speed,
+                                               wind_direction=165, wind_speed=8)
+        positions = load_track_points("display/calculators/tests/Helge.gpx")
+        calculator = PrecisionCalculator(contestant, Mock())
+        calculator.start()
+        calculator.add_positions(positions)
+        calculator.join()
+        contestant_track = ContestantTrack.objects.get(contestant=contestant)
+        self.assertEqual(465, contestant_track.score)
 
     def test_correct_scoring_bad_track_precision(self):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")

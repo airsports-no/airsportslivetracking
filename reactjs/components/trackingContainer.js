@@ -73,7 +73,7 @@ class ConnectedTrackingContainer extends Component {
                     </a>
 
                                 <div id="cesiumContainer"></div>
-                                <div id className={"backdrop " + (this.props.displayExpandedHeader?"largeTable":"compactTable")}>{TrackerDisplay}</div>
+                                <div className={"backdrop " + (this.props.displayExpandedHeader?"largeTable":"compactTable")}>{TrackerDisplay}</div>
                                 {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
                                 {/*</div>*/}
                             </div>

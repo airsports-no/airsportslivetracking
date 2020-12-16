@@ -40,11 +40,13 @@ function rootReducer(state = initialState, action) {
         let contestants = {}
         let initialLoading = {}
         action.payload.contestant_set.map((contestant) => {
+
             contestantData[contestant.id] = {
                 latest_time: state.contestantData[contestant.id]?state.contestantData[contestant.id].latest_time:"1970-01-01T00:00:00Z",
                 positions: [],
                 annotations: [],
                 more_data: true,
+                progress: contestantData[contestant.id]?contestantData[contestant.id].progress:0,
                 contestant_track: contestant.contestanttrack
             }
             contestants[contestant.id] = contestant

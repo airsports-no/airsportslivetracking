@@ -7,7 +7,7 @@
     font-size: x-large;
     overflow-y: auto;
     left: 70px;
-    top:70px;
+    top: 70px;
     position: fixed;
 }
 
@@ -21,24 +21,37 @@
 .largeTable {
     position: fixed;
     right: 70px;
-    max-height: 50%;
+    max-height: 90%;
     z-index: 2;
 }
 
+.progressWheel {
+    width: 45px;
+    height: 45px;
+}
+
+.shrinkLink {
+    float: right;
+}
+
+
+.taskTitle {
+    float: left;
+}
 
 #logoButton {
     height: 44px;
     width: 44px;
 }
 
-#menuButton{
+#menuButton {
     bottom: 20px;
     right: 20px;
     position: fixed;
     z-index: 2;
 }
 
-.menuButtonImage{
+.menuButtonImage {
 
 }
 

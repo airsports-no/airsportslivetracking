@@ -8,7 +8,7 @@ if __name__ == "__main__":
     django.setup()
 
 from traccar_facade import Traccar
-from display.models import TraccarCredentials, ContestantTrack
+from display.models import TraccarCredentials, ContestantTrack, Contestant
 from influx_facade import InfluxFacade
 
 configuration = TraccarCredentials.objects.get()
@@ -28,3 +28,5 @@ print("Creating new database")
 influx.create_database()
 print("Deleting all tracks")
 ContestantTrack.objects.all().delete()
+for item in Contestant.objects.filter(contestanttrack__isnull=True):
+    ContestantTrack.objects.create(contestant = item)

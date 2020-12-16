@@ -11,6 +11,9 @@ import {
     toggleExpandedHeader
 } from "../actions";
 import {Loading} from "./basicComponents";
+import {ProjectedScore} from "./contestantProgress";
+import {CircularProgressbar, buildStyles} from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
 
 var moment = require("moment");
 var momentDurationFormatSetup = require("moment-duration-format");
@@ -25,6 +28,7 @@ const mapStateToProps = (state, props) => ({
     contestants: Object.keys(state.contestantData).map((key, index) => {
         return {
             track: state.contestantData[key].contestant_track,
+            progress: state.contestantData[key].progress,
             initialLoading: state.initialLoadingContestantData[key],
             contestant: state.contestants[key]
         }
@@ -39,13 +43,9 @@ class ConnectedContestantRankTable extends Component {
         this.rowStyle = this.rowStyle.bind(this)
         this.numberStyle = this.numberStyle.bind(this)
         this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
-        this.handleExpandHeaderClick = this.handleExpandHeaderClick.bind(this)
         this.getStateFormat = this.getStateFormat.bind(this)
     }
 
-    handleExpandHeaderClick() {
-        this.props.toggleExpandedHeader()
-    }
 
     handleContestantLinkClick(contestantId) {
         this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
@@ -64,7 +64,7 @@ class ConnectedContestantRankTable extends Component {
 
     buildData() {
         const contestants = this.props.contestants.filter((contestant) => {
-            return contestant != null
+            return contestant != null && contestant
         })
         contestants.sort(compareScore)
         return contestants.map((contestant, index) => {
@@ -74,6 +74,7 @@ class ConnectedContestantRankTable extends Component {
                 contestantNumber: contestant.contestant.contestant_number,
                 contestantId: contestant.contestant.id,
                 rank: index + 1,
+                progress: Math.min(100, Math.max(0, contestant.progress.toFixed(1))),
                 name: contestantShortForm(contestant.contestant),
                 score: contestant.track.score,
                 currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
@@ -112,11 +113,11 @@ class ConnectedContestantRankTable extends Component {
             {
                 dataField: "rank",
                 text: "#",
-                headerEvents: {
-                    onClick: (e, column, columnIndex) => {
-                        this.handleExpandHeaderClick()
-                    }
-                },
+                // headerEvents: {
+                //     onClick: (e, column, columnIndex) => {
+                //         this.handleExpandHeaderClick()
+                //     }
+                // },
             },
             {
                 dataField: "contestantNumber",
@@ -138,12 +139,23 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "progress",
-                text: "Progress",
-                formatter: this.getTrackProgressFormat
+                text: "Prog",
+                formatter: (cell, row) => {
+                    return <CircularProgressbar className={"progressWheel"} value={row.progress}
+                                                strokeWidth={50}
+                                                styles={buildStyles({
+                                                    strokeLinecap: "butt"
+                                                })}
+                        //text={`${row.progress}`}
+                    />
+                }
             },
             {
                 dataField: "projectedScore",
-                text: "Projected score"
+                text: "Projected",
+                formatter: (cell, row) => {
+                    return <ProjectedScore score={row.score} progress={row.progress}/>
+                }
             },
             {
                 dataField: "currentState",

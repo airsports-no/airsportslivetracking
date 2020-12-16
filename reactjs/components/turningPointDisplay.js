@@ -87,7 +87,7 @@ class ConnectedTurningPointDisplay extends Component {
             hidePageListOnlyOnePage: true
         };
         return <BootstrapTable keyField={"rank"} data={scores} columns={columns}
-                               classes={"table-dark table-responsive"} wrapperClasses={"text-dark bg-dark"}
+                               classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
                                bootstrap4 striped hover condensed //pagination={paginationFactory(paginationOptions)}
         />
 

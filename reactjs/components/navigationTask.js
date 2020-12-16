@@ -1,5 +1,5 @@
 import React, {Component} from "react";
-import {displayAllTracks, fetchNavigationTask, setDisplay} from "../actions";
+import {displayAllTracks, fetchNavigationTask, setDisplay, toggleExpandedHeader} from "../actions";
 import {connect} from "react-redux";
 import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
 import ContestantTrack from "./contestantTrack";
@@ -10,7 +10,6 @@ import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} 
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
 import TurningPointLinks from "./turningPointLinks";
 import TurningPointDisplay from "./turningPointDisplay";
-import TrackLoadingIndicator from "./trackLoadingIndicator";
 
 const L = window['L']
 
@@ -18,6 +17,7 @@ const L = window['L']
 const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
     currentDisplay: state.currentDisplay,
+    displayExpandedHeader: state.displayExpandedHeader
 })
 
 class ConnectedNavigationTask extends Component {
@@ -26,7 +26,12 @@ class ConnectedNavigationTask extends Component {
         this.state = {colourMap: {}}
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
         this.handleMapTurningPointClick = this.handleMapTurningPointClick.bind(this)
+        this.toggleExpandedTable = this.toggleExpandedTable.bind(this)
         this.rendered = false
+    }
+
+    toggleExpandedTable() {
+        this.props.toggleExpandedHeader()
     }
 
     handleMapTurningPointClick(turningPoint) {
@@ -166,7 +171,9 @@ class ConnectedNavigationTask extends Component {
                 tableDisplay = <div>
                     <div className={"card text-light collapse bg-dark"} id={"insetMenu"} aria-expanded={false}
                          aria-controls={"insetMenu"}>
-                    <h3>{this.props.navigationTask.name}</h3>
+                        <h3 className={'taskTitle'}>{this.props.navigationTask.name}</h3>
+                        <a className={"shrinkLink"} href={"#"}
+                           onClick={this.toggleExpandedTable}>{this.props.displayExpandedHeader ? "shrink" : "expand"}</a>
                         {/*<a href={"#"} onClick={this.resetToAllContestants}>*/}
                         {/*    <h1>{this.props.navigationTask.name}</h1></a>*/}
                         {this.props.displayMap ? <div/> : <TurningPointLinks/>}
@@ -195,5 +202,6 @@ const NavigationTask = connect(mapStateToProps, {
     fetchNavigationTask,
     setDisplay,
     displayAllTracks,
+    toggleExpandedHeader
 })(ConnectedNavigationTask);
 export default NavigationTask;

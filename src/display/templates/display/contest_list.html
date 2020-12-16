@@ -23,9 +23,7 @@
                     </td>
                     <td>{{ object.finish_time }}</td>
                     <td>
-                        <a href="{% url 'frontend_view' object.pk %}">Live view</a> |
-                        <a href="{% url 'frontend_view_table' object.pk %}">Table only</a> |
-                        <a href="{% url 'frontend_view_map' object.pk %}">Map only</a>
+                        <a href="{% url 'frontend_view_map' object.pk %}">Track</a>
                     </td>
                 </tr>
             {% endfor %}

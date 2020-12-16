@@ -147,6 +147,17 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
             "latitude": item["latitude"],
             "longitude": item["longitude"]
         })
+    # Calculate route progress
+    # first_gate = contestant.navigation_task.route.takeoff_gate or contestant.navigation_task.route.waypoints[0]
+    # last_gate = contestant.navigation_task.route.landing_gate or contestant.navigation_task.route.waypoints[-1]
+    first_gate = contestant.navigation_task.route.waypoints[0]
+    last_gate = contestant.navigation_task.route.waypoints[-1]
+
+    first_gate_time = contestant.gate_times[first_gate.name]
+    last_gate_time = contestant.gate_times[last_gate.name]
+    route_duration = (last_gate_time - first_gate_time).total_seconds()
+    route_duration_progress = (global_latest_time - first_gate_time).total_seconds()
+    route_progress = 100 * route_duration_progress / route_duration
     positions = reduced_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
     if len(annotation_data):
@@ -159,7 +170,7 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     # if len(positions) == 0:
     #     return {}
     data = {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
-            "annotations": annotations, "more_data": more_data}
+            "annotations": annotations, "more_data": more_data, "progress": route_progress}
     # if len(positions) > 0:
     data["contestant_track"] = contestant_track
     return data

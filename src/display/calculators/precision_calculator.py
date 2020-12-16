@@ -56,7 +56,7 @@ class PrecisionCalculator(Calculator):
             # A 2.2.14
             intersection_time = self.starting_line.get_gate_extended_intersection_time(self.projector, self.track)
             if intersection_time:
-                if self.starting_line.is_passed_in_correct_direction_track(self.track):
+                if self.starting_line.is_passed_in_correct_direction_track_to_next(self.track):
                     # Start the clock
                     logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
                     self.update_tracking_state(self.STARTED)

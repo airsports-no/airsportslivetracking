@@ -57,14 +57,25 @@ class Gate:
     def has_extended_been_passed(self):
         return self.extended_passing_time is not None
 
-    def is_passed_in_correct_direction_bearing(self, track_bearing) -> bool:
+    def is_passed_in_correct_direction_bearing_from_previous(self, track_bearing) -> bool:
         return abs(bearing_difference(track_bearing, self.bearing_from_previous)) < 90
 
-    def is_passed_in_correct_direction_track(self, track) -> bool:
+
+    def is_passed_in_correct_direction_bearing_to_next(self, track_bearing) -> bool:
+        return abs(bearing_difference(track_bearing, self.bearing)) < 90
+
+    def is_passed_in_correct_direction_track_from_previous(self, track) -> bool:
         if len(track) > 1:
-            return self.is_passed_in_correct_direction_bearing(
+            return self.is_passed_in_correct_direction_bearing_from_previous(
                 calculate_bearing((track[-2].latitude, track[-2].longitude), (track[-1].latitude, track[-1].longitude)))
         return False
+
+    def is_passed_in_correct_direction_track_to_next(self, track) -> bool:
+        if len(track) > 1:
+            return self.is_passed_in_correct_direction_bearing_to_next(
+                calculate_bearing((track[-2].latitude, track[-2].longitude), (track[-1].latitude, track[-1].longitude)))
+        return False
+
 
     def get_gate_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
         if len(track) > 2:
