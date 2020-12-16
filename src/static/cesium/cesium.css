@@ -7,7 +7,7 @@
     font-size: x-large;
     overflow-y: auto;
     left: 70px;
-    top: 70px;
+    top: 40px;
     position: fixed;
 }
 
@@ -40,15 +40,26 @@
 }
 
 #logoButton {
-    height: 44px;
-    width: 44px;
+    height: 80px;
+    width: 80px;
 }
 
-#menuButton {
+#logoButtonWrapper {
     bottom: 20px;
     right: 20px;
     position: fixed;
     z-index: 2;
+}
+
+#returnLink{
+    bottom: 20px;
+    left: 20px;
+    position: fixed;
+    z-index: 2;
+}
+
+#returnLinkImage{
+    width: 200px;
 }
 
 .menuButtonImage {
@@ -90,6 +101,7 @@
     height: 100%;
     max-width: 100%;
     width: 100%;
+    margin: 0;
 }
 
 

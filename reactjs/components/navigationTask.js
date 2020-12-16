@@ -173,7 +173,7 @@ class ConnectedNavigationTask extends Component {
                          aria-controls={"insetMenu"}>
                         <h3 className={'taskTitle'}>{this.props.navigationTask.name}</h3>
                         <a className={"shrinkLink"} href={"#"}
-                           onClick={this.toggleExpandedTable}>{this.props.displayExpandedHeader ? "shrink" : "expand"}</a>
+                           onClick={this.toggleExpandedTable}>{this.props.displayExpandedHeader ? "<<<" : ">>>"}</a>
                         {/*<a href={"#"} onClick={this.resetToAllContestants}>*/}
                         {/*    <h1>{this.props.navigationTask.name}</h1></a>*/}
                         {this.props.displayMap ? <div/> : <TurningPointLinks/>}

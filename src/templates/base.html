@@ -33,6 +33,7 @@
 </head>
 <body>
 <header>
+    {% if not skip_nav %}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <a class="navbar-brand" href="/">Airsports</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
@@ -93,6 +94,7 @@
 
         </div>
     </nav>
+{% endif %}
 </header>
 
 <main role="main">

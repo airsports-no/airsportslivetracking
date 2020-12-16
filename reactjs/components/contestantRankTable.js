@@ -11,7 +11,7 @@ import {
     toggleExpandedHeader
 } from "../actions";
 import {Loading} from "./basicComponents";
-import {ProjectedScore} from "./contestantProgress";
+import {ProgressCircle, ProjectedScore} from "./contestantProgress";
 import {CircularProgressbar, buildStyles} from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 
@@ -22,6 +22,16 @@ function getTrackingStateBackgroundClass(state) {
     if (["Tracking", "Procedure turn"].includes(state)) return "greenBackground";
     if (["Backtracking", "Failed procedure turn"].includes(state)) return "redBackground"
     return ""
+}
+
+function calculateProjectedScore(score, progress) {
+    if(progress<=0){
+        return 99999
+    }
+    if (progress < 5) {
+        return score
+    }
+    return (100 * score / progress)
 }
 
 const mapStateToProps = (state, props) => ({
@@ -68,16 +78,19 @@ class ConnectedContestantRankTable extends Component {
         })
         contestants.sort(compareScore)
         return contestants.map((contestant, index) => {
+            const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
             return {
                 key: contestant.contestant.id + "rack" + index,
                 colour: "",
                 contestantNumber: contestant.contestant.contestant_number,
                 contestantId: contestant.contestant.id,
                 rank: index + 1,
-                progress: Math.min(100, Math.max(0, contestant.progress.toFixed(1))),
+                progress: progress,
                 name: contestantShortForm(contestant.contestant),
                 score: contestant.track.score,
+                projectedScore: calculateProjectedScore(contestant.track.score, progress),
                 currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
+                finished: contestant.track.current_state === "Finished",
                 initialLoading: contestant.initialLoading,
                 lastGate: contestant.track.last_gate,
                 lastGateTimeOffset: moment.duration(contestant.track.last_gate_time_offset, "seconds").format([
@@ -118,6 +131,7 @@ class ConnectedContestantRankTable extends Component {
                 //         this.handleExpandHeaderClick()
                 //     }
                 // },
+                sort: true
             },
             {
                 dataField: "contestantNumber",
@@ -139,22 +153,26 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "progress",
-                text: "Prog",
+                text: "Lap",
                 formatter: (cell, row) => {
-                    return <CircularProgressbar className={"progressWheel"} value={row.progress}
-                                                strokeWidth={50}
-                                                styles={buildStyles({
-                                                    strokeLinecap: "butt"
-                                                })}
-                        //text={`${row.progress}`}
-                    />
+                    return <ProgressCircle progress={row.progress} finished={row.finished}/>
                 }
             },
             {
                 dataField: "projectedScore",
-                text: "Projected",
+                text: "Est",
+                style: (cell, row, rowIndex, colIndex) => {
+                    return {color: "orange"}
+                },
                 formatter: (cell, row) => {
-                    return <ProjectedScore score={row.score} progress={row.progress}/>
+                    return cell.toFixed(0)
+                },
+                sort: true,
+                sortFunc: (a, b, order, dataField, rowA, rowB) => {
+                    if (order === 'asc') {
+                        return b - a;
+                    }
+                    return a - b; // desc
                 }
             },
             {
@@ -196,6 +214,7 @@ class ConnectedContestantRankTable extends Component {
             hidePageListOnlyOnePage: true
         };
         return <BootstrapTable keyField={"key"} data={this.buildData()} columns={columns}
+                               defaultSorted={[{dataField: "rank", order: "asc"}]}
                                classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
                                bootstrap4 striped hover condensed //pagination={paginationFactory(paginationOptions)}
                                rowEvents={rowEvents}/>

@@ -65,18 +65,20 @@ class ConnectedTrackingContainer extends Component {
                         {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
                             numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
                         <div className={"row fill ml-1"}>
-                            <div className={"col-12 fill"}>
-                    <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"} id={"menuButton"}>
-                        <img id={'logoButton'}
-                        alt={"Menu toggle"}
-                        src={"/static/img/button.jpg"}/>
-                    </a>
-
-                                <div id="cesiumContainer"></div>
-                                <div className={"backdrop " + (this.props.displayExpandedHeader?"largeTable":"compactTable")}>{TrackerDisplay}</div>
-                                {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
-                                {/*</div>*/}
-                            </div>
+                            <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}
+                               id={"logoButtonWrapper"}>
+                                <img id={'logoButton'}
+                                     alt={"Menu toggle"}
+                                     src={"/static/img/airsports.png"}/>
+                            </a>
+                            <a className={"btn"} id="returnLink" href={"/"}><img alt={"Back to main page"}
+                                                                                 id={"returnLinkImage"}
+                                                                                 src={"/static/img/AirSportsLogo.png"}/></a>
+                            <div id="cesiumContainer"/>
+                            <div
+                                className={"backdrop " + (this.props.displayExpandedHeader ? "largeTable" : "compactTable")}>{TrackerDisplay}</div>
+                            {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
+                            {/*</div>*/}
                         </div>
                     </div>
                 </div>

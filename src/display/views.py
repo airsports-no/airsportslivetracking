@@ -56,7 +56,7 @@ def frontend_view_map(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     return render(request, "display/root.html",
                   {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
-                   "display_map": "true", "display_table": "false"})
+                   "display_map": "true", "display_table": "false", "skip_nav": True})
 
 
 class NavigationTaskList(ListView):

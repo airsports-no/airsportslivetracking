@@ -46,7 +46,7 @@ function rootReducer(state = initialState, action) {
                 positions: [],
                 annotations: [],
                 more_data: true,
-                progress: contestantData[contestant.id]?contestantData[contestant.id].progress:0,
+                progress: state.contestantData[contestant.id]?state.contestantData[contestant.id].progress:0,
                 contestant_track: contestant.contestanttrack
             }
             contestants[contestant.id] = contestant

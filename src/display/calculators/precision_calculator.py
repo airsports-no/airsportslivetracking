@@ -156,7 +156,6 @@ class PrecisionCalculator(Calculator):
             self.update_tracking_state(self.FINISHED)
             self.contestant.contestanttrack.set_calculator_finished()
             return
-        next_gate = self.outstanding_gates[0]
         bearing = bearing_between(first_position, last_position)
         bearing_difference = abs(get_heading_difference(bearing, self.last_gate.bearing))
         # logger.info(bearing_difference)
@@ -167,7 +166,7 @@ class PrecisionCalculator(Calculator):
             self.current_procedure_turn_slices = []
             self.current_procedure_turn_directions = []
             self.current_procedure_turn_gate = self.last_gate
-            self.current_procedure_turn_bearing_difference = get_heading_difference(self.previous_last_gate.bearing,
+            self.current_procedure_turn_bearing_difference = get_heading_difference(self.last_gate.bearing_from_previous,
                                                                                     self.last_gate.bearing)
             if self.current_procedure_turn_bearing_difference > 0:
                 self.current_procedure_turn_bearing_difference -= 360
