@@ -21,7 +21,7 @@ export class ProgressCircle extends Component {
         } else if (progress <= 4) {
             trailColour = "#fff44f";
         } else {
-            pathColour = "lightgreen"
+            pathColour = "limegreen"
         }
         if (this.props.finished) {
             pathColour = "darkgreen"
