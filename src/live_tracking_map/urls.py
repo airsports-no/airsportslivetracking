@@ -42,8 +42,8 @@ urlpatterns = [
     path('accounts/password_change/done/', RedirectView.as_view(url='/', permanent=False)),
     path('accounts/', include('django.contrib.auth.urls')),
     path('docs/', docs.with_ui()),
-    path("api/v1/", include(api.urlpatters)),
-    url(r'.?/', results_service, name="resultsservice"),
+    url(r"^api/v1/", include(api.urlpatters)),
+    url(r'^resultsservice/.?', results_service, name="resultsservice"),
 
 ]
 
