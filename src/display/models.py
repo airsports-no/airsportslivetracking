@@ -348,7 +348,7 @@ class Contestant(models.Model):
         overlapping_trackers = Contestant.objects.filter(tracking_service=self.tracking_service,
                                                          traccar_device_name=self.traccar_device_name,
                                                          tracker_start_time__lte=self.finished_by_time,
-                                                         finished_by_time__gte=self.tracker_start_time)
+                                                         finished_by_time__gte=self.tracker_start_time).exclude(self)
         if overlapping_trackers.count() > 0:
             intervals = []
             for contestant in overlapping_trackers:
