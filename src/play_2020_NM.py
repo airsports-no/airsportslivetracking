@@ -1,0 +1,105 @@
+import datetime
+import glob
+import os
+import time
+from urllib.parse import urlencode
+
+import gpxpy
+import requests
+
+from playback_tools import build_traccar_track, load_data_traccar
+from traccar_facade import Traccar
+
+if __name__ == "__main__":
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
+    import django
+
+    django.setup()
+
+from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
+from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
+    TraccarCredentials
+from influx_facade import InfluxFacade
+
+influx = InfluxFacade()
+
+
+maximum_index = 0
+tracks = {}
+
+contestants = {
+    "Anders": (datetime.datetime(2020, 8, 1, 10, 0), 75, 6),
+    "Arild": (datetime.datetime(2020, 8, 1, 10, 10), 70, 6),
+    "Bjørn": (datetime.datetime(2020, 8, 1, 9, 15), 70, 6),
+    "Espen": (datetime.datetime(2020, 8, 1, 11, 10), 70, 6),
+    "Frank-Olaf": (datetime.datetime(2020, 8, 1, 10, 5), 75, 6),
+    "Håkon": (datetime.datetime(2020, 8, 1, 11, 15), 70, 1),
+    "Hans-Inge": (datetime.datetime(2020, 8, 1, 9, 50), 85, 2),
+    "Hedvig": (datetime.datetime(2020, 8, 1, 13, 5), 70, 2),
+    "Helge": (datetime.datetime(2020, 8, 1, 12, 55), 75, 1),
+    "Jorge": (datetime.datetime(2020, 8, 1, 9, 10), 70, 1),
+    "Jørgen": (datetime.datetime(2020, 8, 1, 10, 55), 75, 1),
+    "Kenneth": (datetime.datetime(2020, 8, 1, 9, 5), 70, 1),
+    "Magnus": (datetime.datetime(2020, 8, 1, 11, 5), 70, 2),
+    "Niklas": (datetime.datetime(2020, 8, 1, 9, 0), 75, 1),
+    "Odin": (datetime.datetime(2020, 8, 1, 9, 20), 70, 1),
+    "Ola": (datetime.datetime(2020, 8, 1, 13, 0), 70, 1),
+    "Ole": (datetime.datetime(2020, 8, 1, 10, 25), 70, 1),
+    "Steinar": (datetime.datetime(2020, 8, 1, 9, 55), 80, 2),
+    "Stian": (datetime.datetime(2020, 8, 1, 13, 10), 70, 2),
+    "Tim": (datetime.datetime(2020, 8, 1, 11, 0), 70, 2),
+    "Tommy": (datetime.datetime(2020, 8, 1, 13, 15), 70, 1),
+    "TorHelge": (datetime.datetime(2020, 8, 1, 12, 40), 70, 2)
+}
+
+configuration = TraccarCredentials.objects.get()
+
+traccar = Traccar.create_from_configuration(configuration)
+
+deleted = traccar.update_and_get_devices()
+# Group ID = 1
+for item in deleted:
+    traccar.delete_device(item["id"])
+    traccar.create_device(item["name"], item["uniqueId"])
+
+
+scorecard = get_default_scorecard()
+original_contest = Contest.objects.filter(name="NM 2020").first()
+if original_contest:
+    for contestant in Contestant.objects.filter(navigation_task__contest=original_contest):
+        influx.clear_data_for_contestant(contestant.pk)
+original_contest.delete()
+aeroplane = Aeroplane.objects.first()
+contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
+contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
+contest = Contest.objects.create(name="NM 2020", is_public=True)
+navigation_task = NavigationTask.objects.create(name="NM 2020 ", contest=contest,
+                                                route=Route.objects.get(name="NM 2020"),
+                                                start_time=contest_start_time, finish_time=contest_finish_time,
+                                                is_public=True)
+
+tracks = {}
+for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
+    print(file)
+    contestant = os.path.splitext(os.path.basename(file))[0]
+    print(contestant)
+
+    crew, _ = Crew.objects.get_or_create(pilot=contestant, navigator="")
+    team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
+    start_time, speed, _ = contestants[contestant]
+    start_time = start_time - datetime.timedelta(hours=2)
+    start_time = start_time.astimezone()
+    minutes_starting = 6
+    # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
+    contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,
+                                                  finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                  tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                  traccar_device_name=contestant, contestant_number=index,
+                                                  scorecard=scorecard, minutes_to_starting_point=minutes_starting,
+                                                  air_speed=speed,
+                                                  wind_direction=160, wind_speed=18)
+    print(navigation_task.pk)
+
+    tracks[contestant] = build_traccar_track(file)
+
+load_data_traccar(tracks)

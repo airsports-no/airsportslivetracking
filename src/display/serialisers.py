@@ -6,7 +6,8 @@ from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from display.convert_flightcontest_gpx import create_route_from_gpx
-from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, Contest
+from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
+    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore
 from display.waypoint import Waypoint
 
 
@@ -299,3 +300,69 @@ class ExternalNavigationTaskNestedSerialiser(serializers.ModelSerializer):
             contestant_serialiser.is_valid(True)
             contestant_serialiser.save()
         return navigation_task
+
+
+########## Results service ##########
+class ContestSummarySerialiser(serializers.ModelSerializer):
+    team = TeamNestedSerialiser()
+
+    class Meta:
+        model = ContestSummary
+        fields = "__all__"
+
+
+class TeamTestScoreSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = TeamTestScore
+        fields = "__all__"
+
+
+class TaskTestSerialiser(serializers.ModelSerializer):
+    teamtestscore_set = TeamTestScoreSerialiser(many=True)
+
+    class Meta:
+        model = TaskTest
+        fields = "__all__"
+
+
+class TaskSummarySerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = TaskSummary
+        fields = "__all__"
+
+
+class TaskSerialiser(serializers.ModelSerializer):
+    tasktest_set = TaskTestSerialiser(many=True)
+    tasksummary_set = TaskSummarySerialiser(many=True)
+
+    class Meta:
+        model = Task
+        fields = "__all__"
+
+
+# High level entry
+class ContestResultsHighLevelSerialiser(serializers.ModelSerializer):
+    contestsummary_set = ContestSummarySerialiser(many=True)
+
+    class Meta:
+        model = Contest
+        fields = "__all__"
+
+
+# Details entry
+class ContestResultsDetailsSerialiser(serializers.ModelSerializer):
+    contestsummary_set = ContestSummarySerialiser(many=True)
+    task_set = TaskSerialiser(many=True)
+
+    class Meta:
+        model = Contest
+        fields = "__all__"
+
+
+# Team summary entry
+class TeamResultsSummarySerialiser(serializers.ModelSerializer):
+    contestsummary_set = ContestSummarySerialiser(many=True)
+
+    class Meta:
+        model = Team
+        fields = "__all__"

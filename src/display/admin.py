@@ -6,7 +6,7 @@ from guardian.shortcuts import assign_perm
 
 from display.models import NavigationTask, Route, Aeroplane, Team, Contestant, TraccarCredentials, ContestantTrack, \
     Scorecard, \
-    GateScore, Contest
+    GateScore, Contest, Crew
 from solo.admin import SingletonModelAdmin
 
 admin.site.register(TraccarCredentials, SingletonModelAdmin)
@@ -61,4 +61,5 @@ admin.site.register(Contest, ContestAdmin)
 admin.site.register(GateScore)
 admin.site.register(Aeroplane)
 admin.site.register(Team)
+admin.site.register(Crew)
 admin.site.register(Contestant, ContestantTrackAdmin)

@@ -70,7 +70,7 @@ class TestCreateNavigationTask(APITestCase):
                                   data=NAVIGATION_TASK_DATA, format="json")
         print(result)
         print(result.content)
-        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(result.status_code, status.HTTP_201_CREATED)
 
 
 class TestAccessNavigationTask(APITestCase):

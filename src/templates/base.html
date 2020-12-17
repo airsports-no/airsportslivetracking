@@ -99,6 +99,10 @@
 
 <main role="main">
     <div class="container-fluid">
+        {% block contentfluid %}
+        {% endblock %}
+    </div>
+    <div class="container">
         {% block content %}
         {% endblock %}
     </div>

@@ -40,6 +40,7 @@ class Aeroplane(models.Model):
     registration = models.CharField(max_length=20)
     colour = models.CharField(max_length=40, blank=True)
     type = models.CharField(max_length=50, blank=True)
+    picture = models.ImageField(upload_to='images/aircraft/', null=True, blank=True)
 
     def __str__(self):
         return self.registration
@@ -142,6 +143,8 @@ def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
 class Crew(models.Model):
     pilot = models.CharField(max_length=200)
     navigator = models.CharField(max_length=200, blank=True)
+    pilot_picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
+    navigator_picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
 
     def __str__(self):
         if len(self.navigator) > 0:
@@ -153,12 +156,22 @@ class Team(models.Model):
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.PROTECT)
     crew = models.ForeignKey(Crew, on_delete=models.PROTECT)
     nation = models.CharField(max_length=100)
+    picture = models.ImageField(upload_to='images/teams/', null=True, blank=True)
 
     def __str__(self):
         return "{} in {}".format(self.crew, self.aeroplane)
 
 
 class Contest(models.Model):
+    DESCENDING = "desc"
+    ASCENDING = "asc"
+    SORTING_DIRECTION = (
+        (DESCENDING, "Descending"),
+        (ASCENDING, "Ascending")
+    )
+    summary_score_sorting_direction = models.CharField(default=ASCENDING, choices=SORTING_DIRECTION,
+                                                       help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
+                                                       max_length=50)
     name = models.CharField(max_length=100, unique=True)
     is_public = models.BooleanField(default=False)
 
@@ -425,6 +438,83 @@ class ContestantTrack(models.Model):
     def set_calculator_finished(self):
         self.calculator_finished = True
         self.save()
+
+
+########## Scoring portal models ##########
+class Task(models.Model):
+    """
+    Models a generic task for which we want to store scores
+    """
+    DESCENDING = "desc"
+    ASCENDING = "asc"
+    SORTING_DIRECTION = (
+        (DESCENDING, "Descending"),
+        (ASCENDING, "Ascending")
+    )
+    summary_score_sorting_direction = models.CharField(default=ASCENDING, choices=SORTING_DIRECTION,
+                                                       help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
+                                                       max_length=50)
+    name = models.CharField(max_length=100)
+    heading = models.CharField(max_length=100)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
+    default_sorting = models.ForeignKey("TaskTest", related_name="default_sort", null=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        unique_together = ("name", "contest")
+
+
+class TaskTest(models.Model):
+    """
+    Models and individual test (e.g. landing one, landing two, or landing three that is part of a task. It includes
+    the configuration for how the score is displayed for the test.
+    """
+    DESCENDING = "desc"
+    ASCENDING = "asc"
+    SORTING_DIRECTION = (
+        (DESCENDING, "Descending"),
+        (ASCENDING, "Ascending")
+    )
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    heading = models.CharField(max_length=100)
+    sorting = models.CharField(default=ASCENDING, choices=SORTING_DIRECTION,
+                               help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
+                               max_length=50)
+    index = models.IntegerField(
+        help_text="The index of the task when displayed as columns in a table. Indexes are sorted in ascending order to determine column order")
+
+    class Meta:
+        unique_together = ("name", "task")
+
+
+class TaskSummary(models.Model):
+    """
+    Summary score for all tests inside a task for a team
+    """
+    team = models.ForeignKey(Team, on_delete=models.PROTECT)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    points = models.FloatField()
+
+
+class ContestSummary(models.Model):
+    """
+    Summary score for the entire contest for a team
+    """
+    team = models.ForeignKey(Team, on_delete=models.PROTECT)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
+    points = models.FloatField()
+
+
+class TeamTestScore(models.Model):
+    """
+    Represents the score a team received for a test
+    """
+    team = models.ForeignKey(Team, on_delete=models.PROTECT)
+    task_test = models.ForeignKey(TaskTest, on_delete=models.CASCADE)
+    points = models.FloatField()
+
+    class Meta:
+        unique_together = ("team", "task_test")
 
 
 @receiver(post_save, sender=Contestant)

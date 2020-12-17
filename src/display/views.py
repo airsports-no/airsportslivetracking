@@ -24,14 +24,15 @@ from rest_framework.viewsets import ModelViewSet, ViewSet
 
 from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv
 from display.forms import ImportRouteForm
-from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest
+from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions
 from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedSerialiser, \
     ContestSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, \
-    ContestantTrackWithTrackPointsSerialiser, ContestantNestedSerialiser
+    ContestantTrackWithTrackPointsSerialiser, ContestantNestedSerialiser, ContestResultsHighLevelSerialiser, \
+    ContestSummarySerialiser, TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from influx_facade import InfluxFacade
 
@@ -57,6 +58,10 @@ def frontend_view_map(request, pk):
     return render(request, "display/root.html",
                   {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
                    "display_map": "true", "display_table": "false", "skip_nav": True})
+
+
+def results_service(request):
+    return render(request, "display/resultsservice.html")
 
 
 class NavigationTaskList(ListView):
@@ -391,9 +396,9 @@ class ImportFCNavigationTask(ModelViewSet):
         contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
         serialiser = ExternalNavigationTaskNestedSerialiser(data=request.data,
                                                             context={"request": request, "contest": contest})
-        if serialiser.is_valid():
+        if serialiser.is_valid(raise_exception=True):
             serialiser.save()
-            return Response(serialiser.data)
+            return Response(serialiser.data, status=status.HTTP_201_CREATED)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -403,3 +408,30 @@ def renew_token(request):
     Token.objects.filter(user=user).delete()
     Token.objects.create(user=user)
     return redirect(reverse("token"))
+
+
+########## Results service ##########
+class ContestResultsSummaryViewSet(ModelViewSet):
+    queryset = Contest.objects.all()
+    serializer_class = ContestResultsHighLevelSerialiser
+    permission_classes = [ContestPublicPermissions | permissions.IsAuthenticated & ContestPermissions]
+
+    @action(detail=True, methods=["get"])
+    def details(self, request, *args, **kwargs):
+        contest = self.get_object()
+        serialiser = ContestResultsDetailsSerialiser(contest)
+        return Response(serialiser.data)
+
+    @action(detail=True, methods=["get"])
+    def teams(self, request, *args, **kwargs):
+        contest = self.get_object()
+        teams = Team.objects.filter(Q(tasksummary__task__contest=contest) | Q(contestsummary__contest=contest) | Q(
+            teamtestscore__task_test__task__contest=contest)).distinct()
+        serialiser = TeamNestedSerialiser(teams, many=True)
+        return Response(serialiser.data)
+
+
+
+class TeamResultsSummaryViewSet(ModelViewSet):
+    queryset = Team.objects.all()
+    serializer_class = TeamResultsSummarySerialiser
