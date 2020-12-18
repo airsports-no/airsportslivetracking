@@ -111,7 +111,7 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
 
 
 class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
-    country_flag_url = serializers.CharField(max_length=200)
+    country_flag_url = serializers.CharField(max_length=200, required=False)
 
     class Meta:
         model = Person
@@ -119,7 +119,7 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 
 
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
-    country_flag_url = serializers.CharField(max_length=200)
+    country_flag_url = serializers.CharField(max_length=200, required=False)
 
     class Meta:
         model = Club
@@ -157,7 +157,7 @@ class CrewSerialiser(serializers.ModelSerializer):
 
 
 class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
-    country_flag_url = serializers.CharField(max_length=200)
+    country_flag_url = serializers.CharField(max_length=200, required=False)
     aeroplane = AeroplaneSerialiser()
     crew = CrewSerialiser()
     club = ClubSerialiser(required=False)
