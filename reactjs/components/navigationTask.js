@@ -44,7 +44,8 @@ class ConnectedNavigationTask extends Component {
         })
     }
 
-    resetToAllContestants() {
+    resetToAllContestants(e) {
+        L.DomEvent.stopPropagation(e)
         this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
         this.props.displayAllTracks();
         this.props.hideLowerThirds();
@@ -87,7 +88,7 @@ class ConnectedNavigationTask extends Component {
         this.map = L.map('cesiumContainer', {
             zoomDelta: 0.25,
             zoomSnap: 0.25,
-        }).on('click', () => this.resetToAllContestants())
+        }).on('contextmenu', (e) => this.resetToAllContestants(e))
         const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
         tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
             attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
