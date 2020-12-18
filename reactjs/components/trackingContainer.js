@@ -8,7 +8,7 @@ import TrackLoadingIndicator from "./trackLoadingIndicator";
 
 const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
-    displayExpandedHeader: state.displayExpandedHeader
+    displayExpandedTrackingTable: state.displayExpandedTrackingTable
 })
 
 class ConnectedTrackingContainer extends Component {
@@ -76,7 +76,7 @@ class ConnectedTrackingContainer extends Component {
                                                                                  src={"/static/img/AirSportsLogo.png"}/></a>
                             <div id="cesiumContainer"/>
                             <div
-                                className={"backdrop " + (this.props.displayExpandedHeader ? "largeTable" : "compactTable")}>{TrackerDisplay}</div>
+                                className={"backdrop " + (this.props.displayExpandedTrackingTable ? "largeTable" : "compactTable")}>{TrackerDisplay}</div>
                             {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
                             {/*</div>*/}
                         </div>

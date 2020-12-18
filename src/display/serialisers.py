@@ -1,13 +1,16 @@
 import base64
 
+from django.core.exceptions import ObjectDoesNotExist
+from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm
 from rest_framework import serializers
+from rest_framework.generics import get_object_or_404
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
-    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore
+    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club
 from display.waypoint import Waypoint
 
 
@@ -34,28 +37,27 @@ class WaypointSerialiser(serializers.Serializer):
         pass
 
     name = serializers.CharField(max_length=200)
-    latitude = serializers.FloatField()
-    longitude = serializers.FloatField()
-    elevation = serializers.FloatField()
-    width = serializers.FloatField()
-    gate_line = serializers.JSONField()
+    latitude = serializers.FloatField(help_text="degrees")
+    longitude = serializers.FloatField(help_text="degrees")
+    elevation = serializers.FloatField(help_text="Metres above MSL")
+    width = serializers.FloatField(help_text="Width of the gate in NM")
+    gate_line = serializers.JSONField(
+        help_text="Coordinates that describe the starting point and finish point of the gate line, e.g. [[lat1,lon2],[lat2,lon2]")
     time_check = serializers.BooleanField()
     gate_check = serializers.BooleanField()
-    planning_test = serializers.BooleanField()
     end_curved = serializers.BooleanField()
-    type = serializers.CharField(max_length=50)
-    distance_next = serializers.FloatField()
-    distance_previous = serializers.FloatField()
-    bearing_next = serializers.FloatField()
-    bearing_from_previous = serializers.FloatField()
+    type = serializers.CharField(max_length=50, help_text="The type of the gate (tp, sp, fp, to, ldg, secret)")
+    distance_next = serializers.FloatField(help_text="Distance to the next gate (NM)")
+    distance_previous = serializers.FloatField(help_text="Distance from the previous gate (NM)")
+    bearing_next = serializers.FloatField(help_text="True track to the next gate (degrees)")
+    bearing_from_previous = serializers.FloatField(help_text="True track from the previous gates to this")
     is_procedure_turn = serializers.BooleanField()
 
 
 class RouteSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
-    starting_line = WaypointSerialiser()
-    landing_gate = WaypointSerialiser()
-    takeoff_gate = WaypointSerialiser()
+    landing_gate = WaypointSerialiser(required=False, help_text="Optional landing gate")
+    takeoff_gate = WaypointSerialiser(required=False, help_text="Optional takeoff gate")
 
     class Meta:
         model = Route
@@ -89,7 +91,6 @@ class RouteSerialiser(serializers.ModelSerializer):
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
         route = Route.objects.create(waypoints=waypoints,
-                                     starting_line=self._create_waypoint(validated_data.pop("starting_line")),
                                      landing_gate=self._create_waypoint(validated_data.pop("landing_gate")),
                                      takeoff_gate=self._create_waypoint(validated_data.pop("takeoff_gate")),
                                      **validated_data)
@@ -100,9 +101,8 @@ class RouteSerialiser(serializers.ModelSerializer):
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
         instance.waypoints = waypoints
-        instance.starting_line = self._create_waypoint(validated_data["starting_line"])
-        instance.london_gate = self._create_waypoint(validated_data["landing_gate"])
-        instance.takeoff_gate = self._create_waypoint(validated_data["takeoff_gate"])
+        instance.landing_gate = self._create_waypoint(validated_data.get("landing_gate"))
+        instance.takeoff_gate = self._create_waypoint(validated_data.get("takeoff_gate"))
         return instance
 
 
@@ -112,19 +112,96 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
+    class Meta:
+        model = Person
+        fields = "__all__"
+
+
+class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
+    class Meta:
+        model = Club
+        fields = "__all__"
+
+
 class CrewSerialiser(serializers.ModelSerializer):
+    member1 = PersonSerialiser()
+    member2 = PersonSerialiser(required=False)
+
     class Meta:
         model = Crew
         fields = "__all__"
 
+    def create(self, validated_data):
+        member1 = validated_data.pop("member1")
+        first_name = member1.get("first_name")
+        last_name = member1.get("last_name")
+        member1_instance, _ = Person.objects.get_or_create(first_name=first_name, last_name=last_name)
+        member1_serialiser = PersonSerialiser(instance=member1_instance, data=member1)
+        member1_serialiser.is_valid(True)
+        member1_object = member1_serialiser.save()
+        member2 = validated_data.pop("member2", None)
+        member2_object = None
+        if member2:
+            member2_instance, _ = Person.objects.get_or_create(first_name=first_name, last_name=last_name)
+            member2_serialiser = PersonSerialiser(instance=member2_instance, data=member2)
+            member2_serialiser.is_valid(True)
+            member2_object = member2_serialiser.save()
+        crew, _ = Crew.objects.get_or_create(member1=member1_object, member2=member2_object)
+        return crew
 
-class TeamNestedSerialiser(serializers.ModelSerializer):
+    def update(self, instance, validated_data):
+        return self.create(validated_data)
+
+
+class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     aeroplane = AeroplaneSerialiser()
     crew = CrewSerialiser()
+    club = ClubSerialiser(required=False)
 
     class Meta:
         model = Team
         fields = "__all__"
+
+    def create(self, validated_data):
+        aeroplane, crew, club = self.nested_update(validated_data)
+        team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club, defaults=validated_data)
+        return team
+
+    def update(self, instance: Team, validated_data):
+        instance.aeroplane, instance.crew, instance.club = self.nested_update(validated_data)
+        instance.save()
+        return instance
+
+    @staticmethod
+    def nested_update(validated_data):
+        aeroplane_data = validated_data.pop("aeroplane")
+        try:
+            aeroplane_instance = Aeroplane.objects.get(registration=aeroplane_data.get("registration"))
+        except ObjectDoesNotExist:
+            aeroplane_instance = None
+        aeroplane_serialiser = AeroplaneSerialiser(instance=aeroplane_instance, data=aeroplane_data)
+        aeroplane_serialiser.is_valid(True)
+        aeroplane = aeroplane_serialiser.save()
+        crew_data = validated_data.pop("crew")
+        try:
+            crew_instance = Crew.objects.get(pk=crew_data.get("id"))
+        except ObjectDoesNotExist:
+            crew_instance = None
+        crew_serialiser = CrewSerialiser(instance=crew_instance, data=crew_data)
+        crew_serialiser.is_valid(True)
+        crew = crew_serialiser.save()
+        club = None
+        club_data = validated_data.pop("club", None)
+        if club_data:
+            try:
+                club_instance = Club.objects.get(pk=club_data.get("id"))
+            except ObjectDoesNotExist:
+                club_instance = None
+            club_serialiser = ClubSerialiser(instance=club_instance, data=club_data)
+            club_serialiser.is_valid(True)
+            club = club_serialiser.save()
+        return aeroplane, crew, club
 
 
 class ScorecardSerialiser(serializers.ModelSerializer):
@@ -197,7 +274,7 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
-                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                 help_text=lambda: "Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
     contestanttrack = ContestantTrackSerialiser(required=False)
 
@@ -207,28 +284,23 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
 
     def create(self, validated_data):
         team_data = validated_data.pop("team")
-        aeroplane_data = team_data.pop("aeroplane")
-        crew_data = team_data.pop("crew")
-        aeroplane, _ = Aeroplane.objects.get_or_create(defaults=aeroplane_data,
-                                                       registration=aeroplane_data["registration"])
-        crew, _ = Crew.objects.get_or_create(**crew_data)
-        team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
+        team_serialiser = TeamNestedSerialiser(data=team_data)
+        team_serialiser.is_valid(True)
+        team = team_serialiser.save()
         validated_data["navigation_task"] = self.context["navigation_task"]
         return Contestant.objects.create(**validated_data, team=team)
 
     def update(self, instance, validated_data):
         gate_times = validated_data.pop("gate_times", None)
         team_data = validated_data.pop("team", None)
-        if team_data:
-            aeroplane_data = team_data.pop("aeroplane", None)
-            crew_data = team_data.pop("crew", None)
-            if aeroplane_data and crew_data:
-                aeroplane, _ = Aeroplane.objects.get_or_create(defaults=aeroplane_data,
-                                                               registration=aeroplane_data["registration"])
-                crew, _ = Crew.objects.get_or_create(**crew_data)
-                team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
-                validated_data["team"] = team
-        validated_data["navigation_task"] = self.context["navigation_task"]
+        try:
+            team_instance = Team.objects.get(pk=team_data.get("id"))
+        except ObjectDoesNotExist:
+            team_instance = None
+        team_serialiser = TeamNestedSerialiser(instance=team_instance, data=team_data)
+        team_serialiser.is_valid(True)
+        team = team_serialiser.save()
+        validated_data.update({"navigation_task": self.context["navigation_task"], "team": team.pk})
 
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()

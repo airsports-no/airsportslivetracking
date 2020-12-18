@@ -43,7 +43,7 @@ const mapStateToProps = (state, props) => ({
             contestant: state.contestants[key]
         }
     }),
-    displayExpandedHeader: state.displayExpandedHeader
+    displayExpandedTrackingTable: state.displayExpandedTrackingTable
 })
 
 
@@ -178,7 +178,7 @@ class ConnectedContestantRankTable extends Component {
             {
                 dataField: "currentState",
                 text: "State",
-                hidden: !this.props.displayExpandedHeader,
+                hidden: !this.props.displayExpandedTrackingTable,
 
                 classes: function callback(cell, row, rowIndex, colIndex) {
                     return getTrackingStateBackgroundClass(cell)
@@ -188,17 +188,17 @@ class ConnectedContestantRankTable extends Component {
             {
                 dataField: "latestStatus",
                 text: "Latest status",
-                hidden: true//!this.props.displayExpandedHeader
+                hidden: true//!this.props.displayExpandedTrackingTable
             },
             {
                 dataField: "lastGate",
                 text: "Gate",
-                hidden: !this.props.displayExpandedHeader
+                hidden: !this.props.displayExpandedTrackingTable
             },
             {
                 dataField: "lastGateTimeOffset",
                 text: "Offset",
-                hidden: !this.props.displayExpandedHeader
+                hidden: !this.props.displayExpandedTrackingTable
             }
         ]
 

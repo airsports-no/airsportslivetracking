@@ -1,5 +1,11 @@
 import React, {Component} from "react";
-import {displayAllTracks, fetchNavigationTask, setDisplay, toggleExpandedHeader} from "../actions";
+import {
+    displayAllTracks,
+    expandTrackingTable,
+    fetchNavigationTask,
+    setDisplay,
+    shrinkTrackingTable,
+} from "../actions";
 import {connect} from "react-redux";
 import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
 import ContestantTrack from "./contestantTrack";
@@ -17,7 +23,7 @@ const L = window['L']
 const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
     currentDisplay: state.currentDisplay,
-    displayExpandedHeader: state.displayExpandedHeader
+    displayExpandedTrackingTable: state.displayExpandedTrackingTable
 })
 
 class ConnectedNavigationTask extends Component {
@@ -28,10 +34,6 @@ class ConnectedNavigationTask extends Component {
         this.handleMapTurningPointClick = this.handleMapTurningPointClick.bind(this)
         this.toggleExpandedTable = this.toggleExpandedTable.bind(this)
         this.rendered = false
-    }
-
-    toggleExpandedTable() {
-        this.props.toggleExpandedHeader()
     }
 
     handleMapTurningPointClick(turningPoint) {
@@ -156,32 +158,34 @@ class ConnectedNavigationTask extends Component {
     render() {
         if (this.props.navigationTask.contestant_set !== undefined) {
             const colourMap = this.buildColourMap()
-            let tableDisplay = <div/>
-            if (this.props.displayTable) {
-                let display = <div/>
-                if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
-                    display = <ContestantRankTable colourMap={colourMap}
-                                                   numberOfContestants={this.props.navigationTask.contestant_set.length}/>
-                } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
-                    display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
-                } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
-                    display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}
-                                                   colourMap={colourMap}/>
-                }
-                tableDisplay = <div>
-                    <div className={"card text-light collapse bg-dark"} id={"insetMenu"} aria-expanded={false}
-                         aria-controls={"insetMenu"}>
-                        <h3 className={'taskTitle'}>{this.props.navigationTask.name}</h3>
-                        <a className={"shrinkLink"} href={"#"}
-                           onClick={this.toggleExpandedTable}>{this.props.displayExpandedHeader ? "<<<" : ">>>"}</a>
-                        {/*<a href={"#"} onClick={this.resetToAllContestants}>*/}
-                        {/*    <h1>{this.props.navigationTask.name}</h1></a>*/}
-                        {this.props.displayMap ? <div/> : <TurningPointLinks/>}
-                        {display}
+            let display = <div/>
+            if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
+                display = <ContestantRankTable colourMap={colourMap}
+                                               numberOfContestants={this.props.navigationTask.contestant_set.length}/>
+            } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
+                display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
+                this.props.shrinkTrackingTable();
+            } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
+                display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}
+                                               colourMap={colourMap}/>
+                this.props.shrinkTrackingTable();
+            }
+            const tableDisplay = <div>
+                <div className={"card text-light collapse bg-dark"} id={"insetMenu"} aria-expanded={false}
+                     aria-controls={"insetMenu"}>
+                    <div className={"card-body"}>
+                        <div className={"card-title"}><a href={"#"} onClick={this.resetToAllContestants}><h3
+                            className={'taskTitle'}>{this.props.navigationTask.name}</h3></a>
+                            <a className={"shrinkLink"} href={"#"}
+                               onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ? "<<<" : ">>>"}</a>
+                        </div>
+                        <div className={"card–text"}>
+                            {display}
+                        </div>
                     </div>
                 </div>
-            }
-            let mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
+            </div>
+            const mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
                 return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}
                                         contestant={contestant} contestId={this.props.contestId}
                                         navigationTaskId={this.props.navigationTaskId}
@@ -202,6 +206,7 @@ const NavigationTask = connect(mapStateToProps, {
     fetchNavigationTask,
     setDisplay,
     displayAllTracks,
-    toggleExpandedHeader
+    expandTrackingTable,
+    shrinkTrackingTable
 })(ConnectedNavigationTask);
 export default NavigationTask;

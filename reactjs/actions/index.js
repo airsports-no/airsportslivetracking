@@ -4,7 +4,8 @@ import {
     GET_NAVIGATION_TASK_SUCCESSFUL,
     GET_CONTESTANT_DATA_SUCCESSFUL,
     SET_DISPLAY,
-    TOGGLE_EXPANDED_HEADER,
+    EXPAND_TRACKING_TABLE,
+    SHRINK_TRACKING_TABLE, 
     GET_CONTESTANT_DATA_FAILED,
     GET_CONTESTANT_DATA_REQUEST,
     INITIAL_LOADING,
@@ -23,8 +24,12 @@ export function displayAllTracks() {
     return {type: DISPLAY_ALL_TRACKS}
 }
 
-export function toggleExpandedHeader() {
-    return {type: TOGGLE_EXPANDED_HEADER}
+export function expandTrackingTable(){
+    return {type: EXPAND_TRACKING_TABLE}
+}
+
+export function shrinkTrackingTable(){
+    return {type: SHRINK_TRACKING_TABLE}
 }
 
 export function initialLoading(contestantId) {

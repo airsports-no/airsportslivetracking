@@ -70,8 +70,7 @@ def create_route_from_gpx(route_name: str, file) -> Route:
     calculate_and_update_legs(waypoints)
     insert_gate_ranges(waypoints)
 
-    starting_line = waypoints[0]
-    object = Route(name=route_name, waypoints=waypoints, starting_line=starting_line, takeoff_gate=takeoff_gate,
+    object = Route(name=route_name, waypoints=waypoints, takeoff_gate=takeoff_gate,
                    landing_gate=landing_gate)
     object.save()
     return object
@@ -121,8 +120,7 @@ def create_route_from_csv(route_name: str, lines: List[str]) -> Route:
     calculate_and_update_legs(waypoint_list)
     insert_gate_ranges(waypoint_list)
 
-    starting_line = waypoint_list[0]
-    object = Route(name=route_name, waypoints=waypoint_list, starting_line=starting_line)
+    object = Route(name=route_name, waypoints=waypoint_list)
     object.save()
     return object
 

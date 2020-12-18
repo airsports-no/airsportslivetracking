@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 import gpxpy
 import requests
 
+from display.convert_flightcontest_gpx import create_route_from_gpx
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -61,8 +62,10 @@ aeroplane = Aeroplane.objects.first()
 contest_start_time = datetime.datetime(2014, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2014, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="WPFC 2017", is_public=True)
+with open("../data/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
+    route = create_route_from_gpx("2017 Route-1-Blue", file)
 navigation_task = NavigationTask.objects.create(name="Route-1-Blue ", contest=contest,
-                                                route=Route.objects.get(name="2017 Route-1-Blue"),
+                                                route=route,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
                                                 is_public=True)
 

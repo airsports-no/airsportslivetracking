@@ -7,10 +7,11 @@ from django.contrib.auth.models import User, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.test import TransactionTestCase
 from guardian.shortcuts import assign_perm
+from rest_framework import status
 from rest_framework.test import APITestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Contest, NavigationTask
+from display.models import Contest, NavigationTask, Team, Crew
 from display.serialisers import ExternalNavigationTaskNestedSerialiser
 
 data = {
@@ -46,9 +47,12 @@ data = {
                     "registration": "LN-YDB",
                 },
                 "crew": {
-                    "pilot": "pilot"
+                    "member1": {
+                        "first_name": "first_name",
+                        "last_name": "last_name"
+                    }
                 },
-                "nation": "Norway"
+                "country": "NO"
             },
             "traccar_device_name": "Anders",
             "tracker_start_time": "0001-01-01T00:00:00Z",
@@ -82,12 +86,15 @@ data = {
             "takeoff_time": "2020-08-01T08:10:00Z",
             "team": {
                 "aeroplane": {
-                    "registration": "LN-YDB",
+                    "registration": "LN-YDB2",
                 },
                 "crew": {
-                    "pilot": "pilot"
+                    "member1": {
+                        "first_name": "first_name",
+                        "last_name": "last_name"
+                    }
                 },
-                "nation": "Norway"
+                "country": "SE"
             },
             "traccar_device_name": "tracker_1",
             "tracker_start_time": "2020-08-01T08:00:00Z",
@@ -116,28 +123,10 @@ expected_route = {
                      'latitude': 48.0995277778,
                      'longitude': 16.9350833333,
                      'name': 'LDG',
-                     'planning_test': True,
                      'time_check': True,
                      'type': 'ldg',
                      'width': 0.25},
     'name': 'NM contest',
-    'starting_line': {'bearing_from_previous': -1.0,
-                      'bearing_next': 310.28526298769185,
-                      'distance_next': 7314.404139654599,
-                      'distance_previous': -1.0,
-                      'elevation': 1000.0,
-                      'end_curved': False,
-                      'gate_check': True,
-                      'gate_line': [[48.120434854845, 17.0221104171],
-                                    [48.133154034045, 17.0382461375]],
-                      'is_procedure_turn': False,
-                      'latitude': 48.126794444445,
-                      'longitude': 17.0301777778,
-                      'name': 'SP',
-                      'planning_test': True,
-                      'time_check': True,
-                      'type': 'sp',
-                      'width': 1.0},
     'takeoff_gate': {'bearing_from_previous': -1.0,
                      'bearing_next': -1.0,
                      'distance_next': -1.0,
@@ -151,7 +140,6 @@ expected_route = {
                      'latitude': 48.0995277778,
                      'longitude': 16.9350833333,
                      'name': 'T/O',
-                     'planning_test': True,
                      'time_check': True,
                      'type': 'to',
                      'width': 0.25},
@@ -168,7 +156,6 @@ expected_route = {
                    'latitude': 48.126794444445,
                    'longitude': 17.0301777778,
                    'name': 'SP',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'sp',
                    'width': 1.0},
@@ -185,7 +172,6 @@ expected_route = {
                    'latitude': 48.1693027833,
                    'longitude': 16.9549388833,
                    'name': 'SC1',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -202,7 +188,6 @@ expected_route = {
                    'latitude': 48.1997333333,
                    'longitude': 16.90100275,
                    'name': 'TP1',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'tp',
                    'width': 1.0},
@@ -219,7 +204,6 @@ expected_route = {
                    'latitude': 48.25126945,
                    'longitude': 16.86685555,
                    'name': 'SC2',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -236,7 +220,6 @@ expected_route = {
                    'latitude': 48.3406389,
                    'longitude': 16.80748055,
                    'name': 'SC3',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -253,7 +236,6 @@ expected_route = {
                    'latitude': 48.3659277833,
                    'longitude': 16.7906361333,
                    'name': 'TP2',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'tp',
                    'width': 1.0},
@@ -270,7 +252,6 @@ expected_route = {
                    'latitude': 48.37761945,
                    'longitude': 16.7948888833,
                    'name': 'SC4',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -287,7 +268,6 @@ expected_route = {
                    'latitude': 48.462130555555,
                    'longitude': 16.8256666667,
                    'name': 'SC5',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -304,7 +284,6 @@ expected_route = {
                    'latitude': 48.5362083333,
                    'longitude': 16.8527444167,
                    'name': 'SC6',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -321,7 +300,6 @@ expected_route = {
                    'latitude': 48.5749638833,
                    'longitude': 16.8669389167,
                    'name': 'TP3',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'tp',
                    'width': 1.0},
@@ -338,7 +316,6 @@ expected_route = {
                    'latitude': 48.56695,
                    'longitude': 16.73116945,
                    'name': 'SC7',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -355,7 +332,6 @@ expected_route = {
                    'latitude': 48.5612278,
                    'longitude': 16.63649725,
                    'name': 'SC8',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -372,7 +348,6 @@ expected_route = {
                    'latitude': 48.5496638333,
                    'longitude': 16.4483777667,
                    'name': 'TP4',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'tp',
                    'width': 1.0},
@@ -389,7 +364,6 @@ expected_route = {
                    'latitude': 48.4844444667,
                    'longitude': 16.4556388833,
                    'name': 'SC9',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -406,7 +380,6 @@ expected_route = {
                    'latitude': 48.4452,
                    'longitude': 16.4597777667,
                    'name': 'SC10',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -423,7 +396,6 @@ expected_route = {
                    'latitude': 48.3638666667,
                    'longitude': 16.4690305667,
                    'name': 'TP5',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'tp',
                    'width': 1.0},
@@ -440,7 +412,6 @@ expected_route = {
                    'latitude': 48.37745,
                    'longitude': 16.5175277667,
                    'name': 'SC11',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -457,7 +428,6 @@ expected_route = {
                    'latitude': 48.4125916667,
                    'longitude': 16.6434555667,
                    'name': 'TP6',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'tp',
                    'width': 1.0},
@@ -474,7 +444,6 @@ expected_route = {
                    'latitude': 48.3275222167,
                    'longitude': 16.6747694667,
                    'name': 'SC12',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -491,7 +460,6 @@ expected_route = {
                    'latitude': 48.26191945,
                    'longitude': 16.6988388667,
                    'name': 'SC13',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -508,7 +476,6 @@ expected_route = {
                    'latitude': 48.2458833333,
                    'longitude': 16.7047222167,
                    'name': 'TP7',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'tp',
                    'width': 1.0},
@@ -525,7 +492,6 @@ expected_route = {
                    'latitude': 48.2078722167,
                    'longitude': 16.7584555,
                    'name': 'SC14',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'secret',
                    'width': 1.0},
@@ -542,7 +508,6 @@ expected_route = {
                    'latitude': 48.1531861167,
                    'longitude': 16.835675,
                    'name': 'FP',
-                   'planning_test': True,
                    'time_check': True,
                    'type': 'fp',
                    'width': 1.0}]}
@@ -589,12 +554,25 @@ class TestImportFCNavigationTask(APITestCase):
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data, format="json")
         print(res.content)
-        self.assertEqual(200, res.status_code, "Failed to POST importnavigationtask")
+        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
         navigation_task_id = res.json()["id"]
         print(res.json())
         task = self.client.get("/api/v1/contests/{}/navigationtasks/{}/".format(self.contest.pk, navigation_task_id))
-        self.assertEqual(200, task.status_code, "Failed to GET navigationtask")
+        self.assertEqual(status.HTTP_200_OK, task.status_code, "Failed to GET navigationtask")
         self.assertEqual(len(data["contestant_set"]), len(task.json()["contestant_set"]))
+        teams = Team.objects.all()
+        crew = Crew.objects.all()
+        self.assertEqual(1, len(crew))
+        self.assertEqual(2, len(teams))
+        crew = crew.first()
+        for team in teams:
+            self.assertEqual(crew, team.crew)
+            print(team.country)
+            self.assertTrue(team.aeroplane.registration in ("LN-YDB", "LN-YDB2"))
+            if team.aeroplane.registration == "LN-YDB2":
+                self.assertEqual("SE", team.country.code)
+            else:
+                self.assertEqual("NO", team.country.code)
         for index, contestant in enumerate(task.json()["contestant_set"]):
             self.assertDictEqual(data["contestant_set"][index]["gate_times"], contestant["gate_times"])
         route = task.json()["route"]
@@ -608,4 +586,4 @@ class TestImportFCNavigationTask(APITestCase):
             data = json.load(i)
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data, format="json")
-        self.assertEqual(200, res.status_code, "Failed to POST importnavigationtask")
+        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")

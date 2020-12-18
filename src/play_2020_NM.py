@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 import gpxpy
 import requests
 
+from display.convert_flightcontest_gpx import create_route_from_csv
 from playback_tools import build_traccar_track, load_data_traccar
 from traccar_facade import Traccar
 
@@ -73,8 +74,11 @@ aeroplane = Aeroplane.objects.first()
 contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="NM 2020", is_public=True)
+with open("/data/NM.csv", "r") as file:
+    route = create_route_from_csv("NM 2020", file.readlines()[1:])
+
 navigation_task = NavigationTask.objects.create(name="NM 2020 ", contest=contest,
-                                                route=Route.objects.get(name="NM 2020"),
+                                                route=route,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
                                                 is_public=True)
 

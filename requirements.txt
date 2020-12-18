@@ -32,3 +32,4 @@ djangorestframework-guardian
 drf-nested-routers
 nvector
 pyproj
+django-countries

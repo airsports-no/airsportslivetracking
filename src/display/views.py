@@ -273,7 +273,7 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
     permission_classes = [
         NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)]
 
-    http_method_names = ['get', 'post', 'delete', 'put']
+    http_method_names = ['get', 'post', 'delete']
 
     def get_queryset(
             self):

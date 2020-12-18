@@ -1,5 +1,4 @@
 import {
-    ADD_CONTESTANT,
     DISPLAY_ALL_TRACKS,
     DISPLAY_TRACK_FOR_CONTESTANT,
     EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
@@ -7,7 +6,8 @@ import {
     GET_CONTESTANT_DATA_SUCCESSFUL,
     HIDE_ALL_TRACKS,
     SET_DISPLAY,
-    TOGGLE_EXPANDED_HEADER,
+    EXPAND_TRACKING_TABLE,
+    SHRINK_TRACKING_TABLE,
     GET_CONTESTANT_DATA_REQUEST,
     GET_CONTESTANT_DATA_FAILED,
     INITIAL_LOADING_COMPLETE, INITIAL_LOADING, CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL
@@ -20,7 +20,7 @@ const initialState = {
     contestants: {},
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
     displayTracks: null,
-    displayExpandedHeader: false,
+    displayExpandedTrackingTable: false,
     isFetchingContestantData: {},
     initialLoadingContestantData: {},
 };
@@ -142,9 +142,14 @@ function rootReducer(state = initialState, action) {
             displayTracks: [action.payload.contestantId]
         });
     }
-    if (action.type === TOGGLE_EXPANDED_HEADER) {
+    if (action.type === EXPAND_TRACKING_TABLE) {
         return Object.assign({}, state, {
-            displayExpandedHeader: !state.displayExpandedHeader
+            displayExpandedTrackingTable: true
+        });
+    }
+    if (action.type === SHRINK_TRACKING_TABLE) {
+        return Object.assign({}, state, {
+            displayExpandedTrackingTable: false
         });
     }
     return state;

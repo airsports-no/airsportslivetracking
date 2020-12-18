@@ -31,9 +31,12 @@
           "registration": "LN-YDB"
         },
         "crew": {
-          "pilot": "pilot"
+          "member1": {
+            "first_name": "first_name",
+            "last_name": "last_name"
+          }
         },
-        "nation": "Norway"
+        "country": "NO"
       },
       "traccar_device_name": "Anders",
       "tracker_start_time": "0001-01-01T00:00:00Z",
@@ -67,12 +70,15 @@
       "takeoff_time": "2020-08-01T08:10:00Z",
       "team": {
         "aeroplane": {
-          "registration": "LN-YDB"
+          "registration": "LN-YDB2"
         },
         "crew": {
-          "pilot": "pilot"
+          "member1": {
+            "first_name": "first_name",
+            "last_name": "last_name"
+          }
         },
-        "nation": "Norway"
+        "country": "NO"
       },
       "traccar_device_name": "tracker_1",
       "tracker_start_time": "2020-08-01T08:00:00Z",

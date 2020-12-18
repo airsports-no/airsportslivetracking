@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'webpack_loader',
     'drf_yasg',
     "solo",
-    "guardian"
+    "guardian",
+    "django_countries"
 ]
 
 MIDDLEWARE = [

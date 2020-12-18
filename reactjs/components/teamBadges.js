@@ -27,6 +27,28 @@ export class TeamBadge extends Component {
     }
 }
 
+// export class LowerThirdTeam extends Component{
+//     render(){
+//         if (!this.props.team) return null
+//         return <div className={"lowerThirds"}>
+//             <div className={"card"}>
+//                 <div className={"row"}>
+//                     <div className={"col-2"}/>
+//                         <img className={"col-5"} src={this.props.team.crew.pilot}/>
+//
+//                 <div className={"card-body"}>
+//                     <div className={"card-title row"}>
+//                         <div className={"col-1"}>
+//                             <img src={this.props.team.picture}/>
+//                         </div>
+//                         <div className={co}
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//
+// }
+
 export class TeamMembers extends Component{
     render(){
         return <div>

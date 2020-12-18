@@ -785,40 +785,6 @@ print(json.dumps({
             "is_procedure_turn": True
         }
     ],
-    "starting_line": {
-        "name": "SP",
-        "latitude": 48.126794444445,
-        "longitude": 17.0301777778,
-        "elevation": 1000,
-        "width": 1,
-        "gate_line": [
-            [
-                48.120434854845,
-                17.0221104171
-            ],
-            [
-                48.133154034045,
-                17.0382461375
-            ]
-        ],
-        "gate_line_infinite": [
-            [
-                47.865752399404855,
-                16.701281287358672
-            ],
-            [
-                48.386889111500174,
-                17.36242749989912
-            ]
-        ],
-        "time_check": True,"planning_test":True, 
-        "gate_check": True,
-        "end_curved": False,
-        "type": "sp",
-        "distance_next": 7314.404139654599,
-        "bearing_next": 310.28526298769185,
-        "is_procedure_turn": False
-    },
     "landing_gate": {
         "name": "LDG",
         "latitude": 48.0995277778,

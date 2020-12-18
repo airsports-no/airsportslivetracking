@@ -1,0 +1,5 @@
+mysql -ptraccar
+drop database tracker;
+CREATE DATABASE IF NOT EXISTS tracker;
+GRANT ALL PRIVILEGES ON *.* To 'tracker'@'%';
+FLUSH PRIVILEGES;

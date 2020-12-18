@@ -32,7 +32,6 @@ line = {
 NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.utcnow(),
                         "finish_time": datetime.datetime.utcnow(), "route": {
         "waypoints": [],
-        "starting_line": line,
         "takeoff_gate": line,
         "landing_gate": line,
         "name": "name"

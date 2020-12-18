@@ -9,8 +9,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
 # Create your models here.
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
+from django_countries.fields import CountryField
 from rest_framework.exceptions import ValidationError
 from solo.models import SingletonModel
 
@@ -49,7 +50,6 @@ class Aeroplane(models.Model):
 class Route(models.Model):
     name = models.CharField(max_length=200)
     waypoints = MyPickledObjectField(default=list)
-    starting_line = MyPickledObjectField(default=list)
     takeoff_gate = MyPickledObjectField(default=None, null=True)
     landing_gate = MyPickledObjectField(default=None, null=True)
 
@@ -59,8 +59,7 @@ class Route(models.Model):
     @classmethod
     def create(cls, name: str, waypoints: List[Dict]) -> "Route":
         waypoints = cls.add_gate_data(waypoints)
-        starting_line = cls.create_starting_line(waypoints)
-        object = cls(name=name, waypoints=waypoints, starting_line=starting_line)
+        object = cls(name=name, waypoints=waypoints)
         object.save()
         return object
 
@@ -97,10 +96,6 @@ class Route(models.Model):
                                                                           40 * 1852)
 
         return waypoints
-
-    @staticmethod
-    def create_starting_line(gates) -> Dict:
-        return gates[0]
 
 
 def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
@@ -140,23 +135,43 @@ def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
     return [[x1, y1], [x2, y2]]
 
 
-class Crew(models.Model):
-    pilot = models.CharField(max_length=200)
-    navigator = models.CharField(max_length=200, blank=True)
-    pilot_picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
-    navigator_picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
+class Person(models.Model):
+    first_name = models.CharField(max_length=200)
+    last_name = models.CharField(max_length=200)
+    picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
+    biography = models.TextField(blank=True)
+    country = CountryField(blank=True)
 
     def __str__(self):
-        if len(self.navigator) > 0:
-            return "{} and {}".format(self.pilot, self.navigator)
-        return "{}".format(self.pilot)
+        return "{} {}".format(self.first_name, self.last_name)
+
+
+
+class Crew(models.Model):
+    member1 = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="crewmember_one")
+    member2 = models.ForeignKey(Person, on_delete=models.PROTECT, null=True, blank=True, related_name="crewmember_two")
+
+    def __str__(self):
+        if self.member2:
+            return "{} and {}".format(self.member1, self.member2)
+        return "{}".format(self.member1)
+
+
+class Club(models.Model):
+    name = models.CharField(max_length=200)
+    country = CountryField(blank=True)
+    logo = models.ImageField(upload_to='images/clubs/', null=True, blank=True)
+
+    class Meta:
+        unique_together = ("name", "country")
 
 
 class Team(models.Model):
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.PROTECT)
     crew = models.ForeignKey(Crew, on_delete=models.PROTECT)
-    nation = models.CharField(max_length=100)
-    picture = models.ImageField(upload_to='images/teams/', null=True, blank=True)
+    logo = models.ImageField(upload_to='images/teams/', null=True, blank=True)
+    country = CountryField(blank=True)
+    club = models.ForeignKey(Club, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return "{} in {}".format(self.crew, self.aeroplane)
@@ -192,7 +207,7 @@ class NavigationTask(models.Model):
     calculator_type = models.IntegerField(choices=NAVIGATION_TASK_TYPES, default=PRECISION,
                                           help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
                                               NAVIGATION_TASK_TYPES))
-    route = models.ForeignKey(Route, on_delete=models.PROTECT)
+    route = models.OneToOneField(Route, on_delete=models.PROTECT)
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(
@@ -348,7 +363,8 @@ class Contestant(models.Model):
         overlapping_trackers = Contestant.objects.filter(tracking_service=self.tracking_service,
                                                          traccar_device_name=self.traccar_device_name,
                                                          tracker_start_time__lte=self.finished_by_time,
-                                                         finished_by_time__gte=self.tracker_start_time).exclude(pk = self.pk)
+                                                         finished_by_time__gte=self.tracker_start_time).exclude(
+            pk=self.pk)
         if overlapping_trackers.count() > 0:
             intervals = []
             for contestant in overlapping_trackers:
@@ -525,3 +541,8 @@ def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs
 @receiver(pre_save, sender=Contestant)
 def validate_contestant(sender, instance: Contestant, **kwargs):
     instance.clean()
+
+
+@receiver(post_delete, sender=NavigationTask)
+def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, **kwargs):
+    instance.route.delete()

@@ -31,7 +31,6 @@ line = {
 NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.utcnow(),
                         "finish_time": datetime.datetime.utcnow(), "route": {
         "waypoints": [],
-        "starting_line": line,
         "takeoff_gate": line,
         "landing_gate": line,
         "name": "name"
@@ -270,7 +269,6 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
-
 
     def test_delete_navigation_task_without_login(self):
         self.client.logout()
