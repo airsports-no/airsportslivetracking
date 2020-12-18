@@ -142,6 +142,12 @@ class Person(models.Model):
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
 
+    @property
+    def country_flag_url(self):
+        if self.country:
+            return self.country.flag
+        return None
+
     def __str__(self):
         return "{} {}".format(self.first_name, self.last_name)
 
@@ -165,6 +171,11 @@ class Club(models.Model):
     class Meta:
         unique_together = ("name", "country")
 
+    @property
+    def country_flag_url(self):
+        if self.country:
+            return self.country.flag
+        return None
 
 class Team(models.Model):
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.PROTECT)
@@ -176,6 +187,11 @@ class Team(models.Model):
     def __str__(self):
         return "{} in {}".format(self.crew, self.aeroplane)
 
+    @property
+    def country_flag_url(self):
+        if self.country:
+            return self.country.flag
+        return None
 
 class Contest(models.Model):
     DESCENDING = "desc"

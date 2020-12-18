@@ -14,8 +14,7 @@ from display.waypoint import Waypoint
 logger = logging.getLogger(__name__)
 
 
-def create_route_from_gpx(route_name: str, file) -> Route:
-    logger.debug("Loading GPX route {}".format(route_name))
+def create_route_from_gpx(file) -> Route:
     gpx = gpxpy.parse(file)
     waypoints = []
     waypoint_map = {}
@@ -29,6 +28,8 @@ def create_route_from_gpx(route_name: str, file) -> Route:
                 # for point in route.points:
                 # print('Point {3} at ({0},{1}) -> {2}'.format(point.latitude, point.longitude, point.elevation,
                 #                                              point.name))
+                route_name = route.name
+                logger.info("Loading GPX route {}".format(route_name))
                 for point in route.points:
                     waypoint_map[point.name] = Waypoint(point.name)
                     waypoints.append(waypoint_map[point.name])

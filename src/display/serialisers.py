@@ -111,12 +111,16 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
 
 
 class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
+    country_flag_url = serializers.CharField(max_length=200)
+
     class Meta:
         model = Person
         fields = "__all__"
 
 
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
+    country_flag_url = serializers.CharField(max_length=200)
+
     class Meta:
         model = Club
         fields = "__all__"
@@ -153,6 +157,7 @@ class CrewSerialiser(serializers.ModelSerializer):
 
 
 class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
+    country_flag_url = serializers.CharField(max_length=200)
     aeroplane = AeroplaneSerialiser()
     crew = CrewSerialiser()
     club = ClubSerialiser(required=False)
@@ -357,7 +362,7 @@ class ExternalNavigationTaskNestedSerialiser(serializers.ModelSerializer):
     def create(self, validated_data):
         contestant_set = validated_data.pop("contestant_set", [])
         route_file = validated_data.pop("route_file", None)
-        route = create_route_from_gpx(validated_data["name"], base64.decodebytes(route_file.encode("utf-8")))
+        route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")))
         user = self.context["request"].user
         validated_data["contest"] = self.context["contest"]
         validated_data["route"] = route

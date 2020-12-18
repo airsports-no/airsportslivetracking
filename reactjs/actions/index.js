@@ -5,15 +5,23 @@ import {
     GET_CONTESTANT_DATA_SUCCESSFUL,
     SET_DISPLAY,
     EXPAND_TRACKING_TABLE,
-    SHRINK_TRACKING_TABLE, 
+    SHRINK_TRACKING_TABLE,
     GET_CONTESTANT_DATA_FAILED,
     GET_CONTESTANT_DATA_REQUEST,
     INITIAL_LOADING,
-    INITIAL_LOADING_COMPLETE, CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL
+    INITIAL_LOADING_COMPLETE, CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL, SHOW_LOWER_THIRDS, HIDE_LOWER_THIRDS
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
     return {type: SET_DISPLAY, payload}
+}
+
+export function showLowerThirds(contestantId) {
+    return {type: SHOW_LOWER_THIRDS, contestantId: contestantId}
+}
+
+export function hideLowerThirds() {
+    return {type: HIDE_LOWER_THIRDS}
 }
 
 export function displayOnlyContestantTrack(contestantId) {
@@ -24,11 +32,11 @@ export function displayAllTracks() {
     return {type: DISPLAY_ALL_TRACKS}
 }
 
-export function expandTrackingTable(){
+export function expandTrackingTable() {
     return {type: EXPAND_TRACKING_TABLE}
 }
 
-export function shrinkTrackingTable(){
+export function shrinkTrackingTable() {
     return {type: SHRINK_TRACKING_TABLE}
 }
 

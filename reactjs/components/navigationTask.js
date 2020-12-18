@@ -5,6 +5,7 @@ import {
     fetchNavigationTask,
     setDisplay,
     shrinkTrackingTable,
+    hideLowerThirds
 } from "../actions";
 import {connect} from "react-redux";
 import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
@@ -16,6 +17,7 @@ import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} 
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
 import TurningPointLinks from "./turningPointLinks";
 import TurningPointDisplay from "./turningPointDisplay";
+import {LowerThirdTeam} from "./teamBadges";
 
 const L = window['L']
 
@@ -23,7 +25,7 @@ const L = window['L']
 const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
     currentDisplay: state.currentDisplay,
-    displayExpandedTrackingTable: state.displayExpandedTrackingTable
+    displayExpandedTrackingTable: state.displayExpandedTrackingTable,
 })
 
 class ConnectedNavigationTask extends Component {
@@ -45,6 +47,7 @@ class ConnectedNavigationTask extends Component {
     resetToAllContestants() {
         this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
         this.props.displayAllTracks();
+        this.props.hideLowerThirds();
     }
 
     fetchNavigationTask() {
@@ -206,6 +209,7 @@ const NavigationTask = connect(mapStateToProps, {
     setDisplay,
     displayAllTracks,
     expandTrackingTable,
-    shrinkTrackingTable
+    shrinkTrackingTable,
+    hideLowerThirds
 })(ConnectedNavigationTask);
 export default NavigationTask;

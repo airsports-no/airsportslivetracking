@@ -3,12 +3,15 @@ import NavigationTask from "./navigationTask";
 import {connect} from "react-redux";
 import React, {Component} from "react";
 import TrackLoadingIndicator from "./trackLoadingIndicator";
+import {LowerThirdTeam} from "./teamBadges";
 
 // import "leaflet/dist/leaflet.css"
 
 const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
-    displayExpandedTrackingTable: state.displayExpandedTrackingTable
+    displayExpandedTrackingTable: state.displayExpandedTrackingTable,
+    displayLowerThirds: state.displayLowerThirds,
+    contestants: state.contestants,
 })
 
 class ConnectedTrackingContainer extends Component {
@@ -77,6 +80,9 @@ class ConnectedTrackingContainer extends Component {
                             <div id="cesiumContainer"/>
                             <div
                                 className={"backdrop " + (this.props.displayExpandedTrackingTable ? "largeTable" : "compactTable")}>{TrackerDisplay}</div>
+                            {this.props.displayLowerThirds!==null ?
+                                <LowerThirdTeam contestant={this.props.contestants[this.props.displayLowerThirds]}/> : null}
+
                             {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
                             {/*</div>*/}
                         </div>

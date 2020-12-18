@@ -7,7 +7,7 @@ import "bootstrap/dist/css/bootstrap.min.css"
 import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
 import {
     displayOnlyContestantTrack,
-    setDisplay,
+    setDisplay, showLowerThirds,
 } from "../actions";
 import {Loading} from "./basicComponents";
 import {ProgressCircle, ProjectedScore} from "./contestantProgress";
@@ -58,6 +58,7 @@ class ConnectedContestantRankTable extends Component {
     handleContestantLinkClick(contestantId) {
         this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
         this.props.displayOnlyContestantTrack(contestantId)
+        this.props.showLowerThirds(contestantId)
     }
 
 
@@ -222,5 +223,6 @@ class ConnectedContestantRankTable extends Component {
 const ContestantRankTable = connect(mapStateToProps, {
     setDisplay,
     displayOnlyContestantTrack,
+    showLowerThirds
 })(ConnectedContestantRankTable)
 export default ContestantRankTable

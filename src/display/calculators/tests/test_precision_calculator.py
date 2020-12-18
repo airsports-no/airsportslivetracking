@@ -102,7 +102,7 @@ class TestFullTrack(TransactionTestCase):
 class Test2017WPFC(TransactionTestCase):
     def setUp(self):
         with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
-            route = create_route_from_gpx("navigation_task", file)
+            route = create_route_from_gpx(file)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")

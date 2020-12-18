@@ -197,7 +197,7 @@ def import_route(request):
                 data = [item.decode(encoding="UTF-8") for item in request.FILES['file'].readlines()]
                 route = create_route_from_csv(name, data[1:])
             elif file_type == form.FLIGHTCONTEST_GPX:
-                route = create_route_from_gpx(name, request.FILES["file"])
+                route = create_route_from_gpx(request.FILES["file"])
             if route is not None:
                 assign_perm("view_route", request.user, route)
                 assign_perm("delete_route", request.user, route)

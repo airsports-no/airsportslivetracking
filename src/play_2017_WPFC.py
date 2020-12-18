@@ -7,7 +7,6 @@ from urllib.parse import urlencode
 import gpxpy
 import requests
 
-from display.convert_flightcontest_gpx import create_route_from_gpx
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -15,8 +14,9 @@ if __name__ == "__main__":
 
     django.setup()
 
+from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack
+from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, Person
 from influx_facade import InfluxFacade
 from display.calculators.calculator_factory import calculator_factory
 
@@ -63,7 +63,7 @@ contest_start_time = datetime.datetime(2014, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2014, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="WPFC 2017", is_public=True)
 with open("../data/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
-    route = create_route_from_gpx("2017 Route-1-Blue", file)
+    route = create_route_from_gpx(file)
 navigation_task = NavigationTask.objects.create(name="Route-1-Blue ", contest=contest,
                                                 route=route,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
@@ -79,7 +79,7 @@ for file in glob.glob("../data/demo_contests/2017_WPFC/*_Results_*.gpx"):
     if contestant not in implemented:
         continue
 
-    crew, _ = Crew.objects.get_or_create(pilot=contestant, navigator="")
+    crew, _ = Crew.objects.get_or_create(member1=Person.objects.get_or_create(first_name=contestant, last_name="Pilot")[0])
     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
     start_time, speed, minutes_starting = contestants[contestant]
     print(start_time)

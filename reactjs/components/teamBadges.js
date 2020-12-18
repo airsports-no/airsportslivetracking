@@ -9,7 +9,7 @@ export class TeamBadge extends Component {
                 <div className={"card-body row"}>
                     <div className={'col-6'}>
                         <ProfilePicture picture={this.props.team.picture ? this.props.team.picture : question}
-                                             text={this.props.team.nation}/>
+                                        text={this.props.team.nation}/>
                     </div>
                     <div className={'col-6'}>
                         <div className={"card-title"}>
@@ -27,33 +27,67 @@ export class TeamBadge extends Component {
     }
 }
 
-// export class LowerThirdTeam extends Component{
-//     render(){
-//         if (!this.props.team) return null
-//         return <div className={"lowerThirds"}>
-//             <div className={"card"}>
-//                 <div className={"row"}>
-//                     <div className={"col-2"}/>
-//                         <img className={"col-5"} src={this.props.team.crew.pilot}/>
-//
-//                 <div className={"card-body"}>
-//                     <div className={"card-title row"}>
-//                         <div className={"col-1"}>
-//                             <img src={this.props.team.picture}/>
-//                         </div>
-//                         <div className={co}
-//                     </div>
-//                 </div>
-//             </div>
-//         </div>
-//
-// }
+function memberOnePicture(crew) {
+    return <img className={"lowerThirdsProfileImage"} src={crew.member1.picture}/>
+}
 
-export class TeamMembers extends Component{
-    render(){
+function memberTwoPicture(crew) {
+    return crew.member2 ? <img className={"lowerThirdsProfileImage"} src={crew.member2.picture}/> : null
+}
+
+function memberName(member) {
+    return <h3><img src={member.country_flag_url} className={"personalFlag"} alt={member.country}/> {member.first_name} {member.last_name.toUpperCase()}</h3>
+}
+
+
+export class LowerThirdTeam extends Component {
+    render() {
+        if (this.props.team === null) return null
+        return <div className={"lowerThirds"}>
+            <div className={"card-transparent"}>
+                <div className={"row"}>
+                    <div className={"col-4"}/>
+                    <div className={"col-4"}>
+                        {memberOnePicture(this.props.contestant.team.crew)}
+                    </div>
+                    <div className={"col-4"}>
+                        {memberTwoPicture(this.props.contestant.team.crew)}
+                    </div>
+                </div>
+                <div className={"card-body bg-dark text-light"}>
+                    <div className={"row"}>
+                        <div className={"col-3"}>
+                            <img className={"lowerThirdsTeamImage"} src={this.props.contestant.team.logo}/>
+                        </div>
+                        <div className={"col-9 nopadding"}>
+                            <div className={"row"}>
+                                <div className={"col-6 "}>
+                                    {memberName(this.props.contestant.team.crew.member1)}
+                                </div>
+                                <div className={"col-6 "}>
+                                    {this.props.contestant.team.crew.member2 !== null ? memberName(this.props.contestant.team.crew.member2) : null}
+                                </div>
+                            </div>
+                            <div className={"row"}>
+                                <div className={"col-12 text-center"}>
+                                    <h2>{this.props.contestant.team.club !== null ? this.props.contestant.team.club.name : null}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    }
+}
+
+export class TeamMembers
+    extends Component {
+    render() {
         return <div>
             Pilot: {this.props.crew.pilot}<br/>
-            {this.props.crew.navigator?"Navigator: " + this.props.crew.navigator:null}
+            {this.props.crew.navigator ? "Navigator: " + this.props.crew.navigator : null}
         </div>
     }
 }

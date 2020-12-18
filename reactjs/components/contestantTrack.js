@@ -5,7 +5,7 @@ import {
     fetchContestantData,
     initialLoading,
     initialLoadingComplete,
-    setDisplay
+    setDisplay, showLowerThirds
 } from "../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
@@ -55,8 +55,8 @@ class ConnectedContestantTrack extends Component {
         L.DomEvent.stopPropagation(e)
         this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
         this.props.displayOnlyContestantTrack(contestantId)
+        this.props.showLowerThirds(contestantId)
     }
-
 
 
     fetchNextData(scheduleNext) {
@@ -229,6 +229,7 @@ const ContestantTrack = connect(mapStateToProps, {
     initialLoading,
     initialLoadingComplete,
     setDisplay,
-    displayOnlyContestantTrack
+    displayOnlyContestantTrack,
+    showLowerThirds
 })(ConnectedContestantTrack);
 export default ContestantTrack;

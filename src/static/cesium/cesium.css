@@ -25,6 +25,36 @@
     z-index: 2;
 }
 
+.lowerThirds {
+    position: fixed;
+    width: 50%;
+    max-height: 400px;
+    bottom: 20px;
+    right: 150px;
+    z-index: 2;
+}
+
+.lowerThirdsProfileImage{
+    max-height: 200px;
+}
+
+.lowerThirdsTeamImage{
+    width: 100%;
+}
+
+.transparent {
+    background-color: transparent;
+}
+
+.nopadding{
+    padding: 0!important;
+    margin: 0!important;
+}
+
+.personalFlag{
+    width:40px;
+}
+
 .progressWheel {
     width: 45px;
     height: 45px;
@@ -51,14 +81,14 @@
     z-index: 2;
 }
 
-#returnLink{
+#returnLink {
     bottom: 20px;
     left: 20px;
     position: fixed;
     z-index: 2;
 }
 
-#returnLinkImage{
+#returnLinkImage {
     width: 200px;
 }
 
@@ -179,16 +209,14 @@ html, body {
 }
 
 
-
-
 /**
  * Profile image component
  */
-.team-badge{
+.team-badge {
     width: 400px;
 }
 
-.profile-header-container{
+.profile-header-container {
     margin: 0 auto;
     text-align: center;
 }
@@ -208,7 +236,7 @@ html, body {
 }
 
 
-.aircraft-header-container{
+.aircraft-header-container {
     margin: 0 auto;
     /*text-align: center;*/
 }

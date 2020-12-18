@@ -85,7 +85,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     contestant = os.path.splitext(os.path.basename(file))[0]
     print(contestant)
 
-    crew, _ = Crew.objects.get_or_create(member1=Person.objects.create(first_name=contestant, last_name="Pilot"))
+    crew, _ = Crew.objects.get_or_create(member1=Person.objects.get_or_create(first_name=contestant, last_name="Pilot")[0])
 
     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
     start_time, speed, _ = contestants[contestant]
