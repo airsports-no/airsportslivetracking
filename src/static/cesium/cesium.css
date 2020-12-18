@@ -4,7 +4,7 @@
     /*border-radius: 5px;*/
     /*border: 1px solid #444;*/
     /*padding: 5px 10px;*/
-    font-size: x-large;
+    font-size: large;
     overflow-y: auto;
     left: 70px;
     top: 40px;
@@ -27,15 +27,15 @@
 
 .lowerThirds {
     position: fixed;
-    width: 50%;
-    max-height: 400px;
+    width: 45%;
+    /*max-height: 30%;*/
     bottom: 20px;
     right: 150px;
     z-index: 2;
 }
 
 .lowerThirdsProfileImage{
-    max-height: 200px;
+    /*height: 30%;*/
 }
 
 .lowerThirdsTeamImage{

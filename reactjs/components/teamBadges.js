@@ -28,15 +28,16 @@ export class TeamBadge extends Component {
 }
 
 function memberOnePicture(crew) {
-    return <img className={"lowerThirdsProfileImage"} src={crew.member1.picture}/>
+    return <img className={"lowerThirdsProfileImage img-fluid"} src={crew.member1.picture}/>
 }
 
 function memberTwoPicture(crew) {
-    return crew.member2 ? <img className={"lowerThirdsProfileImage"} src={crew.member2.picture}/> : null
+    return crew.member2 ? <img className={"lowerThirdsProfileImage  img-fluid"} src={crew.member2.picture}/> : null
 }
 
 function memberName(member) {
-    return <h3><img src={member.country_flag_url} className={"personalFlag"} alt={member.country}/> {member.first_name} {member.last_name.toUpperCase()}</h3>
+    return <h4><img src={member.country_flag_url} className={"personalFlag img-fluid"}
+                    alt={member.country}/> {member.first_name} {member.last_name.toUpperCase()}</h4>
 }
 
 
@@ -57,7 +58,7 @@ export class LowerThirdTeam extends Component {
                 <div className={"card-body bg-dark text-light"}>
                     <div className={"row"}>
                         <div className={"col-3"}>
-                            <img className={"lowerThirdsTeamImage"} src={this.props.contestant.team.logo}/>
+                            <img className={"lowerThirdsTeamImage img-fluid rounded"} src={this.props.contestant.team.logo}/>
                         </div>
                         <div className={"col-9 nopadding"}>
                             <div className={"row"}>
@@ -70,7 +71,7 @@ export class LowerThirdTeam extends Component {
                             </div>
                             <div className={"row"}>
                                 <div className={"col-12 text-center"}>
-                                    <h2>{this.props.contestant.team.club !== null ? this.props.contestant.team.club.name : null}</h2>
+                                    <h4>{this.props.contestant.team.club !== null ? this.props.contestant.team.club.name : null}</h4>
                                 </div>
                             </div>
                         </div>
