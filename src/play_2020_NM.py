@@ -7,23 +7,21 @@ from urllib.parse import urlencode
 import gpxpy
 import requests
 
-from display.convert_flightcontest_gpx import create_route_from_csv
-from playback_tools import build_traccar_track, load_data_traccar
-from traccar_facade import Traccar
-
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
 
     django.setup()
 
+from display.convert_flightcontest_gpx import create_route_from_csv
+from playback_tools import build_traccar_track, load_data_traccar
+from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
-    TraccarCredentials
+    TraccarCredentials, Person
 from influx_facade import InfluxFacade
 
 influx = InfluxFacade()
-
 
 maximum_index = 0
 tracks = {}
@@ -63,14 +61,13 @@ for item in deleted:
     traccar.delete_device(item["id"])
     traccar.create_device(item["name"], item["uniqueId"])
 
-
 scorecard = get_default_scorecard()
 original_contest = Contest.objects.filter(name="NM 2020").first()
 if original_contest:
     for contestant in Contestant.objects.filter(navigation_task__contest=original_contest):
         influx.clear_data_for_contestant(contestant.pk)
-original_contest.delete()
-aeroplane = Aeroplane.objects.first()
+    original_contest.delete()
+aeroplane, _ = Aeroplane.objects.get_or_create(registration="LN-YDB")
 contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="NM 2020", is_public=True)
@@ -88,7 +85,8 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     contestant = os.path.splitext(os.path.basename(file))[0]
     print(contestant)
 
-    crew, _ = Crew.objects.get_or_create(pilot=contestant, navigator="")
+    crew, _ = Crew.objects.get_or_create(member1=Person.objects.create(first_name=contestant, last_name="Pilot"))
+
     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
     start_time, speed, _ = contestants[contestant]
     start_time = start_time - datetime.timedelta(hours=2)

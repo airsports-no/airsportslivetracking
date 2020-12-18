@@ -32,7 +32,6 @@ class ConnectedNavigationTask extends Component {
         this.state = {colourMap: {}}
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
         this.handleMapTurningPointClick = this.handleMapTurningPointClick.bind(this)
-        this.toggleExpandedTable = this.toggleExpandedTable.bind(this)
         this.rendered = false
     }
 

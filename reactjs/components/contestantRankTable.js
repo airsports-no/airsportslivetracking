@@ -8,11 +8,9 @@ import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
 import {
     displayOnlyContestantTrack,
     setDisplay,
-    toggleExpandedHeader
 } from "../actions";
 import {Loading} from "./basicComponents";
 import {ProgressCircle, ProjectedScore} from "./contestantProgress";
-import {CircularProgressbar, buildStyles} from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 
 var moment = require("moment");
@@ -224,6 +222,5 @@ class ConnectedContestantRankTable extends Component {
 const ContestantRankTable = connect(mapStateToProps, {
     setDisplay,
     displayOnlyContestantTrack,
-    toggleExpandedHeader
 })(ConnectedContestantRankTable)
 export default ContestantRankTable

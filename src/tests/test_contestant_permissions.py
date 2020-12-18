@@ -40,12 +40,15 @@ NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.utcnow()
 CONTESTANT_DATA = {
     "team": {
         "aeroplane": {
-            "registration": "LN-YDB"
+            "registration": "LN-YDB2"
         },
         "crew": {
-            "pilot": "Mr pilot"
+            "member1": {
+                "first_name": "first_name",
+                "last_name": "last_name"
+            }
         },
-        "nation": "Norway"
+        "country": "NO"
     },
     "gate_times": [],
     "scorecard": "FAI Precision 2020",
@@ -55,7 +58,7 @@ CONTESTANT_DATA = {
     "air_speed": 70,
     "contestant_number": 1,
     "traccar_device_name": "tracker",
-    "tracker_start_time": datetime.datetime.utcnow(),
+    "tracker_start_time": datetime.datetime.utcnow() - datetime.timedelta(hours=1),
     "wind_speed": 10,
     "wind_direction": 0
 }
@@ -133,6 +136,7 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.post(reverse("contestants-list", kwargs={"contest_pk": self.contest_id,
                                                                       "navigationtask_pk": self.navigation_task.pk}),
                                   data=CONTESTANT_DATA, format="json")
+        print(result.content)
         self.contestant = Contestant.objects.get(pk=result.json()["id"])
         self.different_user_with_object_permissions = User.objects.create(username="objectpermissions")
         self.different_user_with_object_permissions.user_permissions.add(
@@ -523,7 +527,6 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.get(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
-
 
     def test_get_contestant_track_frontend_public_contest_public_navigation_task_without_privileges(self):
         self.contest.is_public = True

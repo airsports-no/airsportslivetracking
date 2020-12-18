@@ -24,7 +24,6 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSeria
         return {
             "change_contest": [user],
             "delete_contest": [user],
-            "publish_contest": [user],
             "view_contest": [user]
         }
 
@@ -73,7 +72,6 @@ class RouteSerialiser(serializers.ModelSerializer):
         waypoint.width = waypoint_data["width"]
         waypoint.time_check = waypoint_data["time_check"]
         waypoint.gate_check = waypoint_data["gate_check"]
-        waypoint.planning_test = waypoint_data["planning_test"]
         waypoint.end_curved = waypoint_data["end_curved"]
         waypoint.type = waypoint_data["type"]
         waypoint.distance_next = waypoint_data["distance_next"]
@@ -291,16 +289,18 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
         return Contestant.objects.create(**validated_data, team=team)
 
     def update(self, instance, validated_data):
-        gate_times = validated_data.pop("gate_times", None)
+        gate_times = validated_data.pop("gate_times", {})
         team_data = validated_data.pop("team", None)
-        try:
-            team_instance = Team.objects.get(pk=team_data.get("id"))
-        except ObjectDoesNotExist:
-            team_instance = None
-        team_serialiser = TeamNestedSerialiser(instance=team_instance, data=team_data)
-        team_serialiser.is_valid(True)
-        team = team_serialiser.save()
-        validated_data.update({"navigation_task": self.context["navigation_task"], "team": team.pk})
+        if team_data:
+            try:
+                team_instance = Team.objects.get(pk=team_data.get("id"))
+            except ObjectDoesNotExist:
+                team_instance = None
+            team_serialiser = TeamNestedSerialiser(instance=team_instance, data=team_data)
+            team_serialiser.is_valid(True)
+            team = team_serialiser.save()
+            validated_data.update({"team": team.pk})
+        validated_data.update({"navigation_task": self.context["navigation_task"]})
 
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()

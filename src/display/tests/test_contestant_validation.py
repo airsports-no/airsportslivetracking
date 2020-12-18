@@ -4,7 +4,7 @@ from django.test import TransactionTestCase
 from rest_framework.exceptions import ValidationError
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import NavigationTask, Contest, Route, Contestant, Aeroplane, Crew, Team
+from display.models import NavigationTask, Contest, Route, Contestant, Aeroplane, Crew, Team, Person
 
 TRACKER_NAME = "tracker"
 
@@ -18,8 +18,8 @@ class TestContestantValidation(TransactionTestCase):
                                                              finish_time=datetime.datetime.utcnow(),
                                                              route=route, contest=self.contest)
         aeroplane = Aeroplane.objects.create(registration="registration")
-        crew = Crew.objects.create(pilot="pilot")
-        self.team = Team.objects.create(crew=crew, aeroplane=aeroplane, nation="nationality")
+        crew = Crew.objects.create(member1=Person.objects.create(first_name = "Mister", last_name = "Pilot"))
+        self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         self.initial_contestant = Contestant.objects.create(team=self.team, scorecard=get_default_scorecard(),
                                                             navigation_task=self.navigation_task,
                                                             takeoff_time=datetime.datetime(2020, 1, 1, 10,

@@ -155,14 +155,16 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     # Calculate route progress
     # first_gate = contestant.navigation_task.route.takeoff_gate or contestant.navigation_task.route.waypoints[0]
     # last_gate = contestant.navigation_task.route.landing_gate or contestant.navigation_task.route.waypoints[-1]
-    first_gate = contestant.navigation_task.route.waypoints[0]
-    last_gate = contestant.navigation_task.route.waypoints[-1]
+    route_progress = 100
+    if len(contestant.navigation_task.route.waypoints) > 0:
+        first_gate = contestant.navigation_task.route.waypoints[0]
+        last_gate = contestant.navigation_task.route.waypoints[-1]
 
-    first_gate_time = contestant.gate_times[first_gate.name]
-    last_gate_time = contestant.gate_times[last_gate.name]
-    route_duration = (last_gate_time - first_gate_time).total_seconds()
-    route_duration_progress = (global_latest_time - first_gate_time).total_seconds()
-    route_progress = 100 * route_duration_progress / route_duration
+        first_gate_time = contestant.gate_times[first_gate.name]
+        last_gate_time = contestant.gate_times[last_gate.name]
+        route_duration = (last_gate_time - first_gate_time).total_seconds()
+        route_duration_progress = (global_latest_time - first_gate_time).total_seconds()
+        route_progress = 100 * route_duration_progress / route_duration
     positions = reduced_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
     if len(annotation_data):
@@ -273,7 +275,7 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
     permission_classes = [
         NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)]
 
-    http_method_names = ['get', 'post', 'delete']
+    http_method_names = ['get', 'post', 'delete', 'put']
 
     def get_queryset(
             self):
@@ -287,7 +289,7 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
                                          context={"request": request, "contest": contest})
         if serialiser.is_valid():
             serialiser.save()
-            return Response(serialiser.data)
+            return Response(serialiser.data, status=status.HTTP_201_CREATED)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
@@ -429,7 +431,6 @@ class ContestResultsSummaryViewSet(ModelViewSet):
             teamtestscore__task_test__task__contest=contest)).distinct()
         serialiser = TeamNestedSerialiser(teams, many=True)
         return Response(serialiser.data)
-
 
 
 class TeamResultsSummaryViewSet(ModelViewSet):
