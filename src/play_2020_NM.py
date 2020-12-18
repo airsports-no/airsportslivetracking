@@ -66,6 +66,7 @@ original_contest = Contest.objects.filter(name="NM 2020").first()
 if original_contest:
     for contestant in Contestant.objects.filter(navigation_task__contest=original_contest):
         influx.clear_data_for_contestant(contestant.pk)
+
     original_contest.delete()
 aeroplane, _ = Aeroplane.objects.get_or_create(registration="LN-YDB")
 contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
@@ -99,7 +100,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
                                                   traccar_device_name=contestant, contestant_number=index,
                                                   scorecard=scorecard, minutes_to_starting_point=minutes_starting,
                                                   air_speed=speed,
-                                                  wind_direction=160, wind_speed=18)
+                                                  wind_direction=165, wind_speed=8)
     print(navigation_task.pk)
 
     tracks[contestant] = build_traccar_track(file)
