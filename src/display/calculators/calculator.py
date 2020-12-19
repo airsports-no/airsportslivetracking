@@ -131,6 +131,7 @@ class Calculator(threading.Thread):
             intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
             if intersection_time:
                 logger.info("{} {}: Crossed gate {}".format(self.contestant, intersection_time, gate))
+                self.contestant.contestanttrack.update_gate_time(gate.name, intersection_time)
                 gate.passing_time = intersection_time
                 gate.extended_passing_time = intersection_time
                 crossed_gate = True
@@ -153,7 +154,8 @@ class Calculator(threading.Thread):
 
             if extended_next_gate.type != "sp" and not extended_next_gate.maybe_missed_time:
                 intersection_time = extended_next_gate.get_gate_infinite_intersection_time(self.projector, self.track)
-                if intersection_time and extended_next_gate.is_passed_in_correct_direction_track_from_previous(self.track):
+                if intersection_time and extended_next_gate.is_passed_in_correct_direction_track_from_previous(
+                        self.track):
                     logger.info("{} {}: Crossed infinite gate {} (but maybe missed the gate)".format(self.contestant,
                                                                                                      intersection_time,
                                                                                                      extended_next_gate))

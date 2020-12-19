@@ -34,3 +34,5 @@ nvector
 pyproj
 django-countries
 django-formtools
+django-bootstrap-dynamic-formsets
+django-bootstrap4

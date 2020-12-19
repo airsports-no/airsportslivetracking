@@ -20,7 +20,6 @@ from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 
 
-
 def user_directory_path(instance, filename):
     return "aeroplane_{0}/{1}".format(instance.registration, filename)
 
@@ -418,6 +417,13 @@ class Contestant(models.Model):
                 crossing_time += datetime.timedelta(minutes=1)
         return crossing_times
 
+    def get_gate_time_offset(self, gate_name):
+        planned = self.gate_times.get(gate_name)
+        actual = self.contestanttrack.gate_actual_times.get(gate_name)
+        if planned and actual:
+            return (actual - planned).total_seconds()
+        return None
+
     @gate_times.setter
     def gate_times(self, value):
         self.predefined_gate_times = value
@@ -447,6 +453,7 @@ class ContestantTrack(models.Model):
     past_starting_gate = models.BooleanField(default=False)
     past_finish_gate = models.BooleanField(default=False)
     calculator_finished = models.BooleanField(default=False)
+    gate_actual_times = MyPickledObjectField(default=dict)
 
     def update_last_gate(self, gate_name, time_difference):
         self.last_gate = gate_name
@@ -471,6 +478,10 @@ class ContestantTrack(models.Model):
 
     def set_calculator_finished(self):
         self.calculator_finished = True
+        self.save()
+
+    def update_gate_time(self, gate_name: str, passing_time: datetime.datetime):
+        self.gate_actual_times[gate_name] = passing_time
         self.save()
 
 

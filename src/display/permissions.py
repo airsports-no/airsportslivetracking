@@ -1,3 +1,4 @@
+from guardian.mixins import PermissionRequiredMixin
 from rest_framework import permissions
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import SAFE_METHODS
@@ -108,3 +109,6 @@ class RoutePermissions(permissions.BasePermission):
         if request.method in ['DELETE']:
             return request.user.has_perm('delete_route', obj.navigation_task)
         return False
+
+
+

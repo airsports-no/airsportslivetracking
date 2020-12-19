@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load guardian_tags %}
+{% block content %}
+    <H1>Gate times for {{ object }}</H1>
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Gate</th>
+            <th>Planned time</th>
+            <th>Actual time</th>
+            <th>Offset (s)</th>
+        </tr>
+        </thead>
+        {% with gate_times=object.gate_times %}
+            {% for gate in object.navigation_task.route.waypoints %}
+                <tr>
+                    <td>{{ gate.name }}</td>
+                    <td>{{ gate_times|dict_key:gate.name|date:"H:i:s" }}</td>
+                    <td>{% if object.contestanttrack.gate_actual_times|dict_key:gate.name %}
+                        {{ object.contestanttrack.gate_actual_times|dict_key:gate.name|date:"H:i:s" }}{% else %}
+                        --{% endif %}</td>
+                <td>{{ object|gate_time_offset:gate.name }}</td>
+                </tr>
+            {% endfor %}
+        {% endwith %}
+    </table>
+    <a href="{% url 'navigationtask_detail' object.navigation_task.pk %}">Back to {{ object.navigation_task }}</a>
+{% endblock %}

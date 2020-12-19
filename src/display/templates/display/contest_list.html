@@ -17,20 +17,35 @@
 
             <tr>
                 <td colspan="3"><span style="text-align: center"><h3>{{ contest.name }}</h3></span></td>
-                {% if "change_contest" in contest_permissions %}<td><a href="{% url 'navigationtaskwizard' %}">New navigation task</a></td>{% endif %}
+                {% if "change_contest" in contest_permissions %}
+                    <td><a href="{% url 'navigationtaskwizard' contest.pk %}">New navigation task</a> | <a
+                            href="{% url 'contest_update' contest.pk %}">update</a>
+                        {% if "delete_contest" in contest_permissions %}
+                            | <a href="{% url 'contest_delete' contest.pk %}">delete</a>
+                        {% endif %} </td>{% endif %}
             </tr>
             {% for object in contest.navigationtask_set.all %}
                 <tr>
-                    <td>{{ object.name }}</td>
+                    {% if "view_contest" in contest_permissions %}
+                        <td><a href="{% url 'navigationtask_detail' object.id %}">{{ object.name }}</a></td>
+                    {% else %}
+                        <td>{{ object.name }}</td>
+                    {% endif %}
                     <td>
                         {{ object.start_time }}
                     </td>
                     <td>{{ object.finish_time }}</td>
                     <td>
                         <a href="{% url 'frontend_view_map' object.pk %}">Track</a>
+                        {% if "change_contest" in contest_permissions %}
+                            | <a href="{% url 'navigationtask_delete' object.pk %}">delete</a>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}
         {% endfor %}
     </table>
+    {% if perms.display.create_contest %}
+        <a href="{% url 'contest_create' %}">New contest</a>
+    {% endif %}
 {% endblock %}

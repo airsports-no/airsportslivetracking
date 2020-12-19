@@ -7,18 +7,21 @@ from typing import Optional
 import redis_lock
 import dateutil
 from django.contrib.auth.decorators import permission_required, login_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage
 from django.db.models import Q
 from django.forms import formset_factory
+from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect
-from django.urls import reverse
-from django.views.generic import ListView
+from django.urls import reverse, reverse_lazy
+from django.views.generic import ListView, DetailView, UpdateView, CreateView, DeleteView
 import logging
 
 from formtools.wizard.views import SessionWizardView
+from guardian.mixins import PermissionRequiredMixin as GuardianPermissionRequiredMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
 from rest_framework import status, permissions
@@ -31,7 +34,7 @@ from rest_framework.viewsets import ModelViewSet, ViewSet
 
 from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv, load_route_points_from_kml
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
-    FILE_TYPE_KML
+    FILE_TYPE_KML, ContestantForm, ContestForm
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
@@ -79,14 +82,113 @@ class NavigationTaskList(ListView):
     model = NavigationTask
 
     def get_queryset(self):
-        return NavigationTask.objects.filter(is_public=True)
+        contests = get_objects_for_user(self.request.user, "view_contest",
+                                        klass=Contest)
+        return NavigationTask.objects.filter(Q(contest__in=contests) | Q(is_public=True, contest__is_public=True))
 
 
 class ContestList(ListView):
     model = Contest
 
     def get_queryset(self):
-        return Contest.objects.filter(is_public=True)
+        return (get_objects_for_user(self.request.user, "view_contest",
+                                     klass=Contest) | Contest.objects.filter(is_public=True)).order_by(
+            "-navigationtask__start_time")
+
+
+class ContestCreateView(PermissionRequiredMixin, CreateView):
+    model = Contest
+    success_url = reverse_lazy("contest_list")
+    permission_required = ("delete_contest",)
+    form_class = ContestForm
+
+
+class ContestUpdateView(GuardianPermissionRequiredMixin, UpdateView):
+    model = Contest
+    success_url = reverse_lazy("contest_list")
+    permission_required = ("update_contest",)
+    form_class = ContestForm
+
+    def get_permission_object(self):
+        return self.get_object()
+
+
+class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
+    model = Contest
+    permission_required = ("delete_contest",)
+    template_name = "model_delete.html"
+    success_url = reverse_lazy("contest_list")
+
+    def get_permission_object(self):
+        return self.get_object()
+
+
+class NavigationTaskDetailView(GuardianPermissionRequiredMixin, DetailView):
+    model = NavigationTask
+    permission_required = ("view_contest",)
+
+    def get_permission_object(self):
+        return self.get_object().contest
+
+
+class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
+    model = NavigationTask
+    permission_required = ("delete_contest",)
+    template_name = "model_delete.html"
+    success_url = reverse_lazy("contest_list")
+
+    def get_permission_object(self):
+        return self.get_object().contest
+
+
+class ContestantGateTimesView(GuardianPermissionRequiredMixin, DetailView):
+    model = Contestant
+    permission_required = ("view_contest",)
+    template_name = "display/contestant_gate_times.html"
+
+
+class ContestantUpdateView(GuardianPermissionRequiredMixin, UpdateView):
+    form_class = ContestantForm
+    model = Contestant
+    permission_required = ("change_contest",)
+
+    def get_success_url(self):
+        return reverse("navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk})
+
+    def get_permission_object(self):
+        return self.get_object().navigation_task.contest
+
+
+class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
+    model = Contestant
+    permission_required = ("delete_contest",)
+    template_name = "model_delete.html"
+
+    def get_success_url(self):
+        return reverse("navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk})
+
+    def get_permission_object(self):
+        return self.get_object().navigation_task.contest
+
+
+class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
+    form_class = ContestantForm
+    model = Contestant
+    permission_required = ("change_contest",)
+
+    def get_success_url(self):
+        return reverse("navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk})
+
+    def get_permission_object(self):
+        navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        return navigation_task.contest
+
+    def form_valid(self, form):
+        navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        object = form.save(commit=False)
+        object.navigation_task = navigation_task
+        object.save()
+        return HttpResponseRedirect(self.get_success_url())
 
 
 connection = Redis("redis")

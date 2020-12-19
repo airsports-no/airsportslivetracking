@@ -35,7 +35,7 @@ docs = get_schema_view(
 )
 
 urlpatterns = [
-    path('', ContestList.as_view()),
+    path('', ContestList.as_view(), name="contest_list"),
     path('admin/', admin.site.urls),
     path('display/', include("display.urls")),
     path('accounts/token/', TemplateView.as_view(template_name="token.html"), name="token"),

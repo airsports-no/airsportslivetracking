@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load static %}
+{% load bootstrap4 %}
+{% block content %}
+    {% if object %}
+        <h2>Update Contest {{ object }}</h2>
+    {% else %}
+        <h2>Create new Contes </h2>
+    {% endif %}
+    {{ form.media }}
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        {% endbuttons %}
+    </form>
+{% endblock %}

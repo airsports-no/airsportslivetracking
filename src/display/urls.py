@@ -1,7 +1,9 @@
 from django.urls import path
 
 from display.views import frontend_view, import_route, frontend_view_table, frontend_view_map, \
-    GetDataFromTimeForContestant, renew_token, results_service, NewNavigationTaskWizard
+    GetDataFromTimeForContestant, renew_token, results_service, NewNavigationTaskWizard, NavigationTaskDetailView, \
+    ContestantUpdateView, ContestantCreateView, ContestantGateTimesView, ContestCreateView, ContestUpdateView, \
+    ContestantDeleteView, ContestDeleteView, NavigationTaskDeleteView
 
 urlpatterns = [
     path('importroute', import_route, name="import_route"),
@@ -9,5 +11,14 @@ urlpatterns = [
     path('frontend/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
     path('frontend/<int:pk>/', frontend_view, name="frontend_view"),
     path('token/renew', renew_token, name="renewtoken"),
-    path('navigationtaskwizard/', NewNavigationTaskWizard.as_view(), name="navigationtaskwizard")
+    path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
+    path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),
+    path('contest/<int:pk>/delete/', ContestDeleteView.as_view(), name="contest_delete"),
+    path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
+    path('navigationtask/<int:pk>/delete/', NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),
+    path('contestant/<int:navigationtask_pk>/create/', ContestantCreateView.as_view(), name="contestant_create"),
+    path('contestant/<int:pk>/update/', ContestantUpdateView.as_view(), name="contestant_update"),
+    path('contestant/<int:pk>/delete/', ContestantDeleteView.as_view(), name="contestant_delete"),
+    path('contestant/<int:pk>/gates/', ContestantGateTimesView.as_view(), name="contestant_gate_times"),
+    path('navigationtaskwizard/<int:contest_pk>/', NewNavigationTaskWizard.as_view(), name="navigationtaskwizard")
 ]

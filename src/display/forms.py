@@ -1,6 +1,6 @@
 from django import forms
 
-from display.models import NavigationTask
+from display.models import NavigationTask, Contestant, Contest
 
 TURNPOINT = "tp"
 STARTINGPOINT = "sp"
@@ -48,3 +48,18 @@ class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
         fields = ("name", "start_time", "finish_time", "is_public")
+
+
+class ContestForm(forms.ModelForm):
+    class Meta:
+        model = Contest
+        fields = "__all__"
+
+
+class ContestantForm(forms.ModelForm):
+    class Meta:
+        model = Contestant
+        fields = (
+            "contestant_number", "team", "tracker_start_time", "traccar_device_name", "takeoff_time",
+            "finished_by_time",
+            "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed", "scorecard")

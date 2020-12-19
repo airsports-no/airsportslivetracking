@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static %}
+{% load bootstrap4 %}
+{% block content %}
+    {% if object %}
+        <h2>Update Contestant {{ object }} for navigation task {{ object.navigation_task }}</h2>
+    {% else %}
+        <h2>Create new Contestant for navigation task {{ object.navigation_task }} </h2>
+    {% endif %}
+    {{ form.media }}
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        {% endbuttons %}
+    </form>
+    <script type="text/javascript">
+        $('#id_takeoff_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_finished_by_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_tracker_start_time').datetimepicker({dateFormat: "yy-mm-dd"});
+    </script>
+{% endblock %}
