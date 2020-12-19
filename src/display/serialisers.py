@@ -1,6 +1,7 @@
 import base64
 
 from django.core.exceptions import ObjectDoesNotExist
+from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm
 from rest_framework import serializers
@@ -112,6 +113,7 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
 
 class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
+    country = CountryField(required=False)
 
     class Meta:
         model = Person
@@ -120,6 +122,7 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
+    country = CountryField(required=False)
 
     class Meta:
         model = Club
@@ -159,6 +162,7 @@ class CrewSerialiser(serializers.ModelSerializer):
 class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     aeroplane = AeroplaneSerialiser()
+    country = CountryField(required=False)
     crew = CrewSerialiser()
     club = ClubSerialiser(required=False)
 
@@ -241,6 +245,25 @@ class PositionSerialiser(serializers.Serializer):
     longitude = serializers.FloatField()
     altitude = serializers.FloatField()
     time = serializers.DateTimeField()
+
+
+class GpxTrackSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    track_file = serializers.CharField(write_only=True, required=True,
+                                       help_text="Base64 encoded gpx track file")
+
+    def validate_track_file(self, value):
+        if value:
+            try:
+                base64.decodebytes(bytes(value, 'utf-8'))
+            except Exception as e:
+                raise serializers.ValidationError("track_file must be in a valid base64 string format.")
+        return value
 
 
 class ContestantTrackWithTrackPointsSerialiser(serializers.ModelSerializer):
@@ -344,7 +367,7 @@ class NavigationTaskNestedSerialiser(serializers.ModelSerializer):
 
 class ExternalNavigationTaskNestedSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedSerialiser(many=True)
-    route_file = serializers.CharField(write_only=True, read_only=False, required=True,
+    route_file = serializers.CharField(write_only=True, required=True,
                                        help_text="Base64 encoded gpx file")
 
     class Meta:

@@ -1,4 +1,6 @@
+import base64
 import datetime
+import os
 from datetime import timedelta
 from typing import Optional
 
@@ -7,11 +9,16 @@ import dateutil
 from django.contrib.auth.decorators import permission_required, login_required
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.core.files.storage import FileSystemStorage
 from django.db.models import Q
+from django.forms import formset_factory
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.generic import ListView
 import logging
+
+from formtools.wizard.views import SessionWizardView
 from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
 from rest_framework import status, permissions
@@ -22,9 +29,10 @@ from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ViewSet
 
-from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv
-from display.forms import ImportRouteForm
-from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team
+from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv, load_route_points_from_kml
+from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
+    FILE_TYPE_KML
+from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions
@@ -32,9 +40,12 @@ from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedSerialiser, \
     ContestSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, \
     ContestantTrackWithTrackPointsSerialiser, ContestantNestedSerialiser, ContestResultsHighLevelSerialiser, \
-    ContestSummarySerialiser, TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser
+    ContestSummarySerialiser, TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
+    GpxTrackSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from influx_facade import InfluxFacade
+from live_tracking_map import settings
+from playback_tools import insert_gpx_file
 
 logger = logging.getLogger(__name__)
 
@@ -193,11 +204,13 @@ def import_route(request):
             file_type = form.cleaned_data["file_type"]
             print(file_type)
             route = None
-            if file_type == form.CSV:
+            if file_type == FILE_TYPE_CSV:
                 data = [item.decode(encoding="UTF-8") for item in request.FILES['file'].readlines()]
                 route = create_route_from_csv(name, data[1:])
-            elif file_type == form.FLIGHTCONTEST_GPX:
+            elif file_type == FILE_TYPE_FLIGHTCONTEST_GPX:
                 route = create_route_from_gpx(request.FILES["file"])
+            else:
+                raise ValidationError("Currently unsupported type: {}".format(file_type))
             if route is not None:
                 assign_perm("view_route", request.user, route)
                 assign_perm("delete_route", request.user, route)
@@ -208,6 +221,32 @@ def import_route(request):
 
 
 # Everything below he is related to management and requires authentication
+class NewNavigationTaskWizard(SessionWizardView):
+    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
+    template_name = "display/navigationtaskwizardform.html"
+
+    def done(self, form_list, **kwargs):
+        pass
+
+    form_list = [ImportRouteForm, formset_factory(WaypointForm, extra=0), NavigationTaskForm]
+
+    def get_form_initial(self, step):
+        if step == "1":
+            data = self.get_cleaned_data_for_step("0")
+            print("Data: {}".format(data))
+            if data.get("file_type") == FILE_TYPE_KML:
+                positions = load_route_points_from_kml(data['file'])
+                initial = []
+                for position in positions:
+                    initial.append({
+                        "latitude": position[0],
+                        "longitude": position[1],
+                    })
+                print(initial)
+                return initial
+        return {}
+
+
 class IsPublicMixin:
     def check_publish_permissions(self, user: User):
         instance = self.get_object()
@@ -310,6 +349,11 @@ class ContestantViewSet(ModelViewSet):
     permission_classes = [
         ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)]
 
+    def get_serializer_class(self):
+        if self.action == "gpx_track":
+            return GpxTrackSerialiser
+        return super().get_serializer_class()
+
     def get_queryset(self):
         contests = get_objects_for_user(self.request.user, "change_contest",
                                         klass=Contest)
@@ -347,6 +391,19 @@ class ContestantViewSet(ModelViewSet):
         contestant_track.track = position_data
         serialiser = ContestantTrackWithTrackPointsSerialiser(contestant_track)
         return Response(serialiser.data)
+
+    @action(detail=True, methods=["post"])
+    def gpx_track(self, request, pk=None, **kwargs):
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        ContestantTrack.objects.filter(contestant=contestant).delete()
+        contestant.save()  # Creates new contestant track
+        # Not required, covered by delete above
+        # influx.clear_data_for_contestant(contestant.pk)
+        track_file = request.data.get("track_file", None)
+        if not track_file:
+            raise ValidationError("Missing track_file")
+        insert_gpx_file(contestant, base64.decodebytes(track_file.encode("utf-8")), influx)
+        return Response({}, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["get"])
     def track_frontend(self, request, *args, **kwargs):

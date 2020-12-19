@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'drf_yasg',
     "solo",
     "guardian",
-    "django_countries"
+    "django_countries",
+    "formtools"
 ]
 
 MIDDLEWARE = [

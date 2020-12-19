@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load guardian_tags %}
 {% block content %}
     <H1>Contests</H1>
     <table class="table table-condensed">
@@ -12,8 +13,11 @@
         </thead>
 
         {% for contest in object_list %}
+            {% get_obj_perms request.user for contest as "contest_permissions" %}
+
             <tr>
-                <td colspan="5"><span style="text-align: center"><h3>{{ contest.name }}</h3></span></td>
+                <td colspan="3"><span style="text-align: center"><h3>{{ contest.name }}</h3></span></td>
+                {% if "change_contest" in contest_permissions %}<td><a href="{% url 'navigationtaskwizard' %}">New navigation task</a></td>{% endif %}
             </tr>
             {% for object in contest.navigationtask_set.all %}
                 <tr>

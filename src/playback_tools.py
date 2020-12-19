@@ -1,8 +1,14 @@
 import time
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 import requests
 import gpxpy
+
+from display.calculators.calculator_factory import calculator_factory
+
+if TYPE_CHECKING:
+    from display.models import Contestant
 
 server = 'traccar:5055'
 
@@ -38,3 +44,32 @@ def load_data_traccar(tracks):
                 # print(stamp)
         print(count)
         time.sleep(0.5)
+
+
+def insert_gpx_file(contestant_object: "Contestant", file, influx):
+    gpx = gpxpy.parse(file)
+    positions = []
+    for track in gpx.tracks:
+        for segment in track.segments:
+            for point in segment.points:
+                positions.append({
+                    "deviceId": contestant_object.traccar_device_name,
+                    "latitude": point.latitude,
+                    "longitude": point.longitude,
+                    "altitude": point.elevation,
+                    "attributes": {"batteryLevel": 1.0},
+                    "speed": 0.0,
+                    "course": 0.0,
+                    "deviceTime": point.time.isoformat()
+                })
+    generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
+    influx.put_data(generated_positions)
+    calculator = calculator_factory(contestant_object, influx)
+    calculator.start()
+    new_positions = []
+    for position in generated_positions:
+        data = position["fields"]
+        data["time"] = position["time"]
+        new_positions.append(data)
+    calculator.add_positions(new_positions)
+    calculator.join()

@@ -4,6 +4,7 @@ from plistlib import Dict
 from typing import List, Tuple
 
 import gpxpy
+from fastkml import kml
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing
 from display.models import Route, is_procedure_turn, create_perpendicular_line_at_end, Scorecard
@@ -12,6 +13,26 @@ from gpxpy.gpx import GPX
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
+
+
+def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
+    """
+    Requires a single place marked with a line string inside the KML file
+
+    :param file:
+    :return: List of latitude, longitude, altitude tuples
+    """
+    document = input_kml.read()
+    if type(document) == str:
+        document = document.encode('utf-8')
+    print(document)
+    kml_document = kml.KML()
+    kml_document.from_string(document)
+    features = list(kml_document.features())[0]
+    print(features)
+    placemark = list(features.features())[0]
+    geometry = placemark.geometry
+    return list(zip(*reversed(geometry.xy)))
 
 
 def create_route_from_gpx(file) -> Route:

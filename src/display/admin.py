@@ -9,6 +9,9 @@ from display.models import NavigationTask, Route, Aeroplane, Team, Contestant, T
     GateScore, Contest, Crew, Person, Club
 from solo.admin import SingletonModelAdmin
 
+
+
+
 admin.site.register(TraccarCredentials, SingletonModelAdmin)
 
 

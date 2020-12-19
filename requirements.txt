@@ -33,3 +33,4 @@ drf-nested-routers
 nvector
 pyproj
 django-countries
+django-formtools

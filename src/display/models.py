@@ -20,6 +20,7 @@ from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 
 
+
 def user_directory_path(instance, filename):
     return "aeroplane_{0}/{1}".format(instance.registration, filename)
 
@@ -152,7 +153,6 @@ class Person(models.Model):
         return "{} {}".format(self.first_name, self.last_name)
 
 
-
 class Crew(models.Model):
     member1 = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="crewmember_one")
     member2 = models.ForeignKey(Person, on_delete=models.PROTECT, null=True, blank=True, related_name="crewmember_two")
@@ -177,6 +177,7 @@ class Club(models.Model):
             return self.country.flag
         return None
 
+
 class Team(models.Model):
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.PROTECT)
     crew = models.ForeignKey(Crew, on_delete=models.PROTECT)
@@ -192,6 +193,7 @@ class Team(models.Model):
         if self.country:
             return self.country.flag
         return None
+
 
 class Contest(models.Model):
     DESCENDING = "desc"
@@ -562,3 +564,10 @@ def validate_contestant(sender, instance: Contestant, **kwargs):
 @receiver(post_delete, sender=NavigationTask)
 def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, **kwargs):
     instance.route.delete()
+
+
+@receiver(post_delete, sender=Contestant)
+def remove_track_from_influx(sender, instance: NavigationTask, **kwargs):
+    from influx_facade import InfluxFacade
+    influx = InfluxFacade()
+    influx.clear_data_for_contestant(instance.pk)

@@ -120,7 +120,7 @@ class InfluxFacade:
         # logger.debug("Successfully put {} position".format(len(data)))
 
     def clear_data_for_contestant(self, contestant_id: int):
-        self.client.delete_series(measurement="device_position", tags = {"contestant": str(contestant_id)})
+        self.client.delete_series(tags={"contestant": str(contestant_id)})
 
     def get_positions_for_contest(self, navigation_task_pk, from_time: Union[datetime.datetime, str]) -> ResultSet:
         if isinstance(from_time, datetime.datetime):
