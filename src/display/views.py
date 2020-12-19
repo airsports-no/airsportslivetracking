@@ -91,9 +91,8 @@ class ContestList(ListView):
     model = Contest
 
     def get_queryset(self):
-        return (get_objects_for_user(self.request.user, "view_contest",
-                                     klass=Contest) | Contest.objects.filter(is_public=True)).order_by(
-            "-navigationtask__start_time")
+        return get_objects_for_user(self.request.user, "view_contest",
+                                     klass=Contest) | Contest.objects.filter(is_public=True)
 
 
 class ContestCreateView(PermissionRequiredMixin, CreateView):

@@ -205,10 +205,19 @@ class Contest(models.Model):
                                                        help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
                                                        max_length=50)
     name = models.CharField(max_length=100, unique=True)
+    start_time = models.DateTimeField(
+        help_text="The start time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
+    finish_time = models.DateTimeField(
+        help_text="The finish time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
+
     is_public = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        ordering = ("-start_time", "-finish_time")
+
 
 
 class NavigationTask(models.Model):

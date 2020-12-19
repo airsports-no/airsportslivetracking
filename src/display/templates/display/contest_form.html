@@ -15,4 +15,8 @@
             <button type="submit" class="btn btn-primary">Submit</button>
         {% endbuttons %}
     </form>
+    <script type="text/javascript">
+        $('#id_start_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_finish_time').datetimepicker({dateFormat: "yy-mm-dd"});
+    </script>
 {% endblock %}
