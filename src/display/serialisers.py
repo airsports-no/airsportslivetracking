@@ -1,6 +1,8 @@
 import base64
 
+import dateutil
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm
@@ -314,10 +316,13 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
         team_serialiser.is_valid(True)
         team = team_serialiser.save()
         validated_data["navigation_task"] = self.context["navigation_task"]
-        return Contestant.objects.create(**validated_data, team=team)
+        contestant = Contestant.objects.create(**validated_data, team=team)
+        contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
+                                            validated_data.get("gate_times", {}).items()}
+        contestant.save()
+        return contestant
 
     def update(self, instance, validated_data):
-        gate_times = validated_data.pop("gate_times", {})
         team_data = validated_data.pop("team", None)
         if team_data:
             try:
@@ -329,10 +334,10 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
             team = team_serialiser.save()
             validated_data.update({"team": team.pk})
         validated_data.update({"navigation_task": self.context["navigation_task"]})
-
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()
-        instance.gate_times = gate_times
+        instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
+                                          validated_data.get("gate_times", {}).items()}
         instance.save()
         return instance
 
@@ -383,23 +388,24 @@ class ExternalNavigationTaskNestedSerialiser(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        contestant_set = validated_data.pop("contestant_set", [])
-        route_file = validated_data.pop("route_file", None)
-        route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")))
-        user = self.context["request"].user
-        validated_data["contest"] = self.context["contest"]
-        validated_data["route"] = route
-        assign_perm("view_route", user, route)
-        assign_perm("delete_route", user, route)
-        assign_perm("change_route", user, route)
-        print(self.context)
-        navigation_task = NavigationTask.objects.create(**validated_data)
-        for contestant_data in contestant_set:
-            contestant_serialiser = ContestantNestedSerialiser(data=contestant_data,
-                                                               context={"navigation_task": navigation_task})
-            contestant_serialiser.is_valid(True)
-            contestant_serialiser.save()
-        return navigation_task
+        with transaction.atomic():
+            contestant_set = validated_data.pop("contestant_set", [])
+            route_file = validated_data.pop("route_file", None)
+            route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")))
+            user = self.context["request"].user
+            validated_data["contest"] = self.context["contest"]
+            validated_data["route"] = route
+            assign_perm("view_route", user, route)
+            assign_perm("delete_route", user, route)
+            assign_perm("change_route", user, route)
+            print(self.context)
+            navigation_task = NavigationTask.objects.create(**validated_data)
+            for contestant_data in contestant_set:
+                contestant_serialiser = ContestantNestedSerialiser(data=contestant_data,
+                                                                   context={"navigation_task": navigation_task})
+                contestant_serialiser.is_valid(True)
+                contestant_serialiser.save()
+            return navigation_task
 
 
 ########## Results service ##########
