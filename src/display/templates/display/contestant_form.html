@@ -19,5 +19,204 @@
         $('#id_takeoff_time').datetimepicker({dateFormat: "yy-mm-dd"});
         $('#id_finished_by_time').datetimepicker({dateFormat: "yy-mm-dd"});
         $('#id_tracker_start_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $(document).ready(function () {
+            $("#id_pilot_phone").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/phone/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var phone = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/phone/",
+                        type: 'post',
+                        data: {phone: phone, request: 2},
+                        dataType: 'json',
+                        success: function (response) {
+
+                            var len = response.length;
+
+                            if (len > 0) {
+                                var first_name = response[0]['first_name'];
+                                var last_name = response[0]['last_name'];
+                                var email = response[0]['email'];
+                                var salary = response[0]['salary'];
+
+                                // Set value to textboxes
+                                document.getElementById('id_pilot_first_name').value = first_name;
+                                document.getElementById('id_pilot_last_name').value = last_name;
+                                document.getElementById('id_pilot_email').value = email;
+                                document.getElementById('id_pilot_phone').value = phone;
+
+                            }
+
+                        }
+                    });
+
+                    return false;
+                }
+            });
+            
+            $("#id_pilot_email").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/email/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var phone = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/email/",
+                        type: 'post',
+                        data: {phone: phone, request: 2},
+                        dataType: 'json',
+                        success: function (response) {
+
+                            var len = response.length;
+
+                            if (len > 0) {
+                                var first_name = response[0]['first_name'];
+                                var last_name = response[0]['last_name'];
+                                var email = response[0]['email'];
+                                var salary = response[0]['salary'];
+
+                                // Set value to textboxes
+                                document.getElementById('id_pilot_first_name').value = first_name;
+                                document.getElementById('id_pilot_last_name').value = last_name;
+                                document.getElementById('id_pilot_email').value = email;
+                                document.getElementById('id_pilot_phone').value = phone;
+
+                            }
+
+                        }
+                    });
+
+                    return false;
+                }
+            });
+
+
+            $("#id_copilot_phone").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/phone/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var phone = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/phone/",
+                        type: 'post',
+                        data: {phone: phone, request: 2},
+                        dataType: 'json',
+                        success: function (response) {
+
+                            var len = response.length;
+
+                            if (len > 0) {
+                                var first_name = response[0]['first_name'];
+                                var last_name = response[0]['last_name'];
+                                var email = response[0]['email'];
+                                var salary = response[0]['salary'];
+
+                                // Set value to textboxes
+                                document.getElementById('id_copilot_first_name').value = first_name;
+                                document.getElementById('id_copilot_last_name').value = last_name;
+                                document.getElementById('id_copilot_email').value = email;
+                                document.getElementById('id_copilot_phone').value = phone;
+
+                            }
+
+                        }
+                    });
+
+                    return false;
+                }
+            });
+
+            $("#id_copilot_email").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/email/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var phone = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/email/",
+                        type: 'post',
+                        data: {phone: phone, request: 2},
+                        dataType: 'json',
+                        success: function (response) {
+
+                            var len = response.length;
+
+                            if (len > 0) {
+                                var first_name = response[0]['first_name'];
+                                var last_name = response[0]['last_name'];
+                                var email = response[0]['email'];
+                                var salary = response[0]['salary'];
+
+                                // Set value to textboxes
+                                document.getElementById('id_copilot_first_name').value = first_name;
+                                document.getElementById('id_copilot_last_name').value = last_name;
+                                document.getElementById('id_copilot_email').value = email;
+                                document.getElementById('id_copilot_phone').value = phone;
+
+                            }
+
+                        }
+                    });
+
+                    return false;
+                }
+            });
+
+        });
     </script>
 {% endblock %}

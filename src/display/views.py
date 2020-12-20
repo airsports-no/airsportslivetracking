@@ -26,8 +26,8 @@ from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
 from rest_framework import status, permissions
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action, api_view
+from rest_framework.exceptions import PermissionDenied, MethodNotAllowed
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ViewSet
@@ -36,7 +36,8 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
     create_route_from_formset
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm
-from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack
+from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
+    Person
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions
@@ -45,7 +46,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     ContestSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, \
     ContestantTrackWithTrackPointsSerialiser, ContestantNestedSerialiser, ContestResultsHighLevelSerialiser, \
     ContestSummarySerialiser, TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
-    GpxTrackSerialiser
+    GpxTrackSerialiser, PersonSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
@@ -63,6 +64,40 @@ def frontend_view_map(request, pk):
 
 def results_service(request):
     return render(request, "display/resultsservice.html")
+
+
+@api_view(["POST"])
+def auto_complete_person_phone(request):
+    if request.is_ajax():
+        request_number = int(request.POST.get("request"))
+        if request_number == 1:
+            q = request.POST.get('search', '')
+            search_qs = Person.objects.filter(phone__contains=q)
+            result = [item.phone for item in search_qs]
+            return Response(result)
+        else:
+            q = request.POST.get('phone', '')
+            search_qs = Person.objects.filter(phone=q)
+            serialiser = PersonSerialiser(search_qs, many=True)
+            return Response(serialiser.data)
+    raise MethodNotAllowed
+
+
+@api_view(["POST"])
+def auto_complete_person_email(request):
+    if request.is_ajax():
+        request_number = int(request.POST.get("request"))
+        if request_number == 1:
+            q = request.POST.get('search', '')
+            search_qs = Person.objects.filter(email__contains=q)
+            result = [item.phone for item in search_qs]
+            return Response(result)
+        else:
+            q = request.POST.get('phone', '')
+            search_qs = Person.objects.filter(email=q)
+            serialiser = PersonSerialiser(search_qs, many=True)
+            return Response(serialiser.data)
+    raise MethodNotAllowed
 
 
 class NavigationTaskList(ListView):
@@ -423,11 +458,12 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
 
     http_method_names = ['get', 'post', 'delete', 'put']
 
-    def get_queryset(
-            self):
+    def get_queryset(self):
+        contest_id = self.kwargs["contest_pk"]
         contests = get_objects_for_user(self.request.user, "view_contest",
                                         klass=Contest)
-        return NavigationTask.objects.filter(Q(contest__in=contests) | Q(is_public=True, contest__is_public=True))
+        return NavigationTask.objects.filter(
+            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)).filter(contest_id=contest_id)
 
     def create(self, request, *args, **kwargs):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
@@ -462,10 +498,12 @@ class ContestantViewSet(ModelViewSet):
         return super().get_serializer_class()
 
     def get_queryset(self):
+        navigation_task_id = self.kwargs["navigationtask_pk"]
         contests = get_objects_for_user(self.request.user, "change_contest",
                                         klass=Contest)
         return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
-                                                                                      navigation_task__contest__is_public=True))
+                                                                                      navigation_task__contest__is_public=True)).filter(
+            navigation_task_id=navigation_task_id)
 
     def create(self, request, *args, **kwargs):
         navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
