@@ -51,7 +51,7 @@ export function initialLoadingComplete(contestantId) {
 
 export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId,
+        url: "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/",
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_NAVIGATION_TASK_SUCCESSFUL, payload: value}),
@@ -62,7 +62,7 @@ export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) =
 
 export const fetchContestantData = (contestId, navigationTaskId, contestantId, fromTime) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_REQUEST, id: contestantId})
-    let url = "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/contestants/" + contestantId + "/track_frontend"
+    let url = "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/contestants/" + contestantId + "/track_frontend/"
     if (fromTime !== undefined) {
         url += "?from_time=" + fromTime.toISOString()
     }
