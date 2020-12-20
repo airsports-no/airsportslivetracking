@@ -2,7 +2,7 @@
 {% load guardian_tags %}
 {% block content %}
     <H1>{{ object.name }}</H1>
-    <a href="{% url 'contest_list' %}">Back to contest list</a>
+    <a href="{% url 'contest_list' %}">Back to contest list</a> | <a href="{% url 'frontend_view_map' object.pk %}">Track</a>
     <table class="table table-condensed">
         <thead>
         <tr>

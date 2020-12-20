@@ -139,21 +139,28 @@ class CrewSerialiser(serializers.ModelSerializer):
         model = Crew
         fields = "__all__"
 
+    def get_possible_person(self, data):
+        possible_person = None
+        if data.get("phone"):
+            possible_person = Person.objects.filter(phone=data["phone"])
+        if (not possible_person or possible_person.count() == 0) and data.get("email"):
+            possible_person = Person.objects.filter(email=data["email"])
+        if not possible_person or possible_person.count() == 0:
+            person = Person.objects.get_or_create(
+                first_name=data["first_name"], last_name=data["last_name"])[0]
+            member1_serialiser = PersonSerialiser(instance=person, data=data)
+            member1_serialiser.is_valid(True)
+            member1_object = member1_serialiser.save()
+            return member1_object
+        return possible_person.first()
+
     def create(self, validated_data):
         member1 = validated_data.pop("member1")
-        first_name = member1.get("first_name")
-        last_name = member1.get("last_name")
-        member1_instance, _ = Person.objects.get_or_create(first_name=first_name, last_name=last_name)
-        member1_serialiser = PersonSerialiser(instance=member1_instance, data=member1)
-        member1_serialiser.is_valid(True)
-        member1_object = member1_serialiser.save()
+        member1_object = self.get_possible_person(member1)
         member2 = validated_data.pop("member2", None)
         member2_object = None
         if member2:
-            member2_instance, _ = Person.objects.get_or_create(first_name=first_name, last_name=last_name)
-            member2_serialiser = PersonSerialiser(instance=member2_instance, data=member2)
-            member2_serialiser.is_valid(True)
-            member2_object = member2_serialiser.save()
+            member2_object = self.get_possible_person(member2)
         crew, _ = Crew.objects.get_or_create(member1=member1_object, member2=member2_object)
         return crew
 

@@ -1,17 +1,20 @@
 import base64
 import json
+from copy import deepcopy
+from datetime import datetime
 from pprint import pprint
 from unittest.mock import Mock
 
 from django.contrib.auth.models import User, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.test import TransactionTestCase
+from django.urls import reverse
 from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Contest, NavigationTask, Team, Crew
+from display.models import Contest, NavigationTask, Team, Crew, Person, Aeroplane
 from display.serialisers import ExternalNavigationTaskNestedSerialiser
 
 data = {
@@ -92,6 +95,10 @@ data = {
                     "member1": {
                         "first_name": "first_name",
                         "last_name": "last_name"
+                    },
+                    "member2": {
+                        "first_name": "another_name",
+                        "last_name": "another_name"
                     }
                 },
                 "country": "SE"
@@ -540,26 +547,27 @@ class TestImportSerialiser(TransactionTestCase):
 
 class TestImportFCNavigationTask(APITestCase):
     def setUp(self):
+        self.data = deepcopy(data)
         self.user = User.objects.create(username="test")
         permission = Permission.objects.get(codename="change_contest")
         self.user.user_permissions.add(permission)
         self.client.force_login(user=self.user)
-        self.contest = Contest.objects.create(name="test")
+        self.contest = Contest.objects.create(name="test", start_time=datetime.utcnow(), finish_time=datetime.utcnow())
         assign_perm("display.change_contest", self.user, self.contest)
         assign_perm("display.view_contest", self.user, self.contest)
         get_default_scorecard()
 
     def test_import(self):
-        print(json.dumps(data, sort_keys=True, indent=2))
+        print(json.dumps(self.data, sort_keys=True, indent=2))
         res = self.client.post(
-            "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data, format="json")
+            "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), self.data, format="json")
         print(res.content)
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
         navigation_task_id = res.json()["id"]
         print(res.json())
         task = self.client.get("/api/v1/contests/{}/navigationtasks/{}/".format(self.contest.pk, navigation_task_id))
         self.assertEqual(status.HTTP_200_OK, task.status_code, "Failed to GET navigationtask")
-        self.assertEqual(len(data["contestant_set"]), len(task.json()["contestant_set"]))
+        self.assertEqual(len(self.data["contestant_set"]), len(task.json()["contestant_set"]))
         teams = Team.objects.all()
         crew = Crew.objects.all()
         self.assertEqual(1, len(crew))
@@ -580,6 +588,60 @@ class TestImportFCNavigationTask(APITestCase):
         for index, waypoint in enumerate(route["waypoints"]):
             self.assertDictEqual(expected_route["waypoints"][index], waypoint)
             self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])
+
+    def test_import_preexisting_phone(self):
+        person = Person.objects.create(first_name="first", last_name="last", phone="1234")
+        first_team = self.data["contestant_set"][0]["team"]
+        second_team = self.data["contestant_set"][1]["team"]
+        first_team["crew"]["member1"]["phone"] = "1234"
+        second_team["crew"]["member1"]["phone"] = "1234"
+        response = self.client.post(reverse("importnavigationtask-list", kwargs={"contest_pk": self.contest.pk}),
+                                    data=self.data, format="json")
+        print(response.content)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(2, Person.objects.all().count())
+        self.assertEqual(person, Person.objects.get(first_name="first"))
+        self.assertEqual(1, len(Person.objects.filter(first_name="first")))
+        self.assertEqual(2, Crew.objects.all().count())
+
+    def test_import_preexisting_email(self):
+        person = Person.objects.create(first_name="first", last_name="last", email="to@to.com")
+        first_team = self.data["contestant_set"][0]["team"]
+        second_team = self.data["contestant_set"][1]["team"]
+        first_team["crew"]["member1"]["email"] = "to@to.com"
+        second_team["crew"]["member1"]["email"] = "to@to.com"
+        second_team["crew"]["member2"]["email"] = "to@to.com"
+        response = self.client.post(reverse("importnavigationtask-list", kwargs={"contest_pk": self.contest.pk}),
+                                    data=self.data, format="json")
+        print(response.content)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(1, Person.objects.all().count())
+        self.assertEqual(person, Person.objects.get(first_name="first"))
+        self.assertEqual(1, len(Person.objects.filter(first_name="first")))
+        self.assertEqual(2, Crew.objects.all().count())
+
+    def test_preexisting_team(self):
+        person = Person.objects.create(first_name="first", last_name="last", email="to@to.com")
+        crew = Crew.objects.create(member1=person)
+        aircraft = Aeroplane.objects.create(registration="LN-YDB")
+        team = Team.objects.create(crew=crew, aeroplane=aircraft)
+        first_team = self.data["contestant_set"][0]["team"]
+        second_team = self.data["contestant_set"][1]["team"]
+        first_team["crew"]["member1"]["email"] = "to@to.com"
+        second_team["crew"]["member1"]["email"] = "to@to.com"
+        second_team["aeroplane"]["registration"] = "LN-YDB"
+        del second_team["crew"]["member2"]
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("importnavigationtask-list", kwargs={"contest_pk": self.contest.pk}),
+                                    data=self.data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(1, Person.objects.all().count())
+        self.assertEqual(person, Person.objects.first())
+        self.assertEqual(1, Crew.objects.all().count())
+        self.assertEqual(crew, Crew.objects.first())
+        self.assertEqual(1, Team.objects.all().count())
+        self.assertEqual(team, Team.objects.first())
 
     def test_doc_example(self):
         with open('../documentation/importnavigationtask.json', 'r') as i:

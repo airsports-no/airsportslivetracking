@@ -32,7 +32,8 @@ from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ViewSet
 
-from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv, load_route_points_from_kml
+from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv, load_route_points_from_kml, \
+    create_route_from_formset
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack
@@ -51,20 +52,6 @@ from live_tracking_map import settings
 from playback_tools import insert_gpx_file
 
 logger = logging.getLogger(__name__)
-
-
-def frontend_view(request, pk):
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    return render(request, "display/root.html",
-                  {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
-                   "display_map": "true", "display_table": "true"})
-
-
-def frontend_view_table(request, pk):
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    return render(request, "display/root.html",
-                  {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
-                   "display_map": "false", "display_table": "true"})
 
 
 def frontend_view_map(request, pk):
@@ -92,7 +79,7 @@ class ContestList(ListView):
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_contest",
-                                     klass=Contest) | Contest.objects.filter(is_public=True)
+                                    klass=Contest) | Contest.objects.filter(is_public=True)
 
 
 class ContestCreateView(PermissionRequiredMixin, CreateView):
@@ -176,7 +163,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
     permission_required = ("change_contest",)
 
     def get_success_url(self):
-        return reverse("navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk})
+        return reverse("navigationtask_detail", kwargs={"pk": self.kwargs.get("navigationtask_pk")})
 
     def get_permission_object(self):
         navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
@@ -322,12 +309,30 @@ def import_route(request):
 
 
 # Everything below he is related to management and requires authentication
+def show_route_definition_step(wizard):
+    cleaned_data = wizard.get_cleaned_data_for_step("0") or {}
+    return cleaned_data.get("file_type") == FILE_TYPE_KML
+
+
 class NewNavigationTaskWizard(SessionWizardView):
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
     template_name = "display/navigationtaskwizardform.html"
+    condition_dict = {"1": show_route_definition_step}
 
     def done(self, form_list, **kwargs):
-        pass
+        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        initial_step_data = self.get_cleaned_data_for_step("0")
+        if initial_step_data["file_type"] == FILE_TYPE_CSV:
+            data = [item.decode(encoding="UTF-8") for item in initial_step_data['file'].readlines()]
+            route = create_route_from_csv(initial_step_data["name"], data[1:])
+        elif initial_step_data["file_type"] == FILE_TYPE_FLIGHTCONTEST_GPX:
+            route = create_route_from_gpx(initial_step_data["file"].read())
+        else:
+            second_step_data = self.get_cleaned_data_for_step("1")
+            route = create_route_from_formset(initial_step_data["name"], second_step_data)
+        final_data = self.get_cleaned_data_for_step("2")
+        navigation_task = NavigationTask.objects.create(**final_data, contest=contest, route=route)
+        return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     form_list = [ImportRouteForm, formset_factory(WaypointForm, extra=0), NavigationTaskForm]
 
@@ -336,6 +341,8 @@ class NewNavigationTaskWizard(SessionWizardView):
             data = self.get_cleaned_data_for_step("0")
             print("Data: {}".format(data))
             if data.get("file_type") == FILE_TYPE_KML:
+                # print(" (subfile contents {}".format(data["file"].read()))
+                data["file"].seek(0)
                 positions = load_route_points_from_kml(data['file'])
                 initial = []
                 for position in positions:
@@ -343,7 +350,6 @@ class NewNavigationTaskWizard(SessionWizardView):
                         "latitude": position[0],
                         "longitude": position[1],
                     })
-                print(initial)
                 return initial
         return {}
 

@@ -25,11 +25,11 @@ def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
     document = input_kml.read()
     if type(document) == str:
         document = document.encode('utf-8')
-    print(document)
+    # print(document)
     kml_document = kml.KML()
     kml_document.from_string(document)
     features = list(kml_document.features())[0]
-    print(features)
+    # print(features)
     placemark = list(features.features())[0]
     geometry = placemark.geometry
     return list(zip(*reversed(geometry.xy)))
@@ -104,7 +104,28 @@ def calculate_extended_gate(waypoint: Waypoint, scorecard: "Scorecard") -> Tuple
                        scorecard.get_extended_gate_width_for_gate_type(waypoint.type))
 
 
+def build_waypoint(name, latitude, longitude, type, width, time_check, gate_check):
+    waypoint = Waypoint(name)
+    waypoint.latitude = latitude
+    waypoint.longitude = longitude
+    waypoint.type = type
+    waypoint.width = width
+    waypoint.time_check = time_check
+    waypoint.gate_check = gate_check
+    return waypoint
+
+
+def create_route_from_formset(route_name, data: Dict) -> Route:
+    waypoint_list = []
+    for item in data:
+        waypoint_list.append(
+            build_waypoint(item["name"], item["latitude"], item["longitude"], item["type"], item["width"],
+                           item["time_check"], item["gate_check"]))
+    return create_route_from_waypoint_list(route_name, waypoint_list)
+
+
 def create_route_from_csv(route_name: str, lines: List[str]) -> Route:
+    print("lines: {}".format(lines))
     waypoint_list = []
     for line in lines:
         line = [item.strip() for item in line.split(",")]
@@ -113,13 +134,14 @@ def create_route_from_csv(route_name: str, lines: List[str]) -> Route:
         waypoint.longitude = float(line[1])
         waypoint.type = line[3]
         waypoint.width = float(line[4])
-
         waypoint.time_check = True
         waypoint.gate_check = True
-        waypoint.planning_test = True
         waypoint.elevation = False
         waypoint_list.append(waypoint)
+    return create_route_from_waypoint_list(route_name, waypoint_list)
 
+
+def create_route_from_waypoint_list(route_name, waypoint_list) -> Route:
     gates = [item for item in waypoint_list if item.type in ("tp", "secret")]
     for index in range(len(gates) - 1):
         gates[index + 1].gate_line = create_perpendicular_line_at_end(gates[index].longitude,

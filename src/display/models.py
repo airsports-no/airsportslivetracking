@@ -135,9 +135,22 @@ def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
     return [[x1, y1], [x2, y2]]
 
 
+class CharNullField(models.CharField):
+    description = "CharField that stores NULL"
+
+    def get_db_prep_value(self, value, connection=None, prepared=False):
+        value = super(CharNullField, self).get_db_prep_value(value, connection, prepared)
+        if value == "":
+            return None
+        else:
+            return value
+
+
 class Person(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
+    email = CharNullField(max_length=60, blank=True, null=True)
+    phone = CharNullField(max_length=30, blank=True, null=True)
     picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
@@ -217,7 +230,6 @@ class Contest(models.Model):
 
     class Meta:
         ordering = ("-start_time", "-finish_time")
-
 
 
 class NavigationTask(models.Model):
@@ -341,7 +353,7 @@ class GateScore(models.Model):
 
 
 class Contestant(models.Model):
-    TRACCAR = 0
+    TRACCAR = "traccar"
     TRACKING_SERVICES = (
         (TRACCAR, "Traccar"),
     )
@@ -356,8 +368,8 @@ class Contestant(models.Model):
     air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
     contestant_number = models.PositiveIntegerField(
         help_text="A unique number for the contestant in this navigation task")
-    tracking_service = models.IntegerField(default=TRACCAR, choices=TRACKING_SERVICES,
-                                           help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
+    tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
+                                        help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
     traccar_device_name = models.CharField(max_length=100,
                                            help_text="ID of physical tracking device that will be brought into the plane")
     tracker_start_time = models.DateTimeField(
