@@ -15,16 +15,18 @@ class TestContestantGatesCalculation(TestCase):
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation test",
-                                                             route=route,contest = Contest.objects.create(name = "contest"),
+                                                             route=route, contest=Contest.objects.create(name="contest",
+                                                                                                         start_time=datetime.datetime.utcnow(),
+                                                                                                         finish_time=datetime.datetime.utcnow()),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         scorecard = get_default_scorecard()
-        crew = Crew.objects.create(member1=Person.objects.create(first_name = "Mister", last_name = "Pilot"))
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 8, 5, tzinfo=datetime.timezone.utc), 75
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team,
                                                     takeoff_time=start_time,
-                                                    tracker_start_time=start_time-datetime.timedelta(minutes=30),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     traccar_device_name="Test contestant", contestant_number=1,
                                                     scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed,

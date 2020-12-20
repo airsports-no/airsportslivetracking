@@ -323,9 +323,10 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
         team_serialiser.is_valid(True)
         team = team_serialiser.save()
         validated_data["navigation_task"] = self.context["navigation_task"]
+        gate_times = validated_data.pop("gate_times", {})
         contestant = Contestant.objects.create(**validated_data, team=team)
         contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
-                                            validated_data.get("gate_times", {}).items()}
+                                            gate_times.items()}
         contestant.save()
         return contestant
 
@@ -341,10 +342,11 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
             team = team_serialiser.save()
             validated_data.update({"team": team.pk})
         validated_data.update({"navigation_task": self.context["navigation_task"]})
+        gate_times = validated_data.pop("gate_times", {})
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()
         instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
-                                          validated_data.get("gate_times", {}).items()}
+                                          gate_times.items()}
         instance.save()
         return instance
 

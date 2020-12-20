@@ -21,7 +21,7 @@ FILE_TYPE_CSV = "csv"
 FILE_TYPE_FLIGHTCONTEST_GPX = "fcgpx"
 FILE_TYPE_KML = "kml"
 FILE_TYPES = (
-    (FILE_TYPE_CSV, "csv"),
+    (FILE_TYPE_CSV, "CSV"),
     (FILE_TYPE_FLIGHTCONTEST_GPX, "FlightContest GPX file"),
     (FILE_TYPE_KML, "KML file")
 )

@@ -34,12 +34,14 @@ class TestFullTrack(TransactionTestCase):
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
-                                                             contest=Contest.objects.create(name="contest"),
+                                                             contest=Contest.objects.create(name="contest",
+                                                                                            start_time=datetime.datetime.utcnow(),
+                                                                                            finish_time=datetime.datetime.utcnow()),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
-        crew = Crew.objects.create(member1=Person.objects.create(first_name = "Mister", last_name = "Pilot"))
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
@@ -108,10 +110,12 @@ class Test2017WPFC(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
-                                                             contest=Contest.objects.create(name="contest"),
+                                                             contest=Contest.objects.create(name="contest",
+                                                                                            start_time=datetime.datetime.utcnow(),
+                                                                                            finish_time=datetime.datetime.utcnow()),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
-        crew = Crew.objects.create(member1=Person.objects.create(first_name = "Mister", last_name = "Pilot"))
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()

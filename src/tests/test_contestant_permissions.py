@@ -50,7 +50,7 @@ CONTESTANT_DATA = {
         },
         "country": "NO"
     },
-    "gate_times": [],
+    "gate_times": {},
     "scorecard": "FAI Precision 2020",
     "takeoff_time": datetime.datetime.utcnow(),
     "minutes_to_starting_point": 5,
@@ -72,7 +72,9 @@ class TestCreateNavigationTask(APITestCase):
         self.user_owner.user_permissions.add(permission)
         self.user_without_permissions = User.objects.create(username="withoutpermissions")
         self.client.force_login(user=self.user_owner)
-        result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False})
+        result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
+                                                                  "start_time": datetime.datetime.utcnow(),
+                                                                  "finish_time": datetime.datetime.utcnow()})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
@@ -125,7 +127,9 @@ class TestAccessNavigationTask(APITestCase):
         )
 
         self.client.force_login(user=self.user_owner)
-        result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False})
+        result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
+                                                                  "start_time": datetime.datetime.utcnow(),
+                                                                  "finish_time": datetime.datetime.utcnow()})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
