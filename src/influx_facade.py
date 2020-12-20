@@ -37,8 +37,8 @@ class InfluxFacade:
             },
             "time": stamp.isoformat(),
             "fields": {
-                "latitude": latitude,
-                "longitude": longitude,
+                "latitude": float(latitude),
+                "longitude": float(longitude),
                 "message": message,
                 "type": annotation_type
             }
@@ -58,12 +58,12 @@ class InfluxFacade:
                 },
                 "time": device_time.isoformat(),
                 "fields": {
-                    "latitude": position_data["latitude"],
-                    "longitude": position_data["longitude"],
-                    "altitude": position_data["altitude"],
-                    "battery_level": position_data["attributes"].get("batteryLevel", -1.0),
-                    "speed": position_data["speed"],
-                    "course": position_data["course"]
+                    "latitude": float(position_data["latitude"]),
+                    "longitude": float(position_data["longitude"]),
+                    "altitude": float(position_data["altitude"]),
+                    "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
+                    "speed": float(position_data["speed"]),
+                    "course": float(position_data["course"])
                 }
             })
         return data
@@ -101,12 +101,12 @@ class InfluxFacade:
                     },
                     "time": device_time.isoformat(),
                     "fields": {
-                        "latitude": position_data["latitude"],
-                        "longitude": position_data["longitude"],
-                        "altitude": position_data["altitude"],
-                        "battery_level": position_data["attributes"].get("batteryLevel", -1.0),
-                        "speed": position_data["speed"],
-                        "course": position_data["course"]
+                        "latitude": float(position_data["latitude"]),
+                        "longitude": float(position_data["longitude"]),
+                        "altitude": float(position_data["altitude"]),
+                        "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
+                        "speed": float(position_data["speed"]),
+                        "course": float(position_data["course"])
                     }
                 }
                 try:

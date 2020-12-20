@@ -57,7 +57,7 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx):
                     "latitude": point.latitude,
                     "longitude": point.longitude,
                     "altitude": point.elevation,
-                    "attributes": {"batteryLevel": 1},
+                    "attributes": {"batteryLevel": 1.0},
                     "speed": 0.0,
                     "course": 0.0,
                     "deviceTime": point.time.isoformat()
