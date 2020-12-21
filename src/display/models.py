@@ -183,6 +183,9 @@ class Club(models.Model):
     class Meta:
         unique_together = ("name", "country")
 
+    def __str__(self):
+        return self.name
+
     @property
     def country_flag_url(self):
         if self.country:
