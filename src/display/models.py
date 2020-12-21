@@ -164,6 +164,28 @@ class Person(models.Model):
     def __str__(self):
         return "{} {}".format(self.first_name, self.last_name)
 
+    @classmethod
+    def get_or_create(cls, first_name: Optional[str], last_name: Optional[str], phone: Optional[str],
+                      email: Optional[str]) -> Optional["Person"]:
+        possible_person = None
+        if phone is not None and len(phone) > 0:
+            possible_person = Person.objects.filter(phone=phone)
+        if (not possible_person or possible_person.count() == 0) and email is not None and len(email) > 0:
+            possible_person = Person.objects.filter(email__iexact=email)
+        if not possible_person or possible_person.count() == 0:
+            if first_name is not None and len(first_name) > 0 and last_name is not None and len(last_name) > 0:
+                possible_person = Person.objects.filter(first_name__iexact=first_name,
+                                                        last_name__iexact=last_name).first()
+                if possible_person is None:
+                    return Person.objects.get_or_create(
+                        defaults={"phone": phone,
+                                  "email": phone},
+                        first_name__iexact=first_name,
+                        last_name__iexact=last_name)[0]
+                return possible_person
+            return None
+        return possible_person.first()
+
 
 class Crew(models.Model):
     member1 = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="crewmember_one")

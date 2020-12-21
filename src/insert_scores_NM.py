@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     django.setup()
 from display.models import Team, Aeroplane, NavigationTask, Route, Contestant, Scorecard, TraccarCredentials, Crew, \
-    Contest, Task, TaskTest, TaskSummary, ContestSummary, TeamTestScore
+    Contest, Task, TaskTest, TaskSummary, ContestSummary, TeamTestScore, Person
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 
 contest = Contest.objects.filter(name="NM 2020").first()
@@ -63,7 +63,7 @@ contestants = {
     # "TorHelge": (datetime.datetime(2020, 8, 1, 12, 40), 70, 2)
 }
 aeroplane = Aeroplane.objects.first()
-
+Task.objects.all().delete()
 navigation_task = Task.objects.create(name="navigation", contest=contest, heading="Navigation")
 planning_test = TaskTest.objects.create(name="planning", heading="Planning", task=navigation_task, index=0)
 navigation_test = TaskTest.objects.create(name="navigation", heading="Navigation", task=navigation_task, index=1)
@@ -76,7 +76,8 @@ landing_three = TaskTest.objects.create(name="landing_three", heading="Landing 3
 landing_four = TaskTest.objects.create(name="landing_four", heading="Landing 4", task=landing_task, index=3)
 
 for contestant_name, scores in contestants.items():
-    crew, _ = Crew.objects.get_or_create(pilot=contestant_name, navigator="")
+    pilot = Person.get_or_create(contestant_name, "Pilot", None, None)
+    crew, _ = Crew.objects.get_or_create(member1=pilot)
     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
     for test, value in scores.items():
         if "summary" in test:

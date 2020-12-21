@@ -1,14 +1,15 @@
 import {
     GET_CONTEST_RESULTS_SUCCESSFUL,
     GET_CONTEST_LIST_SUCCESSFUL, GET_CONTEST_TEAMS_LIST,
-    GET_CONTEST_TEAMS_LIST_SUCCESSFUL
+    GET_CONTEST_TEAMS_LIST_SUCCESSFUL, SHOW_TASK_DETAILS, HIDE_ALL_TASK_DETAILS, HIDE_TASK_DETAILS
 } from "../constants/resultsServiceActionTypes";
 import {fetchContestTeams} from "../actions/resultsService";
 
 const initialState = {
     contests: [],
     contestResults: {},
-    teams: {}
+    teams: {},
+    visibleTaskDetails: {},
 };
 
 function rootReducer(state = initialState, action) {
@@ -46,6 +47,30 @@ function rootReducer(state = initialState, action) {
                     teams: Object.keys(teamsMap)
                 }
             }
+        })
+    }
+    if (action.type === SHOW_TASK_DETAILS) {
+        return Object.assign({}, state, {
+            ...state,
+            visibleTaskDetails: {
+                ...state.visibleTaskDetails,
+                [action.taskId]: true
+            }
+        })
+    }
+    if (action.type === HIDE_TASK_DETAILS) {
+        return Object.assign({}, state, {
+            ...state,
+            visibleTaskDetails: {
+                ...state.visibleTaskDetails,
+                [action.taskId]: false
+            }
+        })
+    }
+    if (action.type === HIDE_ALL_TASK_DETAILS) {
+        return Object.assign({}, state, {
+            ...state,
+            visibleTaskDetails: {}
         })
     }
     return state;

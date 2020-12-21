@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {fetchContestList, fetchContestResults} from "../../actions/resultsService";
+import {fetchContestList, fetchContestResults, hideTaskDetails, showTaskDetails} from "../../actions/resultsService";
 import {teamLongForm} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
@@ -11,7 +11,8 @@ import {Link} from "react-router-dom";
 
 const mapStateToProps = (state, props) => ({
     contest: state.contestResults[props.contestId],
-    teams: state.teams
+    teams: state.teams,
+    visibleTaskDetails: state.visibleTaskDetails
 })
 
 class ConnectedTaskSummaryResultsTable extends Component {
@@ -34,6 +35,16 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     [taskSummary.task.toFixed(0)]: taskSummary.points,
                 })
             })
+            task.tasktest_set.map((taskTest) => {
+                taskTest.teamtestscore_set.map((testScore) => {
+                    if (data[testScore.team] === undefined) {
+                        data[testScore.team] = {}
+                    }
+                    Object.assign(data[testScore.team], {
+                        [taskTest.id.toFixed(0)]: testScore.points
+                    })
+                })
+            })
         })
         this.props.contest.results.contestsummary_set.map((summary) => {
             if (data[summary.team.id] === undefined) {
@@ -50,34 +61,60 @@ class ConnectedTaskSummaryResultsTable extends Component {
     }
 
     buildColumns() {
-        return [{
+        const teamColumn = {
             dataField: "team",
             text: "Team",
             formatter: (cell, row) => {
                 return teamLongForm(cell)
             }
 
-        }].concat(this.props.contest.results.task_set.map((task) => {
-            return {
-                dataField: task.id.toFixed(0),
-                text: task.heading,
-                sort: true
-            }
-        })).concat([{
+        }
+        const contestSummaryColumn = {
             dataField: "summary",
             text: "Overall",
             sort: true
-        }])
+        }
+        let columns = [teamColumn]
+        this.props.contest.results.task_set.map((task) => {
+            task.tasktest_set.map((taskTest) => {
+                columns.push({
+                    dataField: taskTest.id.toFixed(0),
+                    text: taskTest.heading,
+                    sort: true,
+                    hidden: !this.props.visibleTaskDetails[task.id]
+                })
+            });
+            columns.push({
+                dataField: task.id.toFixed(0),
+                text: task.heading,
+                sort: true,
+                events: {
+                    onClick: (e, column, columnIndex, row, rowIndex) => {
+                        if (!this.props.visibleTaskDetails[task.id]) {
+                            this.props.showTaskDetails(column.dataField)
+                        } else {
+                            this.props.hideTaskDetails(column.dataField)
+                        }
+                    }
+                }
+            })
+        })
+        columns.push(contestSummaryColumn)
+        return columns
     }
 
 
     render() {
         if (!this.props.teams || !this.props.contest) return null
+        const c = this.buildColumns()
+        const d = this.buildData()
+        console.log(c)
+        console.log(d)
         return <div className={'row'}>
-                <div className={"col-12"}>
-                    <h1>{this.props.contest.results.name}</h1>
-                    <BootstrapTable keyField={"key"} columns={this.buildColumns()} data={this.buildData()}/>
-                </div>
+            <div className={"col-12"}>
+                <h1>{this.props.contest.results.name}</h1>
+                <BootstrapTable keyField={"key"} columns={c} data={d}/>
+            </div>
             <Link to={"../../"}>Contest overview</Link>
         </div>
     }
@@ -86,5 +123,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
 const
     TaskSummaryResultsTable = connect(mapStateToProps, {
         fetchContestResults,
+        showTaskDetails,
+        hideTaskDetails
     })(ConnectedTaskSummaryResultsTable);
 export default TaskSummaryResultsTable;
