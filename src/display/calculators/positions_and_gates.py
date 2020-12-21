@@ -26,6 +26,7 @@ class Position:
 class Gate:
     def __init__(self, gate: Waypoint, expected_time,
                  gate_line_extended: Tuple[Tuple[float, float], Tuple[float, float]]):
+        self.waypoint = gate
         self.name = gate.name
         self.gate_line = gate.gate_line
         self.gate_line_infinite = gate.gate_line_infinite

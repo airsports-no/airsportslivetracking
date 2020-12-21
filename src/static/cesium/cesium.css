@@ -41,6 +41,9 @@
     right: 120px;
 }
 
+.inheritDisplay{
+    display: inherit;
+}
 
 .preWrap {
     white-space: pre-wrap;
@@ -50,10 +53,21 @@
     font-size: small;
 }
 
-.lowerThirds {
+.lowerThirdsDouble {
     position: fixed;
     width: 45%;
     /*max-height: 30%;*/
+    max-width: 700px;
+    bottom: 20px;
+    right: 150px;
+    z-index: 2;
+}
+
+.lowerThirdsSingle {
+    position: fixed;
+    width: 30%;
+    /*max-height: 30%;*/
+    max-width: 400px;
     bottom: 20px;
     right: 150px;
     z-index: 2;
@@ -64,7 +78,7 @@
 }
 
 .lowerThirdsTeamImage {
-    width: 100%;
+    max-height: 130px;
 }
 
 .transparent {

@@ -7,6 +7,8 @@ from urllib.parse import urlencode
 import gpxpy
 import requests
 
+from playback_tools import insert_gpx_file
+
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
@@ -92,32 +94,5 @@ for file in glob.glob("../data/demo_contests/2017_WPFC/*_Results_*.gpx"):
                                                   air_speed=speed,
                                                   wind_direction=160, wind_speed=18)
     print(navigation_task.pk)
-
     with open(file, "r") as i:
-        gpx = gpxpy.parse(i)
-    positions = []
-    for track in gpx.tracks:
-        for segment in track.segments:
-            for point in segment.points:
-                positions.append({
-                    "deviceId": contestant,
-                    "latitude": point.latitude,
-                    "longitude": point.longitude,
-                    "altitude": point.elevation,
-                    "attributes": {"batteryLevel": 1},
-                    "speed": 0,
-                    "course": 0,
-                    "deviceTime": point.time.isoformat()
-                })
-    generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
-    influx.put_data(generated_positions)
-    contestant_track, _ = ContestantTrack.objects.get_or_create(contestant=contestant_object)
-    calculator = calculator_factory(contestant_object, influx)
-    calculator.start()
-    new_positions = []
-    for position in generated_positions:
-        data = position["fields"]
-        data["time"] = position["time"]
-        new_positions.append(data)
-    calculator.add_positions(new_positions)
-    calculator.join()
+        insert_gpx_file(contestant_object, i, influx)

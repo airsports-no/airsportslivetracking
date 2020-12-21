@@ -56,7 +56,7 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx):
                     "deviceId": contestant_object.traccar_device_name,
                     "latitude": point.latitude,
                     "longitude": point.longitude,
-                    "altitude": point.elevation,
+                    "altitude": point.elevation if point.elevation else 0,
                     "attributes": {"batteryLevel": 1.0},
                     "speed": 0.0,
                     "course": 0.0,

@@ -14,7 +14,7 @@ if __name__ == "__main__":
     django.setup()
 
 from display.convert_flightcontest_gpx import create_route_from_csv
-from playback_tools import build_traccar_track, load_data_traccar
+from playback_tools import build_traccar_track, load_data_traccar, insert_gpx_file
 from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
@@ -71,7 +71,8 @@ if original_contest:
 aeroplane, _ = Aeroplane.objects.get_or_create(registration="LN-YDB")
 contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
-contest = Contest.objects.create(name="NM 2020", is_public=True)
+contest = Contest.objects.create(name="NM 2020", is_public=True, start_time=contest_start_time,
+                                 finish_time=contest_finish_time)
 with open("/data/NM.csv", "r") as file:
     route = create_route_from_csv("NM 2020", file.readlines()[1:])
 
@@ -85,8 +86,11 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     print(file)
     contestant = os.path.splitext(os.path.basename(file))[0]
     print(contestant)
-
-    crew, _ = Crew.objects.get_or_create(member1=Person.objects.get_or_create(first_name=contestant, last_name="Pilot")[0])
+    person = Person.objects.filter(first_name=contestant, last_name="Pilot").first()
+    if not person:
+        person = Person.objects.create(first_name=contestant, last_name="Pilot")
+    crew, _ = Crew.objects.get_or_create(
+        member1=person)
 
     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
     start_time, speed, _ = contestants[contestant]
@@ -102,7 +106,9 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
                                                   air_speed=speed,
                                                   wind_direction=165, wind_speed=8)
     print(navigation_task.pk)
+    with open(file, "r") as i:
+        insert_gpx_file(contestant_object, i, influx)
 
-    tracks[contestant] = build_traccar_track(file)
+    # tracks[contestant] = build_traccar_track(file)
 
-load_data_traccar(tracks)
+# load_data_traccar(tracks)

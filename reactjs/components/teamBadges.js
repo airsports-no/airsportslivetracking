@@ -36,39 +36,61 @@ function memberTwoPicture(crew) {
 }
 
 function memberName(member) {
-    return <h4><img src={member.country_flag_url} className={"personalFlag img-fluid"}
-                    alt={member.country}/> {member.first_name} {member.last_name.toUpperCase()}</h4>
+    return <h4 className={""}><img src={member.country_flag_url} className={"personalFlag img-fluid"}
+                                   alt={member.country}/> {member.first_name}<br/>{member.last_name.toUpperCase()}</h4>
 }
 
 
 export class LowerThirdTeam extends Component {
+
     render() {
         if (this.props.team === null) return null
-        return <div className={"lowerThirds"}>
-            <div className={"card-transparent"}>
-                <div className={"row"}>
-                    <div className={"col-4"}/>
-                    <div className={"col-4"}>
-                        {memberOnePicture(this.props.contestant.team.crew)}
-                    </div>
-                    <div className={"col-4"}>
-                        {memberTwoPicture(this.props.contestant.team.crew)}
-                    </div>
+        const singleCrew = this.props.contestant.team.crew.member2 == null
+        let crewPictures = <div className={"row"}>
+            <div className={"col-4"}/>
+            <div className={"col-4 inheritDisplay"}>
+                {memberOnePicture(this.props.contestant.team.crew)}
+            </div>
+            <div className={"col-4 inheritDisplay"}>
+                {memberTwoPicture(this.props.contestant.team.crew)}
+            </div>
+        </div>
+        if (singleCrew) {
+            crewPictures = <div className={"row"}>
+                <div className={"col-4"}/>
+                <div className={"col-8 inheritDisplay"}>
+                    {memberOnePicture(this.props.contestant.team.crew)}
                 </div>
+            </div>
+
+        }
+        let crewNames = <div className={"row"}>
+            <div className={"col-6 text-center"}>
+                {memberName(this.props.contestant.team.crew.member1)}
+            </div>
+            <div className={"col-6 text-center"}>
+                {this.props.contestant.team.crew.member2 !== null ? memberName(this.props.contestant.team.crew.member2) : null}
+            </div>
+        </div>
+        if (singleCrew) {
+            crewNames = <div className={"row"}>
+                <div className={"col-12 text-center"}>
+                    {memberName(this.props.contestant.team.crew.member1)}
+                </div>
+            </div>
+
+        }
+        return <div className={singleCrew ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
+            <div className={"card-transparent"}>
+                {crewPictures}
                 <div className={"card-body bg-dark text-light"}>
                     <div className={"row"}>
-                        <div className={"col-3"}>
-                            <img className={"lowerThirdsTeamImage img-fluid rounded"} src={this.props.contestant.team.logo}/>
+                        <div className={"col-4"}>
+                            <img className={"lowerThirdsTeamImage img-fluid rounded"}
+                                 src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>
                         </div>
-                        <div className={"col-9 nopadding"}>
-                            <div className={"row"}>
-                                <div className={"col-6 "}>
-                                    {memberName(this.props.contestant.team.crew.member1)}
-                                </div>
-                                <div className={"col-6 "}>
-                                    {this.props.contestant.team.crew.member2 !== null ? memberName(this.props.contestant.team.crew.member2) : null}
-                                </div>
-                            </div>
+                        <div className={"col-8 nopadding"}>
+                            {crewNames}
                             <div className={"row"}>
                                 <div className={"col-12 text-center"}>
                                     <h4>{this.props.contestant.team.club !== null ? this.props.contestant.team.club.name : null}</h4>

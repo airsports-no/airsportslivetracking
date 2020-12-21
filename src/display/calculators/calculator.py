@@ -49,7 +49,8 @@ class Calculator(threading.Thread):
         self.position_update_lock = threading.Lock()
         self.last_gate = None
         self.previous_last_gate = None
-        self.starting_line = self.gates[0]
+        self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
+                                  calculate_extended_gate(self.gates[0].waypoint, self.scorecard))
         self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
         self.takeoff_gate = Gate(self.contestant.navigation_task.route.takeoff_gate,
                                  self.contestant.takeoff_time,

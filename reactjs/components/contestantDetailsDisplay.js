@@ -39,7 +39,7 @@ class ConnectedContestantDetailsDisplay extends Component {
             },
             {
                 dataField: "message",
-                text: contestantShortForm(this.props.contestant),
+                text: contestantShortForm(this.props.contestant) + " " + this.props.contestantData.score +  " points",
                 formatter: (cell, row) => {
                     return <div className={"preWrap"}><FormatMessage message={cell}/></div>
                 }
