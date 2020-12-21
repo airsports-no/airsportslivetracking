@@ -7,7 +7,6 @@ from urllib.parse import urlencode
 import gpxpy
 import requests
 
-
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
@@ -54,14 +53,14 @@ contestants = {
     "2017_124": (datetime.datetime(2015, 1, 1, 8, 39), 70, 9),
 
 }
-
 scorecard = get_default_scorecard()
 
 Contest.objects.filter(name="WPFC 2017").delete()
 aeroplane = Aeroplane.objects.first()
 contest_start_time = datetime.datetime(2014, 8, 1, 6, 0, 0).astimezone()
 contest_finish_time = datetime.datetime(2014, 8, 1, 16, 0, 0).astimezone()
-contest = Contest.objects.create(name="WPFC 2017", is_public=True)
+contest = Contest.objects.create(name="WPFC 2017", is_public=True, start_time=contest_start_time,
+                                 finish_time=contest_finish_time)
 with open("../data/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
     route = create_route_from_gpx(file)
 navigation_task = NavigationTask.objects.create(name="Route-1-Blue ", contest=contest,
@@ -79,7 +78,8 @@ for file in glob.glob("../data/demo_contests/2017_WPFC/*_Results_*.gpx"):
     if contestant not in implemented:
         continue
 
-    crew, _ = Crew.objects.get_or_create(member1=Person.objects.get_or_create(first_name=contestant, last_name="Pilot")[0])
+    crew, _ = Crew.objects.get_or_create(
+        member1=Person.objects.get_or_create(first_name=contestant, last_name="Pilot")[0])
     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
     start_time, speed, minutes_starting = contestants[contestant]
     print(start_time)

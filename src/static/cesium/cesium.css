@@ -7,22 +7,47 @@
     font-size: large;
     overflow-y: auto;
     left: 70px;
-    top: 40px;
+    top: 70px;
     position: fixed;
+    z-index: 2;
+    /*border-radius: 0 0 25px 25px;*/
+}
+
+.titleWrapper {
+    position: fixed;
+    display: inline-block;
+    left: 70px;
+    top: 20px;
+    z-index: 2;
+    border-radius: 25px 25px 0 0;
+    background-color: #666666;
 }
 
 .compactTable {
-    position: fixed;
     width: 500px;
     max-height: 50%;
-    z-index: 2;
 }
 
 .largeTable {
-    position: fixed;
-    right: 70px;
+    right: 120px;
     max-height: 90%;
-    z-index: 2;
+}
+
+.compactTitle {
+    width: 500px;
+}
+
+.largeTitle {
+    right: 120px;
+}
+
+
+.preWrap {
+    white-space: pre-wrap;
+}
+
+.gateTimesText {
+    font-size: small;
 }
 
 .lowerThirds {
@@ -34,11 +59,11 @@
     z-index: 2;
 }
 
-.lowerThirdsProfileImage{
+.lowerThirdsProfileImage {
     /*height: 30%;*/
 }
 
-.lowerThirdsTeamImage{
+.lowerThirdsTeamImage {
     width: 100%;
 }
 
@@ -46,13 +71,13 @@
     background-color: transparent;
 }
 
-.nopadding{
-    padding: 0!important;
-    margin: 0!important;
+.nopadding {
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
-.personalFlag{
-    width:40px;
+.personalFlag {
+    width: 40px;
 }
 
 .progressWheel {
@@ -66,12 +91,19 @@
 
 
 .taskTitle {
-    float: left;
+    font-size: xx-large;
+    vertical-align: middle;
+    color: aliceblue;
 }
 
 #logoButton {
     height: 80px;
     width: 80px;
+}
+
+#menuButton {
+    height: 40px;
+    width: 40px;
 }
 
 #logoButtonWrapper {
@@ -81,15 +113,17 @@
     z-index: 2;
 }
 
+
 #returnLink {
-    bottom: 20px;
-    left: 20px;
+    top: 20px;
+    right: 20px;
     position: fixed;
     z-index: 2;
 }
 
 #returnLinkImage {
-    width: 200px;
+    height: 80px;
+    width: 80px;
 }
 
 .menuButtonImage {

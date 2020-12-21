@@ -65,7 +65,7 @@ class PrecisionCalculator(Calculator):
                     # Add penalty for crossing in the wrong direction
                     score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
                     self.update_score(self.starting_line, score,
-                                      "{} points for crossing extended starting gate backwards".format(score),
+                                      "crossing extended starting gate backwards",
                                       self.track[-1].latitude, self.track[-1].longitude, "anomaly")
         super(PrecisionCalculator, self).check_intersections()
 
@@ -94,8 +94,8 @@ class PrecisionCalculator(Calculator):
                 if gate.gate_check:
                     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
                     string = "{} points for missing gate".format(score)
-                    self.update_score(gate, score, string, current_position.latitude,
-                                      current_position.longitude, "anomaly")
+                    self.update_score(gate, score, "missing gate", current_position.latitude,
+                                      current_position.longitude, "anomaly", planned=gate.expected_time)
                     # Commented out because of A.2.2.16
                     # if gate.is_procedure_turn:
                     #     score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type)
@@ -112,11 +112,9 @@ class PrecisionCalculator(Calculator):
                     gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time,
                                                                                     gate.passing_time)
                     self.update_score(gate, gate_score,
-                                      "{} points for passing gate off by {}s (planned: {},  actual: {})".format(
-                                          gate_score,
-                                          round(time_difference), gate.expected_time.strftime(self.TIME_FORMAT),
-                                          gate.passing_time.strftime(self.TIME_FORMAT)),
-                                      current_position.latitude, current_position.longitude, "information")
+                                      "passing gate",
+                                      current_position.latitude, current_position.longitude, "information",
+                                      planned=gate.expected_time, actual=gate.passing_time)
             else:
                 finished = True
         self.last_gate_index += index
@@ -166,8 +164,9 @@ class PrecisionCalculator(Calculator):
             self.current_procedure_turn_slices = []
             self.current_procedure_turn_directions = []
             self.current_procedure_turn_gate = self.last_gate
-            self.current_procedure_turn_bearing_difference = get_heading_difference(self.last_gate.bearing_from_previous,
-                                                                                    self.last_gate.bearing)
+            self.current_procedure_turn_bearing_difference = get_heading_difference(
+                self.last_gate.bearing_from_previous,
+                self.last_gate.bearing)
             if self.current_procedure_turn_bearing_difference > 0:
                 self.current_procedure_turn_bearing_difference -= 360
             else:
@@ -192,9 +191,8 @@ class PrecisionCalculator(Calculator):
                         self.update_tracking_state(self.FAILED_PROCEDURE_TURN)
                         score = self.scorecard.get_procedure_turn_penalty_for_gate_type(
                             self.current_procedure_turn_gate.type)
-                        self.update_score(self.last_gate, score,
-                                          "{} points for incorrect procedure turn at {}".format(
-                                              score, self.current_procedure_turn_gate),
+                        self.update_score(self.current_procedure_turn_gate, score,
+                                          "incorrect procedure turn",
                                           last_position.latitude, last_position.longitude, "anomaly")
         else:
             if bearing_difference > self.scorecard.backtracking_bearing_difference:
@@ -217,8 +215,7 @@ class PrecisionCalculator(Calculator):
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
                         self.update_score(self.last_gate, self.scorecard.backtracking_penalty,
-                                          "{} points for backtracking".format(
-                                              self.scorecard.backtracking_penalty),
+                                          "backtracking",
                                           last_position.latitude, last_position.longitude, "anomaly")
             else:
                 if self.tracking_state == self.BACKTRACKING:

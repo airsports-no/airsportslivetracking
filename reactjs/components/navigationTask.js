@@ -31,13 +31,14 @@ const mapStateToProps = (state, props) => ({
 class ConnectedNavigationTask extends Component {
     constructor(props) {
         super(props);
-        this.state = {colourMap: {}}
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
         this.handleMapTurningPointClick = this.handleMapTurningPointClick.bind(this)
         this.rendered = false
     }
 
     handleMapTurningPointClick(turningPoint) {
+        this.props.displayAllTracks();
+        this.props.hideLowerThirds();
         this.props.setDisplay({
             displayType: TURNING_POINT_DISPLAY,
             turningPoint: turningPoint
@@ -176,16 +177,13 @@ class ConnectedNavigationTask extends Component {
             const tableDisplay = <div>
                 <div className={"card text-light collapse bg-dark"} id={"insetMenu"} aria-expanded={false}
                      aria-controls={"insetMenu"}>
-                    <div className={"card-body"}>
-                        <div className={"card-title"}><a href={"#"} onClick={this.resetToAllContestants}><h3
-                            className={'taskTitle'}>{this.props.navigationTask.name}</h3></a>
-                            <a className={"shrinkLink"} href={"#"}
-                               onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ? "<<<" : ">>>"}</a>
-                        </div>
+                    {/*<div className={"card-body"}>*/}
                         <div className={"card–text"}>
+                        {/*<div className={"card-title"}>*/}
+                        {/*</div>*/}
                             {display}
                         </div>
-                    </div>
+                    {/*</div>*/}
                 </div>
             </div>
             const mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {

@@ -1,3 +1,4 @@
+import datetime
 import logging
 import threading
 from datetime import timedelta
@@ -73,15 +74,36 @@ class Calculator(threading.Thread):
         logger.info("Terminating calculator for {}".format(self.contestant))
 
     def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,
-                     annotation_type: str):
-        internal_message = "{}: {}".format(gate.name, message)
-        logger.info("UPDATE_SCORE {}: {}".format(self.contestant, internal_message))
+                     annotation_type: str, planned: Optional[datetime.datetime] = None,
+                     actual: Optional[datetime.datetime] = None):
+        if planned is not None and actual is not None:
+            offset = (actual - planned).total_seconds()
+            offset_string = "{} s".format("+{}".format(int(offset)) if offset > 0 else int(offset))
+        else:
+            offset_string = None
+        internal_message = {
+            "gate": gate.name,
+            "message": message,
+            "points": score,
+            "planned": planned.strftime("%H:%M:%S") if planned else None,
+            "actual": actual.strftime("%H:%M:%S") if actual else None,
+            "offset_string": offset_string
+        }
+        string = "{}: {} points {}".format(gate.name, score, message)
+        if offset_string:
+            string += "({})".format(offset_string)
+        if planned and actual:
+            string += "\n(planned: {}, actual: {}".format(internal_message["planned"], internal_message["actual"])
+        elif planned:
+            string += "\n(planned: {}, actual: --".format(internal_message["planned"])
+        internal_message["string"] = string
+        logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))
         self.score += score
         try:
             self.score_by_gate[gate.name] += score
         except KeyError:
             self.score_by_gate[gate.name] = self.score
-        self.influx.add_annotation(self.contestant, latitude, longitude, internal_message, annotation_type,
+        self.influx.add_annotation(self.contestant, latitude, longitude, string, annotation_type,
                                    self.track[-1].time)  # TODO: Annotations with the same time
         self.score_log.append(internal_message)
         self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)

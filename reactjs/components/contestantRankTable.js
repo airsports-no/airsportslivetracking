@@ -23,7 +23,7 @@ function getTrackingStateBackgroundClass(state) {
 }
 
 function calculateProjectedScore(score, progress) {
-    if(progress<=0){
+    if (progress <= 0) {
         return 99999
     }
     if (progress < 5) {
@@ -144,22 +144,15 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "name",
-                text: "Team"
+                text: "CREW"
             },
             {
                 dataField: "score",
-                text: "Score"
-            },
-            {
-                dataField: "progress",
-                text: "Lap",
-                formatter: (cell, row) => {
-                    return <ProgressCircle progress={row.progress} finished={row.finished}/>
-                }
+                text: "SCORE"
             },
             {
                 dataField: "projectedScore",
-                text: "Est",
+                text: "EST",
                 style: (cell, row, rowIndex, colIndex) => {
                     return {color: "orange"}
                 },
@@ -175,8 +168,16 @@ class ConnectedContestantRankTable extends Component {
                 }
             },
             {
+                dataField: "progress",
+                text: "LAP",
+                formatter: (cell, row) => {
+                    return <ProgressCircle progress={row.progress} finished={row.finished}/>
+                },
+                headerClasses: "text-center"
+            },
+            {
                 dataField: "currentState",
-                text: "State",
+                text: "STATE",
                 hidden: !this.props.displayExpandedTrackingTable,
 
                 classes: function callback(cell, row, rowIndex, colIndex) {
@@ -186,17 +187,17 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "latestStatus",
-                text: "Latest status",
+                text: "EVENT",
                 hidden: true//!this.props.displayExpandedTrackingTable
             },
             {
                 dataField: "lastGate",
-                text: "Gate",
+                text: "GATE",
                 hidden: !this.props.displayExpandedTrackingTable
             },
             {
                 dataField: "lastGateTimeOffset",
-                text: "Offset",
+                text: "OFFSET",
                 hidden: !this.props.displayExpandedTrackingTable
             }
         ]
@@ -215,7 +216,8 @@ class ConnectedContestantRankTable extends Component {
         return <BootstrapTable keyField={"key"} data={this.buildData()} columns={columns}
                                defaultSorted={[{dataField: "rank", order: "asc"}]}
                                classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
-                               bootstrap4 striped hover condensed //pagination={paginationFactory(paginationOptions)}
+                               bootstrap4 striped hover condensed
+                               bordered={false}//pagination={paginationFactory(paginationOptions)}
                                rowEvents={rowEvents}/>
     }
 }

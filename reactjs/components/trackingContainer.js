@@ -4,6 +4,8 @@ import {connect} from "react-redux";
 import React, {Component} from "react";
 import TrackLoadingIndicator from "./trackLoadingIndicator";
 import {LowerThirdTeam} from "./teamBadges";
+import {displayAllTracks, expandTrackingTable, hideLowerThirds, setDisplay, shrinkTrackingTable} from "../actions";
+import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -12,6 +14,7 @@ const mapStateToProps = (state, props) => ({
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
     displayLowerThirds: state.displayLowerThirds,
     contestants: state.contestants,
+    currentDisplay: state.currentDisplay,
 })
 
 class ConnectedTrackingContainer extends Component {
@@ -24,8 +27,14 @@ class ConnectedTrackingContainer extends Component {
         this.contestId = document.configuration.contest_id;
         this.displayMap = document.configuration.displayMap;
         this.displayTable = document.configuration.displayTable;
+        this.resetToAllContestants = this.resetToAllContestants.bind(this)
     }
 
+    resetToAllContestants() {
+        this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        this.props.displayAllTracks();
+        this.props.hideLowerThirds();
+    }
 
     render() {
         const TrackerDisplay =
@@ -68,20 +77,30 @@ class ConnectedTrackingContainer extends Component {
                         {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
                             numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
                         <div className={"row fill ml-1"}>
-                            <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}
-                               id={"logoButtonWrapper"}>
-                                <img id={'logoButton'}
-                                     alt={"Menu toggle"}
-                                     src={"/static/img/airsports.png"}/>
-                            </a>
+                            <div
+                                className={"titleWrapper " + (this.props.displayExpandedTrackingTable ? "largeTitle" : "compactTitle")}>
+                                <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}>
+                                    {/*id={"logoButtonWrapper"}>*/}
+                                    <img id={'menuButton'}
+                                         alt={"Menu toggle"}
+                                         src={"/static/img/menubutton.png"}/>
+                                </a>
+                                <a href={"#"} className={'taskTitle'}
+                                   onClick={this.resetToAllContestants}>{this.props.navigationTask.name}</a>
+                                {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ?
+                                    <a className={"shrinkLink taskTitle"} href={"#"}
+                                       onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ? "<<<" : ">>>"}</a> : null}
+
+                            </div>
                             <a className={"btn"} id="returnLink" href={"/"}><img alt={"Back to main page"}
                                                                                  id={"returnLinkImage"}
-                                                                                 src={"/static/img/AirSportsLogo.png"}/></a>
+                                                                                 src={"/static/img/airsports.png"}/></a>
                             <div id="cesiumContainer"/>
                             <div
                                 className={"backdrop " + (this.props.displayExpandedTrackingTable ? "largeTable" : "compactTable")}>{TrackerDisplay}</div>
-                            {this.props.displayLowerThirds!==null ?
-                                <LowerThirdTeam contestant={this.props.contestants[this.props.displayLowerThirds]}/> : null}
+                            {this.props.displayLowerThirds !== null ?
+                                <LowerThirdTeam
+                                    contestant={this.props.contestants[this.props.displayLowerThirds]}/> : null}
 
                             {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
                             {/*</div>*/}
@@ -93,5 +112,11 @@ class ConnectedTrackingContainer extends Component {
     }
 }
 
-const TrackingContainer = connect(mapStateToProps)(ConnectedTrackingContainer)
+const TrackingContainer = connect(mapStateToProps, {
+    expandTrackingTable,
+    shrinkTrackingTable,
+    setDisplay,
+    displayAllTracks,
+    hideLowerThirds
+})(ConnectedTrackingContainer)
 export default TrackingContainer
