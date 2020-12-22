@@ -9,7 +9,7 @@ import gpxpy
 from display.calculators.calculator_factory import calculator_factory
 
 if TYPE_CHECKING:
-    from display.models import Contestant, CONTESTANT_CACHE_KEY
+    from display.models import Contestant
 
 server = 'traccar:5055'
 
@@ -74,6 +74,7 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx):
         new_positions.append(data)
     calculator.add_positions(new_positions)
     calculator.join()
+    from display.models import CONTESTANT_CACHE_KEY
     key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant_object.pk)
     # logger.info("Clearing cache for {}".format(contestant))
     cache.delete_pattern(key)
