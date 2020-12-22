@@ -1,6 +1,7 @@
 import time
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
+from django.core.cache import cache
 
 import requests
 import gpxpy
@@ -8,7 +9,7 @@ import gpxpy
 from display.calculators.calculator_factory import calculator_factory
 
 if TYPE_CHECKING:
-    from display.models import Contestant
+    from display.models import Contestant, CONTESTANT_CACHE_KEY
 
 server = 'traccar:5055'
 
@@ -73,3 +74,7 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx):
         new_positions.append(data)
     calculator.add_positions(new_positions)
     calculator.join()
+    key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant_object.pk)
+    # logger.info("Clearing cache for {}".format(contestant))
+    cache.delete_pattern(key)
+
