@@ -173,8 +173,11 @@ class ConnectedContestantRankTable extends Component {
                 formatter: (cell, row) => {
                     return <ProgressCircle progress={row.progress} finished={row.finished}/>
                 },
-                headerClasses: "text-center"
-            },
+                headerClasses: "text-center",
+                style: (cell, row, rowIndex, colIndex) => {
+                    return {width: 60+'px'}
+                }
+                },
             {
                 dataField: "currentState",
                 text: "STATE",
@@ -220,11 +223,14 @@ class ConnectedContestantRankTable extends Component {
                                bordered={false}//pagination={paginationFactory(paginationOptions)}
                                rowEvents={rowEvents}/>
     }
-}
+    }
 
-const ContestantRankTable = connect(mapStateToProps, {
-    setDisplay,
-    displayOnlyContestantTrack,
-    showLowerThirds
-})(ConnectedContestantRankTable)
-export default ContestantRankTable
+    const
+    ContestantRankTable = connect(mapStateToProps, {
+        setDisplay,
+        displayOnlyContestantTrack,
+        showLowerThirds
+    })(ConnectedContestantRankTable)
+    export
+    default
+    ContestantRankTable

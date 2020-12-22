@@ -80,6 +80,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 columns.push({
                     dataField: taskTest.id.toFixed(0),
                     text: taskTest.heading,
+                    headerClasses: "text-muted",
                     sort: true,
                     hidden: !this.props.visibleTaskDetails[task.id]
                 })
