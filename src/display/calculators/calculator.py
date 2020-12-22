@@ -144,8 +144,8 @@ class Calculator(threading.Thread):
                     logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
                     self.update_tracking_state(self.TAKEOFF)
                     self.takeoff_gate.passing_time = intersection_time
-                else:
-                    return
+                # else:
+                #     return
         if not self.starting_line.has_infinite_been_passed():
             # First check extended and see if we are in the correct direction
             # Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf

@@ -142,3 +142,43 @@ class Test2017WPFC(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1149,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
+
+
+class TestNM2019(TransactionTestCase):
+    def setUp(self):
+        with open("display/calculators/tests/NM2019.gpx", "r") as file:
+            route = create_route_from_gpx(file)
+        navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
+        navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
+        self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+                                                             route=route,
+                                                             contest=Contest.objects.create(name="contest",
+                                                                                            start_time=datetime.datetime.utcnow(),
+                                                                                            finish_time=datetime.datetime.utcnow()),
+                                                             start_time=navigation_task_start_time,
+                                                             finish_time=navigation_task_finish_time)
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
+        self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+
+    def test_arild(self):
+        track = load_track_points(
+            "display/calculators/tests/arild2019.gpx")
+        start_time, speed = datetime.datetime(2015, 1, 1, 14, 25, tzinfo=datetime.timezone.utc), 54
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    traccar_device_name="Test contestant", contestant_number=1,
+                                                    scorecard=self.scorecard, minutes_to_starting_point=6,
+                                                    air_speed=speed, wind_direction=220,
+                                                    wind_speed=7)
+        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator.start()
+        calculator.add_positions(track)
+        calculator.join()
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        self.assertEqual(672,
+                         contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
