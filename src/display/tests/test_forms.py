@@ -24,12 +24,12 @@ class TestContestantForm(TestCase):
         self.data = {
             "pilot_first_name": "pilot_first",
             "pilot_last_name": "pilot_last",
-            "pilot_phone": "12345678",
+            "pilot_phone": "+4773215330",
             "pilot_email": "rxdtcfyvgbhjn@hgbjk.com",
 
             "copilot_first_name": "copilot_first",
             "copilot_last_name": "copilot_last",
-            "copilot_phone": "987654",
+            "copilot_phone": "+4773215328",
             "copilot_email": "lknlkb@kjbh.com",
 
             "aircraft_registration": "LN-YDB",
@@ -69,9 +69,9 @@ class TestContestantForm(TestCase):
         self.assertEqual(2, Person.objects.all().count())
 
     def test_preexisting_phone_numbers(self):
-        person = Person.objects.create(first_name="first", last_name="last", phone="1234")
-        self.data["pilot_phone"] = "1234"
-        self.data["copilot_phone"] = "1234"
+        person = Person.objects.create(first_name="first", last_name="last", phone="+4773215338")
+        self.data["pilot_phone"] = "+4773215338"
+        self.data["copilot_phone"] = "+4773215338"
         self.client.force_login(self.user)
         response = self.client.post(reverse("contestant_create", kwargs={"navigationtask_pk": self.navigation_task.pk}),
                                     data=self.data)

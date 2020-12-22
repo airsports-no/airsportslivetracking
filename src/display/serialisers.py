@@ -6,6 +6,7 @@ from django.db import transaction
 from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm
+from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework import serializers
 from rest_framework.generics import get_object_or_404
 from rest_framework.relations import SlugRelatedField
@@ -116,6 +117,7 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
 class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
+    phone = PhoneNumberField(required=False)
 
     class Meta:
         model = Person
@@ -139,28 +141,15 @@ class CrewSerialiser(serializers.ModelSerializer):
         model = Crew
         fields = "__all__"
 
-    def get_possible_person(self, data):
-        possible_person = None
-        if data.get("phone"):
-            possible_person = Person.objects.filter(phone=data["phone"])
-        if (not possible_person or possible_person.count() == 0) and data.get("email"):
-            possible_person = Person.objects.filter(email=data["email"])
-        if not possible_person or possible_person.count() == 0:
-            person = Person.objects.get_or_create(
-                first_name=data["first_name"], last_name=data["last_name"])[0]
-            member1_serialiser = PersonSerialiser(instance=person, data=data)
-            member1_serialiser.is_valid(True)
-            member1_object = member1_serialiser.save()
-            return member1_object
-        return possible_person.first()
-
     def create(self, validated_data):
         member1 = validated_data.pop("member1")
-        member1_object = self.get_possible_person(member1)
+        member1_object = Person.get_or_create(member1["first_name"], member1["last_name"], member1.get("phone"),
+                                              member1.get("email"))
         member2 = validated_data.pop("member2", None)
         member2_object = None
         if member2:
-            member2_object = self.get_possible_person(member2)
+            member2_object = Person.get_or_create(member2["first_name"], member2["last_name"], member2.get("phone"),
+                                                  member2.get("email"))
         crew, _ = Crew.objects.get_or_create(member1=member1_object, member2=member2_object)
         return crew
 
@@ -300,18 +289,47 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class ContestantNestedSerialiser(serializers.ModelSerializer):
-    """
-    Contestants. When putting or patching, note that the entire team has to be specified for it to be changed.
-    Otherwise changes will be ignored.
-    """
-    team = TeamNestedSerialiser()
+class ContestantSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = Contestant
+        exclude = ("navigation_task", "predefined_gate_times")
+
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
                                  help_text=lambda: "Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-    contestanttrack = ContestantTrackSerialiser(required=False)
+
+    def create(self, validated_data):
+        validated_data["navigation_task"] = self.context["navigation_task"]
+        gate_times = validated_data.pop("gate_times", {})
+        contestant = Contestant.objects.create(**validated_data)
+        contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
+                                            gate_times.items()}
+        contestant.save()
+        contestant.navigation_task.contest.teams.add(contestant.team)
+        return contestant
+
+    def update(self, instance, validated_data):
+        instance.navigation_task.contest.teams.remove(instance.team)
+
+        validated_data.update({"navigation_task": self.context["navigation_task"]})
+        gate_times = validated_data.pop("gate_times", {})
+        Contestant.objects.filter(pk=instance.pk).update(**validated_data)
+        instance.refresh_from_db()
+        instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
+                                          gate_times.items()}
+        instance.save()
+        instance.navigation_task.contest.teams.add(instance.team)
+        return instance
+
+
+class ContestantNestedTeamSerialiser(ContestantSerialiser):
+    """
+    Contestants. When putting or patching, note that the entire team has to be specified for it to be changed.
+    Otherwise changes will be ignored.
+    """
+    team = TeamNestedSerialiser()
 
     class Meta:
         model = Contestant
@@ -322,13 +340,8 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
         team_serialiser = TeamNestedSerialiser(data=team_data)
         team_serialiser.is_valid(True)
         team = team_serialiser.save()
-        validated_data["navigation_task"] = self.context["navigation_task"]
-        gate_times = validated_data.pop("gate_times", {})
-        contestant = Contestant.objects.create(**validated_data, team=team)
-        contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
-                                            gate_times.items()}
-        contestant.save()
-        return contestant
+        validated_data["team"] = team
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         team_data = validated_data.pop("team", None)
@@ -341,18 +354,15 @@ class ContestantNestedSerialiser(serializers.ModelSerializer):
             team_serialiser.is_valid(True)
             team = team_serialiser.save()
             validated_data.update({"team": team.pk})
-        validated_data.update({"navigation_task": self.context["navigation_task"]})
-        gate_times = validated_data.pop("gate_times", {})
-        Contestant.objects.filter(pk=instance.pk).update(**validated_data)
-        instance.refresh_from_db()
-        instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
-                                          gate_times.items()}
-        instance.save()
-        return instance
+        return super().update(instance, validated_data)
 
 
-class NavigationTaskNestedSerialiser(serializers.ModelSerializer):
-    contestant_set = ContestantNestedSerialiser(many=True, read_only=True)
+class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSerialiser):
+    contestanttrack = ContestantTrackSerialiser(read_only=True)
+
+
+class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
+    contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
     route = RouteSerialiser()
 
     class Meta:
@@ -372,17 +382,19 @@ class NavigationTaskNestedSerialiser(serializers.ModelSerializer):
         assign_perm("change_route", user, route)
         navigation_task = NavigationTask.objects.create(**validated_data, route=route)
         for contestant_data in contestant_set:
-            contestant_serialiser = ContestantNestedSerialiser(data=contestant_data,
-                                                               context={"navigation_task": navigation_task})
+            contestant_serialiser = ContestantNestedTeamSerialiser(data=contestant_data,
+                                                                   context={"navigation_task": navigation_task})
             contestant_serialiser.is_valid(True)
             contestant_serialiser.save()
         return navigation_task
 
 
-class ExternalNavigationTaskNestedSerialiser(serializers.ModelSerializer):
-    contestant_set = ContestantNestedSerialiser(many=True)
+class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
+    contestant_set = ContestantNestedTeamSerialiser(many=True)
     route_file = serializers.CharField(write_only=True, required=True,
                                        help_text="Base64 encoded gpx file")
+
+    internal_serialiser = ContestantNestedTeamSerialiser
 
     class Meta:
         model = NavigationTask
@@ -410,11 +422,26 @@ class ExternalNavigationTaskNestedSerialiser(serializers.ModelSerializer):
             print(self.context)
             navigation_task = NavigationTask.objects.create(**validated_data)
             for contestant_data in contestant_set:
-                contestant_serialiser = ContestantNestedSerialiser(data=contestant_data,
-                                                                   context={"navigation_task": navigation_task})
+                contestant_serialiser = self.internal_serialiser(data=contestant_data,
+                                                                 context={"navigation_task": navigation_task})
                 contestant_serialiser.is_valid(True)
                 contestant_serialiser.save()
             return navigation_task
+
+
+class ExternalNavigationTaskTeamIdSerialiser(ExternalNavigationTaskNestedTeamSerialiser):
+    """
+    Does not provide team data input, only team ID for each contestant.
+    """
+    contestant_set = ContestantSerialiser(many=True)
+    route_file = serializers.CharField(write_only=True, required=True,
+                                       help_text="Base64 encoded gpx file")
+
+    internal_serialiser = ContestantSerialiser
+
+    class Meta:
+        model = NavigationTask
+        exclude = ("route", "contest")
 
 
 ########## Results service ##########

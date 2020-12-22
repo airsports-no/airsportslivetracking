@@ -16,7 +16,7 @@ from rest_framework.test import APITestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Contest, NavigationTask, Team, Crew, Person, Aeroplane, Contestant
-from display.serialisers import ExternalNavigationTaskNestedSerialiser
+from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 
 data_with_gate_times = {"name": "3. Nav.", "calculator_type": 0, "start_time": "2017-08-01T06:15:00Z",
                         "finish_time": "2017-08-01T09:10:36Z", "is_public": True,
@@ -565,8 +565,8 @@ class TestImportSerialiser(TransactionTestCase):
     def test_import_serialiser(self):
         request = Mock()
         request.user = self.user
-        serialiser = ExternalNavigationTaskNestedSerialiser(data=data,
-                                                            context={"request": request, "contest": self.contest})
+        serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=data,
+                                                                context={"request": request, "contest": self.contest})
         valid = serialiser.is_valid()
         print(serialiser.errors)
 
@@ -619,11 +619,11 @@ class TestImportFCNavigationTask(APITestCase):
             self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])
 
     def test_import_preexisting_phone(self):
-        person = Person.objects.create(first_name="first", last_name="last", phone="1234")
+        person = Person.objects.create(first_name="first", last_name="last", phone="+4773215338")
         first_team = self.data["contestant_set"][0]["team"]
         second_team = self.data["contestant_set"][1]["team"]
-        first_team["crew"]["member1"]["phone"] = "1234"
-        second_team["crew"]["member1"]["phone"] = "1234"
+        first_team["crew"]["member1"]["phone"] = "+4773215338"
+        second_team["crew"]["member1"]["phone"] = "+4773215338"
         response = self.client.post(reverse("importnavigationtask-list", kwargs={"contest_pk": self.contest.pk}),
                                     data=self.data, format="json")
         print(response.content)

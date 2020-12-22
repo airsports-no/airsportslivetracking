@@ -1,4 +1,5 @@
 from django import forms
+from phonenumber_field.formfields import PhoneNumberField
 
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team
 
@@ -58,12 +59,12 @@ class ContestForm(forms.ModelForm):
 class ContestantForm(forms.ModelForm):
     pilot_first_name = forms.CharField()
     pilot_last_name = forms.CharField()
-    pilot_phone = forms.CharField(required=False)
+    pilot_phone = PhoneNumberField(required=False)
     pilot_email = forms.EmailField(required=False)
 
     copilot_first_name = forms.CharField(required=False)
     copilot_last_name = forms.CharField(required=False)
-    copilot_phone = forms.CharField(required=False)
+    copilot_phone = PhoneNumberField(required=False)
     copilot_email = forms.EmailField(required=False)
 
     aircraft_registration = forms.CharField()
@@ -75,25 +76,12 @@ class ContestantForm(forms.ModelForm):
             "finished_by_time",
             "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed", "scorecard")
 
-    def get_possible_person(self, type):
-        possible_person = None
-        if self.cleaned_data[type + "_phone"]:
-            possible_person = Person.objects.filter(phone=self.cleaned_data[type + "_phone"])
-        if (not possible_person or possible_person.count() == 0) and self.cleaned_data[type + "_email"]:
-            possible_person = Person.objects.filter(email=self.cleaned_data[type + "_email"])
-        if not possible_person or possible_person.count() == 0:
-            if self.cleaned_data[type + "_first_name"] and self.cleaned_data[type + "_last_name"]:
-                return Person.objects.get_or_create(
-                    defaults={"phone": self.cleaned_data[type + "_phone"], "email": self.cleaned_data[type + "_email"]},
-                    first_name=self.cleaned_data[type + "_first_name"],
-                    last_name=self.cleaned_data[type + "_last_name"])[0]
-            return None
-        return possible_person.first()
-
     def save(self, commit=True):
         contestant = super().save(commit=False)
-        member1 = self.get_possible_person("pilot")
-        member2 = self.get_possible_person("copilot")
+        member1 = Person.get_or_create(self.cleaned_data["pilot_first_name"], self.cleaned_data["pilot_last_name"],
+                                       self.cleaned_data["pilot_phone"], self.cleaned_data["pilot_email"])
+        member2 = Person.get_or_create(self.cleaned_data["copilot_first_name"], self.cleaned_data["copilot_last_name"],
+                                       self.cleaned_data["copilot_phone"], self.cleaned_data["copilot_email"])
         crew, _ = Crew.objects.get_or_create(member1=member1, member2=member2)
         aircraft, _ = Aeroplane.objects.get_or_create(registration=self.cleaned_data["aircraft_registration"])
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aircraft)

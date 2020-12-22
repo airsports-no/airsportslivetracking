@@ -47,7 +47,8 @@ INSTALLED_APPS = [
     "solo",
     "guardian",
     "django_countries",
-    "formtools"
+    "formtools",
+    "phonenumber_field"
 ]
 
 MIDDLEWARE = [

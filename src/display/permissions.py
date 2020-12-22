@@ -38,6 +38,18 @@ class ContestPublicPermissions(permissions.BasePermission):
         return False
 
 
+class TeamContestPublicPermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.method in SAFE_METHODS
+
+    def has_object_permission(self, request, view, obj):
+        pk = view.kwargs.get("contest_pk")
+        contest = get_object_or_404(Contest, pk=pk)
+        if request.method in ['GET']:
+            return contest.is_public
+        return False
+
+
 class NavigationTaskPublicPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.method in SAFE_METHODS
@@ -55,6 +67,28 @@ class ContestantPublicPermissions(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in ['GET']:
             return obj.navigation_task.is_public and obj.navigation_task.contest.is_public
+        return False
+
+
+class TeamContestPermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        pk = view.kwargs.get("contest_pk")
+        if not pk:
+            return True
+        contest = get_object_or_404(Contest, pk=pk)
+        return request.user.has_perm("display.change_contest", contest)
+
+    def has_object_permission(self, request, view, obj):
+        pk = view.kwargs.get("contest_pk")
+        contest = get_object_or_404(Contest, pk=pk)
+        if request.method in ['GET']:
+            return request.user.has_perm('view_contest', contest)
+        if request.method in ['POST']:
+            return request.user.has_perm('add_contest', contest)
+        if request.method in ['PUT', 'PATCH']:
+            return request.user.has_perm('change_contest', contest)
+        if request.method in ['DELETE']:
+            return request.user.has_perm('delete_contest', contest)
         return False
 
 
@@ -109,6 +143,3 @@ class RoutePermissions(permissions.BasePermission):
         if request.method in ['DELETE']:
             return request.user.has_perm('delete_route', obj.navigation_task)
         return False
-
-
-

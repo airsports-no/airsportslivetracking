@@ -40,13 +40,14 @@ from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_K
     Person
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
-    ContestantNavigationTaskContestPermissions, RoutePermissions
+    ContestantNavigationTaskContestPermissions, RoutePermissions, TeamContestPermissions, TeamContestPublicPermissions
 from display.serialisers import ContestantTrackSerialiser, \
-    ExternalNavigationTaskNestedSerialiser, \
-    ContestSerialiser, NavigationTaskNestedSerialiser, RouteSerialiser, \
-    ContestantTrackWithTrackPointsSerialiser, ContestantNestedSerialiser, ContestResultsHighLevelSerialiser, \
+    ExternalNavigationTaskNestedTeamSerialiser, \
+    ContestSerialiser, NavigationTaskNestedTeamRouteSerialiser, RouteSerialiser, \
+    ContestantTrackWithTrackPointsSerialiser, ContestantNestedTeamSerialiser, ContestResultsHighLevelSerialiser, \
     ContestSummarySerialiser, TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
-    GpxTrackSerialiser, PersonSerialiser
+    GpxTrackSerialiser, PersonSerialiser, ExternalNavigationTaskTeamIdSerialiser, \
+    ContestantNestedTeamSerialiserWithContestantTrack
 from display.show_slug_choices import ShowChoicesMetadata
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
@@ -449,10 +450,15 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         return get_objects_for_user(self.request.user, "view_contest",
                                     klass=self.queryset) | self.queryset.filter(is_public=True)
 
+    @action(["GET"], detail=True)
+    def teams(self, request, pk=None, **kwargs):
+        teams = Team.objects.filter(contest_id=pk)
+        return Response(TeamNestedSerialiser(teams, many=True).data)
+
 
 class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
     queryset = NavigationTask.objects.all()
-    serializer_class = NavigationTaskNestedSerialiser
+    serializer_class = NavigationTaskNestedTeamRouteSerialiser
     permission_classes = [
         NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)]
 
@@ -488,7 +494,7 @@ class RouteViewSet(ModelViewSet):
 
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
-    serializer_class = ContestantNestedSerialiser
+    serializer_class = ContestantNestedTeamSerialiserWithContestantTrack
     permission_classes = [
         ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)]
 
@@ -587,7 +593,7 @@ class ImportFCNavigationTask(ModelViewSet):
     required. This is currently not supported through this endpoint, but this may change in the future.
     """
     queryset = NavigationTask.objects.all()
-    serializer_class = ExternalNavigationTaskNestedSerialiser
+    serializer_class = ExternalNavigationTaskNestedTeamSerialiser
     permission_classes = [permissions.IsAuthenticated & NavigationTaskContestPermissions]
 
     metadata_class = ShowChoicesMetadata
@@ -598,12 +604,25 @@ class ImportFCNavigationTask(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
-        serialiser = ExternalNavigationTaskNestedSerialiser(data=request.data,
-                                                            context={"request": request, "contest": contest})
+        serialiser = self.serializer_class(data=request.data,
+                                           context={"request": request, "contest": contest})
         if serialiser.is_valid(raise_exception=True):
             serialiser.save()
             return Response(serialiser.data, status=status.HTTP_201_CREATED)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ImportFCNavigationTaskTeamId(ImportFCNavigationTask):
+    """
+    This is a shortcut to post a new navigation task to the tracking system. It requires the existence of a contest to
+    which it will belong. The entire task with contestants and their associated times, crews, and aircraft, together
+    with the route can be posted to the single endpoint.
+
+    route_file is a utf-8 string that contains a base 64 encoded gpx route file of the format that FC exports. A new
+    route object will be created every time this function is called, but it is possible to reuse routes if
+    required. This is currently not supported through this endpoint, but this may change in the future.
+    """
+    serializer_class = ExternalNavigationTaskTeamIdSerialiser
 
 
 @login_required()

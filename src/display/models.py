@@ -12,6 +12,7 @@ from django.db import models
 from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
 from django_countries.fields import CountryField
+from phonenumber_field.modelfields import PhoneNumberField
 from rest_framework.exceptions import ValidationError
 from solo.models import SingletonModel
 
@@ -150,7 +151,7 @@ class Person(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
     email = CharNullField(max_length=60, blank=True, null=True)
-    phone = CharNullField(max_length=30, blank=True, null=True)
+    phone = PhoneNumberField(blank=True, null=True)
     picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
@@ -247,7 +248,7 @@ class Contest(models.Model):
         help_text="The start time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
     finish_time = models.DateTimeField(
         help_text="The finish time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
-
+    teams = models.ManyToManyField(Team, blank=True)
     is_public = models.BooleanField(default=False)
 
     def __str__(self):
