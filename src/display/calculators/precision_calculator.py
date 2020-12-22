@@ -50,7 +50,9 @@ class PrecisionCalculator(Calculator):
 
     def check_intersections(self):
         # Check starting line
+        started = True
         if not self.starting_line.has_been_passed():
+            started = False
             # First check extended and see if we are in the correct direction
             # Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
             # A 2.2.14
@@ -60,6 +62,7 @@ class PrecisionCalculator(Calculator):
                     # Start the clock
                     logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
                     self.update_tracking_state(self.STARTED)
+                    started = True
                     self.starting_line.passing_time = intersection_time
                 else:
                     # Add penalty for crossing in the wrong direction
@@ -67,7 +70,8 @@ class PrecisionCalculator(Calculator):
                     self.update_score(self.starting_line, score,
                                       "crossing extended starting gate backwards",
                                       self.track[-1].latitude, self.track[-1].longitude, "anomaly")
-        super(PrecisionCalculator, self).check_intersections()
+        if started:
+            super(PrecisionCalculator, self).check_intersections()
 
     def calculate_score(self):
         self.check_intersections()
@@ -97,13 +101,14 @@ class PrecisionCalculator(Calculator):
                     self.update_score(gate, score, "missing gate", current_position.latitude,
                                       current_position.longitude, "anomaly", planned=gate.expected_time)
                     # Commented out because of A.2.2.16
-                    # if gate.is_procedure_turn:
-                    #     score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type)
-                    #     self.update_score(gate, score,
-                    #                       "{} for missing procedure turn at {}".format(
-                    #                           score,
-                    #                           gate),
-                    #                       current_position.latitude, current_position.longitude, "anomaly")
+                    if gate.is_procedure_turn and not gate.extended_passing_time:
+                        # Penalty if not crossing extended procedure turn turning point, then the procedure turn was per definition not performed
+                        score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type)
+                        self.update_score(gate, score,
+                                          "{} for missing procedure turn at {}".format(
+                                              score,
+                                              gate),
+                                          current_position.latitude, current_position.longitude, "anomaly")
             elif gate.passing_time is not None:
                 index += 1
                 if gate.time_check:
