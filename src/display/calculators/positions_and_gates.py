@@ -45,6 +45,7 @@ class Gate:
         self.is_procedure_turn = gate.is_procedure_turn
         self.passing_time = None
         self.extended_passing_time = None
+        self.infinite_passing_time = None
         self.missed = False
         self.maybe_missed_time = None
         self.expected_time = expected_time
@@ -57,6 +58,9 @@ class Gate:
 
     def has_extended_been_passed(self):
         return self.extended_passing_time is not None
+
+    def has_infinite_been_passed(self):
+        return self.infinite_passing_time is not None
 
     def is_passed_in_correct_direction_bearing_from_previous(self, track_bearing) -> bool:
         return abs(bearing_difference(track_bearing, self.bearing_from_previous)) < 90

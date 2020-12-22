@@ -50,7 +50,7 @@ class PrecisionCalculator(Calculator):
 
     def check_intersections(self):
         # Check starting line
-        if not self.starting_line.has_been_passed():
+        if not self.starting_line.has_infinite_been_passed():
             # First check extended and see if we are in the correct direction
             # Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
             # A 2.2.14
