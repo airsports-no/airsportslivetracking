@@ -452,6 +452,9 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
 
     @action(["GET"], detail=True)
     def teams(self, request, pk=None, **kwargs):
+        """
+        Get the list of teams in the contest
+        """
         teams = Team.objects.filter(contest_id=pk)
         return Response(TeamNestedSerialiser(teams, many=True).data)
 
