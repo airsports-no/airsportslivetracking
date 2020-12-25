@@ -274,7 +274,6 @@ class BasicScoreOverrideUpdateView(GuardianPermissionRequiredMixin, UpdateView):
     form_class = BasicScoreOverrideForm
     success_url = reverse_lazy("contest_list")
 
-
     def get_permission_object(self):
         return self.get_object().navigation_task.contest
 

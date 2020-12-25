@@ -7,7 +7,7 @@ from django.test import TestCase, TransactionTestCase
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew, \
-    Contest, Person
+    Contest, Person, BasicScoreOverride
 from display.views import create_route_from_csv
 
 
@@ -61,6 +61,24 @@ class TestFullTrack(TransactionTestCase):
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(144, contestant_track.score)
+
+    def test_score_override(self):
+        positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
+        BasicScoreOverride.objects.create(
+            navigation_task=self.navigation_task,
+            for_gate_types=["sp", "tp", "fp", "secret"],
+            checkpoint_grace_period=10,
+            checkpoint_points_per_second=1,
+            checkpoint_maximum_points=100,
+            checkpoint_not_found=100,
+            missing_procedure_turn=100
+        )
+        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator.start()
+        calculator.add_positions(positions)
+        calculator.join()
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        self.assertEqual(12, contestant_track.score)
 
     def test_helge_track_precision(self):
         start_time, speed = datetime.datetime(2020, 8, 1, 10, 55, tzinfo=datetime.timezone.utc), 75
