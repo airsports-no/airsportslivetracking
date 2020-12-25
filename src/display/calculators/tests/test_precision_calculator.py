@@ -65,7 +65,7 @@ class TestFullTrack(TransactionTestCase):
     def test_score_override(self):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
         BasicScoreOverride.objects.create(
-            navigation_task=self.navigation_task,
+            navigation_task_id=self.navigation_task.pk,
             for_gate_types=["sp", "tp", "fp", "secret"],
             checkpoint_grace_period=10,
             checkpoint_points_per_second=1,
