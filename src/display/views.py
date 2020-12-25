@@ -606,7 +606,8 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         club_data = self.get_cleaned_data_for_step("club")
         club_data.pop("logo_display_field")
         club_data.pop("country_flag_display_field")
-        club, _ = Club.objects.get_or_create(name=club_data.get("name"), defaults=club_data)
+        club, _ = Club.objects.get_or_create(name=club_data.get("name"), country=club_data.get("country"),
+                                             defaults=club_data)
         if club_data["logo"] is not None:
             club.logo = club_data["logo"]
         club.country = club_data["country"]
