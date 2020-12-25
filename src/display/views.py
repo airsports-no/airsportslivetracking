@@ -492,7 +492,8 @@ class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
     permission_required = ("update_contest",)
 
     def get_permission_object(self):
-        return self.get_object().contest
+        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        return contest
 
     model = Team
     form_class = TeamForm
