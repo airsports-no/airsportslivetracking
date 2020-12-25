@@ -442,7 +442,13 @@ def show_route_definition_step(wizard):
     return cleaned_data.get("file_type") == FILE_TYPE_KML
 
 
-class NewNavigationTaskWizard(SessionWizardView):
+class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
+    permission_required = ("update_contest",)
+
+    def get_permission_object(self):
+        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        return contest
+
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
     template_name = "display/navigationtaskwizardform.html"
     condition_dict = {"1": show_route_definition_step}
@@ -482,7 +488,12 @@ class NewNavigationTaskWizard(SessionWizardView):
         return {}
 
 
-class TeamUpdateView(UpdateView):
+class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
+    permission_required = ("update_contest",)
+
+    def get_permission_object(self):
+        return self.get_object().contest
+
     model = Team
     form_class = TeamForm
 
@@ -503,7 +514,13 @@ def create_new_copilot(wizard):
     return cleaned.get("use_existing_copilot") is None and cleaned.get("skip_copilot") is None
 
 
-class RegisterTeamWizard(SessionWizardView):
+class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
+    permission_required = ("update_contest",)
+
+    def get_permission_object(self):
+        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        return contest
+
     condition_dict = {
         "member1create": create_new_pilot,
         "member2create": create_new_copilot,
@@ -622,8 +639,13 @@ class RegisterTeamWizard(SessionWizardView):
         return {}
 
 
-class ContestTeamList(ListView):
+class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
     model = Team
+    permission_required = ("view_contest",)
+
+    def get_permission_object(self):
+        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        return contest
 
     def get_queryset(self):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
