@@ -44,7 +44,7 @@ class Calculator(threading.Thread):
         self.basic_score_override = self.contestant.navigation_task.basicscoreoverride if hasattr(
             self.contestant.navigation_task, "basicscoreoverride") else None
         if self.basic_score_override is not None:
-            logger.info("SCORE OVERRIDE")
+            logger.info("SCORE OVERRIDE: {}".format(self.basic_score_override.for_gate_types))
         self.tracking_state = self.BEFORE_START
         self.process_event = threading.Event()
         _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
