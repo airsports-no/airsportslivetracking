@@ -26,9 +26,10 @@ from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
 from rest_framework import status, permissions
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied, MethodNotAllowed
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ViewSet
 
@@ -74,6 +75,7 @@ def results_service(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def auto_complete_aeroplane(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -91,6 +93,7 @@ def auto_complete_aeroplane(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def auto_complete_club(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -108,6 +111,7 @@ def auto_complete_club(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_phone(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -125,6 +129,7 @@ def auto_complete_person_phone(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_id(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -142,6 +147,7 @@ def auto_complete_person_id(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_first_name(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -160,6 +166,7 @@ def auto_complete_person_first_name(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_last_name(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -178,6 +185,7 @@ def auto_complete_person_last_name(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_email(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
