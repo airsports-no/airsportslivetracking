@@ -7,7 +7,7 @@ from typing import Optional
 import redis_lock
 import dateutil
 from django.contrib.auth.decorators import permission_required, login_required
-from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.contrib.auth.mixins import PermissionRequiredMixin, LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
@@ -55,6 +55,11 @@ from live_tracking_map import settings
 from playback_tools import insert_gpx_file
 
 logger = logging.getLogger(__name__)
+
+
+class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_superuser
 
 
 def frontend_view_map(request, pk):
@@ -592,10 +597,20 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         aeroplane_data.pop("picture_display_field")
         aeroplane, _ = Aeroplane.objects.get_or_create(registration=aeroplane_data.get("registration"),
                                                        defaults=aeroplane_data)
+        print("aeroplane_data: {}".format(aeroplane_data))
+        if aeroplane_data["picture"] is not None:
+            aeroplane.picture = aeroplane_data["picture"]
+        aeroplane.colour = aeroplane_data["colour"]
+        aeroplane.type = aeroplane_data["type"]
+        aeroplane.save()
         club_data = self.get_cleaned_data_for_step("club")
-        club_data.pop("picture_display_field")
+        club_data.pop("logo_display_field")
         club_data.pop("country_flag_display_field")
         club, _ = Club.objects.get_or_create(name=club_data.get("name"), defaults=club_data)
+        if club_data["logo"] is not None:
+            club.logo = club_data["logo"]
+        club.country = club_data["country"]
+        club.save()
         team, created_team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
         contest.teams.add(team)
         return HttpResponseRedirect(reverse("team_update", kwargs={"contest_pk": contest_pk, "pk": team.pk}))
@@ -638,6 +653,19 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             if step == "club":
                 return {"name": team.club.name}
         return {}
+
+
+class PersonList(SuperuserRequiredMixin, ListView):
+    model = Person
+
+    def get_queryset(self):
+        return Person.objects.all().order_by("last_name", "first_name")
+
+
+class PersonUpdateView(SuperuserRequiredMixin, UpdateView):
+    model = Person
+    success_url = reverse_lazy("person_list")
+    form_class = PersonForm
 
 
 class ContestTeamList(GuardianPermissionRequiredMixin, ListView):

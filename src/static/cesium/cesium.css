@@ -111,6 +111,9 @@
     float: right;
 }
 
+.wizardImage{
+    max-height: 400px;
+}
 
 .taskTitle {
     font-size: xx-large;

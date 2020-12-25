@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+    <H1>Contests</H1>
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Last name</th>
+            <th>First name</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+
+        {% for object in object_list %}
+            <tr>
+                <td>{{ object.last_name }}</td>
+                <td>{{ object.first_name }}</td>
+                <td>
+                    <a href="{% url 'person_update' object.pk %}">Edit</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endblock %}

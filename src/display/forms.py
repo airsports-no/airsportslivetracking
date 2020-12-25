@@ -68,7 +68,7 @@ class PictureWidget(forms.widgets.Widget):
     def render(self, name, value, attrs=None, renderer=None):
         print(name)
         print(attrs)
-        html = Template("""<img id="{}" src="$link"/>""".format(name))
+        html = Template("""<img id="{}" src="$link" class="wizardImage"/>""".format(name))
         return mark_safe(html.substitute(link=value))
 
 
@@ -120,7 +120,7 @@ class Member2SearchForm(Member1SearchForm):
                          Div("person_id", "first_name", "last_name", "phone", "email",
                              "country_flag_display_field",
                              css_class="col-6"),
-                         Div("picture_display_field", css_class="col-6"),
+                         Div(Field("picture_display_field", css_class="wizardImage"), css_class="col-6"),
                          css_class="row")
                      ),
             ButtonHolder(
@@ -135,6 +135,7 @@ class Member2SearchForm(Member1SearchForm):
 
 
 class PersonForm(forms.ModelForm):
+    # picture = forms.ImageField(widget=ImagePreviewWidget)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
@@ -158,11 +159,13 @@ class PersonForm(forms.ModelForm):
         phone = self.cleaned_data["phone"]
         if Person.objects.filter(phone=phone).exists():
             raise ValidationError("Phone number must be unique")
+        return phone
 
     def clean_email(self):
         email = self.cleaned_data["email"]
         if Person.objects.filter(email=email).exists():
             raise ValidationError("E-mail must be unique")
+        return email
 
     class Meta:
         model = Person
@@ -200,7 +203,7 @@ class AeroplaneSearchForm(forms.ModelForm):
         self.helper.layout = Layout(
             Div(
                 Div("registration", "type", "colour", "picture", css_class="col-6"),
-                Div("picture_display_field", css_class="col-6"),
+                Div(Field("picture_display_field", css_class="wizardImage"), css_class="col-6"),
                 css_class="row"
             ),
             ButtonHolder(
@@ -224,18 +227,18 @@ class AeroplaneForm(forms.ModelForm):
 
 
 class ClubSearchForm(forms.ModelForm):
-    picture_display_field = forms.ImageField(widget=PictureWidget, label="", required=False)
+    logo_display_field = forms.ImageField(widget=PictureWidget, label="", required=False)
     country_flag_display_field = forms.ImageField(widget=PictureWidget, label="", required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["picture_display_field"].label = ""
+        self.fields["logo_display_field"].label = ""
         self.fields["country_flag_display_field"].label = ""
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Div(
                 Div("name", "logo", "country", "country_flag_display_field", css_class="col-6"),
-                Div("picture_display_field", css_class="col-6"),
+                Div(Field("logo_display_field", css_class="wizardImage"), css_class="col-6"),
                 css_class="row"
             ),
             ButtonHolder(

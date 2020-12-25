@@ -7,7 +7,7 @@ from display.views import import_route, frontend_view_map, \
     ContestantDeleteView, ContestDeleteView, NavigationTaskDeleteView, auto_complete_person_phone, \
     auto_complete_person_email, auto_complete_person_first_name, auto_complete_person_last_name, person_search_view, \
     auto_complete_club, auto_complete_aeroplane, RegisterTeamWizard, ContestTeamList, remove_team_from_contest, \
-    TeamUpdateView, auto_complete_person_id
+    TeamUpdateView, auto_complete_person_id, PersonUpdateView, PersonList
 
 urlpatterns = [
     path('importroute', import_route, name="import_route"),
@@ -22,7 +22,7 @@ urlpatterns = [
     path('contestant/<int:pk>/update/', ContestantUpdateView.as_view(), name="contestant_update"),
     path('contestant/<int:pk>/delete/', ContestantDeleteView.as_view(), name="contestant_delete"),
     path('contestant/<int:pk>/gates/', ContestantGateTimesView.as_view(), name="contestant_gate_times"),
-    path('contest/<int:contest_pk>/team/<int:team_pk>/update/', RegisterTeamWizard.as_view(), name="team_wizard"),
+    path('contest/<int:contest_pk>/team/<int:team_pk>/wizardupdate/', RegisterTeamWizard.as_view(), name="team_wizard"),
     path('contest/<int:contest_pk>/team/<int:team_pk>/remove/', remove_team_from_contest, name="remove_team"),
     path('contest/<int:contest_pk>/team/create/', RegisterTeamWizard.as_view(), name="create_team"),
     path('contest/<int:contest_pk>/team/<int:pk>/update', TeamUpdateView.as_view(), name="team_update"),
@@ -36,4 +36,6 @@ urlpatterns = [
     path('club/autocomplete/name/', auto_complete_club, name="autocomplete_club"),
     path('navigationtaskwizard/<int:contest_pk>/', NewNavigationTaskWizard.as_view(), name="navigationtaskwizard"),
     path('team/personsearch/', person_search_view),
+    path('person/<int:pk>/update/', PersonUpdateView.as_view(), name="person_update"),
+    path('person/', PersonList.as_view(), name="person_list"),
 ]

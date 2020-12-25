@@ -20,7 +20,7 @@
                 {% if "change_contest" in contest_permissions %}
                     <td><a href="{% url 'contest_team_list' contest.pk %}">Team list</a> |
                         <a href="{% url 'navigationtaskwizard' contest.pk %}">New navigation task</a> | <a
-                            href="{% url 'contest_update' contest.pk %}">update</a>
+                                href="{% url 'contest_update' contest.pk %}">update</a>
                         {% if "delete_contest" in contest_permissions %}
                             | <a href="{% url 'contest_delete' contest.pk %}">delete</a>
                         {% endif %} </td>{% endif %}
@@ -48,5 +48,8 @@
     </table>
     {% if perms.display.create_contest %}
         <a href="{% url 'contest_create' %}">New contest</a>
+        {% if user.is_superuser %}
+            | <a href="{% url 'person_list' %}">Person overview</a>
+        {% endif %}
     {% endif %}
 {% endblock %}
