@@ -37,7 +37,8 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
     create_route_from_formset
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
-    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, BasicScoreOverrideForm
+    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, BasicScoreOverrideForm, TURNPOINT, SECRETPOINT, \
+    STARTINGPOINT, FINISHPOINT
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, BasicScoreOverride
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
@@ -278,7 +279,8 @@ class BasicScoreOverrideUpdateView(GuardianPermissionRequiredMixin, UpdateView):
         return self.get_object().navigation_task.contest
 
     def get_object(self, queryset=None):
-        return self.model.objects.get_or_create(navigation_task_id=self.kwargs["pk"])[0]
+        return self.model.objects.get_or_create(navigation_task_id=self.kwargs["pk"], defaults={
+            "for_gate_types": [TURNPOINT, SECRETPOINT, STARTINGPOINT, FINISHPOINT]})[0]
 
 
 class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
