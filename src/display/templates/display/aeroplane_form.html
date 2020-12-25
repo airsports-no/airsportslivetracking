@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}{% block head %}
+    {{ wizard.form.media }}
+{% endblock %}
+
+{% block content %}
+    <h2>Search for and update an aircraft</h2>
+    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+    <form method="post" class="form" enctype="multipart/form-data">
+        {{ form.media }}
+        {{ wizard.management_form }}
+        {% crispy wizard.form %}
+    </form>
+    <script type="text/javascript">
+        function setResponse(response) {
+            var len = response.length;
+
+            if (len > 0) {
+                var registration = response[0]['registration'];
+                var type = response[0]['type'];
+                var colour = response[0]['colour'];
+                var picture = response[0]['picture'];
+
+                document.getElementById('id_registration').value = registration;
+                document.getElementById('id_type').value = type;
+                document.getElementById('id_colour').value = colour;
+                document.getElementById('id_picture_display_field').src = picture;
+
+            }
+        }
+
+        $(document).ready(function () {
+            $("#id_registration").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/aeroplane/autocomplete/registration/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/aeroplane/autocomplete/registration/",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+            if (document.getElementById('id_registration').value) {
+                $.ajax({
+                    url: "/display/aeroplane/autocomplete/registration/",
+                    type: 'post',
+                    data: {search: document.getElementById('id_registration').value, request: 2},
+                    dataType: 'json',
+                    success: setResponse
+                });
+            }
+
+
+        });
+    </script>
+{% endblock %}

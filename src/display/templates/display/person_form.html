@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <h2>Search for and update a person</h2>
+    {{ form.media }}
+    <form method="post" class="form">
+        {% crispy form %}
+    </form>
+    <script type="text/javascript">
+        function setResponse(response) {
+            var len = response.length;
+
+            if (len > 0) {
+                var first_name = response[0]['first_name'];
+                var last_name = response[0]['last_name'];
+                var email = response[0]['email'];
+                var phone = response[0]['phone'];
+                var picture = response[0]['picture'];
+                var biography = response[0]['biography'];
+                var country = response[0]['country'];
+                var country_flag = response[0]['country_flag_url'];
+
+                document.getElementById('id_first_name').value = first_name;
+                document.getElementById('id_last_name').value = last_name;
+                document.getElementById('id_email').value = email;
+                document.getElementById('id_phone').value = phone;
+                document.getElementById('id_country').value = country;
+                document.getElementById('id_country_flag_display_field').src = country_flag;
+                document.getElementById('id_biography').value = biography;
+                document.getElementById('id_picture_display_field').src = picture;
+
+            }
+        }
+
+        $(document).ready(function () {
+            $("#id_phone").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/phone/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/phone/",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+
+            $("#id_email").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/email/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/email/",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+
+
+            $("#id_first_name").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/firstname/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/firstname/",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+
+
+            $("#id_last_name").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/lastname/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/contestant/autocomplete/lastname/",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+
+
+        });
+    </script>
+{% endblock %}

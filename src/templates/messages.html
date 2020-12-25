@@ -1,0 +1,21 @@
+{% load bootstrap4 %}
+<div id="messages">
+    {% if SYSTEM_MESSAGE %}
+        <div class="alert alert-warning alert-dismissable">
+            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+            <strong>System Message:</strong> {{ SYSTEM_MESSAGE }}
+        </div>
+    {% endif %}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="{{ message|bootstrap_message_classes }} alert-dismissable fade show">
+                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&#215;</button>
+                {% if 'safe' in message.tags %}
+                    {{ message|safe }}
+                {% else %}
+                    {{ message }}
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>

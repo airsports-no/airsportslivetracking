@@ -55,6 +55,7 @@
     "leaflet": "^1.7.1",
     "leaflet.markercluster": "^1.4.1",
     "moment": "^2.29.1",
+    "react-auto-scale": "^1.0.4",
     "react-bootstrap": "^1.3.0",
     "react-bootstrap-table-next": "^4.0.3",
     "react-bootstrap-table2-paginator": "^2.1.2",

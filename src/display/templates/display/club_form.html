@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block head %}
+    {{ wizard.form.media }}
+{% endblock %}
+
+{% block content %}
+    <h2>Search for and update a club</h2>
+    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+    <form method="post" class="form" enctype="multipart/form-data">
+        {{ form.media }}
+        {{ wizard.management_form }}
+        {% crispy wizard.form %}
+    </form>
+    <script type="text/javascript">
+        function setResponse(response) {
+            var len = response.length;
+
+            if (len > 0) {
+                var name = response[0]['name'];
+                var logo = response[0]['logo'];
+                var country = response[0]['country'];
+                var country_flag = response[0]['country_flag'];
+
+                document.getElementById('id_name').value = name;
+                document.getElementById('id_country').value = country;
+                document.getElementById('country_flag_display_field').src = country_flag;
+                document.getElementById('logo_display_field').src = logo;
+
+            }
+        }
+
+        $(document).ready(function () {
+            $("#id_name").autocomplete({
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/display/club/autocomplete/name/",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "/display/club/autocomplete/name/",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+            if (document.getElementById('id_name').value) {
+                $.ajax({
+                    url: "/display/club/autocomplete/name/",
+                    type: 'post',
+                    data: {search: document.getElementById('id_name').value, request: 2},
+                    dataType: 'json',
+                    success: setResponse
+                });
+            }
+
+        });
+    </script>
+{% endblock %}

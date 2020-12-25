@@ -18,7 +18,8 @@
             <tr>
                 <td colspan="3"><span style="text-align: center"><h3>{{ contest.name }}</h3></span></td>
                 {% if "change_contest" in contest_permissions %}
-                    <td><a href="{% url 'navigationtaskwizard' contest.pk %}">New navigation task</a> | <a
+                    <td><a href="{% url 'contest_team_list' contest.pk %}">Team list</a> |
+                        <a href="{% url 'navigationtaskwizard' contest.pk %}">New navigation task</a> | <a
                             href="{% url 'contest_update' contest.pk %}">update</a>
                         {% if "delete_contest" in contest_permissions %}
                             | <a href="{% url 'contest_delete' contest.pk %}">delete</a>

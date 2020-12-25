@@ -1,4 +1,5 @@
 import React, {Component} from "react";
+import AutoScale from 'react-auto-scale';
 
 const question = "/static/img/questionmark.png"
 
@@ -80,20 +81,22 @@ export class LowerThirdTeam extends Component {
             </div>
 
         }
-        return <div className={singleCrew ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
-            <div className={"card-transparent"}>
-                {crewPictures}
-                <div className={"card-body bg-dark text-light"}>
-                    <div className={"row"}>
-                        <div className={"col-4"}>
-                            <img className={"lowerThirdsTeamImage img-fluid rounded"}
-                                 src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>
-                        </div>
-                        <div className={"col-8 nopadding"}>
-                            {crewNames}
-                            <div className={"row"}>
-                                <div className={"col-12 text-center"}>
-                                    <h4>{this.props.contestant.team.club !== null ? this.props.contestant.team.club.name : null}</h4>
+        return <div className={"lowerThirdsScale"}>
+            <div className={singleCrew ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
+                <div className={"card-transparent"}>
+                    {crewPictures}
+                    <div className={"card-body bg-dark text-light"}>
+                        <div className={"row"}>
+                            <div className={"col-4"}>
+                                <img className={"lowerThirdsTeamImage img-fluid rounded"}
+                                     src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>
+                            </div>
+                            <div className={"col-8 nopadding"}>
+                                {crewNames}
+                                <div className={"row"}>
+                                    <div className={"col-12 text-center"}>
+                                        <h4>{this.props.contestant.team.club !== null ? this.props.contestant.team.club.name : null}</h4>
+                                    </div>
                                 </div>
                             </div>
                         </div>

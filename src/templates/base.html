@@ -108,6 +108,10 @@
 </header>
 
 <main role="main">
+    {% if messages %}
+        <div class="row" style="padding-left: 18%">{% include 'messages.html' %}</div>
+    {% endif %}
+
     <div class="container-fluid">
         {% block contentfluid %}
         {% endblock %}

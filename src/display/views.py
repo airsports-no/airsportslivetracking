@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import permission_required, login_required
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.db.models import Q
 from django.forms import formset_factory
@@ -35,9 +35,10 @@ from rest_framework.viewsets import ModelViewSet, ViewSet
 from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv, load_route_points_from_kml, \
     create_route_from_formset
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
-    FILE_TYPE_KML, ContestantForm, ContestForm
+    FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
+    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
-    Person
+    Person, Aeroplane, Club, Crew
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, TeamContestPermissions, TeamContestPublicPermissions
@@ -47,7 +48,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     ContestantTrackWithTrackPointsSerialiser, ContestantNestedTeamSerialiser, ContestResultsHighLevelSerialiser, \
     ContestSummarySerialiser, TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
     GpxTrackSerialiser, PersonSerialiser, ExternalNavigationTaskTeamIdSerialiser, \
-    ContestantNestedTeamSerialiserWithContestantTrack
+    ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
@@ -68,17 +69,104 @@ def results_service(request):
 
 
 @api_view(["POST"])
+def auto_complete_aeroplane(request):
+    if request.is_ajax():
+        request_number = int(request.POST.get("request"))
+        if request_number == 1:
+            q = request.POST.get('search', '')
+            search_qs = Aeroplane.objects.filter(registration__icontains=q)
+            result = [str(item.registration) for item in search_qs]
+            return Response(result)
+        else:
+            q = request.POST.get('search', '')
+            search_qs = Aeroplane.objects.filter(registration=q)
+            serialiser = AeroplaneSerialiser(search_qs, many=True)
+            return Response(serialiser.data)
+    raise MethodNotAllowed
+
+
+@api_view(["POST"])
+def auto_complete_club(request):
+    if request.is_ajax():
+        request_number = int(request.POST.get("request"))
+        if request_number == 1:
+            q = request.POST.get('search', '')
+            search_qs = Club.objects.filter(name__icontains=q)
+            result = [{"label": "{} ({})".format(item.name, item.country), "value": item.name} for item in search_qs]
+            return Response(result)
+        else:
+            q = request.POST.get('search', '')
+            search_qs = Club.objects.filter(name=q)
+            serialiser = ClubSerialiser(search_qs, many=True)
+            return Response(serialiser.data)
+    raise MethodNotAllowed
+
+
+@api_view(["POST"])
 def auto_complete_person_phone(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
         if request_number == 1:
             q = request.POST.get('search', '')
             search_qs = Person.objects.filter(phone__contains=q)
-            result = [item.phone for item in search_qs]
+            result = [str(item.phone) for item in search_qs]
             return Response(result)
         else:
-            q = request.POST.get('phone', '')
+            q = request.POST.get('search', '')
             search_qs = Person.objects.filter(phone=q)
+            serialiser = PersonSerialiser(search_qs, many=True)
+            return Response(serialiser.data)
+    raise MethodNotAllowed
+
+
+@api_view(["POST"])
+def auto_complete_person_id(request):
+    if request.is_ajax():
+        request_number = int(request.POST.get("request"))
+        if request_number == 1:
+            q = request.POST.get('search', '')
+            search_qs = Person.objects.filter(pk=q)
+            result = [str(item.phone) for item in search_qs]
+            return Response(result)
+        else:
+            q = request.POST.get('search', '')
+            search_qs = Person.objects.filter(pk=q)
+            serialiser = PersonSerialiser(search_qs, many=True)
+            return Response(serialiser.data)
+    raise MethodNotAllowed
+
+
+@api_view(["POST"])
+def auto_complete_person_first_name(request):
+    if request.is_ajax():
+        request_number = int(request.POST.get("request"))
+        if request_number == 1:
+            q = request.POST.get('search', '')
+            search_qs = Person.objects.filter(first_name__icontains=q)
+            result = [{"label": "{} {}".format(item.first_name, item.last_name), "value": item.first_name} for item in
+                      search_qs]
+            return Response(result)
+        else:
+            q = request.POST.get('search', '')
+            search_qs = Person.objects.filter(first_name=q)
+            serialiser = PersonSerialiser(search_qs, many=True)
+            return Response(serialiser.data)
+    raise MethodNotAllowed
+
+
+@api_view(["POST"])
+def auto_complete_person_last_name(request):
+    if request.is_ajax():
+        request_number = int(request.POST.get("request"))
+        if request_number == 1:
+            q = request.POST.get('search', '')
+            search_qs = Person.objects.filter(last_name__icontains=q)
+            result = [{"label": "{} {}".format(item.first_name, item.last_name), "value": item.last_name} for item in
+                      search_qs]
+            return Response(result)
+        else:
+            q = request.POST.get('search', '')
+            search_qs = Person.objects.filter(last_name=q)
             serialiser = PersonSerialiser(search_qs, many=True)
             return Response(serialiser.data)
     raise MethodNotAllowed
@@ -90,15 +178,19 @@ def auto_complete_person_email(request):
         request_number = int(request.POST.get("request"))
         if request_number == 1:
             q = request.POST.get('search', '')
-            search_qs = Person.objects.filter(email__contains=q)
-            result = [item.phone for item in search_qs]
+            search_qs = Person.objects.filter(email__icontains=q)
+            result = [item.email for item in search_qs]
             return Response(result)
         else:
-            q = request.POST.get('phone', '')
+            q = request.POST.get('search', '')
             search_qs = Person.objects.filter(email=q)
             serialiser = PersonSerialiser(search_qs, many=True)
             return Response(serialiser.data)
     raise MethodNotAllowed
+
+
+def person_search_view(request):
+    return render(request, "display/personsearch_form.html", {"form": Member1SearchForm()})
 
 
 class NavigationTaskList(ListView):
@@ -390,6 +482,166 @@ class NewNavigationTaskWizard(SessionWizardView):
         return {}
 
 
+class TeamUpdateView(UpdateView):
+    model = Team
+    form_class = TeamForm
+
+    def get_success_url(self):
+        return reverse_lazy('contest_team_list', kwargs={"contest_pk": self.kwargs["contest_pk"]})
+
+
+def create_new_pilot(wizard):
+    cleaned = wizard.get_post_data_for_step("member1search") or {}
+    print(cleaned)
+    print(cleaned.get("use_existing_pilot"))
+    print(cleaned.get("use_existing_pilot") is not None)
+    return cleaned.get("use_existing_pilot") is None
+
+
+def create_new_copilot(wizard):
+    cleaned = wizard.get_post_data_for_step("member2search") or {}
+    return cleaned.get("use_existing_copilot") is None and cleaned.get("skip_copilot") is None
+
+
+class RegisterTeamWizard(SessionWizardView):
+    condition_dict = {
+        "member1create": create_new_pilot,
+        "member2create": create_new_copilot,
+    }
+    post_data = {}
+    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "teams"))
+    form_list = [
+        ("member1search", Member1SearchForm),
+        ("member1create", PersonForm),
+        ("member2search", Member2SearchForm),
+        ("member2create", PersonForm),
+        ("aeroplane", AeroplaneSearchForm),
+        ("club", ClubSearchForm),
+    ]
+    templates = {
+        "member1search": "display/membersearch_form.html",
+        "member1create": "display/membercreate_form.html",
+        "member2search": "display/membersearch_form.html",
+        "member2create": "display/membercreate_form.html",
+        "aeroplane": "display/aeroplane_form.html",
+        "club": "display/club_form.html",
+    }
+
+    def get_next_step(self, step=None):
+        return self.request.POST.get("wizard_next_step", super().get_next_step(step))
+
+    def post(self, *args, **kwargs):
+        self.post_data[self.steps.current] = self.request.POST
+        return super().post(*args, **kwargs)
+
+    def get_post_data_for_step(self, step):
+        return self.post_data.get(step, {})
+
+    def done(self, form_list, **kwargs):
+        print("done")
+        form_dict = kwargs['form_dict']
+        team_pk = self.kwargs.get("team_pk")
+        contest_pk = self.kwargs.get("contest_pk")
+        contest = get_object_or_404(Contest, pk=contest_pk)
+        if team_pk:
+            original_team = get_object_or_404(Team, pk=team_pk)
+        else:
+            original_team = None
+        if original_team:
+            contest.teams.remove(original_team)
+        # Check if member one has been created
+        member_one_search = self.get_post_data_for_step("member1search")
+        use_existing1 = member_one_search.get("use_existing_pilot") is not None
+        if use_existing1:
+            existing_member_one_data = self.get_cleaned_data_for_step("member1search")
+            member1 = get_object_or_404(Person, pk=existing_member_one_data["person_id"])
+        else:
+            member1 = form_dict["member1create"].save()
+
+        member_two_search = self.get_post_data_for_step("member2search")
+        member_two_skip = member_two_search.get("skip_copilot") is not None
+        if not member_two_skip:
+            use_existing2 = member_two_search.get("use_existing_copilot") is not None
+            if use_existing2:
+                existing_member_two_data = self.get_cleaned_data_for_step("member2search")
+                member2 = Person.objects.get(pk=existing_member_two_data["person_id"])
+            else:
+                member2 = form_dict["member2create"].save()
+        else:
+            member2 = None
+        crew, _ = Crew.objects.get_or_create(member1=member1, member2=member2)
+        aeroplane_data = self.get_cleaned_data_for_step("aeroplane")
+        aeroplane_data.pop("picture_display_field")
+        aeroplane, _ = Aeroplane.objects.get_or_create(registration=aeroplane_data.get("registration"),
+                                                       defaults=aeroplane_data)
+        club_data = self.get_cleaned_data_for_step("club")
+        club_data.pop("picture_display_field")
+        club_data.pop("country_flag_display_field")
+        club, _ = Club.objects.get_or_create(name=club_data.get("name"), defaults=club_data)
+        team, created_team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
+        contest.teams.add(team)
+        return HttpResponseRedirect(reverse("team_update", kwargs={"contest_pk": contest_pk, "pk": team.pk}))
+
+    def get_form_prefix(self, step=None, form=None):
+        return ''
+
+    def get_template_names(self):
+        return [self.templates[self.steps.current]]
+
+    # def render_revalidation_failure(self, step, form, **kwargs):
+    #     print("Revalidation failure {} {}".format(step, form))
+
+    def get_form_initial(self, step):
+        print(step)
+        team_pk = self.kwargs.get("team_pk")
+        if team_pk:
+            team = get_object_or_404(Team, pk=team_pk)
+        else:
+            team = None
+        if team:
+            if step == "member1search":
+                return {
+                    "person_id": team.crew.member1.pk
+                    # "first_name": team.crew.member1.first_name,
+                    # "last_name": team.crew.member1.last_name,
+                    # "phone": team.crew.member1.phone,
+                    # "email": team.crew.member1.email
+                }
+            if step == "member2search":
+                return {
+                    "person_id": team.crew.member2.pk
+                    # "first_name": team.crew.member1.first_name,
+                    # "last_name": team.crew.member1.last_name,
+                    # "phone": team.crew.member1.phone,
+                    # "email": team.crew.member1.email
+                }
+            if step == "aeroplane":
+                return {"registration": team.aeroplane.registration}
+            if step == "club":
+                return {"name": team.club.name}
+        return {}
+
+
+class ContestTeamList(ListView):
+    model = Team
+
+    def get_queryset(self):
+        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        return Team.objects.filter(contest=contest)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["contest"] = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        return context
+
+
+def remove_team_from_contest(request, contest_pk, team_pk):
+    contest = get_object_or_404(Contest, pk=contest_pk)
+    team = get_object_or_404(Team, pk=team_pk)
+    contest.teams.remove(team)
+    return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
+
+
 class IsPublicMixin:
     def check_publish_permissions(self, user: User):
         instance = self.get_object()
@@ -455,7 +707,7 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         """
         Get the list of teams in the contest
         """
-        teams = Team.objects.filter(contest_id=pk)
+        teams = Team.objects.filter(contest=pk)
         return Response(TeamNestedSerialiser(teams, many=True).data)
 
 

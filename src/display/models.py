@@ -203,8 +203,8 @@ class Club(models.Model):
     country = CountryField(blank=True)
     logo = models.ImageField(upload_to='images/clubs/', null=True, blank=True)
 
-    class Meta:
-        unique_together = ("name", "country")
+    # class Meta:
+    #     unique_together = ("name", "country")
 
     def __str__(self):
         return self.name
