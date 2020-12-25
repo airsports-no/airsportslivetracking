@@ -328,20 +328,39 @@ class Scorecard(models.Model):
             raise ValueError("Undefined gate score for '{}'".format(gate_type))
         return gate_score
 
+    def filter_score_override(self, gate_type: str, score_override: Optional["BasicScoreOverride"]):
+        if score_override and gate_type in score_override.for_gate_types:
+            return score_override
+
+    def get_backtracking_penalty(self, score_override: Optional["BasicScoreOverride"]):
+        if score_override and score_override.bad_course_penalty:
+            return score_override.bad_course_penalty
+        return self.backtracking_penalty
+
+    def get_backtracking_grace_time_seconds(self, score_override: Optional["BasicScoreOverride"]):
+        if score_override and score_override.bad_course_grace_time:
+            return score_override.bad_course_grace_time
+        return self.backtracking_grace_time_seconds
+
     def get_gate_timing_score_for_gate_type(self, gate_type: str, planned_time: datetime.datetime,
-                                            actual_time: Optional[datetime.datetime]) -> float:
+                                            actual_time: Optional[datetime.datetime],
+                                            score_override: Optional["BasicScoreOverride"]) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.calculate_score(planned_time, actual_time)
+        return gate_score.calculate_score(planned_time, actual_time,
+                                          self.filter_score_override(gate_type, score_override))
 
-    def get_procedure_turn_penalty_for_gate_type(self, gate_type: str) -> float:
+    def get_procedure_turn_penalty_for_gate_type(self, gate_type: str,
+                                                 score_override: Optional["BasicScoreOverride"]) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.missed_procedure_turn_penalty
+        return gate_score.get_missed_procedure_turn_penalty(self.filter_score_override(gate_type, score_override))
 
-    def get_bad_crossing_extended_gate_penalty_for_gate_type(self, gate_type: str) -> float:
+    def get_bad_crossing_extended_gate_penalty_for_gate_type(self, gate_type: str,
+                                                             score_override: Optional["BasicScoreOverride"]) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.bad_crossing_extended_gate_penalty
 
-    def get_extended_gate_width_for_gate_type(self, gate_type: str) -> float:
+    def get_extended_gate_width_for_gate_type(self, gate_type: str,
+                                              score_override: Optional["BasicScoreOverride"]) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.extended_gate_width
 
@@ -357,7 +376,38 @@ class GateScore(models.Model):
     missed_penalty = models.FloatField(default=100)
     missed_procedure_turn_penalty = models.FloatField(default=200)
 
-    def calculate_score(self, planned_time: datetime.datetime, actual_time: Optional[datetime.datetime]) -> float:
+    def get_missed_penalty(self, score_override: Optional["BasicScoreOverride"]):
+        if score_override and score_override.checkpoint_not_found:
+            return score_override.checkpoint_not_found
+        return self.missed_penalty
+
+    def get_graceperiod_before(self, score_override: Optional["BasicScoreOverride"]):
+        if score_override and score_override.checkpoint_grace_period:
+            return score_override.checkpoint_grace_period
+        return self.graceperiod_before
+
+    def get_graceperiod_after(self, score_override: Optional["BasicScoreOverride"]):
+        if score_override and score_override.checkpoint_grace_period:
+            return score_override.checkpoint_grace_period
+        return self.graceperiod_after
+
+    def get_maximum_penalty(self, score_override: Optional["BasicScoreOverride"]):
+        if score_override and score_override.checkpoint_maximum_points:
+            return score_override.checkpoint_maximum_points
+        return self.maximum_penalty
+
+    def get_missed_procedure_turn_penalty(self, score_override: Optional["BasicScoreOverride"]):
+        if score_override and score_override.missing_procedure_turn:
+            return score_override.missing_procedure_turn
+        return self.missed_procedure_turn_penalty
+
+    def get_penalty_per_second(self, score_override: Optional["BasicScoreOverride"]):
+        if score_override and score_override.checkpoint_points_per_second:
+            return score_override.checkpoint_points_per_second
+        return self.penalty_per_second
+
+    def calculate_score(self, planned_time: datetime.datetime, actual_time: Optional[datetime.datetime],
+                        score_override: Optional["BasicScoreOverride"]) -> float:
         """
 
         :param planned_time:
@@ -365,17 +415,34 @@ class GateScore(models.Model):
         :return:
         """
         if actual_time is None:
-            return self.missed_penalty
+            return self.get_missed_penalty(score_override)
         time_difference = (actual_time - planned_time).total_seconds()
-        if -self.graceperiod_before < time_difference < self.graceperiod_after:
+        if -self.get_graceperiod_before(score_override) < time_difference < self.get_graceperiod_after(score_override):
             return 0
         else:
             if time_difference > 0:
-                grace_limit = self.graceperiod_after
+                grace_limit = self.get_graceperiod_after(score_override)
             else:
-                grace_limit = self.graceperiod_before
-            return min(self.maximum_penalty,
-                       (round(abs(time_difference) - grace_limit)) * self.penalty_per_second)
+                grace_limit = self.get_graceperiod_before(score_override)
+            return min(self.get_maximum_penalty(score_override),
+                       (round(abs(time_difference) - grace_limit)) * self.get_penalty_per_second(score_override))
+
+
+class BasicScoreOverride(models.Model):
+    navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE)
+    scorecard = models.ForeignKey(Scorecard, null=True, blank=True, on_delete=models.CASCADE)
+    for_gate_types = MyPickledObjectField(default=list)
+    takeoff_gate_duration = models.FloatField(default=None, blank=True, null=True)
+    checkpoint_grace_period = models.FloatField(default=None, blank=True, null=True)
+    checkpoint_points_per_second = models.FloatField(default=None, blank=True, null=True)
+    checkpoint_maximum_points = models.FloatField(default=None, blank=True, null=True)
+    checkpoint_not_found = models.FloatField(default=None, blank=True, null=True)
+    missing_procedure_turn = models.FloatField(default=None, blank=True, null=True)
+    bad_course_grace_time = models.FloatField(default=None, blank=True, null=True)
+    bad_course_penalty = models.FloatField(default=None, blank=True, null=True)
+
+    def __str__(self):
+        return "Basic score override for {}".format(self.navigation_task)
 
 
 class Contestant(models.Model):

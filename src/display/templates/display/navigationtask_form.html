@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load static %}
+{% load bootstrap4 %}
+{% block content %}
+    <h2>Update Navigation Task {{ object }}</h2>
+    {{ form.media }}
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        {% endbuttons %}
+    </form>
+    <script type="text/javascript">
+        $('#id_start_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_finish_time').datetimepicker({dateFormat: "yy-mm-dd"});
+    </script>
+{% endblock %}

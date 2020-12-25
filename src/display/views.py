@@ -37,9 +37,9 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
     create_route_from_formset
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
-    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm
+    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, BasicScoreOverrideForm
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
-    Person, Aeroplane, Club, Crew
+    Person, Aeroplane, Club, Crew, BasicScoreOverride
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, TeamContestPermissions, TeamContestPublicPermissions
@@ -256,6 +256,30 @@ class NavigationTaskDetailView(GuardianPermissionRequiredMixin, DetailView):
 
     def get_permission_object(self):
         return self.get_object().contest
+
+
+class NavigationTaskUpdateView(GuardianPermissionRequiredMixin, UpdateView):
+    model = NavigationTask
+    permission_required = ("change_contest",)
+    form_class = NavigationTaskForm
+    success_url = reverse_lazy("contest_list")
+
+    def get_permission_object(self):
+        return self.get_object().contest
+
+
+class BasicScoreOverrideUpdateView(GuardianPermissionRequiredMixin, UpdateView):
+    model = BasicScoreOverride
+    permission_required = ("change_contest",)
+    form_class = BasicScoreOverrideForm
+    success_url = reverse_lazy("contest_list")
+
+
+    def get_permission_object(self):
+        return self.get_object().navigation_task.contest
+
+    def get_object(self, queryset=None):
+        return self.model.objects.get_or_create(navigation_task_id=self.kwargs["pk"])[0]
 
 
 class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):

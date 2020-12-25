@@ -9,7 +9,7 @@ from django.forms import HiddenInput
 from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 
-from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club
+from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, BasicScoreOverride
 
 TURNPOINT = "tp"
 STARTINGPOINT = "sp"
@@ -55,7 +55,16 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "is_public")
+        fields = ("name", "start_time", "finish_time", "is_public", "calculator_type")
+
+
+class BasicScoreOverrideForm(forms.ModelForm):
+    for_gate_types = forms.MultipleChoiceField(initial=[TURNPOINT, SECRETPOINT, STARTINGPOINT, FINISHPOINT],
+                                               choices=GATES_TYPES)
+
+    class Meta:
+        model = BasicScoreOverride
+        exclude = ("navigation_task",)
 
 
 class ContestForm(forms.ModelForm):

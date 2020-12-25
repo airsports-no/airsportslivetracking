@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load static %}
+{% load bootstrap4 %}
+{% block content %}
+    <h2>Update score overriding for Navigation Task {{ object }}</h2>
+    {{ form.media }}
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        {% endbuttons %}
+    </form>
+{% endblock %}

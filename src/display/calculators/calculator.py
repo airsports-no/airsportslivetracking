@@ -41,25 +41,32 @@ class Calculator(threading.Thread):
         self.score = 0
         self.score_by_gate = {}
         self.score_log = []
+        self.basic_score_override = self.contestant.navigation_task.basicscoreoverride if hasattr(
+            self.contestant.navigation_task, "basicscoreoverride") else None
         self.tracking_state = self.BEFORE_START
         self.process_event = threading.Event()
         _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
         self.scorecard = self.contestant.scorecard
+        if self.basic_score_override and self.basic_score_override.scorecard is not None:
+            self.scorecard = self.basic_score_override.scorecard
         self.gates = self.create_gates()
         self.position_update_lock = threading.Lock()
         self.last_gate = None
         self.previous_last_gate = None
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
-                                  calculate_extended_gate(self.gates[0].waypoint, self.scorecard))
+                                  calculate_extended_gate(self.gates[0].waypoint, self.scorecard,
+                                                          self.basic_score_override))
         self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
         self.takeoff_gate = Gate(self.contestant.navigation_task.route.takeoff_gate,
                                  self.contestant.takeoff_time,
                                  calculate_extended_gate(self.contestant.navigation_task.route.takeoff_gate,
-                                                         self.scorecard)) if self.contestant.navigation_task.route.takeoff_gate else None
+                                                         self.scorecard,
+                                                         self.basic_score_override)) if self.contestant.navigation_task.route.takeoff_gate else None
         self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
                                  self.contestant.finished_by_time,
                                  calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
-                                                         self.scorecard)) if self.contestant.navigation_task.route.landing_gate else None
+                                                         self.scorecard,
+                                                         self.basic_score_override)) if self.contestant.navigation_task.route.landing_gate else None
         self.outstanding_gates = list(self.gates)
 
     def run(self):
@@ -114,7 +121,8 @@ class Calculator(threading.Thread):
         expected_times = self.contestant.gate_times
         gates = []
         for item in waypoints:  # type: Waypoint
-            gates.append(Gate(item, expected_times[item.name], calculate_extended_gate(item, self.scorecard)))
+            gates.append(Gate(item, expected_times[item.name],
+                              calculate_extended_gate(item, self.scorecard, self.basic_score_override)))
         return gates
 
     def add_positions(self, positions):
