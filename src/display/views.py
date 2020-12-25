@@ -640,7 +640,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
                     # "phone": team.crew.member1.phone,
                     # "email": team.crew.member1.email
                 }
-            if step == "member2search":
+            if step == "member2search" and team.crew.member2:
                 return {
                     "person_id": team.crew.member2.pk
                     # "first_name": team.crew.member1.first_name,
