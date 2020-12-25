@@ -62,9 +62,24 @@ class BasicScoreOverrideForm(forms.ModelForm):
     for_gate_types = forms.MultipleChoiceField(initial=[TURNPOINT, SECRETPOINT, STARTINGPOINT, FINISHPOINT],
                                                choices=GATES_TYPES)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance:
+            # print("Setting initial:|{}".format( self.instance.for_gate_types))
+            self.initial["for_gate_types"] = self.instance.for_gate_types
+
     class Meta:
         model = BasicScoreOverride
         exclude = ("navigation_task",)
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # print(self.cleaned_data["for_gate_types"])
+        instance.for_gate_types = self.cleaned_data["for_gate_types"]
+        if commit:
+            instance.save()
+        # print(instance.for_gate_types)
+        return instance
 
 
 class ContestForm(forms.ModelForm):
