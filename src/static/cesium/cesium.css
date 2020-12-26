@@ -62,19 +62,19 @@
 
 .lowerThirdsDouble {
     position: fixed;
-    width: 45%;
+    width: 700px;
     max-width: 700px;
     bottom: 20px;
-    right: 70px;
+    right: 20px;
     z-index: 2;
 }
 
 .lowerThirdsSingle {
     position: fixed;
-    width: 30%;
+    width: 400px;
     max-width: 400px;
     bottom: 20px;
-    right: 70px;
+    right: 20px;
     z-index: 2;
 }
 
@@ -89,22 +89,24 @@
         transform-origin: bottom right;
         transform: scale(0.7);
         position: fixed;
-        width: 45%;
+        width: 700px;
         max-width: 700px;
         bottom: 20px;
-        right: 70px;
+        right: 20px;
         z-index: 2;
+        font-size: medium;
     }
 
     .lowerThirdsSingle {
         transform-origin: bottom right;
         transform: scale(0.7);
         position: fixed;
-        width: 30%;
+        width: 400px;
         max-width: 400px;
         bottom: 20px;
-        right: 70px;
+        right: 20px;
         z-index: 2;
+        font-size: medium;
     }
 }
 
@@ -114,21 +116,22 @@
         transform-origin: bottom right;
         transform: scale(0.4);
         position: fixed;
-        width: 45%;
+        width: 700px;
         max-width: 700px;
         bottom: 20px;
-        right: 70px;
+        right: 20px;
         z-index: 2;
+        font-size: small;
     }
 
     .lowerThirdsSingle {
         transform-origin: bottom right;
         transform: scale(0.4);
         position: fixed;
-        width: 30%;
+        width: 400px;
         max-width: 400px;
         bottom: 20px;
-        right: 70px;
+        right: 20px;
         z-index: 2;
     }
 }
@@ -137,23 +140,23 @@
 @media (max-width: 480px) {
     .lowerThirdsDouble {
         transform-origin: bottom right;
-        transform: scale(0.2);
+        transform: scale(0.3);
         position: fixed;
-        width: 45%;
+        width: 700px;
         max-width: 700px;
         bottom: 20px;
-        right: 70px;
+        right: 20px;
         z-index: 2;
     }
 
     .lowerThirdsSingle {
         transform-origin: bottom right;
-        transform: scale(0.2);
+        transform: scale(0.3);
         position: fixed;
-        width: 30%;
+        width: 400px;
         max-width: 400px;
         bottom: 20px;
-        right: 70px;
+        right: 20px;
         z-index: 2;
     }
 }
