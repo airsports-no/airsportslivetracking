@@ -1,48 +1,51 @@
-.backdrop {
+.outerBackdropNarrow {
+    transform-origin: top left;
+    left: 60px;
+    top: 10px;
+    position: fixed;
+    z-index: 2;
     display: inline-block;
+    width: 500px;
+}
+
+.outerBackdropWide {
+    transform-origin: top left;
+    left: 60px;
+    top: 10px;
+    position: fixed;
+    z-index: 2;
+    display: inline-block;
+    right: 120px;
+    bottom: 120px;
+}
+
+.backdrop {
     /*background: rgba(42, 42, 42, 0.9);*/
     /*border-radius: 5px;*/
     /*border: 1px solid #444;*/
     /*padding: 5px 10px;*/
+    /*border-radius: 0 0 25px 25px;*/
     font-size: large;
     overflow-y: auto;
-    left: 70px;
-    top: 70px;
-    position: fixed;
-    z-index: 2;
-    /*border-radius: 0 0 25px 25px;*/
+    max-height: 500px;
+}
+
+.backdropWide {
+    font-size: large;
+    overflow-y: auto;
+    max-height: 100%;
 }
 
 .titleWrapper {
-    position: fixed;
-    display: inline-block;
-    left: 70px;
-    top: 20px;
-    z-index: 2;
+    /*position: fixed;*/
+    /*display: inline-block;*/
+    /*left: 70px;*/
+    /*top: 20px;*/
+    /*z-index: 2;*/
     border-radius: 25px 25px 0 0;
     background-color: #666666;
 }
 
-.compactTable {
-    width: 500px;
-    max-width: 45%;
-    max-height: 50%;
-}
-
-.largeTable {
-    right: 120px;
-    max-height: 90%;
-}
-
-.compactTitle {
-    width: 500px;
-    max-width: 45%;
-
-}
-
-.largeTitle {
-    right: 120px;
-}
 
 .inheritDisplay {
     display: inherit;
@@ -61,6 +64,7 @@
 
 
 .lowerThirdsDouble {
+    transform-origin: bottom right;
     position: fixed;
     width: 700px;
     max-width: 700px;
@@ -70,6 +74,7 @@
 }
 
 .lowerThirdsSingle {
+    transform-origin: bottom right;
     position: fixed;
     width: 400px;
     max-width: 400px;
@@ -80,84 +85,45 @@
 
 /* Large desktop */
 @media (min-width: 1200px) {
-    /* your code */
+    .lowerThirdsDouble, .outerBackdropNarrow {
+        transform: scale(0.8);
+    }
+
+    .lowerThirdsSingle {
+        transform: scale(0.8);
+    }
 }
 
 /* Portrait tablet to landscape and desktop */
 @media (min-width: 768px) and (max-width: 1200px) {
-    .lowerThirdsDouble {
-        transform-origin: bottom right;
+    .lowerThirdsDouble, .outerBackdropNarrow {
         transform: scale(0.5);
-        position: fixed;
-        width: 700px;
-        max-width: 700px;
-        bottom: 20px;
-        right: 20px;
-        z-index: 2;
-        font-size: medium;
     }
 
     .lowerThirdsSingle {
-        transform-origin: bottom right;
         transform: scale(0.5);
-        position: fixed;
-        width: 400px;
-        max-width: 400px;
-        bottom: 20px;
-        right: 20px;
-        z-index: 2;
-        font-size: medium;
     }
 }
 
 /* Landscape phone to portrait tablet */
-@media (max-width: 767px) {
-    .lowerThirdsDouble {
-        transform-origin: bottom right;
+@media (max-width: 768px) {
+    .lowerThirdsDouble, .outerBackdropNarrow {
         transform: scale(0.4);
-        position: fixed;
-        width: 700px;
-        max-width: 700px;
-        bottom: 20px;
-        right: 20px;
-        z-index: 2;
-        font-size: small;
     }
 
     .lowerThirdsSingle {
-        transform-origin: bottom right;
         transform: scale(0.4);
-        position: fixed;
-        width: 400px;
-        max-width: 400px;
-        bottom: 20px;
-        right: 20px;
-        z-index: 2;
     }
 }
 
 /* Landscape phones and down */
 @media (max-width: 480px) {
-    .lowerThirdsDouble {
-        transform-origin: bottom right;
+    .lowerThirdsDouble, .outerBackdropNarrow {
         transform: scale(0.3);
-        position: fixed;
-        width: 700px;
-        max-width: 700px;
-        bottom: 20px;
-        right: 20px;
-        z-index: 2;
     }
 
     .lowerThirdsSingle {
-        transform-origin: bottom right;
         transform: scale(0.3);
-        position: fixed;
-        width: 400px;
-        max-width: 400px;
-        bottom: 20px;
-        right: 20px;
-        z-index: 2;
     }
 }
 

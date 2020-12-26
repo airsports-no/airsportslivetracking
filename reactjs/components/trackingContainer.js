@@ -77,27 +77,29 @@ class ConnectedTrackingContainer extends Component {
                         {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
                             numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
                         <div className={"row fill ml-1"}>
-                            <div
-                                className={"titleWrapper " + (this.props.displayExpandedTrackingTable ? "largeTitle" : "compactTitle")}>
-                                <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}>
-                                    {/*id={"logoButtonWrapper"}>*/}
-                                    <img id={'menuButton'}
-                                         alt={"Menu toggle"}
-                                         src={"/static/img/menubutton.png"}/>
-                                </a>
-                                <a href={"#"} className={'taskTitle'}
-                                   onClick={this.resetToAllContestants}>{this.props.navigationTask.name}</a>
-                                {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ?
-                                    <a className={"shrinkLink taskTitle"} href={"#"}
-                                       onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ? "<<<" : ">>>"}</a> : null}
+                            <div className={(this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow")}>
+                                <div
+                                    className={"titleWrapper"}>
+                                    <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}>
+                                        {/*id={"logoButtonWrapper"}>*/}
+                                        <img id={'menuButton'}
+                                             alt={"Menu toggle"}
+                                             src={"/static/img/menubutton.png"}/>
+                                    </a>
+                                    <a href={"#"} className={'taskTitle'}
+                                       onClick={this.resetToAllContestants}>{this.props.navigationTask.name}</a>
+                                    {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ?
+                                        <a className={"shrinkLink taskTitle"} href={"#"}
+                                           onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ? "<<<" : ">>>"}</a> : null}
 
+                                </div>
+                                <div
+                                    className={(this.props.displayExpandedTrackingTable ? "backdropWide" : "backdrop")}>{TrackerDisplay}</div>
                             </div>
                             <a className={"btn"} id="returnLink" href={"/"}><img alt={"Back to main page"}
                                                                                  id={"returnLinkImage"}
                                                                                  src={"/static/img/airsports.png"}/></a>
                             <div id="cesiumContainer"/>
-                            <div
-                                className={"backdrop " + (this.props.displayExpandedTrackingTable ? "largeTable" : "compactTable")}>{TrackerDisplay}</div>
                             {this.props.displayLowerThirds !== null ?
                                 <LowerThirdTeam
                                     contestant={this.props.contestants[this.props.displayLowerThirds]}/> : null}
