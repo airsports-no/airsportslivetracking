@@ -87,7 +87,7 @@
 @media (min-width: 768px) and (max-width: 1200px) {
     .lowerThirdsDouble {
         transform-origin: bottom right;
-        transform: scale(0.7);
+        transform: scale(0.5);
         position: fixed;
         width: 700px;
         max-width: 700px;
@@ -99,7 +99,7 @@
 
     .lowerThirdsSingle {
         transform-origin: bottom right;
-        transform: scale(0.7);
+        transform: scale(0.5);
         position: fixed;
         width: 400px;
         max-width: 400px;
