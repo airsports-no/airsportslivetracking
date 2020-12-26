@@ -594,7 +594,6 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         return self.post_data.get(step, {})
 
     def done(self, form_list, **kwargs):
-        print("done")
         form_dict = kwargs['form_dict']
         team_pk = self.kwargs.get("team_pk")
         contest_pk = self.kwargs.get("contest_pk")
@@ -603,7 +602,9 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             original_team = get_object_or_404(Team, pk=team_pk)
         else:
             original_team = None
+        affected_contestants = None
         if original_team:
+            affected_contestants = Contestant.objects.filter(navigation_task__contest=contest, team=original_team)
             contest.teams.remove(original_team)
         # Check if member one has been created
         member_one_search = self.get_post_data_for_step("member1search")
@@ -630,7 +631,6 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         aeroplane_data.pop("picture_display_field")
         aeroplane, _ = Aeroplane.objects.get_or_create(registration=aeroplane_data.get("registration"),
                                                        defaults=aeroplane_data)
-        print("aeroplane_data: {}".format(aeroplane_data))
         if aeroplane_data["picture"] is not None:
             aeroplane.picture = aeroplane_data["picture"]
         aeroplane.colour = aeroplane_data["colour"]
@@ -647,6 +647,8 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         club.save()
         team, created_team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
         contest.teams.add(team)
+        if affected_contestants is not None:
+            affected_contestants.update(team=team)
         return HttpResponseRedirect(reverse("team_update", kwargs={"contest_pk": contest_pk, "pk": team.pk}))
 
     def get_form_prefix(self, step=None, form=None):

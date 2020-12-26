@@ -59,12 +59,10 @@
 .lowerThirdsScale {
 }
 
+
 .lowerThirdsDouble {
-    /*transform: scale(0.5);*/
-    transform-origin: bottom right;
     position: fixed;
     width: 45%;
-    /*max-height: 30%;*/
     max-width: 700px;
     bottom: 20px;
     right: 70px;
@@ -74,11 +72,90 @@
 .lowerThirdsSingle {
     position: fixed;
     width: 30%;
-    /*max-height: 30%;*/
     max-width: 400px;
     bottom: 20px;
     right: 70px;
     z-index: 2;
+}
+
+/* Large desktop */
+@media (min-width: 1200px) {
+    /* your code */
+}
+
+/* Portrait tablet to landscape and desktop */
+@media (min-width: 768px) and (max-width: 1200px) {
+    .lowerThirdsDouble {
+        transform-origin: bottom right;
+        transform: scale(0.7);
+        position: fixed;
+        width: 45%;
+        max-width: 700px;
+        bottom: 20px;
+        right: 70px;
+        z-index: 2;
+    }
+
+    .lowerThirdsSingle {
+        transform-origin: bottom right;
+        transform: scale(0.7);
+        position: fixed;
+        width: 30%;
+        max-width: 400px;
+        bottom: 20px;
+        right: 70px;
+        z-index: 2;
+    }
+}
+
+/* Landscape phone to portrait tablet */
+@media (max-width: 767px) {
+    .lowerThirdsDouble {
+        transform-origin: bottom right;
+        transform: scale(0.4);
+        position: fixed;
+        width: 45%;
+        max-width: 700px;
+        bottom: 20px;
+        right: 70px;
+        z-index: 2;
+    }
+
+    .lowerThirdsSingle {
+        transform-origin: bottom right;
+        transform: scale(0.4);
+        position: fixed;
+        width: 30%;
+        max-width: 400px;
+        bottom: 20px;
+        right: 70px;
+        z-index: 2;
+    }
+}
+
+/* Landscape phones and down */
+@media (max-width: 480px) {
+    .lowerThirdsDouble {
+        transform-origin: bottom right;
+        transform: scale(0.2);
+        position: fixed;
+        width: 45%;
+        max-width: 700px;
+        bottom: 20px;
+        right: 70px;
+        z-index: 2;
+    }
+
+    .lowerThirdsSingle {
+        transform-origin: bottom right;
+        transform: scale(0.2);
+        position: fixed;
+        width: 30%;
+        max-width: 400px;
+        bottom: 20px;
+        right: 70px;
+        z-index: 2;
+    }
 }
 
 .lowerThirdsProfileImage {
@@ -111,7 +188,7 @@
     float: right;
 }
 
-.wizardImage{
+.wizardImage {
     max-height: 400px;
 }
 

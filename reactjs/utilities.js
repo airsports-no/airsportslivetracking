@@ -1,4 +1,5 @@
 import React, {Component} from "react";
+
 const R = 6371e3; // metres
 export function getDistance(lat1, lon1, lat2, lon2) {
     const phi1 = lat1 * Math.PI / 180; // phi, lambda in radians
@@ -78,7 +79,7 @@ export function contestantShortForm(contestant) {
 }
 
 export function contestantLongForm(contestant) {
-    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + (contestant.team.crew ? contestant.team.crew.pilot : "Unknown") + "<br/>Navigator: " + (contestant.team.crew ? contestant.team.crew.navigator : "Unknown") + "<br/>Aeroplane: " + contestant.team.aeroplane.registration
+    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + (contestant.team.crew && contestant.team.crew.member1 ? contestant.team.crew.member1.first_name + " " + contestant.team.crew.member1.last_name : "Unknown") + "<br/>Navigator: " + (contestant.team.crew && contestant.team.crew.member2 ? contestant.team.crew.member2.first_name + " " + contestant.team.crew.member2.last_name : "Unknown") + "<br/>Aeroplane: " + contestant.team.aeroplane.registration
 }
 
 export function teamLongForm(team) {
