@@ -187,9 +187,16 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'standard'
         },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.WatchedFileHandler',
+            'filename': '/logs/DyST.log',
+            'formatter': 'standard'
+        },
+
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console','file'],
         'level': 'INFO',
     },
 }

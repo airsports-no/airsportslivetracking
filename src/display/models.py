@@ -180,7 +180,9 @@ class Person(models.Model):
                 if possible_person is None:
                     return Person.objects.get_or_create(
                         defaults={"phone": phone,
-                                  "email": phone},
+                                  "email": phone,
+                                  "first_name": first_name,
+                                  "last_name": last_name},
                         first_name__iexact=first_name,
                         last_name__iexact=last_name)[0]
                 return possible_person

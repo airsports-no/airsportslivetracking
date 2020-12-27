@@ -43,6 +43,7 @@ services:
       - ./src:/src/
       - ./reactjs:/reactjs/
       - ./data:/data/
+      - ./weblog:/logs/
     ports:
       - "8002:8000"
     depends_on:
