@@ -304,6 +304,11 @@ class ContestantUpdateView(GuardianPermissionRequiredMixin, UpdateView):
     model = Contestant
     permission_required = ("change_contest",)
 
+    def get_form_kwargs(self):
+        arguments = super().get_form_kwargs()
+        arguments["navigation_task"] = self.get_object().navigation_task
+        return arguments
+
     def get_success_url(self):
         return reverse("navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk})
 
