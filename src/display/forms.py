@@ -305,9 +305,10 @@ class ContestantForm(forms.ModelForm):
     #
     # aircraft_registration = forms.CharField()
     def __init__(self, *args, **kwargs):
+        navigation_task = kwargs.pop("navigation_task")
         super().__init__(*args, **kwargs)
-        if self.instance:
-            self.fields["team"].queryset = self.instance.navigation_task.contest.contest_teams.all()
+        # self.fields["navigation_task"].hidden = True
+        self.fields["team"].queryset = navigation_task.contest.contest_teams.all()
 
     class Meta:
         model = Contestant

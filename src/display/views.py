@@ -328,6 +328,11 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
     model = Contestant
     permission_required = ("change_contest",)
 
+    def get_form_kwargs(self):
+        arguments = super().get_form_kwargs()
+        arguments["navigation_task"] = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        return arguments
+
     def get_success_url(self):
         return reverse("navigationtask_detail", kwargs={"pk": self.kwargs.get("navigationtask_pk")})
 
@@ -906,7 +911,7 @@ class ContestantViewSet(ModelViewSet):
         instance = self.get_object()
         partial = kwargs.pop('partial', False)
         serialiser = self.get_serializer(instance=instance, data=request.data,
-                                         context={"request": request, "navigation_task": navigation_task},
+                                         # context={"request": request, "navigation_task": navigation_task},
                                          partial=partial)
         if serialiser.is_valid():
             serialiser.save()

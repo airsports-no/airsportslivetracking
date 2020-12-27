@@ -325,8 +325,8 @@ class ContestantSerialiser(serializers.ModelSerializer):
         return contestant
 
     def update(self, instance, validated_data):
-        ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team)
-        validated_data.update({"navigation_task": self.context["navigation_task"]})
+        ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).delete()
+        # validated_data.update({"navigation_task": self.context["navigation_task"]})
         gate_times = validated_data.pop("gate_times", {})
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()
