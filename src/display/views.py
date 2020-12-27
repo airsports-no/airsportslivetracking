@@ -38,9 +38,9 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
     Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, BasicScoreOverrideForm, TURNPOINT, SECRETPOINT, \
-    STARTINGPOINT, FINISHPOINT
+    STARTINGPOINT, FINISHPOINT, TrackingDataForm
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
-    Person, Aeroplane, Club, Crew, BasicScoreOverride
+    Person, Aeroplane, Club, Crew, BasicScoreOverride, ContestTeam
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, TeamContestPermissions, TeamContestPublicPermissions
@@ -50,7 +50,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     ContestantTrackWithTrackPointsSerialiser, ContestantNestedTeamSerialiser, ContestResultsHighLevelSerialiser, \
     ContestSummarySerialiser, TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
     GpxTrackSerialiser, PersonSerialiser, ExternalNavigationTaskTeamIdSerialiser, \
-    ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser
+    ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
@@ -526,6 +526,20 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         return {}
 
 
+class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
+    permission_required = ("update_contest",)
+
+    def get_permission_object(self):
+        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        return contest
+
+    model = ContestTeam
+    form_class = TrackingDataForm
+
+    def get_success_url(self):
+        return reverse_lazy('contest_team_list', kwargs={"contest_pk": self.kwargs["contest_pk"]})
+
+
 class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
     permission_required = ("update_contest",)
 
@@ -573,6 +587,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         ("member2create", PersonForm),
         ("aeroplane", AeroplaneSearchForm),
         ("club", ClubSearchForm),
+        ("tracking", TrackingDataForm)
     ]
     templates = {
         "member1search": "display/membersearch_form.html",
@@ -581,6 +596,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         "member2create": "display/membercreate_form.html",
         "aeroplane": "display/aeroplane_form.html",
         "club": "display/club_form.html",
+        "tracking": "display/basicwizardform.html"
     }
 
     def get_next_step(self, step=None):
@@ -597,6 +613,8 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         form_dict = kwargs['form_dict']
         team_pk = self.kwargs.get("team_pk")
         contest_pk = self.kwargs.get("contest_pk")
+        # Must be retrieved before we delete the existing relationship
+        tracking_data = self.get_cleaned_data_for_step("tracking")
         contest = get_object_or_404(Contest, pk=contest_pk)
         if team_pk:
             original_team = get_object_or_404(Team, pk=team_pk)
@@ -605,7 +623,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         affected_contestants = None
         if original_team:
             affected_contestants = Contestant.objects.filter(navigation_task__contest=contest, team=original_team)
-            contest.teams.remove(original_team)
+            ContestTeam.objects.filter(contest=contest, team=original_team).delete()
         # Check if member one has been created
         member_one_search = self.get_post_data_for_step("member1search")
         use_existing1 = member_one_search.get("use_existing_pilot") is not None
@@ -646,7 +664,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         club.country = club_data["country"]
         club.save()
         team, created_team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
-        contest.teams.add(team)
+        ContestTeam.objects.get_or_create(contest=contest, team=team, defaults=tracking_data)
         if affected_contestants is not None:
             affected_contestants.update(team=team)
         return HttpResponseRedirect(reverse("team_update", kwargs={"contest_pk": contest_pk, "pk": team.pk}))
@@ -659,6 +677,22 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
 
     # def render_revalidation_failure(self, step, form, **kwargs):
     #     print("Revalidation failure {} {}".format(step, form))
+
+    def get_form_instance(self, step):
+        team_pk = self.kwargs.get("team_pk")
+        if team_pk:
+            team = get_object_or_404(Team, pk=team_pk)
+        else:
+            team = None
+
+        contest_pk = self.kwargs.get("contest_pk")
+        if contest_pk:
+            contest = get_object_or_404(Contest, pk=contest_pk)
+        else:
+            contest = None
+        if team and contest:
+            if step == "tracking":
+                return ContestTeam.objects.get(team=team, contest=contest)
 
     def get_form_initial(self, step):
         print(step)
@@ -705,7 +739,7 @@ class PersonUpdateView(SuperuserRequiredMixin, UpdateView):
 
 
 class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
-    model = Team
+    model = ContestTeam
     permission_required = ("view_contest",)
 
     def get_permission_object(self):
@@ -714,7 +748,8 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
 
     def get_queryset(self):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
-        return Team.objects.filter(contest=contest)
+        return ContestTeam.objects.filter(contest=contest).order_by("team__crew__member1__last_name",
+                                                                    "team__crew__member1__first_name")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -725,7 +760,7 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
 def remove_team_from_contest(request, contest_pk, team_pk):
     contest = get_object_or_404(Contest, pk=contest_pk)
     team = get_object_or_404(Team, pk=team_pk)
-    contest.teams.remove(team)
+    ContestTeam.objects.filter(contest=contest, team=team).delete()
     return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
 
@@ -782,8 +817,12 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     or publicly divisible POST Allows the user to post a new contest and become the owner of that contest.
     """
     queryset = Contest.objects.all()
-    serializer_class = ContestSerialiser
+    serializer_classes = {"teams": ContestTeamNestedSerialiser}
+    default_serialiser_class = ContestSerialiser
     permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
+
+    def get_serializer_class(self):
+        return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_contest",
@@ -794,8 +833,8 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         """
         Get the list of teams in the contest
         """
-        teams = Team.objects.filter(contest=pk)
-        return Response(TeamNestedSerialiser(teams, many=True).data)
+        contest_teams = ContestTeam.objects.filter(contest=pk)
+        return Response(ContestTeamNestedSerialiser(contest_teams, many=True).data)
 
 
 class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):

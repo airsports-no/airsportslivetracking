@@ -17,7 +17,8 @@ if __name__ == "__main__":
 
 from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, Person
+from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, Person, \
+    ContestTeam
 from influx_facade import InfluxFacade
 from display.calculators.calculator_factory import calculator_factory
 
@@ -84,6 +85,9 @@ for file in glob.glob("../data/demo_contests/2017_WPFC/*_Results_*.gpx"):
         member1=Person.objects.get_or_create(first_name=contestant, last_name="Pilot")[0])
     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
     start_time, speed, minutes_starting = contestants[contestant]
+    ContestTeam.objects.get_or_create(team=team, contest=contest,
+                                      defaults={"air_speed": speed, "tracking_service": TRACCAR,
+                                                "traccar_device_name": contestant})
     print(start_time)
     start_time = start_time.replace(tzinfo=datetime.timezone.utc)
     contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,

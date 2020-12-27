@@ -20,6 +20,11 @@ from display.my_pickled_object_field import MyPickledObjectField
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 
+TRACCAR = "traccar"
+TRACKING_SERVICES = (
+    (TRACCAR, "Traccar"),
+)
+
 
 def user_directory_path(instance, filename):
     return "aeroplane_{0}/{1}".format(instance.registration, filename)
@@ -235,6 +240,19 @@ class Team(models.Model):
         return None
 
 
+class ContestTeam(models.Model):
+    contest = models.ForeignKey("Contest", on_delete=models.CASCADE)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
+    air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
+    tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
+                                        help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
+    traccar_device_name = models.CharField(max_length=100,
+                                           help_text="ID of physical tracking device that will be brought into the plane")
+
+    class Meta:
+        unique_together = ("contest", "team")
+
+
 class Contest(models.Model):
     DESCENDING = "desc"
     ASCENDING = "asc"
@@ -250,7 +268,7 @@ class Contest(models.Model):
         help_text="The start time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
     finish_time = models.DateTimeField(
         help_text="The finish time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
-    teams = models.ManyToManyField(Team, blank=True)
+    contest_teams = models.ManyToManyField(Team, blank=True, through=ContestTeam)
     is_public = models.BooleanField(default=False)
 
     def __str__(self):
@@ -448,10 +466,6 @@ class BasicScoreOverride(models.Model):
 
 
 class Contestant(models.Model):
-    TRACCAR = "traccar"
-    TRACKING_SERVICES = (
-        (TRACCAR, "Traccar"),
-    )
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE)
     takeoff_time = models.DateTimeField(

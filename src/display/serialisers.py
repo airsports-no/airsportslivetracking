@@ -2,7 +2,7 @@ import base64
 
 import dateutil
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm
@@ -14,7 +14,7 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
-    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club
+    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam
 from display.waypoint import Waypoint
 
 
@@ -209,6 +209,14 @@ class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         return aeroplane, crew, club
 
 
+class ContestTeamNestedSerialiser(serializers.ModelSerializer):
+    team = TeamNestedSerialiser()
+
+    class Meta:
+        model = ContestTeam
+        fields = "__all__"
+
+
 class ScorecardSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Scorecard
@@ -307,12 +315,17 @@ class ContestantSerialiser(serializers.ModelSerializer):
         contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
                                             gate_times.items()}
         contestant.save()
-        contestant.navigation_task.contest.teams.add(contestant.team)
+        try:
+            ContestTeam.objects.create(contest=contestant.navigation_task.contest, team=contestant.team,
+                                       traccar_device_name=contestant.traccar_device_name,
+                                       tracking_service=contestant.tracking_service, air_speed=contestant.air_speed)
+        except IntegrityError:
+            # Team has already, so no need to add is again
+            pass
         return contestant
 
     def update(self, instance, validated_data):
-        instance.navigation_task.contest.teams.remove(instance.team)
-
+        ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team)
         validated_data.update({"navigation_task": self.context["navigation_task"]})
         gate_times = validated_data.pop("gate_times", {})
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
@@ -320,7 +333,13 @@ class ContestantSerialiser(serializers.ModelSerializer):
         instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
                                           gate_times.items()}
         instance.save()
-        instance.navigation_task.contest.teams.add(instance.team)
+        try:
+            ContestTeam.objects.create(contest=instance.navigation_task.contest, team=instance.team,
+                                       traccar_device_name=instance.traccar_device_name,
+                                       tracking_service=instance.tracking_service, air_speed=instance.air_speed)
+        except IntegrityError:
+            # Team has already, so no need to add is again
+            pass
         return instance
 
 

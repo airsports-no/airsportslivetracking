@@ -9,7 +9,8 @@ from django.forms import HiddenInput
 from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 
-from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, BasicScoreOverride
+from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, BasicScoreOverride, \
+    ContestTeam
 
 TURNPOINT = "tp"
 STARTINGPOINT = "sp"
@@ -250,6 +251,22 @@ class AeroplaneForm(forms.ModelForm):
         fields = "__all__"
 
 
+class TrackingDataForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(Fieldset(
+            "Team contest information", "air_speed", "traccar_device_name", "tracking_service"),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+
+    class Meta:
+        model = ContestTeam
+        fields = ("air_speed", "traccar_device_name", "tracking_service")
+
+
 class ClubSearchForm(forms.ModelForm):
     logo_display_field = forms.ImageField(widget=PictureWidget, label="", required=False)
     country_flag_display_field = forms.ImageField(widget=PictureWidget, label="", required=False)
@@ -290,12 +307,13 @@ class ContestantForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance:
-            self.fields["team"].queryset = self.instance.navigation_task.contest.teams.all()
+            self.fields["team"].queryset = self.instance.navigation_task.contest.contest_teams.all()
 
     class Meta:
         model = Contestant
         fields = (
-            "contestant_number", "team", "tracker_start_time", "tracking_service", "traccar_device_name", "takeoff_time",
+            "contestant_number", "team", "tracker_start_time", "tracking_service", "traccar_device_name",
+            "takeoff_time",
             "finished_by_time",
             "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed", "scorecard")
 
