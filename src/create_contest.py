@@ -22,7 +22,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
     team, _ = Team.objects.get_or_create(pilot=contestant_name, navigator="", aeroplane=aeroplane)
     contestant = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=now,
                                            finished_by_time=now + timedelta(hours=2),
-                                           traccar_device_name=contestant_name, contestant_number=index)
+                                           tracker_device_id=contestant_name, contestant_number=index)
 print(navigation_task.pk)
 # for contestant in Contestant.objects.filter(contest__pk = 7):
 #     contestant.takeoff_time = contestant.navigation_task.start_time

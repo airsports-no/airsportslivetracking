@@ -48,7 +48,7 @@ class TestFullTrack(TransactionTestCase):
                                                     takeoff_time=start_time,
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
-                                                    traccar_device_name="Test contestant", contestant_number=1,
+                                                    tracker_device_id="Test contestant", contestant_number=1,
                                                     scorecard=self.scorecard, minutes_to_starting_point=6,
                                                     air_speed=speed,
                                                     wind_direction=165, wind_speed=8)
@@ -86,7 +86,7 @@ class TestFullTrack(TransactionTestCase):
                                                takeoff_time=start_time,
                                                tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                finished_by_time=start_time + datetime.timedelta(hours=2),
-                                               traccar_device_name="contestant", contestant_number=2,
+                                               tracker_device_id="contestant", contestant_number=2,
                                                scorecard=self.scorecard, minutes_to_starting_point=6, air_speed=speed,
                                                wind_direction=165, wind_speed=8)
         positions = load_track_points("display/calculators/tests/Helge.gpx")
@@ -149,7 +149,7 @@ class Test2017WPFC(TransactionTestCase):
                                                     takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
-                                                    traccar_device_name="Test contestant", contestant_number=1,
+                                                    tracker_device_id="Test contestant", contestant_number=1,
                                                     scorecard=self.scorecard, minutes_to_starting_point=8,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=18)
@@ -189,7 +189,7 @@ class TestNM2019(TransactionTestCase):
                                                     takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
-                                                    traccar_device_name="Test contestant", contestant_number=1,
+                                                    tracker_device_id="Test contestant", contestant_number=1,
                                                     scorecard=self.scorecard, minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
@@ -209,7 +209,7 @@ class TestNM2019(TransactionTestCase):
                                                     takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
-                                                    traccar_device_name="Test contestant", contestant_number=1,
+                                                    tracker_device_id="Test contestant", contestant_number=1,
                                                     scorecard=self.scorecard, minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)

@@ -54,7 +54,7 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx):
         for segment in track.segments:
             for point in segment.points:
                 positions.append({
-                    "deviceId": contestant_object.traccar_device_name,
+                    "deviceId": contestant_object.tracker_device_id,
                     "latitude": point.latitude,
                     "longitude": point.longitude,
                     "altitude": point.elevation if point.elevation else 0,

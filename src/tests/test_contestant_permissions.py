@@ -57,7 +57,7 @@ CONTESTANT_DATA = {
     "finished_by_time": datetime.datetime.utcnow(),
     "air_speed": 70,
     "contestant_number": 1,
-    "traccar_device_name": "tracker",
+    "tracker_device_id": "tracker",
     "tracker_start_time": datetime.datetime.utcnow() - datetime.timedelta(hours=1),
     "wind_speed": 10,
     "wind_direction": 0
@@ -135,12 +135,12 @@ class TestAccessNavigationTask(APITestCase):
         self.contest = Contest.objects.get(pk=self.contest_id)
         result = self.client.post(reverse("navigationtasks-list", kwargs={"contest_pk": self.contest_id}),
                                   data=NAVIGATION_TASK_DATA, format="json")
-        print(result.content)
+        print("Navigation task result: {}".format(result.content))
         self.navigation_task = NavigationTask.objects.get(pk=result.json()["id"])
         result = self.client.post(reverse("contestants-list", kwargs={"contest_pk": self.contest_id,
                                                                       "navigationtask_pk": self.navigation_task.pk}),
                                   data=CONTESTANT_DATA, format="json")
-        print(result.content)
+        print("Contestant result: {}".format(result.content))
         self.contestant = Contestant.objects.get(pk=result.json()["id"])
         self.different_user_with_object_permissions = User.objects.create(username="objectpermissions")
         self.different_user_with_object_permissions.user_permissions.add(

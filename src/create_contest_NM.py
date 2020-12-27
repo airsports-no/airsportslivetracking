@@ -73,7 +73,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
     contestant = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,
                                            finished_by_time=start_time + datetime.timedelta(hours=2),
                                            tracker_start_time=start_time - datetime.timedelta(minutes=30),
-                                           traccar_device_name=contestant_name, contestant_number=index,
+                                           tracker_device_id=contestant_name, contestant_number=index,
                                            scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed,
                                            wind_direction=165, wind_speed=8)
     print(navigation_task.pk)

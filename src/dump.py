@@ -898,7 +898,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T10:00:00Z",
             "air_speed": 75,
             "contestant_number": 0,
-            "traccar_device_name": "Anders",
+            "tracker_device_id": "Anders",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -942,7 +942,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T10:10:00Z",
             "air_speed": 70,
             "contestant_number": 1,
-            "traccar_device_name": "Arild",
+            "tracker_device_id": "Arild",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -986,7 +986,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T09:15:00Z",
             "air_speed": 70,
             "contestant_number": 2,
-            "traccar_device_name": "Bjørn",
+            "tracker_device_id": "Bjørn",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1030,7 +1030,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T11:10:00Z",
             "air_speed": 70,
             "contestant_number": 3,
-            "traccar_device_name": "Espen",
+            "tracker_device_id": "Espen",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1074,7 +1074,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T10:05:00Z",
             "air_speed": 75,
             "contestant_number": 4,
-            "traccar_device_name": "Frank-Olaf",
+            "tracker_device_id": "Frank-Olaf",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1118,7 +1118,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T09:50:00Z",
             "air_speed": 85,
             "contestant_number": 5,
-            "traccar_device_name": "Hans-Inge",
+            "tracker_device_id": "Hans-Inge",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1162,7 +1162,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T13:05:00Z",
             "air_speed": 70,
             "contestant_number": 6,
-            "traccar_device_name": "Hedvig",
+            "tracker_device_id": "Hedvig",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1206,7 +1206,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T12:55:00Z",
             "air_speed": 75,
             "contestant_number": 7,
-            "traccar_device_name": "Helge",
+            "tracker_device_id": "Helge",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1250,7 +1250,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T11:15:00Z",
             "air_speed": 70,
             "contestant_number": 8,
-            "traccar_device_name": "Håkon",
+            "tracker_device_id": "Håkon",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1294,7 +1294,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T09:10:00Z",
             "air_speed": 70,
             "contestant_number": 9,
-            "traccar_device_name": "Jorge",
+            "tracker_device_id": "Jorge",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1338,7 +1338,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T10:55:00Z",
             "air_speed": 75,
             "contestant_number": 10,
-            "traccar_device_name": "Jørgen",
+            "tracker_device_id": "Jørgen",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1382,7 +1382,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T09:05:00Z",
             "air_speed": 70,
             "contestant_number": 11,
-            "traccar_device_name": "Kenneth",
+            "tracker_device_id": "Kenneth",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1426,7 +1426,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T11:05:00Z",
             "air_speed": 70,
             "contestant_number": 12,
-            "traccar_device_name": "Magnus",
+            "tracker_device_id": "Magnus",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1470,7 +1470,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T09:00:00Z",
             "air_speed": 75,
             "contestant_number": 13,
-            "traccar_device_name": "Niklas",
+            "tracker_device_id": "Niklas",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1514,7 +1514,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T09:20:00Z",
             "air_speed": 70,
             "contestant_number": 14,
-            "traccar_device_name": "Odin",
+            "tracker_device_id": "Odin",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1558,7 +1558,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T13:00:00Z",
             "air_speed": 70,
             "contestant_number": 15,
-            "traccar_device_name": "Ola",
+            "tracker_device_id": "Ola",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1602,7 +1602,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T10:25:00Z",
             "air_speed": 70,
             "contestant_number": 16,
-            "traccar_device_name": "Ole",
+            "tracker_device_id": "Ole",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1646,7 +1646,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T09:55:00Z",
             "air_speed": 80,
             "contestant_number": 17,
-            "traccar_device_name": "Steinar",
+            "tracker_device_id": "Steinar",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1690,7 +1690,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T13:10:00Z",
             "air_speed": 70,
             "contestant_number": 18,
-            "traccar_device_name": "Stian",
+            "tracker_device_id": "Stian",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1734,7 +1734,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T11:00:00Z",
             "air_speed": 70,
             "contestant_number": 19,
-            "traccar_device_name": "Tim",
+            "tracker_device_id": "Tim",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1778,7 +1778,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T13:15:00Z",
             "air_speed": 70,
             "contestant_number": 20,
-            "traccar_device_name": "Tommy",
+            "tracker_device_id": "Tommy",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0
@@ -1822,7 +1822,7 @@ with open("importnavigationtask.json", "w") as o:
             "finished_by_time": "2020-08-01T12:40:00Z",
             "air_speed": 70,
             "contestant_number": 21,
-            "traccar_device_name": "TorHelge",
+            "tracker_device_id": "TorHelge",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_speed": 0,
             "wind_direction": 0

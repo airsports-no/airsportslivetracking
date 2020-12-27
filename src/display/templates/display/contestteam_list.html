@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+    <H1>Teams for contest {{ contest }}</H1>
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Team</th>
+            <th>Country</th>
+            <th>Airspeed</th>
+            <th>Tracking service</th>
+            <th>Tracker id</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+
+        {% for object in object_list %}
+            <tr>
+                <td>{{ object.team }}</td>
+                <td>{{ object.team.country }}</td>
+                <td>{{ object.air_speed }}</td>
+                <td>
+                    {{ object.get_tracking_service_display }}
+                </td>
+                <td>{{ object.tracker_device_id }}</td>
+                <td>
+                    <a href="{% url 'team_wizard' contest.pk object.team.pk %}">Modify team information</a> |
+                    <a href="{% url 'contestteamtracking_update' contest.pk object.pk %}">Update tracking
+                        information</a> |
+                    <a href="{% url 'remove_team' contest.pk object.team.pk %}">Remove team</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    <a href="{% url 'create_team' contest.pk %}">Add team</a>
+{% endblock %}

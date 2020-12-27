@@ -18,7 +18,7 @@ from playback_tools import build_traccar_track, load_data_traccar, insert_gpx_fi
 from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
-    TraccarCredentials, Person
+    TraccarCredentials, Person, ContestTeam, TRACCAR
 from influx_facade import InfluxFacade
 
 influx = InfluxFacade()
@@ -94,6 +94,9 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
 
     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
     start_time, speed, _ = contestants[contestant]
+    ContestTeam.objects.get_or_create(team=team, contest=contest,
+                                      defaults={"air_speed": speed, "tracking_service": TRACCAR,
+                                                "tracker_device_id": contestant})
     start_time = start_time - datetime.timedelta(hours=2)
     start_time = start_time.astimezone()
     minutes_starting = 6
@@ -101,7 +104,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,
                                                   finished_by_time=start_time + datetime.timedelta(hours=2),
                                                   tracker_start_time=start_time - datetime.timedelta(minutes=30),
-                                                  traccar_device_name=contestant, contestant_number=index,
+                                                  tracker_device_id=contestant, contestant_number=index,
                                                   scorecard=scorecard, minutes_to_starting_point=minutes_starting,
                                                   air_speed=speed,
                                                   wind_direction=165, wind_speed=8)
