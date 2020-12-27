@@ -7,7 +7,6 @@ from urllib.parse import urlencode
 import gpxpy
 import requests
 
-from playback_tools import insert_gpx_file
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -20,7 +19,7 @@ from display.default_scorecards.default_scorecard_fai_precision_2020 import get_
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, Person
 from influx_facade import InfluxFacade
 from display.calculators.calculator_factory import calculator_factory
-
+from playback_tools import insert_gpx_file
 influx = InfluxFacade()
 
 server = 'traccar:5055'
