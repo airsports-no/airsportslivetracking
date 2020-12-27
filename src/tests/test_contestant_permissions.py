@@ -57,7 +57,7 @@ CONTESTANT_DATA = {
     "finished_by_time": datetime.datetime.utcnow(),
     "air_speed": 70,
     "contestant_number": 1,
-    "traccar_device_name": "tracker",
+    "tracker_device_id": "tracker",
     "tracker_start_time": datetime.datetime.utcnow() - datetime.timedelta(hours=1),
     "wind_speed": 10,
     "wind_direction": 0

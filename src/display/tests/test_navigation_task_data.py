@@ -24,7 +24,7 @@ data_with_gate_times = {"name": "3. Nav.", "calculator_type": 0, "start_time": "
                         "contestant_set": [{"contestant_number": 101,
                                             "team": {"aeroplane": {"registration": "Aircraft-039"},
                                                      "crew": {"member1": {"first_name": "Crew-001", "last_name": "*"}}},
-                                            "air_speed": 80.0000000000, "traccar_device_name": "tracker-101",
+                                            "air_speed": 80.0000000000, "tracker_device_id": "tracker-101",
                                             "scorecard": "FAI Precision 2020",
                                             "tracker_start_time": "2017-08-01T07:25:00Z",
                                             "takeoff_time": "2017-08-01T07:30:00Z", "minutes_to_starting_point": 7,
@@ -85,7 +85,7 @@ data = {
                 },
                 "country": "NO"
             },
-            "traccar_device_name": "Anders",
+            "tracker_device_id": "Anders",
             "tracker_start_time": "0001-01-01T00:00:00Z",
             "wind_direction": 0,
             "wind_speed": 0
@@ -131,7 +131,7 @@ data = {
                 },
                 "country": "SE"
             },
-            "traccar_device_name": "tracker_1",
+            "tracker_device_id": "tracker_1",
             "tracker_start_time": "2020-08-01T08:00:00Z",
             "wind_direction": 0,
             "wind_speed": 0

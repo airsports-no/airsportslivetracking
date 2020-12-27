@@ -96,7 +96,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     start_time, speed, _ = contestants[contestant]
     ContestTeam.objects.get_or_create(team=team, contest=contest,
                                       defaults={"air_speed": speed, "tracking_service": TRACCAR,
-                                                "traccar_device_name": contestant})
+                                                "tracker_device_id": contestant})
     start_time = start_time - datetime.timedelta(hours=2)
     start_time = start_time.astimezone()
     minutes_starting = 6
@@ -104,7 +104,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,
                                                   finished_by_time=start_time + datetime.timedelta(hours=2),
                                                   tracker_start_time=start_time - datetime.timedelta(minutes=30),
-                                                  traccar_device_name=contestant, contestant_number=index,
+                                                  tracker_device_id=contestant, contestant_number=index,
                                                   scorecard=scorecard, minutes_to_starting_point=minutes_starting,
                                                   air_speed=speed,
                                                   wind_direction=165, wind_speed=8)

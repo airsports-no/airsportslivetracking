@@ -256,7 +256,7 @@ class TrackingDataForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.layout = Layout(Fieldset(
-            "Team contest information", "air_speed", "traccar_device_name", "tracking_service"),
+            "Team contest information", "air_speed", "tracker_device_id", "tracking_service"),
             ButtonHolder(
                 Submit("submit", "Submit")
             )
@@ -264,7 +264,7 @@ class TrackingDataForm(forms.ModelForm):
 
     class Meta:
         model = ContestTeam
-        fields = ("air_speed", "traccar_device_name", "tracking_service")
+        fields = ("air_speed", "tracker_device_id", "tracking_service")
 
 
 class ClubSearchForm(forms.ModelForm):
@@ -313,7 +313,7 @@ class ContestantForm(forms.ModelForm):
     class Meta:
         model = Contestant
         fields = (
-            "contestant_number", "team", "tracker_start_time", "tracking_service", "traccar_device_name",
+            "contestant_number", "team", "tracker_start_time", "tracking_service", "tracker_device_id",
             "takeoff_time",
             "finished_by_time",
             "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed", "scorecard")

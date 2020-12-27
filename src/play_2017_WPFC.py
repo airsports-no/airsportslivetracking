@@ -87,13 +87,13 @@ for file in glob.glob("../data/demo_contests/2017_WPFC/*_Results_*.gpx"):
     start_time, speed, minutes_starting = contestants[contestant]
     ContestTeam.objects.get_or_create(team=team, contest=contest,
                                       defaults={"air_speed": speed, "tracking_service": TRACCAR,
-                                                "traccar_device_name": contestant})
+                                                "tracker_device_id": contestant})
     print(start_time)
     start_time = start_time.replace(tzinfo=datetime.timezone.utc)
     contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,
                                                   finished_by_time=start_time + datetime.timedelta(hours=2),
                                                   tracker_start_time=start_time - datetime.timedelta(minutes=30),
-                                                  traccar_device_name=contestant, contestant_number=number,
+                                                  tracker_device_id=contestant, contestant_number=number,
                                                   scorecard=scorecard, minutes_to_starting_point=minutes_starting,
                                                   air_speed=speed,
                                                   wind_direction=160, wind_speed=18)

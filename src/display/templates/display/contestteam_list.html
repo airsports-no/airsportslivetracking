@@ -21,7 +21,7 @@
                 <td>
                     {{ object.get_tracking_service_display }}
                 </td>
-                <td>{{ object.traccar_device_name }}</td>
+                <td>{{ object.tracker_device_id }}</td>
                 <td>
                     <a href="{% url 'team_wizard' contest.pk object.team.pk %}">Modify team information</a> |
                     <a href="{% url 'contestteamtracking_update' contest.pk object.pk %}">Update tracking

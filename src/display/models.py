@@ -246,7 +246,7 @@ class ContestTeam(models.Model):
     air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
-    traccar_device_name = models.CharField(max_length=100,
+    tracker_device_id = models.CharField(max_length=100,
                                            help_text="ID of physical tracking device that will be brought into the plane")
 
     class Meta:
@@ -479,7 +479,7 @@ class Contestant(models.Model):
         help_text="A unique number for the contestant in this navigation task")
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
-    traccar_device_name = models.CharField(max_length=100,
+    tracker_device_id = models.CharField(max_length=100,
                                            help_text="ID of physical tracking device that will be brought into the plane")
     tracker_start_time = models.DateTimeField(
         help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this.")
@@ -508,7 +508,7 @@ class Contestant(models.Model):
     def clean(self):
         # Validate single-use tracker
         overlapping_trackers = Contestant.objects.filter(tracking_service=self.tracking_service,
-                                                         traccar_device_name=self.traccar_device_name,
+                                                         tracker_device_id=self.tracker_device_id,
                                                          tracker_start_time__lte=self.finished_by_time,
                                                          finished_by_time__gte=self.tracker_start_time).exclude(
             pk=self.pk)
@@ -519,7 +519,7 @@ class Contestant(models.Model):
                 largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
                 intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
             raise ValidationError(
-                "The tracker '{}' is in use by other contestants for the intervals: {}".format(self.traccar_device_name,
+                "The tracker '{}' is in use by other contestants for the intervals: {}".format(self.tracker_device_id,
                                                                                                intervals))
         # Validate takeoff time after tracker start
         if self.tracker_start_time > self.takeoff_time:
@@ -562,7 +562,7 @@ class Contestant(models.Model):
     def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):
         try:
             # Device belongs to contestant from 30 minutes before takeoff
-            return cls.objects.get(traccar_device_name=device, tracker_start_time__lte=stamp,
+            return cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
                                    finished_by_time__gte=stamp)
         except ObjectDoesNotExist:
             return None

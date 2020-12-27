@@ -317,7 +317,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
         contestant.save()
         try:
             ContestTeam.objects.create(contest=contestant.navigation_task.contest, team=contestant.team,
-                                       traccar_device_name=contestant.traccar_device_name,
+                                       tracker_device_id=contestant.tracker_device_id,
                                        tracking_service=contestant.tracking_service, air_speed=contestant.air_speed)
         except IntegrityError:
             # Team has already, so no need to add is again
@@ -335,7 +335,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
         instance.save()
         try:
             ContestTeam.objects.create(contest=instance.navigation_task.contest, team=instance.team,
-                                       traccar_device_name=instance.traccar_device_name,
+                                       tracker_device_id=instance.tracker_device_id,
                                        tracking_service=instance.tracking_service, air_speed=instance.air_speed)
         except IntegrityError:
             # Team has already, so no need to add is again
