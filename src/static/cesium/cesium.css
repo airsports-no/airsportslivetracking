@@ -5,7 +5,7 @@
     position: fixed;
     z-index: 2;
     display: inline-block;
-    width: 450px;
+    width: 600px;
 }
 
 .outerBackdropWide {
@@ -27,7 +27,7 @@
     /*border-radius: 0 0 25px 25px;*/
     font-size: x-large;
     overflow-y: auto;
-    max-height: 400px;
+    max-height: 500px;
 }
 
 .backdropWide {

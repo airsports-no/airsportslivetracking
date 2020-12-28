@@ -12,10 +12,10 @@ from django.test import TransactionTestCase
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APITransactionTestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Contest, NavigationTask, Team, Crew, Person, Aeroplane, Contestant
+from display.models import Contest, NavigationTask, Team, Crew, Person, Aeroplane, Contestant, ContestTeam
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 
 data_with_gate_times = {"name": "3. Nav.", "calculator_type": 0, "start_time": "2017-08-01T06:15:00Z",
@@ -572,6 +572,33 @@ class TestImportSerialiser(TransactionTestCase):
 
         self.assertTrue(valid)
         serialiser.save()
+
+
+class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
+    def setUp(self):
+        with open("display/tests/importnavigationtaskfcteamid.json", "r") as i:
+            self.data = json.load(i)
+        self.user = User.objects.create(username="test")
+        permission = Permission.objects.get(codename="change_contest")
+        self.user.user_permissions.add(permission)
+        self.client.force_login(user=self.user)
+        self.contest = Contest.objects.create(name="test", start_time=datetime.utcnow(), finish_time=datetime.utcnow())
+        assign_perm("display.change_contest", self.user, self.contest)
+        assign_perm("display.view_contest", self.user, self.contest)
+        get_default_scorecard()
+        for index in range(3):
+            person = Person.objects.create(first_name="{}".format(index), last_name="{}".format(index))
+            aeroplane = Aeroplane.objects.create(registration="{}".format(index))
+            crew = Crew.objects.create(member1=person)
+            team = Team.objects.create(crew=crew, aeroplane=aeroplane)
+            ContestTeam.objects.create(contest=self.contest, team=team, tracking_service="traccar", air_speed=70,
+                                       tracker_device_id="{}".format(index))
+
+    def testPost(self):
+        res = self.client.post(
+            "/api/v1/contests/{}/importnavigationtaskteamid/".format(self.contest.pk), self.data, format="json")
+        print(res.content)
+        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
 
 
 class TestImportFCNavigationTask(APITestCase):

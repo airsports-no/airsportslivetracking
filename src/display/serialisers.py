@@ -441,11 +441,13 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             print(self.context)
             navigation_task = NavigationTask.objects.create(**validated_data)
             for contestant_data in contestant_set:
-                contestant_serialiser = self.internal_serialiser(data=contestant_data,
-                                                                 context={"navigation_task": navigation_task})
-                contestant_serialiser.is_valid(True)
-                contestant_serialiser.save()
-            return navigation_task
+                contestant_data["team"] = contestant_data["team"].pk
+
+            contestant_serialiser = self.internal_serialiser(data=contestant_set, many=True,
+                                                             context={"navigation_task": navigation_task})
+            contestant_serialiser.is_valid(True)
+        contestant_serialiser.save()
+        return navigation_task
 
 
 class ExternalNavigationTaskTeamIdSerialiser(ExternalNavigationTaskNestedTeamSerialiser):
