@@ -8,7 +8,7 @@ from display.views import import_route, frontend_view_map, \
     auto_complete_person_email, auto_complete_person_first_name, auto_complete_person_last_name, person_search_view, \
     auto_complete_club, auto_complete_aeroplane, RegisterTeamWizard, ContestTeamList, remove_team_from_contest, \
     TeamUpdateView, auto_complete_person_id, PersonUpdateView, PersonList, NavigationTaskUpdateView, \
-    BasicScoreOverrideUpdateView, ContestTeamTrackingUpdate
+    BasicScoreOverrideUpdateView, ContestTeamTrackingUpdate, manifest
 
 urlpatterns = [
     path('importroute', import_route, name="import_route"),
@@ -30,7 +30,8 @@ urlpatterns = [
     path('contest/<int:contest_pk>/team/<int:team_pk>/remove/', remove_team_from_contest, name="remove_team"),
     path('contest/<int:contest_pk>/team/create/', RegisterTeamWizard.as_view(), name="create_team"),
     path('contest/<int:contest_pk>/team/<int:pk>/update', TeamUpdateView.as_view(), name="team_update"),
-    path('contest/<int:contest_pk>/contestteamtracking/<int:pk>/update', ContestTeamTrackingUpdate.as_view(), name="contestteamtracking_update"),
+    path('contest/<int:contest_pk>/contestteamtracking/<int:pk>/update', ContestTeamTrackingUpdate.as_view(),
+         name="contestteamtracking_update"),
     path('contest/<int:contest_pk>/teams/', ContestTeamList.as_view(), name="contest_team_list"),
     path('contestant/autocomplete/id/', auto_complete_person_id, name="autocomplete_id"),
     path('contestant/autocomplete/phone/', auto_complete_person_phone, name="autocomplete_phone"),
@@ -43,4 +44,5 @@ urlpatterns = [
     path('team/personsearch/', person_search_view),
     path('person/<int:pk>/update/', PersonUpdateView.as_view(), name="person_update"),
     path('person/', PersonList.as_view(), name="person_list"),
+    path('manifest/', manifest, name="tracking_manifest")
 ]

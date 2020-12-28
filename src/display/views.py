@@ -14,7 +14,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.db.models import Q
 from django.forms import formset_factory
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import ListView, DetailView, UpdateView, CreateView, DeleteView
@@ -73,6 +73,24 @@ def frontend_view_map(request, pk):
 
 def results_service(request):
     return render(request, "display/resultsservice.html")
+
+
+def manifest(request):
+    data = {
+        "short_name": "Airsports live tracking",
+        "name": "Airsports live tracking",
+        "icons": [
+            {
+                "src": "/static/img/airsports.png",
+                "sizes": "192x192",
+                "type": "image/png"
+            }
+        ],
+        "start_url": "/",
+        "display": "standalone",
+        "orientation": "landscape"
+    }
+    return JsonResponse(data)
 
 
 @api_view(["POST"])
