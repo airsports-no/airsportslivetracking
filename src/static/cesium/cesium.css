@@ -5,7 +5,7 @@
     position: fixed;
     z-index: 2;
     display: inline-block;
-    width: 500px;
+    width: 450px;
 }
 
 .outerBackdropWide {
@@ -25,9 +25,9 @@
     /*border: 1px solid #444;*/
     /*padding: 5px 10px;*/
     /*border-radius: 0 0 25px 25px;*/
-    font-size: large;
+    font-size: x-large;
     overflow-y: auto;
-    max-height: 500px;
+    max-height: 400px;
 }
 
 .backdropWide {
@@ -84,7 +84,16 @@
 }
 
 /* Large desktop */
-@media (min-width: 1200px) {
+@media (min-width: 1300px) {
+/*    .lowerThirdsDouble, .outerBackdropNarrow {*/
+/*        transform: scale(0.8);*/
+/*    }*/
+
+/*    .lowerThirdsSingle {*/
+/*        transform: scale(0.8);*/
+/*    }*/
+}
+@media (min-width: 1024px) and (max-width: 1300px) {
     .lowerThirdsDouble, .outerBackdropNarrow {
         transform: scale(0.8);
     }
@@ -95,7 +104,7 @@
 }
 
 /* Portrait tablet to landscape and desktop */
-@media (min-width: 768px) and (max-width: 1200px) {
+@media (min-width: 768px) and (max-width: 1024px) {
     .lowerThirdsDouble, .outerBackdropNarrow {
         transform: scale(0.5);
     }

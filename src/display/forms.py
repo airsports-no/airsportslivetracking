@@ -91,8 +91,6 @@ class ContestForm(forms.ModelForm):
 
 class PictureWidget(forms.widgets.Widget):
     def render(self, name, value, attrs=None, renderer=None):
-        print(name)
-        print(attrs)
         html = Template("""<img id="{}" src="$link" class="wizardImage"/>""".format(name))
         return mark_safe(html.substitute(link=value))
 

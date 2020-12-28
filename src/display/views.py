@@ -705,7 +705,6 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
                 return ContestTeam.objects.get(team=team, contest=contest)
 
     def get_form_initial(self, step):
-        print(step)
         team_pk = self.kwargs.get("team_pk")
         if team_pk:
             team = get_object_or_404(Team, pk=team_pk)
