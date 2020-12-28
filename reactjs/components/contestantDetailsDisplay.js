@@ -6,6 +6,8 @@ import BootstrapTable from "react-bootstrap-table-next";
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Loading} from "./basicComponents";
 import {ProgressCircle} from "./contestantProgress";
+import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import {displayAllTracks, hideLowerThirds, setDisplay} from "../actions";
 
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
@@ -18,28 +20,35 @@ function FormatMessage(props) {
     let string = message.points + " points for " + message.message;
     let offset_string = null
     if (message.offset_string != null) {
-        offset_string  = " (" + message.offset_string + ")"
+        offset_string = " (" + message.offset_string + ")"
     }
     let times = null
     if (message.planned != null && message.actual != null) {
         times = "\n(planned: " + message.planned + ", actual: " + message.actual + ")"
     }
-    return <div className={"preWrap"}>{message.points} points {message.message} {offset_string}<span className={"gateTimesText"}>{times}</span> </div>
+    return <div className={"preWrap"}>{message.points} points {message.message} {offset_string}<span
+        className={"gateTimesText"}>{times}</span></div>
 }
 
 class ConnectedContestantDetailsDisplay extends Component {
+    resetToAllContestants() {
+        this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        this.props.displayAllTracks();
+        this.props.hideLowerThirds();
+    }
+
     render() {
         const columns = [
             {
-               text: "",
-               dataField: "message.gate",
+                text: "",
+                dataField: "message.gate",
                 formatter: (cell, row) => {
-                   return <b>{cell}</b>
+                    return <b>{cell}</b>
                 }
             },
             {
                 dataField: "message",
-                text: contestantShortForm(this.props.contestant) + " " + this.props.contestantData.score +  " points",
+                text: contestantShortForm(this.props.contestant) + " " + this.props.contestantData.score + " points",
                 formatter: (cell, row) => {
                     return <div className={"preWrap"}><FormatMessage message={cell}/></div>
                 }
@@ -54,22 +63,34 @@ class ConnectedContestantDetailsDisplay extends Component {
                 message: line,
             }
         })
+
         const paginationOptions = {
             sizePerPage: 20,
             hideSizePerPage: true,
             hidePageListOnlyOnePage: true
         };
+        const rowEvents = {
+            onClick: (e, row, rowIndex) => {
+                this.resetToAllContestants()
+            }
+        }
+
         const loading = this.props.initialLoading ? <Loading/> : <div/>
         return <div>
             {loading}
             <BootstrapTable keyField={"key"} data={events} columns={columns}
                             classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
-                            bootstrap4 striped hover condensed bordered={false}//pagination={paginationFactory(paginationOptions)}
+                            bootstrap4 striped hover condensed rowEvents={rowEvents}
+                            bordered={false}//pagination={paginationFactory(paginationOptions)}
             />
         </div>
 
     }
 }
 
-const ContestantDetailsDisplay = connect(mapStateToProps)(ConnectedContestantDetailsDisplay)
+const ContestantDetailsDisplay = connect(mapStateToProps, {
+    setDisplay,
+    displayAllTracks,
+    hideLowerThirds
+})(ConnectedContestantDetailsDisplay)
 export default ContestantDetailsDisplay

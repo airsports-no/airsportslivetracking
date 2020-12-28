@@ -77,7 +77,8 @@ class ConnectedTrackingContainer extends Component {
                         {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
                             numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
                         <div className={"row fill ml-1"}>
-                            <div className={(this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow")}>
+                            <div
+                                className={(this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow")}>
                                 <div
                                     className={"titleWrapper"}>
                                     <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}>
@@ -86,8 +87,8 @@ class ConnectedTrackingContainer extends Component {
                                              alt={"Menu toggle"}
                                              src={"/static/img/menubutton.png"}/>
                                     </a>
-                                    <a href={"#"} className={'taskTitle'}
-                                       onClick={this.resetToAllContestants}>{this.props.navigationTask.name}</a>
+                                    <a href={"#"} className={'taskTitle'} data-toggle={"collapse"}
+                                       data-target={"#insetMenu"}>{this.props.navigationTask.name}</a>
                                     {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ?
                                         <a className={"shrinkLink taskTitle"} href={"#"}
                                            onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ? "<<<" : ">>>"}</a> : null}

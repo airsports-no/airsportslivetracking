@@ -78,6 +78,17 @@ export function contestantShortForm(contestant) {
     return contestant.team.crew ? contestant.team.crew.member1.first_name : "Unknown"
 }
 
+export function contestantRankingTable(contestant) {
+    let string = ""
+    if (contestant.team.crew) {
+        string = contestant.team.crew.member1.first_name + " " + contestant.team.crew.member1.last_name
+        if (contestant.team.crew.member2) {
+            string += "\n" + contestant.team.crew.member2.first_name + " " + contestant.team.crew.member2.last_name
+        }
+    }
+    return <div className={"preWrap"}>{string}</div>
+}
+
 export function contestantLongForm(contestant) {
     return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + (contestant.team.crew && contestant.team.crew.member1 ? contestant.team.crew.member1.first_name + " " + contestant.team.crew.member1.last_name : "Unknown") + "<br/>Navigator: " + (contestant.team.crew && contestant.team.crew.member2 ? contestant.team.crew.member2.first_name + " " + contestant.team.crew.member2.last_name : "Unknown") + "<br/>Aeroplane: " + contestant.team.aeroplane.registration
 }

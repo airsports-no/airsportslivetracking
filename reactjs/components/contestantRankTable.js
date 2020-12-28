@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {compareScore, contestantShortForm, pz} from "../utilities";
+import {compareScore, contestantRankingTable, contestantShortForm, pz} from "../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -85,7 +85,7 @@ class ConnectedContestantRankTable extends Component {
                 contestantId: contestant.contestant.id,
                 rank: index + 1,
                 progress: progress,
-                name: contestantShortForm(contestant.contestant),
+                name: contestantRankingTable(contestant.contestant),
                 score: contestant.track.score,
                 projectedScore: calculateProjectedScore(contestant.track.score, progress),
                 currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
@@ -130,6 +130,7 @@ class ConnectedContestantRankTable extends Component {
                 //         this.handleExpandHeaderClick()
                 //     }
                 // },
+                classes: "align-middle",
                 sort: true
             },
             {
@@ -148,11 +149,13 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "score",
-                text: "SCORE"
+                text: "SCORE",
+                classes: "align-middle"
             },
             {
                 dataField: "projectedScore",
                 text: "EST",
+                classes: "align-middle",
                 style: (cell, row, rowIndex, colIndex) => {
                     return {color: "orange"}
                 },
@@ -175,9 +178,10 @@ class ConnectedContestantRankTable extends Component {
                 },
                 headerClasses: "text-center",
                 style: (cell, row, rowIndex, colIndex) => {
-                    return {width: 60+'px'}
-                }
+                    return {width: 60 + 'px'}
                 },
+                classes: "align-middle"
+            },
             {
                 dataField: "currentState",
                 text: "STATE",
@@ -223,14 +227,12 @@ class ConnectedContestantRankTable extends Component {
                                bordered={false}//pagination={paginationFactory(paginationOptions)}
                                rowEvents={rowEvents}/>
     }
-    }
+}
 
-    const
+const
     ContestantRankTable = connect(mapStateToProps, {
         setDisplay,
         displayOnlyContestantTrack,
         showLowerThirds
     })(ConnectedContestantRankTable)
-    export
-    default
-    ContestantRankTable
+export default ContestantRankTable
