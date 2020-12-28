@@ -27,6 +27,13 @@
                     <a href="{% url 'contestteamtracking_update' contest.pk object.pk %}">Update tracking
                         information</a> |
                     <a href="{% url 'remove_team' contest.pk object.team.pk %}">Remove team</a>
+                    {% if user.is_superuser %}
+                        | <a href="{% url 'person_update' object.team.crew.member1.pk %}">Edit crewmember one</a>
+                        {% if object.team.crew.member2 %}
+                            <a href="{% url 'person_update' object.team.crew.member2.pk %}">Edit crewmember two</a>
+                        {% endif %}
+                    {% endif %}
+
                 </td>
             </tr>
         {% endfor %}
