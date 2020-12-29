@@ -117,11 +117,11 @@
 /* Landscape phone to portrait tablet */
 @media (max-width: 768px) {
     .lowerThirdsDouble, .outerBackdropNarrow {
-        transform: scale(0.4);
+        transform: scale(0.35);
     }
 
     .lowerThirdsSingle {
-        transform: scale(0.4);
+        transform: scale(0.35);
     }
 }
 
@@ -137,7 +137,7 @@
 }
 
 .lowerThirdsProfileImage {
-    /*height: 30%;*/
+    align-self: flex-end;
 }
 
 .lowerThirdsTeamImage {
