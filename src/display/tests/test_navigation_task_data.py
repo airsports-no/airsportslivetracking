@@ -576,13 +576,14 @@ class TestImportSerialiser(TransactionTestCase):
 
 class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
     def setUp(self):
+        Contest.objects.all().delete()
         with open("display/tests/importnavigationtaskfcteamid.json", "r") as i:
             self.data = json.load(i)
-        self.user = User.objects.create(username="test")
+        self.user = User.objects.create(username="test2")
         permission = Permission.objects.get(codename="change_contest")
         self.user.user_permissions.add(permission)
         self.client.force_login(user=self.user)
-        self.contest = Contest.objects.create(name="test", start_time=datetime.utcnow(), finish_time=datetime.utcnow())
+        self.contest = Contest.objects.create(name="test2", start_time=datetime.utcnow(), finish_time=datetime.utcnow())
         assign_perm("display.change_contest", self.user, self.contest)
         assign_perm("display.view_contest", self.user, self.contest)
         get_default_scorecard()
@@ -591,6 +592,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
             aeroplane = Aeroplane.objects.create(registration="{}".format(index))
             crew = Crew.objects.create(member1=person)
             team = Team.objects.create(crew=crew, aeroplane=aeroplane)
+            self.data['contestant_set'][index]["team"] = team.pk
             ContestTeam.objects.create(contest=self.contest, team=team, tracking_service="traccar", air_speed=70,
                                        tracker_device_id="{}".format(index))
 
@@ -601,7 +603,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
 
 
-class TestImportFCNavigationTask(APITestCase):
+class TestImportFCNavigationTask(APITransactionTestCase):
     def setUp(self):
         self.data = deepcopy(data)
         self.user = User.objects.create(username="test")
@@ -625,6 +627,8 @@ class TestImportFCNavigationTask(APITestCase):
         self.assertEqual(status.HTTP_200_OK, task.status_code, "Failed to GET navigationtask")
         self.assertEqual(len(self.data["contestant_set"]), len(task.json()["contestant_set"]))
         teams = Team.objects.all()
+        # Check that the team is added to the contest
+        self.assertEqual(2, len(ContestTeam.objects.filter(contest=self.contest)))
         crew = Crew.objects.all()
         self.assertEqual(2, len(crew))
         self.assertEqual(2, len(teams))
@@ -644,6 +648,21 @@ class TestImportFCNavigationTask(APITestCase):
         for index, waypoint in enumerate(route["waypoints"]):
             self.assertDictEqual(expected_route["waypoints"][index], waypoint)
             self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])
+
+    def test_multiple_import(self):
+        res = self.client.post(
+            "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), self.data, format="json")
+        print(res.content)
+        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
+        other_data = deepcopy(self.data)
+        other_data["name"] = "Second task"
+        for item in other_data["contestant_set"]:
+            item["tracker_device_id"] += "1"
+        res = self.client.post(
+            "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), other_data, format="json")
+        print(res.content)
+        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
+        self.assertEqual(2, len(ContestTeam.objects.filter(contest=self.contest)))
 
     def test_import_preexisting_phone(self):
         person = Person.objects.create(first_name="first", last_name="last", phone="+4773215338")

@@ -873,7 +873,7 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
     http_method_names = ['get', 'post', 'delete', 'put']
 
     def get_queryset(self):
-        contest_id = self.kwargs["contest_pk"]
+        contest_id = self.kwargs.get("contest_pk")
         contests = get_objects_for_user(self.request.user, "view_contest",
                                         klass=Contest)
         return NavigationTask.objects.filter(
@@ -912,7 +912,7 @@ class ContestantViewSet(ModelViewSet):
         return super().get_serializer_class()
 
     def get_queryset(self):
-        navigation_task_id = self.kwargs["navigationtask_pk"]
+        navigation_task_id = self.kwargs.get("navigationtask_pk")
         contests = get_objects_for_user(self.request.user, "change_contest",
                                         klass=Contest)
         return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,

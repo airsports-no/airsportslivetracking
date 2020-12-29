@@ -315,13 +315,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
         contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
                                             gate_times.items()}
         contestant.save()
-        try:
+        if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
             ContestTeam.objects.create(contest=contestant.navigation_task.contest, team=contestant.team,
                                        tracker_device_id=contestant.tracker_device_id,
                                        tracking_service=contestant.tracking_service, air_speed=contestant.air_speed)
-        except IntegrityError:
-            # Team has already, so no need to add is again
-            pass
         return contestant
 
     def update(self, instance, validated_data):
@@ -333,13 +330,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
         instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
                                           gate_times.items()}
         instance.save()
-        try:
+        if not ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).exists():
             ContestTeam.objects.create(contest=instance.navigation_task.contest, team=instance.team,
                                        tracker_device_id=instance.tracker_device_id,
                                        tracking_service=instance.tracking_service, air_speed=instance.air_speed)
-        except IntegrityError:
-            # Team has already, so no need to add is again
-            pass
         return instance
 
 
@@ -441,7 +435,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             print(self.context)
             navigation_task = NavigationTask.objects.create(**validated_data)
             for contestant_data in contestant_set:
-                contestant_data["team"] = contestant_data["team"].pk
+                if isinstance(contestant_data['team'], Team):
+                    contestant_data["team"] = contestant_data["team"].pk
 
             contestant_serialiser = self.internal_serialiser(data=contestant_set, many=True,
                                                              context={"navigation_task": navigation_task})
