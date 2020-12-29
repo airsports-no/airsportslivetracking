@@ -95,22 +95,33 @@
 }
 @media (min-width: 1024px) and (max-width: 1300px) {
     .lowerThirdsDouble, .outerBackdropNarrow {
-        transform: scale(0.8);
+        transform: scale(0.75);
     }
 
     .lowerThirdsSingle {
-        transform: scale(0.8);
+        transform: scale(0.75);
     }
 }
+
+@media (min-width: 900px) and (max-width: 1024px) {
+    .lowerThirdsDouble, .outerBackdropNarrow {
+        transform: scale(0.4);
+    }
+
+    .lowerThirdsSingle {
+        transform: scale(0.4);
+    }
+}
+
 
 /* Portrait tablet to landscape and desktop */
 @media (min-width: 768px) and (max-width: 1024px) {
     .lowerThirdsDouble, .outerBackdropNarrow {
-        transform: scale(0.5);
+        transform: scale(0.4);
     }
 
     .lowerThirdsSingle {
-        transform: scale(0.5);
+        transform: scale(0.4);
     }
 }
 
