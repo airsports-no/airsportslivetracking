@@ -873,7 +873,10 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     @action(["PUT"], detail=True, permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions])
     def task_results(self, request, pk=None, **kwargs):
         """
-        Post the results for a task (for individual tests and a task summary)
+        Post the results for a task (for individual tests and a task summary). This will overwrite any previously
+        stored task results for the task (referenced by the task name). Tasks are unique inside a contest, and tests
+        are unique inside a task. A team can only have a single TaskSummary and a single TeamTestScore for each test.
+        Violating this will result in a validation error and an exception.
         """
         Task.objects.filter(contest=self.get_object(), name=request.data["name"]).delete()
         serialiser = self.get_serializer_class()(data=request.data,
@@ -885,7 +888,7 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     @action(["DELETE"], detail=True, permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions])
     def all_task_results(self, request, pk=None, **kwargs):
         """
-        Post the results for a task (for individual tests and a task summary)
+        Delete all task results for the contest.
         """
         Task.objects.filter(contest=self.get_object()).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -894,10 +897,12 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
             permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions])
     def contest_summary_results(self, request, pk=None, **kwargs):
         """
-        Post the combined summary results for the contest
+        Post the combined summary results for the contest. Expects either a list of ContestSummaryWithoutReferenceSerialiser
+        where each object represents the total score of the contest for a team, or a single instance of
+        ContestSummaryWithoutReferenceSerialiser. DELETE requires no specific input.
         """
         if self.request.method == "POST":
-            serialiser = self.get_serializer(data=request.data, many=True,
+            serialiser = self.get_serializer(data=request.data, many=isinstance(request.data, list),
                                              context={"contest": self.get_object()})
             serialiser.is_valid(True)
             serialiser.save()
