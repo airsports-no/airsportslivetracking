@@ -60,6 +60,16 @@ class ConnectedTaskSummaryResultsTable extends Component {
         return Object.values(data)
     }
 
+    anyDetailsVisible() {
+        let visible = false
+        Object.keys(this.props.visibleTaskDetails).map((task) => {
+            if (this.props.visibleTaskDetails[task]) {
+                visible = true
+            }
+        })
+        return visible
+    }
+
     buildColumns() {
         const teamColumn = {
             dataField: "team",
@@ -97,7 +107,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                             this.props.hideTaskDetails(column.dataField)
                         }
                     }
-                }
+                },
+                hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible()
             })
         })
         columns.push(contestSummaryColumn)
