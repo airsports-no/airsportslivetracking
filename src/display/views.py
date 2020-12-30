@@ -40,17 +40,19 @@ from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FIL
     Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, BasicScoreOverrideForm, TURNPOINT, SECRETPOINT, \
     STARTINGPOINT, FINISHPOINT, TrackingDataForm
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
-    Person, Aeroplane, Club, Crew, BasicScoreOverride, ContestTeam
+    Person, Aeroplane, Club, Crew, BasicScoreOverride, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
+    TeamTestScore
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
-    ContestantNavigationTaskContestPermissions, RoutePermissions, TeamContestPermissions, TeamContestPublicPermissions
+    ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions
 from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedTeamSerialiser, \
     ContestSerialiser, NavigationTaskNestedTeamRouteSerialiser, RouteSerialiser, \
-    ContestantTrackWithTrackPointsSerialiser, ContestantNestedTeamSerialiser, ContestResultsHighLevelSerialiser, \
-    ContestSummarySerialiser, TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
+    ContestantTrackWithTrackPointsSerialiser, ContestResultsHighLevelSerialiser, \
+    TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
     GpxTrackSerialiser, PersonSerialiser, ExternalNavigationTaskTeamIdSerialiser, \
-    ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser
+    ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser, \
+    TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
@@ -844,8 +846,13 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     or publicly divisible POST Allows the user to post a new contest and become the owner of that contest.
     """
     queryset = Contest.objects.all()
-    serializer_classes = {"teams": ContestTeamNestedSerialiser}
+    serializer_classes = {
+        "teams": ContestTeamNestedSerialiser,
+        "task_results": TaskWithoutReferenceNestedSerialiser,
+        "contest_summary_results": ContestSummaryWithoutReferenceSerialiser
+    }
     default_serialiser_class = ContestSerialiser
+    lookup_url_kwarg = "pk"
     permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
 
     def get_serializer_class(self):
@@ -862,6 +869,42 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         """
         contest_teams = ContestTeam.objects.filter(contest=pk)
         return Response(ContestTeamNestedSerialiser(contest_teams, many=True).data)
+
+    @action(["PUT"], detail=True, permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions])
+    def task_results(self, request, pk=None, **kwargs):
+        """
+        Post the results for a task (for individual tests and a task summary)
+        """
+        Task.objects.filter(contest=self.get_object(), name=request.data["name"]).delete()
+        serialiser = self.get_serializer_class()(data=request.data,
+                                                 context={"contest": self.get_object()})
+        serialiser.is_valid(True)
+        serialiser.save()
+        return Response(serialiser.data, status=status.HTTP_201_CREATED)
+
+    @action(["DELETE"], detail=True, permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions])
+    def all_task_results(self, request, pk=None, **kwargs):
+        """
+        Post the results for a task (for individual tests and a task summary)
+        """
+        Task.objects.filter(contest=self.get_object()).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(["POST", "DELETE"], detail=True,
+            permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions])
+    def contest_summary_results(self, request, pk=None, **kwargs):
+        """
+        Post the combined summary results for the contest
+        """
+        if self.request.method == "POST":
+            serialiser = self.get_serializer(data=request.data, many=True,
+                                             context={"contest": self.get_object()})
+            serialiser.is_valid(True)
+            serialiser.save()
+            return Response(serialiser.data, status=status.HTTP_201_CREATED)
+        else:
+            ContestSummary.objects.filter(contest=self.get_object()).delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):

@@ -28,6 +28,14 @@ class ContestPermissions(permissions.BasePermission):
         return False
 
 
+class ContestModificationPermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        return request.user.has_perm('display.change_contest', obj)
+
+
 class ContestPublicPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.method in SAFE_METHODS

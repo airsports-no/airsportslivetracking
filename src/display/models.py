@@ -247,7 +247,7 @@ class ContestTeam(models.Model):
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
     tracker_device_id = models.CharField(max_length=100,
-                                           help_text="ID of physical tracking device that will be brought into the plane")
+                                         help_text="ID of physical tracking device that will be brought into the plane")
 
     class Meta:
         unique_together = ("contest", "team")
@@ -480,7 +480,7 @@ class Contestant(models.Model):
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
     tracker_device_id = models.CharField(max_length=100,
-                                           help_text="ID of physical tracking device that will be brought into the plane")
+                                         help_text="ID of physical tracking device that will be brought into the plane")
     tracker_start_time = models.DateTimeField(
         help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this.")
     scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT,
@@ -670,6 +670,9 @@ class TaskSummary(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     points = models.FloatField()
 
+    class Meta:
+        unique_together = ("team", "task")
+
 
 class ContestSummary(models.Model):
     """
@@ -678,6 +681,9 @@ class ContestSummary(models.Model):
     team = models.ForeignKey(Team, on_delete=models.PROTECT)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
     points = models.FloatField()
+
+    class Meta:
+        unique_together = ("team", "contest")
 
 
 class TeamTestScore(models.Model):

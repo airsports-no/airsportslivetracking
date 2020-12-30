@@ -461,25 +461,21 @@ class ExternalNavigationTaskTeamIdSerialiser(ExternalNavigationTaskNestedTeamSer
 
 
 ########## Results service ##########
-class ContestSummarySerialiser(serializers.ModelSerializer):
-    team = TeamNestedSerialiser()
-
-    class Meta:
-        model = ContestSummary
-        fields = "__all__"
+########## Write data ##########
 
 
+########## Fetch data #############
 class TeamTestScoreSerialiser(serializers.ModelSerializer):
     class Meta:
         model = TeamTestScore
         fields = "__all__"
 
 
-class TaskTestSerialiser(serializers.ModelSerializer):
-    teamtestscore_set = TeamTestScoreSerialiser(many=True)
+class ContestSummaryNestedSerialiser(serializers.ModelSerializer):
+    team = TeamNestedSerialiser()
 
     class Meta:
-        model = TaskTest
+        model = ContestSummary
         fields = "__all__"
 
 
@@ -489,8 +485,16 @@ class TaskSummarySerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class TaskSerialiser(serializers.ModelSerializer):
-    tasktest_set = TaskTestSerialiser(many=True)
+class TaskTestNestedSerialiser(serializers.ModelSerializer):
+    teamtestscore_set = TeamTestScoreSerialiser(many=True)
+
+    class Meta:
+        model = TaskTest
+        fields = "__all__"
+
+
+class TaskNestedSerialiser(serializers.ModelSerializer):
+    tasktest_set = TaskTestNestedSerialiser(many=True)
     tasksummary_set = TaskSummarySerialiser(many=True)
 
     class Meta:
@@ -500,7 +504,7 @@ class TaskSerialiser(serializers.ModelSerializer):
 
 # High level entry
 class ContestResultsHighLevelSerialiser(serializers.ModelSerializer):
-    contestsummary_set = ContestSummarySerialiser(many=True)
+    contestsummary_set = ContestSummaryNestedSerialiser(many=True)
 
     class Meta:
         model = Contest
@@ -509,8 +513,8 @@ class ContestResultsHighLevelSerialiser(serializers.ModelSerializer):
 
 # Details entry
 class ContestResultsDetailsSerialiser(serializers.ModelSerializer):
-    contestsummary_set = ContestSummarySerialiser(many=True)
-    task_set = TaskSerialiser(many=True)
+    contestsummary_set = ContestSummaryNestedSerialiser(many=True)
+    task_set = TaskNestedSerialiser(many=True)
 
     class Meta:
         model = Contest
@@ -519,8 +523,65 @@ class ContestResultsDetailsSerialiser(serializers.ModelSerializer):
 
 # Team summary entry
 class TeamResultsSummarySerialiser(serializers.ModelSerializer):
-    contestsummary_set = ContestSummarySerialiser(many=True)
+    contestsummary_set = ContestSummaryNestedSerialiser(many=True)
 
     class Meta:
         model = Team
         fields = "__all__"
+
+
+######################  write data #####################
+class ContestSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = ContestSummary
+        exclude = ("contest",)
+
+    def create(self, validated_data):
+        validated_data["contest"] = self.context["contest"]
+        return ContestSummary.objects.create(**validated_data)
+
+
+class TaskSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = TaskSummary
+        exclude = ("task",)
+
+
+class TeamTestScoreWithoutReferenceSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = TeamTestScore
+        exclude = ("task_test",)
+
+
+class TaskTestWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
+    teamtestscore_set = TeamTestScoreWithoutReferenceSerialiser(many=True)
+
+    class Meta:
+        model = TaskTest
+        exclude = ("task",)
+
+
+class TaskWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
+    tasktest_set = TaskTestWithoutReferenceNestedSerialiser(many=True)
+    tasksummary_set = TaskSummaryWithoutReferenceSerialiser(many=True)
+
+    class Meta:
+        model = Task
+        exclude = ("contest",)
+
+    def create(self, validated_data):
+        task_test_data = validated_data.pop("tasktest_set", [])
+        task_summary_data = validated_data.pop("tasksummary_set", [])
+        validated_data["contest"] = self.context["contest"]
+        task = Task.objects.create(**validated_data)
+        for item in task_summary_data:
+            item["task"] = task
+            TaskSummary.objects.create(**item)
+        for task_test_data in task_test_data:
+            task_test_data["task"] = task
+            team_test_score_data = task_test_data.pop("teamtestscore_set", [])
+            task_test = TaskTest.objects.create(**task_test_data)
+            for i in team_test_score_data:
+                i["task_test"] = task_test
+                TeamTestScore.objects.create(**i)
+        return task
