@@ -58,7 +58,8 @@ class PrecisionCalculator(Calculator):
             if intersection_time:
                 if not self.starting_line.is_passed_in_correct_direction_track_to_next(self.track):
                     # Add penalty for crossing in the wrong direction
-                    score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self.basic_score_override)
+                    score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp",
+                                                                                                self.basic_score_override)
                     self.update_score(self.starting_line, score,
                                       "crossing extended starting gate backwards",
                                       self.track[-1].latitude, self.track[-1].longitude, "anomaly")
@@ -95,7 +96,8 @@ class PrecisionCalculator(Calculator):
                     # Commented out because of A.2.2.16
                     if gate.is_procedure_turn and not gate.extended_passing_time:
                         # Penalty if not crossing extended procedure turn turning point, then the procedure turn was per definition not performed
-                        score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type, self.basic_score_override)
+                        score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type,
+                                                                                        self.basic_score_override)
                         self.update_score(gate, score,
                                           "missing procedure turn",
                                           current_position.latitude, current_position.longitude, "anomaly")
@@ -105,11 +107,18 @@ class PrecisionCalculator(Calculator):
                     time_difference = (gate.passing_time - gate.expected_time).total_seconds()
                     self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
                     gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time,
-                                                                                    gate.passing_time, self.basic_score_override)
+                                                                                    gate.passing_time,
+                                                                                    self.basic_score_override)
                     self.update_score(gate, gate_score,
                                       "passing gate",
                                       current_position.latitude, current_position.longitude, "information",
                                       planned=gate.expected_time, actual=gate.passing_time)
+                else:
+                    self.update_score(gate, 0,
+                                      "passing gate (no time check)",
+                                      current_position.latitude, current_position.longitude, "information",
+                                      planned=gate.expected_time, actual=gate.passing_time)
+
             else:
                 finished = True
         self.last_gate_index += index
@@ -193,19 +202,33 @@ class PrecisionCalculator(Calculator):
             if bearing_difference > self.scorecard.backtracking_bearing_difference:
                 if self.tracking_state == self.TRACKING:
                     # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
-                    if calculate_distance_lat_lon(
-                            (self.last_gate.latitude, self.last_gate.longitude),
-                            (last_position.latitude, last_position.longitude)) / 1852 > 0.5:
+                    is_grace_time_after_steep_turn = self.last_gate.is_steep_turn and (
+                            last_position.time - self.last_gate.passing_time).total_seconds() < self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds()
+                    is_grace_distance_after_turn = calculate_distance_lat_lon(
+                        (self.last_gate.latitude, self.last_gate.longitude),
+                        (last_position.latitude,
+                         last_position.longitude)) / 1852 < self.scorecard.get_backtracking_after_gate_grace_period_nm(
+                        self.last_gate.type)
+                    if not is_grace_time_after_steep_turn and not is_grace_distance_after_turn:
                         logger.info(
                             "{} {}: Started backtracking, let's see if this goes on for more than {} seconds".format(
                                 self.contestant, last_position.time,
                                 self.scorecard.get_backtracking_grace_time_seconds(self.basic_score_override)))
                         self.backtracking_start_time = last_position.time
                         self.update_tracking_state(self.BACKTRACKING_TEMPORARY)
-                    else:
+                    elif is_grace_distance_after_turn:
                         logger.info(
-                            "{} {}: Backtracking within 0.5 NM of passing a gate, ignoring".format(self.contestant,
-                                                                                                   last_position.time))
+                            "{} {}: Backtracking within {} NM of passing a gate, ignoring".format(self.contestant,
+                                                                                                  last_position.time,
+                                                                                                  self.scorecard.get_backtracking_after_gate_grace_period_nm(
+                                                                                                      self.last_gate.type)))
+                    elif is_grace_time_after_steep_turn:
+                        logger.info(
+                            "{} {}: Backtracking within {} seconds of passing a gate with steep turn, ignoring".format(
+                                self.contestant,
+                                last_position.time,
+                                self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds(
+                                    self.last_gate.type)))
                 if self.tracking_state == self.BACKTRACKING_TEMPORARY:
                     if (
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.get_backtracking_grace_time_seconds(

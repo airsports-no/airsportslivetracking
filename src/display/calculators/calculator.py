@@ -53,7 +53,7 @@ class Calculator(threading.Thread):
             self.scorecard = self.basic_score_override.scorecard
         self.gates = self.create_gates()
         self.position_update_lock = threading.Lock()
-        self.last_gate = None
+        self.last_gate = None  # type: Optional[Gate]
         self.previous_last_gate = None
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
                                   calculate_extended_gate(self.gates[0].waypoint, self.scorecard,
@@ -101,7 +101,7 @@ class Calculator(threading.Thread):
         }
         string = "{}: {} points {}".format(gate.name, score, message)
         if offset_string:
-            string += "({})".format(offset_string)
+            string += " ({})".format(offset_string)
         if planned and actual:
             string += "\n(planned: {}, actual: {}".format(internal_message["planned"], internal_message["actual"])
         elif planned:

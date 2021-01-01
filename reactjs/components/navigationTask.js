@@ -106,20 +106,33 @@ class ConnectedNavigationTask extends Component {
 
     renderRoute() {
         this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return waypoint.gate_check
+            return waypoint.gate_check || waypoint.time_check
         }).map((gate) => {
             polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
                 color: "blue"
             }).addTo(this.map)
             // }
         })
-        let turningPoints = this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return true //waypoint.type === "tp"
-        }).map((waypoint) => {
-            return [waypoint.latitude, waypoint.longitude]
-        });
+        let tracks = []
+        let currentTrack = []
+        const typesToIgnore = ["to", "ldg", "ildg"]
+        for(const waypoint of this.props.navigationTask.route.waypoints){
+            if (waypoint.type === 'isp'){
+                tracks.push(currentTrack)
+                currentTrack = []
+            }
+            if (!typesToIgnore.includes(waypoint.type)){
+                currentTrack.push([waypoint.latitude, waypoint.longitude])
+            }
+        }
+        tracks.push(currentTrack)
+        // let turningPoints = this.props.navigationTask.route.waypoints.filter((waypoint) => {
+        //     return true //waypoint.type === "tp"
+        // }).map((waypoint) => {
+        //     return [waypoint.latitude, waypoint.longitude]
+        // });
         this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return waypoint.gate_check
+            return waypoint.gate_check || waypoint.time_check
         }).map((waypoint) => {
             marker([waypoint.latitude, waypoint.longitude], {
                 color: "blue",
@@ -152,9 +165,12 @@ class ConnectedNavigationTask extends Component {
         // polyline([[gate.gate_line[1], gate.gate_line[0]], [gate.gate_line[3], gate.gate_line[2]]], {
         //             color: "red"
         //         }).addTo(this.map)
-        let route = polyline(turningPoints, {
-            color: "blue"
-        }).addTo(this.map)
+        let route;
+        for(const track of tracks) {
+            route = polyline(track, {
+                color: "blue"
+            }).addTo(this.map)
+        }
         this.map.fitBounds(route.getBounds(), {padding: [50, 50]})
 
     }

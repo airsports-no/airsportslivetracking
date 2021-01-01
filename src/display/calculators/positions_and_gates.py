@@ -43,6 +43,7 @@ class Gate:
         self.bearing = gate.bearing_next
         self.bearing_from_previous = gate.bearing_from_previous
         self.is_procedure_turn = gate.is_procedure_turn
+        self.is_steep_turn = gate.is_steep_turn
         self.passing_time = None
         self.extended_passing_time = None
         self.infinite_passing_time = None

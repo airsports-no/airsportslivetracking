@@ -58,9 +58,9 @@
                     {#                    <a class="nav-link" href="/">Contests <span class="sr-only">(current)</span></a>#}
                     {#                </li>#}
                     {% if perms.display.add_contest %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'import_route' %}">Import route</a>
-                        </li>
+{#                        <li class="nav-item">#}
+{#                            <a class="nav-link" href="{% url 'import_route' %}">Import route</a>#}
+{#                        </li>#}
                     {% endif %}
                     {#                <li class="nav-item dropdown">#}
                     {#                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"#}
@@ -91,9 +91,8 @@
                             <a class="nav-link dropdown-toggle" href="#" data-toggle="dropdown">{{ user }}</a>
                             <div class="dropdown-menu">
                                 <a class="dropdown-item" href="{% url 'password_change' %}?next=/">Change password</a>
-                                <a class="dropdown-item" href="{% url 'logout' %}?next=/">Log out </a>
                                 <a class="dropdown-item" href="{% url 'token' %}">Token </a>
-
+                                <a class="dropdown-item" href="{% url 'logout' %}?next=/">Log out </a>
                             </div>
                         </li>
 

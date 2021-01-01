@@ -55,6 +55,7 @@ class Aeroplane(models.Model):
 
 class Route(models.Model):
     name = models.CharField(max_length=200)
+    use_procedure_turns = models.BooleanField(default=True, blank=True)
     waypoints = MyPickledObjectField(default=list)
     takeoff_gate = MyPickledObjectField(default=None, null=True)
     landing_gate = MyPickledObjectField(default=None, null=True)
@@ -311,6 +312,8 @@ class Scorecard(models.Model):
     backtracking_penalty = models.FloatField(default=200)
     backtracking_bearing_difference = models.FloatField(default=90)
     backtracking_grace_time_seconds = models.FloatField(default=5)
+    backtracking_maximum_penalty = models.FloatField(default=-1,
+                                                     help_text="Negative numbers means the maximum is ignored")
     below_minimum_altitude_penalty = models.FloatField(default=500)
 
     takeoff_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
@@ -332,15 +335,15 @@ class Scorecard(models.Model):
     def get_gate_scorecard(self, gate_type: str) -> "GateScore":
         if gate_type == "tp":
             gate_score = self.turning_point_gate_score
-        elif gate_type == "sp":
+        elif gate_type in ("sp", "isp"):
             gate_score = self.starting_point_gate_score
-        elif gate_type == "fp":
+        elif gate_type in ("fp", "ifp"):
             gate_score = self.finish_point_gate_score
         elif gate_type == "secret":
             gate_score = self.secret_gate_score
         elif gate_type == "to":
             gate_score = self.takeoff_gate_score
-        elif gate_type == "ldg":
+        elif gate_type in ("ldg", "ildg"):
             gate_score = self.landing_gate_score
         else:
             raise ValueError("Unknown gate type '{}'".format(gate_type))
@@ -384,6 +387,16 @@ class Scorecard(models.Model):
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.extended_gate_width
 
+    def get_backtracking_after_steep_gate_grace_period_seconds(self, gate_type: str,
+                                                               score_override: Optional["BasicScoreOverride"]) -> float:
+        gate_score = self.get_gate_scorecard(gate_type)
+        return gate_score.backtracking_after_steep_gate_grace_period_seconds
+
+    def get_backtracking_after_gate_grace_period_nm(self, gate_type: str,
+                                                    score_override: Optional["BasicScoreOverride"]) -> float:
+        gate_score = self.get_gate_scorecard(gate_type)
+        return gate_score.backtracking_after_gate_grace_period_nm
+
 
 class GateScore(models.Model):
     extended_gate_width = models.FloatField(default=0,
@@ -395,6 +408,8 @@ class GateScore(models.Model):
     penalty_per_second = models.FloatField(default=2)
     missed_penalty = models.FloatField(default=100)
     missed_procedure_turn_penalty = models.FloatField(default=200)
+    backtracking_after_steep_gate_grace_period_seconds = models.FloatField(default=0)
+    backtracking_after_gate_grace_period_nm = models.FloatField(default=0.5)
 
     def get_missed_penalty(self, score_override: Optional["BasicScoreOverride"]):
         if score_override and score_override.checkpoint_not_found:

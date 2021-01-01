@@ -51,6 +51,28 @@ services:
       - influx
       - redis
 
+  tracker_celery:
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "/wait-for-it.sh", "influx:8086", "--",
+               "bash", "-c", "celery -A live_tracking_map worker -l DEBUG" ]
+
+    container_name: tracker_celery
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./static:/static
+      - ./assets:/assets/
+      - ./src:/src/
+      - ./reactjs:/reactjs/
+      - ./data:/data/
+      - ./celerylog:/logs/
+    depends_on:
+      - mysql
+      - influx
+      - redis
+
+
   tracker_processor:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "traccar:8082", "--",

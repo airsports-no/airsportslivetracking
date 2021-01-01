@@ -406,6 +406,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiser(many=True)
     route_file = serializers.CharField(write_only=True, required=True,
                                        help_text="Base64 encoded gpx file")
+    use_procedure_turns = serializers.BooleanField(initial=True, required=False, help_text = "If true (default) then procedure turns will be automatically added to all turning points with a more than 90° turn")
 
     internal_serialiser = ContestantNestedTeamSerialiser
 
@@ -425,7 +426,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
         with transaction.atomic():
             contestant_set = validated_data.pop("contestant_set", [])
             route_file = validated_data.pop("route_file", None)
-            route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")))
+            use_procedure_turns = validated_data.pop("use_procedure_turns", True)
+            route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")), use_procedure_turns)
             user = self.context["request"].user
             validated_data["contest"] = self.context["contest"]
             validated_data["route"] = route
@@ -452,7 +454,7 @@ class ExternalNavigationTaskTeamIdSerialiser(ExternalNavigationTaskNestedTeamSer
     contestant_set = ContestantSerialiser(many=True)
     route_file = serializers.CharField(write_only=True, required=True,
                                        help_text="Base64 encoded gpx file")
-
+    use_procedure_turns = serializers.BooleanField(initial=True, required=False)
     internal_serialiser = ContestantSerialiser
 
     class Meta:

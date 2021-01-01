@@ -35,12 +35,13 @@ def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
     return list(zip(*reversed(geometry.xy)))
 
 
-def create_route_from_gpx(file) -> Route:
+def create_route_from_gpx(file, use_procedure_turns: bool) -> Route:
     gpx = gpxpy.parse(file)
     waypoints = []
     waypoint_map = {}
     landing_gate = None
     takeoff_gate = None
+    route_name = ""
     for route in gpx.routes:
         for flightcontest in route.extensions:
             route_extension = flightcontest.find("route")
@@ -89,11 +90,11 @@ def create_route_from_gpx(file) -> Route:
                     assert not landing_gate
                     landing_gate = waypoint
 
-    calculate_and_update_legs(waypoints)
+    calculate_and_update_legs(waypoints, use_procedure_turns)
     insert_gate_ranges(waypoints)
 
     object = Route(name=route_name, waypoints=waypoints, takeoff_gate=takeoff_gate,
-                   landing_gate=landing_gate)
+                   landing_gate=landing_gate, use_procedure_turns=use_procedure_turns)
     object.save()
     return object
 
@@ -101,7 +102,7 @@ def create_route_from_gpx(file) -> Route:
 def calculate_extended_gate(waypoint: Waypoint, scorecard: "Scorecard", score_override: "BasicScoreOverride") -> Tuple[
     Tuple[float, float], Tuple[float, float]]:
     return extend_line(waypoint.gate_line[0], waypoint.gate_line[1],
-                       scorecard.get_extended_gate_width_for_gate_type(waypoint.type,score_override))
+                       scorecard.get_extended_gate_width_for_gate_type(waypoint.type, score_override))
 
 
 def build_waypoint(name, latitude, longitude, type, width, time_check, gate_check):
@@ -115,16 +116,16 @@ def build_waypoint(name, latitude, longitude, type, width, time_check, gate_chec
     return waypoint
 
 
-def create_route_from_formset(route_name, data: Dict) -> Route:
+def create_route_from_formset(route_name, data: Dict, use_procedure_turns: bool) -> Route:
     waypoint_list = []
     for item in data:
         waypoint_list.append(
             build_waypoint(item["name"], item["latitude"], item["longitude"], item["type"], item["width"],
                            item["time_check"], item["gate_check"]))
-    return create_route_from_waypoint_list(route_name, waypoint_list)
+    return create_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
 
 
-def create_route_from_csv(route_name: str, lines: List[str]) -> Route:
+def create_route_from_csv(route_name: str, lines: List[str], use_procedure_turns: bool) -> Route:
     print("lines: {}".format(lines))
     waypoint_list = []
     for line in lines:
@@ -138,10 +139,10 @@ def create_route_from_csv(route_name: str, lines: List[str]) -> Route:
         waypoint.gate_check = True
         waypoint.elevation = False
         waypoint_list.append(waypoint)
-    return create_route_from_waypoint_list(route_name, waypoint_list)
+    return create_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
 
 
-def create_route_from_waypoint_list(route_name, waypoint_list) -> Route:
+def create_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
     gates = [item for item in waypoint_list if item.type in ("tp", "secret")]
     for index in range(len(gates) - 1):
         gates[index + 1].gate_line = create_perpendicular_line_at_end(gates[index].longitude,
@@ -161,15 +162,15 @@ def create_route_from_waypoint_list(route_name, waypoint_list) -> Route:
     gates[0].gate_line[0].reverse()
     gates[0].gate_line[1].reverse()
 
-    calculate_and_update_legs(waypoint_list)
+    calculate_and_update_legs(waypoint_list, use_procedure_turns)
     insert_gate_ranges(waypoint_list)
 
-    object = Route(name=route_name, waypoints=waypoint_list)
+    object = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=use_procedure_turns)
     object.save()
     return object
 
 
-def calculate_and_update_legs(waypoints: List[Waypoint]):
+def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bool):
     # gates = [item for item in waypoints if item.type in ("fp", "sp", "tp", "secret")]  # type: List[Waypoint]
     gates = waypoints
     for index in range(0, len(gates) - 1):
@@ -186,11 +187,15 @@ def calculate_and_update_legs(waypoints: List[Waypoint]):
                                                                     (previous_gate.latitude, previous_gate.longitude))
         current_gate.bearing_from_previous = calculate_bearing((previous_gate.latitude, previous_gate.longitude),
                                                                (current_gate.latitude, current_gate.longitude))
-
-    for index in range(0, len(waypoints) - 1):
-        current_gate = gates[index]
-        next_gate = gates[index + 1]
-        next_gate.is_procedure_turn = is_procedure_turn(current_gate.bearing_next,
+        for index in range(0, len(waypoints) - 1):
+            current_gate = gates[index]
+            next_gate = gates[index + 1]
+            if current_gate.type in ("fp", "ifp", "sp", "isp"):
+                continue
+            if use_procedure_turns:
+                next_gate.is_procedure_turn = is_procedure_turn(current_gate.bearing_next,
+                                                                next_gate.bearing_next)
+            next_gate.is_steep_turn = is_procedure_turn(current_gate.bearing_next,
                                                         next_gate.bearing_next)
 
 

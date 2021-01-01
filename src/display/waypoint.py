@@ -21,6 +21,7 @@ class Waypoint:
         self.bearing_from_previous = -1
         self.bearing_next = -1  # type: float
         self.is_procedure_turn = False
+        self.is_steep_turn = False
 
         self.inside_distance = 0
         self.outside_distance = 0

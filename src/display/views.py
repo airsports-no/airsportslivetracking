@@ -54,6 +54,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser, \
     TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
+from display.tasks import import_gpx_track
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
 from playback_tools import insert_gpx_file
@@ -524,14 +525,15 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     def done(self, form_list, **kwargs):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
         initial_step_data = self.get_cleaned_data_for_step("0")
+        use_procedure_turns = initial_step_data.get("use_procedure_turns", True)
         if initial_step_data["file_type"] == FILE_TYPE_CSV:
             data = [item.decode(encoding="UTF-8") for item in initial_step_data['file'].readlines()]
-            route = create_route_from_csv(initial_step_data["name"], data[1:])
+            route = create_route_from_csv(initial_step_data["name"], data[1:], use_procedure_turns)
         elif initial_step_data["file_type"] == FILE_TYPE_FLIGHTCONTEST_GPX:
-            route = create_route_from_gpx(initial_step_data["file"].read())
+            route = create_route_from_gpx(initial_step_data["file"].read(), use_procedure_turns)
         else:
             second_step_data = self.get_cleaned_data_for_step("1")
-            route = create_route_from_formset(initial_step_data["name"], second_step_data)
+            route = create_route_from_formset(initial_step_data["name"], second_step_data, use_procedure_turns)
         final_data = self.get_cleaned_data_for_step("2")
         navigation_task = NavigationTask.objects.create(**final_data, contest=contest, route=route)
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
@@ -990,6 +992,9 @@ class ContestantViewSet(ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def track(self, request, pk=None, **kwargs):
+        """
+        Returns the GPS track for the contestant
+        """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         contestant_track = contestant.contestanttrack
         result_set = influx.get_positions_for_contestant(pk, contestant.tracker_start_time)
@@ -1001,6 +1006,9 @@ class ContestantViewSet(ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def gpx_track(self, request, pk=None, **kwargs):
+        """
+        Consumes a FC GPX file that contains the GPS track of a contestant.
+        """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         ContestantTrack.objects.filter(contestant=contestant).delete()
         contestant.save()  # Creates new contestant track
@@ -1009,7 +1017,7 @@ class ContestantViewSet(ModelViewSet):
         track_file = request.data.get("track_file", None)
         if not track_file:
             raise ValidationError("Missing track_file")
-        insert_gpx_file(contestant, base64.decodebytes(track_file.encode("utf-8")), influx)
+        import_gpx_track.apply_async((contestant.pk, track_file))
         return Response({}, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["get"])
