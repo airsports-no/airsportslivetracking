@@ -190,7 +190,7 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
         for index in range(0, len(waypoints) - 1):
             current_gate = gates[index]
             next_gate = gates[index + 1]
-            if next_gate.type in ("fp", "ifp", "sp", "isp"):
+            if next_gate.type in ("fp", "ifp", "sp", "isp", "ldg", "ildg"):
                 continue
             if use_procedure_turns:
                 next_gate.is_procedure_turn = is_procedure_turn(current_gate.bearing_next,

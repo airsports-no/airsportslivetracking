@@ -341,7 +341,7 @@ class Scorecard(models.Model):
             gate_score = self.finish_point_gate_score
         elif gate_type == "secret":
             gate_score = self.secret_gate_score
-        elif gate_type == "to":
+        elif gate_type in ("to", "ito"):
             gate_score = self.takeoff_gate_score
         elif gate_type in ("ldg", "ildg"):
             gate_score = self.landing_gate_score
