@@ -305,7 +305,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
-                                 help_text=lambda: "Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
 
     def create(self, validated_data):
