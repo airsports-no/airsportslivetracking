@@ -47,6 +47,7 @@ class PrecisionCalculator(Calculator):
         self.current_speed_estimate = 0
         self.previous_gate_distances = None
         self.inside_gates = None
+        self.between_tracks = False
 
     def check_intersections(self):
         # Check starting line
@@ -160,6 +161,14 @@ class PrecisionCalculator(Calculator):
             return
         bearing = bearing_between(first_position, last_position)
         bearing_difference = abs(get_heading_difference(bearing, self.last_gate.bearing))
+        if not self.between_tracks and self.last_gate.type in ("ifp", "ildg", "ito"):
+            self.between_tracks = True
+            logger.info("Past intermediate finish point, stop track evaluation")
+        if self.between_tracks and self.last_gate.type == "isp":
+            self.between_tracks = False
+            logger.info("Past intermediate starting point, resume track evaluation")
+        if self.between_tracks:
+            return
         # logger.info(bearing_difference)
         if just_passed_gate and self.last_gate.is_procedure_turn and self.tracking_state not in (
                 self.FAILED_PROCEDURE_TURN, self.PROCEDURE_TURN):
@@ -221,7 +230,8 @@ class PrecisionCalculator(Calculator):
                             "{} {}: Backtracking within {} NM of passing a gate, ignoring".format(self.contestant,
                                                                                                   last_position.time,
                                                                                                   self.scorecard.get_backtracking_after_gate_grace_period_nm(
-                                                                                                      self.last_gate.type, self.basic_score_override)))
+                                                                                                      self.last_gate.type,
+                                                                                                      self.basic_score_override)))
                     elif is_grace_time_after_steep_turn:
                         logger.info(
                             "{} {}: Backtracking within {} seconds of passing a gate with steep turn, ignoring".format(
