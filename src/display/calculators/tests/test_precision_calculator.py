@@ -28,7 +28,7 @@ def load_track_points(filename):
 class TestFullTrack(TransactionTestCase):
     def setUp(self):
         with open("display/calculators/tests/NM.csv", "r") as file:
-            route = create_route_from_csv("navigation_task", file.readlines()[1:])
+            route = create_route_from_csv("navigation_task", file.readlines()[1:], True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -125,7 +125,7 @@ class TestFullTrack(TransactionTestCase):
 class Test2017WPFC(TransactionTestCase):
     def setUp(self):
         with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
-            route = create_route_from_gpx(file)
+            route = create_route_from_gpx(file, True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -165,7 +165,7 @@ class Test2017WPFC(TransactionTestCase):
 class TestNM2019(TransactionTestCase):
     def setUp(self):
         with open("display/calculators/tests/NM2019.gpx", "r") as file:
-            route = create_route_from_gpx(file)
+            route = create_route_from_gpx(file, True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")

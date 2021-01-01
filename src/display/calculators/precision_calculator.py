@@ -208,7 +208,7 @@ class PrecisionCalculator(Calculator):
                         (self.last_gate.latitude, self.last_gate.longitude),
                         (last_position.latitude,
                          last_position.longitude)) / 1852 < self.scorecard.get_backtracking_after_gate_grace_period_nm(
-                        self.last_gate.type)
+                        self.last_gate.type, self.basic_score_override)
                     if not is_grace_time_after_steep_turn and not is_grace_distance_after_turn:
                         logger.info(
                             "{} {}: Started backtracking, let's see if this goes on for more than {} seconds".format(
@@ -221,7 +221,7 @@ class PrecisionCalculator(Calculator):
                             "{} {}: Backtracking within {} NM of passing a gate, ignoring".format(self.contestant,
                                                                                                   last_position.time,
                                                                                                   self.scorecard.get_backtracking_after_gate_grace_period_nm(
-                                                                                                      self.last_gate.type)))
+                                                                                                      self.last_gate.type, self.basic_score_override)))
                     elif is_grace_time_after_steep_turn:
                         logger.info(
                             "{} {}: Backtracking within {} seconds of passing a gate with steep turn, ignoring".format(

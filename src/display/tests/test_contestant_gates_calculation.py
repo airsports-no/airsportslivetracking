@@ -10,7 +10,7 @@ from display.views import create_route_from_csv
 class TestContestantGatesCalculation(TestCase):
     def setUp(self):
         with open("display/tests/NM.csv", "r") as file:
-            route = create_route_from_csv("navigation_task", file.readlines()[1:])
+            route = create_route_from_csv("navigation_task", file.readlines()[1:], True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
