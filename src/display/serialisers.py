@@ -8,6 +8,7 @@ from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
@@ -157,6 +158,12 @@ class CrewSerialiser(serializers.ModelSerializer):
         return self.create(validated_data)
 
 
+class ContestTeamSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = ContestTeam
+        fields = "__all__"
+
+
 class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     aeroplane = AeroplaneSerialiser()
@@ -304,7 +311,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
 
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
-    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(),
+    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
 
@@ -376,6 +383,7 @@ class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSeri
 
 class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
+
     route = RouteSerialiser()
 
     class Meta:
@@ -404,9 +412,14 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
 class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiser(many=True)
+    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
+                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                     ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
+
     route_file = serializers.CharField(write_only=True, required=True,
                                        help_text="Base64 encoded gpx file")
-    use_procedure_turns = serializers.BooleanField(initial=True, required=False, help_text = "If true (default) then procedure turns will be automatically added to all turning points with a more than 90° turn")
+    use_procedure_turns = serializers.BooleanField(initial=True, required=False,
+                                                   help_text="If true (default) then procedure turns will be automatically added to all turning points with a more than 90° turn")
 
     internal_serialiser = ContestantNestedTeamSerialiser
 
@@ -437,6 +450,10 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             print(self.context)
             navigation_task = NavigationTask.objects.create(**validated_data)
             for contestant_data in contestant_set:
+                if "scorecard" not in contestant_data:
+                    if navigation_task.scorecard is None:
+                        raise ValidationError("Contestant scorecard must be supplied if navigation scorecard is none")
+                    contestant_data["scorecard"] = navigation_task.scorecard.name
                 if isinstance(contestant_data['team'], Team):
                     contestant_data["team"] = contestant_data["team"].pk
 
@@ -452,9 +469,6 @@ class ExternalNavigationTaskTeamIdSerialiser(ExternalNavigationTaskNestedTeamSer
     Does not provide team data input, only team ID for each contestant.
     """
     contestant_set = ContestantSerialiser(many=True)
-    route_file = serializers.CharField(write_only=True, required=True,
-                                       help_text="Base64 encoded gpx file")
-    use_procedure_turns = serializers.BooleanField(initial=True, required=False)
     internal_serialiser = ContestantSerialiser
 
     class Meta:

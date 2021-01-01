@@ -52,7 +52,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
     GpxTrackSerialiser, PersonSerialiser, ExternalNavigationTaskTeamIdSerialiser, \
     ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser, \
-    TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser
+    TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from influx_facade import InfluxFacade
@@ -224,6 +224,25 @@ def auto_complete_person_email(request):
     raise MethodNotAllowed
 
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def auto_complete_contestteam_pk(request):
+    if request.is_ajax():
+        request_number = int(request.POST.get("request"))
+        if request_number == 1:
+            q = request.POST.get('search', '')
+            search_qs = Team.objects.filter(pk=q)
+            result = [item.email for item in search_qs]
+            return Response(result)
+        else:
+            q = request.POST.get('search', '')
+            contest = request.POST.get('contest', '')
+            search_qs = ContestTeam.objects.get(team__pk=q, contest__pk=contest)
+            serialiser = ContestTeamSerialiser(search_qs, many=False)
+            return Response(serialiser.data)
+    raise MethodNotAllowed
+
+
 def person_search_view(request):
     return render(request, "display/personsearch_form.html", {"form": Member1SearchForm()})
 
@@ -353,6 +372,11 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
     form_class = ContestantForm
     model = Contestant
     permission_required = ("change_contest",)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["navigation_task"] = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        return context
 
     def get_form_kwargs(self):
         arguments = super().get_form_kwargs()

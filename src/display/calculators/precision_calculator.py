@@ -161,6 +161,8 @@ class PrecisionCalculator(Calculator):
             return
         bearing = bearing_between(first_position, last_position)
         bearing_difference = abs(get_heading_difference(bearing, self.last_gate.bearing))
+        # Do not perform track evaluation between multiple subsequent tracks. This means that between iFP and iSP the
+        # contestant is free to do whatever he wants.
         if not self.between_tracks and self.last_gate.type in ("ifp", "ildg", "ito"):
             self.between_tracks = True
             logger.info("Past intermediate finish point, stop track evaluation")

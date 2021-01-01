@@ -293,6 +293,10 @@ class NavigationTask(models.Model):
                                           help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
                                               NAVIGATION_TASK_TYPES))
     route = models.OneToOneField(Route, on_delete=models.PROTECT)
+    scorecard = models.ForeignKey("Scorecard", on_delete=models.PROTECT, null=True,
+                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                      lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
+
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(

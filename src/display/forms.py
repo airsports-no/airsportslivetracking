@@ -57,7 +57,11 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "is_public", "calculator_type")
+        fields = ("name", "start_time", "finish_time", "is_public", "calculator_type", "scorecard")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["scorecard"].required = False
 
 
 class BasicScoreOverrideForm(forms.ModelForm):
@@ -304,10 +308,14 @@ class ContestantForm(forms.ModelForm):
     #
     # aircraft_registration = forms.CharField()
     def __init__(self, *args, **kwargs):
-        navigation_task = kwargs.pop("navigation_task")
+        self.navigation_task = kwargs.pop("navigation_task")  # type: NavigationTask
+
         super().__init__(*args, **kwargs)
+        print(self.navigation_task.scorecard)
         # self.fields["navigation_task"].hidden = True
-        self.fields["team"].queryset = navigation_task.contest.contest_teams.all()
+        self.fields["team"].queryset = self.navigation_task.contest.contest_teams.all()
+        self.fields["scorecard"].required = self.navigation_task.scorecard is None
+        # self.fields["tracking_device_id"].required = False
 
     class Meta:
         model = Contestant
@@ -316,6 +324,13 @@ class ContestantForm(forms.ModelForm):
             "takeoff_time",
             "finished_by_time",
             "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed", "scorecard")
+
+    def save(self, commit=True):
+        if not hasattr(self.instance, "scorecard"):
+            self.instance.scorecard = self.navigation_task.scorecard
+        # if self.instance.tracking_device_id is None or len(self.instance.tracking_device_id) == 0:
+        #     self.instance.tracking_device_id = self.instance.team.tracking_device_id
+        return super().save(commit)
 
     # def save(self, commit=True):
     #     contestant = super().save(commit=False)

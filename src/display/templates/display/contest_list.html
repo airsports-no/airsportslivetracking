@@ -8,6 +8,7 @@
             <th>Task</th>
             <th>Start time</th>
             <th>Finish time</th>
+            <th>Scorecard</th>
             <th>Actions</th>
         </tr>
         </thead>
@@ -16,7 +17,7 @@
             {% get_obj_perms request.user for contest as "contest_permissions" %}
 
             <tr>
-                <td colspan="3"><span style="text-align: center"><h3>{{ contest.name }}</h3></span></td>
+                <td colspan="4"><span style="text-align: center"><h3>{{ contest.name }}</h3></span></td>
                 {% if "change_contest" in contest_permissions %}
                     <td><a href="{% url 'contest_team_list' contest.pk %}">Team list</a> |
                         <a href="{% url 'navigationtaskwizard' contest.pk %}">New navigation task</a> | <a
@@ -36,6 +37,7 @@
                         {{ object.start_time }}
                     </td>
                     <td>{{ object.finish_time }}</td>
+                    <td>{{ object.scorecard }}</td>
                     <td>
                         <a href="{% url 'frontend_view_map' object.pk %}">Track</a>
                         {% if "change_contest" in contest_permissions %}

@@ -14,6 +14,7 @@ from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase, APITransactionTestCase
 
+from display.default_scorecards.create_scorecards import create_scorecards
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Contest, NavigationTask, Team, Crew, Person, Aeroplane, Contestant, ContestTeam
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
@@ -539,7 +540,7 @@ expected_route = {
                    'gate_check': True,
                    'gate_line': [[48.1588986418, 16.8447699033],
                                  [48.1474735916, 16.8265811091]],
-                   'is_procedure_turn': True,
+                   'is_procedure_turn': False,
                    'latitude': 48.1531861167,
                    'longitude': 16.835675,
                    'name': 'FP',
@@ -605,6 +606,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
 
 class TestImportFCNavigationTask(APITransactionTestCase):
     def setUp(self):
+        create_scorecards()
         self.data = deepcopy(data)
         self.user = User.objects.create(username="test")
         permission = Permission.objects.get(codename="change_contest")
@@ -613,7 +615,6 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.contest = Contest.objects.create(name="test", start_time=datetime.utcnow(), finish_time=datetime.utcnow())
         assign_perm("display.change_contest", self.user, self.contest)
         assign_perm("display.view_contest", self.user, self.contest)
-        get_default_scorecard()
 
     def test_import(self):
         print(json.dumps(self.data, sort_keys=True, indent=2))
@@ -648,6 +649,21 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         for index, waypoint in enumerate(route["waypoints"]):
             self.assertDictEqual(expected_route["waypoints"][index], waypoint)
             self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])
+
+    def test_import_navigation_task_scorecard(self):
+        local_data = deepcopy(data)
+        local_data["scorecard"] = "FAI Air Rally 2020"
+        for contestant in local_data["contestant_set"]:
+            del contestant["scorecard"]
+        print(json.dumps(local_data, sort_keys=True, indent=2))
+        res = self.client.post(
+            "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), local_data, format="json")
+        print(res.content)
+        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
+        for contestant in res.json()["contestant_set"]:
+            self.assertEqual("FAI Air Rally 2020", contestant["scorecard"])
+        for item in Contestant.objects.all():
+            self.assertEqual("FAI Air Rally 2020", item.scorecard.name)
 
     def test_multiple_import(self):
         res = self.client.post(
