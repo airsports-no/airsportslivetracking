@@ -44,13 +44,23 @@ class ConnectedContestantDetailsDisplay extends Component {
                 dataField: "message.gate",
                 formatter: (cell, row) => {
                     return <b>{cell}</b>
+                },
+                headerEvents: {
+                    onClick: (e, column, columnIndex) => {
+                        this.resetToAllContestants()
+                    }
                 }
             },
             {
                 dataField: "message",
-                text: contestantShortForm(this.props.contestant) + " " + this.props.contestantData.score + " points",
+                text: contestantShortForm(this.props.contestant) + " | " + this.props.contestantData.score + " points",
                 formatter: (cell, row) => {
                     return <div className={"preWrap"}><FormatMessage message={cell}/></div>
+                },
+                headerEvents: {
+                    onClick: (e, column, columnIndex) => {
+                        this.resetToAllContestants()
+                    }
                 }
             }
         ]
