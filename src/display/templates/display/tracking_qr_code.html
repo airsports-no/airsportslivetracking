@@ -1,5 +1,18 @@
 {% extends "base.html" %}
 {% load qr_code %}
 {% block content %}
-    {% qr_from_text url size="L" %}
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-center">
+                <h1>{{ navigation_task.contest.name }}</h1>
+            </div>
+            <div class="d-flex justify-content-center">
+                {% qr_from_text url size="L" %}
+            </div>
+            <div class="d-flex justify-content-center">
+
+                <h2>{{ navigation_task.name }}</h2>
+            </div>
+        </div>
+    </div>
 {% endblock %}

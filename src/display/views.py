@@ -249,7 +249,8 @@ def person_search_view(request):
 
 def tracking_qr_code_view(request, pk):
     url = reverse("frontend_view_map", kwargs={"pk": pk})
-    return render(request, "display/tracking_qr_code.html", {"url": "https://tracking.airsports.no{}".format(url)})
+    return render(request, "display/tracking_qr_code.html", {"url": "https://tracking.airsports.no{}".format(url),
+                                                             "navigation_task": NavigationTask.objects.get(pk=pk)})
 
 
 class NavigationTaskList(ListView):
