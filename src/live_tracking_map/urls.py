@@ -17,7 +17,7 @@ from django.conf.urls import url
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth.views import LoginView, LogoutView
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.views.generic import RedirectView, TemplateView
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
@@ -42,9 +42,9 @@ urlpatterns = [
     path('accounts/password_change/done/', RedirectView.as_view(url='/', permanent=False)),
     path('accounts/', include('django.contrib.auth.urls')),
     path('docs/', docs.with_ui()),
+    re_path('djga/', include('google_analytics.urls')),
     url(r"^api/v1/", include(api.urlpatters)),
     url(r'^resultsservice/.?', results_service, name="resultsservice"),
-
 ]
 
 if settings.DEBUG:

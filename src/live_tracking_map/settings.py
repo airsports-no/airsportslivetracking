@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     "formtools",
     "phonenumber_field",
     'qr_code',
-    "crispy_forms"
+    "crispy_forms",
+    "google_analytics"
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"
@@ -64,9 +65,12 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'live_tracking_map.middleware.HandleKnownExceptionsMiddleware',
+    'google_analytics.middleware.GoogleAnalyticsMiddleware',
 ]
 
 ROOT_URLCONF = 'live_tracking_map.urls'
+
+CELERY_IMPORTS = ('google_analytics.tasks')
 
 TEMPLATES = [
     {
@@ -100,6 +104,10 @@ AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',  # this is default
     'guardian.backends.ObjectPermissionBackend',
 )
+
+GOOGLE_ANALYTICS = {
+    'google_analytics_id': 'G-N6F3YWHE71',
+}
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

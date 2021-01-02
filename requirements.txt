@@ -43,3 +43,4 @@ django-crispy-forms
 celery
 segno
 django-qr-code
+django-google-analytics-app
