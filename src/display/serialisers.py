@@ -55,6 +55,7 @@ class WaypointSerialiser(serializers.Serializer):
     distance_previous = serializers.FloatField(help_text="Distance from the previous gate (NM)")
     bearing_next = serializers.FloatField(help_text="True track to the next gate (degrees)")
     bearing_from_previous = serializers.FloatField(help_text="True track from the previous gates to this")
+    procedure_turn_points = serializers.JSONField(help_text = "Curve that describes the procedure turn (read-only)")
     is_procedure_turn = serializers.BooleanField()
 
 

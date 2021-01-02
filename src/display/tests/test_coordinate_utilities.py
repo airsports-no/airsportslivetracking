@@ -2,7 +2,7 @@ from unittest import TestCase
 from parameterized import parameterized
 
 from display.coordinate_utilities import calculate_bearing, get_heading_difference, extend_line, \
-    fraction_of_leg, Projector
+    fraction_of_leg, Projector, get_procedure_turn_track
 
 
 class TestCoordinateUtilities(TestCase):
@@ -50,3 +50,9 @@ class TestCoordinateUtilities(TestCase):
     def test_fraction_of_leg(self, start, finish, intersect, expected_fraction, direction):
         fraction = fraction_of_leg(start, finish, intersect)
         self.assertAlmostEqual(expected_fraction, fraction, 4, msg=direction)
+
+
+class TestProcedureTurnPoints(TestCase):
+    def test_simple(self):
+        points = get_procedure_turn_track(60, 11, 270, 30, 0.05)
+        print(points)

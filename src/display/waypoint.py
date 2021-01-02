@@ -1,4 +1,4 @@
-from display.coordinate_utilities import extend_line
+from display.coordinate_utilities import extend_line, get_procedure_turn_track
 
 
 class Waypoint:
@@ -35,6 +35,13 @@ class Waypoint:
     @gate_line_infinite.setter
     def gate_line_infinite(self, value):
         self._gate_line_infinite = value
+
+    @property
+    def procedure_turn_points(self):
+        if self.is_procedure_turn:
+            return get_procedure_turn_track(self.latitude, self.longitude, self.bearing_from_previous, self.bearing_next,
+                                        0.2)
+        return []
 
     def __str__(self):
         return "{}: {}, {}, {}".format(self.name, self.latitude, self.longitude, self.elevation)

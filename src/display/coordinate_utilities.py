@@ -1,8 +1,9 @@
 import logging
 import math
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from geopy.distance import geodesic, great_circle
 import nvector as nv
+import numpy as np
 
 R = 6371000  # metres
 
@@ -11,6 +12,10 @@ logger = logging.getLogger(__name__)
 
 def to_rad(value) -> float:
     return value * math.pi / 180
+
+
+def to_deg(value) -> float:
+    return 180 * value / math.pi
 
 
 def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
@@ -59,6 +64,41 @@ def calculate_fractional_distance_point_lat_lon(start: Tuple[float, float], fini
     finalLatitude = math.atan2(z, math.sqrt(x * x + y * y)) * 180 / math.pi
     finalLongitude = math.atan2(y, x) * 180 / math.pi
     return (finalLatitude, finalLongitude)
+
+
+def normalise_latitude(latitude: np.ndarray) -> np.ndarray:
+    latitude = latitude * np.pi / 180
+    return np.arctan(np.sin(latitude) / np.abs(np.cos(latitude))) * 180 / np.pi
+
+
+def normalise_longitude(longitude: np.ndarray) -> np.ndarray:
+    longitude = longitude * np.pi / 180
+    return np.arctan2(np.sin(longitude), np.cos(longitude)) * 180 / np.pi
+
+
+def project_position_lat_lon(start: Tuple[float, float], bearing: float, distance: float) -> Tuple[float, float]:
+    """
+
+    :param start: Starting position to project from
+    :param bearing: Direction to predicted point (degrees)
+    :param distance: Distance to predict the point (m)
+    :return:
+    """
+    earthRadiusInMetres = 6378137.0
+    distanceInMetres = distance
+    angularDistance = distanceInMetres / earthRadiusInMetres
+    temporaryHeading = bearing * math.pi / 180
+    latitude, longitude = start
+    latitude *= math.pi / 180
+    longitude *= math.pi / 180
+    newLatitude = math.asin(math.sin(latitude) * math.cos(angularDistance) +
+                            math.cos(latitude) * math.sin(angularDistance) * math.cos(temporaryHeading))
+    newLongitude = longitude + math.atan2(
+        math.sin(temporaryHeading) * math.sin(angularDistance) * math.cos(latitude),
+        math.cos(angularDistance) - math.sin(latitude) * math.sin(newLatitude))
+    newLatitude *= 180 / np.pi
+    newLongitude *= 180 / np.pi
+    return normalise_latitude(newLatitude), normalise_longitude(newLongitude)
 
 
 def extend_line(start: Tuple[float, float], finish: Tuple[float, float], distance: float) -> Optional[Tuple[
@@ -181,3 +221,45 @@ def along_track_distance(lat1, lon1, lat, lon, cross_track_distance):
         # except:
         #     logger.exception("Failed even printing the error message")
         return 999999999999
+
+
+def get_procedure_turn_track(latitude, longitude, bearing_in, bearing_out, turn_radius) -> List[Tuple[float, float]]:
+    """
+
+    :param latitude: TP degrees
+    :param longitude: TP degrees
+    :param bearing_in: degrees inbound track
+    :param bearing_out: degrees outbound track
+    :param turn_radius: Radius of procedure turn in NM
+    :return: List of (lat, lon) points that make up the turn
+    """
+    turn_radius *= 1852
+    bearing_difference = get_heading_difference(bearing_in, bearing_out)
+    if bearing_difference > 0:
+        bearing_difference -= 360
+    else:
+        bearing_difference += 360
+    inner_angle_rad = to_rad(abs(bearing_difference)-180)
+    centre_distance = turn_radius / np.sin(inner_angle_rad / 2)
+    tangent_distance = centre_distance * np.cos(inner_angle_rad / 2)
+    circle_resolution = np.pi / 20
+    slice_angle = np.pi + inner_angle_rad
+    slice_length = 2 * turn_radius * np.sin(circle_resolution / 2)
+    initial_point = project_position_lat_lon((latitude, longitude), bearing_in, tangent_distance)
+    points_list = [(latitude, longitude), initial_point]
+    current_angle = 0
+    if bearing_difference > 0:
+        while current_angle < slice_angle:
+            current_angle += circle_resolution
+            bearing = (bearing_in + to_deg(current_angle)) % 360
+            nextpoint = project_position_lat_lon(points_list[-1], bearing, slice_length)
+            points_list.append(nextpoint)
+    else:
+        while current_angle > -slice_angle:
+            current_angle -= circle_resolution
+            bearing = (bearing_in + to_deg(current_angle)) % 360
+            nextpoint = project_position_lat_lon(points_list[-1], bearing, slice_length)
+            points_list.append(nextpoint)
+
+    points_list.append((latitude, longitude))
+    return points_list

@@ -116,13 +116,17 @@ class ConnectedNavigationTask extends Component {
         let tracks = []
         let currentTrack = []
         const typesToIgnore = ["to", "ldg", "ildg"]
-        for(const waypoint of this.props.navigationTask.route.waypoints){
-            if (waypoint.type === 'isp'){
+        for (const waypoint of this.props.navigationTask.route.waypoints) {
+            if (waypoint.type === 'isp') {
                 tracks.push(currentTrack)
                 currentTrack = []
             }
-            if (!typesToIgnore.includes(waypoint.type)){
-                currentTrack.push([waypoint.latitude, waypoint.longitude])
+            if (!typesToIgnore.includes(waypoint.type)) {
+                if (waypoint.is_procedure_turn) {
+                    currentTrack.push(...waypoint.procedure_turn_points)
+                } else {
+                    currentTrack.push([waypoint.latitude, waypoint.longitude])
+                }
             }
         }
         tracks.push(currentTrack)
@@ -145,14 +149,14 @@ class ConnectedNavigationTask extends Component {
                 this.handleMapTurningPointClick(waypoint.name)
             }).addTo(this.map)
         });
-        this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return waypoint.is_procedure_turn
-        }).map((waypoint) => {
-            circle([waypoint.latitude, waypoint.longitude], {
-                radius: 500,
-                color: "blue"
-            }).addTo(this.map)
-        })
+        // this.props.navigationTask.route.waypoints.filter((waypoint) => {
+        //     return waypoint.is_procedure_turn
+        // }).map((waypoint) => {
+        //     circle([waypoint.latitude, waypoint.longitude], {
+        //         radius: 500,
+        //         color: "blue"
+        //     }).addTo(this.map)
+        // })
         // Temporarily plot range circles
         // this.props.navigationTask.track.waypoints.map((waypoint) => {
         //     circle([waypoint.latitude, waypoint.longitude], {
@@ -166,7 +170,7 @@ class ConnectedNavigationTask extends Component {
         //             color: "red"
         //         }).addTo(this.map)
         let route;
-        for(const track of tracks) {
+        for (const track of tracks) {
             route = polyline(track, {
                 color: "blue"
             }).addTo(this.map)
@@ -194,11 +198,11 @@ class ConnectedNavigationTask extends Component {
                 <div className={"card text-light collapse bg-dark"} id={"insetMenu"} aria-expanded={false}
                      aria-controls={"insetMenu"}>
                     {/*<div className={"card-body"}>*/}
-                        <div className={"card–text"}>
+                    <div className={"card–text"}>
                         {/*<div className={"card-title"}>*/}
                         {/*</div>*/}
-                            {display}
-                        </div>
+                        {display}
+                    </div>
                     {/*</div>*/}
                 </div>
             </div>
