@@ -28,6 +28,8 @@ services:
 
   goaccess:
     image: allinurl/goaccess
+    restart: always
+    command: sh -c "goaccess --no-global-config --config-file=/goaccess/goaccess.conf"
     volumes:
       - ./goaccess/data:/goaccess
       - ./goaccess/html/index.html:/goaccess/index.html
