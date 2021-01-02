@@ -106,7 +106,7 @@ AUTHENTICATION_BACKENDS = (
 )
 
 GOOGLE_ANALYTICS = {
-    'google_analytics_id': 'G-N6F3YWHE71',
+    'google_analytics_id': 'UA-12923426-5',
 }
 
 REST_FRAMEWORK = {
