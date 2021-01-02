@@ -42,7 +42,7 @@
                         <a href="{% url 'frontend_view_map' object.pk %}">Track</a> |
                         <a href="{% url 'navigationtask_qr' object.pk %}">QR</a>
                         {% if "change_contest" in contest_permissions %}
-                            <br/>| <a href="{% url 'navigationtask_delete' object.pk %}">delete</a>
+                            <br/><a href="{% url 'navigationtask_delete' object.pk %}">delete</a>
                             | <a href="{% url 'navigationtask_update' object.pk %}">update</a>
                             | <a href="{% url 'navigationtask_scoreoverride' object.pk %}">Score override</a>
                         {% endif %}

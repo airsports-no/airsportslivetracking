@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Dict, TYPE_CHECKING
+from typing import List, Dict, TYPE_CHECKING, Optional
 
 import requests
 from requests import Session
@@ -44,6 +44,22 @@ class Traccar:
         print(response.text)
         if response.status_code == 200:
             return response.json()
+
+    def get_device(self, identifier) -> Optional[Dict]:
+        response = self.session.get(self.base + "/api/devices/?uniqueId={}".format(identifier))
+        if response.status_code == 200:
+            devices = response.json()
+            try:
+                return devices[0]
+            except IndexError:
+                return None
+        return None
+
+    def get_or_create_device(self, device_name, identifier) -> Dict:
+        existing_device = self.get_device(identifier)
+        if existing_device is None:
+            return self.create_device(device_name, identifier)
+        return existing_device
 
     def delete_all_devices(self):
         devices = self.update_and_get_devices()

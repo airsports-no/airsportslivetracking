@@ -41,7 +41,7 @@ from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FIL
     STARTINGPOINT, FINISHPOINT, TrackingDataForm
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, BasicScoreOverride, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
-    TeamTestScore
+    TeamTestScore, TRACCAR
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions
@@ -55,9 +55,11 @@ from display.serialisers import ContestantTrackSerialiser, \
     TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
+from display.traccar_factory import get_traccar_instance
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
 from playback_tools import insert_gpx_file
+from traccar_facade import Traccar
 
 logger = logging.getLogger(__name__)
 
@@ -398,8 +400,11 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
-        object = form.save(commit=False)
+        object = form.save(commit=False)  # type: Contestant
         object.navigation_task = navigation_task
+        if object.tracking_service == TRACCAR:
+            traccar = get_traccar_instance()
+            traccar.get_or_create_device(object.tracker_device_id, object.tracker_device_id)
         object.save()
         return HttpResponseRedirect(self.get_success_url())
 

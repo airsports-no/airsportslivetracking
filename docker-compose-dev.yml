@@ -27,6 +27,7 @@ services:
       - mysql
       - influx
       - redis
+      - traccar
 
   tracker_celery:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",

@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from datetime import datetime, timezone
 from pprint import pprint
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import dateutil
 from django.contrib.auth.models import User, Permission
@@ -554,6 +554,7 @@ with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as f:
 data["route_file"] = route_string
 
 
+@patch("display.serialisers.get_traccar_instance")
 class TestImportSerialiser(TransactionTestCase):
     def setUp(self):
         self.user = User.objects.create(username="test")
@@ -563,7 +564,7 @@ class TestImportSerialiser(TransactionTestCase):
                                               finish_time=datetime.utcnow())
         get_default_scorecard()
 
-    def test_import_serialiser(self):
+    def test_import_serialiser(self, patch):
         request = Mock()
         request.user = self.user
         serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=data,
@@ -575,6 +576,7 @@ class TestImportSerialiser(TransactionTestCase):
         serialiser.save()
 
 
+@patch("display.serialisers.get_traccar_instance")
 class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
     def setUp(self):
         Contest.objects.all().delete()
@@ -597,13 +599,14 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
             ContestTeam.objects.create(contest=self.contest, team=team, tracking_service="traccar", air_speed=70,
                                        tracker_device_id="{}".format(index))
 
-    def testPost(self):
+    def testPost(self, patch):
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtaskteamid/".format(self.contest.pk), self.data, format="json")
         print(res.content)
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
 
 
+@patch("display.serialisers.get_traccar_instance")
 class TestImportFCNavigationTask(APITransactionTestCase):
     def setUp(self):
         create_scorecards()
@@ -616,7 +619,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         assign_perm("display.change_contest", self.user, self.contest)
         assign_perm("display.view_contest", self.user, self.contest)
 
-    def test_import(self):
+    def test_import(self, patch):
         print(json.dumps(self.data, sort_keys=True, indent=2))
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), self.data, format="json")
@@ -647,10 +650,11 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         route = task.json()["route"]
         self.assertEqual(len(expected_route["waypoints"]), len(route["waypoints"]))
         for index, waypoint in enumerate(route["waypoints"]):
+            del waypoint["procedure_turn_points"]
             self.assertDictEqual(expected_route["waypoints"][index], waypoint)
             self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])
 
-    def test_import_navigation_task_scorecard(self):
+    def test_import_navigation_task_scorecard(self, patch):
         local_data = deepcopy(data)
         local_data["scorecard"] = "FAI Air Rally 2020"
         for contestant in local_data["contestant_set"]:
@@ -665,7 +669,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         for item in Contestant.objects.all():
             self.assertEqual("FAI Air Rally 2020", item.scorecard.name)
 
-    def test_multiple_import(self):
+    def test_multiple_import(self, patch):
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), self.data, format="json")
         print(res.content)
@@ -680,7 +684,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
         self.assertEqual(2, len(ContestTeam.objects.filter(contest=self.contest)))
 
-    def test_import_preexisting_phone(self):
+    def test_import_preexisting_phone(self, patch):
         person = Person.objects.create(first_name="first", last_name="last", phone="+4773215338")
         first_team = self.data["contestant_set"][0]["team"]
         second_team = self.data["contestant_set"][1]["team"]
@@ -695,7 +699,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(1, len(Person.objects.filter(first_name="first")))
         self.assertEqual(2, Crew.objects.all().count())
 
-    def test_import_preexisting_email(self):
+    def test_import_preexisting_email(self, patch):
         person = Person.objects.create(first_name="first", last_name="last", email="to@to.com")
         first_team = self.data["contestant_set"][0]["team"]
         second_team = self.data["contestant_set"][1]["team"]
@@ -711,7 +715,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(1, len(Person.objects.filter(first_name="first")))
         self.assertEqual(2, Crew.objects.all().count())
 
-    def test_preexisting_team(self):
+    def test_preexisting_team(self, patch):
         person = Person.objects.create(first_name="first", last_name="last", email="to@to.com")
         crew = Crew.objects.create(member1=person)
         aircraft = Aeroplane.objects.create(registration="LN-YDB")
@@ -734,14 +738,14 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(1, Team.objects.all().count())
         self.assertEqual(team, Team.objects.first())
 
-    def test_doc_example(self):
+    def test_doc_example(self, patch):
         with open('../documentation/importnavigationtask.json', 'r') as i:
             data = json.load(i)
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data, format="json")
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
 
-    def test_post_input_with_the_gate_times(self):
+    def test_post_input_with_the_gate_times(self, patch):
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data_with_gate_times, format="json")
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")

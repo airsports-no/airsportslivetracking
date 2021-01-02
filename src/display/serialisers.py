@@ -15,7 +15,8 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
-    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam
+    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR
+from display.traccar_factory import get_traccar_instance
 from display.waypoint import Waypoint
 
 
@@ -324,6 +325,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
         contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
                                             gate_times.items()}
         contestant.save()
+        if contestant.tracking_service == TRACCAR:
+            traccar = get_traccar_instance()
+            traccar.get_or_create_device(contestant.tracker_device_id, contestant.tracker_device_id)
+
         if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
             ContestTeam.objects.create(contest=contestant.navigation_task.contest, team=contestant.team,
                                        tracker_device_id=contestant.tracker_device_id,
@@ -339,6 +344,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
         instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
                                           gate_times.items()}
         instance.save()
+        if instance.tracking_service == TRACCAR:
+            traccar = get_traccar_instance()
+            traccar.get_or_create_device(instance.tracker_device_id, instance.tracker_device_id)
+
         if not ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).exists():
             ContestTeam.objects.create(contest=instance.navigation_task.contest, team=instance.team,
                                        tracker_device_id=instance.tracker_device_id,
