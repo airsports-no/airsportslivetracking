@@ -8,7 +8,8 @@ from display.views import import_route, frontend_view_map, \
     auto_complete_person_email, auto_complete_person_first_name, auto_complete_person_last_name, person_search_view, \
     auto_complete_club, auto_complete_aeroplane, RegisterTeamWizard, ContestTeamList, remove_team_from_contest, \
     TeamUpdateView, auto_complete_person_id, PersonUpdateView, PersonList, NavigationTaskUpdateView, \
-    BasicScoreOverrideUpdateView, ContestTeamTrackingUpdate, manifest, auto_complete_contestteam_pk
+    BasicScoreOverrideUpdateView, ContestTeamTrackingUpdate, manifest, auto_complete_contestteam_pk, \
+    tracking_qr_code_view
 
 urlpatterns = [
     path('importroute', import_route, name="import_route"),
@@ -18,6 +19,7 @@ urlpatterns = [
     path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),
     path('contest/<int:pk>/delete/', ContestDeleteView.as_view(), name="contest_delete"),
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
+    path('navigationtask/<int:pk>/qr/', tracking_qr_code_view, name="navigationtask_qr"),
     path('navigationtask/<int:pk>/update/', NavigationTaskUpdateView.as_view(), name="navigationtask_update"),
     path('navigationtask/<int:pk>/delete/', NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),
     path('navigationtask/<int:pk>/scoreoverride/', BasicScoreOverrideUpdateView.as_view(),

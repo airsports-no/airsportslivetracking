@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% load qr_code %}
+{% block content %}
+    {% qr_from_text url size="L" %}
+{% endblock %}

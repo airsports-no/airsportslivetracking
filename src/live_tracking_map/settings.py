@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "django_countries",
     "formtools",
     "phonenumber_field",
+    'qr_code',
     "crispy_forms"
 ]
 

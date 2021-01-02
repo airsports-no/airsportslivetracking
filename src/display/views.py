@@ -247,6 +247,11 @@ def person_search_view(request):
     return render(request, "display/personsearch_form.html", {"form": Member1SearchForm()})
 
 
+def tracking_qr_code_view(request, pk):
+    url = reverse("frontend_view_map", kwargs={"pk": pk})
+    return render(request, "display/tracking_qr_code.html", {"url": "https://tracking.airsports.no{}".format(url)})
+
+
 class NavigationTaskList(ListView):
     model = NavigationTask
 

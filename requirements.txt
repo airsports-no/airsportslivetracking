@@ -41,3 +41,5 @@ Babel
 django-phonenumber-field
 django-crispy-forms
 celery
+segno
+django-qr-code
