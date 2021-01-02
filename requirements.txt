@@ -40,7 +40,7 @@ phonenumbers
 Babel
 django-phonenumber-field
 django-crispy-forms
-celery
+celery==4.4.6
 segno
 django-qr-code
 django-google-analytics-app
