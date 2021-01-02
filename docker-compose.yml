@@ -26,6 +26,13 @@ services:
       - 80:80 # Required for certificate validation
     restart: unless-stopped
 
+  goaccess:
+    image: allinurl/goaccess
+    volumes:
+      - ./goaccess/data:/goaccess
+      - ./goaccess/html/index.html:/goaccess/index.html
+      - ./swag/config/log/nginx/access.log:/goaccess/access.log
+
   tracker_web:
     #    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && python3 manage.py runserver 0.0.0.0:8000" ]
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
