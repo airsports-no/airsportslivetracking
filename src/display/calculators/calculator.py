@@ -103,9 +103,9 @@ class Calculator(threading.Thread):
         if offset_string:
             string += " ({})".format(offset_string)
         if planned and actual:
-            string += "\n(planned: {}, actual: {}".format(internal_message["planned"], internal_message["actual"])
+            string += "\n(planned: {}, actual: {})".format(internal_message["planned"], internal_message["actual"])
         elif planned:
-            string += "\n(planned: {}, actual: --".format(internal_message["planned"])
+            string += "\n(planned: {}, actual: --)".format(internal_message["planned"])
         internal_message["string"] = string
         logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))
         self.score += score

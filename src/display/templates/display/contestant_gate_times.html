@@ -2,6 +2,7 @@
 {% load guardian_tags %}
 {% block content %}
     <H1>Gate times for {{ object }}</H1>
+    <h2>Total score: {{ object.contestanttrack.score }}</h2>
     <table class="table table-condensed">
         <thead>
         <tr>
@@ -9,6 +10,7 @@
             <th>Planned time</th>
             <th>Actual time</th>
             <th>Offset (s)</th>
+            <th>Log</th>
         </tr>
         </thead>
         {% with gate_times=object.gate_times %}
@@ -19,7 +21,14 @@
                     <td>{% if object.contestanttrack.gate_actual_times|dict_key:gate.name %}
                         {{ object.contestanttrack.gate_actual_times|dict_key:gate.name|date:"H:i:s" }}{% else %}
                         --{% endif %}</td>
-                <td>{{ object|gate_time_offset:gate.name }}</td>
+                    <td>{{ object|gate_time_offset:gate.name }}</td>
+                    <td>
+                        {% with gate_log=log|dict_key:gate.name %}
+                            {% for item in gate_log %}
+                                {{ item }}<br/>
+                            {% endfor %}
+                        {% endwith %}
+                    </td>
                 </tr>
             {% endfor %}
         {% endwith %}

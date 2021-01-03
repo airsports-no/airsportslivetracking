@@ -346,6 +346,17 @@ class ContestantGateTimesView(GuardianPermissionRequiredMixin, DetailView):
     permission_required = ("view_contest",)
     template_name = "display/contestant_gate_times.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if hasattr(self.object, "contestanttrack"):
+            contestant_track = self.object.contestanttrack
+            log = {}
+            for item in contestant_track.score_log:
+                if item["gate"] not in log:
+                    log[item["gate"]] = []
+                log[item["gate"]].append("{} points {}".format(item["points"], item["message"]))
+            context["log"] = log
+        return context
 
 class ContestantUpdateView(GuardianPermissionRequiredMixin, UpdateView):
     form_class = ContestantForm
