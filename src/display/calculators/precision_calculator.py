@@ -91,7 +91,6 @@ class PrecisionCalculator(Calculator):
                 if gate.gate_check:
                     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None,
                                                                                self.basic_score_override)
-                    string = "{} points for missing gate".format(score)
                     self.update_score(gate, score, "missing gate", current_position.latitude,
                                       current_position.longitude, "anomaly", planned=gate.expected_time)
                     # Commented out because of A.2.2.16
