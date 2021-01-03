@@ -15,7 +15,8 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 
 from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
-    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR
+    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR, \
+    BasicScoreOverride
 from display.traccar_factory import get_traccar_instance
 from display.waypoint import Waypoint
 
@@ -110,6 +111,15 @@ class RouteSerialiser(serializers.ModelSerializer):
         instance.landing_gate = self._create_waypoint(validated_data.get("landing_gate"))
         instance.takeoff_gate = self._create_waypoint(validated_data.get("takeoff_gate"))
         return instance
+
+
+class BasicScoreOverrideSerialiser(serializers.ModelSerializer):
+    for_gate_types = serializers.JSONField(
+        help_text="List of gates types (eg. tp, secret, sp) that should be overridden (all lower case)")
+
+    class Meta:
+        model = BasicScoreOverride
+        exclude = ("navigation_task", "scorecard")
 
 
 class AeroplaneSerialiser(serializers.ModelSerializer):
@@ -426,7 +436,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-
+    basicscoreoverride = BasicScoreOverrideSerialiser(required = False)
     route_file = serializers.CharField(write_only=True, required=True,
                                        help_text="Base64 encoded gpx file")
     use_procedure_turns = serializers.BooleanField(initial=True, required=False,
@@ -451,6 +461,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             contestant_set = validated_data.pop("contestant_set", [])
             route_file = validated_data.pop("route_file", None)
             use_procedure_turns = validated_data.pop("use_procedure_turns", True)
+            basic_score_override = validated_data.pop("basicscoreoverride", None)
             route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")), use_procedure_turns)
             user = self.context["request"].user
             validated_data["contest"] = self.context["contest"]
@@ -460,6 +471,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             assign_perm("change_route", user, route)
             print(self.context)
             navigation_task = NavigationTask.objects.create(**validated_data)
+            if basic_score_override is not None:
+                BasicScoreOverride.objects.create(**basic_score_override, navigation_task=navigation_task)
             for contestant_data in contestant_set:
                 if "scorecard" not in contestant_data:
                     if navigation_task.scorecard is None:
