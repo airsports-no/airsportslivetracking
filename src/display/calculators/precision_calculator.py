@@ -104,6 +104,7 @@ class PrecisionCalculator(Calculator):
                 index += 1
                 if gate.time_check:
                     time_difference = (gate.passing_time - gate.expected_time).total_seconds()
+                    # logger.info("Time difference at gate {}: {}".format(gate.name, time_difference))
                     self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
                     gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time,
                                                                                     gate.passing_time,

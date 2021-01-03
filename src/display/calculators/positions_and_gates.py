@@ -66,7 +66,6 @@ class Gate:
     def is_passed_in_correct_direction_bearing_from_previous(self, track_bearing) -> bool:
         return abs(bearing_difference(track_bearing, self.bearing_from_previous)) < 90
 
-
     def is_passed_in_correct_direction_bearing_to_next(self, track_bearing) -> bool:
         return abs(bearing_difference(track_bearing, self.bearing)) < 90
 
@@ -81,7 +80,6 @@ class Gate:
             return self.is_passed_in_correct_direction_bearing_to_next(
                 calculate_bearing((track[-2].latitude, track[-2].longitude), (track[-1].latitude, track[-1].longitude)))
         return False
-
 
     def get_gate_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
         if len(track) > 2:
@@ -101,6 +99,13 @@ class Gate:
         return None
 
 
+def round_seconds(stamp: datetime) -> datetime:
+    new_stamp = stamp
+    if stamp.microsecond >= 500000:
+        new_stamp = stamp + timedelta(seconds=1)
+    return new_stamp.replace(microsecond=0)
+
+
 def get_intersect_time(projector: Projector, track_segment_start: Position, track_segment_finish: Position, gate_start,
                        gate_finish) -> \
         Optional[datetime]:
@@ -117,5 +122,11 @@ def get_intersect_time(projector: Projector, track_segment_start: Position, trac
                                    (track_segment_finish.latitude, track_segment_finish.longitude),
                                    intersection)
         time_difference = (track_segment_finish.time - track_segment_start.time).total_seconds()
-        return track_segment_start.time + timedelta(seconds=fraction * time_difference)
+        intersection_time = track_segment_start.time + timedelta(seconds=fraction * time_difference)
+        # logger.info("Previous position time: {}".format(track_segment_start.time))
+        # logger.info("Next position time: {}".format(track_segment_finish.time))
+        # logger.info("Time difference is: {}".format(time_difference))
+        # logger.info("Fraction is: {}".format(fraction))
+        # logger.info("Which gives the time: {}".format(intersection_time))
+        return round_seconds(intersection_time)
     return None
