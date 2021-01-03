@@ -104,7 +104,7 @@ class TestFullTrack(TransactionTestCase):
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(2000, contestant_track.score)
+        self.assertEqual(1800, contestant_track.score)
 
     def test_missed_procedure_turn(self):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
@@ -119,7 +119,10 @@ class TestFullTrack(TransactionTestCase):
         self.assertTrue("TP4: 200 points incorrect procedure turn" in strings)
         # This is a bit in question, but I think it is correct since he never crosses the extended gate line
         # The procedure turn is performed before the gate which causes backtracking, but also a miss
-        self.assertTrue("TP6: 200 points missing procedure turn" in strings)
+        # According to A.2.2.16 the should be no penalty for missing the procedure turn if the extended gate line
+        # is not crossed.
+        # self.assertTrue("TP6: 200 points missing procedure turn" in strings)
+        self.assertFalse("TP6: 200 points missing procedure turn" in strings)
 
 
 class Test2017WPFC(TransactionTestCase):
@@ -218,5 +221,5 @@ class TestNM2019(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1200,
+        self.assertEqual(1000,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
