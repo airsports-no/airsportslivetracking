@@ -114,8 +114,7 @@ class RouteSerialiser(serializers.ModelSerializer):
 
 
 class BasicScoreOverrideSerialiser(serializers.ModelSerializer):
-    for_gate_types = serializers.JSONField(
-        help_text="List of gates types (eg. tp, secret, sp) that should be overridden (all lower case)")
+    for_gate_types = serializers.JSONField()
 
     class Meta:
         model = BasicScoreOverride

@@ -470,7 +470,8 @@ class GateScore(models.Model):
 class BasicScoreOverride(models.Model):
     navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE)
     scorecard = models.ForeignKey(Scorecard, null=True, blank=True, on_delete=models.CASCADE)
-    for_gate_types = MyPickledObjectField(default=list)
+    for_gate_types = MyPickledObjectField(default=list,
+                                          help_text="List of gates types (eg. tp, secret, sp) that should be overridden (all lower case)")
     takeoff_gate_duration = models.FloatField(default=None, blank=True, null=True,
                                               help_text="The time after takeoff time where the gate awards 0 penalties")
     checkpoint_grace_period = models.FloatField(default=None, blank=True, null=True,
