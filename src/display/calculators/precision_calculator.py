@@ -67,8 +67,10 @@ class PrecisionCalculator(Calculator):
 
     def calculate_score(self):
         self.check_intersections()
-        self.calculate_gate_score()
+        # Need to do the track score first since this might declare the remaining gates as missed if we are done
+        # with the track. We can then calculate gate score and consider the missed gates.
         self.calculate_track_score()
+        self.calculate_gate_score()
 
     def update_current_leg(self, current_leg):
         if current_leg:
