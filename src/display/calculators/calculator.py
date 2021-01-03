@@ -71,6 +71,10 @@ class Calculator(threading.Thread):
                                  calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
                                                          self.scorecard,
                                                          self.basic_score_override)) if self.contestant.navigation_task.route.landing_gate else None
+        if self.landing_gate:
+            # If there is a landing gate we need to include this so that it can be scored and we do not terminate the
+            # tracker until this has been passed.
+            self.gates.append(self.landing_gate)
         self.outstanding_gates = list(self.gates)
 
     def run(self):
