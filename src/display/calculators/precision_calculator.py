@@ -1,9 +1,8 @@
 import logging
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from display.calculators.calculator import Calculator
-from display.calculators.calculator_utilities import distance_between_gates, cross_track_gate, along_track_gate, \
-    bearing_between
+from display.calculators.calculator_utilities import distance_between_gates, bearing_between
 from display.coordinate_utilities import get_heading_difference, calculate_distance_lat_lon
 from display.models import Contestant
 
@@ -95,12 +94,12 @@ class PrecisionCalculator(Calculator):
                                       current_position.longitude, "anomaly", planned=gate.expected_time)
                     # Commented out because of A.2.2.16
                     # if gate.is_procedure_turn and not gate.extended_passing_time:
-                        # Penalty if not crossing extended procedure turn turning point, then the procedure turn was per definition not performed
-                        # score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type,
-                        #                                                                 self.basic_score_override)
-                        # self.update_score(gate, score,
-                        #                   "missing procedure turn",
-                        #                   current_position.latitude, current_position.longitude, "anomaly")
+                    # Penalty if not crossing extended procedure turn turning point, then the procedure turn was per definition not performed
+                    # score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type,
+                    #                                                                 self.basic_score_override)
+                    # self.update_score(gate, score,
+                    #                   "missing procedure turn",
+                    #                   current_position.latitude, current_position.longitude, "anomaly")
             elif gate.passing_time is not None:
                 index += 1
                 if gate.time_check:
@@ -212,8 +211,9 @@ class PrecisionCalculator(Calculator):
             if bearing_difference > self.scorecard.backtracking_bearing_difference:
                 if self.tracking_state == self.TRACKING:
                     # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
-                    is_grace_time_after_steep_turn = self.last_gate.is_steep_turn and (
-                            last_position.time - self.last_gate.passing_time).total_seconds() < self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds()
+                    is_grace_time_after_steep_turn = self.last_gate.infinite_passing_time is not None and self.last_gate.is_steep_turn and (
+                            last_position.time - self.last_gate.infinite_passing_time).total_seconds() < self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds(
+                        self.last_gate.type, self.basic_score_override)
                     is_grace_distance_after_turn = calculate_distance_lat_lon(
                         (self.last_gate.latitude, self.last_gate.longitude),
                         (last_position.latitude,
