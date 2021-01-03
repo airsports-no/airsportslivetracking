@@ -18,5 +18,5 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
         contestant = Contestant.objects.get(pk=contestant_pk)
     except ObjectDoesNotExist:
         logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
-        raise
+        return
     insert_gpx_file(contestant, base64.decodebytes(gpx_file.encode("utf-8")), influx)
