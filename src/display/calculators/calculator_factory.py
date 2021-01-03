@@ -8,6 +8,6 @@ from display.calculators.precision_calculator import PrecisionCalculator
 from display.models import NavigationTask
 
 
-def calculator_factory(contestant: "Contestant", influx: "InfluxFacade") -> "Calculator":
+def calculator_factory(contestant: "Contestant", influx: "InfluxFacade", live_processing: bool = True) -> "Calculator":
     if contestant.navigation_task.calculator_type == NavigationTask.PRECISION:
-        return PrecisionCalculator(contestant, influx)
+        return PrecisionCalculator(contestant, influx, live_processing=live_processing)

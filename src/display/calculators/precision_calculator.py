@@ -1,3 +1,4 @@
+import datetime
 import logging
 from typing import TYPE_CHECKING
 
@@ -31,8 +32,8 @@ class PrecisionCalculator(Calculator):
         BACKTRACKING_TEMPORARY: "Off-track"
     })
 
-    def __init__(self, contestant: "Contestant", influx: "InfluxFacade"):
-        super().__init__(contestant, influx)
+    def __init__(self, contestant: "Contestant", influx: "InfluxFacade", live_processing: bool = True):
+        super().__init__(contestant, influx, live_processing=live_processing)
         self.current_procedure_turn_gate = None
         self.current_procedure_turn_directions = []
         self.current_procedure_turn_slices = []
@@ -149,6 +150,12 @@ class PrecisionCalculator(Calculator):
             logger.info("{}: Speed is 0, terminating".format(self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
+        if self.live_processing and datetime.datetime.utcnow() > self.contestant.finished_by_time:
+            self.miss_outstanding_gates()
+            logger.info("{}: Current time {} is beyond contestant finish time {}, terminating".format(
+                datetime.datetime.utcnow(), self.contestant.finished_by_time, self.contestant))
+            self.update_tracking_state(self.FINISHED)
+            return
         look_back = 1
         start_index = max(finish_index - look_back, 0)
         just_passed_gate = self.last_gate != self.last_gate_previous_round
@@ -164,7 +171,7 @@ class PrecisionCalculator(Calculator):
         bearing_difference = abs(get_heading_difference(bearing, self.last_gate.bearing))
         # Do not perform track evaluation between multiple subsequent tracks. This means that between iFP and iSP the
         # contestant is free to do whatever he wants.
-        if not self.between_tracks and self.last_gate.type in ("ifp", "ildg", "ito"):
+        if not self.between_tracks and self.last_gate.type in ("ifp", "ildg", "ito", "fp"):
             self.between_tracks = True
             logger.info("Past intermediate finish point, stop track evaluation")
         if self.between_tracks and self.last_gate.type == "isp":

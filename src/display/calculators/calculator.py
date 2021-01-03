@@ -31,9 +31,10 @@ class Calculator(threading.Thread):
         TAKEOFF: "Takeoff"
     }
 
-    def __init__(self, contestant: "Contestant", influx: "InfluxFacade"):
+    def __init__(self, contestant: "Contestant", influx: "InfluxFacade", live_processing: bool = True):
         super().__init__()
         self.loop_time = 60
+        self.live_processing = live_processing
         self.contestant = contestant
         self.influx = influx
         self.track = []  # type: List[Position]
@@ -78,7 +79,11 @@ class Calculator(threading.Thread):
             self.process_event.clear()
             while len(self.pending_points) > 0:
                 with self.position_update_lock:
-                    self.track.append(self.pending_points.pop(0))
+                    data = self.pending_points.pop(0)
+                    if data is None:
+                        self.update_tracking_state(self.FINISHED)
+                        continue
+                    self.track.append(data)
                 if len(self.track) > 1:
                     self.calculate_score()
         logger.info("Terminating calculator for {}".format(self.contestant))
@@ -203,7 +208,7 @@ class Calculator(threading.Thread):
                                                                                                      extended_next_gate))
 
             if extended_next_gate.type not in (
-            "sp", "ildg", "ito", "ldg", "to") and not extended_next_gate.maybe_missed_time:
+                    "sp", "ildg", "ito", "ldg", "to") and not extended_next_gate.maybe_missed_time:
                 intersection_time = extended_next_gate.get_gate_infinite_intersection_time(self.projector, self.track)
                 if intersection_time and extended_next_gate.is_passed_in_correct_direction_track_from_previous(
                         self.track):

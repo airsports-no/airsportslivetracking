@@ -65,17 +65,17 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx):
                 })
     generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
     influx.put_data(generated_positions)
-    calculator = calculator_factory(contestant_object, influx)
+    calculator = calculator_factory(contestant_object, influx, live_processing=False)
     calculator.start()
     new_positions = []
     for position in generated_positions:
         data = position["fields"]
         data["time"] = position["time"]
         new_positions.append(data)
+    new_positions.append(None)
     calculator.add_positions(new_positions)
     calculator.join()
     from display.models import CONTESTANT_CACHE_KEY
     key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant_object.pk)
     # logger.info("Clearing cache for {}".format(contestant))
     cache.delete_pattern(key)
-
