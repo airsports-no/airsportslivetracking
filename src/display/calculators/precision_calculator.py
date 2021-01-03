@@ -156,6 +156,11 @@ class PrecisionCalculator(Calculator):
                 datetime.datetime.utcnow(), self.contestant.finished_by_time, self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
+        if self.track_terminated:
+            self.miss_outstanding_gates()
+            logger.info("{}: This is the end of the track, terminating".format(self.contestant))
+            self.update_tracking_state(self.FINISHED)
+            return
         look_back = 1
         start_index = max(finish_index - look_back, 0)
         just_passed_gate = self.last_gate != self.last_gate_previous_round

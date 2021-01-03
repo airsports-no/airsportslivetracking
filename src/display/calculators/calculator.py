@@ -35,6 +35,7 @@ class Calculator(threading.Thread):
         super().__init__()
         self.loop_time = 60
         self.live_processing = live_processing
+        self.track_terminated = False
         self.contestant = contestant
         self.influx = influx
         self.track = []  # type: List[Position]
@@ -81,9 +82,10 @@ class Calculator(threading.Thread):
                 with self.position_update_lock:
                     data = self.pending_points.pop(0)
                     if data is None:
-                        self.update_tracking_state(self.FINISHED)
-                        continue
-                    self.track.append(data)
+                        # Signal the track processor that this is the end, and perform the track calculation
+                        self.track_terminated = True
+                    else:
+                        self.track.append(data)
                 if len(self.track) > 1:
                     self.calculate_score()
         logger.info("Terminating calculator for {}".format(self.contestant))
@@ -134,7 +136,8 @@ class Calculator(threading.Thread):
 
     def add_positions(self, positions):
         with self.position_update_lock:
-            self.pending_points.extend([Position(**position) for position in positions])
+            self.pending_points.extend(
+                [Position(**position) if position is not None else None for position in positions])
         self.process_event.set()
 
     def update_tracking_state(self, tracking_state: int):
