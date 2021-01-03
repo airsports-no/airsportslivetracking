@@ -145,6 +145,13 @@ class PrecisionCalculator(Calculator):
             logger.info("{}: This is the end of the track, terminating".format(self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if self.live_processing and now > self.contestant.finished_by_time:
+            self.miss_outstanding_gates()
+            logger.info("{}: Current time {} is beyond contestant finish time {}, terminating".format(
+                now, self.contestant.finished_by_time, self.contestant))
+            self.update_tracking_state(self.FINISHED)
+            return
         if not self.any_gate_passed():
             return
         last_position = self.track[-1]  # type: Position
@@ -153,13 +160,6 @@ class PrecisionCalculator(Calculator):
         if (speed == 0 or last_position.time > self.contestant.finished_by_time) and not self.all_gates_passed():
             self.miss_outstanding_gates()
             logger.info("{}: Speed is 0, terminating".format(self.contestant))
-            self.update_tracking_state(self.FINISHED)
-            return
-        now = datetime.datetime.now(datetime.timezone.utc)
-        if self.live_processing and now > self.contestant.finished_by_time:
-            self.miss_outstanding_gates()
-            logger.info("{}: Current time {} is beyond contestant finish time {}, terminating".format(
-                now, self.contestant.finished_by_time, self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
         look_back = 1
