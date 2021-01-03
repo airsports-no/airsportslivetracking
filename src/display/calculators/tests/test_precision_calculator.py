@@ -35,8 +35,8 @@ class TestFullTrack(TransactionTestCase):
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
                                                              contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.utcnow(),
-                                                                                            finish_time=datetime.datetime.utcnow()),
+                                                                                            start_time=datetime.datetime.now(datetime.timezone.utc),
+                                                                                            finish_time=datetime.datetime.now(datetime.timezone.utc)),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         from display.default_scorecards import default_scorecard_fai_precision_2020
@@ -55,12 +55,12 @@ class TestFullTrack(TransactionTestCase):
 
     def test_correct_scoring_correct_track_precision(self):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
-        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(144, contestant_track.score)
+        self.assertEqual(153, contestant_track.score)
 
     def test_score_override(self):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
@@ -73,7 +73,7 @@ class TestFullTrack(TransactionTestCase):
             checkpoint_not_found=100,
             missing_procedure_turn=100
         )
-        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
@@ -90,16 +90,16 @@ class TestFullTrack(TransactionTestCase):
                                                scorecard=self.scorecard, minutes_to_starting_point=6, air_speed=speed,
                                                wind_direction=165, wind_speed=8)
         positions = load_track_points("display/calculators/tests/Helge.gpx")
-        calculator = PrecisionCalculator(contestant, Mock())
+        calculator = PrecisionCalculator(contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
-        self.assertEqual(465, contestant_track.score)
+        self.assertEqual(471, contestant_track.score)
 
     def test_correct_scoring_bad_track_precision(self):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
-        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
@@ -108,7 +108,7 @@ class TestFullTrack(TransactionTestCase):
 
     def test_missed_procedure_turn(self):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
-        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
@@ -135,8 +135,8 @@ class Test2017WPFC(TransactionTestCase):
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
                                                              contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.utcnow(),
-                                                                                            finish_time=datetime.datetime.utcnow()),
+                                                                                            start_time=datetime.datetime.now(datetime.timezone.utc),
+                                                                                            finish_time=datetime.datetime.now(datetime.timezone.utc)),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
@@ -156,12 +156,12 @@ class Test2017WPFC(TransactionTestCase):
                                                     scorecard=self.scorecard, minutes_to_starting_point=8,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=18)
-        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1149,
+        self.assertEqual(1152,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
@@ -175,8 +175,8 @@ class TestNM2019(TransactionTestCase):
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
                                                              contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.utcnow(),
-                                                                                            finish_time=datetime.datetime.utcnow()),
+                                                                                            start_time=datetime.datetime.now(datetime.timezone.utc),
+                                                                                            finish_time=datetime.datetime.now(datetime.timezone.utc)),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
@@ -196,12 +196,12 @@ class TestNM2019(TransactionTestCase):
                                                     scorecard=self.scorecard, minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(672,
+        self.assertEqual(675,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
     def test_fredrik(self):
@@ -216,7 +216,7 @@ class TestNM2019(TransactionTestCase):
                                                     scorecard=self.scorecard, minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        calculator = PrecisionCalculator(self.contestant, Mock())
+        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(track)
         calculator.join()

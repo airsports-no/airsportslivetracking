@@ -16,8 +16,8 @@ class TestContestantGatesCalculation(TestCase):
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         self.navigation_task = NavigationTask.objects.create(name="NM navigation test",
                                                              route=route, contest=Contest.objects.create(name="contest",
-                                                                                                         start_time=datetime.datetime.utcnow(),
-                                                                                                         finish_time=datetime.datetime.utcnow()),
+                                                                                                         start_time=datetime.datetime.now(datetime.timezone.utc),
+                                                                                                         finish_time=datetime.datetime.now(datetime.timezone.utc)),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         scorecard = get_default_scorecard()

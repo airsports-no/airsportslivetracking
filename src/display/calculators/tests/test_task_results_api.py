@@ -16,8 +16,8 @@ class TestTaskResultsApi(APITestCase):
         permission = Permission.objects.get(codename="change_contest")
         self.user.user_permissions.add(permission)
         self.client.force_login(user=self.user)
-        self.contest = Contest.objects.create(name="NM 2020", start_time=datetime.datetime.utcnow(),
-                                              finish_time=datetime.datetime.utcnow())
+        self.contest = Contest.objects.create(name="NM 2020", start_time=datetime.datetime.now(datetime.timezone.utc),
+                                              finish_time=datetime.datetime.now(datetime.timezone.utc))
         assign_perm("display.change_contest", self.user, self.contest)
         assign_perm("display.view_contest", self.user, self.contest)
         self.aeroplane = Aeroplane.objects.create(registration="test")
@@ -118,8 +118,8 @@ class TestTaskResultsApi(APITestCase):
         self.assertEqual(246, TeamTestScore.objects.get(team=first_team, task_test__name="landing_four").points)
 
     def test_overwrite_task_results(self):
-        another_contest = Contest.objects.create(name="another NM 2020", start_time=datetime.datetime.utcnow(),
-                                                 finish_time=datetime.datetime.utcnow())
+        another_contest = Contest.objects.create(name="another NM 2020", start_time=datetime.datetime.now(datetime.timezone.utc),
+                                                 finish_time=datetime.datetime.now(datetime.timezone.utc))
         assign_perm("display.change_contest", self.user, another_contest)
         assign_perm("display.view_contest", self.user, another_contest)
         pilot = Person.get_or_create("Pilot", "Pilot", None, None)

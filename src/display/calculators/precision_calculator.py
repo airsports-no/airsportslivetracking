@@ -150,10 +150,11 @@ class PrecisionCalculator(Calculator):
             logger.info("{}: Speed is 0, terminating".format(self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
-        if self.live_processing and datetime.datetime.utcnow() > self.contestant.finished_by_time:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if self.live_processing and now > self.contestant.finished_by_time:
             self.miss_outstanding_gates()
             logger.info("{}: Current time {} is beyond contestant finish time {}, terminating".format(
-                datetime.datetime.utcnow(), self.contestant.finished_by_time, self.contestant))
+                now, self.contestant.finished_by_time, self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
         if self.track_terminated:

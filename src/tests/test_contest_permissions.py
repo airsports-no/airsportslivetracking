@@ -19,23 +19,23 @@ class TestCreateContest(APITestCase):
         self.base_url = reverse("contests-list")
 
     def test_create_contest_without_login(self):
-        result = self.client.post(self.base_url, data={"name": "TestContest", "start_time": datetime.datetime.utcnow(),
-                                                       "finish_time": datetime.datetime.utcnow()})
+        result = self.client.post(self.base_url, data={"name": "TestContest", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                                       "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_contest_without_privileges(self):
         self.client.force_login(user=self.user_without_permissions)
-        result = self.client.post(self.base_url, data={"name": "TestContest", "start_time": datetime.datetime.utcnow(),
-                                                       "finish_time": datetime.datetime.utcnow()})
+        result = self.client.post(self.base_url, data={"name": "TestContest", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                                       "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_contest_with_privileges(self):
         self.client.force_login(user=self.user_with_permissions)
         result = self.client.post(self.base_url, data={"name": "TestContest", "is_public": False,
-                                                       "start_time": datetime.datetime.utcnow(),
-                                                       "finish_time": datetime.datetime.utcnow()})
+                                                       "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                                       "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
@@ -55,8 +55,8 @@ class TestAccessContest(APITestCase):
 
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
-                                                                  "start_time": datetime.datetime.utcnow(),
-                                                                  "finish_time": datetime.datetime.utcnow()})
+                                                                  "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                                                  "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
@@ -82,8 +82,8 @@ class TestAccessContest(APITestCase):
     def test_put_contestant_from_other_user_with_permissions(self):
         self.client.force_login(user=self.different_user_with_object_permissions)
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
-                                 data={"name": "TestContest2", "start_time": datetime.datetime.utcnow(),
-                                       "finish_time": datetime.datetime.utcnow()})
+                                 data={"name": "TestContest2", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                       "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
@@ -122,16 +122,16 @@ class TestAccessContest(APITestCase):
     def test_modify_contest_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
-                                 data={"name": "TestContest2", "start_time": datetime.datetime.utcnow(),
-                                       "finish_time": datetime.datetime.utcnow()})
+                                 data={"name": "TestContest2", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                       "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_modify_contest_as_creator(self):
         self.client.force_login(user=self.user_owner)
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
-                                 data={"name": "TestContest2", "start_time": datetime.datetime.utcnow(),
-                                       "finish_time": datetime.datetime.utcnow()})
+                                 data={"name": "TestContest2", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                       "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
@@ -246,8 +246,8 @@ class TestTokenAuthentication(APITestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION='Token {}'.format(self.token.key))
         result = client.post(reverse("contests-list"),
-                             data={"name": "My test contest", "start_time": datetime.datetime.utcnow(),
-                                   "finish_time": datetime.datetime.utcnow()}, format="json"
+                             data={"name": "My test contest", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                   "finish_time": datetime.datetime.now(datetime.timezone.utc)}, format="json"
                              )
 
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
