@@ -152,6 +152,9 @@ class PrecisionCalculator(Calculator):
                 now, self.contestant.finished_by_time, self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
+        if not self.any_gate_passed():
+            return
+
         last_position = self.track[-1]  # type: Position
         finish_index = len(self.track) - 1
         speed = self.get_speed()
@@ -159,8 +162,6 @@ class PrecisionCalculator(Calculator):
             self.miss_outstanding_gates()
             logger.info("{}: Speed is 0, terminating".format(self.contestant))
             self.update_tracking_state(self.FINISHED)
-            return
-        if not self.any_gate_passed():
             return
         look_back = 1
         start_index = max(finish_index - look_back, 0)
