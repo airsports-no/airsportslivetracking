@@ -140,6 +140,11 @@ class PrecisionCalculator(Calculator):
     def calculate_track_score(self):
         if self.tracking_state == self.FINISHED:
             return
+        if self.track_terminated:
+            self.miss_outstanding_gates()
+            logger.info("{}: This is the end of the track, terminating".format(self.contestant))
+            self.update_tracking_state(self.FINISHED)
+            return
         if not self.any_gate_passed():
             return
         last_position = self.track[-1]  # type: Position
@@ -155,11 +160,6 @@ class PrecisionCalculator(Calculator):
             self.miss_outstanding_gates()
             logger.info("{}: Current time {} is beyond contestant finish time {}, terminating".format(
                 now, self.contestant.finished_by_time, self.contestant))
-            self.update_tracking_state(self.FINISHED)
-            return
-        if self.track_terminated:
-            self.miss_outstanding_gates()
-            logger.info("{}: This is the end of the track, terminating".format(self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
         look_back = 1
