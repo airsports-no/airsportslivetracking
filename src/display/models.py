@@ -471,14 +471,22 @@ class BasicScoreOverride(models.Model):
     navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE)
     scorecard = models.ForeignKey(Scorecard, null=True, blank=True, on_delete=models.CASCADE)
     for_gate_types = MyPickledObjectField(default=list)
-    takeoff_gate_duration = models.FloatField(default=None, blank=True, null=True)
-    checkpoint_grace_period = models.FloatField(default=None, blank=True, null=True)
-    checkpoint_points_per_second = models.FloatField(default=None, blank=True, null=True)
-    checkpoint_maximum_points = models.FloatField(default=None, blank=True, null=True)
-    checkpoint_not_found = models.FloatField(default=None, blank=True, null=True)
-    missing_procedure_turn = models.FloatField(default=None, blank=True, null=True)
-    bad_course_grace_time = models.FloatField(default=None, blank=True, null=True)
-    bad_course_penalty = models.FloatField(default=None, blank=True, null=True)
+    takeoff_gate_duration = models.FloatField(default=None, blank=True, null=True,
+                                              help_text="The time after takeoff time where the gate awards 0 penalties")
+    checkpoint_grace_period = models.FloatField(default=None, blank=True, null=True,
+                                                help_text="The time before and after a checkpoint that no penalties are awarded")
+    checkpoint_points_per_second = models.FloatField(default=None, blank=True, null=True,
+                                                     help_text="The number of points awarded per second outside of the grace period")
+    checkpoint_maximum_points = models.FloatField(default=None, blank=True, null=True,
+                                                  help_text="The maximum number of penalty points awarded for checkpoint timing")
+    checkpoint_not_found = models.FloatField(default=None, blank=True, null=True,
+                                             help_text="The penalty for missing a checkpoint")
+    missing_procedure_turn = models.FloatField(default=None, blank=True, null=True,
+                                               help_text="The penalty for missing a procedure turn")
+    bad_course_grace_time = models.FloatField(default=None, blank=True, null=True,
+                                              help_text="The number of seconds a bad course can be tolerated before generating a penalty")
+    bad_course_penalty = models.FloatField(default=None, blank=True, null=True,
+                                           help_text="A amount of points awarded for a bad course")
 
     def __str__(self):
         return "Basic score override for {}".format(self.navigation_task)
