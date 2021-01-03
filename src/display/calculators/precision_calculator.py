@@ -95,13 +95,13 @@ class PrecisionCalculator(Calculator):
                     self.update_score(gate, score, "missing gate", current_position.latitude,
                                       current_position.longitude, "anomaly", planned=gate.expected_time)
                     # Commented out because of A.2.2.16
-                    if gate.is_procedure_turn and not gate.extended_passing_time:
+                    # if gate.is_procedure_turn and not gate.extended_passing_time:
                         # Penalty if not crossing extended procedure turn turning point, then the procedure turn was per definition not performed
-                        score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type,
-                                                                                        self.basic_score_override)
-                        self.update_score(gate, score,
-                                          "missing procedure turn",
-                                          current_position.latitude, current_position.longitude, "anomaly")
+                        # score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type,
+                        #                                                                 self.basic_score_override)
+                        # self.update_score(gate, score,
+                        #                   "missing procedure turn",
+                        #                   current_position.latitude, current_position.longitude, "anomaly")
             elif gate.passing_time is not None:
                 index += 1
                 if gate.time_check:
