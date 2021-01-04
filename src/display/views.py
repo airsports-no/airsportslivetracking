@@ -358,6 +358,7 @@ class ContestantGateTimesView(GuardianPermissionRequiredMixin, DetailView):
             context["log"] = log
         return context
 
+
 class ContestantUpdateView(GuardianPermissionRequiredMixin, UpdateView):
     form_class = ContestantForm
     model = Contestant
@@ -742,7 +743,10 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         club.country = club_data["country"]
         club.save()
         team, created_team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
-        ContestTeam.objects.get_or_create(contest=contest, team=team, defaults=tracking_data)
+        ct, _ = ContestTeam.objects.get_or_create(contest=contest, team=team, defaults=tracking_data)
+        if ct.tracking_service == TRACCAR and ct.tracker_device_id and len(ct.tracker_device_id) > 0:
+            traccar = get_traccar_instance()
+            traccar.get_or_create_device(ct.tracker_device_id, ct.tracker_device_id)
         if affected_contestants is not None:
             affected_contestants.update(team=team)
         return HttpResponseRedirect(reverse("team_update", kwargs={"contest_pk": contest_pk, "pk": team.pk}))
