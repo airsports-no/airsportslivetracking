@@ -158,6 +158,7 @@ class PrecisionCalculator(Calculator):
         last_position = self.track[-1]  # type: Position
         finish_index = len(self.track) - 1
         speed = self.get_speed()
+        # TODO: Check that we have had speed greater than 0, but maybe that is not enough for taxiing and waiting
         if (speed == 0 or last_position.time > self.contestant.finished_by_time) and not self.all_gates_passed():
             self.miss_outstanding_gates()
             logger.info("{}: Speed is 0, terminating".format(self.contestant))

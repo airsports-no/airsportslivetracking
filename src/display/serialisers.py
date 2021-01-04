@@ -114,7 +114,8 @@ class RouteSerialiser(serializers.ModelSerializer):
 
 
 class BasicScoreOverrideSerialiser(serializers.ModelSerializer):
-    for_gate_types = serializers.JSONField()
+    for_gate_types = serializers.JSONField(
+        help_text="List of gates types (eg. tp, secret, sp) that should be overridden (all lower case)")
 
     class Meta:
         model = BasicScoreOverride
@@ -219,7 +220,7 @@ class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         club_data = validated_data.pop("club", None)
         if club_data:
             try:
-                club_instance = Club.objects.get(pk=club_data.get("id"))
+                club_instance = Club.objects.get(name=club_data.get("name"))
             except ObjectDoesNotExist:
                 club_instance = None
             club_serialiser = ClubSerialiser(instance=club_instance, data=club_data)
@@ -435,7 +436,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-    basicscoreoverride = BasicScoreOverrideSerialiser(required = False)
+    basicscoreoverride = BasicScoreOverrideSerialiser(required=False)
     route_file = serializers.CharField(write_only=True, required=True,
                                        help_text="Base64 encoded gpx file")
     use_procedure_turns = serializers.BooleanField(initial=True, required=False,
