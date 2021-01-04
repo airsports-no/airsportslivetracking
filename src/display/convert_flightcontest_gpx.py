@@ -99,10 +99,10 @@ def create_route_from_gpx(file, use_procedure_turns: bool) -> Route:
     return object
 
 
-def calculate_extended_gate(waypoint: Waypoint, scorecard: "Scorecard", score_override: "BasicScoreOverride") -> Tuple[
+def calculate_extended_gate(waypoint: Waypoint, scorecard: "Scorecard", contestant: "Contestant") -> Tuple[
     Tuple[float, float], Tuple[float, float]]:
     return extend_line(waypoint.gate_line[0], waypoint.gate_line[1],
-                       scorecard.get_extended_gate_width_for_gate_type(waypoint.type, score_override))
+                       scorecard.get_extended_gate_width_for_gate_type(waypoint.type, contestant))
 
 
 def build_waypoint(name, latitude, longitude, type, width, time_check, gate_check):

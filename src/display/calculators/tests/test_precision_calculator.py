@@ -7,7 +7,7 @@ from django.test import TestCase, TransactionTestCase
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew, \
-    Contest, Person, BasicScoreOverride
+    Contest, Person, TrackScoreOverride, GateScoreOverride
 from display.views import create_route_from_csv
 
 
@@ -35,8 +35,10 @@ class TestFullTrack(TransactionTestCase):
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
                                                              contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.now(datetime.timezone.utc),
-                                                                                            finish_time=datetime.datetime.now(datetime.timezone.utc)),
+                                                                                            start_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc),
+                                                                                            finish_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc)),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         from display.default_scorecards import default_scorecard_fai_precision_2020
@@ -64,15 +66,19 @@ class TestFullTrack(TransactionTestCase):
 
     def test_score_override(self):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
-        BasicScoreOverride.objects.create(
-            navigation_task_id=self.navigation_task.pk,
+        track_override = TrackScoreOverride.objects.create()
+        gate_override = GateScoreOverride.objects.create(
             for_gate_types=["sp", "tp", "fp", "secret"],
-            checkpoint_grace_period=10,
-            checkpoint_points_per_second=1,
-            checkpoint_maximum_points=100,
+            checkpoint_grace_period_after=10,
+            checkpoint_grace_period_before=10,
+            checkpoint_penalty_per_second=1,
+            checkpoint_maximum_penalty=100,
             checkpoint_not_found=100,
-            missing_procedure_turn=100
+            missing_procedure_turn_penalty=100
         )
+        self.contestant.track_score_override = track_override
+        self.contestant.save()
+        self.contestant.gate_score_override.add(gate_override)
         calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
@@ -135,8 +141,10 @@ class Test2017WPFC(TransactionTestCase):
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
                                                              contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.now(datetime.timezone.utc),
-                                                                                            finish_time=datetime.datetime.now(datetime.timezone.utc)),
+                                                                                            start_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc),
+                                                                                            finish_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc)),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
@@ -175,8 +183,10 @@ class TestNM2019(TransactionTestCase):
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
                                                              contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.now(datetime.timezone.utc),
-                                                                                            finish_time=datetime.datetime.now(datetime.timezone.utc)),
+                                                                                            start_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc),
+                                                                                            finish_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc)),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))

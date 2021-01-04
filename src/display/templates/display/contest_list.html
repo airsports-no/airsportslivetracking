@@ -44,7 +44,7 @@
                         {% if "change_contest" in contest_permissions %}
                             <br/><a href="{% url 'navigationtask_delete' object.pk %}">delete</a>
                             | <a href="{% url 'navigationtask_update' object.pk %}">update</a>
-                            | <a href="{% url 'navigationtask_scoreoverride' object.pk %}">Score override</a>
+{#                            | <a href="{% url 'navigationtask_scoreoverride' object.pk %}">Score override</a>#}
                         {% endif %}
                     </td>
                 </tr>

@@ -17,7 +17,7 @@ from rest_framework.test import APITestCase, APITransactionTestCase
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Contest, NavigationTask, Team, Crew, Person, Aeroplane, Contestant, ContestTeam, \
-    BasicScoreOverride
+    TrackScoreOverride, GateScoreOverride
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 
 data_with_gate_times = {"name": "3. Nav.", "calculator_type": 0, "start_time": "2017-08-01T06:15:00Z",
@@ -687,18 +687,54 @@ class TestImportFCNavigationTask(APITransactionTestCase):
 
     def test_basic_score_override(self, patch):
         other_data = deepcopy(self.data)
-        other_data["basicscoreoverride"] = {
-            "for_gate_types": ["tp"],
-            "takeoff_gate_duration": 5
+        other_data["track_score_override"] = {
+            "bad_course_penalty": 123
         }
+        other_data["gate_score_override"] = [{
+            "for_gate_types": ["tp"],
+            "checkpoint_grace_period_before": 21
+        }]
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), other_data, format="json")
         print(res.content)
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
-        self.assertEqual(1, BasicScoreOverride.objects.all().count())
-        override = BasicScoreOverride.objects.first()  # type: BasicScoreOverride
+        self.assertEqual(1, TrackScoreOverride.objects.all().count())
+        track_override = TrackScoreOverride.objects.first()  # type: TrackScoreOverride
+        self.assertEqual(123, track_override.bad_course_penalty)
+        self.assertEqual(1, GateScoreOverride.objects.all().count())
+        override = GateScoreOverride.objects.first()  # type: GateScoreOverride
         self.assertListEqual(["tp"], override.for_gate_types)
-        self.assertEqual(5, override.takeoff_gate_duration)
+        self.assertEqual(21, override.checkpoint_grace_period_before)
+        for contestant in Contestant.objects.all():
+            self.assertEqual(track_override, contestant.track_score_override)
+            self.assertListEqual([override], list(contestant.gate_score_override.all()))
+
+    def test_contestant_score_override(self, patch):
+        other_data = deepcopy(self.data)
+        other_data["contestant_set"][0]["track_score_override"] = {
+            "bad_course_penalty": 123
+        }
+        other_data["contestant_set"][0]["gate_score_override"] = [{
+            "for_gate_types": ["tp"],
+            "checkpoint_grace_period_before": 21
+        }]
+        res = self.client.post(
+            "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), other_data, format="json")
+        print(res.content)
+        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
+        self.assertEqual(1, TrackScoreOverride.objects.all().count())
+        track_override = TrackScoreOverride.objects.first()  # type: TrackScoreOverride
+        self.assertEqual(123, track_override.bad_course_penalty)
+        self.assertEqual(1, GateScoreOverride.objects.all().count())
+        override = GateScoreOverride.objects.first()  # type: GateScoreOverride
+        self.assertListEqual(["tp"], override.for_gate_types)
+        self.assertEqual(21, override.checkpoint_grace_period_before)
+        contestant = Contestant.objects.get(contestant_number=0)
+        self.assertEqual(track_override, contestant.track_score_override)
+        self.assertListEqual([override], list(contestant.gate_score_override.all()))
+        contestant = Contestant.objects.get(contestant_number=1)
+        self.assertEqual(None, contestant.track_score_override)
+        self.assertListEqual([], list(contestant.gate_score_override.all()))
 
     def test_import_preexisting_phone(self, patch):
         person = Person.objects.create(first_name="first", last_name="last", phone="+4773215338")

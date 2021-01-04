@@ -60,7 +60,7 @@ class PrecisionCalculator(Calculator):
                 if not self.starting_line.is_passed_in_correct_direction_track_to_next(self.track):
                     # Add penalty for crossing in the wrong direction
                     score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp",
-                                                                                                self.basic_score_override)
+                                                                                                self.contestant)
                     self.update_score(self.starting_line, score,
                                       "crossing extended starting gate backwards",
                                       self.track[-1].latitude, self.track[-1].longitude, "anomaly")
@@ -91,15 +91,14 @@ class PrecisionCalculator(Calculator):
             if gate.missed:
                 index += 1
                 if gate.gate_check:
-                    score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None,
-                                                                               self.basic_score_override)
+                    score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant, gate.expected_time, None)
                     self.update_score(gate, score, "missing gate", current_position.latitude,
                                       current_position.longitude, "anomaly", planned=gate.expected_time)
                     # Commented out because of A.2.2.16
                     # if gate.is_procedure_turn and not gate.extended_passing_time:
                     # Penalty if not crossing extended procedure turn turning point, then the procedure turn was per definition not performed
                     # score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type,
-                    #                                                                 self.basic_score_override)
+                    #                                                                 self.contestant)
                     # self.update_score(gate, score,
                     #                   "missing procedure turn",
                     #                   current_position.latitude, current_position.longitude, "anomaly")
@@ -109,9 +108,8 @@ class PrecisionCalculator(Calculator):
                     time_difference = (gate.passing_time - gate.expected_time).total_seconds()
                     # logger.info("Time difference at gate {}: {}".format(gate.name, time_difference))
                     self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
-                    gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time,
-                                                                                    gate.passing_time,
-                                                                                    self.basic_score_override)
+                    gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant, gate.expected_time,
+                                                                                    gate.passing_time)
                     self.update_score(gate, gate_score,
                                       "passing gate",
                                       current_position.latitude, current_position.longitude, "information",
@@ -221,7 +219,7 @@ class PrecisionCalculator(Calculator):
                     if abs(total_turn - self.current_procedure_turn_bearing_difference) >= 60:
                         self.update_tracking_state(self.FAILED_PROCEDURE_TURN)
                         score = self.scorecard.get_procedure_turn_penalty_for_gate_type(
-                            self.current_procedure_turn_gate.type, self.basic_score_override)
+                            self.current_procedure_turn_gate.type, self.contestant)
                         self.update_score(self.current_procedure_turn_gate, score,
                                           "incorrect procedure turn",
                                           last_position.latitude, last_position.longitude, "anomaly")
@@ -231,17 +229,17 @@ class PrecisionCalculator(Calculator):
                     # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
                     is_grace_time_after_steep_turn = self.last_gate.infinite_passing_time is not None and self.last_gate.is_steep_turn and (
                             last_position.time - self.last_gate.infinite_passing_time).total_seconds() < self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds(
-                        self.last_gate.type, self.basic_score_override)
+                        self.last_gate.type, self.contestant)
                     is_grace_distance_after_turn = calculate_distance_lat_lon(
                         (self.last_gate.latitude, self.last_gate.longitude),
                         (last_position.latitude,
                          last_position.longitude)) / 1852 < self.scorecard.get_backtracking_after_gate_grace_period_nm(
-                        self.last_gate.type, self.basic_score_override)
+                        self.last_gate.type, self.contestant)
                     if not is_grace_time_after_steep_turn and not is_grace_distance_after_turn:
                         logger.info(
                             "{} {}: Started backtracking, let's see if this goes on for more than {} seconds".format(
                                 self.contestant, last_position.time,
-                                self.scorecard.get_backtracking_grace_time_seconds(self.basic_score_override)))
+                                self.scorecard.get_backtracking_grace_time_seconds(self.contestant)))
                         self.backtracking_start_time = last_position.time
                         self.update_tracking_state(self.BACKTRACKING_TEMPORARY)
                     elif is_grace_distance_after_turn:
@@ -250,21 +248,21 @@ class PrecisionCalculator(Calculator):
                                                                                                   last_position.time,
                                                                                                   self.scorecard.get_backtracking_after_gate_grace_period_nm(
                                                                                                       self.last_gate.type,
-                                                                                                      self.basic_score_override)))
+                                                                                                      self.contestant)))
                     elif is_grace_time_after_steep_turn:
                         logger.info(
                             "{} {}: Backtracking within {} seconds of passing a gate with steep turn, ignoring".format(
                                 self.contestant,
                                 last_position.time,
                                 self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds(
-                                    self.last_gate.type)))
+                                    self.last_gate.type, self.contestant)))
                 if self.tracking_state == self.BACKTRACKING_TEMPORARY:
                     if (
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.get_backtracking_grace_time_seconds(
-                        self.basic_score_override):
+                        self.contestant):
                         self.update_tracking_state(self.BACKTRACKING)
                         self.update_score(self.last_gate,
-                                          self.scorecard.get_backtracking_penalty(self.basic_score_override),
+                                          self.scorecard.get_backtracking_penalty(self.contestant),
                                           "backtracking",
                                           last_position.latitude, last_position.longitude, "anomaly")
             else:

@@ -37,10 +37,9 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
     create_route_from_formset
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
-    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, BasicScoreOverrideForm, TURNPOINT, SECRETPOINT, \
-    STARTINGPOINT, FINISHPOINT, TrackingDataForm
+    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
-    Person, Aeroplane, Club, Crew, BasicScoreOverride, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
+    Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
     TeamTestScore, TRACCAR
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
@@ -317,18 +316,18 @@ class NavigationTaskUpdateView(GuardianPermissionRequiredMixin, UpdateView):
         return self.get_object().contest
 
 
-class BasicScoreOverrideUpdateView(GuardianPermissionRequiredMixin, UpdateView):
-    model = BasicScoreOverride
-    permission_required = ("change_contest",)
-    form_class = BasicScoreOverrideForm
-    success_url = reverse_lazy("contest_list")
-
-    def get_permission_object(self):
-        return self.get_object().navigation_task.contest
-
-    def get_object(self, queryset=None):
-        return self.model.objects.get_or_create(navigation_task_id=self.kwargs["pk"], defaults={
-            "for_gate_types": [TURNPOINT, SECRETPOINT, STARTINGPOINT, FINISHPOINT]})[0]
+# class BasicScoreOverrideUpdateView(GuardianPermissionRequiredMixin, UpdateView):
+#     model = BasicScoreOverride
+#     permission_required = ("change_contest",)
+#     form_class = BasicScoreOverrideForm
+#     success_url = reverse_lazy("contest_list")
+#
+#     def get_permission_object(self):
+#         return self.get_object().navigation_task.contest
+#
+#     def get_object(self, queryset=None):
+#         return self.model.objects.get_or_create(navigation_task_id=self.kwargs["pk"], defaults={
+#             "for_gate_types": [TURNPOINT, SECRETPOINT, STARTINGPOINT, FINISHPOINT]})[0]
 
 
 class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):

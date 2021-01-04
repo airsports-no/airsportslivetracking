@@ -16,7 +16,7 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
     Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR, \
-    BasicScoreOverride
+    GateScoreOverride, TrackScoreOverride
 from display.traccar_factory import get_traccar_instance
 from display.waypoint import Waypoint
 
@@ -113,13 +113,19 @@ class RouteSerialiser(serializers.ModelSerializer):
         return instance
 
 
-class BasicScoreOverrideSerialiser(serializers.ModelSerializer):
+class GateScoreOverrideSerialiser(serializers.ModelSerializer):
     for_gate_types = serializers.JSONField(
-        help_text="List of gates types (eg. tp, secret, sp) that should be overridden (all lower case)")
+        help_text='List of gates types (eg. ["tp", "secret", "sp"]) that should be overridden (all lower case)')
 
     class Meta:
-        model = BasicScoreOverride
-        exclude = ("navigation_task", "scorecard")
+        model = GateScoreOverride
+        fields = "__all__"
+
+
+class TrackScoreOverrideSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = TrackScoreOverride
+        fields = "__all__"
 
 
 class AeroplaneSerialiser(serializers.ModelSerializer):
@@ -322,6 +328,8 @@ class ContestantSerialiser(serializers.ModelSerializer):
         model = Contestant
         exclude = ("navigation_task", "predefined_gate_times")
 
+    gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
+    track_score_override = TrackScoreOverrideSerialiser(required=False)
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
@@ -329,8 +337,11 @@ class ContestantSerialiser(serializers.ModelSerializer):
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
 
     def create(self, validated_data):
-        validated_data["navigation_task"] = self.context["navigation_task"]
+        navigation_task = self.context["navigation_task"]
+        validated_data["navigation_task"] = navigation_task
         gate_times = validated_data.pop("gate_times", {})
+        track_score_override_data = validated_data.pop("track_score_override", None)
+        gate_score_override_data = validated_data.pop("gate_score_override", None)
         contestant = Contestant.objects.create(**validated_data)
         contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
                                             gate_times.items()}
@@ -343,12 +354,25 @@ class ContestantSerialiser(serializers.ModelSerializer):
             ContestTeam.objects.create(contest=contestant.navigation_task.contest, team=contestant.team,
                                        tracker_device_id=contestant.tracker_device_id,
                                        tracking_service=contestant.tracking_service, air_speed=contestant.air_speed)
+        if track_score_override_data is not None:
+            track_override = TrackScoreOverride.objects.create(**track_score_override_data)
+            contestant.track_score_override = track_override
+        else:
+            contestant.track_score_override = navigation_task.track_score_override
+        contestant.save()
+        if gate_score_override_data is not None and len(gate_score_override_data) > 0:
+            for item in gate_score_override_data:
+                contestant.gate_score_override.add(GateScoreOverride.objects.create(**item))
+        else:
+            contestant.gate_score_override.add(*navigation_task.gate_score_override.all())
+
         return contestant
 
     def update(self, instance, validated_data):
         ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).delete()
-        # validated_data.update({"navigation_task": self.context["navigation_task"]})
         gate_times = validated_data.pop("gate_times", {})
+        track_score_override_data = validated_data.pop("track_score_override", None)
+        gate_score_override_data = validated_data.pop("gate_score_override", None)
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()
         instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
@@ -362,6 +386,17 @@ class ContestantSerialiser(serializers.ModelSerializer):
             ContestTeam.objects.create(contest=instance.navigation_task.contest, team=instance.team,
                                        tracker_device_id=instance.tracker_device_id,
                                        tracking_service=instance.tracking_service, air_speed=instance.air_speed)
+        if track_score_override_data is not None:
+            track_override = TrackScoreOverride.objects.create(**track_score_override_data)
+            instance.track_score_override = track_override
+        else:
+            instance.track_score_override = instance.navigation_task.track_score_override
+        instance.save()
+        if gate_score_override_data is not None and len(gate_score_override_data) > 0:
+            for item in gate_score_override_data:
+                instance.gate_score_override.add(GateScoreOverride.objects.create(**item))
+        else:
+            instance.gate_score_override.add(*instance.navigation_task.gate_score_override.all())
         return instance
 
 
@@ -404,6 +439,10 @@ class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSeri
 
 class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
+    gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
+    track_score_override = TrackScoreOverrideSerialiser(required=False)
+    use_procedure_turns = serializers.BooleanField(initial=True, required=False,
+                                                   help_text="If true (default) then procedure turns will be automatically added to all turning points with a more than 90° turn")
 
     route = RouteSerialiser()
 
@@ -413,6 +452,9 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context["request"].user
+        track_score_override_data = validated_data.pop("track_score_override", None)
+        gate_score_override_data = validated_data.pop("gate_score_override", None)
+
         contestant_set = validated_data.pop("contestant_set", [])
         validated_data["contest"] = self.context["contest"]
         route = validated_data.pop("route", None)
@@ -422,7 +464,15 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         assign_perm("view_route", user, route)
         assign_perm("delete_route", user, route)
         assign_perm("change_route", user, route)
-        navigation_task = NavigationTask.objects.create(**validated_data, route=route)
+        track_override = None
+        if track_score_override_data is not None:
+            track_override = TrackScoreOverride.objects.create(**track_score_override_data)
+        navigation_task = NavigationTask.objects.create(**validated_data, track_score_override=track_override,
+                                                        route=route)
+        if gate_score_override_data is not None and len(gate_score_override_data) > 0:
+            for item in gate_score_override_data:
+                navigation_task.gate_score_override.add(GateScoreOverride.objects.create(**item))
+
         for contestant_data in contestant_set:
             contestant_serialiser = ContestantNestedTeamSerialiser(data=contestant_data,
                                                                    context={"navigation_task": navigation_task})
@@ -436,7 +486,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-    basicscoreoverride = BasicScoreOverrideSerialiser(required=False)
+    gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
+    track_score_override = TrackScoreOverrideSerialiser(required=False)
     route_file = serializers.CharField(write_only=True, required=True,
                                        help_text="Base64 encoded gpx file")
     use_procedure_turns = serializers.BooleanField(initial=True, required=False,
@@ -461,7 +512,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             contestant_set = validated_data.pop("contestant_set", [])
             route_file = validated_data.pop("route_file", None)
             use_procedure_turns = validated_data.pop("use_procedure_turns", True)
-            basic_score_override = validated_data.pop("basicscoreoverride", None)
+            track_score_override_data = validated_data.pop("track_score_override", None)
+            gate_score_override_data = validated_data.pop("gate_score_override", None)
             route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")), use_procedure_turns)
             user = self.context["request"].user
             validated_data["contest"] = self.context["contest"]
@@ -470,9 +522,13 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             assign_perm("delete_route", user, route)
             assign_perm("change_route", user, route)
             print(self.context)
-            navigation_task = NavigationTask.objects.create(**validated_data)
-            if basic_score_override is not None:
-                BasicScoreOverride.objects.create(**basic_score_override, navigation_task=navigation_task)
+            track_override = None
+            if track_score_override_data is not None:
+                track_override = TrackScoreOverride.objects.create(**track_score_override_data)
+            navigation_task = NavigationTask.objects.create(**validated_data, track_score_override=track_override)
+            if gate_score_override_data is not None and len(gate_score_override_data) > 0:
+                for item in gate_score_override_data:
+                    navigation_task.gate_score_override.add(GateScoreOverride.objects.create(**item))
             for contestant_data in contestant_set:
                 if "scorecard" not in contestant_data:
                     if navigation_task.scorecard is None:
