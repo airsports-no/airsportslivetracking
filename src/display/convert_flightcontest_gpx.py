@@ -143,7 +143,7 @@ def create_route_from_csv(route_name: str, lines: List[str], use_procedure_turns
 
 
 def create_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
-    gates = [item for item in waypoint_list if item.type in ("tp", "secret")]
+    gates = waypoint_list
     for index in range(len(gates) - 1):
         gates[index + 1].gate_line = create_perpendicular_line_at_end(gates[index].longitude,
                                                                       gates[index].latitude,
