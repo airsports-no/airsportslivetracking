@@ -529,6 +529,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             if gate_score_override_data is not None and len(gate_score_override_data) > 0:
                 for item in gate_score_override_data:
                     navigation_task.gate_score_override.add(GateScoreOverride.objects.create(**item))
+            # Handles overriding contestant scorecard
             for contestant_data in contestant_set:
                 if "scorecard" not in contestant_data:
                     if navigation_task.scorecard is None:
