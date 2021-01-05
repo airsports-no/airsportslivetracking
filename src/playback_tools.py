@@ -64,7 +64,7 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx):
                     "deviceTime": point.time.isoformat()
                 })
     generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
-    influx.put_data(generated_positions)
+    influx.put_position_data_for_contestant(contestant_object, generated_positions, 100)
     calculator = calculator_factory(contestant_object, influx, live_processing=False)
     calculator.start()
     new_positions = []

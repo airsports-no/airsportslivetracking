@@ -5,7 +5,7 @@ import {
     fetchNavigationTask,
     setDisplay,
     shrinkTrackingTable,
-    hideLowerThirds
+    hideLowerThirds, dispatchContestantData
 } from "../actions";
 import {connect} from "react-redux";
 import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
@@ -15,9 +15,8 @@ import {compareContestantNumber} from "../utilities";
 import ContestantRankTable from "./contestantRankTable";
 import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} from "../constants/display-types";
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
-import TurningPointLinks from "./turningPointLinks";
 import TurningPointDisplay from "./turningPointDisplay";
-import {LowerThirdTeam} from "./teamBadges";
+import {w3cwebsocket as W3CWebSocket} from "websocket";
 
 const L = window['L']
 
@@ -34,6 +33,23 @@ class ConnectedNavigationTask extends Component {
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
         this.handleMapTurningPointClick = this.handleMapTurningPointClick.bind(this)
         this.rendered = false
+        this.client = null;
+    }
+
+    initiateSession() {
+        let getUrl = window.location;
+        let baseUrl = getUrl.protocol + "//" + getUrl.host + "/" + getUrl.pathname.split('/')[1]
+        this.client = new W3CWebSocket("ws://" + getUrl.host + "/ws/tracks/" + this.props.navigationTaskId + "/")
+        this.client.onopen = () => {
+            console.log("Client connected")
+        };
+        this.client.onmessage = (message) => {
+            let data = JSON.parse(message.data);
+            console.log("WS data")
+            console.log(data)
+            this.props.dispatchContestantData(data)
+        };
+
     }
 
     handleMapTurningPointClick(turningPoint) {
@@ -81,6 +97,7 @@ class ConnectedNavigationTask extends Component {
             if (this.props.displayMap && !this.rendered) {
                 this.renderRoute()
                 this.rendered = true;
+                this.initiateSession()
             }
         }
     }
@@ -225,6 +242,7 @@ class ConnectedNavigationTask extends Component {
 
 const NavigationTask = connect(mapStateToProps, {
     fetchNavigationTask,
+    dispatchContestantData,
     setDisplay,
     displayAllTracks,
     expandTrackingTable,

@@ -115,7 +115,14 @@ function rootReducer(state = initialState, action) {
             ...state,
             contestantData: {
                 ...state.contestantData,
-                [action.payload.contestant_id]: action.payload
+                [action.payload.contestant_id]: {
+                    annotations: action.payload.annotations,
+                    positions: action.payload.positions,
+                    progress: action.payload.progress !== undefined ? action.payload.progress : state.contestantData[action.payload.contestant_id].progress,
+                    contestant_track: action.payload.contestant_track,
+                    contestant_id: action.payload.contestant_id,
+                    latest_time: action.payload.latest_time
+                }
             },
             isFetchingContestantData: {
                 ...state.isFetchingContestantData,

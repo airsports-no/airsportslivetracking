@@ -47,7 +47,7 @@ class ConnectedContestantTrack extends Component {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
         }
         this.props.initialLoading(this.contestant.id)
-        this.fetchNextData(false)
+        // this.fetchNextData(false)
         this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
     }
 
@@ -59,27 +59,27 @@ class ConnectedContestantTrack extends Component {
     }
 
 
-    fetchNextData(scheduleNext) {
-        const finishedByTime = new Date(this.props.contestant.finished_by_time)
-        let latestTime = null;
-        if (!this.props.isFetching) {
-            if (this.props.contestantData !== undefined) {
-                latestTime = new Date(this.props.contestantData.latest_time)
-                this.props.fetchContestantData(this.props.contestId, this.props.navigationTaskId, this.contestant.id, latestTime)
-            } else {
-                this.props.fetchContestantData(this.props.contestId, this.props.navigationTaskId, this.contestant.id)
-            }
-        }
-        // This must be done second so that we at least fetched data once
-        const now = new Date()
-        if (now > finishedByTime && this.lastNewData && (now.getTime() - this.lastNewData.getTime() > 300 * 1000)) {
-            console.log("Stop fetching contestant " + this.contestant.contestant_number)
-        } else {
-            if (scheduleNext) {
-                this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)// / 2 + Math.random() * this.props.fetchInterval)
-            }
-        }
-    }
+    // fetchNextData(scheduleNext) {
+    //     const finishedByTime = new Date(this.props.contestant.finished_by_time)
+    //     let latestTime = null;
+    //     if (!this.props.isFetching) {
+    //         if (this.props.contestantData !== undefined) {
+    //             latestTime = new Date(this.props.contestantData.latest_time)
+    //             this.props.fetchContestantData(this.props.contestId, this.props.navigationTaskId, this.contestant.id, latestTime)
+    //         } else {
+    //             this.props.fetchContestantData(this.props.contestId, this.props.navigationTaskId, this.contestant.id)
+    //         }
+    //     }
+    //     // This must be done second so that we at least fetched data once
+    //     const now = new Date()
+    //     if (now > finishedByTime && this.lastNewData && (now.getTime() - this.lastNewData.getTime() > 300 * 1000)) {
+    //         console.log("Stop fetching contestant " + this.contestant.contestant_number)
+    //     } else {
+    //         if (scheduleNext) {
+    //             this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)// / 2 + Math.random() * this.props.fetchInterval)
+    //         }
+    //     }
+    // }
 
 
     componentDidMount() {
@@ -90,24 +90,24 @@ class ConnectedContestantTrack extends Component {
     }
 
     componentDidUpdate(previousProps) {
-        if (this.props.contestantData !== undefined) {
-            if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
-                this.lastNewData = new Date();
-            }
-        }
+        // if (this.props.contestantData !== undefined) {
+        //     if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
+        //         this.lastNewData = new Date();
+        //     }
+        // }
         let finishedInitialLoading = true;
         const displayTracks = this.props.displayTracks;
         if (this.props.contestantData !== undefined) {
             if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
-                if (this.props.contestantData.more_data) {
-                    clearTimeout(this.timeout)
-                    this.fetchNextData(false)
-                    finishedInitialLoading = false;
-                } else if (this.props.initialLoading) {
-                    clearTimeout(this.timeout)
-                    this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)
+                // if (this.props.contestantData.more_data) {
+                    // clearTimeout(this.timeout)
+                    // this.fetchNextData(false)
+                    // finishedInitialLoading = false;
+                // } else if (this.props.initialLoading) {
+                    // clearTimeout(this.timeout)
+                    // this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)
                     this.props.initialLoadingComplete(this.contestant.id);
-                }
+                // }
             }
         }
         if (this.props.displayMap) {

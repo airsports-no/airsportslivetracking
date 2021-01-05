@@ -73,7 +73,7 @@ class ConnectedContestantRankTable extends Component {
 
     buildData() {
         const contestants = this.props.contestants.filter((contestant) => {
-            return contestant != null && contestant
+            return contestant != null && contestant.contestant !== undefined
         })
         contestants.sort(compareScore)
         return contestants.map((contestant, index) => {

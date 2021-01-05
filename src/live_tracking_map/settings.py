@@ -51,7 +51,8 @@ INSTALLED_APPS = [
     "phonenumber_field",
     'qr_code',
     "crispy_forms",
-    "google_analytics"
+    "google_analytics",
+    "channels"
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"
@@ -241,3 +242,13 @@ CELERY_RESULT_BACKEND = 'redis://redis:6379'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
+
+ASGI_APPLICATION = "live_tracking_map.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)]
+        }
+    }
+}

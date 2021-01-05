@@ -60,6 +60,10 @@ export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) =
 }
 
 
+export const dispatchContestantData = (data) => (dispatch) => {
+    dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: data})
+}
+
 export const fetchContestantData = (contestId, navigationTaskId, contestantId, fromTime) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_REQUEST, id: contestantId})
     let url = "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/contestants/" + contestantId + "/track_frontend/"

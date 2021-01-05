@@ -44,3 +44,5 @@ celery==4.4.6
 segno
 django-qr-code
 django-google-analytics-app
+channels
+channels_redis

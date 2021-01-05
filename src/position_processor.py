@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import threading
+from datetime import datetime
 from typing import List, TYPE_CHECKING
 
 from django.core.cache import cache
@@ -30,6 +31,8 @@ if __name__ == "__main__":
     devices = traccar.get_device_map()
 influx = InfluxFacade()
 calculators = {}
+position_buffer = {}
+POSITION_BUFFER_SIZE = 5
 calculator_lock = threading.Lock()
 
 
@@ -38,7 +41,7 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
         contestant_track, _ = ContestantTrack.objects.get_or_create(contestant=contestant)
         if contestant_track.calculator_finished:
             return
-        calculators[contestant.pk] = calculator_factory(contestant, influx)
+        calculators[contestant.pk] = calculator_factory(contestant, influx, live_processing=True)
         calculators[contestant.pk].start()
     calculator = calculators[contestant.pk]  # type: Calculator
     new_positions = []
@@ -63,11 +66,21 @@ def build_and_push_position_data(data):
             # logger.info("Positions for {}".format(contestant))
             add_positions_to_calculator(contestant, positions)
             # logger.info("Positions to calculator for {}".format(contestant))
-            influx.put_data(positions)
-            # logger.info("Positions to influx for {}".format(contestant))
-            key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant.pk)
-            # logger.info("Clearing cache for {}".format(contestant))
-            cache.delete_pattern(key)
+            if len(positions) > 0:
+                latest_time = None
+                for item in positions:
+                    if latest_time is None:
+                        latest_time = item.pop("time_object")
+                    else:
+                        current_time = item.pop("time_object")
+                        if current_time > latest_time:
+                            latest_time = current_time
+                progress = contestant.calculate_progress(latest_time)
+                influx.put_position_data_for_contestant(contestant, positions, progress)
+                # logger.info("Positions to influx for {}".format(contestant))
+                key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant.pk)
+                # logger.info("Clearing cache for {}".format(contestant))
+                cache.delete_pattern(key)
         cleanup_calculators()
 
 

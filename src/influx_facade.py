@@ -4,10 +4,13 @@ from plistlib import Dict
 from typing import List, Union, Set, Optional
 
 import dateutil
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from influxdb import InfluxDBClient
 from influxdb.resultset import ResultSet
 
 from display.models import ContestantTrack, Contestant
+from display.serialisers import ContestantTrackSerialiser
 from traccar_facade import Traccar
 
 host = "influx"
@@ -21,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class InfluxFacade:
     def __init__(self):
+        self.channel_layer = get_channel_layer()
         self.client = InfluxDBClient(host, port, user, password, dbname)
 
     def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):
@@ -43,6 +47,23 @@ class InfluxFacade:
                 "type": annotation_type
             }
         }
+        group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        annotation = {}
+        annotation.update(data["tags"])
+        annotation["time"] = data["time"]
+        annotation.update(data["fields"])
+        channel_data = {
+            "contestant_id": contestant.pk,
+            "positions": [],
+            "annotations": [annotation],
+            "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
+
+        }
+        async_to_sync(self.channel_layer.group_send)(
+            group_key,
+            {"type": "tracking.data", "data": channel_data}
+        )
         self.client.write_points([data])
 
     def generate_position_data_for_contestant(self, contestant: Contestant, positions: List) -> List:
@@ -100,6 +121,7 @@ class InfluxFacade:
                         "device_id": position_data["deviceId"]
                     },
                     "time": device_time.isoformat(),
+                    "time_object": device_time,
                     "fields": {
                         "latitude": float(position_data["latitude"]),
                         "longitude": float(position_data["longitude"]),
@@ -115,7 +137,27 @@ class InfluxFacade:
                     received_tracks[contestant] = [data]
         return received_tracks
 
-    def put_data(self, data: List):
+    def put_position_data_for_contestant(self, contestant: "Contestant", data: List, route_progress):
+        position_data = []
+        for item in data:
+            position_data.append({
+                "latitude": item["fields"]["latitude"],
+                "longitude": item["fields"]["longitude"]
+            })
+        channel_data = {
+            "contestant_id": contestant.pk,
+            "positions": position_data,
+            "annotations": [],
+            "progress": route_progress,
+            "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
+
+        }
+        group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        async_to_sync(self.channel_layer.group_send)(
+            group_key,
+            {"type": "tracking.data", "data": channel_data}
+        )
         self.client.write_points(data)
         # logger.debug("Successfully put {} position".format(len(data)))
 

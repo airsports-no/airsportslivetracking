@@ -74,7 +74,7 @@ contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="NM 2020", is_public=True, start_time=contest_start_time,
                                  finish_time=contest_finish_time)
 with open("/data/NM.csv", "r") as file:
-    route = create_route_from_csv("NM 2020", file.readlines()[1:])
+    route = create_route_from_csv("NM 2020", file.readlines()[1:], True)
 
 navigation_task = NavigationTask.objects.create(name="NM 2020 ", contest=contest,
                                                 route=route,
@@ -109,9 +109,9 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
                                                   air_speed=speed,
                                                   wind_direction=165, wind_speed=8)
     print(navigation_task.pk)
-    with open(file, "r") as i:
-        insert_gpx_file(contestant_object, i, influx)
+    # with open(file, "r") as i:
+    #     insert_gpx_file(contestant_object, i, influx)
 
-    # tracks[contestant] = build_traccar_track(file)
+    tracks[contestant] = build_traccar_track(file)
 
-# load_data_traccar(tracks)
+load_data_traccar(tracks)

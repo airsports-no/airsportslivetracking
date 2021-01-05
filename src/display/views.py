@@ -2,7 +2,7 @@ import base64
 import datetime
 import os
 from datetime import timedelta
-from typing import Optional
+from typing import Optional, Dict
 
 import redis_lock
 import dateutil
@@ -437,25 +437,30 @@ class GetDataFromTimeForContestant(RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         contestant = self.get_object()  # type: Contestant
         from_time = request.GET.get("from_time")
-        key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant.pk, from_time)
-        response = cache.get(key)
-        if response is None:
-            logger.info("Cache miss {}".format(contestant.pk))
-            with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant.pk), expire=30,
-                                 auto_renewal=True):
-                response = cache.get(key)
-                logger.info("Cache miss second time {}".format(contestant.pk))
-                if response is None:
-                    response = generate_data(contestant.pk, from_time)
-                    cache.set(key, response)
-                    logger.info("Completed updating cash {}".format(contestant.pk))
+        response = cached_generate_data(contestant.pk, from_time)
         return Response(response)
+
+
+def cached_generate_data(contestant_pk, from_time: Optional[datetime.datetime]) -> Dict:
+    key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk, from_time)
+    response = cache.get(key)
+    if response is None:
+        logger.info("Cache miss {}".format(contestant_pk))
+        with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk), expire=30,
+                             auto_renewal=True):
+            response = cache.get(key)
+            logger.info("Cache miss second time {}".format(contestant_pk))
+            if response is None:
+                response = _generate_data(contestant_pk, from_time)
+                cache.set(key, response)
+                logger.info("Completed updating cash {}".format(contestant_pk))
+    return response
 
 
 influx = InfluxFacade()
 
 
-def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
+def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     LIMIT = None
     TIME_INTERVAL = 10
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
@@ -478,35 +483,13 @@ def generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     annotations = []
 
     more_data = len(position_data) == LIMIT and len(position_data) > 0
-    # if len(position_data) > 0:
-    #     reduced_data = [position_data[0]]
-    #     for item in position_data:
-    #         if dateutil.parser.parse(item["time"]) > dateutil.parser.parse(
-    #                 reduced_data[-1]["time"]) + datetime.timedelta(
-    #             seconds=TIME_INTERVAL):
-    #             reduced_data.append(item)
-    # else:
-    #     reduced_data = []
-    # positions = reduced_data
     reduced_data = []
     for item in position_data:
         reduced_data.append({
             "latitude": item["latitude"],
             "longitude": item["longitude"]
         })
-    # Calculate route progress
-    # first_gate = contestant.navigation_task.route.takeoff_gate or contestant.navigation_task.route.waypoints[0]
-    # last_gate = contestant.navigation_task.route.landing_gate or contestant.navigation_task.route.waypoints[-1]
-    route_progress = 100
-    if len(contestant.navigation_task.route.waypoints) > 0:
-        first_gate = contestant.navigation_task.route.waypoints[0]
-        last_gate = contestant.navigation_task.route.waypoints[-1]
-
-        first_gate_time = contestant.gate_times[first_gate.name]
-        last_gate_time = contestant.gate_times[last_gate.name]
-        route_duration = (last_gate_time - first_gate_time).total_seconds()
-        route_duration_progress = (global_latest_time - first_gate_time).total_seconds()
-        route_progress = 100 * route_duration_progress / route_duration
+    route_progress = contestant.calculate_progress(global_latest_time)
     positions = reduced_data
     annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
     if len(annotation_data):
@@ -1080,18 +1063,7 @@ class ContestantViewSet(ModelViewSet):
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         from_time = request.GET.get("from_time")
-        key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant.pk, from_time)
-        response = cache.get(key)
-        if response is None:
-            logger.info("Cache miss {}".format(contestant.pk))
-            with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant.pk), expire=30,
-                                 auto_renewal=True):
-                response = cache.get(key)
-                logger.info("Cache miss second time {}".format(contestant.pk))
-                if response is None:
-                    response = generate_data(contestant.pk, from_time)
-                    cache.set(key, response)
-                    logger.info("Completed updating cash {}".format(contestant.pk))
+        response = cached_generate_data(contestant.pk, from_time)
         return Response(response)
 
 
