@@ -2,7 +2,7 @@ FROM ubuntu:18.04
 ENV PYTHONUNBUFFERED 1
 
 ###### SETUP BASE INFRASTRUCTURE ######
-RUN apt-get update && apt-get install -y python3.6 python3-pip curl build-essential vim libproj-dev proj-data proj-bin libgeos-dev libgdal-dev  redis-server
+RUN apt-get update && apt-get install -y python3.6 python3-pip curl build-essential vim libproj-dev proj-data proj-bin libgeos-dev libgdal-dev  redis-server daphne
 RUN curl -sL https://deb.nodesource.com/setup_10.x -o nodesource_setup.sh && bash nodesource_setup.sh && apt-get update && apt-get install -y nodejs && rm nodesource_setup.sh
 
 RUN pip3 install -U pip

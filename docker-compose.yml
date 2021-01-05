@@ -52,6 +52,29 @@ services:
       - redis
       - traccar
 
+  tracker_daphne:
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "/wait-for-it.sh", "influx:8086", "--",
+               "bash", "-c", "daphne -b 0.0.0.0 -p 8003 like_tracking_map.asgi:application" ]
+
+    container_name: tracker_daphne
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./static:/static
+      - ./assets:/assets/
+      - ./src:/src/
+      - ./reactjs:/reactjs/
+      - ./data:/data/
+      - ./celerylog:/logs/
+    depends_on:
+      - mysql
+      - influx
+      - redis
+
+
+
   tracker_celery:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "influx:8086", "--",
