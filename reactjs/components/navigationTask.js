@@ -39,7 +39,7 @@ class ConnectedNavigationTask extends Component {
     initiateSession() {
         let getUrl = window.location;
         let baseUrl = getUrl.protocol + "//" + getUrl.host + "/" + getUrl.pathname.split('/')[1]
-        this.client = new W3CWebSocket("ws://" + getUrl.host + "/ws/tracks/" + this.props.navigationTaskId + "/")
+        this.client = new W3CWebSocket("wss://" + getUrl.host + "/ws/tracks/" + this.props.navigationTaskId + "/")
         this.client.onopen = () => {
             console.log("Client connected")
         };
