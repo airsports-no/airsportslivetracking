@@ -67,7 +67,7 @@ services:
       - ./src:/src/
       - ./reactjs:/reactjs/
       - ./data:/data/
-      - ./celerylog:/logs/
+      - ./daphnelog:/logs/
     depends_on:
       - mysql
       - influx
