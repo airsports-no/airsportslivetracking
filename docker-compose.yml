@@ -55,7 +55,7 @@ services:
   tracker_daphne:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "daphne -b 0.0.0.0 -p 8003 like_tracking_map.asgi:application" ]
+               "bash", "-c", "/daphne.sh" ]
 
     container_name: tracker_daphne
     build:
