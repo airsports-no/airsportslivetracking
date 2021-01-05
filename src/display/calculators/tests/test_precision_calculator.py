@@ -169,7 +169,7 @@ class Test2017WPFC(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1152,
+        self.assertEqual(1352,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
@@ -211,7 +211,7 @@ class TestNM2019(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(675,
+        self.assertEqual(875,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
     def test_fredrik(self):
@@ -231,5 +231,5 @@ class TestNM2019(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1000,
+        self.assertEqual(1200,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.

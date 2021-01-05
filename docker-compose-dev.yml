@@ -64,6 +64,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./src:/src/
+      - ./processorlog:/logs/
     depends_on:
       - influx
       - traccar

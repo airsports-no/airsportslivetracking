@@ -69,10 +69,12 @@ class Calculator(threading.Thread):
                                  calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
                                                          self.scorecard,
                                                          self.contestant)) if self.contestant.navigation_task.route.landing_gate else None
-        if self.landing_gate:
+        if self.landing_gate is not None:
             # If there is a landing gate we need to include this so that it can be scored and we do not terminate the
             # tracker until this has been passed.
             self.gates.append(self.landing_gate)
+        if self.takeoff_gate is not None:
+            self.gates.insert(0, self.takeoff_gate)
         self.outstanding_gates = list(self.gates)
 
     def run(self):
@@ -157,15 +159,6 @@ class Calculator(threading.Thread):
 
     def check_intersections(self):
         # Check takeoff if exists
-        if self.takeoff_gate is not None:
-            if not self.takeoff_gate.has_been_passed():
-                intersection_time = self.takeoff_gate.get_gate_intersection_time(self.projector, self.track)
-                if intersection_time:
-                    logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
-                    self.update_tracking_state(self.TAKEOFF)
-                    self.takeoff_gate.passing_time = intersection_time
-                # else:
-                #     return
         if not self.starting_line.has_infinite_been_passed():
             # First check extended and see if we are in the correct direction
             # Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
@@ -192,6 +185,10 @@ class Calculator(threading.Thread):
                 gate.extended_passing_time = intersection_time
                 gate.infinite_passing_time = intersection_time
                 crossed_gate = True
+                if gate.type == "to":
+                    logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
+                    self.update_tracking_state(self.TAKEOFF)
+
             if crossed_gate:
                 if gate.passing_time is None:
                     logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))

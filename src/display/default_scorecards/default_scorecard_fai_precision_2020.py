@@ -22,7 +22,7 @@ def get_default_scorecard():
                                                                                 graceperiod_after=60,
                                                                                 maximum_penalty=200,
                                                                                 penalty_per_second=200,
-                                                                                missed_penalty=0,
+                                                                                missed_penalty=200,
                                                                                 missed_procedure_turn_penalty=0,
                                                                                 backtracking_after_steep_gate_grace_period_seconds=0)
         fai_precision_flying_2020.landing_gate_score = GateScore.objects.create(extended_gate_width=0,
