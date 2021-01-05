@@ -544,9 +544,11 @@ class Contestant(models.Model):
                                   help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                       lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
     competition_class_longform = models.CharField(max_length=100,
-                                                  help_text="The class of the contestant, e.g. beginner, professional, et cetera")
+                                                  help_text="The class of the contestant, e.g. beginner, professional, et cetera",
+                                                  blank=True, null=True)
     competition_class_shortform = models.CharField(max_length=100,
-                                                   help_text="The abbreviated class of the contestant, e.g. beginner, professional, et cetera")
+                                                   help_text="The abbreviated class of the contestant, e.g. beginner, professional, et cetera",
+                                                   blank=True, null=True)
     track_score_override = models.ForeignKey(TrackScoreOverride, on_delete=models.SET_NULL, null=True)
     gate_score_override = models.ManyToManyField(GateScoreOverride)
     predefined_gate_times = MyPickledObjectField(default=None, null=True, blank=True,
