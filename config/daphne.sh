@@ -20,4 +20,4 @@ export PYTHONPATH=$DJANGODIR:$PYTHONPATH
 
 # Start your Django Unicorn
 # Programs meant to be run under supervisor should not daemonize themselves (do not use --daemon)
-exec daphne -b 0.0.0.0 -p 8003 ${DJANGO_WSGI_MODULE}:application
+exec daphne -b 0.0.0.0 -p 8003 ${DJANGO_ASGI_MODULE}:application
