@@ -173,7 +173,7 @@ class PrecisionCalculator(Calculator):
             total_turn = sum(turn_slices)
             if self.contestant.team.crew.member1.first_name == PILOT_NAME:
                 logger.info("{}: total_turn {:.0f} position_length = {}".format(self.contestant, total_turn,
-                                                                              len(self.circling_position_list)))
+                                                                                len(self.circling_position_list)))
             if abs(total_turn) > 180 and not self.circling:
                 # We are circling
                 self.circling = True
@@ -208,7 +208,7 @@ class PrecisionCalculator(Calculator):
                 now, self.contestant.finished_by_time, self.contestant))
             self.update_tracking_state(self.FINISHED)
             return
-        if not self.starting_line.has_infinite_been_passed():
+        if not self.starting_line.has_infinite_been_passed() or self.last_gate is None:
             return
 
         last_position = self.track[-1]  # type: Position
