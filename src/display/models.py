@@ -631,6 +631,11 @@ class Contestant(models.Model):
 
     def get_gate_time_offset(self, gate_name):
         planned = self.gate_times.get(gate_name)
+        if planned is None:
+            if gate_name == self.navigation_task.route.takeoff_gate.name:
+                planned = self.takeoff_time
+            elif gate_name == self.navigation_task.route.landing_gate.name:
+                planned = self.finished_by_time
         actual = self.contestanttrack.gate_actual_times.get(gate_name)
         if planned and actual:
             return (actual - planned).total_seconds()

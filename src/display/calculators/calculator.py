@@ -199,6 +199,7 @@ class Calculator(threading.Thread):
                 self.takeoff_gate.passing_time=intersection_time
                 self.takeoff_gate.extended_passing_time = intersection_time
                 self.takeoff_gate.infinite_passing_time = intersection_time
+                self.contestant.contestanttrack.update_gate_time(self.takeoff_gate.name, intersection_time)
                 logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
                 self.update_tracking_state(self.TAKEOFF)
 

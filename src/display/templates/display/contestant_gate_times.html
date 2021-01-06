@@ -14,6 +14,24 @@
         </tr>
         </thead>
         {% with gate_times=object.gate_times %}
+            {{ gate_times }}
+            {% if object.navigation_task.route.takeoff_gate %}
+                <tr>
+                    <td>{{ object.navigation_task.route.takeoff_gate.name }}</td>
+                    <td>{{ object.takeoff_time|date:"H:i:s" }}</td>
+                    <td>{% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name %}
+                        {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s" }}{% else %}
+                        --{% endif %}</td>
+                    <td>{{ object|gate_time_offset:object.navigation_task.route.takeoff_gate.name }}</td>
+                    <td>
+                        {% with gate_log=log|dict_key:object.navigation_task.route.takeoff_gate.name %}
+                            {% for item in gate_log %}
+                                {{ item }}<br/>
+                            {% endfor %}
+                        {% endwith %}
+                    </td>
+                </tr>
+            {% endif %}
             {% for gate in object.navigation_task.route.waypoints %}
                 <tr>
                     <td>{{ gate.name }}</td>
@@ -31,6 +49,23 @@
                     </td>
                 </tr>
             {% endfor %}
+            {% if object.navigation_task.route.landing_gate %}
+                <tr>
+                    <td>{{ object.navigation_task.route.landing_gate.name }}</td>
+                    <td>{{ object.finished_by_time|date:"H:i:s" }}</td>
+                    <td>{% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name %}
+                        {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s" }}{% else %}
+                        --{% endif %}</td>
+                    <td>{{ object|gate_time_offset:object.navigation_task.route.landing_gate.name }}</td>
+                    <td>
+                        {% with gate_log=log|dict_key:object.navigation_task.route.landing_gate.name %}
+                            {% for item in gate_log %}
+                                {{ item }}<br/>
+                            {% endfor %}
+                        {% endwith %}
+                    </td>
+                </tr>
+            {% endif %}
         {% endwith %}
     </table>
     <a href="{% url 'navigationtask_detail' object.navigation_task.pk %}">Back to {{ object.navigation_task }}</a>
