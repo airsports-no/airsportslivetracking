@@ -5,7 +5,7 @@ from typing import List, TYPE_CHECKING, Optional
 
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
-from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector
+from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon
 from display.models import ContestantTrack, Contestant
 from display.waypoint import Waypoint
 
@@ -76,6 +76,7 @@ class Calculator(threading.Thread):
         if self.takeoff_gate is not None:
             self.gates.insert(0, self.takeoff_gate)
         self.outstanding_gates = list(self.gates)
+        self.in_range_of_gate = None
 
     def run(self):
         logger.info("Started calculator for contestant {}".format(self.contestant))
@@ -157,6 +158,38 @@ class Calculator(threading.Thread):
             self.previous_last_gate = self.last_gate
             self.last_gate = gate
 
+    def check_gate_in_range(self):
+        if len(self.outstanding_gates) == 0 or len(self.track) == 0:
+            return
+        last_position = self.track[-1]
+        if self.in_range_of_gate is not None:
+            distance_to_gate = calculate_distance_lat_lon((last_position.latitude, last_position.longitude),
+                                                          (self.in_range_of_gate.latitude,
+                                                           self.in_range_of_gate.longitude))
+            if distance_to_gate > self.in_range_of_gate.outside_distance:
+                logger.info("{}: Moved out of range of gate {} at {}".format(self.contestant, self.in_range_of_gate,
+                                                                             last_position.time))
+                if self.in_range_of_gate.passing_time is None and not self.in_range_of_gate.missed:
+                    # Moving out of range of the gate, let's assume we have missed it
+                    logger.info("{}: Missing gate {} since it has not been passed or detected missed before.".format(
+                        self.contestant, self.in_range_of_gate))
+                    self.in_range_of_gate.missed = True
+                    self.pop_gate(0, True)
+                self.in_range_of_gate = None
+
+        else:
+            next_gate = self.outstanding_gates[0]
+            if next_gate.type != "tp":
+                return
+            distance_to_gate = calculate_distance_lat_lon((last_position.latitude, last_position.longitude),
+                                                          (next_gate.latitude, next_gate.longitude))
+            # logger.info("Distance to gate is {} with inside_distance = {}".format(distance_to_gate, next_gate.inside_distance))
+            if distance_to_gate < next_gate.inside_distance:
+                # Moving into range of the gate, record that for use of the places
+                self.in_range_of_gate = next_gate
+                logger.info(
+                    "{}: Moved into range of gate {} at {}".format(self.contestant, next_gate, last_position.time))
+
     def check_intersections(self):
         # Check takeoff if exists
         if not self.starting_line.has_infinite_been_passed():
@@ -227,6 +260,7 @@ class Calculator(threading.Thread):
                     gate, time_limit))
                 gate.missed = True
                 self.pop_gate(0)
+        self.check_gate_in_range()
 
     def calculate_score(self):
         pass
