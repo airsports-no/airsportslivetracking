@@ -209,7 +209,6 @@ class PrecisionCalculator(Calculator):
             self.update_tracking_state(self.FINISHED)
             return
         if not self.starting_line.has_infinite_been_passed():
-            logger.info("Not past starting line")
             return
 
         last_position = self.track[-1]  # type: Position
