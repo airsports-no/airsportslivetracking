@@ -36,7 +36,9 @@ NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(date
         "takeoff_gate": line,
         "landing_gate": line,
         "name": "name"
-    }}
+    },
+        "scorecard": "FAI Precision 2020"
+    }
 
 CONTESTANT_DATA = {
     "team": {
@@ -75,8 +77,10 @@ class TestCreateNavigationTask(APITestCase):
         self.user_without_permissions = User.objects.create(username="withoutpermissions")
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
-                                                                  "start_time": datetime.datetime.now(datetime.timezone.utc),
-                                                                  "finish_time": datetime.datetime.now(datetime.timezone.utc)})
+                                                                  "start_time": datetime.datetime.now(
+                                                                      datetime.timezone.utc),
+                                                                  "finish_time": datetime.datetime.now(
+                                                                      datetime.timezone.utc)})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
@@ -132,8 +136,10 @@ class TestAccessNavigationTask(APITestCase):
 
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
-                                                                  "start_time": datetime.datetime.now(datetime.timezone.utc),
-                                                                  "finish_time": datetime.datetime.now(datetime.timezone.utc)})
+                                                                  "start_time": datetime.datetime.now(
+                                                                      datetime.timezone.utc),
+                                                                  "finish_time": datetime.datetime.now(
+                                                                      datetime.timezone.utc)})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)

@@ -11,10 +11,12 @@ TRACKER_NAME = "tracker"
 
 class TestContestantValidation(TransactionTestCase):
     def setUp(self):
-        self.contest = Contest.objects.create(name="TestContest", start_time=datetime.datetime.now(datetime.timezone.utc),
+        self.contest = Contest.objects.create(name="TestContest",
+                                              start_time=datetime.datetime.now(datetime.timezone.utc),
                                               finish_time=datetime.datetime.now(datetime.timezone.utc))
         route = Route.objects.create(name="Route")
         self.navigation_task = NavigationTask.objects.create(name="NavigationTask",
+                                                             scorecard=get_default_scorecard(),
                                                              start_time=datetime.datetime.now(datetime.timezone.utc),
                                                              finish_time=datetime.datetime.now(datetime.timezone.utc),
                                                              route=route, contest=self.contest)

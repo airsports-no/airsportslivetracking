@@ -14,13 +14,14 @@ class TestContestantGatesCalculation(TestCase):
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        scorecard = get_default_scorecard()
         self.navigation_task = NavigationTask.objects.create(name="NM navigation test",
+                                                             scorecard=scorecard,
                                                              route=route, contest=Contest.objects.create(name="contest",
                                                                                                          start_time=datetime.datetime.now(datetime.timezone.utc),
                                                                                                          finish_time=datetime.datetime.now(datetime.timezone.utc)),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
-        scorecard = get_default_scorecard()
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 8, 5, tzinfo=datetime.timezone.utc), 75

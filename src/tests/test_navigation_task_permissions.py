@@ -6,6 +6,7 @@ from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Contest, NavigationTask
 
 line = {
@@ -33,20 +34,24 @@ NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(date
         "waypoints": [],
         "takeoff_gate": line,
         "landing_gate": line,
-        "name": "name"
-    }}
+        "name": "name"},
+        "scorecard": get_default_scorecard().name
+    }
 
 
 class TestCreateNavigationTask(APITestCase):
     def setUp(self):
+        get_default_scorecard()
         self.user_owner = User.objects.create(username="withpermissions")
         permission = Permission.objects.get(codename="add_contest")
         self.user_owner.user_permissions.add(permission)
         self.user_without_permissions = User.objects.create(username="withoutpermissions")
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
-                                                                  "start_time": datetime.datetime.now(datetime.timezone.utc),
-                                                                  "finish_time": datetime.datetime.now(datetime.timezone.utc)})
+                                                                  "start_time": datetime.datetime.now(
+                                                                      datetime.timezone.utc),
+                                                                  "finish_time": datetime.datetime.now(
+                                                                      datetime.timezone.utc)})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
@@ -76,6 +81,7 @@ class TestCreateNavigationTask(APITestCase):
 
 class TestAccessNavigationTask(APITestCase):
     def setUp(self):
+        get_default_scorecard()
         self.user_owner = User.objects.create(username="withpermissions")
         self.user_owner.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
@@ -90,8 +96,10 @@ class TestAccessNavigationTask(APITestCase):
         )
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
-                                                                  "start_time": datetime.datetime.now(datetime.timezone.utc),
-                                                                  "finish_time": datetime.datetime.now(datetime.timezone.utc)})
+                                                                  "start_time": datetime.datetime.now(
+                                                                      datetime.timezone.utc),
+                                                                  "finish_time": datetime.datetime.now(
+                                                                      datetime.timezone.utc)})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
