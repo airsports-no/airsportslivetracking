@@ -41,7 +41,7 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
         contestant_track, _ = ContestantTrack.objects.get_or_create(contestant=contestant)
         if contestant_track.calculator_finished:
             return
-        calculators[contestant.pk] = calculator_factory(contestant, influx, live_processing=True)
+        calculators[contestant.pk] = calculator_factory(contestant, influx, live_processing=False)
         calculators[contestant.pk].start()
     calculator = calculators[contestant.pk]  # type: Calculator
     new_positions = []

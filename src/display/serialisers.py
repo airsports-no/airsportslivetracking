@@ -336,9 +336,6 @@ class ContestantSerialiser(serializers.ModelSerializer):
     track_score_override = TrackScoreOverrideSerialiser(required=False)
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
-    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
-                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-                                     lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
 
     def create(self, validated_data):
         navigation_task = self.context["navigation_task"]
@@ -538,12 +535,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             if gate_score_override_data is not None and len(gate_score_override_data) > 0:
                 for item in gate_score_override_data:
                     navigation_task.gate_score_override.add(GateScoreOverride.objects.create(**item))
-            # Handles overriding contestant scorecard
             for contestant_data in contestant_set:
-                if "scorecard" not in contestant_data:
-                    if navigation_task.scorecard is None:
-                        raise ValidationError("Contestant scorecard must be supplied if navigation scorecard is none")
-                    contestant_data["scorecard"] = navigation_task.scorecard.name
                 if isinstance(contestant_data['team'], Team):
                     contestant_data["team"] = contestant_data["team"].pk
 

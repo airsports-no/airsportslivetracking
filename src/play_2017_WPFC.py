@@ -93,7 +93,7 @@ for file in glob.glob("../data/demo_contests/2017_WPFC/*_Results_*.gpx"):
                                                   finished_by_time=start_time + datetime.timedelta(hours=2),
                                                   tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                   tracker_device_id=contestant, contestant_number=number,
-                                                  scorecard=scorecard, minutes_to_starting_point=minutes_starting,
+                                                  minutes_to_starting_point=minutes_starting,
                                                   air_speed=speed,
                                                   wind_direction=160, wind_speed=18)
     print(navigation_task.pk)

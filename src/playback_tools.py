@@ -44,7 +44,7 @@ def load_data_traccar(tracks):
                 send(contestant_name, time.mktime(stamp.timetuple()), latitude, longitude, 0)
                 # print(stamp)
         print(count)
-        time.sleep(0.5)
+        time.sleep(0.8)
 
 
 def insert_gpx_file(contestant_object: "Contestant", file, influx):

@@ -54,7 +54,7 @@ class TestFullTrack(TransactionTestCase):
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     tracker_device_id="Test contestant", contestant_number=1,
-                                                    scorecard=self.scorecard, minutes_to_starting_point=6,
+                                                    minutes_to_starting_point=6,
                                                     air_speed=speed,
                                                     wind_direction=165, wind_speed=8)
 
@@ -131,7 +131,7 @@ class TestFullTrack(TransactionTestCase):
                                                tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                finished_by_time=start_time + datetime.timedelta(hours=2),
                                                tracker_device_id="contestant", contestant_number=2,
-                                               scorecard=self.scorecard, minutes_to_starting_point=6, air_speed=speed,
+                                               minutes_to_starting_point=6, air_speed=speed,
                                                wind_direction=165, wind_speed=8)
         positions = load_track_points("display/calculators/tests/Helge.gpx")
         calculator = PrecisionCalculator(contestant, Mock(), live_processing=False)
@@ -200,7 +200,7 @@ class Test2017WPFC(TransactionTestCase):
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     tracker_device_id="Test contestant", contestant_number=1,
-                                                    scorecard=self.scorecard, minutes_to_starting_point=8,
+                                                    minutes_to_starting_point=8,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=18)
         calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
@@ -243,7 +243,7 @@ class TestNM2019(TransactionTestCase):
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     tracker_device_id="Test contestant", contestant_number=1,
-                                                    scorecard=self.scorecard, minutes_to_starting_point=6,
+                                                    minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
         calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
@@ -263,7 +263,7 @@ class TestNM2019(TransactionTestCase):
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     tracker_device_id="Test contestant", contestant_number=1,
-                                                    scorecard=self.scorecard, minutes_to_starting_point=6,
+                                                    minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
         calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)

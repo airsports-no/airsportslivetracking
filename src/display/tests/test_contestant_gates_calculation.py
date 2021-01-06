@@ -30,7 +30,7 @@ class TestContestantGatesCalculation(TestCase):
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
                                                     tracker_device_id="Test contestant", contestant_number=1,
-                                                    scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed,
+                                                    minutes_to_starting_point=6, air_speed=speed,
                                                     wind_direction=165,
                                                     wind_speed=8)
 

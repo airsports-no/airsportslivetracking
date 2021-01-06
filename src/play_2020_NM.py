@@ -18,7 +18,7 @@ from playback_tools import build_traccar_track, load_data_traccar, insert_gpx_fi
 from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
-    TraccarCredentials, Person, ContestTeam, TRACCAR
+    TraccarCredentials, Person, ContestTeam, TRACCAR, Club
 from influx_facade import InfluxFacade
 
 influx = InfluxFacade()
@@ -28,9 +28,9 @@ tracks = {}
 
 contestants = {
     "Anders": (datetime.datetime(2020, 8, 1, 10, 0), 75, 6),
-    "Arild": (datetime.datetime(2020, 8, 1, 10, 10), 70, 6),
+    # "Arild": (datetime.datetime(2020, 8, 1, 10, 10), 70, 6),
     "Bjørn": (datetime.datetime(2020, 8, 1, 9, 15), 70, 6),
-    "Espen": (datetime.datetime(2020, 8, 1, 11, 10), 70, 6),
+    # "Espen": (datetime.datetime(2020, 8, 1, 11, 10), 70, 6),
     "Frank-Olaf": (datetime.datetime(2020, 8, 1, 10, 5), 75, 6),
     "Håkon": (datetime.datetime(2020, 8, 1, 11, 15), 70, 1),
     "Hans-Inge": (datetime.datetime(2020, 8, 1, 9, 50), 85, 2),
@@ -78,6 +78,7 @@ with open("/data/NM.csv", "r") as file:
 
 navigation_task = NavigationTask.objects.create(name="NM 2020 ", contest=contest,
                                                 route=route,
+                                                scorecard=scorecard,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
                                                 is_public=True)
 
@@ -85,33 +86,36 @@ tracks = {}
 for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     print(file)
     contestant = os.path.splitext(os.path.basename(file))[0]
-    print(contestant)
-    person = Person.objects.filter(first_name=contestant, last_name="Pilot").first()
-    if not person:
-        person = Person.objects.create(first_name=contestant, last_name="Pilot")
-    crew, _ = Crew.objects.get_or_create(
-        member1=person)
+    if contestant in contestants:
+        print(contestant)
+        person = Person.objects.filter(first_name=contestant, last_name="Pilot").first()
+        if not person:
+            person = Person.objects.create(first_name=contestant, last_name="Pilot")
+        crew, _ = Crew.objects.get_or_create(
+            member1=person)
 
-    team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
-    start_time, speed, _ = contestants[contestant]
-    ContestTeam.objects.get_or_create(team=team, contest=contest,
-                                      defaults={"air_speed": speed, "tracking_service": TRACCAR,
-                                                "tracker_device_id": contestant})
-    start_time = start_time - datetime.timedelta(hours=2)
-    start_time = start_time.astimezone()
-    minutes_starting = 6
-    # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
-    contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,
-                                                  finished_by_time=start_time + datetime.timedelta(hours=2),
-                                                  tracker_start_time=start_time - datetime.timedelta(minutes=30),
-                                                  tracker_device_id=contestant, contestant_number=index,
-                                                  scorecard=scorecard, minutes_to_starting_point=minutes_starting,
-                                                  air_speed=speed,
-                                                  wind_direction=165, wind_speed=8)
-    print(navigation_task.pk)
-    # with open(file, "r") as i:
-    #     insert_gpx_file(contestant_object, i, influx)
+        team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane,
+                                             club=Club.objects.get(name="Kjeller Sportsflyklubb"))
+        start_time, speed, _ = contestants[contestant]
+        ContestTeam.objects.get_or_create(team=team, contest=contest,
+                                          defaults={"air_speed": speed, "tracking_service": TRACCAR,
+                                                    "tracker_device_id": contestant})
+        start_time = start_time - datetime.timedelta(hours=2)
+        start_time = start_time.astimezone()
+        minutes_starting = 6
+        # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
+        contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,
+                                                      finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                      tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                      tracker_device_id=contestant, contestant_number=index,
+                                                      minutes_to_starting_point=minutes_starting,
+                                                      air_speed=speed,
+                                                      wind_direction=165, wind_speed=8)
+        print(navigation_task.pk)
+        # with open(file, "r") as i:
+        #     insert_gpx_file(contestant_object, i, influx)
 
-    tracks[contestant] = build_traccar_track(file)
-
+        tracks[contestant] = build_traccar_track(file)
+print("Sleeping for 10 seconds")
+time.sleep(10)
 load_data_traccar(tracks)

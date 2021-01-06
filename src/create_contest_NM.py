@@ -74,7 +74,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.kml")):
                                            finished_by_time=start_time + datetime.timedelta(hours=2),
                                            tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                            tracker_device_id=contestant_name, contestant_number=index,
-                                           scorecard=scorecard, minutes_to_starting_point=6, air_speed=speed,
+                                           minutes_to_starting_point=6, air_speed=speed,
                                            wind_direction=165, wind_speed=8)
     print(navigation_task.pk)
     # for contestant in Contestant.objects.filter(contest__pk = 7):

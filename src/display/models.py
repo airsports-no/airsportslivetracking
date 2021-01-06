@@ -541,9 +541,6 @@ class Contestant(models.Model):
                                          help_text="ID of physical tracking device that will be brought into the plane")
     tracker_start_time = models.DateTimeField(
         help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this.")
-    scorecard = models.ForeignKey(Scorecard, on_delete=models.PROTECT,
-                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-                                      lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
     competition_class_longform = models.CharField(max_length=100,
                                                   help_text="The class of the contestant, e.g. beginner, professional, et cetera",
                                                   blank=True, null=True)

@@ -310,10 +310,7 @@ class ContestantForm(forms.ModelForm):
         self.navigation_task = kwargs.pop("navigation_task")  # type: NavigationTask
 
         super().__init__(*args, **kwargs)
-        print(self.navigation_task.scorecard)
-        # self.fields["navigation_task"].hidden = True
         self.fields["team"].queryset = self.navigation_task.contest.contest_teams.all()
-        self.fields["scorecard"].required = self.navigation_task.scorecard is None
         # self.fields["tracking_device_id"].required = False
 
     class Meta:
@@ -322,25 +319,4 @@ class ContestantForm(forms.ModelForm):
             "contestant_number", "team", "tracker_start_time", "tracking_service", "tracker_device_id",
             "takeoff_time",
             "finished_by_time",
-            "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed", "scorecard")
-
-    def save(self, commit=True):
-        if not hasattr(self.instance, "scorecard"):
-            self.instance.scorecard = self.navigation_task.scorecard
-        # if self.instance.tracking_device_id is None or len(self.instance.tracking_device_id) == 0:
-        #     self.instance.tracking_device_id = self.instance.team.tracking_device_id
-        return super().save(commit)
-
-    # def save(self, commit=True):
-    #     contestant = super().save(commit=False)
-    #     member1 = Person.get_or_create(self.cleaned_data["pilot_first_name"], self.cleaned_data["pilot_last_name"],
-    #                                    self.cleaned_data["pilot_phone"], self.cleaned_data["pilot_email"])
-    #     member2 = Person.get_or_create(self.cleaned_data["copilot_first_name"], self.cleaned_data["copilot_last_name"],
-    #                                    self.cleaned_data["copilot_phone"], self.cleaned_data["copilot_email"])
-    #     crew, _ = Crew.objects.get_or_create(member1=member1, member2=member2)
-    #     aircraft, _ = Aeroplane.objects.get_or_create(registration=self.cleaned_data["aircraft_registration"])
-    #     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aircraft)
-    #     contestant.team = team
-    #     if commit:
-    #         contestant.save()
-    #     return contestant
+            "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed")
