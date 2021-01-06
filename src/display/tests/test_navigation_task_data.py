@@ -660,21 +660,6 @@ class TestImportFCNavigationTask(APITransactionTestCase):
             self.assertDictEqual(expected_route["waypoints"][index], waypoint)
             self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])
 
-    def test_import_navigation_task_scorecard(self, patch):
-        local_data = deepcopy(data)
-        local_data["scorecard"] = "FAI Air Rally 2020"
-        for contestant in local_data["contestant_set"]:
-            del contestant["scorecard"]
-        print(json.dumps(local_data, sort_keys=True, indent=2))
-        res = self.client.post(
-            "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), local_data, format="json")
-        print(res.content)
-        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
-        for contestant in res.json()["contestant_set"]:
-            self.assertEqual("FAI Air Rally 2020", contestant["scorecard"])
-        for item in Contestant.objects.all():
-            self.assertEqual("FAI Air Rally 2020", item.scorecard.name)
-
     def test_multiple_import(self, patch):
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), self.data, format="json")

@@ -88,11 +88,16 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     contestant = os.path.splitext(os.path.basename(file))[0]
     if contestant in contestants:
         print(contestant)
-        person = Person.objects.filter(first_name=contestant, last_name="Pilot").first()
-        if not person:
-            person = Person.objects.create(first_name=contestant, last_name="Pilot")
-        crew, _ = Crew.objects.get_or_create(
-            member1=person)
+        if contestant == "Frank-Olaf":
+            member1, _ = Person.objects.get_or_create(first_name="Frank Olaf", last_name="Sem-Jacobsen")
+            member2, _ = Person.objects.get_or_create(first_name="Espen", last_name="Grønstad")
+            crew, _ = Crew.objects.get_or_create(member1=member1, member2=member2)
+        else:
+            person = Person.objects.filter(first_name=contestant, last_name="Pilot").first()
+            if not person:
+                person = Person.objects.create(first_name=contestant, last_name="Pilot")
+            crew, _ = Crew.objects.get_or_create(
+                member1=person)
 
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane,
                                              club=Club.objects.get(name="Kjeller Sportsflyklubb"))
@@ -104,7 +109,8 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
         start_time = start_time.astimezone()
         minutes_starting = 6
         # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
-        contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team, takeoff_time=start_time,
+        contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team,
+                                                      takeoff_time=start_time,
                                                       finished_by_time=start_time + datetime.timedelta(hours=2),
                                                       tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                       tracker_device_id=contestant, contestant_number=index,

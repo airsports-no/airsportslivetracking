@@ -50,7 +50,7 @@ class Calculator(threading.Thread):
         self.tracking_state = self.BEFORE_START
         self.process_event = threading.Event()
         _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
-        self.scorecard = self.contestant.scorecard
+        self.scorecard = self.contestant.navigation_task.scorecard
         self.gates = self.create_gates()
         self.position_update_lock = threading.Lock()
         self.last_gate = None  # type: Optional[Gate]
