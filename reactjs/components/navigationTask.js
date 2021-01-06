@@ -164,7 +164,7 @@ class ConnectedNavigationTask extends Component {
                     iconSize: [20, 20],
                     className: "myGateIcon"
                 })
-            }).bindTooltip(waypoint.name, {permanent: false}).on('click', () => {
+            }).on('click', () => {
                 this.handleMapTurningPointClick(waypoint.name)
             }).addTo(this.map)
         });
