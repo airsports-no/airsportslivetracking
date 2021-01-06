@@ -328,17 +328,17 @@ class Scorecard(models.Model):
         return contestant.get_gate_score_override_for_gate(gate_type)
 
     def get_backtracking_penalty(self, contestant: "Contestant"):
-        if contestant and contestant.track_score_override and contestant.track_score_override.bad_course_penalty:
+        if contestant and contestant.track_score_override and contestant.track_score_override.bad_course_penalty is not None:
             return contestant.track_score_override.bad_course_penalty
         return self.backtracking_penalty
 
     def get_maximum_backtracking_penalty(self, contestant: "Contestant"):
-        if contestant and contestant.track_score_override and contestant.track_score_override.bad_course_maximum_penalty:
+        if contestant and contestant.track_score_override and contestant.track_score_override.bad_course_maximum_penalty is not None:
             return contestant.track_score_override.bad_course_maximum_penalty
         return self.backtracking_maximum_penalty
 
     def get_backtracking_grace_time_seconds(self, contestant: "Contestant"):
-        if contestant and contestant.track_score_override and contestant.track_score_override.bad_course_grace_time:
+        if contestant and contestant.track_score_override and contestant.track_score_override.bad_course_grace_time is not None:
             return contestant.track_score_override.bad_course_grace_time
         return self.backtracking_grace_time_seconds
 
@@ -390,42 +390,42 @@ class GateScore(models.Model):
     backtracking_after_gate_grace_period_nm = models.FloatField(default=0.5)
 
     def get_missed_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_not_found:
+        if score_override and score_override.checkpoint_not_found is not None:
             return score_override.checkpoint_not_found
         return self.missed_penalty
 
     def get_graceperiod_before(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_grace_period_before:
+        if score_override and score_override.checkpoint_grace_period_before is not None:
             return score_override.checkpoint_grace_period_before
         return self.graceperiod_before
 
     def get_graceperiod_after(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_grace_period_after:
+        if score_override and score_override.checkpoint_grace_period_after is not None:
             return score_override.checkpoint_grace_period_after
         return self.graceperiod_after
 
     def get_maximum_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_maximum_penalty:
+        if score_override and score_override.checkpoint_maximum_penalty is not None:
             return score_override.checkpoint_maximum_penalty
         return self.maximum_penalty
 
     def get_bad_course_crossing_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.bad_course_penalty:
+        if score_override and score_override.bad_course_penalty is not None:
             return score_override.bad_course_penalty
         return self.bad_course_crossing_penalty
 
     def get_bad_crossing_extended_gate_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.bad_crossing_extended_gate_penalty:
+        if score_override and score_override.bad_crossing_extended_gate_penalty is not None:
             return score_override.bad_crossing_extended_gate_penalty
         return self.bad_crossing_extended_gate_penalty
 
     def get_missed_procedure_turn_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.missing_procedure_turn_penalty:
+        if score_override and score_override.missing_procedure_turn_penalty is not None:
             return score_override.missing_procedure_turn_penalty
         return self.missed_procedure_turn_penalty
 
     def get_penalty_per_second(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_penalty_per_second:
+        if score_override and score_override.checkpoint_penalty_per_second is not None:
             return score_override.checkpoint_penalty_per_second
         return self.penalty_per_second
 
