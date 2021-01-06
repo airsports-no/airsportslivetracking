@@ -60,6 +60,10 @@ class WaypointSerialiser(serializers.Serializer):
     procedure_turn_points = serializers.JSONField(help_text="Curve that describes the procedure turn (read-only)",
                                                   required=False, read_only=True)
     is_procedure_turn = serializers.BooleanField()
+    outside_distance = serializers.FloatField(help_text="The distance at which we leave the gate vicinity",
+                                              read_only=True, required=False)
+    inside_distance = serializers.FloatField(help_text="The distance at which we enter the gate vicinity",
+                                             read_only=True, required=False)
 
 
 class RouteSerialiser(serializers.ModelSerializer):
@@ -334,7 +338,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-                                     ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
+                                     lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
 
     def create(self, validated_data):
         navigation_task = self.context["navigation_task"]
@@ -454,6 +458,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         user = self.context["request"].user
         track_score_override_data = validated_data.pop("track_score_override", None)
         gate_score_override_data = validated_data.pop("gate_score_override", None)
+        validated_data.pop("use_procedure_turns")
 
         contestant_set = validated_data.pop("contestant_set", [])
         validated_data["contest"] = self.context["contest"]
@@ -483,9 +488,9 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
 class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiser(many=True)
-    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
+    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=True,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-                                     ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
+                                     lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
     gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
     track_score_override = TrackScoreOverrideSerialiser(required=False)
     route_file = serializers.CharField(write_only=True, required=True,
@@ -511,10 +516,11 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
         with transaction.atomic():
             contestant_set = validated_data.pop("contestant_set", [])
             route_file = validated_data.pop("route_file", None)
-            use_procedure_turns = validated_data.pop("use_procedure_turns", True)
             track_score_override_data = validated_data.pop("track_score_override", None)
             gate_score_override_data = validated_data.pop("gate_score_override", None)
-            route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")), use_procedure_turns)
+            validated_data.pop("use_procedure_turns")
+            route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")),
+                                          validated_data["scorecard"].use_procedure_turns)
             user = self.context["request"].user
             validated_data["contest"] = self.context["contest"]
             validated_data["route"] = route

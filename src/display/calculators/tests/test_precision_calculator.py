@@ -32,8 +32,12 @@ class TestFullTrack(TransactionTestCase):
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
+                                                             scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
@@ -41,8 +45,6 @@ class TestFullTrack(TransactionTestCase):
                                                                                                 datetime.timezone.utc)),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
-        from display.default_scorecards import default_scorecard_fai_precision_2020
-        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
@@ -138,8 +140,10 @@ class Test2017WPFC(TransactionTestCase):
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        from display.default_scorecards import default_scorecard_fai_precision_2020
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
+                                                             scorecard=default_scorecard_fai_precision_2020.get_default_scorecard(),
                                                              contest=Contest.objects.create(name="contest",
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
@@ -149,7 +153,6 @@ class Test2017WPFC(TransactionTestCase):
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
-        from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
 
     def test_101(self):
@@ -180,8 +183,11 @@ class TestNM2019(TransactionTestCase):
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
                                                              route=route,
+                                                             scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
@@ -191,8 +197,6 @@ class TestNM2019(TransactionTestCase):
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
-        from display.default_scorecards import default_scorecard_fai_precision_2020
-        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
 
     def test_arild(self):
         track = load_track_points(
@@ -231,5 +235,5 @@ class TestNM2019(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1200,
+        self.assertEqual(1000,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.

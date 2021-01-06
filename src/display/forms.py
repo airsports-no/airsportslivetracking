@@ -61,7 +61,6 @@ class NavigationTaskForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["scorecard"].required = False
 
 
 # class BasicScoreOverrideForm(forms.ModelForm):

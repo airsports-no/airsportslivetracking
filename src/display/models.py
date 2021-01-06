@@ -279,42 +279,9 @@ class Contest(models.Model):
         ordering = ("-start_time", "-finish_time")
 
 
-class NavigationTask(models.Model):
-    PRECISION = 0
-    ANR = 1
-    NAVIGATION_TASK_TYPES = (
-        (PRECISION, "Precision"),
-        # (ANR, "ANR")
-    )
-
-    name = models.CharField(max_length=200)
-    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
-    calculator_type = models.IntegerField(choices=NAVIGATION_TASK_TYPES, default=PRECISION,
-                                          help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
-                                              NAVIGATION_TASK_TYPES))
-    route = models.OneToOneField(Route, on_delete=models.PROTECT)
-    scorecard = models.ForeignKey("Scorecard", on_delete=models.PROTECT, null=True,
-                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-                                      lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
-    track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True)
-    gate_score_override = models.ManyToManyField("GateScoreOverride")
-
-    start_time = models.DateTimeField(
-        help_text="The start time of the navigation test. Not really important, but nice to have")
-    finish_time = models.DateTimeField(
-        help_text="The finish time of the navigation test. Not really important, but nice to have")
-    is_public = models.BooleanField(default=False,
-                                    help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
-
-    class Meta:
-        ordering = ("start_time", "finish_time")
-
-    def __str__(self):
-        return "{}: {}".format(self.name, self.start_time.isoformat())
-
-
 class Scorecard(models.Model):
     name = models.CharField(max_length=100, default="default", unique=True)
+    use_procedure_turns = models.BooleanField(default=True, blank=True)
     backtracking_penalty = models.FloatField(default=200)
     backtracking_bearing_difference = models.FloatField(default=90)
     backtracking_grace_time_seconds = models.FloatField(default=5)
@@ -322,17 +289,17 @@ class Scorecard(models.Model):
                                                      help_text="Negative numbers means the maximum is ignored")
     below_minimum_altitude_penalty = models.FloatField(default=500)
 
-    takeoff_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+    takeoff_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
                                               related_name="takeoff")
-    landing_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+    landing_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
                                               related_name="landing")
-    turning_point_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+    turning_point_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
                                                     related_name="turning_point")
-    starting_point_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+    starting_point_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
                                                      related_name="starting")
-    finish_point_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+    finish_point_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
                                                    related_name="finish")
-    secret_gate_score = models.OneToOneField("GateScore", on_delete=models.CASCADE, null=True, blank=True,
+    secret_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
                                              related_name="secret")
 
     def __str__(self):
@@ -485,7 +452,7 @@ class GateScore(models.Model):
 
 
 class TrackScoreOverride(models.Model):
-    navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE, null=True, blank=True)
+    navigation_task = models.ForeignKey("NavigationTask", on_delete=models.CASCADE, null=True, blank=True)
     bad_course_grace_time = models.FloatField(default=None, blank=True, null=True,
                                               help_text="The number of seconds a bad course can be tolerated before generating a penalty")
     bad_course_penalty = models.FloatField(default=None, blank=True, null=True,
@@ -498,7 +465,7 @@ class TrackScoreOverride(models.Model):
 
 
 class GateScoreOverride(models.Model):
-    navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE, null=True, blank=True)
+    navigation_task = models.ForeignKey("NavigationTask", on_delete=models.CASCADE, null=True, blank=True)
     for_gate_types = MyPickledObjectField(default=list,
                                           help_text="List of gates types (eg. tp, secret, sp) that should be overridden (all lower case)")
     checkpoint_grace_period_before = models.FloatField(default=None, blank=True, null=True,
@@ -520,6 +487,40 @@ class GateScoreOverride(models.Model):
 
     def __str__(self):
         return "Gate score override for {}".format(self.navigation_task)
+
+
+class NavigationTask(models.Model):
+    PRECISION = 0
+    ANR = 1
+    NAVIGATION_TASK_TYPES = (
+        (PRECISION, "Precision"),
+        # (ANR, "ANR")
+    )
+
+    name = models.CharField(max_length=200)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
+    calculator_type = models.IntegerField(choices=NAVIGATION_TASK_TYPES, default=PRECISION,
+                                          help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
+                                              NAVIGATION_TASK_TYPES))
+    route = models.OneToOneField(Route, on_delete=models.PROTECT)
+    scorecard = models.ForeignKey("Scorecard", on_delete=models.PROTECT,
+                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                      lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
+    track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True)
+    gate_score_override = models.ManyToManyField("GateScoreOverride")
+
+    start_time = models.DateTimeField(
+        help_text="The start time of the navigation test. Not really important, but nice to have")
+    finish_time = models.DateTimeField(
+        help_text="The finish time of the navigation test. Not really important, but nice to have")
+    is_public = models.BooleanField(default=False,
+                                    help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
+
+    class Meta:
+        ordering = ("start_time", "finish_time")
+
+    def __str__(self):
+        return "{}: {}".format(self.name, self.start_time.isoformat())
 
 
 class Contestant(models.Model):

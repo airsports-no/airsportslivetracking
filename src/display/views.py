@@ -554,7 +554,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     def done(self, form_list, **kwargs):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
         initial_step_data = self.get_cleaned_data_for_step("0")
-        use_procedure_turns = initial_step_data.get("use_procedure_turns", True)
+        use_procedure_turns = self.get_cleaned_data_for_step("1")["scorecard"].use_procedure_turns
         if initial_step_data["file_type"] == FILE_TYPE_CSV:
             data = [item.decode(encoding="UTF-8") for item in initial_step_data['file'].readlines()]
             route = create_route_from_csv(initial_step_data["name"], data[1:], use_procedure_turns)
