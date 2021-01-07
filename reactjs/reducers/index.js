@@ -18,7 +18,11 @@ import {
     HIGHLIGHT_CONTESTANT,
     REMOVE_HIGHLIGHT_CONTESTANT,
     REMOVE_HIGHLIGHT_CONTESTANT_TABLE,
-    HIGHLIGHT_CONTESTANT_TABLE, HIGHLIGHT_CONTESTANT_TRACK, REMOVE_HIGHLIGHT_CONTESTANT_TRACK
+    HIGHLIGHT_CONTESTANT_TABLE,
+    HIGHLIGHT_CONTESTANT_TRACK,
+    REMOVE_HIGHLIGHT_CONTESTANT_TRACK,
+    FULL_HEIGHT_TABLE,
+    HALF_HEIGHT_TABLE
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -29,6 +33,7 @@ const initialState = {
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
     displayTracks: null,
     displayExpandedTrackingTable: false,
+    displayFullHeightTrackingTable: false,
     isFetchingContestantData: {},
     initialLoadingContestantData: {},
     displayLowerThirds: null,
@@ -193,6 +198,16 @@ function rootReducer(state = initialState, action) {
     if (action.type === SHRINK_TRACKING_TABLE) {
         return Object.assign({}, state, {
             displayExpandedTrackingTable: false
+        });
+    }
+    if (action.type === FULL_HEIGHT_TABLE) {
+        return Object.assign({}, state, {
+            displayFullHeightTrackingTable: true
+        });
+    }
+    if (action.type === HALF_HEIGHT_TABLE) {
+        return Object.assign({}, state, {
+            displayFullHeightTrackingTable: false
         });
     }
     if (action.type === SHOW_LOWER_THIRDS) {

@@ -16,7 +16,14 @@
     z-index: 2;
     display: inline-block;
     right: 120px;
+}
+
+.outerBackdropFull {
     bottom: 120px;
+}
+
+.outerBackdropHalf {
+    max-height: 500px;
 }
 
 .backdrop {
@@ -27,12 +34,18 @@
     /*border-radius: 0 0 25px 25px;*/
     font-size: x-large;
     overflow-y: auto;
-    max-height: 500px;
 }
 
 .backdropWide {
     font-size: large;
     overflow-y: auto;
+}
+
+.backdropHalf {
+    max-height: 500px;
+}
+
+.backdropFull {
     max-height: 100%;
 }
 
@@ -88,14 +101,14 @@ tr.selectedContestantRow td {
 
 /* Large desktop */
 @media (min-width: 1300px) {
-/*    .lowerThirdsDouble, .outerBackdropNarrow {*/
-/*        transform: scale(0.8);*/
-/*    }*/
-
-/*    .lowerThirdsSingle {*/
-/*        transform: scale(0.8);*/
-/*    }*/
+    /*    .lowerThirdsDouble, .outerBackdropNarrow {*/
+    /*        transform: scale(0.8);*/
+    /*    }*/
+    /*    .lowerThirdsSingle {*/
+    /*        transform: scale(0.8);*/
+    /*    }*/
 }
+
 @media (min-width: 1024px) and (max-width: 1300px) {
     .lowerThirdsDouble, .outerBackdropNarrow {
         transform: scale(0.75);
@@ -151,7 +164,7 @@ tr.selectedContestantRow td {
 }
 
 .lowerThirdsProfileImage {
-    align-self: flex-end;  /* safari */
+    align-self: flex-end; /* safari */
 }
 
 .lowerThirdsTeamImage {

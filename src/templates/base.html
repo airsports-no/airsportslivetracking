@@ -27,7 +27,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
           integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
           crossorigin=""/>
-    <script src="https://kit.fontawesome.com/9a2f9df054.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="{% static 'css/material-icons.css' %}">
+{#    <script src="https://kit.fontawesome.com/9a2f9df054.js" crossorigin="anonymous"></script>#}
     <link rel="stylesheet" href="{% static 'jquery-ui/jquery-ui.css' %}">
     <link rel="stylesheet" href="{% static 'css/jquery-ui-timepicker-addon.css' %}">
     <link rel="stylesheet" href="{% static 'cesium/cesium.css' %}" media="screen">
@@ -40,15 +41,19 @@
     {#            src="https://code.jquery.com/jquery-3.3.1.min.js"#}
     {#            integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="#}
     {#            crossorigin="anonymous"></script>#}
-<!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-8072T2CHC6"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8072T2CHC6"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
 
-  gtag('config', 'G-8072T2CHC6');
-</script>
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+
+        gtag('js', new Date());
+
+        gtag('config', 'G-8072T2CHC6');
+    </script>
 </head>
 <body>
 <header>
@@ -66,9 +71,9 @@
                     {#                    <a class="nav-link" href="/">Contests <span class="sr-only">(current)</span></a>#}
                     {#                </li>#}
                     {% if perms.display.add_contest %}
-{#                        <li class="nav-item">#}
-{#                            <a class="nav-link" href="{% url 'import_route' %}">Import route</a>#}
-{#                        </li>#}
+                        {#                        <li class="nav-item">#}
+                        {#                            <a class="nav-link" href="{% url 'import_route' %}">Import route</a>#}
+                        {#                        </li>#}
                     {% endif %}
                     {#                <li class="nav-item dropdown">#}
                     {#                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"#}

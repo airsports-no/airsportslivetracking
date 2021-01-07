@@ -17,7 +17,7 @@ import {
     REMOVE_HIGHLIGHT_CONTESTANT,
     REMOVE_HIGHLIGHT_CONTESTANT_TRACK,
     HIGHLIGHT_CONTESTANT_TRACK,
-    HIGHLIGHT_CONTESTANT_TABLE, REMOVE_HIGHLIGHT_CONTESTANT_TABLE
+    HIGHLIGHT_CONTESTANT_TABLE, REMOVE_HIGHLIGHT_CONTESTANT_TABLE, FULL_HEIGHT_TABLE, HALF_HEIGHT_TABLE
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -48,6 +48,14 @@ export function shrinkTrackingTable() {
     return {type: SHRINK_TRACKING_TABLE}
 }
 
+export function fullHeightTable() {
+    return {type: FULL_HEIGHT_TABLE}
+}
+
+export function halfHeightTable() {
+    return {type: HALF_HEIGHT_TABLE}
+}
+
 export function initialLoading(contestantId) {
     return {type: INITIAL_LOADING, contestantId: contestantId}
 }
@@ -56,19 +64,19 @@ export function initialLoadingComplete(contestantId) {
     return {type: INITIAL_LOADING_COMPLETE, contestantId: contestantId}
 }
 
-export function highlightContestantTrack(contestantId){
+export function highlightContestantTrack(contestantId) {
     return {type: HIGHLIGHT_CONTESTANT_TRACK, contestantId: contestantId}
 }
 
-export function removeHighlightContestantTrack(contestantId){
+export function removeHighlightContestantTrack(contestantId) {
     return {type: REMOVE_HIGHLIGHT_CONTESTANT_TRACK, contestantId: contestantId}
 }
 
-export function highlightContestantTable(contestantId){
+export function highlightContestantTable(contestantId) {
     return {type: HIGHLIGHT_CONTESTANT_TABLE, contestantId: contestantId}
 }
 
-export function removeHighlightContestantTable(contestantId){
+export function removeHighlightContestantTable(contestantId) {
     return {type: REMOVE_HIGHLIGHT_CONTESTANT_TABLE, contestantId: contestantId}
 }
 

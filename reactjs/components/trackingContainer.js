@@ -4,7 +4,14 @@ import {connect} from "react-redux";
 import React, {Component} from "react";
 import TrackLoadingIndicator from "./trackLoadingIndicator";
 import {LowerThirdTeam} from "./teamBadges";
-import {displayAllTracks, expandTrackingTable, hideLowerThirds, setDisplay, shrinkTrackingTable} from "../actions";
+import {
+    displayAllTracks,
+    expandTrackingTable, fullHeightTable,
+    halfHeightTable,
+    hideLowerThirds,
+    setDisplay,
+    shrinkTrackingTable
+} from "../actions";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
 // import "leaflet/dist/leaflet.css"
@@ -15,6 +22,7 @@ const mapStateToProps = (state, props) => ({
     displayLowerThirds: state.displayLowerThirds,
     contestants: state.contestants,
     currentDisplay: state.currentDisplay,
+    displayFullHeightTrackingTable: state.displayFullHeightTrackingTable
 })
 
 class ConnectedTrackingContainer extends Component {
@@ -37,6 +45,14 @@ class ConnectedTrackingContainer extends Component {
     }
 
     render() {
+        const TableHeightLink = <a className={"shrinkLink taskTitle"} href={"#"}
+                                   onClick={this.props.displayFullHeightTrackingTable ? this.props.halfHeightTable : this.props.fullHeightTable}>{this.props.displayFullHeightTrackingTable ?
+            <i className={"mdi mdi-keyboard-arrow-up"}/> :
+            <i className={"mdi mdi-keyboard-arrow-down"}/>}</a>
+        const ExpandedTableLink = <a className={"shrinkLink taskTitle"} href={"#"}
+                                     onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ?
+            <i className={"mdi mdi-keyboard-arrow-left"}/> :
+            <i className={"mdi mdi-keyboard-arrow-right"}/>}</a>
         const TrackerDisplay =
             <NavigationTask map={this.map} contestId={this.contestId} navigationTaskId={this.navigationTaskId}
                             fetchInterval={2000}
@@ -78,7 +94,7 @@ class ConnectedTrackingContainer extends Component {
                             numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
                         <div className={"row fill ml-1"}>
                             <div
-                                className={(this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow")}>
+                                className={(this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayFullHeightTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
                                 <div
                                     className={"titleWrapper"}>
                                     <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}>
@@ -90,12 +106,12 @@ class ConnectedTrackingContainer extends Component {
                                     <a href={"#"} className={'taskTitle'} data-toggle={"collapse"}
                                        data-target={"#insetMenu"}>{this.props.navigationTask.name}</a>
                                     {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ?
-                                        <a className={"shrinkLink taskTitle"} href={"#"}
-                                           onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ? "<<<" : ">>>"}</a> : null}
+                                        <span>{TableHeightLink} {ExpandedTableLink}</span> : null}
 
                                 </div>
                                 <div
-                                    className={(this.props.displayExpandedTrackingTable ? "backdropWide" : "backdrop")}>{TrackerDisplay}</div>
+                                    className={(this.props.displayExpandedTrackingTable ? "backdropWide" : "backdrop") + " " + (this.props.displayFullHeightTrackingTable ? "backdropFull" : "backdropHalf")}>{TrackerDisplay}</div>
+
                             </div>
                             <a className={"btn"} id="returnLink" href={"/"}><img alt={"Back to main page"}
                                                                                  id={"returnLinkImage"}
@@ -120,6 +136,8 @@ const TrackingContainer = connect(mapStateToProps, {
     shrinkTrackingTable,
     setDisplay,
     displayAllTracks,
-    hideLowerThirds
+    hideLowerThirds,
+    halfHeightTable,
+    fullHeightTable
 })(ConnectedTrackingContainer)
 export default TrackingContainer

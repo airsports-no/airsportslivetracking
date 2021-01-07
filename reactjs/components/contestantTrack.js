@@ -1,16 +1,17 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
+// import {renderToString} from 'react-dom/server';
 import {
     displayOnlyContestantTrack,
-    fetchContestantData, highlightContestantTable,     initialLoading,
-    initialLoadingComplete, removeHighlightContestantTable,     setDisplay, showLowerThirds
+    fetchContestantData, highlightContestantTable, initialLoading,
+    initialLoadingComplete, removeHighlightContestantTable, setDisplay, showLowerThirds
 } from "../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
 import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
-import {contestantLongForm, contestantShortForm} from "../utilities";
+import {contestantLongForm, contestantShortForm, getBearing} from "../utilities";
 import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
 
 const L = window['L']
@@ -32,6 +33,7 @@ class ConnectedContestantTrack extends Component {
         this.markers = L.markerClusterGroup()
         this.lineCollection = null;
         this.dot = null;
+        this.dotText = null;
         this.previousLastTime = null;
         this.lastNewData = null;
         this.annotationLayer = L.layerGroup()
@@ -41,15 +43,35 @@ class ConnectedContestantTrack extends Component {
         this.props.initialLoading(this.contestant.id)
         // this.fetchNextData(false)
         this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
+        this.bearing = 0
     }
 
     createAirplaneIcon() {
-        const size = 24;
+        const size = 32;
         return L.divIcon({
-            html: '<i class="fa fa-plane" style="color: ' + this.props.colour + '"><br/>' + contestantShortForm(this.props.contestant) + '</i>',
-            iconSize: [size, size],
-            iconAnchor: [size, size / 2],
+            // html: '<i class="mdi mdi-airplanemode-active" style="color: ' + this.props.colour + '; transform: rotate(' + this.bearing + 'deg); width: {size}"><br/>' + contestantShortForm(this.props.contestant) + '</i>',
+            html: '<i class="mdi mdi-airplanemode-active" style="color: ' + this.props.colour + '; transform: rotate(' + this.bearing + 'deg); font-size: ' + size + 'px"/>',
+            // iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
+        })
+
+    }
+
+
+    createAirplaneTextIcon() {
+        const size = 20;
+        const style = {
+            color: this.props.colour,
+            fontSize: size + 'px'
+        }
+        const text = <div style={style}>contestantShortForm(this.props.contestant)</div>
+        const length = Math.ceil(text.clientWidth)
+        return L.divIcon({
+            html: '<div style="color: ' + this.props.colour + '; font-size: ' + size + 'px">' + contestantShortForm(this.props.contestant) + '</div>',
+            iconAnchor: [100, -16],
+            iconSize: [200, size],
+            className: "myAirplaneTextIcon text-center"
         })
 
     }
@@ -163,6 +185,7 @@ class ConnectedContestantTrack extends Component {
             weight: 3
         })
         this.dot.setIcon(this.createAirplaneIcon())
+        this.dotText.setIcon(this.createAirplaneTextIcon())
     }
 
     normal() {
@@ -211,6 +234,15 @@ class ConnectedContestantTrack extends Component {
         ).on('mouseout', (e) =>
             this.props.removeHighlightContestantTable(this.contestant.id)
         )
+        this.dotText = L.marker(newest_position, {icon: this.createAirplaneTextIcon()}).bindTooltip(contestantLongForm(this.contestant), {
+            permanent: false
+        }).on('click', (e) =>
+            this.handleContestantLinkClick(e, this.contestant.id)
+        ).on('mouseover', (e) =>
+            this.props.highlightContestantTable(this.contestant.id)
+        ).on('mouseout', (e) =>
+            this.props.removeHighlightContestantTable(this.contestant.id)
+        )
     }
 
     renderAnnotations(annotations) {
@@ -244,6 +276,7 @@ class ConnectedContestantTrack extends Component {
         if (!this.displayed && this.dot) {
             this.lineCollection.addTo(this.map)
             this.dot.addTo(this.map)
+            this.dotText.addTo(this.map)
             this.displayed = true
         }
     }
@@ -252,6 +285,7 @@ class ConnectedContestantTrack extends Component {
         if (this.displayed && this.dot) {
             this.lineCollection.removeFrom(this.map)
             this.dot.removeFrom(this.map)
+            this.dotText.removeFrom(this.map)
             this.displayed = false
         }
     }
@@ -263,6 +297,18 @@ class ConnectedContestantTrack extends Component {
     }
 
 
+    updateBearing() {
+        if (this.lineCollection) {
+            const positions = this.lineCollection.getLatLngs()
+            if (positions.length > 1) {
+                const slice = positions.slice(-2)
+                this.bearing = getBearing(slice[0].lat, slice[0].lng, slice[1].lat, slice[1].lng)
+
+            }
+        }
+        this.dot.setIcon(this.createAirplaneIcon())
+    }
+
     renderPositions(b) {
         if (b.length) {
             if (!this.dot) {
@@ -271,11 +317,13 @@ class ConnectedContestantTrack extends Component {
                 const s = b.slice(-1)[0]
                 if (s) {
                     this.dot.setLatLng(b.slice(-1)[0])
+                    this.dotText.setLatLng(b.slice(-1)[0])
                 }
                 b.map((position) => {
                     this.lineCollection.addLatLng(position)
                 })
             }
+            this.updateBearing()
         }
     }
 
