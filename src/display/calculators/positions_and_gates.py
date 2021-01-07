@@ -128,5 +128,6 @@ def get_intersect_time(projector: Projector, track_segment_start: Position, trac
         # logger.info("Time difference is: {}".format(time_difference))
         # logger.info("Fraction is: {}".format(fraction))
         # logger.info("Which gives the time: {}".format(intersection_time))
+        logger.info("Actual intersection time: {}".format(intersection_time))
         return round_seconds(intersection_time)
     return None
