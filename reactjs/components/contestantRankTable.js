@@ -7,7 +7,11 @@ import "bootstrap/dist/css/bootstrap.min.css"
 import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
 import {
     displayOnlyContestantTrack,
-    setDisplay, showLowerThirds,
+
+    highlightContestantTrack,
+    removeHighlightContestantTrack,
+    setDisplay,
+    showLowerThirds,
 } from "../actions";
 import {Loading} from "./basicComponents";
 import {ProgressCircle, ProjectedScore} from "./contestantProgress";
@@ -41,7 +45,8 @@ const mapStateToProps = (state, props) => ({
             contestant: state.contestants[key]
         }
     }),
-    displayExpandedTrackingTable: state.displayExpandedTrackingTable
+    displayExpandedTrackingTable: state.displayExpandedTrackingTable,
+    highlight: state.highlightContestantTable
 })
 
 
@@ -52,6 +57,11 @@ class ConnectedContestantRankTable extends Component {
         this.numberStyle = this.numberStyle.bind(this)
         this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
         this.getStateFormat = this.getStateFormat.bind(this)
+        this.selectedLine = null
+        this.setHighlightedRef = element => {
+            this.selectedLine = element;
+        }
+
     }
 
 
@@ -70,6 +80,11 @@ class ConnectedContestantRankTable extends Component {
         return {backgroundColor: this.props.colourMap[row.contestantNumber]}
     }
 
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        if (this.props.highlight.length === 1 && this.selectedLine) {
+            this.selectedLine.scrollIntoView({block: "center"})
+        }
+    }
 
     buildData() {
         const contestants = this.props.contestants.filter((contestant) => {
@@ -160,6 +175,9 @@ class ConnectedContestantRankTable extends Component {
                     return {color: "orange"}
                 },
                 formatter: (cell, row) => {
+                    if (this.props.highlight.includes(row.contestantId)) {
+                        return <span ref={this.setHighlightedRef}>{cell.toFixed(0)}</span>
+                    }
                     return cell.toFixed(0)
                 },
                 sort: true,
@@ -212,6 +230,12 @@ class ConnectedContestantRankTable extends Component {
         const rowEvents = {
             onClick: (e, row, rowIndex) => {
                 this.handleContestantLinkClick(row.contestantId)
+            },
+            onMouseEnter: (e, row, rowIndex) => {
+                this.props.highlightContestantTrack(row.contestantId)
+            },
+            onMouseLeave: (e, row, rowIndex) => {
+                this.props.removeHighlightContestantTrack(row.contestantId)
             }
         }
 
@@ -220,7 +244,14 @@ class ConnectedContestantRankTable extends Component {
             hideSizePerPage: true,
             hidePageListOnlyOnePage: true
         };
+        const rowClasses = (row, rowIndex) => {
+            if (this.props.highlight.includes(row.contestantId)) {
+                return "selectedContestantRow"
+            }
+        }
+
         return <BootstrapTable keyField={"key"} data={this.buildData()} columns={columns}
+                               rowClasses={rowClasses}
                                defaultSorted={[{dataField: "rank", order: "asc"}]}
                                classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
                                bootstrap4 striped hover condensed
@@ -233,6 +264,8 @@ const
     ContestantRankTable = connect(mapStateToProps, {
         setDisplay,
         displayOnlyContestantTrack,
-        showLowerThirds
+        showLowerThirds,
+        highlightContestantTrack,
+        removeHighlightContestantTrack
     })(ConnectedContestantRankTable)
 export default ContestantRankTable

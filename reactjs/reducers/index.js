@@ -14,7 +14,11 @@ import {
     INITIAL_LOADING,
     CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL,
     SHOW_LOWER_THIRDS,
-    HIDE_LOWER_THIRDS
+    HIDE_LOWER_THIRDS,
+    HIGHLIGHT_CONTESTANT,
+    REMOVE_HIGHLIGHT_CONTESTANT,
+    REMOVE_HIGHLIGHT_CONTESTANT_TABLE,
+    HIGHLIGHT_CONTESTANT_TABLE, HIGHLIGHT_CONTESTANT_TRACK, REMOVE_HIGHLIGHT_CONTESTANT_TRACK
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -27,7 +31,9 @@ const initialState = {
     displayExpandedTrackingTable: false,
     isFetchingContestantData: {},
     initialLoadingContestantData: {},
-    displayLowerThirds: null
+    displayLowerThirds: null,
+    highlightContestantTrack: [],
+    highlightContestantTable: [],
 };
 
 function rootReducer(state = initialState, action) {
@@ -129,6 +135,31 @@ function rootReducer(state = initialState, action) {
                 [action.payload.contestant_id]: false
             }
         }
+    }
+    if (action.type === HIGHLIGHT_CONTESTANT_TABLE) {
+        return Object.assign({}, state, {
+            highlightContestantTable: state.highlightContestantTable.concat([action.contestantId])
+        });
+    }
+    if (action.type === REMOVE_HIGHLIGHT_CONTESTANT_TABLE) {
+        return Object.assign({}, state, {
+            highlightContestantTable: state.highlightContestantTable.filter((id) => {
+                return id !== action.contestantId
+            })
+        });
+    }
+
+    if (action.type === HIGHLIGHT_CONTESTANT_TRACK) {
+        return Object.assign({}, state, {
+            highlightContestantTrack: state.highlightContestantTrack.concat([action.contestantId])
+        });
+    }
+    if (action.type === REMOVE_HIGHLIGHT_CONTESTANT_TRACK) {
+        return Object.assign({}, state, {
+            highlightContestantTrack: state.highlightContestantTrack.filter((id) => {
+                return id !== action.contestantId
+            })
+        });
     }
     if (action.type === DISPLAY_TRACK_FOR_CONTESTANT) {
         let existingTracks = state.displayTrack;

@@ -2,10 +2,8 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
     displayOnlyContestantTrack,
-    fetchContestantData,
-    initialLoading,
-    initialLoadingComplete,
-    setDisplay, showLowerThirds
+    fetchContestantData, highlightContestantTable,     initialLoading,
+    initialLoadingComplete, removeHighlightContestantTable,     setDisplay, showLowerThirds
 } from "../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
@@ -21,14 +19,15 @@ const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestant.id],
     displayTracks: state.displayTracks,
     isFetching: state.isFetchingContestantData[props.contestant.id],
-    initialLoading: state.initialLoadingContestantData[props.contestant.id]
+    initialLoading: state.initialLoadingContestantData[props.contestant.id],
+    dim: state.highlightContestantTrack.length > 0 && !state.highlightContestantTrack.includes(props.contestant.id),
+    highlight: state.highlightContestantTrack.length > 0 && state.highlightContestantTrack.includes(props.contestant.id),
 })
 
 class ConnectedContestantTrack extends Component {
     constructor(props) {
         super(props);
         this.map = props.map
-        this.colour = props.colour
         this.contestant = props.contestant
         this.markers = L.markerClusterGroup()
         this.lineCollection = null;
@@ -36,19 +35,23 @@ class ConnectedContestantTrack extends Component {
         this.previousLastTime = null;
         this.lastNewData = null;
         this.annotationLayer = L.layerGroup()
-        const size = 24;
-        this.airplaneIcon = L.divIcon({
-            html: '<i class="fa fa-plane" style="color: ' + this.colour + '"><br/>' + contestantShortForm(props.contestant) + '</i>',
-            iconSize: [size, size],
-            iconAnchor: [size, size / 2],
-            className: "myAirplaneIcon"
-        })
         this.iconMap = {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
         }
         this.props.initialLoading(this.contestant.id)
         // this.fetchNextData(false)
         this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
+    }
+
+    createAirplaneIcon() {
+        const size = 24;
+        return L.divIcon({
+            html: '<i class="fa fa-plane" style="color: ' + this.props.colour + '"><br/>' + contestantShortForm(this.props.contestant) + '</i>',
+            iconSize: [size, size],
+            iconAnchor: [size, size / 2],
+            className: "myAirplaneIcon"
+        })
+
     }
 
     handleContestantLinkClick(e, contestantId) {
@@ -90,6 +93,18 @@ class ConnectedContestantTrack extends Component {
     }
 
     componentDidUpdate(previousProps) {
+        if (this.lineCollection && this.dot) {
+            if (this.props.colour !== previousProps.colour) {
+                this.updateStyle()
+            }
+            if (this.props.dim) {
+                this.dim()
+            } else if (this.props.highlight) {
+                this.highlight()
+            } else {
+                this.normal()
+            }
+        }
         // if (this.props.contestantData !== undefined) {
         //     if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
         //         this.lastNewData = new Date();
@@ -100,13 +115,13 @@ class ConnectedContestantTrack extends Component {
         if (this.props.contestantData !== undefined) {
             if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
                 // if (this.props.contestantData.more_data) {
-                    // clearTimeout(this.timeout)
-                    // this.fetchNextData(false)
-                    // finishedInitialLoading = false;
+                // clearTimeout(this.timeout)
+                // this.fetchNextData(false)
+                // finishedInitialLoading = false;
                 // } else if (this.props.initialLoading) {
-                    // clearTimeout(this.timeout)
-                    // this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)
-                    this.props.initialLoadingComplete(this.contestant.id);
+                // clearTimeout(this.timeout)
+                // this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)
+                this.props.initialLoadingComplete(this.contestant.id);
                 // }
             }
         }
@@ -141,15 +156,61 @@ class ConnectedContestantTrack extends Component {
         }
     }
 
+    updateStyle() {
+        this.lineCollection.setStyle({
+            color: this.props.colour,
+            opacity: 1,
+            weight: 3
+        })
+        this.dot.setIcon(this.createAirplaneIcon())
+    }
+
+    normal() {
+        this.lineCollection.setStyle({
+            color: this.props.colour,
+            opacity: 1,
+            weight: 3
+        })
+    }
+
+
+    highlight() {
+        this.lineCollection.setStyle({
+            color: "red",
+            opacity: 1,
+            weight: 6
+        })
+    }
+
+    dim() {
+        this.lineCollection.setStyle({
+            color: this.props.colour,
+            opacity: 0.2,
+            weight: 1
+        })
+    }
+
     createLiveEntities(positions) {
         const newest_position = positions.slice(-1)[0];
 
         this.lineCollection = L.polyline(positions, {
             color: this.colour
-        }).on('click', (e) => this.handleContestantLinkClick(e, this.contestant.id))
-        this.dot = L.marker(newest_position, {icon: this.airplaneIcon}).bindTooltip(contestantLongForm(this.contestant), {
+        }).on('click', (e) =>
+            this.handleContestantLinkClick(e, this.contestant.id)
+        ).on('mouseover', (e) =>
+            this.props.highlightContestantTable(this.contestant.id)
+        ).on('mouseout', (e) =>
+            this.props.removeHighlightContestantTable(this.contestant.id)
+        )
+        this.dot = L.marker(newest_position, {icon: this.createAirplaneIcon()}).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
-        }).on('click', (e) => this.handleContestantLinkClick(e, this.contestant.id))
+        }).on('click', (e) =>
+            this.handleContestantLinkClick(e, this.contestant.id)
+        ).on('mouseover', (e) =>
+            this.props.highlightContestantTable(this.contestant.id)
+        ).on('mouseout', (e) =>
+            this.props.removeHighlightContestantTable(this.contestant.id)
+        )
     }
 
     renderAnnotations(annotations) {
@@ -230,6 +291,8 @@ const ContestantTrack = connect(mapStateToProps, {
     initialLoadingComplete,
     setDisplay,
     displayOnlyContestantTrack,
-    showLowerThirds
+    showLowerThirds,
+    highlightContestantTable,
+    removeHighlightContestantTable
 })(ConnectedContestantTrack);
 export default ContestantTrack;

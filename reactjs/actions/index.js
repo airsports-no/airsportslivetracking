@@ -9,7 +9,15 @@ import {
     GET_CONTESTANT_DATA_FAILED,
     GET_CONTESTANT_DATA_REQUEST,
     INITIAL_LOADING,
-    INITIAL_LOADING_COMPLETE, CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL, SHOW_LOWER_THIRDS, HIDE_LOWER_THIRDS
+    INITIAL_LOADING_COMPLETE,
+    CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL,
+    SHOW_LOWER_THIRDS,
+    HIDE_LOWER_THIRDS,
+    HIGHLIGHT_CONTESTANT,
+    REMOVE_HIGHLIGHT_CONTESTANT,
+    REMOVE_HIGHLIGHT_CONTESTANT_TRACK,
+    HIGHLIGHT_CONTESTANT_TRACK,
+    HIGHLIGHT_CONTESTANT_TABLE, REMOVE_HIGHLIGHT_CONTESTANT_TABLE
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -46,6 +54,22 @@ export function initialLoading(contestantId) {
 
 export function initialLoadingComplete(contestantId) {
     return {type: INITIAL_LOADING_COMPLETE, contestantId: contestantId}
+}
+
+export function highlightContestantTrack(contestantId){
+    return {type: HIGHLIGHT_CONTESTANT_TRACK, contestantId: contestantId}
+}
+
+export function removeHighlightContestantTrack(contestantId){
+    return {type: REMOVE_HIGHLIGHT_CONTESTANT_TRACK, contestantId: contestantId}
+}
+
+export function highlightContestantTable(contestantId){
+    return {type: HIGHLIGHT_CONTESTANT_TABLE, contestantId: contestantId}
+}
+
+export function removeHighlightContestantTable(contestantId){
+    return {type: REMOVE_HIGHLIGHT_CONTESTANT_TABLE, contestantId: contestantId}
 }
 
 

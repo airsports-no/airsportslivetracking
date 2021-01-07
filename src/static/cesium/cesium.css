@@ -46,6 +46,9 @@
     background-color: #666666;
 }
 
+tr.selectedContestantRow td {
+    background-color: brown;
+}
 
 .inheritDisplay {
     display: inherit;
