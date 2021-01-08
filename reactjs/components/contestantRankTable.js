@@ -69,6 +69,7 @@ class ConnectedContestantRankTable extends Component {
         this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
         this.props.displayOnlyContestantTrack(contestantId)
         this.props.showLowerThirds(contestantId)
+        this.props.removeHighlightContestantTrack(contestantId)
     }
 
 
