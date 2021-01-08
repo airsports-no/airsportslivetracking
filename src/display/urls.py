@@ -9,7 +9,7 @@ from display.views import import_route, frontend_view_map, \
     auto_complete_club, auto_complete_aeroplane, RegisterTeamWizard, ContestTeamList, remove_team_from_contest, \
     TeamUpdateView, auto_complete_person_id, PersonUpdateView, PersonList, NavigationTaskUpdateView, \
     ContestTeamTrackingUpdate, manifest, auto_complete_contestteam_pk, \
-    tracking_qr_code_view
+    tracking_qr_code_view, get_contestant_map, get_navigation_task_map
 
 urlpatterns = [
     path('importroute', import_route, name="import_route"),
@@ -20,11 +20,13 @@ urlpatterns = [
     path('contest/<int:pk>/delete/', ContestDeleteView.as_view(), name="contest_delete"),
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
     path('navigationtask/<int:pk>/qr/', tracking_qr_code_view, name="navigationtask_qr"),
+    path('navigationtask/<int:pk>/map/', get_navigation_task_map, name="navigationtask_map"),
     path('navigationtask/<int:pk>/update/', NavigationTaskUpdateView.as_view(), name="navigationtask_update"),
     path('navigationtask/<int:pk>/delete/', NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),
     # path('navigationtask/<int:pk>/scoreoverride/', BasicScoreOverrideUpdateView.as_view(),
     #      name="navigationtask_scoreoverride"),
     path('contestant/<int:navigationtask_pk>/create/', ContestantCreateView.as_view(), name="contestant_create"),
+    path('contestant/<int:pk>/map/', get_contestant_map, name="contestant_map"),
     path('contestant/<int:pk>/update/', ContestantUpdateView.as_view(), name="contestant_update"),
     path('contestant/<int:pk>/delete/', ContestantDeleteView.as_view(), name="contestant_delete"),
     path('contestant/<int:pk>/gates/', ContestantGateTimesView.as_view(), name="contestant_gate_times"),

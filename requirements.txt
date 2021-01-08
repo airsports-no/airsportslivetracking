@@ -2,6 +2,7 @@ numpy
 scipy
 pyepsg
 Cartopy==0.17.0
+matplotlib
 iso8601
 django
 djangorestframework
@@ -46,3 +47,6 @@ django-qr-code
 django-google-analytics-app
 channels
 channels_redis
+pytz
+tzlocal
+django-timezone-field

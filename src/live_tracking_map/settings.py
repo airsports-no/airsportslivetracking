@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'display.apps.DisplayConfig',
     'rest_framework',
     'rest_framework.authtoken',
+    'timezone_field',
     'webpack_loader',
     'bootstrap4',
     'drf_yasg',

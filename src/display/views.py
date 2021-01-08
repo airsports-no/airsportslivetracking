@@ -14,7 +14,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.db.models import Q
 from django.forms import formset_factory
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import ListView, DetailView, UpdateView, CreateView, DeleteView
@@ -38,6 +38,7 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
     Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm
+from display.map_plotter import plot_route
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
     TeamTestScore, TRACCAR
@@ -252,6 +253,20 @@ def tracking_qr_code_view(request, pk):
     url = reverse("frontend_view_map", kwargs={"pk": pk})
     return render(request, "display/tracking_qr_code.html", {"url": "https://tracking.airsports.no{}".format(url),
                                                              "navigation_task": NavigationTask.objects.get(pk=pk)})
+
+
+def get_contestant_map(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    map_image = plot_route(contestant.navigation_task, contestant=contestant)
+    response = HttpResponse(map_image, content_type='image/png')
+    return response
+
+
+def get_navigation_task_map(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    map_image = plot_route(navigation_task)
+    response = HttpResponse(map_image, content_type='image/png')
+    return response
 
 
 class NavigationTaskList(ListView):
@@ -554,7 +569,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     def done(self, form_list, **kwargs):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
         initial_step_data = self.get_cleaned_data_for_step("0")
-        use_procedure_turns = self.get_cleaned_data_for_step("1")["scorecard"].use_procedure_turns
+        use_procedure_turns = self.get_cleaned_data_for_step("2")["scorecard"].use_procedure_turns
         if initial_step_data["file_type"] == FILE_TYPE_CSV:
             data = [item.decode(encoding="UTF-8") for item in initial_step_data['file'].readlines()]
             route = create_route_from_csv(initial_step_data["name"], data[1:], use_procedure_turns)

@@ -33,6 +33,7 @@
                 <td>{{ contestant.contestanttrack.current_state }}</td>
                 <td>{{ contestant.contestanttrack.score|stringformat:"d" }}</td>
                 <td>
+                    <a href="{% url 'contestant_map' contestant.pk %}">map</a> |
                     <a href="{% url 'contestant_delete' contestant.pk %}">delete</a>
                 </td>
             </tr>

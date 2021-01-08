@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 
 from django.db import models
-
+from timezone_field import TimeZoneField
 # Create your models here.
 from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
@@ -508,7 +508,7 @@ class NavigationTask(models.Model):
                                       lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
     track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True)
     gate_score_override = models.ManyToManyField("GateScoreOverride")
-
+    time_zone = TimeZoneField(null=True)
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(

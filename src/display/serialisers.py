@@ -12,6 +12,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
+from timezone_field.rest_framework import TimeZoneSerializerField
 
 from display.convert_flightcontest_gpx import create_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
@@ -447,6 +448,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
+    time_zone = TimeZoneSerializerField(required=False)
 
     route = RouteSerialiser()
 
@@ -497,6 +499,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
                                        help_text="Base64 encoded gpx file")
     use_procedure_turns = serializers.BooleanField(initial=True, required=False,
                                                    help_text="If true (default) then procedure turns will be automatically added to all turning points with a more than 90° turn")
+    time_zone = TimeZoneSerializerField()
 
     internal_serialiser = ContestantNestedTeamSerialiser
 

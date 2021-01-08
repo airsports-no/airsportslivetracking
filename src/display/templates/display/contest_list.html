@@ -40,11 +40,12 @@
                     <td>{{ object.scorecard }}</td>
                     <td>
                         <a href="{% url 'frontend_view_map' object.pk %}">Track</a> |
-                        <a href="{% url 'navigationtask_qr' object.pk %}">QR</a>
+                        <a href="{% url 'navigationtask_qr' object.pk %}">QR</a> |
+                        <a href="{% url 'navigationtask_map' object.pk %}">Map</a>
                         {% if "change_contest" in contest_permissions %}
                             <br/><a href="{% url 'navigationtask_delete' object.pk %}">delete</a>
                             | <a href="{% url 'navigationtask_update' object.pk %}">update</a>
-{#                            | <a href="{% url 'navigationtask_scoreoverride' object.pk %}">Score override</a>#}
+                            {#                            | <a href="{% url 'navigationtask_scoreoverride' object.pk %}">Score override</a>#}
                         {% endif %}
                     </td>
                 </tr>
