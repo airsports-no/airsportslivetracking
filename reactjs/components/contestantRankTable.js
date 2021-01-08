@@ -83,7 +83,7 @@ class ConnectedContestantRankTable extends Component {
 
     componentDidUpdate(prevProps, prevState, snapshot) {
         if (this.props.highlight.length === 1 && this.selectedLine) {
-            this.selectedLine.scrollIntoView({block: "center"})
+            // this.selectedLine.scrollIntoView({block: "center"})
         }
     }
 
