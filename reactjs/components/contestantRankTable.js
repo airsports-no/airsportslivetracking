@@ -31,7 +31,7 @@ function calculateProjectedScore(score, progress) {
         return 99999
     }
     if (progress < 5) {
-        return score
+        return 99999
     }
     return (100 * score / progress)
 }
@@ -177,7 +177,7 @@ class ConnectedContestantRankTable extends Component {
                 },
                 formatter: (cell, row) => {
                     let value = cell.toFixed(0)
-                    if (value === "9999") {
+                    if (value === "99999") {
                         value = "--"
                     }
                     if (this.props.highlight.includes(row.contestantId)) {
