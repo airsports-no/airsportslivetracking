@@ -290,17 +290,17 @@ class Scorecard(models.Model):
     below_minimum_altitude_penalty = models.FloatField(default=500)
 
     takeoff_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
-                                              related_name="takeoff")
+                                           related_name="takeoff")
     landing_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
-                                              related_name="landing")
+                                           related_name="landing")
     turning_point_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
-                                                    related_name="turning_point")
+                                                 related_name="turning_point")
     starting_point_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
-                                                     related_name="starting")
+                                                  related_name="starting")
     finish_point_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
-                                                   related_name="finish")
+                                                related_name="finish")
     secret_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
-                                             related_name="secret")
+                                          related_name="secret")
 
     def __str__(self):
         return self.name
@@ -506,8 +506,8 @@ class NavigationTask(models.Model):
     scorecard = models.ForeignKey("Scorecard", on_delete=models.PROTECT,
                                   help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                       lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
-    track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True)
-    gate_score_override = models.ManyToManyField("GateScoreOverride")
+    track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True, blank=True)
+    gate_score_override = models.ManyToManyField("GateScoreOverride", blank=True)
     time_zone = TimeZoneField(null=True)
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have")

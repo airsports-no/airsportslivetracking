@@ -35,18 +35,23 @@ def plot_route(task: NavigationTask, contestant: Optional[Contestant] = None):
     ax.add_image(imagery, 12)
     ax.set_aspect("auto")
     line = []
-    for waypoint in route.waypoints:  # type: Waypoint
+    for index, waypoint in enumerate(route.waypoints):  # type: Waypoint
         if waypoint.type != "secret":
             ys, xs = np.array(waypoint.gate_line).T
             plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
-            text = "\n{}".format(waypoint.name)
+            text = "{}".format(waypoint.name)
+            bearing = waypoint.bearing_from_previous
+            if index == 0:
+                bearing = waypoint.bearing_next
             if contestant is not None:
                 waypoint_time = contestant.gate_times.get(waypoint.name)  # type: datetime.datetime
                 if waypoint_time is not None:
                     local_waypoint_time = waypoint_time.astimezone(task.time_zone or LOCAL_TIME_ZONE)
-                    text += "\n{}".format(local_waypoint_time.strftime("%H:%M:%S"))
-            plt.text(waypoint.longitude, waypoint.latitude, text, verticalalignment="top", color="blue",
-                     horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8)
+                    text += " {}".format(local_waypoint_time.strftime("%H:%M:%S"))
+            text = "\n" + " "*len(text) + text  # Padding to get things aligned correctly
+            plt.text(waypoint.longitude, waypoint.latitude, text, verticalalignment="center", color="blue",
+                     horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8, rotation=-bearing,
+                     linespacing=2)
 
         if waypoint.is_procedure_turn:
             line.extend(waypoint.procedure_turn_points)
@@ -69,7 +74,9 @@ def plot_route(task: NavigationTask, contestant: Optional[Contestant] = None):
 
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
     if contestant is not None:
-        plt.title("Track: '{}' - Contestant: {}".format(route.name, contestant))
+        plt.title("Track: '{}' - Contestant: {} - Wind: {:03.0f}/{:02.0f}".format(route.name, contestant,
+                                                                                  contestant.wind_direction,
+                                                                                  contestant.wind_speed))
     else:
         plt.title("Track: '{}'".format(route.name))
     plt.tight_layout()
@@ -79,6 +86,7 @@ def plot_route(task: NavigationTask, contestant: Optional[Contestant] = None):
     plt.close()
     figdata.seek(0)
     return figdata
+
 
 if __name__ == "__main__":
     task = NavigationTask.objects.get(pk=76)
