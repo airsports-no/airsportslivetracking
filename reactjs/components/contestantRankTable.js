@@ -176,10 +176,14 @@ class ConnectedContestantRankTable extends Component {
                     return {color: "orange"}
                 },
                 formatter: (cell, row) => {
-                    if (this.props.highlight.includes(row.contestantId)) {
-                        return <span ref={this.setHighlightedRef}>{cell.toFixed(0)}</span>
+                    let value = cell.toFixed(0)
+                    if (value === "9999") {
+                        value = "--"
                     }
-                    return cell.toFixed(0)
+                    if (this.props.highlight.includes(row.contestantId)) {
+                        return <span ref={this.setHighlightedRef}>{value}</span>
+                    }
+                    return value
                 },
                 sort: true,
                 sortFunc: (a, b, order, dataField, rowA, rowB) => {
