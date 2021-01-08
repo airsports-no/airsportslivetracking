@@ -1,3 +1,7 @@
+body {
+    font-family: "Roboto condensed", "Lucida Grande", Verdana, Arial, sans-serif;
+}
+
 .outerBackdropNarrow {
     transform-origin: top left;
     left: 60px;
@@ -6,6 +10,7 @@
     z-index: 2;
     display: inline-block;
     width: 700px;
+    /*box-shadow: 5px 10px;*/
 }
 
 .outerBackdropWide {
@@ -34,6 +39,7 @@
     /*border-radius: 0 0 25px 25px;*/
     font-size: x-large;
     overflow-y: auto;
+    max-height: 500px;
 }
 
 .backdropWide {
@@ -42,7 +48,6 @@
 }
 
 .backdropHalf {
-    max-height: 500px;
 }
 
 .backdropFull {
@@ -55,8 +60,20 @@
     /*left: 70px;*/
     /*top: 20px;*/
     /*z-index: 2;*/
-    border-radius: 25px 25px 0 0;
+    /*border-radius: 15px 15px 0 0;*/
     background-color: #666666;
+}
+
+
+.bottomWrapper {
+    /*position: fixed;*/
+    /*display: inline-block;*/
+    /*left: 70px;*/
+    /*top: 20px;*/
+    /*z-index: 2;*/
+    /*border-radius: 0 0 15px 15px;*/
+    background-color: #666666;
+    height: 48px;
 }
 
 tr.selectedContestantRow td {
@@ -189,7 +206,12 @@ tr.selectedContestantRow td {
     height: 45px;
 }
 
-.shrinkLink {
+.widthLink {
+    float: right;
+}
+
+
+.heightLink {
     float: right;
 }
 
@@ -209,8 +231,9 @@ tr.selectedContestantRow td {
 }
 
 #menuButton {
-    height: 40px;
-    width: 40px;
+    font-size: 40px;
+    /*height: 40px;*/
+    /*width: 40px;*/
 }
 
 #logoButtonWrapper {
@@ -229,9 +252,20 @@ tr.selectedContestantRow td {
 }
 
 #returnLinkImage {
+    font-size: 60px;
+    /*height: 80px;*/
+    /*width: 80px;*/
+}
+
+.logoImage {
     height: 80px;
     width: 80px;
+    bottom: 20px;
+    right: 20px;
+    position: fixed;
+    z-index: 2;
 }
+
 
 .menuButtonImage {
 

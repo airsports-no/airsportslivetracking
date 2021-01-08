@@ -328,7 +328,7 @@ class ConnectedContestantTrack extends Component {
     }
 
     render() {
-        return <div/>;
+        return null;
     }
 
 }

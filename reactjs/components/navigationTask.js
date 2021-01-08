@@ -214,16 +214,13 @@ class ConnectedNavigationTask extends Component {
                 this.props.shrinkTrackingTable();
             }
             const tableDisplay = <div>
-                <div className={"card text-light collapse bg-dark"} id={"insetMenu"} aria-expanded={false}
-                     aria-controls={"insetMenu"}>
                     {/*<div className={"card-body"}>*/}
-                    <div className={"card–text"}>
+                    {/*<div className={"card–text"}>*/}
                         {/*<div className={"card-title"}>*/}
                         {/*</div>*/}
                         {display}
-                    </div>
                     {/*</div>*/}
-                </div>
+                    {/*</div>*/}
             </div>
             const mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
                 return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}

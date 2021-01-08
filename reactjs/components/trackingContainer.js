@@ -45,11 +45,11 @@ class ConnectedTrackingContainer extends Component {
     }
 
     render() {
-        const TableHeightLink = <a className={"shrinkLink taskTitle"} href={"#"}
+        const TableHeightLink = <a className={"heightLink taskTitle"} href={"#"}
                                    onClick={this.props.displayFullHeightTrackingTable ? this.props.halfHeightTable : this.props.fullHeightTable}>{this.props.displayFullHeightTrackingTable ?
             <i className={"mdi mdi-keyboard-arrow-up"}/> :
             <i className={"mdi mdi-keyboard-arrow-down"}/>}</a>
-        const ExpandedTableLink = <a className={"shrinkLink taskTitle"} href={"#"}
+        const ExpandedTableLink = <a className={"widthLink taskTitle"} href={"#"}
                                      onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ?
             <i className={"mdi mdi-keyboard-arrow-left"}/> :
             <i className={"mdi mdi-keyboard-arrow-right"}/>}</a>
@@ -92,30 +92,36 @@ class ConnectedTrackingContainer extends Component {
                     <div id='main_div' className={"fill"}>
                         {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
                             numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
-                        <div className={"row fill ml-1"}>
+                        <div className={"fill"}>
                             <div
                                 className={(this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayFullHeightTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
                                 <div
                                     className={"titleWrapper"}>
                                     <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}>
                                         {/*id={"logoButtonWrapper"}>*/}
-                                        <img id={'menuButton'}
-                                             alt={"Menu toggle"}
-                                             src={"/static/img/menubutton.png"}/>
+                                        <i className={"mdi mdi-menu"} id={'menuButton'}/>
                                     </a>
                                     <a href={"#"} className={'taskTitle'} data-toggle={"collapse"}
                                        data-target={"#insetMenu"}>{this.props.navigationTask.name}</a>
-                                    {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ?
-                                        <span>{TableHeightLink} {ExpandedTableLink}</span> : null}
-
+                                     {ExpandedTableLink} {TableHeightLink}
                                 </div>
                                 <div
-                                    className={(this.props.displayExpandedTrackingTable ? "backdropWide" : "backdrop") + " " + (this.props.displayFullHeightTrackingTable ? "backdropFull" : "backdropHalf")}>{TrackerDisplay}</div>
+                                    className={(this.props.displayExpandedTrackingTable ? "backdropWide" : "backdrop") + " " + (this.props.displayFullHeightTrackingTable ? "backdropFull" : "backdropHalf")}>
+                                    <div id={"insetMenu"}
+                                         aria-expanded={false} aria-controls={"insetMenu"} className={"collapse"}>
+                                        <div className={"text-light bg-dark"}>
+                                            {TrackerDisplay}
+                                        </div>
+                                    </div>
 
+                                </div>
+                                {/*<div className={"bottomWrapper"}>{TableHeightLink} {ExpandedTableLink}</div>*/}
                             </div>
-                            <a className={"btn"} id="returnLink" href={"/"}><img alt={"Back to main page"}
-                                                                                 id={"returnLinkImage"}
-                                                                                 src={"/static/img/airsports.png"}/></a>
+                            <a className={"btn"} id="returnLink" href={"/"}><i className={"mdi mdi-home"}
+                                                                               id={"returnLinkImage"}/></a>
+                            <img alt={"Logo"} className={"logoImage"}
+                                 id={"logoImage"}
+                                 src={"/static/img/airsports.png"}/>
                             <div id="cesiumContainer"/>
                             {this.props.displayLowerThirds !== null ?
                                 <LowerThirdTeam
