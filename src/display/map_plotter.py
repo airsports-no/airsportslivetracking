@@ -48,10 +48,10 @@ def plot_route(task: NavigationTask, contestant: Optional[Contestant] = None):
                 if waypoint_time is not None:
                     local_waypoint_time = waypoint_time.astimezone(task.time_zone or LOCAL_TIME_ZONE)
                     text += " {}".format(local_waypoint_time.strftime("%H:%M:%S"))
-            text = "\n" + " "*len(text) + text  # Padding to get things aligned correctly
+            text = "\n " + " "*len(text) + text  # Padding to get things aligned correctly
             plt.text(waypoint.longitude, waypoint.latitude, text, verticalalignment="center", color="blue",
                      horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8, rotation=-bearing,
-                     linespacing=2)
+                     linespacing=2, family="monospace")
 
         if waypoint.is_procedure_turn:
             line.extend(waypoint.procedure_turn_points)
