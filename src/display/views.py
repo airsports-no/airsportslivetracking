@@ -428,9 +428,10 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
         object = form.save(commit=False)  # type: Contestant
         object.navigation_task = navigation_task
-        object.takeoff_time = object.takeoff_time.replace(tzinfo=navigation_task.time_zone)
-        object.tracker_start_time = object.tracker_start_time.replace(tzinfo=navigation_task.time_zone)
-        object.finished_by_time = object.finished_by_time.replace(tzinfo=navigation_task.time_zone)
+        if navigation_task.time_zone is not None:
+            object.takeoff_time = navigation_task.time_zone.localize(object.takeoff_time.replace(tzinfo=None))
+            object.tracker_start_time = navigation_task.time_zone.localize(object.tracker_start_time.replace(tzinfo=None))
+            object.finished_by_time = navigation_task.time_zone.localize(object.finished_by_time.replace(tzinfo=None))
         if object.tracking_service == TRACCAR:
             traccar = get_traccar_instance()
             traccar.get_or_create_device(object.tracker_device_id, object.tracker_device_id)
@@ -583,9 +584,10 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             route = create_route_from_formset(initial_step_data["name"], second_step_data, use_procedure_turns)
         final_data = self.get_cleaned_data_for_step("2")
         navigation_task = NavigationTask.objects.create(**final_data, contest=contest, route=route)
-        navigation_task.start_time = navigation_task.start_time.replace(tzinfo=navigation_task.time_zone)
-        navigation_task.finish_time = navigation_task.finish_time.replace(tzinfo=navigation_task.time_zone)
-        navigation_task.save()
+        if navigation_task.time_zone is not None:
+            navigation_task.start_time = navigation_task.time_zone.localize(navigation_task.start_time.replace(tzinfo=None))
+            navigation_task.finish_time = navigation_task.time_zone.localize(navigation_task.finish_time.replace(tzinfo=None))
+            navigation_task.save()
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     form_list = [ImportRouteForm, formset_factory(WaypointForm, extra=0), NavigationTaskForm]

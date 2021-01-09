@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.forms import HiddenInput
 from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
+from timezone_field import TimeZoneFormField
 
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
     ContestTeam
@@ -58,6 +59,7 @@ class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
         fields = ("name", "start_time", "finish_time", "time_zone", "is_public", "calculator_type", "scorecard")
+        time_zone = TimeZoneFormField(required=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -311,6 +313,8 @@ class ContestantForm(forms.ModelForm):
 
         super().__init__(*args, **kwargs)
         self.fields["team"].queryset = self.navigation_task.contest.contest_teams.all()
+        self.fields["contestant_number"].initial = max([item.contestant_number for item in
+                                                        self.navigation_task.contestant_set.all()]) + 1 if self.navigation_task.contestant_set.all().count() > 0 else 1
         # self.fields["tracking_device_id"].required = False
 
     class Meta:
