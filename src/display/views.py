@@ -569,19 +569,22 @@ def show_route_definition_step(wizard):
     return cleaned_data.get("file_type") == FILE_TYPE_KML
 
 
-class NewNavigationTaskWizard(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, SessionWizardView):
+class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     permission_required = ("update_contest",)
 
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        timezone.activate(self.contest.time_zone)
+
     def get_permission_object(self):
-        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
-        return contest
+        return self.contest
 
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
     template_name = "display/navigationtaskwizardform.html"
     condition_dict = {"1": show_route_definition_step}
 
     def done(self, form_list, **kwargs):
-        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
         initial_step_data = self.get_cleaned_data_for_step("0")
         use_procedure_turns = self.get_cleaned_data_for_step("2")["scorecard"].use_procedure_turns
         if initial_step_data["file_type"] == FILE_TYPE_CSV:
@@ -593,13 +596,7 @@ class NewNavigationTaskWizard(NavigationTaskTimeZoneMixin, GuardianPermissionReq
             second_step_data = self.get_cleaned_data_for_step("1")
             route = create_route_from_formset(initial_step_data["name"], second_step_data, use_procedure_turns)
         final_data = self.get_cleaned_data_for_step("2")
-        navigation_task = NavigationTask.objects.create(**final_data, contest=contest, route=route)
-        if navigation_task.time_zone is not None:
-            navigation_task.start_time = navigation_task.time_zone.localize(
-                navigation_task.start_time.replace(tzinfo=None))
-            navigation_task.finish_time = navigation_task.time_zone.localize(
-                navigation_task.finish_time.replace(tzinfo=None))
-            navigation_task.save()
+        navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     form_list = [ImportRouteForm, formset_factory(WaypointForm, extra=0), NavigationTaskForm]

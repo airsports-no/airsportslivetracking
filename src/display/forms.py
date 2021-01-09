@@ -41,7 +41,6 @@ FILE_TYPES = (
 class ImportRouteForm(forms.Form):
     name = forms.CharField(max_length=100, label="Route name")
     file_type = forms.ChoiceField(choices=FILE_TYPES)
-    use_procedure_turns = forms.BooleanField(required=False, initial=True)
     file = forms.FileField()
 
 
