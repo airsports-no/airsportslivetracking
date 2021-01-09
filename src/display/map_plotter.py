@@ -80,9 +80,9 @@ def plot_route(task: NavigationTask, contestant: Optional[Contestant] = None):
     else:
         plt.title("Track: '{}'".format(route.name))
     plt.tight_layout()
-    plt.savefig("map.png", dpi=600)
+    # plt.savefig("map.png", dpi=600)
     figdata = BytesIO()
-    plt.savefig(figdata, format='png')
+    plt.savefig(figdata, format='png', dpi=600)
     plt.close()
     figdata.seek(0)
     return figdata
