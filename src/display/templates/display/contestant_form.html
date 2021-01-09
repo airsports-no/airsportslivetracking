@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
 {% load bootstrap4 %}
-{% load tz %}
-{% timezone object.navigation_task.time_zone %}
 {% block content %}
     {% if object %}
         <h2>Update Contestant {{ object }} for navigation task {{ object.navigation_task }}</h2>
@@ -10,7 +8,7 @@
         <h2>Create new Contestant for navigation task {{ navigation_task }} </h2>
     {% endif %}
     {{ form.media }}
-    Contest time zone is {{ object.navigation_task.time_zone }}
+    Contest time zone is {{ object.navigation_task.contest.time_zone }}
     <form method="post" class="form">
         {% csrf_token %}
         {% bootstrap_form form %}
@@ -45,4 +43,3 @@
         });
     </script>
 {% endblock %}
-{% endtimezone %}

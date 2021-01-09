@@ -22,7 +22,7 @@ from django.views.generic import RedirectView, TemplateView
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
-from display.views import NavigationTaskList, ContestList, results_service
+from display.views import ContestList, results_service
 from . import api, settings
 
 docs = get_schema_view(

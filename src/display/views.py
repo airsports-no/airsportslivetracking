@@ -65,6 +65,24 @@ from traccar_facade import Traccar
 logger = logging.getLogger(__name__)
 
 
+class ContestantTimeZoneMixin:
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        timezone.activate(self.get_object().navigation_task.contest.time_zone)
+
+
+class NavigationTaskTimeZoneMixin:
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        timezone.activate(self.get_object().contest.time_zone)
+
+
+class ContestTimeZoneMixin:
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        timezone.activate(self.get_object().time_zone)
+
+
 class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_superuser
@@ -270,15 +288,6 @@ def get_navigation_task_map(request, pk):
     return response
 
 
-class NavigationTaskList(ListView):
-    model = NavigationTask
-
-    def get_queryset(self):
-        contests = get_objects_for_user(self.request.user, "view_contest",
-                                        klass=Contest)
-        return NavigationTask.objects.filter(Q(contest__in=contests) | Q(is_public=True, contest__is_public=True))
-
-
 class ContestList(ListView):
     model = Contest
 
@@ -293,8 +302,15 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
     permission_required = ("delete_contest",)
     form_class = ContestForm
 
+    def form_valid(self, form):
+        instance = form.save(commit=False)  # type: Contest
+        instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
+        instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
+        instance.save()
+        return HttpResponseRedirect(self.success_url)
 
-class ContestUpdateView(GuardianPermissionRequiredMixin, UpdateView):
+
+class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = Contest
     success_url = reverse_lazy("contest_list")
     permission_required = ("update_contest",)
@@ -314,7 +330,7 @@ class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object()
 
 
-class NavigationTaskDetailView(GuardianPermissionRequiredMixin, DetailView):
+class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = NavigationTask
     permission_required = ("view_contest",)
 
@@ -322,7 +338,7 @@ class NavigationTaskDetailView(GuardianPermissionRequiredMixin, DetailView):
         return self.get_object().contest
 
 
-class NavigationTaskUpdateView(GuardianPermissionRequiredMixin, UpdateView):
+class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = NavigationTask
     permission_required = ("change_contest",)
     form_class = NavigationTaskForm
@@ -356,7 +372,7 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object().contest
 
 
-class ContestantGateTimesView(GuardianPermissionRequiredMixin, DetailView):
+class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = Contestant
     permission_required = ("view_contest",)
     template_name = "display/contestant_gate_times.html"
@@ -374,7 +390,7 @@ class ContestantGateTimesView(GuardianPermissionRequiredMixin, DetailView):
         return context
 
 
-class ContestantUpdateView(GuardianPermissionRequiredMixin, UpdateView):
+class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     form_class = ContestantForm
     model = Contestant
     permission_required = ("change_contest",)
@@ -390,22 +406,6 @@ class ContestantUpdateView(GuardianPermissionRequiredMixin, UpdateView):
     def get_permission_object(self):
         return self.get_object().navigation_task.contest
 
-    def form_valid(self, form):
-        navigation_task = self.get_object().navigation_task
-        object = form.save(commit=False)  # type: Contestant
-        object.navigation_task = navigation_task
-        object.tracker_device_id = object.tracker_device_id.strip()
-        if navigation_task.time_zone is not None:
-            object.takeoff_time = navigation_task.time_zone.localize(object.takeoff_time.replace(tzinfo=None))
-            object.tracker_start_time = navigation_task.time_zone.localize(
-                object.tracker_start_time.replace(tzinfo=None))
-            object.finished_by_time = navigation_task.time_zone.localize(object.finished_by_time.replace(tzinfo=None))
-        if object.tracking_service == TRACCAR:
-            traccar = get_traccar_instance()
-            traccar.get_or_create_device(object.tracker_device_id, object.tracker_device_id)
-        object.save()
-        return HttpResponseRedirect(self.get_success_url())
-
 
 class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = Contestant
@@ -419,7 +419,7 @@ class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object().navigation_task.contest
 
 
-class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
+class ContestantCreateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, CreateView):
     form_class = ContestantForm
     model = Contestant
     permission_required = ("change_contest",)
@@ -443,20 +443,9 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
-        timezone.activate(navigation_task.time_zone)
         object = form.save(commit=False)  # type: Contestant
         object.navigation_task = navigation_task
-        object.tracker_device_id = object.tracker_device_id.strip()
-        if navigation_task.time_zone is not None:
-            object.takeoff_time = navigation_task.time_zone.localize(object.takeoff_time.replace(tzinfo=None))
-            object.tracker_start_time = navigation_task.time_zone.localize(
-                object.tracker_start_time.replace(tzinfo=None))
-            object.finished_by_time = navigation_task.time_zone.localize(object.finished_by_time.replace(tzinfo=None))
-        if object.tracking_service == TRACCAR:
-            traccar = get_traccar_instance()
-            traccar.get_or_create_device(object.tracker_device_id, object.tracker_device_id)
         object.save()
-        timezone.deactivate()
         return HttpResponseRedirect(self.get_success_url())
 
 
@@ -580,7 +569,7 @@ def show_route_definition_step(wizard):
     return cleaned_data.get("file_type") == FILE_TYPE_KML
 
 
-class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
+class NewNavigationTaskWizard(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, SessionWizardView):
     permission_required = ("update_contest",)
 
     def get_permission_object(self):

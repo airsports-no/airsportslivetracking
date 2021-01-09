@@ -58,8 +58,7 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "time_zone", "is_public", "calculator_type", "scorecard")
-        time_zone = TimeZoneFormField(required=True)
+        fields = ("name", "start_time", "finish_time", "is_public", "calculator_type", "scorecard")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -92,7 +91,7 @@ class NavigationTaskForm(forms.ModelForm):
 class ContestForm(forms.ModelForm):
     class Meta:
         model = Contest
-        exclude = ("teams",)
+        exclude = ("contest_teams",)
 
 
 class PictureWidget(forms.widgets.Widget):

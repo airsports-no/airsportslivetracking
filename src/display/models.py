@@ -265,6 +265,7 @@ class Contest(models.Model):
                                                        help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
                                                        max_length=50)
     name = models.CharField(max_length=100, unique=True)
+    time_zone = TimeZoneField()
     start_time = models.DateTimeField(
         help_text="The start time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
     finish_time = models.DateTimeField(
@@ -508,7 +509,6 @@ class NavigationTask(models.Model):
                                       lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
     track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True, blank=True)
     gate_score_override = models.ManyToManyField("GateScoreOverride", blank=True)
-    time_zone = TimeZoneField(null=True)
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(
@@ -558,6 +558,19 @@ class Contestant(models.Model):
 
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
+
+    def save(self, **kwargs):
+        object.tracker_device_id = object.tracker_device_id.strip()
+        # if self.navigation_task.time_zone is not None:
+        #     self.takeoff_time = self.navigation_task.time_zone.localize(self.takeoff_time.replace(tzinfo=None))
+        #     self.tracker_start_time = self.navigation_task.time_zone.localize(
+        #         self.tracker_start_time.replace(tzinfo=None))
+        #     self.finished_by_time = self.navigation_task.time_zone.localize(self.finished_by_time.replace(tzinfo=None))
+        if self.tracking_service == TRACCAR:
+            from display.traccar_factory import get_traccar_instance
+            traccar = get_traccar_instance()
+            traccar.get_or_create_device(self.tracker_device_id, self.tracker_device_id)
+        super().save(**kwargs)
 
     def __str__(self):
         return "{} - {}".format(self.contestant_number, self.team)

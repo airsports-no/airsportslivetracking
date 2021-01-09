@@ -23,6 +23,8 @@ from display.waypoint import Waypoint
 
 
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
+    time_zone = TimeZoneSerializerField(required=True)
+
     class Meta:
         model = Contest
         fields = "__all__"
@@ -448,7 +450,6 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-    time_zone = TimeZoneSerializerField(required=False)
 
     route = RouteSerialiser()
 

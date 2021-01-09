@@ -17,9 +17,9 @@
             {% if object.navigation_task.route.takeoff_gate %}
                 <tr>
                     <td>{{ object.navigation_task.route.takeoff_gate.name }}</td>
-                    <td>{{ object.takeoff_time|date:"H:i:s" }}</td>
+                    <td>{{ object.takeoff_time|date:"H:i:s e" }}</td>
                     <td>{% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name %}
-                        {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s" }}{% else %}
+                        {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}{% else %}
                         --{% endif %}</td>
                     <td>{{ object|gate_time_offset:object.navigation_task.route.takeoff_gate.name }}</td>
                     <td>
@@ -34,9 +34,9 @@
             {% for gate in object.navigation_task.route.waypoints %}
                 <tr>
                     <td>{{ gate.name }}</td>
-                    <td>{{ gate_times|dict_key:gate.name|date:"H:i:s" }}</td>
+                    <td>{{ gate_times|dict_key:gate.name|date:"H:i:s e" }}</td>
                     <td>{% if object.contestanttrack.gate_actual_times|dict_key:gate.name %}
-                        {{ object.contestanttrack.gate_actual_times|dict_key:gate.name|date:"H:i:s" }}{% else %}
+                        {{ object.contestanttrack.gate_actual_times|dict_key:gate.name|date:"H:i:s e" }}{% else %}
                         --{% endif %}</td>
                     <td>{{ object|gate_time_offset:gate.name }}</td>
                     <td>
@@ -51,9 +51,9 @@
             {% if object.navigation_task.route.landing_gate %}
                 <tr>
                     <td>{{ object.navigation_task.route.landing_gate.name }}</td>
-                    <td>{{ object.finished_by_time|date:"H:i:s" }}</td>
+                    <td>{{ object.finished_by_time|date:"H:i:s e" }}</td>
                     <td>{% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name %}
-                        {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s" }}{% else %}
+                        {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}{% else %}
                         --{% endif %}</td>
                     <td>{{ object|gate_time_offset:object.navigation_task.route.landing_gate.name }}</td>
                     <td>
