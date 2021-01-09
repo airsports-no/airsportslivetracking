@@ -107,12 +107,12 @@ class InfluxFacade:
                     logger.error("Could not find device {}.".format(position_data["deviceId"]))
                     continue
             device_time = dateutil.parser.parse(position_data["deviceTime"])
-            # print(device_name)
+            logger.info(device_name)
             # print(device_time)
             contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
             # print(contestant)
             if contestant:
-                # logger.info("Found contestant")
+                logger.info("Found contestant {}".format(contestant))
                 data = {
                     "measurement": "device_position",
                     "tags": {

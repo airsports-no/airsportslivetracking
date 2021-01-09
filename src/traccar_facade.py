@@ -68,5 +68,5 @@ class Traccar:
         return devices
 
     def get_device_map(self) -> Dict:
-        self.device_map = {item["id"]: item["name"] for item in self.update_and_get_devices()}
+        self.device_map = {item["id"]: item["uniqueId"] for item in self.update_and_get_devices()}
         return self.device_map
