@@ -92,11 +92,11 @@ class InfluxFacade:
     def generate_position_data(self, traccar: Traccar, positions: List) -> Dict:
         if len(positions) == 0:
             return {}
-        logger.debug("Received {} positions".format(len(positions)))
+        logger.info("Received {} positions".format(len(positions)))
         received_tracks = {}
         positions_to_store = []
         for position_data in positions:
-            logger.debug("Incoming position: {}".format(position_data))
+            logger.info("Incoming position: {}".format(position_data))
             try:
                 device_name = traccar.device_map[position_data["deviceId"]]
             except KeyError:
