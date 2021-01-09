@@ -1,5 +1,5 @@
 import datetime
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import gpxpy
 from django.test import TestCase, TransactionTestCase
@@ -26,8 +26,10 @@ def load_track_points(filename):
     return positions
 
 
+@patch("display.models.get_traccar_instance")
 class TestFullTrack(TransactionTestCase):
-    def setUp(self):
+    @patch("display.models.get_traccar_instance")
+    def setUp(self, patch):
         with open("display/calculators/tests/NM.csv", "r") as file:
             route = create_route_from_csv("navigation_task", file.readlines()[1:], True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
@@ -43,7 +45,8 @@ class TestFullTrack(TransactionTestCase):
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
                                                                                             finish_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc)),
+                                                                                                datetime.timezone.utc),
+                                                                                            time_zone="Europe/Oslo"),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
@@ -58,7 +61,7 @@ class TestFullTrack(TransactionTestCase):
                                                     air_speed=speed,
                                                     wind_direction=165, wind_speed=8)
 
-    def test_correct_scoring_correct_track_precision(self):
+    def test_correct_scoring_correct_track_precision(self, patch):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
         calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
@@ -67,7 +70,7 @@ class TestFullTrack(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(153, contestant_track.score)
 
-    def test_secret_score_no_override(self):
+    def test_secret_score_no_override(self, patch):
         expected_time = datetime.datetime(2017, 1, 1, tzinfo=datetime.timezone.utc)
         actual_time = datetime.datetime(2017, 1, 1, 0, 1, tzinfo=datetime.timezone.utc)
         waypoint = self.contestant.navigation_task.route.waypoints[1]
@@ -81,7 +84,7 @@ class TestFullTrack(TransactionTestCase):
         print([str(item) for item in self.navigation_task.route.waypoints])
         self.assertEqual(100, score)
 
-    def test_secret_score_override(self):
+    def test_secret_score_override(self, patch):
         gate_override = GateScoreOverride.objects.create(
             for_gate_types=["secret"],
             checkpoint_penalty_per_second=0,
@@ -102,7 +105,7 @@ class TestFullTrack(TransactionTestCase):
         print([str(item) for item in self.navigation_task.route.waypoints])
         self.assertEqual(0, score)
 
-    def test_score_override(self):
+    def test_score_override(self, patch):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
         track_override = TrackScoreOverride.objects.create()
         gate_override = GateScoreOverride.objects.create(
@@ -124,7 +127,7 @@ class TestFullTrack(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(12, contestant_track.score)
 
-    def test_helge_track_precision(self):
+    def test_helge_track_precision(self, patch):
         start_time, speed = datetime.datetime(2020, 8, 1, 10, 55, tzinfo=datetime.timezone.utc), 75
         contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
                                                takeoff_time=start_time,
@@ -141,7 +144,7 @@ class TestFullTrack(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
         self.assertEqual(471, contestant_track.score)
 
-    def test_correct_scoring_bad_track_precision(self):
+    def test_correct_scoring_bad_track_precision(self, patch):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
         calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
@@ -150,7 +153,7 @@ class TestFullTrack(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1800, contestant_track.score)
 
-    def test_missed_procedure_turn(self):
+    def test_missed_procedure_turn(self, patch):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
         calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
         calculator.start()
@@ -169,6 +172,7 @@ class TestFullTrack(TransactionTestCase):
         self.assertFalse("TP6: 200 points missing procedure turn" in strings)
 
 
+@patch("display.models.get_traccar_instance")
 class Test2017WPFC(TransactionTestCase):
     def setUp(self):
         with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
@@ -184,14 +188,15 @@ class Test2017WPFC(TransactionTestCase):
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
                                                                                             finish_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc)),
+                                                                                                datetime.timezone.utc),
+                                                                                            time_zone="Europe/Oslo"),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
 
-    def test_101(self):
+    def test_101(self, p):
         track = load_track_points(
             "display/tests/demo_contests/2017_WPFC/101_-_Aircraft-039_-_1._Nav._-_Navigation_Flight_Results_(Edition_2).gpx")
         start_time, speed = datetime.datetime(2015, 1, 1, 7, 30, tzinfo=datetime.timezone.utc), 80
@@ -212,6 +217,7 @@ class Test2017WPFC(TransactionTestCase):
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
+@patch("display.models.get_traccar_instance")
 class TestNM2019(TransactionTestCase):
     def setUp(self):
         with open("display/calculators/tests/NM2019.gpx", "r") as file:
@@ -228,13 +234,14 @@ class TestNM2019(TransactionTestCase):
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
                                                                                             finish_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc)),
+                                                                                                datetime.timezone.utc),
+                                                                                            time_zone="Europe/Oslo"),
                                                              start_time=navigation_task_start_time,
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
 
-    def test_arild(self):
+    def test_arild(self, patch):
         track = load_track_points(
             "display/calculators/tests/arild2019.gpx")
         start_time, speed = datetime.datetime(2015, 1, 1, 14, 25, tzinfo=datetime.timezone.utc), 54
@@ -254,7 +261,7 @@ class TestNM2019(TransactionTestCase):
         self.assertEqual(875,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
-    def test_fredrik(self):
+    def test_fredrik(self, patch):
         track = load_track_points(
             "display/calculators/tests/fredrik2019.gpx")
         start_time, speed = datetime.datetime(2015, 1, 1, 12, 45, tzinfo=datetime.timezone.utc), 90

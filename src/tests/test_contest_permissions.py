@@ -1,4 +1,5 @@
 import datetime
+from unittest.mock import patch
 
 from django.contrib.auth.models import User, Permission
 from django.urls import reverse
@@ -19,28 +20,32 @@ class TestCreateContest(APITestCase):
         self.base_url = reverse("contests-list")
 
     def test_create_contest_without_login(self):
-        result = self.client.post(self.base_url, data={"name": "TestContest", "start_time": datetime.datetime.now(datetime.timezone.utc),
+        result = self.client.post(self.base_url, data={"name": "TestContest",
+                                                       "start_time": datetime.datetime.now(datetime.timezone.utc),
                                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_contest_without_privileges(self):
         self.client.force_login(user=self.user_without_permissions)
-        result = self.client.post(self.base_url, data={"name": "TestContest", "start_time": datetime.datetime.now(datetime.timezone.utc),
+        result = self.client.post(self.base_url, data={"name": "TestContest",
+                                                       "start_time": datetime.datetime.now(datetime.timezone.utc),
                                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_contest_with_privileges(self):
         self.client.force_login(user=self.user_with_permissions)
-        result = self.client.post(self.base_url, data={"name": "TestContest", "is_public": False,
-                                                       "start_time": datetime.datetime.now(datetime.timezone.utc),
-                                                       "finish_time": datetime.datetime.now(datetime.timezone.utc)})
+        result = self.client.post(self.base_url,
+                                  data={"name": "TestContest", "is_public": False, "time_zone": "Europe/Oslo",
+                                        "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
 
 
+@patch("display.models.get_traccar_instance")
 class TestAccessContest(APITestCase):
     def setUp(self):
         self.user_owner = User.objects.create(username="withpermissions")
@@ -54,9 +59,10 @@ class TestAccessContest(APITestCase):
                                                     Permission.objects.get(codename="delete_contest"))
 
         self.client.force_login(user=self.user_owner)
-        result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
-                                                                  "start_time": datetime.datetime.now(datetime.timezone.utc),
-                                                                  "finish_time": datetime.datetime.now(datetime.timezone.utc)})
+        result = self.client.post(reverse("contests-list"),
+                                  data={"name": "TestContest", "is_public": False, "time_zone": "Europe/Oslo",
+                                        "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
@@ -71,7 +77,7 @@ class TestAccessContest(APITestCase):
         assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
 
-    def test_view_contest_from_other_user_with_permissions(self):
+    def test_view_contest_from_other_user_with_permissions(self, patch):
         self.client.force_login(user=self.different_user_with_object_permissions)
         result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         print(result)
@@ -79,17 +85,18 @@ class TestAccessContest(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertEqual("TestContest", result.json()["name"])
 
-    def test_put_contestant_from_other_user_with_permissions(self):
+    def test_put_contestant_from_other_user_with_permissions(self, patch):
         self.client.force_login(user=self.different_user_with_object_permissions)
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
-                                 data={"name": "TestContest2", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                 data={"name": "TestContest2","time_zone":"Europe/Oslo",
+                                       "start_time": datetime.datetime.now(datetime.timezone.utc),
                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertEqual("TestContest2", result.json()["name"])
 
-    def test_patch_contestant_from_other_user_with_permissions(self):
+    def test_patch_contestant_from_other_user_with_permissions(self, patch):
         self.client.force_login(user=self.different_user_with_object_permissions)
         data = {"is_public": True}
         result = self.client.patch(reverse("contests-detail", kwargs={'pk': self.contest_id}),
@@ -99,12 +106,12 @@ class TestAccessContest(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertTrue(result.json()["is_public"])
 
-    def test_delete_contestant_from_other_user_with_permissions(self):
+    def test_delete_contestant_from_other_user_with_permissions(self, patch):
         self.client.force_login(user=self.different_user_with_object_permissions)
         result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
-    def test_publish_contest_as_other_user_with_permissions(self):
+    def test_publish_contest_as_other_user_with_permissions(self, patch):
         self.client.force_login(user=self.different_user_with_object_permissions)
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
@@ -112,44 +119,46 @@ class TestAccessContest(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertTrue(result.json()["is_public"])
 
-    def test_modify_contest_without_login(self):
+    def test_modify_contest_without_login(self, patch):
         self.client.logout()
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
                                  data={"name": "TestContest2"})
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_modify_contest_as_someone_else(self):
+    def test_modify_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
-                                 data={"name": "TestContest2", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                 data={"name": "TestContest2",
+                                       "start_time": datetime.datetime.now(datetime.timezone.utc),
                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_modify_contest_as_creator(self):
+    def test_modify_contest_as_creator(self, patch):
         self.client.force_login(user=self.user_owner)
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
-                                 data={"name": "TestContest2", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                 data={"name": "TestContest2","time_zone":"Europe/Oslo",
+                                       "start_time": datetime.datetime.now(datetime.timezone.utc),
                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertEqual("TestContest2", result.json()["name"])
 
-    def test_publish_contest_without_login(self):
+    def test_publish_contest_without_login(self, patch):
         self.client.logout()
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_publish_contest_as_someone_else(self):
+    def test_publish_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_publish_contest_as_creator(self):
+    def test_publish_contest_as_creator(self, patch):
         self.client.force_login(user=self.user_owner)
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
@@ -157,29 +166,29 @@ class TestAccessContest(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertTrue(result.json()["is_public"])
 
-    def test_view_contest_without_login(self):
+    def test_view_contest_without_login(self, patch):
         self.client.logout()
         result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),
                                  data={"name": "TestContest2"})
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_view_contest_as_someone_else(self):
+    def test_view_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),
                                  data={"name": "TestContest2"})
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_view_contest_as_creator(self):
+    def test_view_contest_as_creator(self, patch):
         self.client.force_login(user=self.user_owner)
-        result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),
+        result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),time_zone="Europe/Oslo",
                                  data={"name": "TestContest2"})
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
 
-    def test_delete_public_contest_without_login(self):
+    def test_delete_public_contest_without_login(self, patch):
         self.client.logout()
         self.contest.is_public = True
         self.contest.save()
@@ -187,26 +196,26 @@ class TestAccessContest(APITestCase):
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_delete_contest_without_login(self):
+    def test_delete_contest_without_login(self, patch):
         self.client.logout()
         result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_delete_contest_as_someone_else(self):
+    def test_delete_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_delete_contest_as_creator(self):
+    def test_delete_contest_as_creator(self, patch):
         self.client.force_login(user=self.user_owner)
         result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
-    def test_view_public_contest_without_login(self):
+    def test_view_public_contest_without_login(self, patch):
         self.contest.is_public = True
         self.contest.save()
         self.client.logout()
@@ -215,7 +224,7 @@ class TestAccessContest(APITestCase):
         print(result)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
 
-    def test_view_public_contest_as_someone_else(self):
+    def test_view_public_contest_as_someone_else(self, patch):
         self.contest.is_public = True
         self.contest.save()
         self.client.force_login(user=self.user_someone_else)
@@ -224,7 +233,7 @@ class TestAccessContest(APITestCase):
         print(result)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
 
-    def test_view_public_contest_as_creator(self):
+    def test_view_public_contest_as_creator(self, patch):
         self.contest.is_public = True
         self.contest.save()
         self.client.force_login(user=self.user_owner)
@@ -246,7 +255,9 @@ class TestTokenAuthentication(APITestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION='Token {}'.format(self.token.key))
         result = client.post(reverse("contests-list"),
-                             data={"name": "My test contest", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                             data={"name": "My test contest",
+                                   "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                   "time_zone": "Europe/Oslo",
                                    "finish_time": datetime.datetime.now(datetime.timezone.utc)}, format="json"
                              )
 

@@ -37,8 +37,8 @@ NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(date
         "landing_gate": line,
         "name": "name"
     },
-        "scorecard": "FAI Precision 2020"
-    }
+                        "scorecard": "FAI Precision 2020"
+                        }
 
 CONTESTANT_DATA = {
     "team": {
@@ -67,7 +67,7 @@ CONTESTANT_DATA = {
 }
 
 
-@patch("display.serialisers.get_traccar_instance")
+@patch("display.models.get_traccar_instance")
 class TestCreateNavigationTask(APITestCase):
     def setUp(self):
         create_scorecards()
@@ -79,6 +79,7 @@ class TestCreateNavigationTask(APITestCase):
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
                                                                   "start_time": datetime.datetime.now(
                                                                       datetime.timezone.utc),
+                                                                  "time_zone": "Europe/Oslo",
                                                                   "finish_time": datetime.datetime.now(
                                                                       datetime.timezone.utc)})
         print(result.json())
@@ -116,9 +117,9 @@ class TestCreateNavigationTask(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_200_OK)
 
 
-@patch("display.serialisers.get_traccar_instance")
+@patch("display.models.get_traccar_instance")
 class TestAccessNavigationTask(APITestCase):
-    @patch("display.serialisers.get_traccar_instance")
+    @patch("display.models.get_traccar_instance")
     def setUp(self, patch):
         create_scorecards()
         self.user_owner = User.objects.create(username="withpermissions")
@@ -135,11 +136,12 @@ class TestAccessNavigationTask(APITestCase):
         )
 
         self.client.force_login(user=self.user_owner)
-        result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
-                                                                  "start_time": datetime.datetime.now(
-                                                                      datetime.timezone.utc),
-                                                                  "finish_time": datetime.datetime.now(
-                                                                      datetime.timezone.utc)})
+        result = self.client.post(reverse("contests-list"),
+                                  data={"name": "TestContest", "is_public": False, "time_zone": "Europe/Oslo",
+                                        "start_time": datetime.datetime.now(
+                                            datetime.timezone.utc),
+                                        "finish_time": datetime.datetime.now(
+                                            datetime.timezone.utc)})
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
@@ -195,6 +197,7 @@ class TestAccessNavigationTask(APITestCase):
                               "pk": self.contestant.pk})
         result = self.client.patch(url,
                                    data=data, format="json")
+        patch.asserCalled()
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)

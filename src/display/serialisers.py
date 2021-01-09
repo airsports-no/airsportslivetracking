@@ -350,10 +350,6 @@ class ContestantSerialiser(serializers.ModelSerializer):
         contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
                                             gate_times.items()}
         contestant.save()
-        if contestant.tracking_service == TRACCAR:
-            traccar = get_traccar_instance()
-            traccar.get_or_create_device(contestant.tracker_device_id, contestant.tracker_device_id)
-
         if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
             ContestTeam.objects.create(contest=contestant.navigation_task.contest, team=contestant.team,
                                        tracker_device_id=contestant.tracker_device_id,
@@ -382,9 +378,6 @@ class ContestantSerialiser(serializers.ModelSerializer):
         instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
                                           gate_times.items()}
         instance.save()
-        if instance.tracking_service == TRACCAR:
-            traccar = get_traccar_instance()
-            traccar.get_or_create_device(instance.tracker_device_id, instance.tracker_device_id)
 
         if not ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).exists():
             ContestTeam.objects.create(contest=instance.navigation_task.contest, team=instance.team,
@@ -500,7 +493,6 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
                                        help_text="Base64 encoded gpx file")
     use_procedure_turns = serializers.BooleanField(initial=True, required=False,
                                                    help_text="If true (default) then procedure turns will be automatically added to all turning points with a more than 90° turn")
-    time_zone = TimeZoneSerializerField()
 
     internal_serialiser = ContestantNestedTeamSerialiser
 

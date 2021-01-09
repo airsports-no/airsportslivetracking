@@ -35,8 +35,8 @@ NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(date
         "takeoff_gate": line,
         "landing_gate": line,
         "name": "name"},
-        "scorecard": get_default_scorecard().name
-    }
+                        "scorecard": get_default_scorecard().name
+                        }
 
 
 class TestCreateNavigationTask(APITestCase):
@@ -50,6 +50,7 @@ class TestCreateNavigationTask(APITestCase):
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
                                                                   "start_time": datetime.datetime.now(
                                                                       datetime.timezone.utc),
+                                                                  "time_zone": "Europe/Oslo",
                                                                   "finish_time": datetime.datetime.now(
                                                                       datetime.timezone.utc)})
         print(result.json())
@@ -98,6 +99,7 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
                                                                   "start_time": datetime.datetime.now(
                                                                       datetime.timezone.utc),
+                                                                  "time_zone": "Europe/Oslo",
                                                                   "finish_time": datetime.datetime.now(
                                                                       datetime.timezone.utc)})
         print(result.json())

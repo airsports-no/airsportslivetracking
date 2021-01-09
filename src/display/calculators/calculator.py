@@ -3,6 +3,8 @@ import logging
 import threading
 from typing import List, TYPE_CHECKING, Optional
 
+import pytz
+
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon
@@ -108,8 +110,10 @@ class Calculator(threading.Thread):
             "gate": gate.name,
             "message": message,
             "points": score,
-            "planned": planned.strftime("%H:%M:%S") if planned else None,
-            "actual": actual.strftime("%H:%M:%S") if actual else None,
+            "planned": pytz.timezone(self.contestant.navigation_task.contest.time_zone).localize(
+                planned.replace(tzinfo=None)).strftime("%H:%M:%S %z") if planned else None,
+            "actual": pytz.timezone(self.contestant.navigation_task.contest.time_zone).localize(actual.replace(tzinfo=None)).strftime(
+                "%H:%M:%S %z") if actual else None,
             "offset_string": offset_string
         }
         string = "{}: {} points {}".format(gate.name, score, message)
@@ -196,7 +200,7 @@ class Calculator(threading.Thread):
         if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
             intersection_time = self.takeoff_gate.get_gate_intersection_time(self.projector, self.track)
             if intersection_time:
-                self.takeoff_gate.passing_time=intersection_time
+                self.takeoff_gate.passing_time = intersection_time
                 self.takeoff_gate.extended_passing_time = intersection_time
                 self.takeoff_gate.infinite_passing_time = intersection_time
                 self.contestant.contestanttrack.update_gate_time(self.takeoff_gate.name, intersection_time)

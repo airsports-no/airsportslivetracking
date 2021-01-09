@@ -557,7 +557,7 @@ with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as f:
 data["route_file"] = route_string
 
 
-@patch("display.serialisers.get_traccar_instance")
+@patch("display.models.get_traccar_instance")
 class TestImportSerialiser(TransactionTestCase):
     def setUp(self):
         self.user = User.objects.create(username="test")
@@ -579,7 +579,7 @@ class TestImportSerialiser(TransactionTestCase):
         serialiser.save()
 
 
-@patch("display.serialisers.get_traccar_instance")
+@patch("display.models.get_traccar_instance")
 class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
     def setUp(self):
         Contest.objects.all().delete()
@@ -590,7 +590,8 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
         permission = Permission.objects.get(codename="change_contest")
         self.user.user_permissions.add(permission)
         self.client.force_login(user=self.user)
-        self.contest = Contest.objects.create(name="test2", start_time=datetime.utcnow(), finish_time=datetime.utcnow())
+        self.contest = Contest.objects.create(name="test2", start_time=datetime.utcnow(), finish_time=datetime.utcnow(),
+                                              time_zone="Europe/Oslo")
         assign_perm("display.change_contest", self.user, self.contest)
         assign_perm("display.view_contest", self.user, self.contest)
         get_default_scorecard()
@@ -610,7 +611,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
 
 
-@patch("display.serialisers.get_traccar_instance")
+@patch("display.models.get_traccar_instance")
 class TestImportFCNavigationTask(APITransactionTestCase):
     def setUp(self):
         create_scorecards()
@@ -619,7 +620,8 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         permission = Permission.objects.get(codename="change_contest")
         self.user.user_permissions.add(permission)
         self.client.force_login(user=self.user)
-        self.contest = Contest.objects.create(name="test", start_time=datetime.utcnow(), finish_time=datetime.utcnow())
+        self.contest = Contest.objects.create(name="test", start_time=datetime.utcnow(), finish_time=datetime.utcnow(),
+                                              time_zone="Europe/Oslo")
         assign_perm("display.change_contest", self.user, self.contest)
         assign_perm("display.view_contest", self.user, self.contest)
 

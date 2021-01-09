@@ -19,6 +19,7 @@ from solo.models import SingletonModel
 from display.my_pickled_object_field import MyPickledObjectField
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
+from display.traccar_factory import get_traccar_instance
 
 TRACCAR = "traccar"
 TRACKING_SERVICES = (
@@ -560,14 +561,8 @@ class Contestant(models.Model):
         unique_together = ("navigation_task", "contestant_number")
 
     def save(self, **kwargs):
-        object.tracker_device_id = object.tracker_device_id.strip()
-        # if self.navigation_task.time_zone is not None:
-        #     self.takeoff_time = self.navigation_task.time_zone.localize(self.takeoff_time.replace(tzinfo=None))
-        #     self.tracker_start_time = self.navigation_task.time_zone.localize(
-        #         self.tracker_start_time.replace(tzinfo=None))
-        #     self.finished_by_time = self.navigation_task.time_zone.localize(self.finished_by_time.replace(tzinfo=None))
+        self.tracker_device_id = self.tracker_device_id.strip()
         if self.tracking_service == TRACCAR:
-            from display.traccar_factory import get_traccar_instance
             traccar = get_traccar_instance()
             traccar.get_or_create_device(self.tracker_device_id, self.tracker_device_id)
         super().save(**kwargs)
