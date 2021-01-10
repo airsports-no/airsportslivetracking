@@ -36,7 +36,7 @@ body {
 }
 
 .backdropFull {
-    height: 85vh;
+    height: 80vh;
 }
 
 .backdropHalf {
@@ -242,8 +242,8 @@ tr.selectedContestantRow td {
 }
 
 .taskTitle {
-    font-size: clamp(1rem, 0.1667rem + 3.33333vw, 2rem);
-
+    /*font-size: clamp(1rem, 0.1667rem + 3.33333vw, 2rem);*/
+    font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);;
     vertical-align: middle;
     color: aliceblue;
 }
