@@ -796,6 +796,22 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             team = get_object_or_404(Team, pk=team_pk)
         else:
             team = None
+        if step == "member1create":
+            member_data = self.get_cleaned_data_for_step("member1search")
+            return {
+                "first_name":member_data["first_name"],
+                "last_name": member_data["last_name"],
+                "phone": member_data["phone"],
+                "email": member_data["email"]
+            }
+        if step == "member2create":
+            member_data = self.get_cleaned_data_for_step("member2search")
+            return {
+                "first_name":member_data["first_name"],
+                "last_name": member_data["last_name"],
+                "phone": member_data["phone"],
+                "email": member_data["email"]
+            }
         if team:
             if step == "member1search":
                 return {
