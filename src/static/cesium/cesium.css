@@ -2,33 +2,35 @@ body {
     font-family: "Roboto condensed", "Lucida Grande", Verdana, Arial, sans-serif;
 }
 
-.outerBackdropNarrow {
+.outerBackdrop {
     transform-origin: top left;
     left: 60px;
     top: 10px;
     position: fixed;
     z-index: 2;
     display: inline-block;
-    width: 700px;
-    /*box-shadow: 5px 10px;*/
+    box-shadow: 5px 10px;
 }
 
+.outerBackdropNarrow {
+    width: 40%;
+}
+
+
 .outerBackdropWide {
-    transform-origin: top left;
-    left: 60px;
-    top: 10px;
-    position: fixed;
-    z-index: 2;
-    display: inline-block;
     right: 120px;
 }
 
 .outerBackdropFull {
-    bottom: 120px;
+    max-height: 90%;
+    min-height: 90%;
+
 }
 
 .outerBackdropHalf {
-    max-height: 500px;
+    max-height: 50%;
+    min-height: 50%;
+
 }
 
 .backdrop {
@@ -37,22 +39,17 @@ body {
     /*border: 1px solid #444;*/
     /*padding: 5px 10px;*/
     /*border-radius: 0 0 25px 25px;*/
-    font-size: x-large;
+    font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);
     overflow-y: auto;
-    max-height: 500px;
+    position: absolute;
+    bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 44px auto;
+    /*max-height: 500px;*/
 }
 
-.backdropWide {
-    font-size: large;
-    overflow-y: auto;
-}
-
-.backdropHalf {
-}
-
-.backdropFull {
-    max-height: 100%;
-}
 
 .titleWrapper {
     /*position: fixed;*/
@@ -61,6 +58,11 @@ body {
     /*top: 20px;*/
     /*z-index: 2;*/
     /*border-radius: 15px 15px 0 0;*/
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 44px;
     background-color: #666666;
 }
 
@@ -73,7 +75,15 @@ body {
     /*z-index: 2;*/
     /*border-radius: 0 0 15px 15px;*/
     background-color: #666666;
-    height: 48px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 44px;
+}
+
+.tableCollapse{
+
 }
 
 tr.selectedContestantRow td {
@@ -127,7 +137,7 @@ tr.selectedContestantRow td {
 }
 
 @media (min-width: 1024px) and (max-width: 1300px) {
-    .lowerThirdsDouble, .outerBackdropNarrow {
+    .lowerThirdsDouble {
         transform: scale(0.75);
     }
 
@@ -137,7 +147,7 @@ tr.selectedContestantRow td {
 }
 
 @media (min-width: 900px) and (max-width: 1024px) {
-    .lowerThirdsDouble, .outerBackdropNarrow {
+    .lowerThirdsDouble {
         transform: scale(0.4);
     }
 
@@ -149,7 +159,7 @@ tr.selectedContestantRow td {
 
 /* Portrait tablet to landscape and desktop */
 @media (min-width: 768px) and (max-width: 900px) {
-    .lowerThirdsDouble, .outerBackdropNarrow {
+    .lowerThirdsDouble {
         transform: scale(0.4);
     }
 
@@ -160,7 +170,7 @@ tr.selectedContestantRow td {
 
 /* Landscape phone to portrait tablet */
 @media (max-width: 768px) {
-    .lowerThirdsDouble, .outerBackdropNarrow {
+    .lowerThirdsDouble {
         transform: scale(0.35);
     }
 
@@ -171,7 +181,7 @@ tr.selectedContestantRow td {
 
 /* Landscape phones and down */
 @media (max-width: 480px) {
-    .lowerThirdsDouble, .outerBackdropNarrow {
+    .lowerThirdsDouble {
         transform: scale(0.3);
     }
 
@@ -212,7 +222,7 @@ tr.selectedContestantRow td {
 
 
 .heightLink {
-    float: right;
+    float: left;
 }
 
 .wizardImage {
@@ -220,7 +230,8 @@ tr.selectedContestantRow td {
 }
 
 .taskTitle {
-    font-size: xx-large;
+    font-size: clamp(1rem, 0.1667rem + 3.33333vw, 2rem);
+
     vertical-align: middle;
     color: aliceblue;
 }
@@ -231,7 +242,7 @@ tr.selectedContestantRow td {
 }
 
 #menuButton {
-    font-size: 40px;
+    /*font-size: 40px;*/
     /*height: 40px;*/
     /*width: 40px;*/
 }

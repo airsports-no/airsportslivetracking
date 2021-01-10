@@ -94,28 +94,27 @@ class ConnectedTrackingContainer extends Component {
                             numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
                         <div className={"fill"}>
                             <div
-                                className={(this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayFullHeightTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
+                                className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayFullHeightTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
                                 <div
                                     className={"titleWrapper"}>
                                     <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}>
                                         {/*id={"logoButtonWrapper"}>*/}
-                                        <i className={"mdi mdi-menu"} id={'menuButton'}/>
+                                        <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
                                     </a>
                                     <a href={"#"} className={'taskTitle'} data-toggle={"collapse"}
                                        data-target={"#insetMenu"}>{this.props.navigationTask.name}</a>
-                                     {ExpandedTableLink} {TableHeightLink}
+                                    {/*{ExpandedTableLink} {TableHeightLink}*/}
                                 </div>
-                                <div
-                                    className={(this.props.displayExpandedTrackingTable ? "backdropWide" : "backdrop") + " " + (this.props.displayFullHeightTrackingTable ? "backdropFull" : "backdropHalf")}>
-                                    <div id={"insetMenu"}
-                                         aria-expanded={false} aria-controls={"insetMenu"} className={"collapse"}>
+                                <div id={"insetMenu"}
+                                     aria-expanded={false} aria-controls={"insetMenu"} className={"collapse"}>
+                                    <div className={"backdrop"}>
                                         <div className={"text-light bg-dark"}>
                                             {TrackerDisplay}
                                         </div>
                                     </div>
-
+                                    <div className={"bottomWrapper"}>{TableHeightLink} {ExpandedTableLink}</div>
                                 </div>
-                                {/*<div className={"bottomWrapper"}>{TableHeightLink} {ExpandedTableLink}</div>*/}
+
                             </div>
                             <a className={"btn"} id="returnLink" href={"/"}><i className={"mdi mdi-home"}
                                                                                id={"returnLinkImage"}/></a>
