@@ -10,6 +10,7 @@ from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 from timezone_field import TimeZoneFormField
 
+from display.map_plotter import A4, A3
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
     ContestTeam
 
@@ -36,6 +37,25 @@ FILE_TYPES = (
     (FILE_TYPE_FLIGHTCONTEST_GPX, "FlightContest GPX file"),
     (FILE_TYPE_KML, "KML file")
 )
+
+MAP_SIZES = (
+    (A4, A4),
+    (A3, A3)
+)
+
+
+class MapForm(forms.Form):
+    size = forms.ChoiceField(choices=MAP_SIZES, initial=A3)
+    zoom_level = forms.IntegerField(initial=12)
+    landscape = forms.BooleanField(required=False, initial=True)
+
+
+class ContestantMapForm(forms.Form):
+    size = forms.ChoiceField(choices=MAP_SIZES, initial=A3)
+    zoom_level = forms.IntegerField(initial=12)
+    landscape = forms.BooleanField(required=False, initial=True)
+    include_minute_marks = forms.BooleanField(required=False, initial=True)
+    include_courses = forms.BooleanField(required=False, initial=True)
 
 
 class ImportRouteForm(forms.Form):

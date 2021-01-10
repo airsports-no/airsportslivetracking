@@ -38,7 +38,7 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
     create_route_from_formset
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
-    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm
+    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm, ContestantMapForm
 from display.map_plotter import plot_route
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
@@ -275,17 +275,33 @@ def tracking_qr_code_view(request, pk):
 
 
 def get_contestant_map(request, pk):
-    contestant = get_object_or_404(Contestant, pk=pk)
-    map_image = plot_route(contestant.navigation_task, contestant=contestant)
-    response = HttpResponse(map_image, content_type='image/png')
-    return response
+    if request.method == "POST":
+        form = ContestantMapForm(request.POST)
+        if form.is_valid():
+            contestant = get_object_or_404(Contestant, pk=pk)
+            map_image = plot_route(contestant.navigation_task, form.cleaned_data["size"],
+                                   zoom_level=form.cleaned_data["zoom_level"],
+                                   landscape=form.cleaned_data["landscape"], contestant=contestant,
+                                   minute_marks=form.cleaned_data["include_minute_marks"],
+                                   courses=form.cleaned_data["include_courses"])
+            response = HttpResponse(map_image, content_type='image/png')
+            return response
+    form = ContestantMapForm()
+    return render(request, "display/map_form.html", {"form": form})
 
 
 def get_navigation_task_map(request, pk):
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    map_image = plot_route(navigation_task)
-    response = HttpResponse(map_image, content_type='image/png')
-    return response
+    if request.method == "POST":
+        form = ContestantMapForm(request.POST)
+        if form.is_valid():
+            navigation_task = get_object_or_404(NavigationTask, pk=pk)
+            map_image = plot_route(navigation_task, form.cleaned_data["size"],
+                                   zoom_level=form.cleaned_data["zoom_level"],
+                                   landscape=form.cleaned_data.get("landscape", False))
+            response = HttpResponse(map_image, content_type='image/png')
+            return response
+    form = ContestantMapForm()
+    return render(request, "display/map_form.html", {"form": form})
 
 
 class ContestList(ListView):
@@ -799,7 +815,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         if step == "member1create":
             member_data = self.get_cleaned_data_for_step("member1search")
             return {
-                "first_name":member_data["first_name"],
+                "first_name": member_data["first_name"],
                 "last_name": member_data["last_name"],
                 "phone": member_data["phone"],
                 "email": member_data["email"]
@@ -807,7 +823,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         if step == "member2create":
             member_data = self.get_cleaned_data_for_step("member2search")
             return {
-                "first_name":member_data["first_name"],
+                "first_name": member_data["first_name"],
                 "last_name": member_data["last_name"],
                 "phone": member_data["phone"],
                 "email": member_data["email"]
