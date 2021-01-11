@@ -83,8 +83,8 @@ def create_minute_lines(start: Tuple[float, float], finish: Tuple[float, float],
 A4 = "A4"
 A3 = "A3"
 
-OSM = 0
-N250 = 1
+OSM_MAP = 0
+N250_MAP = 1
 
 
 class LocalImages(GoogleWTS):
@@ -211,9 +211,9 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                waypoints_only: bool = False, annotations: bool = True, scale: int = 200, dpi: int = 300,
                map_source: int = OSM):
     route = task.route
-    if map_source == OSM:
+    if map_source == OSM_MAP:
         imagery = OSM()
-    elif map_source == N250:
+    elif map_source == N250_MAP:
         imagery = LocalImages()
     else:
         return

@@ -10,7 +10,7 @@ from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 from timezone_field import TimeZoneFormField
 
-from display.map_plotter import A4, A3, N250, OSM
+from display.map_plotter import A4, A3, N250_MAP, OSM_MAP
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
     ContestTeam
 
@@ -59,8 +59,8 @@ ORIENTATIONS = (
 )
 
 MAP_SOURCES = (
-    (OSM, "OSM"),
-    (N250, "Norway 1:250,000")
+    (OSM_MAP, "OSM"),
+    (N250_MAP, "Norway 1:250,000")
 )
 
 
