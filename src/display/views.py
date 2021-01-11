@@ -284,7 +284,8 @@ def get_contestant_map(request, pk):
                                    landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE, contestant=contestant,
                                    annotations=form.cleaned_data["include_annotations"],
                                    waypoints_only=False, dpi=form.cleaned_data["dpi"],
-                                   scale=int(form.cleaned_data["scale"]), map_source=int(form.cleaned_data["map_source"]))
+                                   scale=int(form.cleaned_data["scale"]),
+                                   map_source=int(form.cleaned_data["map_source"]))
             response = HttpResponse(map_image, content_type='image/png')
             return response
     form = ContestantMapForm()
@@ -1056,11 +1057,14 @@ class ContestantViewSet(ModelViewSet):
     serializer_class = ContestantNestedTeamSerialiserWithContestantTrack
     permission_classes = [
         ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)]
+    serializer_classes = {
+        "track": ContestantTrackWithTrackPointsSerialiser,
+        "gpx_track": GpxTrackSerialiser
+    }
+    default_serialiser_class = ContestantNestedTeamSerialiserWithContestantTrack
 
     def get_serializer_class(self):
-        if self.action == "gpx_track":
-            return GpxTrackSerialiser
-        return super().get_serializer_class()
+        return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_queryset(self):
         navigation_task_id = self.kwargs.get("navigationtask_pk")
