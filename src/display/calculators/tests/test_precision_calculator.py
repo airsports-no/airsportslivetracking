@@ -52,6 +52,8 @@ class TestFullTrack(TransactionTestCase):
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
+        # Required to make the time zone save correctly
+        self.navigation_task.refresh_from_db()
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
                                                     takeoff_time=start_time,
                                                     tracker_start_time=start_time - datetime.timedelta(minutes=30),
@@ -195,6 +197,8 @@ class Test2017WPFC(TransactionTestCase):
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+        # Required to make the time zone save correctly
+        self.navigation_task.refresh_from_db()
 
     def test_101(self, p):
         track = load_track_points(
@@ -240,6 +244,8 @@ class TestNM2019(TransactionTestCase):
                                                              finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
+        # Required to make the time zone save correctly
+        self.navigation_task.refresh_from_db()
 
     def test_arild(self, patch):
         track = load_track_points(
