@@ -21,6 +21,7 @@ services:
       - ./reactjs:/reactjs/
       - ./data:/data/
       - ./weblog:/logs/
+      - ./mapserver:/maptiles
     ports:
       - "8002:8002"
     depends_on:
@@ -115,6 +116,13 @@ services:
   redis:
     image: redis
     container_name: redis
+
+  mapserver:
+    image: geodata/mapserver
+    volumes:
+      - ./mapserver:/maps
+    ports:
+      - "8080:80"
 
 volumes:
   influxdb:

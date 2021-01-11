@@ -6,13 +6,14 @@ import os
 import sys
 from typing import Optional, Tuple, List
 
-from cartopy.io.img_tiles import OSM
+from cartopy.io.img_tiles import OSM, GoogleWTS
 import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
+from matplotlib import patheffects
 
 from display.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing, \
-    calculate_fractional_distance_point_lat_lon, get_heading_difference
+    calculate_fractional_distance_point_lat_lon, get_heading_difference, project_position_lat_lon
 from display.wind_utilities import calculate_ground_speed_combined
 
 if __name__ == "__main__":
@@ -84,10 +85,128 @@ A4 = "A4"
 A3 = "A3"
 
 
-def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int]=None, landscape: bool = True, contestant: Optional[Contestant] = None,
-               minute_marks: bool = True, courses: bool = True):
+class LocalImages(GoogleWTS):
+    def _image_url(self, tile):
+        x, y, z = tile
+        return "file:///maptiles/tiled/{}/{}/{}.png".format(z, x, y)
+
+    def tileextent(self, x_y_z):
+        """Return extent tuple ``(x0,x1,y0,y1)`` in Mercator coordinates."""
+        x, y, z = x_y_z
+        x_lim, y_lim = self.tile_bbox(x, y, z, y0_at_north_pole=False)
+        return tuple(x_lim) + tuple(y_lim)
+
+    _tileextent = tileextent
+
+    # def subtiles(self, x_y_z):
+    #     x, y, z = x_y_z
+    #     # Google tile specific (i.e. up->down).
+    #     for xi in range(0, 2):
+    #         for yi in range(0, 2):
+    #             ry=y * 2 + yi
+    #             result = x * 2 + xi, (ry*2) + yi, z + 1
+    #             print(result)
+    #             yield result
+    #
+    # _subtiles = subtiles
+    # def tileextent(self, x_y_z):
+    #     """Return extent tuple ``(x0,x1,y0,y1)`` in Mercator coordinates."""
+    #     x, y, z = x_y_z
+    #     x_lim, y_lim = self.tile_bbox(x, y, z, y0_at_north_pole=True)
+    #     # return [-1.70230674884, 32.2907623616, 57.5458684362, 71.7652057932]
+    #     return [577671.47,475230.47,6378894.33, 7962889.13]
+    #     # return [57.5458684362, 32.2907623616], [71.7652057932, -1.70230674884]
+    #     # return tuple(x_lim) + tuple(y_lim)
+
+
+def utm_from_lon(lon):
+    """
+    utm_from_lon - UTM zone for a longitude
+    Not right for some polar regions (Norway, Svalbard, Antartica)
+    :param float lon: longitude
+    :return: UTM zone number
+    :rtype: int
+    """
+    return np.floor((lon + 180) / 6) + 1
+
+
+def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
+              units='km', m_per_unit=1000):
+    """
+    http://stackoverflow.com/a/35705477/1072212
+    ax is the axes to draw the scalebar on.
+    proj is the projection the axes are in
+    location is center of the scalebar in axis coordinates ie. 0.5 is the middle of the plot
+    length is the length of the scalebar in km.
+    linewidth is the thickness of the scalebar.
+    units is the name of the unit
+    m_per_unit is the number of meters in a unit
+    """
+    # find lat/lon center to find best UTM zone
+    x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
+    # Projection in metres
+    utm = ccrs.UTM(utm_from_lon((x0 + x1) / 2))
+    # Get the extent of the plotted area in coordinates in metres
+    x0, x1, y0, y1 = ax.get_extent(utm)
+    # Turn the specified scalebar location into coordinates in metres
+    sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
+    # Generate the x coordinate for the ends of the scalebar
+    bar_xs = [sbcx - length * m_per_unit / 2, sbcx + length * m_per_unit / 2]
+    # buffer for scalebar
+    buffer = [patheffects.withStroke(linewidth=5, foreground="w")]
+    # Plot the scalebar with buffer
+    ax.plot(bar_xs, [sbcy, sbcy], transform=utm, color='k',
+            linewidth=linewidth, path_effects=buffer)
+    # buffer for text
+    buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
+    # Plot the scalebar label
+    t0 = ax.text(sbcx, sbcy, str(length) + ' ' + units, transform=utm,
+                 horizontalalignment='center', verticalalignment='bottom',
+                 path_effects=buffer, zorder=2)
+    left = x0 + (x1 - x0) * 0.05
+    # Plot the N arrow
+    t1 = ax.text(left, sbcy, u'\u25B2\nN', transform=utm,
+                 horizontalalignment='center', verticalalignment='bottom',
+                 path_effects=buffer, zorder=2)
+    # Plot the scalebar without buffer, in case covered by text buffer
+    ax.plot(bar_xs, [sbcy, sbcy], transform=utm, color='k',
+            linewidth=linewidth, zorder=3)
+
+
+# if __name__ == '__main__':
+#     ax = plt.axes(projection=ccrs.Mercator())
+#     plt.title('Cyprus')
+#     ax.set_extent([31, 35.5, 34, 36], ccrs.Geodetic())
+#     ax.stock_img()
+#     ax.coastlines(resolution='10m')
+#     scale_bar(ax, ccrs.Mercator(), 100)  # 100 km scale bar
+#     # or to use m instead of km
+#     # scale_bar(ax, ccrs.Mercator(), 100000, m_per_unit=1, units='m')
+#     # or to use miles instead of km
+#     # scale_bar(ax, ccrs.Mercator(), 60, m_per_unit=1609.34, units='miles')
+#     plt.show()
+def inch2cm(inch: float) -> float:
+    return inch * 2.54
+
+
+def cm2inch(cm: float) -> float:
+    return cm / 2.54
+
+
+def calculate_extent(width: float, height: float, centre: Tuple[float, float]):
+    left_edge = project_position_lat_lon(centre, 270, width / 2)[1]
+    right_edge = project_position_lat_lon(centre, 90, width / 2)[1]
+    top_edge = project_position_lat_lon(centre, 0, height / 2)[0]
+    bottom_edge = project_position_lat_lon(centre, 180, height / 2)[0]
+    return [left_edge, right_edge, bottom_edge, top_edge]
+
+
+def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = None, landscape: bool = True,
+               contestant: Optional[Contestant] = None,
+               minute_marks: bool = True, courses: bool = True, scale: int = 200):
     route = task.route
-    imagery = OSM()
+    # imagery = OSM()
+    imagery = LocalImages()
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
@@ -106,7 +225,6 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int]=No
     ax = plt.axes(projection=imagery.crs)
     ax.add_image(imagery, zoom_level)
     ax.set_aspect("auto")
-    line = []
     tracks = [[]]
     for waypoint in route.waypoints:  # type: Waypoint
         if waypoint.type == "isp":
@@ -114,6 +232,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int]=No
         if waypoint.type in ("tp", "sp", "fp", "isp", "ifp"):
             tracks[-1].append(waypoint)
     for track in tracks:
+        line = []
         for index, waypoint in enumerate(track):  # type: int, Waypoint
             if waypoint.type != "secret":
                 ys, xs = np.array(waypoint.gate_line).T
@@ -187,28 +306,66 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int]=No
             else:
                 line.append((waypoint.latitude, waypoint.longitude))
         path = np.array(line)
-        minimum_latitude = np.min(path[:, 0])
-        minimum_longitude = np.min(path[:, 1])
-        maximum_latitude = np.max(path[:, 0])
-        maximum_longitude = np.max(path[:, 1])
-        map_margin = 6000  # metres
-        longitude_scale = map_margin / calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
-                                                                  (minimum_latitude, minimum_longitude + 1))
-        latitude_scale = map_margin / calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
-                                                                 (minimum_latitude + 1, minimum_longitude))
-        extent = [minimum_longitude - longitude_scale, maximum_longitude + longitude_scale,
-                  minimum_latitude - latitude_scale, maximum_latitude + latitude_scale]
-        ax.set_extent(extent)
         ys, xs = path.T
-
         plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+
+
+    ax.gridlines(draw_labels=False, dms=True)
     if contestant is not None:
         plt.title("Track: '{}' - Contestant: {} - Wind: {:03.0f}/{:02.0f}".format(route.name, contestant,
                                                                                   contestant.wind_direction,
-                                                                                  contestant.wind_speed))
+                                                                                  contestant.wind_speed), y=1, pad=-20, color="red")
     else:
-        plt.title("Track: '{}'".format(route.name))
+        plt.title("Track: '{}'".format(route.name), y=1, pad=-20)
+    scale_bar(ax, ccrs.Mercator(), 10, units="NM", m_per_unit=1852)  # 100 km scale bar
     plt.tight_layout()
+
+    minimum_latitude = np.min(path[:, 0])
+    minimum_longitude = np.min(path[:, 1])
+    maximum_latitude = np.max(path[:, 0])
+    maximum_longitude = np.max(path[:, 1])
+    map_margin = 6000  # metres
+    longitude_scale = 1 / calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
+                                                     (minimum_latitude, minimum_longitude + 1))
+    latitude_scale = 1 / calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
+                                                    (minimum_latitude + 1, minimum_longitude))
+    centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
+    centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
+    fig = plt.gcf()
+    figure_size = fig.get_size_inches()
+    width = inch2cm(figure_size[0])
+    height = inch2cm(figure_size[1])
+    print("Figure width: {}".format(width))
+    print("Figure height: {}".format(height))
+    # bbox = ax.get_tightbbox(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted())
+    bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    width = inch2cm(bbox.width)
+    height = inch2cm(bbox.height)
+    print("Axis width: {}".format(width))
+    print("Axis height: {}".format(height))
+    width_metres = (scale * 10) * width
+    height_metres = (scale * 10) * height
+    print("Width: {} km".format(width_metres / 1000))
+    print("Height {} km".format(height_metres / 1000))
+    # Zoom to fit
+    # extent = [minimum_longitude - map_margin * longitude_scale, maximum_longitude + map_margin * longitude_scale,
+    #           minimum_latitude - map_margin * latitude_scale, maximum_latitude + map_margin * latitude_scale]
+    # To scale
+    extent = calculate_extent(width_metres, height_metres, (centre_latitude, centre_longitude))
+    print(extent)
+    ax.set_extent(extent)
+
+    # lat lon lines
+    longitude = np.ceil(extent[0])
+    while longitude < extent[1]:
+        plt.plot((longitude, longitude), (extent[2], extent[3]), transform=ccrs.PlateCarree(), color="black",
+                 linewidth=0.5)
+        longitude += 1
+    latitude = np.ceil(extent[2])
+    while latitude < extent[3]:
+        plt.plot((extent[0], extent[1]), (latitude, latitude), transform=ccrs.PlateCarree(), color="black",
+                 linewidth=0.5)
+        latitude += 1
     # plt.savefig("map.png", dpi=600)
     figdata = BytesIO()
     plt.savefig(figdata, format='png', dpi=600)
