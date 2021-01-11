@@ -79,7 +79,7 @@ class ContestantMapForm(forms.Form):
     zoom_level = forms.IntegerField(initial=12)
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_SOURCES, initial=OSM)
+    map_source = forms.ChoiceField(choices=MAP_SOURCES, initial=OSM_MAP)
     include_annotations = forms.BooleanField(required=False, initial=True)
     dpi = forms.IntegerField(initial=600, min_value=100, max_value=1000)
 
