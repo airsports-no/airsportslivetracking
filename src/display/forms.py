@@ -70,7 +70,7 @@ class MapForm(forms.Form):
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE)
     include_only_waypoints = forms.BooleanField(initial=False, required=False)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_SOURCES, initial=OSM)
+    map_source = forms.ChoiceField(choices=MAP_SOURCES, initial=OSM_MAP)
     dpi = forms.IntegerField(initial=600, min_value=100, max_value=1000)
 
 
