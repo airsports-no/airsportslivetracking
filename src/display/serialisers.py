@@ -599,6 +599,7 @@ class TaskNestedSerialiser(serializers.ModelSerializer):
 # High level entry
 class ContestResultsHighLevelSerialiser(serializers.ModelSerializer):
     contestsummary_set = ContestSummaryNestedSerialiser(many=True)
+    time_zone = TimeZoneSerializerField(required=True)
 
     class Meta:
         model = Contest
@@ -609,6 +610,7 @@ class ContestResultsHighLevelSerialiser(serializers.ModelSerializer):
 class ContestResultsDetailsSerialiser(serializers.ModelSerializer):
     contestsummary_set = ContestSummaryNestedSerialiser(many=True)
     task_set = TaskNestedSerialiser(many=True)
+    time_zone = TimeZoneSerializerField(required=True)
 
     class Meta:
         model = Contest

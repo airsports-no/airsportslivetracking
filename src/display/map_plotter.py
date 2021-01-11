@@ -27,7 +27,6 @@ from display.models import Route, Contestant, NavigationTask, create_perpendicul
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
-LOCAL_TIME_ZONE = pytz.timezone("Europe/Oslo")
 
 
 def get_course_position(start: Tuple[float, float], finish: Tuple[float, float], left_side: bool, distance_nm: float) -> \
@@ -244,7 +243,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                 if contestant is not None:
                     waypoint_time = contestant.gate_times.get(waypoint.name)  # type: datetime.datetime
                     if waypoint_time is not None:
-                        local_waypoint_time = waypoint_time.astimezone(task.contest.time_zone or LOCAL_TIME_ZONE)
+                        local_waypoint_time = waypoint_time.astimezone(task.contest.time_zone)
                         text += " {}".format(local_waypoint_time.strftime("%H:%M:%S"))
                 bearing_difference = get_heading_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
                 if bearing_difference > 0:

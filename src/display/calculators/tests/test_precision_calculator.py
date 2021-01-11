@@ -164,14 +164,14 @@ class TestFullTrack(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         print(contestant_track.score_log)
         strings = [item["string"] for item in contestant_track.score_log]
-        self.assertTrue("TP1: 200 points incorrect procedure turn" in strings)
-        self.assertTrue("TP4: 200 points incorrect procedure turn" in strings)
+        self.assertTrue("TP1: 200.0 points incorrect procedure turn" in strings)
+        self.assertTrue("TP4: 200.0 points incorrect procedure turn" in strings)
         # This is a bit in question, but I think it is correct since he never crosses the extended gate line
         # The procedure turn is performed before the gate which causes backtracking, but also a miss
         # According to A.2.2.16 the should be no penalty for missing the procedure turn if the extended gate line
         # is not crossed.
         # self.assertTrue("TP6: 200 points missing procedure turn" in strings)
-        self.assertFalse("TP6: 200 points missing procedure turn" in strings)
+        self.assertFalse("TP6: 200.0 points missing procedure turn" in strings)
 
 
 @patch("display.models.get_traccar_instance")
