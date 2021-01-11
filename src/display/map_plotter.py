@@ -83,6 +83,9 @@ def create_minute_lines(start: Tuple[float, float], finish: Tuple[float, float],
 A4 = "A4"
 A3 = "A3"
 
+OSM = 0
+N250 = 1
+
 
 class LocalImages(GoogleWTS):
     def _image_url(self, tile):
@@ -130,7 +133,7 @@ def utm_from_lon(lon):
 
 
 def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
-              units='km', m_per_unit=1000):
+              units='km', m_per_unit=1000, scale=0):
     """
     http://stackoverflow.com/a/35705477/1072212
     ax is the axes to draw the scalebar on.
@@ -159,7 +162,9 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
     # buffer for text
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     # Plot the scalebar label
-    t0 = ax.text(sbcx, sbcy, str(length) + ' ' + units, transform=utm,
+    ruler_scale = 100 * 1852 * length / (scale * 1000)
+    t0 = ax.text(sbcx, sbcy, "1:{:,d} {} {} = {:.2f} cm".format(int(scale * 1000), str(length), units, ruler_scale),
+                 transform=utm,
                  horizontalalignment='center', verticalalignment='bottom',
                  path_effects=buffer, zorder=2)
     left = x0 + (x1 - x0) * 0.05
@@ -167,6 +172,7 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
     t1 = ax.text(left, sbcy, u'\u25B2\nN', transform=utm,
                  horizontalalignment='center', verticalalignment='bottom',
                  path_effects=buffer, zorder=2)
+
     # Plot the scalebar without buffer, in case covered by text buffer
     ax.plot(bar_xs, [sbcy, sbcy], transform=utm, color='k',
             linewidth=linewidth, zorder=3)
@@ -202,10 +208,15 @@ def calculate_extent(width: float, height: float, centre: Tuple[float, float]):
 
 def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = None, landscape: bool = True,
                contestant: Optional[Contestant] = None,
-               minute_marks: bool = True, courses: bool = True, scale: int = 200):
+               waypoints_only: bool = False, annotations: bool = True, scale: int = 200, dpi: int = 300,
+               map_source: int = OSM):
     route = task.route
-    # imagery = OSM()
-    imagery = LocalImages()
+    if map_source == OSM:
+        imagery = OSM()
+    elif map_source == N250:
+        imagery = LocalImages()
+    else:
+        return
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
@@ -235,12 +246,16 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         for index, waypoint in enumerate(track):  # type: int, Waypoint
             if waypoint.type != "secret":
                 ys, xs = np.array(waypoint.gate_line).T
-                plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+                if not waypoints_only:
+                    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+                else:
+                    plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree(), color="blue",
+                             marker="o", markersize=8, fillstyle="none")
                 text = "{}".format(waypoint.name)
                 bearing = waypoint.bearing_from_previous
                 if index == 0:
                     bearing = waypoint.bearing_next
-                if contestant is not None:
+                if contestant is not None and annotations:
                     waypoint_time = contestant.gate_times.get(waypoint.name)  # type: datetime.datetime
                     if waypoint_time is not None:
                         local_waypoint_time = waypoint_time.astimezone(task.contest.time_zone)
@@ -250,12 +265,14 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                     text = "\n" + text + " " * len(text) + "    "  # Padding to get things aligned correctly
                 else:
                     text = "\n    " + " " * len(text) + text  # Padding to get things aligned correctly
+                if waypoints_only:
+                    bearing = 0
                 plt.text(waypoint.longitude, waypoint.latitude, text, verticalalignment="center", color="blue",
                          horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8, rotation=-bearing,
                          linespacing=2, family="monospace")
                 if contestant is not None:
                     if index < len(track) - 1:
-                        if courses:
+                        if annotations:
                             bearing = waypoint.bearing_next
                             bearing_difference_next = get_heading_difference(track[index + 1].bearing_from_previous,
                                                                              track[index + 1].bearing_next)
@@ -276,7 +293,6 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                                      horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=16,
                                      rotation=-bearing,
                                      linespacing=2, family="monospace")
-                        if minute_marks:
                             gate_start_time = contestant.gate_times.get(waypoint.name)
                             if waypoint.is_procedure_turn:
                                 gate_start_time += datetime.timedelta(minutes=1)
@@ -305,54 +321,70 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
             else:
                 line.append((waypoint.latitude, waypoint.longitude))
         path = np.array(line)
-        ys, xs = path.T
-        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
-
+        if not waypoints_only:
+            ys, xs = path.T
+            plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
 
     ax.gridlines(draw_labels=False, dms=True)
     if contestant is not None:
         plt.title("Track: '{}' - Contestant: {} - Wind: {:03.0f}/{:02.0f}".format(route.name, contestant,
                                                                                   contestant.wind_direction,
-                                                                                  contestant.wind_speed), y=1, pad=-20, color="red")
+                                                                                  contestant.wind_speed), y=1, pad=-20,
+                  color="black", fontsize=10)
     else:
         plt.title("Track: '{}'".format(route.name), y=1, pad=-20)
-    scale_bar(ax, ccrs.Mercator(), 10, units="NM", m_per_unit=1852)  # 100 km scale bar
-    plt.tight_layout()
 
+    plt.tight_layout()
     minimum_latitude = np.min(path[:, 0])
     minimum_longitude = np.min(path[:, 1])
     maximum_latitude = np.max(path[:, 0])
     maximum_longitude = np.max(path[:, 1])
-    map_margin = 6000  # metres
-    longitude_scale = 1 / calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
+    if scale == 0:
+        # Zoom to fit
+        longitude_scale = calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
                                                      (minimum_latitude, minimum_longitude + 1))
-    latitude_scale = 1 / calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
+        fig = plt.gcf()
+        bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        width = inch2cm(bbox.width)
+        print("Figure width: {}".format(width))
+        scale = float(longitude_scale / (10 * width))
+
+    scale_bar(ax, ccrs.Mercator(), 10, units="NM", m_per_unit=1852, scale=scale)
+    plt.tight_layout()
+
+    if scale == 0:
+        # Zoom to fit
+        map_margin = 6000  # metres
+        longitude_scale = calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
+                                                     (minimum_latitude, minimum_longitude + 1))
+        latitude_scale = calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
                                                     (minimum_latitude + 1, minimum_longitude))
-    centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
-    centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
-    fig = plt.gcf()
-    figure_size = fig.get_size_inches()
-    width = inch2cm(figure_size[0])
-    height = inch2cm(figure_size[1])
-    print("Figure width: {}".format(width))
-    print("Figure height: {}".format(height))
-    # bbox = ax.get_tightbbox(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted())
-    bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    width = inch2cm(bbox.width)
-    height = inch2cm(bbox.height)
-    print("Axis width: {}".format(width))
-    print("Axis height: {}".format(height))
-    width_metres = (scale * 10) * width
-    height_metres = (scale * 10) * height
-    print("Width: {} km".format(width_metres / 1000))
-    print("Height {} km".format(height_metres / 1000))
-    # Zoom to fit
-    # extent = [minimum_longitude - map_margin * longitude_scale, maximum_longitude + map_margin * longitude_scale,
-    #           minimum_latitude - map_margin * latitude_scale, maximum_latitude + map_margin * latitude_scale]
-    # To scale
-    extent = calculate_extent(width_metres, height_metres, (centre_latitude, centre_longitude))
-    print(extent)
-    ax.set_extent(extent)
+        extent = [(minimum_longitude - map_margin) / longitude_scale, (maximum_longitude + map_margin) / longitude_scale,
+                   (minimum_latitude - map_margin) / latitude_scale, (maximum_latitude + map_margin) / latitude_scale]
+        ax.set_extent(extent)
+    else:
+        centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
+        centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
+        fig = plt.gcf()
+        figure_size = fig.get_size_inches()
+        width = inch2cm(figure_size[0])
+        height = inch2cm(figure_size[1])
+        print("Figure width: {}".format(width))
+        print("Figure height: {}".format(height))
+        # bbox = ax.get_tightbbox(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted())
+        bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        width = inch2cm(bbox.width)
+        height = inch2cm(bbox.height)
+        print("Axis width: {}".format(width))
+        print("Axis height: {}".format(height))
+        width_metres = (scale * 10) * width
+        height_metres = (scale * 10) * height
+        print("Width: {} km".format(width_metres / 1000))
+        print("Height {} km".format(height_metres / 1000))
+        # To scale
+        extent = calculate_extent(width_metres, height_metres, (centre_latitude, centre_longitude))
+        ax.set_extent(extent)
+    # plt.tight_layout()
 
     # lat lon lines
     longitude = np.ceil(extent[0])
@@ -367,7 +399,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         latitude += 1
     # plt.savefig("map.png", dpi=600)
     figdata = BytesIO()
-    plt.savefig(figdata, format='png', dpi=600)
+    plt.savefig(figdata, format='png', dpi=dpi)
     plt.close()
     figdata.seek(0)
     return figdata

@@ -10,7 +10,7 @@ from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 from timezone_field import TimeZoneFormField
 
-from display.map_plotter import A4, A3
+from display.map_plotter import A4, A3, N250, OSM
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
     ContestTeam
 
@@ -42,20 +42,46 @@ MAP_SIZES = (
     (A4, A4),
     (A3, A3)
 )
+SCALE_250 = 250
+SCALE_200 = 200
+SCALE_TO_FIT = 0
+SCALES = (
+    (SCALE_200, "1:200,000"),
+    (SCALE_250, "1:250,000"),
+    (SCALE_TO_FIT, "Fit page")
+)
+
+LANDSCAPE = 0
+PORTRAIT = 1
+ORIENTATIONS = (
+    (LANDSCAPE, "Landscape"),
+    (PORTRAIT, "Portrait")
+)
+
+MAP_SOURCES = (
+    (OSM, "OSM"),
+    (N250, "Norway 1:250,000")
+)
 
 
 class MapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A3)
     zoom_level = forms.IntegerField(initial=12)
-    landscape = forms.BooleanField(required=False, initial=True)
+    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE)
+    include_only_waypoints = forms.BooleanField(initial=False, required=False)
+    scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
+    map_source = forms.ChoiceField(choices=MAP_SOURCES, initial=OSM)
+    dpi = forms.IntegerField(initial=600, min_value=100, max_value=1000)
 
 
 class ContestantMapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A3)
     zoom_level = forms.IntegerField(initial=12)
-    landscape = forms.BooleanField(required=False, initial=True)
-    include_minute_marks = forms.BooleanField(required=False, initial=True)
-    include_courses = forms.BooleanField(required=False, initial=True)
+    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE)
+    scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
+    map_source = forms.ChoiceField(choices=MAP_SOURCES, initial=OSM)
+    include_annotations = forms.BooleanField(required=False, initial=True)
+    dpi = forms.IntegerField(initial=600, min_value=100, max_value=1000)
 
 
 class ImportRouteForm(forms.Form):

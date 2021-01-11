@@ -38,7 +38,7 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
     create_route_from_formset
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
-    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm, ContestantMapForm
+    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm, ContestantMapForm, LANDSCAPE, MapForm
 from display.map_plotter import plot_route
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
@@ -281,9 +281,10 @@ def get_contestant_map(request, pk):
             contestant = get_object_or_404(Contestant, pk=pk)
             map_image = plot_route(contestant.navigation_task, form.cleaned_data["size"],
                                    zoom_level=form.cleaned_data["zoom_level"],
-                                   landscape=form.cleaned_data["landscape"], contestant=contestant,
-                                   minute_marks=form.cleaned_data["include_minute_marks"],
-                                   courses=form.cleaned_data["include_courses"])
+                                   landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE, contestant=contestant,
+                                   annotations=form.cleaned_data["include_annotations"],
+                                   waypoints_only=False, dpi=form.cleaned_data["dpi"],
+                                   scale=int(form.cleaned_data["scale"]), map_source=int(form.cleaned_data["map_source"]))
             response = HttpResponse(map_image, content_type='image/png')
             return response
     form = ContestantMapForm()
@@ -292,15 +293,19 @@ def get_contestant_map(request, pk):
 
 def get_navigation_task_map(request, pk):
     if request.method == "POST":
-        form = ContestantMapForm(request.POST)
+        form = MapForm(request.POST)
         if form.is_valid():
             navigation_task = get_object_or_404(NavigationTask, pk=pk)
+            print(form.cleaned_data)
             map_image = plot_route(navigation_task, form.cleaned_data["size"],
                                    zoom_level=form.cleaned_data["zoom_level"],
-                                   landscape=form.cleaned_data.get("landscape", False))
+                                   landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE,
+                                   waypoints_only=form.cleaned_data["include_only_waypoints"],
+                                   dpi=form.cleaned_data["dpi"], scale=int(form.cleaned_data["scale"]),
+                                   map_source=int(form.cleaned_data["map_source"]))
             response = HttpResponse(map_image, content_type='image/png')
             return response
-    form = ContestantMapForm()
+    form = MapForm()
     return render(request, "display/map_form.html", {"form": form})
 
 
