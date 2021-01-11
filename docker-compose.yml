@@ -44,6 +44,7 @@ services:
       - ./reactjs:/reactjs/
       - ./data:/data/
       - ./weblog:/logs/
+      - ./mapserver:/maptiles
     ports:
       - "8002:8000"
     depends_on:
