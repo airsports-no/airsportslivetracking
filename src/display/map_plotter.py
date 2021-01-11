@@ -88,7 +88,7 @@ A3 = "A3"
 class LocalImages(GoogleWTS):
     def _image_url(self, tile):
         x, y, z = tile
-        return "file:///maptiles/tiled/{}/{}/{}.png".format(z, x, y)
+        return "file:///maptiles/Norway_N250/{}/{}/{}.png".format(z, x, y)
 
     def tileextent(self, x_y_z):
         """Return extent tuple ``(x0,x1,y0,y1)`` in Mercator coordinates."""
