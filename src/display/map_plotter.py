@@ -381,7 +381,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     print(extent)
     ax.set_extent(extent)
     # plt.tight_layout()
-    scale_bar(ax, ccrs.Mercator(), 10, units="NM", m_per_unit=1852, scale=scale)
+    scale_bar(ax, ccrs.Mercator(), 5, units="NM", m_per_unit=1852, scale=scale)
     # plt.tight_layout()
     ax.autoscale(False)
     fig.patch.set_visible(False)
