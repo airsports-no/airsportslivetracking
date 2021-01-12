@@ -160,7 +160,7 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
     # Plot the scalebar with buffer
     x0, y = proj.transform_point(bar_xs[0], sbcy, utm)
     x1, _ = proj.transform_point(bar_xs[1], sbcy, utm)
-    xc, yc = proj.transform_point(sbcx, sbcy+200, utm)
+    xc, yc = proj.transform_point(sbcx, sbcy + 200, utm)
     ax.plot([x0, x1], [y, y], transform=proj, color='k',
             linewidth=linewidth, path_effects=buffer)
     # buffer for text
@@ -273,7 +273,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                     bearing = 0
                 plt.text(waypoint.longitude, waypoint.latitude, text, verticalalignment="center", color="blue",
                          horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8, rotation=-bearing,
-                         linespacing=2, family="monospace", clip_on = True)
+                         linespacing=2, family="monospace", clip_on=True)
                 if contestant is not None:
                     if index < len(track) - 1:
                         if annotations:
@@ -341,6 +341,10 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
 
     # plt.tight_layout()
     fig = plt.gcf()
+    figure_size = fig.get_size_inches()
+    figure_width = inch2cm(figure_size[0])
+    figure_height = inch2cm(figure_size[1])
+
     minimum_latitude = np.min(path[:, 0])
     minimum_longitude = np.min(path[:, 1])
     maximum_latitude = np.max(path[:, 0])
@@ -352,28 +356,59 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                                                      (minimum_latitude, minimum_longitude + 1))
         latitude_scale = calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
                                                     (minimum_latitude + 1, minimum_longitude))
-        figure_size = fig.get_size_inches()
-        width = inch2cm(figure_size[0])
-        scale = float(longitude_scale / (10 * width))
-        extent = [minimum_longitude - map_margin/ longitude_scale,
-                  maximum_longitude + map_margin / longitude_scale,
-                  minimum_latitude - map_margin / latitude_scale, maximum_latitude + map_margin / latitude_scale]
+
+        x0 = minimum_longitude - map_margin / longitude_scale
+        x1 = maximum_longitude + map_margin / longitude_scale
+        x_centre = x0 + (x1 - x0)/2
+        y0 = minimum_latitude - map_margin / latitude_scale
+        y1 = maximum_latitude + map_margin / latitude_scale
+        y_centre = y0 + (y1 - y0)/2
+        horizontal_metres = (x1 - x0) * longitude_scale
+        vertical_metres = (y1 - y0) * latitude_scale
+        print(f'horizontal_metres: {horizontal_metres}')
+        print(f'vertical_metres: {vertical_metres}')
+        vertical_scale = vertical_metres / figure_height  # m per cm
+        horizontal_scale = horizontal_metres / figure_width  # m per cm
+        print(f'horizontal_scale: {horizontal_scale}')
+        print(f'vertical_scale: {vertical_scale}')
+
+        if vertical_scale < horizontal_scale:
+            # Increase vertical scale to match
+            vertical_metres = horizontal_scale * figure_height
+            print(f'new_vertical_metres: {vertical_metres}')
+
+            vertical_offset = vertical_metres / (2 * latitude_scale)
+            print(f'vertical_offset: {vertical_offset}')
+
+            y0 = y_centre - vertical_offset
+            y1 = y_centre + vertical_offset
+            scale = horizontal_metres/(10*figure_width)
+        else:
+            horizontal_metres = vertical_scale * figure_width
+            print(f'new_horizontal_metres: {horizontal_metres}')
+            horizontal_offset = horizontal_metres / (2 * longitude_scale)
+            print(f'horizontal_offset: {horizontal_offset}')
+
+            x0 = x_centre - horizontal_offset
+            x1 = x_centre + horizontal_offset
+            scale = vertical_metres / (10 * figure_height)
+        extent = [x0,x1,y0,y1]
+
+
+
     else:
         centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
         centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
-        figure_size = fig.get_size_inches()
-        width = inch2cm(figure_size[0])
-        height = inch2cm(figure_size[1])
-        print("Figure width: {}".format(width))
-        print("Figure height: {}".format(height))
+        print("Figure width: {}".format(figure_width))
+        print("Figure height: {}".format(figure_height))
         # bbox = ax.get_tightbbox(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted())
         # bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         # width = inch2cm(bbox.width)
         # height = inch2cm(bbox.height)
         # print("Axis width: {}".format(width))
         # print("Axis height: {}".format(height))
-        width_metres = (scale * 10) * width
-        height_metres = (scale * 10) * height
+        width_metres = (scale * 10) * figure_width
+        height_metres = (scale * 10) * figure_height
         print("Width: {} km".format(width_metres / 1000))
         print("Height {} km".format(height_metres / 1000))
         # To scale
