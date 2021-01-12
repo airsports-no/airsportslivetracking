@@ -341,9 +341,6 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
 
     # plt.tight_layout()
     fig = plt.gcf()
-
-    figure_size = fig.get_size_inches()
-    figure_extent = Bbox.from_bounds(0, 0, figure_size[0], figure_size[1])
     minimum_latitude = np.min(path[:, 0])
     minimum_longitude = np.min(path[:, 1])
     maximum_latitude = np.max(path[:, 0])
@@ -358,10 +355,9 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         figure_size = fig.get_size_inches()
         width = inch2cm(figure_size[0])
         scale = float(longitude_scale / (10 * width))
-        extent = [(minimum_longitude - map_margin) / longitude_scale,
-                  (maximum_longitude + map_margin) / longitude_scale,
-                  (minimum_latitude - map_margin) / latitude_scale, (maximum_latitude + map_margin) / latitude_scale]
-        ax.set_extent(extent)
+        extent = [minimum_longitude - map_margin/ longitude_scale,
+                  maximum_longitude + map_margin / longitude_scale,
+                  minimum_latitude - map_margin / latitude_scale, maximum_latitude + map_margin / latitude_scale]
     else:
         centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
         centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
@@ -382,7 +378,8 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         print("Height {} km".format(height_metres / 1000))
         # To scale
         extent = calculate_extent(width_metres, height_metres, (centre_latitude, centre_longitude))
-        ax.set_extent(extent)
+    print(extent)
+    ax.set_extent(extent)
     # plt.tight_layout()
     scale_bar(ax, ccrs.Mercator(), 10, units="NM", m_per_unit=1852, scale=scale)
     # plt.tight_layout()
