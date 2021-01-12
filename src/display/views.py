@@ -441,32 +441,35 @@ class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object().navigation_task.contest
 
 
-class ContestantCreateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, CreateView):
+class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
     form_class = ContestantForm
     model = Contestant
     permission_required = ("change_contest",)
 
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        timezone.activate(self.navigation_task.contest.time_zone)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["navigation_task"] = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        context["navigation_task"] = self.navigation_task
         return context
 
     def get_form_kwargs(self):
         arguments = super().get_form_kwargs()
-        arguments["navigation_task"] = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        arguments["navigation_task"] = self.navigation_task
         return arguments
 
     def get_success_url(self):
         return reverse("navigationtask_detail", kwargs={"pk": self.kwargs.get("navigationtask_pk")})
 
     def get_permission_object(self):
-        navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
-        return navigation_task.contest
+        return self.navigation_task.contest
 
     def form_valid(self, form):
-        navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
         object = form.save(commit=False)  # type: Contestant
-        object.navigation_task = navigation_task
+        object.navigation_task = self.navigation_task
         object.save()
         return HttpResponseRedirect(self.get_success_url())
 
