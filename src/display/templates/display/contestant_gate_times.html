@@ -17,7 +17,7 @@
             {% if object.navigation_task.route.takeoff_gate %}
                 <tr>
                     <td>{{ object.navigation_task.route.takeoff_gate.name }}</td>
-                    <td>{{ gate_time|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}</td>
+                    <td>{{ gate_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}</td>
                     <td>{% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name %}
                         {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}{% else %}
                         --{% endif %}</td>
@@ -51,7 +51,7 @@
             {% if object.navigation_task.route.landing_gate %}
                 <tr>
                     <td>{{ object.navigation_task.route.landing_gate.name }}</td>
-                    <td>{{ gate_time|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}</td>
+                    <td>{{ gate_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}</td>
                     <td>{% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name %}
                         {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}{% else %}
                         --{% endif %}</td>
