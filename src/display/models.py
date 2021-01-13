@@ -619,6 +619,12 @@ class Contestant(models.Model):
     @property
     def gate_times(self) -> Dict:
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
+            if self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times:
+                self.predefined_gate_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
+            if self.navigation_task.route.landing_gate.name not in self.predefined_gate_times:
+                self.predefined_gate_times[
+                    self.navigation_task.route.landing_gate.name] = self.finished_by_time + datetime.timedelta(
+                    minutes=1)
             return self.predefined_gate_times
         gates = self.navigation_task.route.waypoints
         if len(gates) == 0:
@@ -635,6 +641,12 @@ class Contestant(models.Model):
             crossing_times[next_gate.name] = crossing_time
             if next_gate.is_procedure_turn:
                 crossing_time += datetime.timedelta(minutes=1)
+        if self.navigation_task.route.takeoff_gate.name not in crossing_time:
+            crossing_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
+        if self.navigation_task.route.landing_gate.name not in crossing_times:
+            crossing_times[
+                self.navigation_task.route.landing_gate.name] = self.finished_by_time + datetime.timedelta(
+                minutes=1)
         return crossing_times
 
     def get_gate_time_offset(self, gate_name):

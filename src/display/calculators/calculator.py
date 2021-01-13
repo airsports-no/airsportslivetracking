@@ -62,12 +62,12 @@ class Calculator(threading.Thread):
                                                           self.contestant))
         self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
         self.takeoff_gate = Gate(self.contestant.navigation_task.route.takeoff_gate,
-                                 self.contestant.takeoff_time,
+                                 self.contestant.gate_times[self.contestant.navigation_task.route.takeoff_gate.name],
                                  calculate_extended_gate(self.contestant.navigation_task.route.takeoff_gate,
                                                          self.scorecard,
                                                          self.contestant)) if self.contestant.navigation_task.route.takeoff_gate else None
         self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
-                                 self.contestant.finished_by_time,
+                                 self.contestant.gate_times[self.contestant.navigation_task.route.landing_gate.name],
                                  calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
                                                          self.scorecard,
                                                          self.contestant)) if self.contestant.navigation_task.route.landing_gate else None
