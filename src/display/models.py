@@ -641,7 +641,7 @@ class Contestant(models.Model):
             crossing_times[next_gate.name] = crossing_time
             if next_gate.is_procedure_turn:
                 crossing_time += datetime.timedelta(minutes=1)
-        if self.navigation_task.route.takeoff_gate is not None and self.navigation_task.route.takeoff_gate.name not in crossing_time:
+        if self.navigation_task.route.takeoff_gate is not None and self.navigation_task.route.takeoff_gate.name not in crossing_times:
             crossing_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
         if self.navigation_task.route.landing_gate is not None and self.navigation_task.route.landing_gate.name not in crossing_times:
             crossing_times[
