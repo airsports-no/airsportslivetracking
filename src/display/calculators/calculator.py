@@ -44,9 +44,23 @@ class Calculator(threading.Thread):
         self.score = 0
         self.score_by_gate = {}
         self.score_log = []
+        # Add global school overrides to the contestant
         if self.contestant.navigation_task.track_score_override and not self.contestant.track_score_override:
             self.contestant.track_score_override = self.contestant.navigation_task.track_score_override
             self.contestant.save()
+        contestant_overrides = self.contestant.gate_score_override.all()
+        for override in self.contestant.navigation_task.gate_score_override.all():
+            gate_types = set(override.for_gate_types)
+            has_gate_types = set()
+            for co in contestant_overrides:
+                has_gate_types.update(co.for_gate_types)
+            missing_gates_types = gate_types - has_gate_types
+            if len(missing_gates_types) > 0:
+                override.pk = None
+                override.id = None
+                override.for_gate_types = list(missing_gates_types)
+                override.save()
+                self.contestant.gate_score_override.add(override)
         if self.contestant.navigation_task.gate_score_override.all().count() > 0 and self.contestant.gate_score_override.count() == 0:
             self.contestant.gate_score_override.add(*self.contestant.navigation_task.gate_score_override.all())
         self.tracking_state = self.BEFORE_START

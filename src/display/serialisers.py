@@ -363,8 +363,6 @@ class ContestantSerialiser(serializers.ModelSerializer):
         if gate_score_override_data is not None and len(gate_score_override_data) > 0:
             for item in gate_score_override_data:
                 contestant.gate_score_override.add(GateScoreOverride.objects.create(**item))
-        else:
-            contestant.gate_score_override.add(*navigation_task.gate_score_override.all())
 
         return contestant
 
@@ -392,8 +390,6 @@ class ContestantSerialiser(serializers.ModelSerializer):
         if gate_score_override_data is not None and len(gate_score_override_data) > 0:
             for item in gate_score_override_data:
                 instance.gate_score_override.add(GateScoreOverride.objects.create(**item))
-        else:
-            instance.gate_score_override.add(*instance.navigation_task.gate_score_override.all())
         return instance
 
 

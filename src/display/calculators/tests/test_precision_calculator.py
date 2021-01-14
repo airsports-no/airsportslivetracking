@@ -1,7 +1,10 @@
+import base64
 import datetime
+import json
 from unittest.mock import Mock, patch
 
 import gpxpy
+from django.contrib.auth.models import User
 from django.test import TestCase, TransactionTestCase
 
 from display.calculators.positions_and_gates import Gate
@@ -9,7 +12,10 @@ from display.calculators.precision_calculator import PrecisionCalculator
 from display.convert_flightcontest_gpx import create_route_from_gpx, calculate_extended_gate
 from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew, \
     Contest, Person, TrackScoreOverride, GateScoreOverride
+from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 from display.views import create_route_from_csv
+from influx_facade import InfluxFacade
+from playback_tools import insert_gpx_file
 
 
 def load_track_points(filename):
@@ -219,6 +225,45 @@ class Test2017WPFC(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1152,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
+
+
+@patch("display.models.get_traccar_instance")
+class TestScoreverride(TransactionTestCase):
+    @patch("display.models.get_traccar_instance")
+    def setUp(self, p):
+        with open("display/calculators/tests/bugs_with_gate_score_overrides.json", "r") as file:
+            task_data = json.load(file)
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+        self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        contest = Contest.objects.create(name="contest",
+                                         start_time=datetime.datetime.now(
+                                             datetime.timezone.utc),
+                                         finish_time=datetime.datetime.now(
+                                             datetime.timezone.utc),
+                                         time_zone="Europe/Oslo")
+        user = User.objects.create(username="user")
+        request = Mock()
+        request.user = user
+        serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=task_data, context={"contest": contest,
+                                                                                         "request": request})
+        serialiser.is_valid(True)
+        self.navigation_task = serialiser.save()
+        # Required to make the time zone save correctly
+        self.navigation_task.refresh_from_db()
+
+    def test_4(self, p):
+        with open("display/calculators/tests/bugs_with_gate_score_overrides_track.json", "r") as file:
+            track_data = json.load(file)
+        contestant = self.navigation_task.contestant_set.first()
+        influx = InfluxFacade()
+        influx.client = Mock()
+        insert_gpx_file(contestant, base64.decodebytes(track_data["track_file"].encode("utf-8")), influx)
+
+        contestant_track = ContestantTrack.objects.get(contestant=contestant)
+        print(contestant_track.score_per_gate)
+        self.assertEqual(8, contestant_track.score_per_gate['SP'])
+        self.assertEqual(23, contestant_track.score)
 
 
 @patch("display.models.get_traccar_instance")
