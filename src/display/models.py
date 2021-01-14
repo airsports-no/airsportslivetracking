@@ -327,21 +327,30 @@ class Scorecard(models.Model):
         return gate_score
 
     def get_gate_score_override(self, gate_type: str, contestant: "Contestant"):
-        return contestant.get_gate_score_override_for_gate(gate_type)
+        return contestant.get_gate_score_override(gate_type)
 
     def get_backtracking_penalty(self, contestant: "Contestant"):
-        if contestant and contestant.track_score_override and contestant.track_score_override.bad_course_penalty is not None:
-            return contestant.track_score_override.bad_course_penalty
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if contestant.track_score_override.bad_course_penalty is not None:
+                    return contestant.track_score_override.bad_course_penalty
         return self.backtracking_penalty
 
     def get_maximum_backtracking_penalty(self, contestant: "Contestant"):
-        if contestant and contestant.track_score_override and contestant.track_score_override.bad_course_maximum_penalty is not None:
-            return contestant.track_score_override.bad_course_maximum_penalty
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if override.bad_course_maximum_penalty is not None:
+                    return contestant.track_score_override.bad_course_maximum_penalty
         return self.backtracking_maximum_penalty
 
     def get_backtracking_grace_time_seconds(self, contestant: "Contestant"):
-        if contestant and contestant.track_score_override and contestant.track_score_override.bad_course_grace_time is not None:
-            return contestant.track_score_override.bad_course_grace_time
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if contestant.track_score_override.bad_course_grace_time is not None:
+                    return contestant.track_score_override.bad_course_grace_time
         return self.backtracking_grace_time_seconds
 
     def get_gate_timing_score_for_gate_type(self, gate_type: str, contestant: "Contestant",
@@ -610,12 +619,6 @@ class Contestant(models.Model):
             raise ValidationError("Tracker start time '{}' is after takeoff time '{}' for contestant number {}".format(
                 self.tracker_start_time, self.takeoff_time, self.contestant_number))
 
-    def get_gate_score_override_for_gate(self, gate_type: str) -> Optional[GateScoreOverride]:
-        for item in self.gate_score_override.all():
-            if gate_type in item.for_gate_types:
-                return item
-        return None
-
     @property
     def gate_times(self) -> Dict:
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
@@ -659,6 +662,20 @@ class Contestant(models.Model):
         actual = self.contestanttrack.gate_actual_times.get(gate_name)
         if planned and actual:
             return (actual - planned).total_seconds()
+        return None
+
+    def get_track_score_override(self) -> Optional[TrackScoreOverride]:
+        if self.track_score_override is not None:
+            return self.track_score_override
+        return self.navigation_task.track_score_override
+
+    def get_gate_score_override(self, gate_type: str) -> Optional[GateScoreOverride]:
+        for item in self.gate_score_override.all():
+            if gate_type in item.for_gate_types:
+                return item
+        for item in self.navigation_task.gate_score_override.all():
+            if gate_type in item.for_gate_types:
+                return item
         return None
 
     @gate_times.setter
