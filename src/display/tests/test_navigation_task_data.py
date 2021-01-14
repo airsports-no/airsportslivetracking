@@ -702,8 +702,8 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertListEqual(["tp"], override.for_gate_types)
         self.assertEqual(21, override.checkpoint_grace_period_before)
         for contestant in Contestant.objects.all():
-            self.assertEqual(track_override, contestant.track_score_override)
-            self.assertListEqual([override], list(contestant.gate_score_override.all()))
+            self.assertEqual(track_override, contestant.get_track_score_override())
+            self.assertListEqual([override], [contestant.get_gate_score_override("tp")])
 
     def test_contestant_score_override(self, patch):
         other_data = deepcopy(self.data)
