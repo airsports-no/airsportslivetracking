@@ -107,7 +107,8 @@ class ConnectedTrackingContainer extends Component {
                                 </div>
                                 <div id={"insetMenu"}
                                      aria-expanded={false} aria-controls={"insetMenu"} className={"collapse"}>
-                                    <div className={"backdrop " + (this.props.displayFullHeightTrackingTable ? "backdropFull" : "backdropHalf")}>
+                                    <div
+                                        className={"backdrop " + (this.props.displayFullHeightTrackingTable ? "backdropFull" : "backdropHalf")}>
                                         <div className={"text-light bg-dark"}>
                                             {TrackerDisplay}
                                         </div>
@@ -118,9 +119,9 @@ class ConnectedTrackingContainer extends Component {
                             </div>
                             <a className={"btn"} id="returnLink" href={"/"}><i className={"mdi mdi-home"}
                                                                                id={"returnLinkImage"}/></a>
-                            <img alt={"Logo"} className={"logoImage"}
-                                 id={"logoImage"}
-                                 src={"/static/img/airsports.png"}/>
+                            {/*<img alt={"Logo"} className={"logoImage"}*/}
+                            {/*     id={"logoImage"}*/}
+                            {/*     src={"/static/img/airsports.png"}/>*/}
                             <div id="cesiumContainer"/>
                             {this.props.displayLowerThirds !== null ?
                                 <LowerThirdTeam

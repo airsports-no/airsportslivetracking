@@ -52,6 +52,8 @@ body {
     font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);
     overflow-y: auto;
     position: relative;
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
     /*bottom: 0;*/
     /*top: 0;*/
     /*left: 0;*/
@@ -59,7 +61,10 @@ body {
     /*margin: 44px auto;*/
     /*max-height: 500px;*/
 }
-
+/* Hide scrollbar for Chrome, Safari and Opera */
+.backdrop::-webkit-scrollbar {
+  display: none;
+}
 
 .titleWrapper {
     /*position: fixed;*/
@@ -114,9 +119,6 @@ tr.selectedContestantRow td {
     font-size: small;
 }
 
-.lowerThirdsScale {
-}
-
 
 .lowerThirdsDouble {
     transform-origin: bottom right;
@@ -136,6 +138,23 @@ tr.selectedContestantRow td {
     bottom: 20px;
     right: 20px;
     z-index: 2;
+}
+
+.lower-thirds-current-score {
+    font-size: 4.3rem;
+    color: crimson;
+    font-weight: bold;
+}
+
+.lower-thirds-current-score-text {
+    font-size: 1rem;
+    color: crimson;
+    font-weight: bold;
+}
+
+.lower-thirds-name-box {
+    box-shadow: 5px 10px 5px rgba(0, 0, 0, 0.6);
+    border-radius: 15px 15px 0 0;
 }
 
 /* Large desktop */

@@ -1,5 +1,14 @@
 import React, {Component} from "react";
 import AutoScale from 'react-auto-scale';
+import {connect} from "react-redux";
+import {
+    displayAllTracks,
+    expandTrackingTable, fullHeightTable,
+    halfHeightTable,
+    hideLowerThirds,
+    setDisplay,
+    shrinkTrackingTable
+} from "../actions";
 
 const question = "/static/img/questionmark.png"
 
@@ -41,8 +50,11 @@ function memberName(member) {
                                    alt={member.country}/> {member.first_name}<br/>{member.last_name.toUpperCase()}</h4>
 }
 
+const mapStateToProps = (state, props) => ({
+    contestantData: state.contestantData[props.contestant.id],
+})
 
-export class LowerThirdTeam extends Component {
+class ConnectedLowerThirdTeam extends Component {
 
     render() {
         if (this.props.team === null) return null
@@ -85,11 +97,19 @@ export class LowerThirdTeam extends Component {
             <div className={singleCrew ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
                 <div className={"card-transparent"}>
                     {crewPictures}
-                    <div className={"card-body bg-dark text-light"}>
+                    <div className={"bg-dark text-light lower-thirds-name-box"}>
                         <div className={"row"}>
                             <div className={"col-4"}>
-                                <img className={"lowerThirdsTeamImage img-fluid rounded"}
-                                     src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>
+                                <div className={"text-center"}>
+                                    <div className={" lower-thirds-current-score"}>
+                                        {this.props.contestantData.contestant_track.score}
+                                    </div>
+                                    <div className={"lower-thirds-current-score-text"}>
+                                        Live score
+                                    </div>
+                                </div>
+                                {/*<img className={"lowerThirdsTeamImage img-fluid rounded"}*/}
+                                {/*     src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>*/}
                             </div>
                             <div className={"col-8 nopadding"}>
                                 {crewNames}
@@ -107,6 +127,8 @@ export class LowerThirdTeam extends Component {
 
     }
 }
+
+export const LowerThirdTeam = connect(mapStateToProps)(ConnectedLowerThirdTeam)
 
 export class TeamMembers
     extends Component {
