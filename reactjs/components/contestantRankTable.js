@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {compareScore, contestantRankingTable, contestantShortForm, pz} from "../utilities";
+import {calculateProjectedScore, compareScore, contestantRankingTable, contestantShortForm, pz} from "../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -26,15 +26,6 @@ function getTrackingStateBackgroundClass(state) {
     return ""
 }
 
-function calculateProjectedScore(score, progress) {
-    if (progress <= 0) {
-        return 99999
-    }
-    if (progress < 5) {
-        return 99999
-    }
-    return (100 * score / progress)
-}
 
 const mapStateToProps = (state, props) => ({
     contestants: Object.keys(state.contestantData).map((key, index) => {

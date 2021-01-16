@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {contestantShortForm} from "../utilities";
+import {calculateProjectedScore, contestantShortForm} from "../utilities";
 import paginationFactory from "react-bootstrap-table2-paginator";
 import BootstrapTable from "react-bootstrap-table-next";
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -12,6 +12,7 @@ import {displayAllTracks, hideLowerThirds, setDisplay} from "../actions";
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
     initialLoading: state.initialLoadingContestantData[props.contestantId],
+    progress: state.contestantData[props.contestantId].progress,
     contestant: state.contestants[props.contestantId]
 })
 
@@ -38,6 +39,9 @@ class ConnectedContestantDetailsDisplay extends Component {
     }
 
     render() {
+        const progress = Math.min(100, Math.max(0, this.props.progress.toFixed(1)))
+        const finished = this.props.contestantData.current_state === "Finished"
+        const projectedScore = calculateProjectedScore(this.props.contestantData.score, progress)
         const columns = [
             {
                 text: "",
@@ -53,7 +57,17 @@ class ConnectedContestantDetailsDisplay extends Component {
             },
             {
                 dataField: "message",
-                text: contestantShortForm(this.props.contestant) + " | " + this.props.contestantData.score + " points",
+                text: "",
+                headerFormatter: (column, colIndex, components) => {
+                    return <div>
+                        <span>{contestantShortForm(this.props.contestant)}  </span>
+                        <span
+                            style={{color: "crimson"}}>SCORE: {this.props.contestantData.score}  </span>
+                        <span style={{color: "orange"}}>EST: {projectedScore}  </span>
+                        <div style={{width: "70px", float: "right"}}><ProgressCircle progress={progress}
+                                                                                     finished={finished}/></div>
+                    </div>
+                },
                 formatter: (cell, row) => {
                     return <div className={"preWrap"}><FormatMessage message={cell}/></div>
                 },

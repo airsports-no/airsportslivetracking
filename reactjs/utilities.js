@@ -100,3 +100,13 @@ export function teamLongForm(team) {
         {team.aeroplane.registration}
     </div>
 }
+
+export function calculateProjectedScore(score, progress) {
+    if (progress <= 0) {
+        return 99999
+    }
+    if (progress < 5) {
+        return 99999
+    }
+    return (100 * score / progress)
+}
