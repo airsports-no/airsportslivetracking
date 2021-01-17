@@ -97,7 +97,7 @@ class ConnectedTrackingContainer extends Component {
                                 className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayExpandedTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
                                 <div
                                     className={"titleWrapper"}>
-                                    <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}>
+                                    <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"} style={{paddingTop: 0}}>
                                         {/*id={"logoButtonWrapper"}>*/}
                                         <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
                                     </a>

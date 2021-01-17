@@ -311,7 +311,7 @@ tr.selectedContestantRow td {
 #sponsor {
     bottom: 30px;
     left: 10px;
-    width: 330px;
+    width: 30vw;
     height: 200px;
     background-color: #666666cc;
     position: fixed;
@@ -334,7 +334,7 @@ tr.selectedContestantRow td {
     background-color: #666666;
     color: white;
     font-size: 0.5rem;
-    width: 350px
+    width: 350px;
 }
 
 #disclaimer .logo {
