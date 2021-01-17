@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {calculateProjectedScore, contestantShortForm} from "../utilities";
+import {calculateProjectedScore, compareScore, contestantShortForm} from "../utilities";
 import paginationFactory from "react-bootstrap-table2-paginator";
 import BootstrapTable from "react-bootstrap-table-next";
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -13,7 +13,13 @@ const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
     initialLoading: state.initialLoadingContestantData[props.contestantId],
     progress: state.contestantData[props.contestantId].progress,
-    contestant: state.contestants[props.contestantId]
+    contestant: state.contestants[props.contestantId],
+    contestants: Object.keys(state.contestantData).map((key, index) => {
+        return {
+            track: state.contestantData[key].contestant_track,
+            contestant: state.contestants[key]
+        }
+    }),
 })
 
 function FormatMessage(props) {
@@ -32,6 +38,21 @@ function FormatMessage(props) {
 }
 
 class ConnectedContestantDetailsDisplay extends Component {
+    calculateRank() {
+        const contestants = this.props.contestants.filter((contestant) => {
+            return contestant != null && contestant.contestant !== undefined
+        })
+        contestants.sort(compareScore)
+        let rank = 1
+        for(let contestant of contestants){
+            if (contestant.contestant.id === this.props.contestant.id){
+                return rank;
+            }
+            rank += 1
+        }
+        return -1
+    }
+
     resetToAllContestants() {
         this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
         this.props.displayAllTracks();
@@ -45,6 +66,9 @@ class ConnectedContestantDetailsDisplay extends Component {
         const columns = [
             {
                 text: "",
+                // headerFormatter: (column, colIndex, components) => {
+                //     return
+                // },
                 dataField: "message.gate",
                 formatter: (cell, row) => {
                     return <b>{cell}</b>
@@ -60,6 +84,7 @@ class ConnectedContestantDetailsDisplay extends Component {
                 text: "",
                 headerFormatter: (column, colIndex, components) => {
                     return <div>
+                        <span># {this.calculateRank()}  </span>
                         <span>{contestantShortForm(this.props.contestant)}  </span>
                         <span
                             style={{color: "crimson"}}>SCORE: {this.props.contestantData.score}  </span>
