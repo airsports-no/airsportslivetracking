@@ -7,7 +7,7 @@ body {
     left: 60px;
     top: 10px;
     position: fixed;
-    z-index: 2;
+    z-index: 3;
     display: inline-block;
     background-color: #666666;
     box-shadow: 5px 10px 5px rgba(0, 0, 0, 0.6);
@@ -20,7 +20,7 @@ body {
 
 
 .outerBackdropWide {
-    right: 120px;
+    right: 60px;
 }
 
 .outerBackdropFull {
@@ -61,9 +61,10 @@ body {
     /*margin: 44px auto;*/
     /*max-height: 500px;*/
 }
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .backdrop::-webkit-scrollbar {
-  display: none;
+    display: none;
 }
 
 .titleWrapper {
@@ -142,13 +143,13 @@ tr.selectedContestantRow td {
 
 .lower-thirds-current-score {
     font-size: 4.3rem;
-    color: crimson;
+    color: #e01b1c;
     font-weight: bold;
 }
 
 .lower-thirds-current-score-text {
     font-size: 1rem;
-    color: crimson;
+    color: #e01b1c;
     font-weight: bold;
 }
 
@@ -243,8 +244,7 @@ tr.selectedContestantRow td {
 }
 
 .progressWheel {
-    width: 45px;
-    height: 45px;
+    height: 3vw;
 }
 
 .widthLink {
@@ -262,9 +262,24 @@ tr.selectedContestantRow td {
 
 .taskTitle {
     /*font-size: clamp(1rem, 0.1667rem + 3.33333vw, 2rem);*/
-    font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);;
+    /*font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);;*/
+    font-size: clamp(0.5rem, -0.1429rem + 2.8571vw, 2rem);
     vertical-align: middle;
     color: aliceblue;
+}
+
+.taskTitleName {
+    color: #70ad47;
+    font-weight: bold;
+}
+
+.contestant-details-header {
+    font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);;
+}
+
+.details-progress-circle {
+    width: 3vw;
+    float: right;
 }
 
 #logoButton {
@@ -287,10 +302,45 @@ tr.selectedContestantRow td {
 
 
 #returnLink {
-    top: 20px;
-    right: 20px;
+    top: 10px;
+    right: 10px;
     position: fixed;
     z-index: 2;
+}
+
+#sponsor {
+    bottom: 30px;
+    left: 10px;
+    width: 330px;
+    height: 200px;
+    background-color: #666666cc;
+    position: fixed;
+    z-index: 2;
+}
+
+#sponsor .logo {
+    width: 100px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#disclaimer {
+    bottom: 2px;
+    left: 0px;
+    position: fixed;
+    z-index: 2;
+    background-color: #666666;
+    color: white;
+    font-size: 0.5rem;
+    width: 350px
+}
+
+#disclaimer .logo {
+    height: 20px;
+    float: right;
+    padding-right: 5px;
 }
 
 #returnLinkImage {
@@ -300,12 +350,17 @@ tr.selectedContestantRow td {
 }
 
 .logoImage {
-    height: 80px;
-    width: 80px;
-    bottom: 20px;
+    /*height: 80px;*/
+    /*width: 80px;*/
+    bottom: 18px;
     right: 20px;
     position: fixed;
     z-index: 2;
+    color: #e01b1c;
+    font-size: large;
+    background-color: #666666cc;
+    border-radius: 5px;
+    padding: 0 5px;
 }
 
 

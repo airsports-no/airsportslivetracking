@@ -94,21 +94,22 @@ class ConnectedTrackingContainer extends Component {
                             numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
                         <div className={"fill"}>
                             <div
-                                className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayFullHeightTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
+                                className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayExpandedTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
                                 <div
                                     className={"titleWrapper"}>
                                     <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"}>
                                         {/*id={"logoButtonWrapper"}>*/}
                                         <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
                                     </a>
-                                    <a href={"#"} className={'taskTitle'} data-toggle={"collapse"}
+                                    <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
                                        data-target={"#insetMenu"}>{this.props.navigationTask.name}</a>
-                                    {ExpandedTableLink} {TableHeightLink}
+                                    {ExpandedTableLink}
+                                    {/*{TableHeightLink}*/}
                                 </div>
                                 <div id={"insetMenu"}
                                      aria-expanded={false} aria-controls={"insetMenu"} className={"collapse"}>
                                     <div
-                                        className={"backdrop " + (this.props.displayFullHeightTrackingTable ? "backdropFull" : "backdropHalf")}>
+                                        className={"backdrop " + (this.props.displayExpandedTrackingTable ? "backdropFull" : "backdropHalf")}>
                                         <div className={"text-light bg-dark"}>
                                             {TrackerDisplay}
                                         </div>
@@ -119,6 +120,18 @@ class ConnectedTrackingContainer extends Component {
                             </div>
                             <a className={"btn"} id="returnLink" href={"/"}><i className={"mdi mdi-home"}
                                                                                id={"returnLinkImage"}/></a>
+                            <div id={"disclaimer"}>
+                                <img src={"/static/img/nlf_logo.png"} className={"logo"}/>
+                                THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING IN COLLABORATION<br/>
+                                WITH THE NORGES LUFTSPORTSFORBUND NLF - <a href={"#"}>FOR MORE INFO / DISCLAIMER</a>
+                            </div>
+
+                            <div id={"sponsor"}>
+                                <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>
+                            </div>
+                            <div className={"logoImage"}>
+                                #livetracking
+                            </div>
                             {/*<img alt={"Logo"} className={"logoImage"}*/}
                             {/*     id={"logoImage"}*/}
                             {/*     src={"/static/img/airsports.png"}/>*/}
