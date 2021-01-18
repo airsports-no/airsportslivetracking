@@ -78,6 +78,11 @@ export function contestantShortForm(contestant) {
     return contestant.team.crew ? contestant.team.crew.member1.first_name : "Unknown"
 }
 
+export function contestantTwoLines(contestant) {
+    return contestant.team.crew ? contestant.team.crew.member1.last_name.toUpperCase() + ", " + contestant.team.crew.member1.first_name : ""
+
+}
+
 export function contestantRankingTable(contestant) {
     let string = ""
     if (contestant.team.crew) {

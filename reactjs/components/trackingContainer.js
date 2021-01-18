@@ -97,7 +97,7 @@ class ConnectedTrackingContainer extends Component {
                                 className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayExpandedTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
                                 <div
                                     className={"titleWrapper"}>
-                                    <a className={"btn"} data-toggle={"collapse"} data-target={"#insetMenu"} style={{paddingTop: 0}}>
+                                    <a data-toggle={"collapse"} data-target={"#insetMenu"} style={{paddingLeft: "14px", paddingRight: "12px"}}>
                                         {/*id={"logoButtonWrapper"}>*/}
                                         <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
                                     </a>
@@ -121,14 +121,14 @@ class ConnectedTrackingContainer extends Component {
                             <a className={"btn"} id="returnLink" href={"/"}><i className={"mdi mdi-home"}
                                                                                id={"returnLinkImage"}/></a>
                             <div id={"disclaimer"}>
-                                <img src={"/static/img/nlf_logo.png"} className={"logo"}/>
+                                <img src={"/static/img/nlf_white.png"} className={"logo"}/>
                                 THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING IN COLLABORATION<br/>
-                                WITH THE NORGES LUFTSPORTSFORBUND NLF - <a href={"#"}>FOR MORE INFO / DISCLAIMER</a>
+                                WITH NORGES LUFTSPORTSFORBUND NLF - <a href={"#"} style={{color: "white"}}>FOR MORE INFO / DISCLAIMER</a>
                             </div>
 
-                            <div id={"sponsor"}>
-                                <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>
-                            </div>
+                            {/*<div id={"sponsor"}>*/}
+                            {/*    <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>*/}
+                            {/*</div>*/}
                             <div className={"logoImage"}>
                                 #livetracking
                             </div>

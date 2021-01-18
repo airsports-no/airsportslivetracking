@@ -84,11 +84,11 @@ class ConnectedContestantDetailsDisplay extends Component {
                 text: "",
                 headerFormatter: (column, colIndex, components) => {
                     return <div className={"contestant-details-header"}>
-                        <span>#{this.calculateRank()}  </span>
-                        <span>{contestantShortForm(this.props.contestant)}  </span>
+                        <span>PLACE: {this.calculateRank()} </span>
+                        <span>{contestantShortForm(this.props.contestant)}</span>
                         <span
-                            style={{color: "crimson"}}>SCORE: {this.props.contestantData.score}  </span>
-                        <span style={{color: "orange"}}>EST: {projectedScore}  </span>
+                            style={{color: "crimson"}}>SCORE: {this.props.contestantData.score}</span>
+                        <span style={{color: "orange"}}>EST: {projectedScore}</span>
                         <div className={"details-progress-circle"}><ProgressCircle progress={progress}
                                                                                      finished={finished}/></div>
                     </div>

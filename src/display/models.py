@@ -583,7 +583,7 @@ class Contestant(models.Model):
 
     def calculate_progress(self, latest_time: datetime):
         route_progress = 100
-        if len(self.navigation_task.route.waypoints) > 0:
+        if len(self.navigation_task.route.waypoints) > 0 and not self.contestanttrack.calculator_finished:
             first_gate = self.navigation_task.route.waypoints[0]
             last_gate = self.navigation_task.route.waypoints[-1]
 

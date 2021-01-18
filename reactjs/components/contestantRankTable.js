@@ -131,14 +131,18 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "rank",
-                text: "#",
+                text: " #",
                 // headerEvents: {
                 //     onClick: (e, column, columnIndex) => {
                 //         this.handleExpandHeaderClick()
                 //     }
                 // },
                 classes: "align-middle",
-                sort: true
+                sort: true,
+                formatter: (cell, row) => {
+                    return <span> {cell}</span>
+                }
+
             },
             {
                 dataField: "contestantNumber",
@@ -152,12 +156,14 @@ class ConnectedContestantRankTable extends Component {
             },
             {
                 dataField: "name",
-                text: "CREW"
+                text: "CREW",
+                classes: "align-middle",
             },
             {
                 dataField: "score",
                 text: "SCORE",
-                classes: "align-middle"
+                classes: "align-middle",
+                sort: true,
             },
             {
                 dataField: "projectedScore",
@@ -192,7 +198,7 @@ class ConnectedContestantRankTable extends Component {
                 },
                 headerClasses: "text-center",
                 style: (cell, row, rowIndex, colIndex) => {
-                    return {width: 60 + 'px'}
+                    return {width: 80 + 'px'}
                 },
                 classes: "align-middle"
             },
