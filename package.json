@@ -51,6 +51,7 @@
     "bootstrap": "^4.5.2",
     "bootstrap-material-design-icons": "^2.2.0",
     "brace": "^0.11.1",
+    "country-flag-icons": "^1.2.8",
     "dateformat": "^3.0.3",
     "file-loader": "^6.1.0",
     "leaflet": "^1.7.1",

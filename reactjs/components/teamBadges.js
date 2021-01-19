@@ -1,14 +1,6 @@
 import React, {Component} from "react";
-import AutoScale from 'react-auto-scale';
 import {connect} from "react-redux";
-import {
-    displayAllTracks,
-    expandTrackingTable, fullHeightTable,
-    halfHeightTable,
-    hideLowerThirds,
-    setDisplay,
-    shrinkTrackingTable
-} from "../actions";
+import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
 
 const question = "/static/img/questionmark.png"
 
@@ -46,8 +38,23 @@ function memberTwoPicture(crew) {
 }
 
 function memberName(member) {
-    return <h4 className={""}><img src={member.country_flag_url} className={"personalFlag img-fluid"}
-                                   alt={member.country}/> {member.first_name}<br/>{member.last_name.toUpperCase()}</h4>
+    return <h4 className={"lower-thirds-pilot-names"}>
+        <EllipsisWithTooltip>
+            {member.last_name.toUpperCase()}
+        </EllipsisWithTooltip>
+        <EllipsisWithTooltip>
+            {member.first_name}
+        </EllipsisWithTooltip>
+    </h4>
+}
+
+function clubDisplay(club) {
+    if (club === null) {
+        return null
+    }
+    const image = <img src={"/static/flags/3x2/" + club.country + ".svg"} className={"personalFlag img-fluid"}
+                       alt={club.country}/>
+    return <div>{image} {club.name}</div>
 }
 
 const mapStateToProps = (state, props) => ({
@@ -60,7 +67,7 @@ class ConnectedLowerThirdTeam extends Component {
         if (this.props.team === null) return null
         const singleCrew = this.props.contestant.team.crew.member2 == null
         let crewPictures = <div className={"row"}>
-            <div className={"col-4"}/>
+            <div className={"col-3"}/>
             <div className={"col-4 inheritDisplay"}>
                 {memberOnePicture(this.props.contestant.team.crew)}
             </div>
@@ -99,23 +106,29 @@ class ConnectedLowerThirdTeam extends Component {
                     {crewPictures}
                     <div className={"bg-dark text-light lower-thirds-name-box"}>
                         <div className={"row"}>
-                            <div className={"col-4"}>
-                                <div className={"text-center"}>
-                                    <div className={" lower-thirds-current-score"}>
-                                        {this.props.contestantData.contestant_track.score}
+                            <div className={"col-3"}>
+                                <div className={"row"}>
+                                    <div className={"text-center col-12"}>
+                                        <div className={"lower-thirds-current-score"}>
+                                            {this.props.contestantData.contestant_track.score}
+                                        </div>
                                     </div>
-                                    <div className={"lower-thirds-current-score-text"}>
-                                        Live score
+                                </div>
+                                <div className={"row"}>
+                                    <div className={"text-center col-12"}>
+                                        <div className={"lower-thirds-current-score-text"}>
+                                            Live score
+                                        </div>
                                     </div>
                                 </div>
                                 {/*<img className={"lowerThirdsTeamImage img-fluid rounded"}*/}
                                 {/*     src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>*/}
                             </div>
-                            <div className={"col-8 nopadding"}>
+                            <div className={"col-9"}>
                                 {crewNames}
                                 <div className={"row"}>
                                     <div className={"col-12 text-center"}>
-                                        <h4>{this.props.contestant.team.club !== null ? this.props.contestant.team.club.name : null}</h4>
+                                        <h4>{clubDisplay(this.props.contestant.team.club)}</h4>
                                     </div>
                                 </div>
                             </div>

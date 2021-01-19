@@ -1,6 +1,12 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {calculateProjectedScore, compareScore, contestantShortForm} from "../utilities";
+import {
+    calculateProjectedScore,
+    compareScore,
+    contestantShortForm,
+    contestantTwoLines,
+    ordinal_suffix_of
+} from "../utilities";
 import paginationFactory from "react-bootstrap-table2-paginator";
 import BootstrapTable from "react-bootstrap-table-next";
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -44,8 +50,8 @@ class ConnectedContestantDetailsDisplay extends Component {
         })
         contestants.sort(compareScore)
         let rank = 1
-        for(let contestant of contestants){
-            if (contestant.contestant.id === this.props.contestant.id){
+        for (let contestant of contestants) {
+            if (contestant.contestant.id === this.props.contestant.id) {
                 return rank;
             }
             rank += 1
@@ -66,9 +72,11 @@ class ConnectedContestantDetailsDisplay extends Component {
         const columns = [
             {
                 text: "",
-                // headerFormatter: (column, colIndex, components) => {
-                //     return
-                // },
+                headerFormatter: (column, colIndex, components) => {
+                    return ordinal_suffix_of(this.calculateRank())
+
+                },
+                headerClasses: "align-middle",
                 dataField: "message.gate",
                 formatter: (cell, row) => {
                     return <b>{cell}</b>
@@ -84,13 +92,15 @@ class ConnectedContestantDetailsDisplay extends Component {
                 text: "",
                 headerFormatter: (column, colIndex, components) => {
                     return <div className={"contestant-details-header"}>
-                        <span>PLACE: {this.calculateRank()} </span>
-                        <span>{contestantShortForm(this.props.contestant)}</span>
-                        <span
-                            style={{color: "crimson"}}>SCORE: {this.props.contestantData.score}</span>
-                        <span style={{color: "orange"}}>EST: {projectedScore}</span>
-                        <div className={"details-progress-circle"}><ProgressCircle progress={progress}
-                                                                                     finished={finished}/></div>
+                        <div className={"row"}>
+                            <div className={"col-6"}>{contestantTwoLines(this.props.contestant)}</div>
+                            <div className={"col-2"}
+                                 style={{color: "#e01b1c"}}>SCORE: {this.props.contestantData.score}</div>
+                            <div className={"col-2"} style={{color: "orange"}}>EST: {projectedScore}</div>
+                            <div className={"col-2 details-progress-circle"}><ProgressCircle progress={progress}
+                                                                                             finished={finished}/>
+                            </div>
+                        </div>
                     </div>
                 },
                 formatter: (cell, row) => {

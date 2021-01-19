@@ -102,7 +102,7 @@ class ConnectedTrackingContainer extends Component {
                                         <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
                                     </a>
                                     <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
-                                       data-target={"#insetMenu"}>{this.props.navigationTask.name}</a>
+                                       data-target={"#insetMenu"}>{this.props.navigationTask.name.toUpperCase()}</a>
                                     {ExpandedTableLink}
                                     {/*{TableHeightLink}*/}
                                 </div>
