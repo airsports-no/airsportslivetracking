@@ -118,8 +118,10 @@ class ConnectedTrackingContainer extends Component {
                                 </div>
 
                             </div>
-                            <a className={"btn"} id="returnLink" href={"/"}><i className={"mdi mdi-home"}
-                                                                               id={"returnLinkImage"}/></a>
+                            <a className={"btn"} id="returnLink" href={"/"}>
+                                {/*<i className={"mdi mdi-home"} id={"returnLinkImage"}/>*/}
+                                <img src={"/static/img/hub.png"} id={"returnLinkImage"} alt={"Hub"}/>
+                            </a>
                             <div id={"disclaimer"}>
                                 <img src={"/static/img/nlf_white.png"} className={"logo"}/>
                                 THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING IN COLLABORATION<br/>
@@ -130,7 +132,7 @@ class ConnectedTrackingContainer extends Component {
                             {/*    <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>*/}
                             {/*</div>*/}
                             <div className={"logoImage"}>
-                                #livetracking
+                                #LIVETRACKING
                             </div>
                             {/*<img alt={"Logo"} className={"logoImage"}*/}
                             {/*     id={"logoImage"}*/}

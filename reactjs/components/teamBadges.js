@@ -117,7 +117,7 @@ class ConnectedLowerThirdTeam extends Component {
                                 <div className={"row"}>
                                     <div className={"text-center col-12"}>
                                         <div className={"lower-thirds-current-score-text"}>
-                                            Live score
+                                            LIVE SCORE
                                         </div>
                                     </div>
                                 </div>

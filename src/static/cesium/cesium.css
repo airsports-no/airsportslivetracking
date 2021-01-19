@@ -247,6 +247,7 @@ tr.selectedContestantRow td {
 }
 
 .personalFlag {
+    margin-top: -5px;
     width: 40px;
 }
 
@@ -320,10 +321,10 @@ tr.selectedContestantRow td {
     left: 10px;
     width: 20vw;
     height: 200px;
-    background-color: #5c5c5ccc;
+    background-color: #262626cc;
     position: fixed;
     z-index: 2;
-    s
+
 }
 
 #sponsor .logo {
@@ -336,13 +337,16 @@ tr.selectedContestantRow td {
 
 #disclaimer {
     bottom: 2px;
-    left: 0px;
+    left: 0;
     position: fixed;
     z-index: 2;
-    background-color: #5c5c5c;
+    background-color: #262626;
     color: white;
     font-size: 0.5rem;
     width: 350px;
+    padding-top: 4px;
+    padding-left: 4px;
+    height: 35px;
 }
 
 #disclaimer .logo {
@@ -354,7 +358,8 @@ tr.selectedContestantRow td {
 #returnLinkImage {
     font-size: 60px;
     /*height: 80px;*/
-    /*width: 80px;*/
+    min-width: 60px;
+    width: 6vw;
 }
 
 .logoImage {

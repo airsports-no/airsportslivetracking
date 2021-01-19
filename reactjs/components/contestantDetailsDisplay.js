@@ -73,10 +73,10 @@ class ConnectedContestantDetailsDisplay extends Component {
             {
                 text: "",
                 headerFormatter: (column, colIndex, components) => {
-                    return ordinal_suffix_of(this.calculateRank())
+                    return <div>PLACE<br/>{ordinal_suffix_of(this.calculateRank())}</div>
 
                 },
-                headerClasses: "align-middle",
+                headerClasses: "text-center",
                 dataField: "message.gate",
                 formatter: (cell, row) => {
                     return <b>{cell}</b>
@@ -94,11 +94,13 @@ class ConnectedContestantDetailsDisplay extends Component {
                     return <div className={"contestant-details-header"}>
                         <div className={"row"}>
                             <div className={"col-6"}>{contestantTwoLines(this.props.contestant)}</div>
-                            <div className={"col-2"}
-                                 style={{color: "#e01b1c"}}>SCORE: {this.props.contestantData.score}</div>
-                            <div className={"col-2"} style={{color: "orange"}}>EST: {projectedScore}</div>
-                            <div className={"col-2 details-progress-circle"}><ProgressCircle progress={progress}
-                                                                                             finished={finished}/>
+                            <div className={"col-2 text-center"}
+                                 style={{color: "#e01b1c"}}>SCORE<br/>{this.props.contestantData.score}</div>
+                            <div className={"col-2 text-center"} style={{color: "orange"}}>EST<br/>{projectedScore}
+                            </div>
+                            <div className={"col-2 details-progress-circle"} style={{paddingTop: "5px"}}><ProgressCircle
+                                progress={progress}
+                                finished={finished}/>
                             </div>
                         </div>
                     </div>
