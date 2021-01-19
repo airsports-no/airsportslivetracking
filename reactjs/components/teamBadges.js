@@ -67,7 +67,7 @@ class ConnectedLowerThirdTeam extends Component {
         if (this.props.team === null) return null
         const singleCrew = this.props.contestant.team.crew.member2 == null
         let crewPictures = <div className={"row"}>
-            <div className={"col-3"}/>
+            <div className={"col-4"}/>
             <div className={"col-4 inheritDisplay"}>
                 {memberOnePicture(this.props.contestant.team.crew)}
             </div>
@@ -106,7 +106,7 @@ class ConnectedLowerThirdTeam extends Component {
                     {crewPictures}
                     <div className={"bg-dark text-light lower-thirds-name-box"}>
                         <div className={"row"}>
-                            <div className={"col-3"}>
+                            <div className={"col-4"}>
                                 <div className={"row"}>
                                     <div className={"text-center col-12"}>
                                         <div className={"lower-thirds-current-score"}>

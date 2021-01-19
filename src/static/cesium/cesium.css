@@ -133,7 +133,7 @@ tr.selectedContestantRow td {
 .lowerThirdsSingle {
     transform-origin: bottom right;
     position: fixed;
-    width: 700px;
+    width: 550px;
     bottom: 20px;
     right: 20px;
     z-index: 2;
