@@ -124,7 +124,7 @@ class ConnectedLowerThirdTeam extends Component {
                                 {/*<img className={"lowerThirdsTeamImage img-fluid rounded"}*/}
                                 {/*     src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>*/}
                             </div>
-                            <div className={"col-9"}>
+                            <div className={"col-8"}>
                                 {crewNames}
                                 <div className={"row"}>
                                     <div className={"col-12 text-center"}>
