@@ -38,7 +38,8 @@ from display.convert_flightcontest_gpx import create_route_from_gpx, create_rout
     create_route_from_formset
 from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
-    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm, ContestantMapForm, LANDSCAPE, MapForm
+    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm, ContestantMapForm, LANDSCAPE, MapForm, \
+    WaypointFormHelper
 from display.map_plotter import plot_route
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
@@ -608,6 +609,11 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
     template_name = "display/navigationtaskwizardform.html"
     condition_dict = {"1": show_route_definition_step}
+    templates = {
+        "0": "display/navigationtaskwizardform.html",
+        "1": "display/waypoint_form.html",
+        "2": "display/navigationtaskwizardform.html"
+    }
 
     def done(self, form_list, **kwargs):
         initial_step_data = self.get_cleaned_data_for_step("0")
@@ -625,6 +631,12 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     form_list = [ImportRouteForm, formset_factory(WaypointForm, extra=0), NavigationTaskForm]
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+        if self.steps.current == "1":
+            context["helper"] = WaypointFormHelper()
+        return context
 
     def get_form_initial(self, step):
         if step == "1":

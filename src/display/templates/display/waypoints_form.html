@@ -10,11 +10,7 @@
     <form method="post" class="form" enctype="multipart/form-data">
         {{ form.media }}
         {{ wizard.management_form }}
-        {% crispy wizard.form %}
+        {% crispy wizard.form helper %}
     </form>
-    <script type="text/javascript">
-        $('#id_2-start_time').datetimepicker({dateFormat: "yy-mm-dd"});
-        $('#id_2-finish_time').datetimepicker({dateFormat: "yy-mm-dd"});
-    </script>
 
 {% endblock %}

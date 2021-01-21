@@ -89,15 +89,33 @@ class ImportRouteForm(forms.Form):
     file_type = forms.ChoiceField(choices=FILE_TYPES)
     file = forms.FileField()
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.add_input(Submit("submit", "Submit"))
+
+
+class WaypointFormHelper(FormHelper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_input(Submit("submit", "Submit"))
+        self.template = "bootstrap/table_inline_formset.html"
+
 
 class WaypointForm(forms.Form):
-    name = forms.CharField(max_length=200)
+    name = forms.CharField(max_length=200, help_text="The gate name")
     width = forms.FloatField(help_text="Width of the gate in NM", initial=1)
-    latitude = forms.FloatField(help_text="degrees")
-    longitude = forms.FloatField(help_text="degrees")
-    time_check = forms.BooleanField(required=False, initial=True)
-    gate_check = forms.BooleanField(required=False, initial=True)
-    type = forms.ChoiceField(initial=TURNPOINT, choices=GATES_TYPES)
+    latitude = forms.FloatField(help_text="degrees", widget=forms.HiddenInput())
+    longitude = forms.FloatField(help_text="degrees", widget=forms.HiddenInput())
+    time_check = forms.BooleanField(required=False, initial=True,
+                                    help_text="If checked, penalties will be awarded based on crossing time")
+    gate_check = forms.BooleanField(required=False, initial=True,
+                                    help_text="If checked, penalties will be awarded if the gate is not crossed")
+    type = forms.ChoiceField(initial=TURNPOINT, choices=GATES_TYPES,
+                             help_text="The type of the gate. Starting point is typically the first gate, and the "
+                                       "Finish point is typically the last gate. Turning point is a regular waypoint, "
+                                       "while secret gate is one that is not visible to the contestants. Landing and "
+                                       "take-off gates are located across the runway.")
 
 
 class NavigationTaskForm(forms.ModelForm):
@@ -107,6 +125,8 @@ class NavigationTaskForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.add_input(Submit("submit", "Submit"))
 
 
 # class BasicScoreOverrideForm(forms.ModelForm):
