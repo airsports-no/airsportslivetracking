@@ -8,21 +8,28 @@
 
 {% block content %}
     {% if form.errors %}
-	<!-- Error messaging -->
-	<div id="errors">
-		<div class="inner">
-			<p>There were some errors in the information you entered. Please correct the following:</p>
-			{{ form.non_field_errors }}
-			<ul>
-				{% for field in form %}
-					{% if field.errors %}<li>{{ field.label }}: {{ field.errors|striptags }}</li>{% endif %}
-				{% endfor %}
-			</ul>
-		</div>
-	</div>
-	<!-- /Error messaging -->
-{% endif %}
+        <!-- Error messaging -->
+        <div id="errors">
+            <div class="inner">
+                <p>There were some errors in the information you entered. Please correct the following:</p>
+                {{ form.non_field_errors }}
+                <ul>
+                    {% for field in form %}
+                        {% if field.errors %}
+                            <li>{{ field.label }}: {{ field.errors|striptags }}</li>{% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <!-- /Error messaging -->
+    {% endif %}
     <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+    This form is only for searching for an existing person. In order to create a new person in the system, click "Create
+    new (co)pilot". "Use existing (co)pilot" will only become available after selecting an existing pilot from the drop down
+    list. Any changes to the text after selecting the person will disable the button again, and a new person must be
+    selected for it to become available.
+
+    Editing existing persons is only available to administrators.
     <form method="post" class="form" enctype="multipart/form-data">
         {{ form.media }}
         {{ form.field_errors }}
@@ -60,6 +67,7 @@
             document.getElementById('use_existing').disabled = true;
             $("#id_phone").autocomplete({
                 source: function (request, response) {
+                    document.getElementById('use_existing').disabled = true;
                     $.ajax({
                         url: "/display/contestant/autocomplete/phone/",
                         type: 'post',
@@ -91,6 +99,7 @@
 
             $("#id_email").autocomplete({
                 source: function (request, response) {
+                    document.getElementById('use_existing').disabled = true;
                     $.ajax({
                         url: "/display/contestant/autocomplete/email/",
                         type: 'post',
@@ -123,6 +132,7 @@
 
             $("#id_first_name").autocomplete({
                 source: function (request, response) {
+                    document.getElementById('use_existing').disabled = true;
                     $.ajax({
                         url: "/display/contestant/autocomplete/firstname/",
                         type: 'post',
@@ -155,6 +165,7 @@
 
             $("#id_last_name").autocomplete({
                 source: function (request, response) {
+                    document.getElementById('use_existing').disabled = true;
                     $.ajax({
                         url: "/display/contestant/autocomplete/lastname/",
                         type: 'post',

@@ -674,7 +674,7 @@ class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
 
 def create_new_pilot(wizard):
     cleaned = wizard.get_post_data_for_step("member1search") or {}
-    print(cleaned)
+    print("pilot: {}".format(cleaned))
     print(cleaned.get("use_existing_pilot"))
     print(cleaned.get("use_existing_pilot") is not None)
     return cleaned.get("use_existing_pilot") is None
@@ -682,6 +682,7 @@ def create_new_pilot(wizard):
 
 def create_new_copilot(wizard):
     cleaned = wizard.get_post_data_for_step("member2search") or {}
+    print("copilot: {}".format(cleaned))
     return cleaned.get("use_existing_copilot") is None and cleaned.get("skip_copilot") is None
 
 
@@ -714,7 +715,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         "member2create": "display/membercreate_form.html",
         "aeroplane": "display/aeroplane_form.html",
         "club": "display/club_form.html",
-        "tracking": "display/basicwizardform.html"
+        "tracking": "display/tracking_form.html"
     }
 
     def get_next_step(self, step=None):
