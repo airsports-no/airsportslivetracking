@@ -2,6 +2,7 @@ import base64
 import datetime
 import os
 from datetime import timedelta
+from pprint import pprint
 from typing import Optional, Dict
 
 import redis_lock
@@ -40,7 +41,7 @@ from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FIL
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
     Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm, ContestantMapForm, LANDSCAPE, MapForm, \
     WaypointFormHelper
-from display.map_plotter import plot_route
+from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
     TeamTestScore, TRACCAR
@@ -607,13 +608,15 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         return self.contest
 
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
-    template_name = "display/navigationtaskwizardform.html"
     condition_dict = {"1": show_route_definition_step}
     templates = {
         "0": "display/navigationtaskwizardform.html",
-        "1": "display/waypoint_form.html",
+        "1": "display/waypoints_form.html",
         "2": "display/navigationtaskwizardform.html"
     }
+
+    def get_template_names(self):
+        return [self.templates[self.steps.current]]
 
     def done(self, form_list, **kwargs):
         initial_step_data = self.get_cleaned_data_for_step("0")
@@ -625,6 +628,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             route = create_route_from_gpx(initial_step_data["file"].read(), use_procedure_turns)
         else:
             second_step_data = self.get_cleaned_data_for_step("1")
+            print(" Second step data")
+            pprint(second_step_data)
             route = create_route_from_formset(initial_step_data["name"], second_step_data, use_procedure_turns)
         final_data = self.get_cleaned_data_for_step("2")
         navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
@@ -636,7 +641,15 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         context = super().get_context_data(form=form, **kwargs)
         if self.steps.current == "1":
             context["helper"] = WaypointFormHelper()
+            context["track_image"] = base64.b64encode(get_basic_track(
+                [(item["latitude"], item["longitude"]) for item in self.get_form_initial("1")]).getvalue()).decode("utf-8")
         return context
+
+    def get_form(self, step = None, data = None, files = None):
+        form = super().get_form(step, data, files)
+        if step == "1":
+            print(len(form))
+        return form
 
     def get_form_initial(self, step):
         if step == "1":

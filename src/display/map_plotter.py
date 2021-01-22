@@ -359,10 +359,10 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
 
         x0 = minimum_longitude - map_margin / longitude_scale
         x1 = maximum_longitude + map_margin / longitude_scale
-        x_centre = x0 + (x1 - x0)/2
+        x_centre = x0 + (x1 - x0) / 2
         y0 = minimum_latitude - map_margin / latitude_scale
         y1 = maximum_latitude + map_margin / latitude_scale
-        y_centre = y0 + (y1 - y0)/2
+        y_centre = y0 + (y1 - y0) / 2
         horizontal_metres = (x1 - x0) * longitude_scale
         vertical_metres = (y1 - y0) * latitude_scale
         print(f'horizontal_metres: {horizontal_metres}')
@@ -382,7 +382,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
 
             y0 = y_centre - vertical_offset
             y1 = y_centre + vertical_offset
-            scale = horizontal_metres/(10*figure_width)
+            scale = horizontal_metres / (10 * figure_width)
         else:
             horizontal_metres = vertical_scale * figure_width
             print(f'new_horizontal_metres: {horizontal_metres}')
@@ -392,7 +392,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
             x0 = x_centre - horizontal_offset
             x1 = x_centre + horizontal_offset
             scale = vertical_metres / (10 * figure_height)
-        extent = [x0,x1,y0,y1]
+        extent = [x0, x1, y0, y1]
 
 
 
@@ -434,6 +434,30 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     # plt.savefig("map.png", dpi=600)
     figdata = BytesIO()
     plt.savefig(figdata, format='png', dpi=dpi, bbox_inches="tight", pad_inches=0)
+    plt.close()
+    figdata.seek(0)
+    return figdata
+
+
+def get_basic_track(positions: List[Tuple[float, float]]):
+    """
+
+    :param positions: List of (latitude, longitude) pairs
+    :return:
+    """
+    imagery = OSM()
+    ax = plt.axes(projection=imagery.crs)
+    ax.add_image(imagery, 13)
+    ax.set_aspect("auto")
+    ys, xs = np.array(positions).T
+    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH * 2)
+    index = 1
+    for latitude, longitude in positions:
+        plt.text(longitude, latitude, f"Waypoint {index}", verticalalignment="center", color="blue",
+                 horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=6)
+        index += 1
+    figdata = BytesIO()
+    plt.savefig(figdata, format='png', dpi=200, bbox_inches="tight", pad_inches=0)
     plt.close()
     figdata.seek(0)
     return figdata

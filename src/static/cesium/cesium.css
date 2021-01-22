@@ -108,6 +108,10 @@ tr.selectedContestantRow td {
     background-color: brown;
 }
 
+tr.hidden {
+    display: none;
+}
+
 .inheritDisplay {
     display: inherit;
 }
@@ -553,3 +557,5 @@ html, body {
     padding: 5px 10px 5px 10px;
     border-radius: 27px;
 }
+
+
