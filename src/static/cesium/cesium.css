@@ -368,14 +368,14 @@ tr.hidden {
 
 .logoImage {
     /*height: 80px;*/
-    /*width: 80px;*/
+    width: 15vw;
     bottom: 18px;
     right: 20px;
     position: fixed;
     z-index: 2;
     color: #e01b1c;
     font-size: large;
-    background-color: #666666cc;
+    /*background-color: #666666cc;*/
     border-radius: 5px;
     padding: 0 5px;
 }
