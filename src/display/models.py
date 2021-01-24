@@ -282,7 +282,17 @@ class Contest(models.Model):
 
 
 class Scorecard(models.Model):
+    PRECISION = 0
+    ANR = 1
+    CALCULATORS = (
+        (PRECISION, "Precision"),
+        # (ANR, "ANR")
+    )
+
     name = models.CharField(max_length=100, default="default", unique=True)
+    calculator = models.IntegerField(choices=CALCULATORS, default=PRECISION,
+                                     help_text="Supported calculator types")
+
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     backtracking_penalty = models.FloatField(default=200)
     backtracking_bearing_difference = models.FloatField(default=90)
@@ -501,18 +511,8 @@ class GateScoreOverride(models.Model):
 
 
 class NavigationTask(models.Model):
-    PRECISION = 0
-    ANR = 1
-    NAVIGATION_TASK_TYPES = (
-        (PRECISION, "Precision"),
-        # (ANR, "ANR")
-    )
-
     name = models.CharField(max_length=200)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
-    calculator_type = models.IntegerField(choices=NAVIGATION_TASK_TYPES, default=PRECISION,
-                                          help_text="Supported navigation test calculator types. Different calculators might require different scorecard types, but currently we only support a single calculator.  Value map: {}".format(
-                                              NAVIGATION_TASK_TYPES))
     route = models.OneToOneField(Route, on_delete=models.PROTECT)
     scorecard = models.ForeignKey("Scorecard", on_delete=models.PROTECT,
                                   help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(

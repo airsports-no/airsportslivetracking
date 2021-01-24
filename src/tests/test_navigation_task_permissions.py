@@ -29,19 +29,19 @@ line = {
 
 }
 
-NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(datetime.timezone.utc),
-                        "finish_time": datetime.datetime.now(datetime.timezone.utc), "route": {
-        "waypoints": [],
-        "takeoff_gate": line,
-        "landing_gate": line,
-        "name": "name"},
-                        "scorecard": get_default_scorecard().name
-                        }
 
 
 class TestCreateNavigationTask(APITestCase):
     def setUp(self):
         get_default_scorecard()
+        self.NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                                "finish_time": datetime.datetime.now(datetime.timezone.utc), "route": {
+                "waypoints": [],
+                "takeoff_gate": line,
+                "landing_gate": line,
+                "name": "name"},
+                                "scorecard": get_default_scorecard().name
+                                }
         self.user_owner = User.objects.create(username="withpermissions")
         permission = Permission.objects.get(codename="add_contest")
         self.user_owner.user_permissions.add(permission)
@@ -60,21 +60,21 @@ class TestCreateNavigationTask(APITestCase):
     def test_create_navigation_task_without_login(self):
         self.client.logout()
         result = self.client.post(reverse("navigationtasks-list", kwargs={"contest_pk": self.contest_id}),
-                                  data=NAVIGATION_TASK_DATA, format="json")
+                                  data=self.NAVIGATION_TASK_DATA, format="json")
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_navigation_task_without_privileges(self):
         self.client.force_login(user=self.user_without_permissions)
         result = self.client.post(reverse("navigationtasks-list", kwargs={"contest_pk": self.contest_id}),
-                                  data=NAVIGATION_TASK_DATA, format="json")
+                                  data=self.NAVIGATION_TASK_DATA, format="json")
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_navigation_task_with_privileges(self):
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("navigationtasks-list", kwargs={"contest_pk": self.contest_id}),
-                                  data=NAVIGATION_TASK_DATA, format="json")
+                                  data=self.NAVIGATION_TASK_DATA, format="json")
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
@@ -82,6 +82,15 @@ class TestCreateNavigationTask(APITestCase):
 
 class TestAccessNavigationTask(APITestCase):
     def setUp(self):
+        self.NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(datetime.timezone.utc),
+                        "finish_time": datetime.datetime.now(datetime.timezone.utc), "route": {
+        "waypoints": [],
+        "takeoff_gate": line,
+        "landing_gate": line,
+        "name": "name"},
+                        "scorecard": get_default_scorecard().name
+                        }
+
         get_default_scorecard()
         self.user_owner = User.objects.create(username="withpermissions")
         self.user_owner.user_permissions.add(
@@ -106,7 +115,7 @@ class TestAccessNavigationTask(APITestCase):
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
         result = self.client.post(reverse("navigationtasks-list", kwargs={"contest_pk": self.contest_id}),
-                                  data=NAVIGATION_TASK_DATA, format="json")
+                                  data=self.NAVIGATION_TASK_DATA, format="json")
         print(result.content)
         self.navigation_task = NavigationTask.objects.get(pk=result.json()["id"])
         self.different_user_with_object_permissions = User.objects.create(username="objectpermissions")
@@ -126,11 +135,10 @@ class TestAccessNavigationTask(APITestCase):
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.assertEqual(0, result.json()["calculator_type"])
 
     def test_put_navigation_task_from_other_user_with_permissions(self):
         self.client.force_login(user=self.different_user_with_object_permissions)
-        data = dict(NAVIGATION_TASK_DATA)
+        data = dict(self.NAVIGATION_TASK_DATA)
         data["name"] = "Putting a new name"
 
         result = self.client.put(
@@ -157,7 +165,7 @@ class TestAccessNavigationTask(APITestCase):
 
     def test_put_navigation_task_without_login(self):
         self.client.logout()
-        data = dict(NAVIGATION_TASK_DATA)
+        data = dict(self.NAVIGATION_TASK_DATA)
         data["name"] = "Putting a new name"
 
         result = self.client.put(
@@ -168,7 +176,7 @@ class TestAccessNavigationTask(APITestCase):
 
     def test_put_navigation_task_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
-        data = dict(NAVIGATION_TASK_DATA)
+        data = dict(self.NAVIGATION_TASK_DATA)
         data["name"] = "Putting a new name"
 
         result = self.client.put(
@@ -179,7 +187,7 @@ class TestAccessNavigationTask(APITestCase):
 
     def test_put_navigation_task_as_creator(self):
         self.client.force_login(user=self.user_owner)
-        data = dict(NAVIGATION_TASK_DATA)
+        data = dict(self.NAVIGATION_TASK_DATA)
         data["name"] = "Putting a new name"
         result = self.client.put(
             reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),

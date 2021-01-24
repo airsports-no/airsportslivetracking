@@ -119,7 +119,7 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "is_public", "calculator_type", "scorecard")
+        fields = ("name", "start_time", "finish_time", "is_public", "scorecard")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

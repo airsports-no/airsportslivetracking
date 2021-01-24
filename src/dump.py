@@ -1829,7 +1829,6 @@ with open("importnavigationtask.json", "w") as o:
         }
     ],
     "name": "NM contest",
-    "calculator_type": 0,
     "start_time": "2020-08-01T06:00:00Z",
     "finish_time": "2020-08-01T16:00:00Z",
     "is_public": False,
