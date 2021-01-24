@@ -491,6 +491,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
                                                    help_text="If true (default) then procedure turns will be automatically added to all turning points with a more than 90° turn")
 
     internal_serialiser = ContestantNestedTeamSerialiser
+    calculator_type = serializers.IntegerField(required = False)
 
     class Meta:
         model = NavigationTask
