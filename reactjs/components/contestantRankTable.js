@@ -82,7 +82,11 @@ class ConnectedContestantRankTable extends Component {
         const contestants = this.props.contestants.filter((contestant) => {
             return contestant != null && contestant.contestant !== undefined
         })
+        // compareScore should be replaced depending on scorecard ascending or descending configuration
+        // Initially simply reversed the list depending on ascending or descending in the scorecard
+        // May be later support more complex scoring descriptions
         contestants.sort(compareScore)
+
         return contestants.map((contestant, index) => {
             const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
             return {

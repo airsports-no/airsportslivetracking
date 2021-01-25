@@ -1,5 +1,5 @@
 import 'regenerator-runtime/runtime'
-import NavigationTask from "./navigationTask";
+import NavigationTask from "./navigationTasks/navigationTask";
 import {connect} from "react-redux";
 import React, {Component} from "react";
 import TrackLoadingIndicator from "./trackLoadingIndicator";
@@ -53,6 +53,7 @@ class ConnectedTrackingContainer extends Component {
                                      onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ?
             <i className={"mdi mdi-keyboard-arrow-left"}/> :
             <i className={"mdi mdi-keyboard-arrow-right"}/>}</a>
+        // Expand this using scorecard information to select correct navigation task type that overrides map rendering
         const TrackerDisplay =
             <NavigationTask map={this.map} contestId={this.contestId} navigationTaskId={this.navigationTaskId}
                             fetchInterval={2000}

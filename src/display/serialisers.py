@@ -434,8 +434,6 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
     gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
     track_score_override = TrackScoreOverrideSerialiser(required=False)
-    use_procedure_turns = serializers.BooleanField(initial=True, required=False,
-                                                   help_text="If true (default) then procedure turns will be automatically added to all turning points with a more than 90° turn")
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
@@ -450,7 +448,6 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         user = self.context["request"].user
         track_score_override_data = validated_data.pop("track_score_override", None)
         gate_score_override_data = validated_data.pop("gate_score_override", None)
-        validated_data.pop("use_procedure_turns", None)
 
         contestant_set = validated_data.pop("contestant_set", [])
         validated_data["contest"] = self.context["contest"]
@@ -487,11 +484,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     track_score_override = TrackScoreOverrideSerialiser(required=False)
     route_file = serializers.CharField(write_only=True, required=True,
                                        help_text="Base64 encoded gpx file")
-    use_procedure_turns = serializers.BooleanField(initial=True, required=False,
-                                                   help_text="If true (default) then procedure turns will be automatically added to all turning points with a more than 90° turn")
-
     internal_serialiser = ContestantNestedTeamSerialiser
-    calculator_type = serializers.IntegerField(required = False)
 
     class Meta:
         model = NavigationTask
@@ -511,7 +504,6 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             route_file = validated_data.pop("route_file", None)
             track_score_override_data = validated_data.pop("track_score_override", None)
             gate_score_override_data = validated_data.pop("gate_score_override", None)
-            validated_data.pop("use_procedure_turns", None)
             route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")),
                                           validated_data["scorecard"].use_procedure_turns)
             user = self.context["request"].user
