@@ -5,6 +5,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Div, ButtonHolder, Submit, Button, Fieldset, Field
 from django import forms
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.forms import HiddenInput
 from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
@@ -12,7 +13,7 @@ from timezone_field import TimeZoneFormField
 
 from display.map_plotter import A4, A3, N250_MAP, OSM_MAP
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam
+    ContestTeam, TASK_TYPES, TrackScoreOverride
 
 TURNPOINT = "tp"
 STARTINGPOINT = "sp"
@@ -84,15 +85,45 @@ class ContestantMapForm(forms.Form):
     dpi = forms.IntegerField(initial=600, min_value=100, max_value=1000)
 
 
-class ImportRouteForm(forms.Form):
-    name = forms.CharField(max_length=100, label="Route name")
-    file_type = forms.ChoiceField(choices=FILE_TYPES)
-    file = forms.FileField()
+class PrecisionScoreOverrideForm(forms.Form):
+    backtracking_penalty = forms.FloatField(null=True, required=False)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.add_input(Submit("submit", "Submit"))
+    def build_score_override(self, navigation_task: NavigationTask):
+        return TrackScoreOverride.objects.create(navigation_task=navigation_task,
+                                                 bad_course_penalty=self.backtracking_penalty)
+
+
+class ANRCorridorScoreOverrideForm(forms.Form):
+    corridor_width = forms.FloatField(required=True)
+    corridor_grace_time = forms.IntegerField(required=True)
+
+    def build_score_override(self, navigation_task: NavigationTask):
+        return TrackScoreOverride.objects.create(navigation_task=navigation_task, corridor_width=self.corridor_width,
+                                                 corridor_grace_time=self.corridor_grace_time)
+
+
+class TaskTypeForm(forms.Form):
+    task_type = forms.ChoiceField(choices=TASK_TYPES,
+                                  help_text="The type of the task. This determines how the route file is processed")
+
+
+class PrecisionImportRouteForm(forms.Form):
+    file_type = forms.ChoiceField(choices=FILE_TYPES)
+    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "csv", "gpx"])])
+
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.helper = FormHelper()
+    #     self.helper.add_input(Submit("submit", "Submit"))
+
+
+class ANRCorridorImportRouteForm(forms.Form):
+    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["csv"])])
+
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.helper = FormHelper()
+    #     self.helper.add_input(Submit("submit", "Submit"))
 
 
 class WaypointFormHelper(FormHelper):

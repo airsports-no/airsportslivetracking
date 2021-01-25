@@ -35,7 +35,7 @@ def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
     return list(zip(*reversed(geometry.xy)))
 
 
-def create_route_from_gpx(file, use_procedure_turns: bool) -> Route:
+def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
     gpx = gpxpy.parse(file)
     waypoints = []
     waypoint_map = {}
@@ -116,7 +116,7 @@ def build_waypoint(name, latitude, longitude, type, width, time_check, gate_chec
     return waypoint
 
 
-def create_route_from_formset(route_name, data: Dict, use_procedure_turns: bool) -> Route:
+def create_precision_route_from_formset(route_name, data: Dict, use_procedure_turns: bool) -> Route:
     waypoint_list = []
     for item in data:
         waypoint_list.append(
@@ -125,7 +125,11 @@ def create_route_from_formset(route_name, data: Dict, use_procedure_turns: bool)
     return create_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
 
 
-def create_route_from_csv(route_name: str, lines: List[str], use_procedure_turns: bool) -> Route:
+def create_anr_corridor_route_from_kml(route_name: str, input_kml) -> Route:
+    pass
+
+
+def create_precision_route_from_csv(route_name: str, lines: List[str], use_procedure_turns: bool) -> Route:
     print("lines: {}".format(lines))
     waypoint_list = []
     for line in lines:
@@ -213,6 +217,6 @@ def insert_gate_ranges(waypoints: List[Waypoint]):
     turning_points = [item for item in waypoints if item.type == "tp"]
     for main_gate in turning_points:
         distances = list(get_distance_to_other_gates(main_gate, turning_points).values())
-        minimum_distance = min(min(distances)/2, 6000)
+        minimum_distance = min(min(distances) / 2, 6000)
         main_gate.inside_distance = minimum_distance
         main_gate.outside_distance = 1000 + minimum_distance

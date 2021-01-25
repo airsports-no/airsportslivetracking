@@ -35,16 +35,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ViewSet
 
-from display.convert_flightcontest_gpx import create_route_from_gpx, create_route_from_csv, load_route_points_from_kml, \
-    create_route_from_formset
-from display.forms import ImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, FILE_TYPE_FLIGHTCONTEST_GPX, \
+from display.convert_flightcontest_gpx import create_precision_route_from_gpx, create_precision_route_from_csv, \
+    load_route_points_from_kml, \
+    create_precision_route_from_formset, create_anr_corridor_route_from_kml
+from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, \
+    FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
     Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm, ContestantMapForm, LANDSCAPE, MapForm, \
-    WaypointFormHelper
+    WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
+    PrecisionScoreOverrideForm
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
-    TeamTestScore, TRACCAR
+    TeamTestScore, TRACCAR, TASK_PRECISION, TASK_ANR_CORRIDOR
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions
@@ -566,19 +569,19 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
 
 @permission_required("display.add_route", login_url='/accounts/login/')
 def import_route(request):
-    form = ImportRouteForm()
+    form = PrecisionImportRouteForm()
     if request.method == "POST":
-        form = ImportRouteForm(request.POST, request.FILES)
+        form = PrecisionImportRouteForm(request.POST, request.FILES)
         if form.is_valid():
-            name = form.cleaned_data["name"]
+            name = "route"
             file_type = form.cleaned_data["file_type"]
             print(file_type)
             route = None
             if file_type == FILE_TYPE_CSV:
                 data = [item.decode(encoding="UTF-8") for item in request.FILES['file'].readlines()]
-                route = create_route_from_csv(name, data[1:])
+                route = create_precision_route_from_csv(name, data[1:])
             elif file_type == FILE_TYPE_FLIGHTCONTEST_GPX:
-                route = create_route_from_gpx(request.FILES["file"])
+                route = create_precision_route_from_gpx(request.FILES["file"])
             else:
                 raise ValidationError("Currently unsupported type: {}".format(file_type))
             if route is not None:
@@ -592,8 +595,17 @@ def import_route(request):
 
 # Everything below he is related to management and requires authentication
 def show_route_definition_step(wizard):
-    cleaned_data = wizard.get_cleaned_data_for_step("0") or {}
-    return cleaned_data.get("file_type") == FILE_TYPE_KML
+    cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}
+    return cleaned_data.get("file_type") == FILE_TYPE_KML and wizard.get_cleaned_data_for_step("task_type").get(
+        "task_type") in (TASK_PRECISION,)
+
+
+def show_precision_path(wizard):
+    return wizard.get_cleaned_data_for_step("task_type").get("task_type") in (TASK_PRECISION,)
+
+
+def show_anr_path(wizard):
+    return wizard.get_cleaned_data_for_step("task_type").get("task_type") in (TASK_ANR_CORRIDOR,)
 
 
 class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
@@ -607,53 +619,83 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     def get_permission_object(self):
         return self.contest
 
+    form_list = [
+        ("task_type", TaskTypeForm),
+        ("anr_route_import", ANRCorridorImportRouteForm),
+        ("precision_route_import", PrecisionImportRouteForm),
+        ("waypoint_definition", formset_factory(WaypointForm, extra=0)),
+        ("precision_override", PrecisionScoreOverrideForm),
+        ("anr_corridor_override", ANRCorridorScoreOverrideForm),
+        ("task_content", NavigationTaskForm)
+    ]
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
-    condition_dict = {"1": show_route_definition_step}
+    condition_dict = {
+        "anr_route_import": show_anr_path,
+        "precision_route_import": show_precision_path,
+        "waypoint_definition": show_route_definition_step,
+        "precision_override": show_precision_path,
+        "anr_corridor_override": show_anr_path
+    }
     templates = {
-        "0": "display/navigationtaskwizardform.html",
-        "1": "display/waypoints_form.html",
-        "2": "display/navigationtaskwizardform.html"
+        "task_type": "display/navigationtaskwizardform.html",
+        "anr_route_import": "display/navigationtaskwizardform.html",
+        "precision_route_import": "display/navigationtaskwizardform.html",
+        "waypoint_definition": "display/waypoints_form.html",
+        "task_content": "display/navigationtaskwizardform.html",
+        "precision_override": "display/navigationtaskwizardform.html",
+        "anr_corridor_override": "display/navigationtaskwizardform.html",
     }
 
     def get_template_names(self):
         return [self.templates[self.steps.current]]
 
     def done(self, form_list, **kwargs):
-        initial_step_data = self.get_cleaned_data_for_step("0")
-        use_procedure_turns = self.get_cleaned_data_for_step("2")["scorecard"].use_procedure_turns
-        if initial_step_data["file_type"] == FILE_TYPE_CSV:
-            data = [item.decode(encoding="UTF-8") for item in initial_step_data['file'].readlines()]
-            route = create_route_from_csv(initial_step_data["name"], data[1:], use_procedure_turns)
-        elif initial_step_data["file_type"] == FILE_TYPE_FLIGHTCONTEST_GPX:
-            route = create_route_from_gpx(initial_step_data["file"].read(), use_procedure_turns)
-        else:
-            second_step_data = self.get_cleaned_data_for_step("1")
-            print(" Second step data")
-            pprint(second_step_data)
-            route = create_route_from_formset(initial_step_data["name"], second_step_data, use_procedure_turns)
-        final_data = self.get_cleaned_data_for_step("2")
+        task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
+        if task_type == TASK_PRECISION:
+            initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
+            use_procedure_turns = self.get_cleaned_data_for_step("task_content")["scorecard"].use_procedure_turns
+            if initial_step_data["file_type"] == FILE_TYPE_CSV:
+                data = [item.decode(encoding="UTF-8") for item in initial_step_data['file'].readlines()]
+                route = create_precision_route_from_csv("route", data[1:], use_procedure_turns)
+            elif initial_step_data["file_type"] == FILE_TYPE_FLIGHTCONTEST_GPX:
+                route = create_precision_route_from_gpx(initial_step_data["file"].read(), use_procedure_turns)
+            else:
+                second_step_data = self.get_cleaned_data_for_step("waypoint_definition")
+                print(" Second step data")
+                pprint(second_step_data)
+                route = create_precision_route_from_formset(initial_step_data["name"], second_step_data,
+                                                            use_procedure_turns)
+        elif task_type == TASK_ANR_CORRIDOR:
+            data = self.get_cleaned_data_for_step("anr_route_import")["file"]
+            data.seek(0)
+            route = create_anr_corridor_route_from_kml("route", data)
+        final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
+        if task_type == TASK_PRECISION:
+            score_override = self.get_form_instance("precision_override").build_score_override(navigation_task)
+        elif task_type == TASK_ANR_CORRIDOR:
+            score_override = self.get_form_instance("anr_corridor_override").build_score_override(navigation_task)
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
-
-    form_list = [ImportRouteForm, formset_factory(WaypointForm, extra=0), NavigationTaskForm]
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        if self.steps.current == "1":
+        if self.steps.current == "waypoint_definition":
             context["helper"] = WaypointFormHelper()
             context["track_image"] = base64.b64encode(get_basic_track(
-                [(item["latitude"], item["longitude"]) for item in self.get_form_initial("1")]).getvalue()).decode("utf-8")
+                [(item["latitude"], item["longitude"]) for item in
+                 self.get_form_initial("waypoint_definition")]).getvalue()).decode(
+                "utf-8")
         return context
 
-    def get_form(self, step = None, data = None, files = None):
+    def get_form(self, step=None, data=None, files=None):
         form = super().get_form(step, data, files)
-        if step == "1":
+        if step == "waypoint_definition":
             print(len(form))
         return form
 
     def get_form_initial(self, step):
-        if step == "1":
-            data = self.get_cleaned_data_for_step("0")
+        if step == "waypoint_definition":
+            data = self.get_cleaned_data_for_step("precision_route_import")
             print("Data: {}".format(data))
             if data.get("file_type") == FILE_TYPE_KML:
                 # print(" (subfile contents {}".format(data["file"].read()))

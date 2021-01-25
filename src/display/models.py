@@ -26,6 +26,13 @@ TRACKING_SERVICES = (
     (TRACCAR, "Traccar"),
 )
 
+TASK_PRECISION = "precision"
+TASK_ANR_CORRIDOR = "anr_corridor"
+TASK_TYPES = (
+    (TASK_PRECISION, "Precision"),
+    (TASK_ANR_CORRIDOR, "ANR corridor")
+)
+
 
 def user_directory_path(instance, filename):
     return "aeroplane_{0}/{1}".format(instance.registration, filename)
@@ -292,7 +299,7 @@ class Scorecard(models.Model):
     name = models.CharField(max_length=100, default="default", unique=True)
     calculator = models.IntegerField(choices=CALCULATORS, default=PRECISION,
                                      help_text="Supported calculator types")
-
+    task_type = MultiSelectField(choices=TASK_TYPES)
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     backtracking_penalty = models.FloatField(default=200)
     backtracking_bearing_difference = models.FloatField(default=90)
@@ -313,6 +320,10 @@ class Scorecard(models.Model):
                                                 related_name="finish")
     secret_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
                                           related_name="secret")
+
+    ##### ANR Corridor
+    corridor_width = models.FloatField(default=0.3, help_text="The corridor width for ANR tasks")
+    corridor_grace_time = models.IntegerField(default=5, help_text="The corridor grace time for ANR tasks")
 
     def __str__(self):
         return self.name
@@ -394,6 +405,24 @@ class Scorecard(models.Model):
                                                     contestant: "Contestant") -> float:
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.backtracking_after_gate_grace_period_nm
+
+    ### ANR Corridor
+    def get_corridor_width(self, contestant: "Contestant"):
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if contestant.track_score_override.corridor_width is not None:
+                    return contestant.track_score_override.corridor_width
+        return self.corridor_width
+
+
+    def get_corridor_grace_time(self, contestant: "Contestant"):
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if contestant.track_score_override.corridor_grace_time is not None:
+                    return contestant.track_score_override.corridor_grace_time
+        return self.corridor_grace_time
 
 
 class GateScore(models.Model):
@@ -480,6 +509,11 @@ class TrackScoreOverride(models.Model):
                                            help_text="A amount of points awarded for a bad course")
     bad_course_maximum_penalty = models.FloatField(default=None, blank=True, null=True,
                                                    help_text="A amount of points awarded for a bad course")
+    ### ANR Corridor
+    corridor_width = models.FloatField(default=None, blank=True, null=True,
+                                       help_text="The width of the ANR corridor")
+    corridor_grace_time = models.FloatField(default=None, blank=True, null=True,
+                                       help_text="The grace time of the ANR corridor")
 
     def __str__(self):
         return "Track score override for {}".format(self.navigation_task)

@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.convert_flightcontest_gpx import create_route_from_gpx
+from display.convert_flightcontest_gpx import create_precision_route_from_gpx
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, Person, \
     ContestTeam
@@ -64,7 +64,7 @@ contest_finish_time = datetime.datetime(2014, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="WPFC 2017", is_public=True, start_time=contest_start_time,
                                  finish_time=contest_finish_time)
 with open("../data/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
-    route = create_route_from_gpx(file)
+    route = create_precision_route_from_gpx(file)
 navigation_task = NavigationTask.objects.create(name="Route-1-Blue ", contest=contest,
                                                 route=route,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,

@@ -53,7 +53,8 @@ INSTALLED_APPS = [
     'qr_code',
     "crispy_forms",
     "google_analytics",
-    "channels"
+    "channels",
+    'multiselectfield'
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"

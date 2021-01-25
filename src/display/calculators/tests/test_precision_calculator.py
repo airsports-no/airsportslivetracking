@@ -9,11 +9,11 @@ from django.test import TestCase, TransactionTestCase
 
 from display.calculators.positions_and_gates import Gate
 from display.calculators.precision_calculator import PrecisionCalculator
-from display.convert_flightcontest_gpx import create_route_from_gpx, calculate_extended_gate
+from display.convert_flightcontest_gpx import create_precision_route_from_gpx, calculate_extended_gate
 from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew, \
     Contest, Person, TrackScoreOverride, GateScoreOverride
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
-from display.views import create_route_from_csv
+from display.views import create_precision_route_from_csv
 from influx_facade import InfluxFacade
 from playback_tools import insert_gpx_file
 
@@ -37,7 +37,7 @@ class TestFullTrack(TransactionTestCase):
     @patch("display.models.get_traccar_instance")
     def setUp(self, patch):
         with open("display/calculators/tests/NM.csv", "r") as file:
-            route = create_route_from_csv("navigation_task", file.readlines()[1:], True)
+            route = create_precision_route_from_csv("navigation_task", file.readlines()[1:], True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -184,7 +184,7 @@ class TestFullTrack(TransactionTestCase):
 class Test2017WPFC(TransactionTestCase):
     def setUp(self):
         with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
-            route = create_route_from_gpx(file, True)
+            route = create_precision_route_from_gpx(file, True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -270,7 +270,7 @@ class TestScoreverride(TransactionTestCase):
 class TestNM2019(TransactionTestCase):
     def setUp(self):
         with open("display/calculators/tests/NM2019.gpx", "r") as file:
-            route = create_route_from_gpx(file, True)
+            route = create_precision_route_from_gpx(file, True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")

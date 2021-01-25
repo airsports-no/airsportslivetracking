@@ -6,16 +6,16 @@ import {
     setDisplay,
     shrinkTrackingTable,
     hideLowerThirds, dispatchContestantData
-} from "../actions";
+} from "../../actions";
 import {connect} from "react-redux";
 import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
-import ContestantTrack from "./contestantTrack";
+import ContestantTrack from "../contestantTrack";
 import distinctColors from "distinct-colors";
-import {compareContestantNumber} from "../utilities";
-import ContestantRankTable from "./contestantRankTable";
-import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} from "../constants/display-types";
-import ContestantDetailsDisplay from "./contestantDetailsDisplay";
-import TurningPointDisplay from "./turningPointDisplay";
+import {compareContestantNumber} from "../../utilities";
+import ContestantRankTable from "../contestantRankTable";
+import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} from "../../constants/display-types";
+import ContestantDetailsDisplay from "../contestantDetailsDisplay";
+import TurningPointDisplay from "../turningPointDisplay";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 
 const L = window['L']

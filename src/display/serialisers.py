@@ -14,7 +14,7 @@ from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
 
-from display.convert_flightcontest_gpx import create_route_from_gpx
+from display.convert_flightcontest_gpx import create_precision_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
     Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR, \
     GateScoreOverride, TrackScoreOverride
@@ -504,8 +504,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             route_file = validated_data.pop("route_file", None)
             track_score_override_data = validated_data.pop("track_score_override", None)
             gate_score_override_data = validated_data.pop("gate_score_override", None)
-            route = create_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")),
-                                          validated_data["scorecard"].use_procedure_turns)
+            route = create_precision_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")),
+                                                    validated_data["scorecard"].use_procedure_turns)
             user = self.context["request"].user
             validated_data["contest"] = self.context["contest"]
             validated_data["route"] = route

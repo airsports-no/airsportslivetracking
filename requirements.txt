@@ -50,3 +50,4 @@ channels_redis
 pytz
 tzlocal
 django-timezone-field
+django-multiselectfield

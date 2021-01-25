@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.convert_flightcontest_gpx import create_route_from_csv
+from display.convert_flightcontest_gpx import create_precision_route_from_csv
 from playback_tools import build_traccar_track, load_data_traccar, insert_gpx_file
 from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
@@ -74,7 +74,7 @@ contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="NM 2020", is_public=True, start_time=contest_start_time,
                                  finish_time=contest_finish_time)
 with open("/data/NM.csv", "r") as file:
-    route = create_route_from_csv("NM 2020", file.readlines()[1:], True)
+    route = create_precision_route_from_csv("NM 2020", file.readlines()[1:], True)
 
 navigation_task = NavigationTask.objects.create(name="NM 2020 ", contest=contest,
                                                 route=route,
