@@ -357,8 +357,6 @@ class ContestantSerialiser(serializers.ModelSerializer):
         if track_score_override_data is not None:
             track_override = TrackScoreOverride.objects.create(**track_score_override_data)
             contestant.track_score_override = track_override
-        else:
-            contestant.track_score_override = navigation_task.track_score_override
         contestant.save()
         if gate_score_override_data is not None and len(gate_score_override_data) > 0:
             for item in gate_score_override_data:
@@ -384,8 +382,6 @@ class ContestantSerialiser(serializers.ModelSerializer):
         if track_score_override_data is not None:
             track_override = TrackScoreOverride.objects.create(**track_score_override_data)
             instance.track_score_override = track_override
-        else:
-            instance.track_score_override = instance.navigation_task.track_score_override
         instance.save()
         if gate_score_override_data is not None and len(gate_score_override_data) > 0:
             for item in gate_score_override_data:
