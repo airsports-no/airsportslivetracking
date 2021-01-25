@@ -21,6 +21,8 @@ from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
 
+import numpy as np
+
 TRACCAR = "traccar"
 TRACKING_SERVICES = (
     (TRACCAR, "Traccar"),
@@ -137,7 +139,19 @@ def is_procedure_turn(bearing1, bearing2) -> bool:
     return abs(bearing_difference(bearing1, bearing2)) > 90
 
 
+
+
+
 def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
+    """
+
+    :param x1:
+    :param y1:
+    :param x2:
+    :param y2:
+    :param length: metres
+    :return:
+    """
     pc = ccrs.PlateCarree()
     epsg = ccrs.epsg(3857)
     x1, y1 = epsg.transform_point(x1, y1, pc)
@@ -290,10 +304,10 @@ class Contest(models.Model):
 
 class Scorecard(models.Model):
     PRECISION = 0
-    ANR = 1
+    ANR_CORRIDOR = 1
     CALCULATORS = (
         (PRECISION, "Precision"),
-        # (ANR, "ANR")
+        (ANR_CORRIDOR, "ANR Corridor")
     )
 
     name = models.CharField(max_length=100, default="default", unique=True)

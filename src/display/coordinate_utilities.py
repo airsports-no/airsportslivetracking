@@ -1,3 +1,4 @@
+import cartopy.crs as ccrs
 import logging
 import math
 from typing import Tuple, Optional, List
@@ -16,6 +17,26 @@ def to_rad(value) -> float:
 
 def to_deg(value) -> float:
     return 180 * value / math.pi
+
+
+def dot_v(A: np.ndarray, B: np.ndarray, axis=0) -> np.ndarray:
+    """
+    Return the dot product of each vector in A and B
+    :param axis: 
+    :return: 
+    """
+    # return np.einsum('ij,ij->j', norm_v(A),norm_v(B))
+    #
+    # todo: Should the matrixes be normalised first? It seems wrong.
+    return (A * B).sum(axis=axis)
+
+
+def norm_v(A: np.ndarray, axis=0) -> np.ndarray:
+    return A / len_v(A, axis=axis)
+
+
+def len_v(A: np.ndarray, axis=0) -> np.ndarray:
+    return np.sqrt(dot_v(A, A, axis=axis))
 
 
 def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
@@ -239,7 +260,7 @@ def get_procedure_turn_track(latitude, longitude, bearing_in, bearing_out, turn_
         bearing_difference -= 360
     else:
         bearing_difference += 360
-    inner_angle_rad = to_rad(abs(bearing_difference)-180)
+    inner_angle_rad = to_rad(abs(bearing_difference) - 180)
     centre_distance = turn_radius / np.sin(inner_angle_rad / 2)
     tangent_distance = centre_distance * np.cos(inner_angle_rad / 2)
     circle_resolution = np.pi / 20
@@ -263,3 +284,28 @@ def get_procedure_turn_track(latitude, longitude, bearing_in, bearing_out, turn_
 
     points_list.append((latitude, longitude))
     return points_list
+
+
+def create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length):
+    """
+
+    :param x1:
+    :param y1:
+    :param x2:
+    :param y2:
+    :param x3:
+    :param y3:
+    :param length: metres
+    :return:
+    """
+    pc = ccrs.PlateCarree()
+    epsg = ccrs.epsg(3857)
+    x1, y1 = epsg.transform_point(x1, y1, pc)
+    x2, y2 = epsg.transform_point(x2, y2, pc)
+    x3, y3 = epsg.transform_point(x3, y3, pc)
+    d1 = norm_v(np.array([x2 - x1, y2 - y1])) * length / 2
+    d2 = norm_v(np.array([x2 - x3, y2 - y3])) * length / 2
+    dx, dy = d1[0] + d2[0], d1[1] + d2[1]
+    x1, y1 = pc.transform_point(x2 + dx, y2 + dy, epsg)
+    x2, y2 = pc.transform_point(x2 - dx, y2 - dy, epsg)
+    return [[x1, y1], [x2, y2]]

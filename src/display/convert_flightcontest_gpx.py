@@ -126,6 +126,11 @@ def create_precision_route_from_formset(route_name, data: Dict, use_procedure_tu
 
 
 def create_anr_corridor_route_from_kml(route_name: str, input_kml) -> Route:
+    """
+    Generate a route where only the first point and last points have gate and time checks. All other gates are secret
+    without gate or tone checks.  Each gate has a width equal
+    to the corridor with. Create gate lines that cut the angle of the turn in half.
+    """
     pass
 
 

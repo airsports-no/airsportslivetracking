@@ -2,7 +2,7 @@ from unittest import TestCase
 from parameterized import parameterized
 
 from display.coordinate_utilities import calculate_bearing, get_heading_difference, extend_line, \
-    fraction_of_leg, Projector, get_procedure_turn_track
+    fraction_of_leg, Projector, get_procedure_turn_track, create_bisecting_line_between_segments
 
 
 class TestCoordinateUtilities(TestCase):
@@ -50,6 +50,15 @@ class TestCoordinateUtilities(TestCase):
     def test_fraction_of_leg(self, start, finish, intersect, expected_fraction, direction):
         fraction = fraction_of_leg(start, finish, intersect)
         self.assertAlmostEqual(expected_fraction, fraction, 4, msg=direction)
+
+    @parameterized.expand([
+        (60, 11, 61, 12, 60, 13, 4000, [[61.02520768017186, 11.999976690645374], [60.97479231982813, 12.000023309350894]]),
+        (0, 0, 1, 1, 0, 2, 100000,  [[1.63726937165459, 0.999950488100371], [0.36273062834540976, 1.0000495118720374]]),
+        (-1, 0, 0, 1, 1, 0, 100000, [[0.0, 1.6371766699682373], [0.0, 0.36269796585943964]])
+    ])
+    def test_create_bisecting_line_between_segments(self, x1, y1, x2, y2, x3, y3, length, expected):
+        gate_line = create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length)
+        self.assertListEqual(expected, gate_line)
 
 
 class TestProcedureTurnPoints(TestCase):

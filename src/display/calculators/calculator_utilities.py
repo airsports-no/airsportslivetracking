@@ -2,6 +2,7 @@ from display.coordinate_utilities import cross_track_distance, along_track_dista
     calculate_bearing
 
 
+
 def cross_track_gate(gate1, gate2, position):
     return cross_track_distance(gate1.latitude, gate1.longitude, gate2.latitude, gate2.longitude, position.latitude,
                                 position.longitude)

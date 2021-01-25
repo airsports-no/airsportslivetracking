@@ -8,7 +8,6 @@ from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
@@ -17,8 +16,7 @@ from timezone_field.rest_framework import TimeZoneSerializerField
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
     Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR, \
-    GateScoreOverride, TrackScoreOverride
-from display.traccar_factory import get_traccar_instance
+    GateScoreOverride, TrackScoreOverride, GateScore
 from display.waypoint import Waypoint
 
 
@@ -251,9 +249,23 @@ class ContestTeamNestedSerialiser(serializers.ModelSerializer):
 
 
 class ScorecardSerialiser(serializers.ModelSerializer):
+    task_type = serializers.CharField(read_only=True, required=False)
+
     class Meta:
         model = Scorecard
-        fields = ("name",)
+        fields = ("name", "task_type")
+
+
+class GateScoreSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = GateScore
+        fields = "__all__"
+
+
+class ScorecardNestedSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = Scorecard
+        fields = "__all__"
 
 
 class PositionSerialiser(serializers.Serializer):
@@ -430,9 +442,10 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
     gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
     track_score_override = TrackScoreOverrideSerialiser(required=False)
-    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
-                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-                                     lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
+    scorecard = ScorecardSerialiser()
+    # scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
+    #                              help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+    #                                  lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
 
     route = RouteSerialiser()
 
@@ -444,7 +457,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         user = self.context["request"].user
         track_score_override_data = validated_data.pop("track_score_override", None)
         gate_score_override_data = validated_data.pop("gate_score_override", None)
-
+        scorecard = get_object_or_404(name=validated_data.pop("scorecard")["name"])
         contestant_set = validated_data.pop("contestant_set", [])
         validated_data["contest"] = self.context["contest"]
         route = validated_data.pop("route", None)
@@ -458,7 +471,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         if track_score_override_data is not None:
             track_override = TrackScoreOverride.objects.create(**track_score_override_data)
         navigation_task = NavigationTask.objects.create(**validated_data, track_score_override=track_override,
-                                                        route=route)
+                                                        route=route, scorecard=scorecard)
         if gate_score_override_data is not None and len(gate_score_override_data) > 0:
             for item in gate_score_override_data:
                 navigation_task.gate_score_override.add(GateScoreOverride.objects.create(**item))
