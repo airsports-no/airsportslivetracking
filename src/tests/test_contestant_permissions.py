@@ -54,7 +54,6 @@ CONTESTANT_DATA = {
         "country": "NO"
     },
     "gate_times": {},
-    "scorecard": "FAI Precision 2020",
     "takeoff_time": datetime.datetime.now(datetime.timezone.utc),
     "minutes_to_starting_point": 5,
     "finished_by_time": datetime.datetime.now(datetime.timezone.utc),

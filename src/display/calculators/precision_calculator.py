@@ -18,6 +18,10 @@ class PrecisionCalculator(Calculator):
     """
     Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
     """
+    PROCEDURE_TURN_SCORE_TYPE = "procedure_turn"
+    BACKTRACKING_SCORE_TYPE = "backtracking"
+    BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
+
     DEVIATING = 8
     BACKTRACKING = 5
     PROCEDURE_TURN = 6
@@ -66,7 +70,8 @@ class PrecisionCalculator(Calculator):
                                                                                                 self.contestant)
                     self.update_score(self.starting_line, score,
                                       "crossing extended starting gate backwards",
-                                      self.track[-1].latitude, self.track[-1].longitude, "anomaly")
+                                      self.track[-1].latitude, self.track[-1].longitude, "anomaly",
+                                      self.BACKWARD_STARTING_LINE_SCORE_TYPE)
         super(PrecisionCalculator, self).check_intersections()
 
     def calculate_score(self):
@@ -98,7 +103,8 @@ class PrecisionCalculator(Calculator):
                     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
                                                                                gate.expected_time, None)
                     self.update_score(gate, score, "missing gate", current_position.latitude,
-                                      current_position.longitude, "anomaly", planned=gate.expected_time)
+                                      current_position.longitude, "anomaly", "gate_score",
+                                      planned=gate.expected_time)
                     # Commented out because of A.2.2.16
                     # if gate.is_procedure_turn and not gate.extended_passing_time:
                     # Penalty if not crossing extended procedure turn turning point, then the procedure turn was per definition not performed
@@ -119,11 +125,13 @@ class PrecisionCalculator(Calculator):
                     self.update_score(gate, gate_score,
                                       "passing gate",
                                       current_position.latitude, current_position.longitude, "information",
+                                      self.GATE_SCORE_TYPE,
                                       planned=gate.expected_time, actual=gate.passing_time)
                 else:
                     self.update_score(gate, 0,
                                       "passing gate (no time check)",
                                       current_position.latitude, current_position.longitude, "information",
+                                      self.GATE_SCORE_TYPE,
                                       planned=gate.expected_time, actual=gate.passing_time)
 
             else:
@@ -187,7 +195,9 @@ class PrecisionCalculator(Calculator):
                 self.update_score(self.last_gate or self.gates[0],
                                   self.scorecard.get_backtracking_penalty(self.contestant),
                                   "circling",
-                                  last_position.latitude, last_position.longitude, "anomaly")
+                                  last_position.latitude, last_position.longitude, "anomaly",
+                                  self.BACKTRACKING_SCORE_TYPE,
+                                  self.scorecard.get_maximum_backtracking_penalty(self.contestant))
             elif abs(total_turn) <= 180:
                 # No longer circling
                 self.circling = False
@@ -281,7 +291,8 @@ class PrecisionCalculator(Calculator):
                             self.current_procedure_turn_gate.type, self.contestant)
                         self.update_score(self.current_procedure_turn_gate, score,
                                           "incorrect procedure turn",
-                                          last_position.latitude, last_position.longitude, "anomaly")
+                                          last_position.latitude, last_position.longitude, "anomaly",
+                                          self.PROCEDURE_TURN_SCORE_TYPE)
         else:
             backtracking = False
             if bearing_difference > self.scorecard.backtracking_bearing_difference:
@@ -335,7 +346,10 @@ class PrecisionCalculator(Calculator):
                         self.update_score(self.last_gate,
                                           self.scorecard.get_backtracking_penalty(self.contestant),
                                           "backtracking",
-                                          last_position.latitude, last_position.longitude, "anomaly")
+                                          last_position.latitude, last_position.longitude, "anomaly",
+                                          self.BACKTRACKING_SCORE_TYPE,
+                                          maximum_score=self.scorecard.get_maximum_backtracking_penalty(
+                                              self.contestant))
             else:
                 if self.tracking_state == self.BACKTRACKING:
                     logger.info("{} {}: Done backtracking for {} seconds".format(self.contestant,

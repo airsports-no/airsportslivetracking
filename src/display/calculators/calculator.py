@@ -17,7 +17,26 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class ScoreAccumulator:
+    def __init__(self):
+        self.related_score = {}
+
+    def set_and_update_score(self, score: float, score_type: str, maximum_score: Optional[float]) -> float:
+        """
+        Returns the calculated score given the maximum limits. If there is no maximum limit, score is returned
+        """
+        current_score_for_type = self.related_score.setdefault(score_type, 0)
+        if maximum_score is not None and maximum_score > -1:
+            if current_score_for_type + score >= maximum_score:
+                score = maximum_score - current_score_for_type
+        self.related_score[score_type] += score
+        return score
+
+
 class Calculator(threading.Thread):
+    GATE_SCORE_TYPE = "gate_score"
+
+
     BEFORE_START = 0
     STARTED = 1
     FINISHED = 2
@@ -52,6 +71,7 @@ class Calculator(threading.Thread):
         self.position_update_lock = threading.Lock()
         self.last_gate = None  # type: Optional[Gate]
         self.previous_last_gate = None
+        self.accumulated_scores = ScoreAccumulator()
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
                                   calculate_extended_gate(self.gates[0].waypoint, self.scorecard,
                                                           self.contestant))
@@ -94,8 +114,24 @@ class Calculator(threading.Thread):
         logger.info("Terminating calculator for {}".format(self.contestant))
 
     def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,
-                     annotation_type: str, planned: Optional[datetime.datetime] = None,
+                     annotation_type: str, score_type: str, maximum_score: Optional[float] = None,
+                     planned: Optional[datetime.datetime] = None,
                      actual: Optional[datetime.datetime] = None):
+        """
+
+        :param gate: The last gate which indicates the current leg
+        :param score: The penalty awarded
+        :param message: A brief description of why the penalty is awarded
+        :param latitude: The position of the contestant
+        :param longitude: The position of the contestant
+        :param annotation_type: information or anomaly
+        :param score_type: Keyword that is linked to maximum score. Schools are accumulated for each keyword and compared to maximum if supplied
+        :param maximum_score: Maximum score for the score type
+        :param planned: The planned passing time if gate
+        :param actual: The actual passing time if gate
+        :return:
+        """
+        score = self.accumulated_scores.set_and_update_score(score, score_type, maximum_score)
         if planned is not None and actual is not None:
             offset = (actual - planned).total_seconds()
             offset_string = "{} s".format("+{}".format(int(offset)) if offset > 0 else int(offset))

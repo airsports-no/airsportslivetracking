@@ -3,7 +3,14 @@ from display.coordinate_utilities import cross_track_distance, along_track_dista
 
 
 
-def cross_track_gate(gate1, gate2, position):
+def cross_track_gate(gate1, gate2, position)->float:
+    """
+
+    :param gate1:
+    :param gate2:
+    :param position:
+    :return: The cross track distance in metres
+    """
     return cross_track_distance(gate1.latitude, gate1.longitude, gate2.latitude, gate2.longitude, position.latitude,
                                 position.longitude)
 

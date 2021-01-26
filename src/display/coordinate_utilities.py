@@ -237,7 +237,17 @@ def get_heading_difference(heading1, heading2):
     return (heading2 - heading1 + 540) % 360 - 180
 
 
-def cross_track_distance(lat1, lon1, lat2, lon2, lat, lon):
+def cross_track_distance(lat1, lon1, lat2, lon2, lat, lon)->float:
+    """
+
+    :param lat1:
+    :param lon1:
+    :param lat2:
+    :param lon2:
+    :param lat:
+    :param lon:
+    :return: The cross track distance in metres
+    """
     angular_distance13 = calculate_distance_lat_lon((lat1, lon1), (lat, lon)) / R
     first_bearing = calculate_bearing((lat1, lon1), (lat, lon)) * math.pi / 180
     second_bearing = calculate_bearing((lat1, lon1), (lat2, lon2)) * math.pi / 180

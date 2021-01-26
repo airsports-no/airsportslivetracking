@@ -132,9 +132,9 @@ class ConnectedNavigationTask extends Component {
         if (this.props.navigationTask.contestant_set !== undefined) {
             let routeRenderer = null;
             if (this.props.navigationTask.scorecard !== undefined) {
-                if (this.props.navigationTask.scorecard.task_type.includes("precision")) {
+                if (this.props.navigationTask.scorecard_data.task_type.includes("precision")) {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}/>
-                } else if (this.props.navigationTask.scorecard.task_type.includes("anr_corridor")) {
+                } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}/>
                 }
 

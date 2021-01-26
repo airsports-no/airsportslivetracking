@@ -443,12 +443,16 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
     gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
     track_score_override = TrackScoreOverrideSerialiser(required=False)
-    scorecard = ScorecardSerialiser()
-    # scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
-    #                              help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-    #                                  lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
+    scorecard_data = serializers.SerializerMethodField()
+    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
+                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                     lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
 
     route = RouteSerialiser()
+
+    def get_scorecard_data(self, navigation_task):
+        return ScorecardSerialiser(instance=navigation_task.scorecard).data
+
 
     class Meta:
         model = NavigationTask
@@ -458,7 +462,6 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         user = self.context["request"].user
         track_score_override_data = validated_data.pop("track_score_override", None)
         gate_score_override_data = validated_data.pop("gate_score_override", None)
-        scorecard = get_object_or_404(name=validated_data.pop("scorecard")["name"])
         contestant_set = validated_data.pop("contestant_set", [])
         validated_data["contest"] = self.context["contest"]
         route = validated_data.pop("route", None)
@@ -472,7 +475,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         if track_score_override_data is not None:
             track_override = TrackScoreOverride.objects.create(**track_score_override_data)
         navigation_task = NavigationTask.objects.create(**validated_data, track_score_override=track_override,
-                                                        route=route, scorecard=scorecard)
+                                                        route=route)
         if gate_score_override_data is not None and len(gate_score_override_data) > 0:
             for item in gate_score_override_data:
                 navigation_task.gate_score_override.add(GateScoreOverride.objects.create(**item))

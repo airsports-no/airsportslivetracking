@@ -274,6 +274,9 @@ class Scorecard(models.Model):
     ##### ANR Corridor
     corridor_width = models.FloatField(default=0.3, help_text="The corridor width for ANR tasks")
     corridor_grace_time = models.IntegerField(default=5, help_text="The corridor grace time for ANR tasks")
+    corridor_outside_penalty = models.FloatField(default=200,
+                                                 help_text="The penalty awarded for leaving the ANR corridor")
+    corridor_maximum_penalty = models.FloatField(default=-1, help_text="The maximum penalty for leaving the corridor")
 
     def __str__(self):
         return self.name
@@ -331,6 +334,11 @@ class Scorecard(models.Model):
         return gate_score.calculate_score(planned_time, actual_time,
                                           self.get_gate_score_override(gate_type, contestant))
 
+    def get_maximum_timing_penalty_for_gate_type(self, gate_type: str,
+                                                 contestant: "Contestant") -> float:
+        gate_score = self.get_gate_scorecard(gate_type)
+        return gate_score.get_maximum_penalty(self.get_gate_score_override(gate_type, contestant))
+
     def get_procedure_turn_penalty_for_gate_type(self, gate_type: str,
                                                  contestant: "Contestant") -> float:
         gate_score = self.get_gate_scorecard(gate_type)
@@ -372,6 +380,22 @@ class Scorecard(models.Model):
                 if contestant.track_score_override.corridor_grace_time is not None:
                     return contestant.track_score_override.corridor_grace_time
         return self.corridor_grace_time
+
+    def get_corridor_outside_penalty(self, contestant: "Contestant"):
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if contestant.track_score_override.corridor_outside_penalty is not None:
+                    return contestant.track_score_override.corridor_outside_penalty
+        return self.corridor_outside_penalty
+
+    def get_corridor_outside_maximum_penalty(self, contestant: "Contestant"):
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if contestant.track_score_override.corridor_maximum_penalty is not None:
+                    return contestant.track_score_override.corridor_maximum_penalty
+        return self.corridor_maximum_penalty
 
 
 class GateScore(models.Model):
@@ -463,6 +487,10 @@ class TrackScoreOverride(models.Model):
                                        help_text="The width of the ANR corridor")
     corridor_grace_time = models.FloatField(default=None, blank=True, null=True,
                                             help_text="The grace time of the ANR corridor")
+    corridor_outside_penalty = models.FloatField(default=None, blank=True, null=True,
+                                                 help_text="The penalty awarded for leaving the ANR corridor")
+    corridor_maximum_penalty = models.FloatField(default=None, blank=True, null=True,
+                                                 help_text="The maximum penalty for leaving the corridor")
 
     def __str__(self):
         return "Track score override for {}".format(self.navigation_task)
