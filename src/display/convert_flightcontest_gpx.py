@@ -4,10 +4,12 @@ from plistlib import Dict
 from typing import List, Tuple
 
 import gpxpy
+from django.core.exceptions import ValidationError
 from fastkml import kml
 
-from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing
-from display.models import Route, is_procedure_turn, create_perpendicular_line_at_end, Scorecard
+from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
+    create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end
+from display.models import Route, is_procedure_turn, Scorecard
 from gpxpy.gpx import GPX
 
 from display.waypoint import Waypoint
@@ -122,16 +124,34 @@ def create_precision_route_from_formset(route_name, data: Dict, use_procedure_tu
         waypoint_list.append(
             build_waypoint(item["name"], item["latitude"], item["longitude"], item["type"], item["width"],
                            item["time_check"], item["gate_check"]))
-    return create_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
+    return create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
 
 
-def create_anr_corridor_route_from_kml(route_name: str, input_kml) -> Route:
+def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_width: float) -> Route:
     """
     Generate a route where only the first point and last points have gate and time checks. All other gates are secret
     without gate or tone checks.  Each gate has a width equal
     to the corridor with. Create gate lines that cut the angle of the turn in half.
     """
-    pass
+    waypoint_list = []
+    points = load_route_points_from_kml(input_kml)
+    if len(points) < 2:
+        raise ValidationError(f"There are not enough waypoints in the file ({len(points)} must be greater than 1)")
+    for index, item in enumerate(points):
+        waypoint_list.append(
+            build_waypoint(f"Waypoint {index}", item[0], item[1], "secret", corridor_width,
+                           False, False))
+    waypoint_list[0].name = "SP"
+    waypoint_list[0].type = "sp"
+    waypoint_list[0].gate_check = True
+    waypoint_list[0].time_check = True
+
+    waypoint_list[-1].name = "FP"
+    waypoint_list[-1].type = "fp"
+    waypoint_list[-1].gate_check = True
+    waypoint_list[-1].time_check = True
+    logger.debug(f"Created waypoints {waypoint_list}")
+    return create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, False)
 
 
 def create_precision_route_from_csv(route_name: str, lines: List[str], use_procedure_turns: bool) -> Route:
@@ -148,10 +168,10 @@ def create_precision_route_from_csv(route_name: str, lines: List[str], use_proce
         waypoint.gate_check = True
         waypoint.elevation = False
         waypoint_list.append(waypoint)
-    return create_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
+    return create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
 
 
-def create_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
+def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
     gates = waypoint_list
     for index in range(len(gates) - 1):
         gates[index + 1].gate_line = create_perpendicular_line_at_end(gates[index].longitude,
@@ -170,6 +190,45 @@ def create_route_from_waypoint_list(route_name, waypoint_list, use_procedure_tur
                                                           gates[0].width * 1852)
     gates[0].gate_line[0].reverse()
     gates[0].gate_line[1].reverse()
+
+    calculate_and_update_legs(waypoint_list, use_procedure_turns)
+    insert_gate_ranges(waypoint_list)
+
+    object = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=use_procedure_turns)
+    object.save()
+    return object
+
+
+def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
+    gates = waypoint_list
+    for index in range(1, len(gates) - 1):
+        print(index)
+        gates[index].gate_line = create_bisecting_line_between_segments_corridor_width_lonlat(gates[index - 1].longitude,
+                                                                                              gates[index - 1].latitude,
+                                                                                              gates[index].longitude,
+                                                                                              gates[index].latitude,
+                                                                                              gates[index + 1].longitude,
+                                                                                              gates[index + 1].latitude,
+                                                                                              gates[index].width * 1852)
+        # Switch from longitude, Latitude tool attitude, longitude
+        gates[index].gate_line[0].reverse()
+        gates[index].gate_line[1].reverse()
+
+    gates[0].gate_line = create_perpendicular_line_at_end(gates[1].longitude,
+                                                          gates[1].latitude,
+                                                          gates[0].longitude,
+                                                          gates[0].latitude,
+                                                          gates[0].width * 1852)
+    gates[0].gate_line[0].reverse()
+    gates[0].gate_line[1].reverse()
+
+    gates[-1].gate_line = create_perpendicular_line_at_end(gates[-2].longitude,
+                                                           gates[-2].latitude,
+                                                           gates[-1].longitude,
+                                                           gates[-1].latitude,
+                                                           gates[-1].width * 1852)
+    gates[-1].gate_line[0].reverse()
+    gates[-1].gate_line[1].reverse()
 
     calculate_and_update_legs(waypoint_list, use_procedure_turns)
     insert_gate_ranges(waypoint_list)

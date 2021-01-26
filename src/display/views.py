@@ -601,11 +601,11 @@ def show_route_definition_step(wizard):
 
 
 def show_precision_path(wizard):
-    return wizard.get_cleaned_data_for_step("task_type").get("task_type") in (TASK_PRECISION,)
+    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (TASK_PRECISION,)
 
 
 def show_anr_path(wizard):
-    return wizard.get_cleaned_data_for_step("task_type").get("task_type") in (TASK_ANR_CORRIDOR,)
+    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (TASK_ANR_CORRIDOR,)
 
 
 class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
@@ -668,13 +668,15 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         elif task_type == TASK_ANR_CORRIDOR:
             data = self.get_cleaned_data_for_step("anr_route_import")["file"]
             data.seek(0)
-            route = create_anr_corridor_route_from_kml("route", data)
+            corridor_width = self.get_cleaned_data_for_step("anr_corridor_override")["corridor_width"]
+            route = create_anr_corridor_route_from_kml("route", data, corridor_width)
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
         if task_type == TASK_PRECISION:
-            score_override = self.get_form_instance("precision_override").build_score_override(navigation_task)
+            score_override = kwargs["form_dict"].get("precision_override").build_score_override(navigation_task)
+            logger.debug(f"Backtracking penalty override {score_override.bad_course_penalty}")
         elif task_type == TASK_ANR_CORRIDOR:
-            score_override = self.get_form_instance("anr_corridor_override").build_score_override(navigation_task)
+            score_override = kwargs["form_dict"].get("anr_corridor_override").build_score_override(navigation_task)
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     def get_context_data(self, form, **kwargs):

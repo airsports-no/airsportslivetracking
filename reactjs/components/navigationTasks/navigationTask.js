@@ -17,15 +17,25 @@ import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} 
 import ContestantDetailsDisplay from "../contestantDetailsDisplay";
 import TurningPointDisplay from "../turningPointDisplay";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
+import PrecisionRenderer from "./precisionRenderer";
+import AnrCorridorRenderer from "./anrCorridorRenderer";
 
 const L = window['L']
 
 
-const mapStateToProps = (state, props) => ({
+export const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
     currentDisplay: state.currentDisplay,
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
 })
+export const mapDispatchToProps = {
+    dispatchContestantData,
+    setDisplay,
+    displayAllTracks,
+    expandTrackingTable,
+    shrinkTrackingTable,
+    hideLowerThirds
+}
 
 class ConnectedNavigationTask extends Component {
     constructor(props) {
@@ -40,7 +50,7 @@ class ConnectedNavigationTask extends Component {
         let getUrl = window.location;
         let baseUrl = getUrl.protocol + "//" + getUrl.host + "/" + getUrl.pathname.split('/')[1]
         let protocol = "wss"
-        if (getUrl.host.includes("localhost")){
+        if (getUrl.host.includes("localhost")) {
             protocol = "ws"
         }
         this.client = new W3CWebSocket(protocol + "://" + getUrl.host + "/ws/tracks/" + this.props.navigationTaskId + "/")
@@ -70,13 +80,8 @@ class ConnectedNavigationTask extends Component {
         this.props.hideLowerThirds();
     }
 
-    fetchNavigationTask() {
-        this.props.fetchNavigationTask(this.props.contestId, this.props.navigationTaskId);
-        setTimeout(() => this.fetchNavigationTask(), 300000)
-    }
 
     componentDidMount() {
-        this.fetchNavigationTask()
         if (this.props.displayMap) {
             this.initialiseMap();
         }
@@ -97,7 +102,6 @@ class ConnectedNavigationTask extends Component {
     componentDidUpdate(previousProps) {
         if (this.props.navigationTask.route !== previousProps.navigationTask.route) {
             if (this.props.displayMap && !this.rendered) {
-                this.renderRoute()
                 this.rendered = true;
                 this.initiateSession()
             }
@@ -123,83 +127,19 @@ class ConnectedNavigationTask extends Component {
         // mapControlContainer.appendChild(logoContainer)
     }
 
-    renderRoute() {
-        this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return waypoint.gate_check || waypoint.time_check
-        }).map((gate) => {
-            polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
-                color: "blue"
-            }).addTo(this.map)
-            // }
-        })
-        let tracks = []
-        let currentTrack = []
-        const typesToIgnore = ["to", "ldg", "ildg"]
-        for (const waypoint of this.props.navigationTask.route.waypoints) {
-            if (waypoint.type === 'isp') {
-                tracks.push(currentTrack)
-                currentTrack = []
-            }
-            if (!typesToIgnore.includes(waypoint.type)) {
-                if (waypoint.is_procedure_turn) {
-                    currentTrack.push(...waypoint.procedure_turn_points)
-                } else {
-                    currentTrack.push([waypoint.latitude, waypoint.longitude])
-                }
-            }
-        }
-        tracks.push(currentTrack)
-        // let turningPoints = this.props.navigationTask.route.waypoints.filter((waypoint) => {
-        //     return true //waypoint.type === "tp"
-        // }).map((waypoint) => {
-        //     return [waypoint.latitude, waypoint.longitude]
-        // });
-        this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return waypoint.gate_check || waypoint.time_check
-        }).map((waypoint) => {
-            marker([waypoint.latitude, waypoint.longitude], {
-                color: "blue",
-                icon: divIcon({
-                    html: '<i class="fas"><br/>' + waypoint.name + '</i>',
-                    iconSize: [20, 20],
-                    className: "myGateIcon"
-                })
-            }).on('click', () => {
-                this.handleMapTurningPointClick(waypoint.name)
-            }).addTo(this.map)
-        });
-        // this.props.navigationTask.route.waypoints.filter((waypoint) => {
-        //     return waypoint.is_procedure_turn
-        // }).map((waypoint) => {
-        //     circle([waypoint.latitude, waypoint.longitude], {
-        //         radius: 500,
-        //         color: "blue"
-        //     }).addTo(this.map)
-        // })
-        // Temporarily plot range circles
-        // this.props.navigationTask.track.waypoints.map((waypoint) => {
-        //     circle([waypoint.latitude, waypoint.longitude], {
-        //         radius: waypoint.insideDistance,
-        //         color: "orange"
-        //     }).addTo(this.map)
-        // })
-        // Plot starting line
-        // const gate = this.props.navigationTask.track.starting_line
-        // polyline([[gate.gate_line[1], gate.gate_line[0]], [gate.gate_line[3], gate.gate_line[2]]], {
-        //             color: "red"
-        //         }).addTo(this.map)
-        let route;
-        for (const track of tracks) {
-            route = polyline(track, {
-                color: "blue"
-            }).addTo(this.map)
-        }
-        this.map.fitBounds(route.getBounds(), {padding: [50, 50]})
-
-    }
 
     render() {
         if (this.props.navigationTask.contestant_set !== undefined) {
+            let routeRenderer = null;
+            if (this.props.navigationTask.scorecard !== undefined) {
+                if (this.props.navigationTask.scorecard.task_type.includes("precision")) {
+                    routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}/>
+                } else if (this.props.navigationTask.scorecard.task_type.includes("anr_corridor")) {
+                    routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}/>
+                }
+
+            }
+
             const colourMap = this.buildColourMap()
             let display = <div/>
             if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
@@ -214,13 +154,13 @@ class ConnectedNavigationTask extends Component {
                 this.props.shrinkTrackingTable();
             }
             const tableDisplay = <div>
-                    {/*<div className={"card-body"}>*/}
-                    {/*<div className={"card–text"}>*/}
-                        {/*<div className={"card-title"}>*/}
-                        {/*</div>*/}
-                        {display}
-                    {/*</div>*/}
-                    {/*</div>*/}
+                {/*<div className={"card-body"}>*/}
+                {/*<div className={"card–text"}>*/}
+                {/*<div className={"card-title"}>*/}
+                {/*</div>*/}
+                {display}
+                {/*</div>*/}
+                {/*</div>*/}
             </div>
             const mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
                 return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}
@@ -230,6 +170,7 @@ class ConnectedNavigationTask extends Component {
                                         colour={colourMap[contestant.contestant_number]}/>
             });
             return <div>
+                {routeRenderer}
                 {mapDisplay}
                 {tableDisplay}
             </div>
@@ -239,13 +180,5 @@ class ConnectedNavigationTask extends Component {
 
 }
 
-const NavigationTask = connect(mapStateToProps, {
-    fetchNavigationTask,
-    dispatchContestantData,
-    setDisplay,
-    displayAllTracks,
-    expandTrackingTable,
-    shrinkTrackingTable,
-    hideLowerThirds
-})(ConnectedNavigationTask);
+const NavigationTask = connect(mapStateToProps, mapDispatchToProps)(ConnectedNavigationTask);
 export default NavigationTask;

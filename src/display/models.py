@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 
 from django.db import models
+from multiselectfield import MultiSelectField
 from timezone_field import TimeZoneField
 # Create your models here.
 from django.db.models.signals import post_save, pre_save, post_delete
@@ -16,6 +17,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from rest_framework.exceptions import ValidationError
 from solo.models import SingletonModel
 
+from display.coordinate_utilities import create_perpendicular_line_at_end
 from display.my_pickled_object_field import MyPickledObjectField
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
@@ -137,31 +139,6 @@ def is_procedure_turn(bearing1, bearing2) -> bool:
     :return:
     """
     return abs(bearing_difference(bearing1, bearing2)) > 90
-
-
-
-
-
-def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
-    """
-
-    :param x1:
-    :param y1:
-    :param x2:
-    :param y2:
-    :param length: metres
-    :return:
-    """
-    pc = ccrs.PlateCarree()
-    epsg = ccrs.epsg(3857)
-    x1, y1 = epsg.transform_point(x1, y1, pc)
-    x2, y2 = epsg.transform_point(x2, y2, pc)
-    slope = (y2 - y1) / (x2 - x1)
-    dy = math.sqrt((length / 2) ** 2 / (slope ** 2 + 1))
-    dx = -slope * dy
-    x1, y1 = pc.transform_point(x2 + dx, y2 + dy, epsg)
-    x2, y2 = pc.transform_point(x2 - dx, y2 - dy, epsg)
-    return [[x1, y1], [x2, y2]]
 
 
 class CharNullField(models.CharField):
@@ -313,7 +290,7 @@ class Scorecard(models.Model):
     name = models.CharField(max_length=100, default="default", unique=True)
     calculator = models.IntegerField(choices=CALCULATORS, default=PRECISION,
                                      help_text="Supported calculator types")
-    task_type = MultiSelectField(choices=TASK_TYPES)
+    task_type = MultiSelectField(choices=TASK_TYPES, default=list)
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     backtracking_penalty = models.FloatField(default=200)
     backtracking_bearing_difference = models.FloatField(default=90)

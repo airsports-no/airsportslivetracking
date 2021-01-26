@@ -39,6 +39,20 @@ def len_v(A: np.ndarray, axis=0) -> np.ndarray:
     return np.sqrt(dot_v(A, A, axis=axis))
 
 
+def ang_v(A: np.ndarray, B: np.ndarray, axis=0, radians=True) -> np.ndarray:
+    """
+    Find the angle between arrays A and B along the provided axis
+    """
+    # return ang_v_test2(A, B, axis, radians)
+    factor = 1
+    A = norm_v(A)
+    B = norm_v(B)
+    if not radians:
+        factor = 180 / np.pi
+    # return np.math.atan2(np.linalg.det([A, B]), np.dot(A,B))*factor
+    return np.arccos(np.clip(dot_v(A, B, axis=axis), -1, 1)) * factor
+
+
 def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
     """
 
@@ -306,6 +320,81 @@ def create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length):
     d1 = norm_v(np.array([x2 - x1, y2 - y1])) * length / 2
     d2 = norm_v(np.array([x2 - x3, y2 - y3])) * length / 2
     dx, dy = d1[0] + d2[0], d1[1] + d2[1]
+    x1, y1 = pc.transform_point(x2 + dx, y2 + dy, epsg)
+    x2, y2 = pc.transform_point(x2 - dx, y2 - dy, epsg)
+    return [[x1, y1], [x2, y2]]
+
+
+def create_bisecting_line_between_segments_corridor_width_lonlat(x1, y1, x2, y2, x3, y3, corridor_width):
+    """
+
+    :param x1:
+    :param y1:
+    :param x2:
+    :param y2:
+    :param x3:
+    :param y3:
+    :param length: metres
+    :return:
+    """
+    pc = ccrs.PlateCarree()
+    epsg = ccrs.epsg(3857)
+    x1, y1 = epsg.transform_point(x1, y1, pc)
+    x2, y2 = epsg.transform_point(x2, y2, pc)
+    x3, y3 = epsg.transform_point(x3, y3, pc)
+    s, f = create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3, y3, corridor_width)
+    x1, y1 = pc.transform_point(s[0], s[1], epsg)
+    x2, y2 = pc.transform_point(f[0], f[1], epsg)
+    return [[x1, y1], [x2, y2]]
+
+
+def create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3, y3, corridor_width):
+    """
+
+    :param x1:
+    :param y1:
+    :param x2:
+    :param y2:
+    :param x3:
+    :param y3:
+    :param length: metres
+    :return:
+    """
+    l1 = np.array([x1, y1])
+    l2 = np.array([x2, y2])
+    l3 = np.array([x3, y3])
+    a = l2 - l1
+    b = l2 - l3
+    bisection_angle = ang_v(a, b) / 2
+    print(f'bisection_angle: {bisection_angle}')
+    segment_length = (corridor_width / 2) / np.sin(bisection_angle)
+    print(f'segment_length: {segment_length}')
+    d1 = norm_v(a) * segment_length
+    d2 = norm_v(b) * segment_length
+    d = norm_v(d1 + d2)
+    d *= segment_length
+    x1, y1 = x2 + d[0], y2 + d[1]
+    x2, y2 = x2 - d[0], y2 - d[1]
+    return [[x1, y1], [x2, y2]]
+
+
+def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
+    """
+
+    :param x1:
+    :param y1:
+    :param x2:
+    :param y2:
+    :param length: metres
+    :return:
+    """
+    pc = ccrs.PlateCarree()
+    epsg = ccrs.epsg(3857)
+    x1, y1 = epsg.transform_point(x1, y1, pc)
+    x2, y2 = epsg.transform_point(x2, y2, pc)
+    slope = (y2 - y1) / (x2 - x1)
+    dy = math.sqrt((length / 2) ** 2 / (slope ** 2 + 1))
+    dx = -slope * dy
     x1, y1 = pc.transform_point(x2 + dx, y2 + dy, epsg)
     x2, y2 = pc.transform_point(x2 - dx, y2 - dy, epsg)
     return [[x1, y1], [x2, y2]]

@@ -6,7 +6,7 @@ import TrackLoadingIndicator from "./trackLoadingIndicator";
 import {LowerThirdTeam} from "./teamBadges";
 import {
     displayAllTracks,
-    expandTrackingTable, fullHeightTable,
+    expandTrackingTable, fetchNavigationTask, fullHeightTable,
     halfHeightTable,
     hideLowerThirds,
     setDisplay,
@@ -38,6 +38,15 @@ class ConnectedTrackingContainer extends Component {
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
     }
 
+    fetchNavigationTask() {
+        this.props.fetchNavigationTask(this.contestId, this.navigationTaskId);
+        setTimeout(() => this.fetchNavigationTask(), 300000)
+    }
+
+    componentDidMount() {
+        this.fetchNavigationTask()
+    }
+
     resetToAllContestants() {
         this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
         this.props.displayAllTracks();
@@ -54,10 +63,10 @@ class ConnectedTrackingContainer extends Component {
             <i className={"mdi mdi-keyboard-arrow-left"}/> :
             <i className={"mdi mdi-keyboard-arrow-right"}/>}</a>
         // Expand this using scorecard information to select correct navigation task type that overrides map rendering
-        const TrackerDisplay =
-            <NavigationTask map={this.map} contestId={this.contestId} navigationTaskId={this.navigationTaskId}
-                            fetchInterval={2000}
-                            displayMap={this.displayMap} displayTable={true}/>
+        let TrackerDisplay = <NavigationTask map={this.map} contestId={this.contestId}
+                                             navigationTaskId={this.navigationTaskId}
+                                             fetchInterval={2000}
+                                             displayMap={this.displayMap} displayTable={true}/>
         if (this.displayTable && this.displayMap) {
             return (
                 <div id="map-holder">
@@ -98,12 +107,13 @@ class ConnectedTrackingContainer extends Component {
                                 className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayExpandedTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
                                 <div
                                     className={"titleWrapper"}>
-                                    <a data-toggle={"collapse"} data-target={"#insetMenu"} style={{paddingLeft: "14px", paddingRight: "12px"}}>
+                                    <a data-toggle={"collapse"} data-target={"#insetMenu"}
+                                       style={{paddingLeft: "14px", paddingRight: "12px"}}>
                                         {/*id={"logoButtonWrapper"}>*/}
                                         <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
                                     </a>
                                     <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
-                                       data-target={"#insetMenu"}>{this.props.navigationTask.name?this.props.navigationTask.name.toUpperCase():null}</a>
+                                       data-target={"#insetMenu"}>{this.props.navigationTask.name ? this.props.navigationTask.name.toUpperCase() : null}</a>
                                     {ExpandedTableLink}
                                     {/*{TableHeightLink}*/}
                                 </div>
@@ -126,14 +136,15 @@ class ConnectedTrackingContainer extends Component {
                             <div id={"disclaimer"}>
                                 <img src={"/static/img/nlf_white.png"} className={"logo"}/>
                                 THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING IN COLLABORATION<br/>
-                                WITH NORGES LUFTSPORTSFORBUND NLF - <a href={"#"} style={{color: "white"}}>FOR MORE INFO / DISCLAIMER</a>
+                                WITH NORGES LUFTSPORTSFORBUND NLF - <a href={"#"} style={{color: "white"}}>FOR MORE
+                                INFO / DISCLAIMER</a>
                             </div>
 
                             {/*<div id={"sponsor"}>*/}
                             {/*    <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>*/}
                             {/*</div>*/}
                             <div className={"logoImage"}>
-                                <img className={"img-fluid"} src={"/static/img/live_tracking.png"} />
+                                <img className={"img-fluid"} src={"/static/img/live_tracking.png"}/>
                             </div>
                             {/*<img alt={"Logo"} className={"logoImage"}*/}
                             {/*     id={"logoImage"}*/}
@@ -153,13 +164,15 @@ class ConnectedTrackingContainer extends Component {
     }
 }
 
-const TrackingContainer = connect(mapStateToProps, {
-    expandTrackingTable,
-    shrinkTrackingTable,
-    setDisplay,
-    displayAllTracks,
-    hideLowerThirds,
-    halfHeightTable,
-    fullHeightTable
-})(ConnectedTrackingContainer)
+const
+    TrackingContainer = connect(mapStateToProps, {
+        fetchNavigationTask,
+        expandTrackingTable,
+        shrinkTrackingTable,
+        setDisplay,
+        displayAllTracks,
+        hideLowerThirds,
+        halfHeightTable,
+        fullHeightTable
+    })(ConnectedTrackingContainer)
 export default TrackingContainer

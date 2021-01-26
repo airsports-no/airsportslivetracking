@@ -8,6 +8,7 @@ from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework import serializers
+from rest_framework.fields import MultipleChoiceField
 from rest_framework.generics import get_object_or_404
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
@@ -16,7 +17,7 @@ from timezone_field.rest_framework import TimeZoneSerializerField
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
     Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR, \
-    GateScoreOverride, TrackScoreOverride, GateScore
+    GateScoreOverride, TrackScoreOverride, GateScore, TASK_TYPES
 from display.waypoint import Waypoint
 
 
@@ -249,7 +250,7 @@ class ContestTeamNestedSerialiser(serializers.ModelSerializer):
 
 
 class ScorecardSerialiser(serializers.ModelSerializer):
-    task_type = serializers.CharField(read_only=True, required=False)
+    task_type = MultipleChoiceField(read_only=True, choices=TASK_TYPES)
 
     class Meta:
         model = Scorecard
