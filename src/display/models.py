@@ -75,47 +75,6 @@ class Route(models.Model):
     def __str__(self):
         return self.name
 
-    @classmethod
-    def create(cls, name: str, waypoints: List[Dict]) -> "Route":
-        waypoints = cls.add_gate_data(waypoints)
-        object = cls(name=name, waypoints=waypoints)
-        object.save()
-        return object
-
-    @staticmethod
-    def add_gate_data(waypoints: List[Dict]) -> List[Dict]:
-        """
-        Changes waypoint dictionaries
-
-        :param waypoints:
-        :return:
-        """
-        gates = [item for item in waypoints if item["type"] in ("tp", "secret")]
-        for index in range(len(gates) - 1):
-            gates[index + 1]["gate_line"] = create_perpendicular_line_at_end_lonlat(gates[index]["longitude"],
-                                                                                    gates[index]["latitude"],
-                                                                                    gates[index + 1]["longitude"],
-                                                                                    gates[index + 1]["latitude"],
-                                                                                    gates[index + 1]["width"] * 1852)
-            gates[index + 1]["gate_line_infinite"] = create_perpendicular_line_at_end_lonlat(gates[index]["longitude"],
-                                                                                             gates[index]["latitude"],
-                                                                                             gates[index + 1]["longitude"],
-                                                                                             gates[index + 1]["latitude"],
-                                                                                             40 * 1852)
-
-        gates[0]["gate_line"] = create_perpendicular_line_at_end_lonlat(gates[1]["longitude"],
-                                                                        gates[1]["latitude"],
-                                                                        gates[0]["longitude"],
-                                                                        gates[0]["latitude"],
-                                                                        gates[0]["width"] * 1852)
-        gates[0]["gate_line_infinite"] = create_perpendicular_line_at_end_lonlat(gates[1]["longitude"],
-                                                                                 gates[1]["latitude"],
-                                                                                 gates[0]["longitude"],
-                                                                                 gates[0]["latitude"],
-                                                                                 40 * 1852)
-
-        return waypoints
-
 
 def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
     found_current = False
@@ -406,7 +365,6 @@ class Scorecard(models.Model):
                     return contestant.track_score_override.corridor_width
         return self.corridor_width
 
-
     def get_corridor_grace_time(self, contestant: "Contestant"):
         if contestant:
             override = contestant.get_track_score_override()
@@ -504,7 +462,7 @@ class TrackScoreOverride(models.Model):
     corridor_width = models.FloatField(default=None, blank=True, null=True,
                                        help_text="The width of the ANR corridor")
     corridor_grace_time = models.FloatField(default=None, blank=True, null=True,
-                                       help_text="The grace time of the ANR corridor")
+                                            help_text="The grace time of the ANR corridor")
 
     def __str__(self):
         return "Track score override for {}".format(self.navigation_task)

@@ -210,35 +210,79 @@ def calculate_extent(width: float, height: float, centre: Tuple[float, float]):
     return [left_edge, right_edge, bottom_edge, top_edge]
 
 
-def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = None, landscape: bool = True,
-               contestant: Optional[Contestant] = None,
-               waypoints_only: bool = False, annotations: bool = True, scale: int = 200, dpi: int = 300,
-               map_source: int = OSM):
-    route = task.route
-    if map_source == OSM_MAP:
-        imagery = OSM()
-    elif map_source == N250_MAP:
-        imagery = LocalImages()
-    else:
-        return
-    if map_size == A3:
-        if zoom_level is None:
-            zoom_level = 12
-        if landscape:
-            plt.figure(figsize=(16.53, 11.69))
-        else:
-            plt.figure(figsize=(11.69, 16.53))
-    else:
-        if zoom_level is None:
-            zoom_level = 11
-        if landscape:
-            plt.figure(figsize=(11.69, 8.27))
-        else:
-            plt.figure(figsize=(8.27, 11.69))
+def plot_leg_bearing(current_waypoint, next_waypoint, character_offset: int = 4):
+    bearing = current_waypoint.bearing_next
+    bearing_difference_next = get_heading_difference(next_waypoint.bearing_from_previous,
+                                                     next_waypoint.bearing_next)
+    bearing_difference_previous = get_heading_difference(current_waypoint.bearing_from_previous,
+                                                         current_waypoint.bearing_next)
+    course_position = get_course_position((current_waypoint.latitude, current_waypoint.longitude),
+                                          (next_waypoint.latitude,
+                                           next_waypoint.longitude),
+                                          True, 3)
+    course_text = "{:03.0f}".format(current_waypoint.bearing_next)
+    # Try to keep it out of the way of the next leg
+    if bearing_difference_next > 90 or bearing_difference_previous > 90:  # leftSide
+        label = "\n" + course_text + " " * len(course_text) + " " * character_offset
+    else:  # Right-sided is preferred
+        label = "\n" + " " * len(course_text) + " " * character_offset + course_text
+    plt.text(course_position[1], course_position[0], label,
+             verticalalignment="center", color="red",
+             horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=16,
+             rotation=-bearing,
+             linespacing=2, family="monospace")
 
-    ax = plt.axes(projection=imagery.crs)
-    ax.add_image(imagery, zoom_level)
-    ax.set_aspect("auto")
+
+def waypoint_bearing(waypoint, index) -> float:
+    bearing = waypoint.bearing_from_previous
+    if index == 0:
+        bearing = waypoint.bearing_next
+    return bearing
+
+
+def plot_waypoint_name(route: Route, waypoint: Waypoint, bearing: float, annotations: bool, waypoints_only: bool,
+                       contestant: Optional[Contestant], character_padding: int = 4):
+    text = "{}".format(waypoint.name)
+    if contestant is not None and annotations:
+        waypoint_time = contestant.gate_times.get(waypoint.name)  # type: datetime.datetime
+        if waypoint_time is not None:
+            local_waypoint_time = waypoint_time.astimezone(route.navigationtask.contest.time_zone)
+            text += " {}".format(local_waypoint_time.strftime("%H:%M:%S"))
+    bearing_difference = get_heading_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
+    if bearing_difference > 0:
+        text = "\n" + text + " " * len(text) + " " * character_padding  # Padding to get things aligned correctly
+    else:
+        text = "\n" + " " * (len(text) + character_padding) + text  # Padding to get things aligned correctly
+    if waypoints_only:
+        bearing = 0
+    plt.text(waypoint.longitude, waypoint.latitude, text, verticalalignment="center", color="blue",
+             horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8, rotation=-bearing,
+             linespacing=2, family="monospace", clip_on=True)
+
+
+def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], annotations):
+    inner_track = []
+    outer_track = []
+    for index, waypoint in enumerate(route.waypoints):
+        ys, xs = np.array(waypoint.gate_line).T
+        bearing = waypoint_bearing(waypoint, index)
+        if waypoint.type in ("sp", "fp"):
+            plot_waypoint_name(route, waypoint, bearing, annotations, False, contestant, character_padding=5)
+        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+        inner_track.append(waypoint.gate_line[0])
+        outer_track.append(waypoint.gate_line[1])
+        if index < len(route.waypoints) - 1 and annotations:
+            plot_leg_bearing(waypoint, route.waypoints[index + 1], 5)
+    path = np.array(inner_track)
+    ys, xs = path.T
+    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+    path = np.array(outer_track)
+    ys, xs = path.T
+    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+    return path
+
+
+def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoints_only: bool, annotations: bool):
     tracks = [[]]
     for waypoint in route.waypoints:  # type: Waypoint
         if waypoint.type == "isp":
@@ -249,54 +293,18 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         line = []
         for index, waypoint in enumerate(track):  # type: int, Waypoint
             if waypoint.type != "secret":
+                bearing = waypoint_bearing(waypoint, index)
                 ys, xs = np.array(waypoint.gate_line).T
                 if not waypoints_only:
                     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
                 else:
                     plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree(), color="blue",
                              marker="o", markersize=8, fillstyle="none")
-                text = "{}".format(waypoint.name)
-                bearing = waypoint.bearing_from_previous
-                if index == 0:
-                    bearing = waypoint.bearing_next
-                if contestant is not None and annotations:
-                    waypoint_time = contestant.gate_times.get(waypoint.name)  # type: datetime.datetime
-                    if waypoint_time is not None:
-                        local_waypoint_time = waypoint_time.astimezone(task.contest.time_zone)
-                        text += " {}".format(local_waypoint_time.strftime("%H:%M:%S"))
-                bearing_difference = get_heading_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
-                if bearing_difference > 0:
-                    text = "\n" + text + " " * len(text) + "    "  # Padding to get things aligned correctly
-                else:
-                    text = "\n    " + " " * len(text) + text  # Padding to get things aligned correctly
-                if waypoints_only:
-                    bearing = 0
-                plt.text(waypoint.longitude, waypoint.latitude, text, verticalalignment="center", color="blue",
-                         horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8, rotation=-bearing,
-                         linespacing=2, family="monospace", clip_on=True)
+                plot_waypoint_name(route, waypoint, bearing, annotations, waypoints_only, contestant)
                 if contestant is not None:
                     if index < len(track) - 1:
                         if annotations:
-                            bearing = waypoint.bearing_next
-                            bearing_difference_next = get_heading_difference(track[index + 1].bearing_from_previous,
-                                                                             track[index + 1].bearing_next)
-                            bearing_difference_previous = get_heading_difference(waypoint.bearing_from_previous,
-                                                                                 waypoint.bearing_next)
-                            course_position = get_course_position((waypoint.latitude, waypoint.longitude),
-                                                                  (track[index + 1].latitude,
-                                                                   track[index + 1].longitude),
-                                                                  True, 3)
-                            course_text = "{:03.0f}".format(waypoint.bearing_next)
-                            # Try to keep it out of the way of the next leg
-                            if bearing_difference_next > 90 or bearing_difference_previous > 90:  # leftSide
-                                label = "\n" + course_text + " " * len(course_text) + "    "
-                            else:  # Right-sided is preferred
-                                label = "\n" + " " * len(course_text) + "    " + course_text
-                            plt.text(course_position[1], course_position[0], label,
-                                     verticalalignment="center", color="red",
-                                     horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=16,
-                                     rotation=-bearing,
-                                     linespacing=2, family="monospace")
+                            plot_leg_bearing(waypoint, track[index + 1])
                             gate_start_time = contestant.gate_times.get(waypoint.name)
                             if waypoint.is_procedure_turn:
                                 gate_start_time += datetime.timedelta(minutes=1)
@@ -328,6 +336,44 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         if not waypoints_only:
             ys, xs = path.T
             plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+        return path
+
+
+def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = None, landscape: bool = True,
+               contestant: Optional[Contestant] = None,
+               waypoints_only: bool = False, annotations: bool = True, scale: int = 200, dpi: int = 300,
+               map_source: int = OSM):
+    route = task.route
+    if map_source == OSM_MAP:
+        imagery = OSM()
+    elif map_source == N250_MAP:
+        imagery = LocalImages()
+    else:
+        return
+    if map_size == A3:
+        if zoom_level is None:
+            zoom_level = 12
+        if landscape:
+            plt.figure(figsize=(16.53, 11.69))
+        else:
+            plt.figure(figsize=(11.69, 16.53))
+    else:
+        if zoom_level is None:
+            zoom_level = 11
+        if landscape:
+            plt.figure(figsize=(11.69, 8.27))
+        else:
+            plt.figure(figsize=(8.27, 11.69))
+
+    ax = plt.axes(projection=imagery.crs)
+    ax.add_image(imagery, zoom_level)
+    ax.set_aspect("auto")
+    if "precision" in task.scorecard.task_type:
+        path = plot_precision_track(route, contestant, waypoints_only, annotations)
+    elif "anr_corridor" in task.scorecard.task_type:
+        path = plot_anr_corridor_track(route, contestant, annotations)
+    else:
+        path = []
 
     ax.gridlines(draw_labels=False, dms=True)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
@@ -462,8 +508,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     figdata.seek(0)
     return figdata
 
-
-if __name__ == "__main__":
-    task = NavigationTask.objects.get(pk=76)
-    contestant = Contestant.objects.get(pk=1803)
-    plot_route(task, contestant=contestant)
+# if __name__ == "__main__":
+#     task = NavigationTask.objects.get(pk=76)
+#     contestant = Contestant.objects.get(pk=1803)
+#     plot_route(task, contestant=contestant)
