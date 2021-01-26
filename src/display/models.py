@@ -17,7 +17,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from rest_framework.exceptions import ValidationError
 from solo.models import SingletonModel
 
-from display.coordinate_utilities import create_perpendicular_line_at_end
+from display.coordinate_utilities import create_perpendicular_line_at_end_lonlat
 from display.my_pickled_object_field import MyPickledObjectField
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
@@ -92,27 +92,27 @@ class Route(models.Model):
         """
         gates = [item for item in waypoints if item["type"] in ("tp", "secret")]
         for index in range(len(gates) - 1):
-            gates[index + 1]["gate_line"] = create_perpendicular_line_at_end(gates[index]["longitude"],
-                                                                             gates[index]["latitude"],
-                                                                             gates[index + 1]["longitude"],
-                                                                             gates[index + 1]["latitude"],
-                                                                             gates[index + 1]["width"] * 1852)
-            gates[index + 1]["gate_line_infinite"] = create_perpendicular_line_at_end(gates[index]["longitude"],
-                                                                                      gates[index]["latitude"],
-                                                                                      gates[index + 1]["longitude"],
-                                                                                      gates[index + 1]["latitude"],
-                                                                                      40 * 1852)
+            gates[index + 1]["gate_line"] = create_perpendicular_line_at_end_lonlat(gates[index]["longitude"],
+                                                                                    gates[index]["latitude"],
+                                                                                    gates[index + 1]["longitude"],
+                                                                                    gates[index + 1]["latitude"],
+                                                                                    gates[index + 1]["width"] * 1852)
+            gates[index + 1]["gate_line_infinite"] = create_perpendicular_line_at_end_lonlat(gates[index]["longitude"],
+                                                                                             gates[index]["latitude"],
+                                                                                             gates[index + 1]["longitude"],
+                                                                                             gates[index + 1]["latitude"],
+                                                                                             40 * 1852)
 
-        gates[0]["gate_line"] = create_perpendicular_line_at_end(gates[1]["longitude"],
-                                                                 gates[1]["latitude"],
-                                                                 gates[0]["longitude"],
-                                                                 gates[0]["latitude"],
-                                                                 gates[0]["width"] * 1852)
-        gates[0]["gate_line_infinite"] = create_perpendicular_line_at_end(gates[1]["longitude"],
-                                                                          gates[1]["latitude"],
-                                                                          gates[0]["longitude"],
-                                                                          gates[0]["latitude"],
-                                                                          40 * 1852)
+        gates[0]["gate_line"] = create_perpendicular_line_at_end_lonlat(gates[1]["longitude"],
+                                                                        gates[1]["latitude"],
+                                                                        gates[0]["longitude"],
+                                                                        gates[0]["latitude"],
+                                                                        gates[0]["width"] * 1852)
+        gates[0]["gate_line_infinite"] = create_perpendicular_line_at_end_lonlat(gates[1]["longitude"],
+                                                                                 gates[1]["latitude"],
+                                                                                 gates[0]["longitude"],
+                                                                                 gates[0]["latitude"],
+                                                                                 40 * 1852)
 
         return waypoints
 

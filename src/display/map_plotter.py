@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.models import Route, Contestant, NavigationTask, create_perpendicular_line_at_end
+from display.models import Route, Contestant, NavigationTask, create_perpendicular_line_at_end_lonlat
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
@@ -74,8 +74,8 @@ def create_minute_lines(start: Tuple[float, float], finish: Tuple[float, float],
         time_to_next_line += resolution_seconds
     while time_to_next_line < leg_time:
         line_position = time_to_position(time_to_next_line)
-        lines.append((create_perpendicular_line_at_end(*reversed(start), *reversed(line_position),
-                                                       line_width_nm * 1852), line_position,
+        lines.append((create_perpendicular_line_at_end_lonlat(*reversed(start), *reversed(line_position),
+                                                              line_width_nm * 1852), line_position,
                       gate_start_time + datetime.timedelta(seconds=time_to_next_line)))
         time_to_next_line += resolution_seconds
     return lines

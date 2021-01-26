@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from fastkml import kml
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
-    create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end
+    create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat
 from display.models import Route, is_procedure_turn, Scorecard
 from gpxpy.gpx import GPX
 
@@ -174,22 +174,24 @@ def create_precision_route_from_csv(route_name: str, lines: List[str], use_proce
 def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
     gates = waypoint_list
     for index in range(len(gates) - 1):
-        gates[index + 1].gate_line = create_perpendicular_line_at_end(gates[index].longitude,
-                                                                      gates[index].latitude,
-                                                                      gates[index + 1].longitude,
-                                                                      gates[index + 1].latitude,
-                                                                      gates[index + 1].width * 1852)
+        gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
+                                                                             gates[index].latitude,
+                                                                             gates[index + 1].longitude,
+                                                                             gates[index + 1].latitude,
+                                                                             gates[index + 1].width * 1852)
         # Switch from longitude, Latitude tool attitude, longitude
         gates[index + 1].gate_line[0].reverse()
         gates[index + 1].gate_line[1].reverse()
 
-    gates[0].gate_line = create_perpendicular_line_at_end(gates[1].longitude,
-                                                          gates[1].latitude,
-                                                          gates[0].longitude,
-                                                          gates[0].latitude,
-                                                          gates[0].width * 1852)
+    gates[0].gate_line = create_perpendicular_line_at_end_lonlat(gates[1].longitude,
+                                                                 gates[1].latitude,
+                                                                 gates[0].longitude,
+                                                                 gates[0].latitude,
+                                                                 gates[0].width * 1852)
     gates[0].gate_line[0].reverse()
     gates[0].gate_line[1].reverse()
+    # Reverse the line since we have created it in the wrong direction
+    gates[0].gate_line.reverse()
 
     calculate_and_update_legs(waypoint_list, use_procedure_turns)
     insert_gate_ranges(waypoint_list)
@@ -214,19 +216,20 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, use_
         gates[index].gate_line[0].reverse()
         gates[index].gate_line[1].reverse()
 
-    gates[0].gate_line = create_perpendicular_line_at_end(gates[1].longitude,
-                                                          gates[1].latitude,
-                                                          gates[0].longitude,
-                                                          gates[0].latitude,
-                                                          gates[0].width * 1852)
+    gates[0].gate_line = create_perpendicular_line_at_end_lonlat(gates[1].longitude,
+                                                                 gates[1].latitude,
+                                                                 gates[0].longitude,
+                                                                 gates[0].latitude,
+                                                                 gates[0].width * 1852)
     gates[0].gate_line[0].reverse()
     gates[0].gate_line[1].reverse()
-
-    gates[-1].gate_line = create_perpendicular_line_at_end(gates[-2].longitude,
-                                                           gates[-2].latitude,
-                                                           gates[-1].longitude,
-                                                           gates[-1].latitude,
-                                                           gates[-1].width * 1852)
+    # Reverse the line since we have created it in the wrong direction
+    gates[0].gate_line.reverse()
+    gates[-1].gate_line = create_perpendicular_line_at_end_lonlat(gates[-2].longitude,
+                                                                  gates[-2].latitude,
+                                                                  gates[-1].longitude,
+                                                                  gates[-1].latitude,
+                                                                  gates[-1].width * 1852)
     gates[-1].gate_line[0].reverse()
     gates[-1].gate_line[1].reverse()
 

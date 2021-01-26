@@ -369,16 +369,16 @@ def create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3,
     print(f'bisection_angle: {bisection_angle}')
     segment_length = (corridor_width / 2) / np.sin(bisection_angle)
     print(f'segment_length: {segment_length}')
-    d1 = norm_v(a) * segment_length
-    d2 = norm_v(b) * segment_length
-    d = norm_v(d1 + d2)
+    d = norm_v(norm_v(a) + norm_v(b))
+    if any(np.isnan(d)):
+        return create_perpendicular_line_at_end_xy(x1, y1, x2, y2, corridor_width)
     d *= segment_length
     x1, y1 = x2 + d[0], y2 + d[1]
     x2, y2 = x2 - d[0], y2 - d[1]
     return [[x1, y1], [x2, y2]]
 
 
-def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
+def create_perpendicular_line_at_end_lonlat(x1, y1, x2, y2, length):
     """
 
     :param x1:
@@ -392,9 +392,31 @@ def create_perpendicular_line_at_end(x1, y1, x2, y2, length):
     epsg = ccrs.epsg(3857)
     x1, y1 = epsg.transform_point(x1, y1, pc)
     x2, y2 = epsg.transform_point(x2, y2, pc)
-    slope = (y2 - y1) / (x2 - x1)
-    dy = math.sqrt((length / 2) ** 2 / (slope ** 2 + 1))
-    dx = -slope * dy
-    x1, y1 = pc.transform_point(x2 + dx, y2 + dy, epsg)
-    x2, y2 = pc.transform_point(x2 - dx, y2 - dy, epsg)
+    l1, l2 = create_perpendicular_line_at_end_xy(x1, y1, x2, y2, length)
+    x1, y1 = pc.transform_point(*l1, epsg)
+    x2, y2 = pc.transform_point(*l2, epsg)
+    return [[x1, y1], [x2, y2]]
+
+
+def create_perpendicular_line_at_end_xy(x1, y1, x2, y2, length):
+    """
+
+    :param x1:
+    :param y1:
+    :param x2:
+    :param y2:
+    :param length: metres
+    :return:
+    """
+    l1 = np.array([x1, y1])
+    l2 = np.array([x2, y2])
+    a = norm_v(l2 - l1)
+    b = norm_v(np.array([-a[1], a[0]])) * length/2
+    # slope = (y2 - y1) / (x2 - x1)
+    # dy = math.sqrt((length / 2) ** 2 / (slope ** 2 + 1))
+    # dx = -slope * dy
+    # x1, y1 = x2 + dx, y2 + dy
+    # x2, y2 = x2 - dx, y2 - dy
+    x1, y1 = x2 + b[0], y2 + b[1]
+    x2, y2 = x2 - b[0], y2 - b[1]
     return [[x1, y1], [x2, y2]]
