@@ -36,7 +36,6 @@ class ScoreAccumulator:
 class Calculator(threading.Thread):
     GATE_SCORE_TYPE = "gate_score"
 
-
     BEFORE_START = 0
     STARTED = 1
     FINISHED = 2
@@ -141,9 +140,9 @@ class Calculator(threading.Thread):
             "gate": gate.name,
             "message": message,
             "points": score,
-            "planned": self.contestant.navigation_task.contest.time_zone.localize(
-                planned.replace(tzinfo=None)).strftime("%H:%M:%S %z") if planned else None,
-            "actual": self.contestant.navigation_task.contest.time_zone.localize(actual.replace(tzinfo=None)).strftime(
+            "planned": planned.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
+                "%H:%M:%S %z") if planned else None,
+            "actual": actual.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
                 "%H:%M:%S %z") if actual else None,
             "offset_string": offset_string
         }
