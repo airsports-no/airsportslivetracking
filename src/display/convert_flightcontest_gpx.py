@@ -204,7 +204,6 @@ def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_pro
 def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
     gates = waypoint_list
     for index in range(1, len(gates) - 1):
-        print(index)
         gates[index].gate_line = create_bisecting_line_between_segments_corridor_width_lonlat(gates[index - 1].longitude,
                                                                                               gates[index - 1].latitude,
                                                                                               gates[index].longitude,
