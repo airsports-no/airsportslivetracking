@@ -85,8 +85,6 @@ def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
             found_current = True
 
 
-
-
 def is_procedure_turn(bearing1, bearing2) -> bool:
     """
     Return True if the turn is more than 90 degrees
@@ -397,6 +395,7 @@ class Scorecard(models.Model):
 
 
 class GateScore(models.Model):
+    name = models.CharField(max_length=100, default="")
     extended_gate_width = models.FloatField(default=0,
                                             help_text="For SP it is 2 (1 nm each side), for tp with procedure turn it is 6")
     bad_crossing_extended_gate_penalty = models.FloatField(default=200)
