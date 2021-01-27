@@ -212,7 +212,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, use_
                                                                                               gates[index + 1].longitude,
                                                                                               gates[index + 1].latitude,
                                                                                               gates[index].width * 1852)
-        # Switch from longitude, Latitude tool attitude, longitude
+        # Switch from longitude, Latitude to lattitude, longitude
         gates[index].gate_line[0].reverse()
         gates[index].gate_line[1].reverse()
 

@@ -1,6 +1,9 @@
 import logging
 from typing import TYPE_CHECKING
 import numpy as np
+from shapely.geometry import Polygon, Point
+
+import cartopy.crs as ccrs
 from display.calculators.calculator_utilities import cross_track_gate
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.models import Contestant
@@ -25,16 +28,40 @@ class AnrCorridorCalculator(PrecisionCalculator):
         self.crossed_outside_time = None
         self.last_outside_penalty = None
         self.crossed_outside_position = None
+        self.pc = ccrs.PlateCarree()
+        self.epsg = ccrs.epsg(3857)
+        self.track_polygon = self.build_polygon()
+
+    def build_polygon(self):
+        points = []
+
+        for waypoint in self.contestant.navigation_task.route.waypoints:
+            # latitude, longitude, so reverse
+            points.append(reversed(waypoint.gate_line[0]))
+        for waypoint in reversed(self.contestant.navigation_task.route.waypoints):
+            points.append(reversed(waypoint.gate_line[1]))
+        points = np.array(points)
+        transformed_points = self.epsg.transform_points(self.pc, points[0], points[1])
+        return Polygon(transformed_points)
+
+    def _check_inside_polygon(self, latitude, longitude) -> bool:
+        """
+        Returns true if the point lies inside the corridor
+        """
+        x, y = self.epsg.transform_point(longitude, latitude)
+        p = Point(x, y)
+        return self.track_polygon.contains(p)
 
     def calculate_score(self):
         super().calculate_score()
         self.check_outside_corridor()
 
     def check_outside_corridor(self):
+        if self.tracking_state == self.FINISHED:
+            return
         if self.last_gate and len(self.outstanding_gates) > 0:
-            cross_track_distance = cross_track_gate(self.last_gate, self.outstanding_gates[0],
-                                                    self.track[-1]) / 1852  # NM
-            if cross_track_distance > self.scorecard.get_corridor_width(self.contestant) / 2:
+            # We are inside the corridor, between starting point and finish point
+            if not self._check_inside_polygon(self.track[-1].latitude, self.track[-1].longitude):
                 # We are outside the corridor
                 if self.corridor_state == self.INSIDE_CORRIDOR:
                     self.crossed_outside_position = self.track[-1]
