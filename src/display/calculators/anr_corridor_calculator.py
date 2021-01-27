@@ -1,6 +1,6 @@
 import logging
 from typing import TYPE_CHECKING
-
+import numpy as np
 from display.calculators.calculator_utilities import cross_track_gate
 from display.calculators.precision_calculator import PrecisionCalculator
 from display.models import Contestant
@@ -17,11 +17,14 @@ class AnrCorridorCalculator(PrecisionCalculator):
     """
     INSIDE_CORRIDOR = 0
     OUTSIDE_CORRIDOR = 1
+    OUTSIDE_CORRIDOR_PENALTY_TYPE = "outside_corridor"
 
     def __init__(self, contestant: "Contestant", influx: "InfluxFacade", live_processing: bool = True):
         super().__init__(contestant, influx, live_processing)
         self.corridor_state = self.INSIDE_CORRIDOR
         self.crossed_outside_time = None
+        self.last_outside_penalty = None
+        self.crossed_outside_position = None
 
     def calculate_score(self):
         super().calculate_score()
@@ -34,16 +37,18 @@ class AnrCorridorCalculator(PrecisionCalculator):
             if cross_track_distance > self.scorecard.get_corridor_width(self.contestant) / 2:
                 # We are outside the corridor
                 if self.corridor_state == self.INSIDE_CORRIDOR:
+                    self.crossed_outside_position = self.track[-1]
                     self.corridor_state = self.OUTSIDE_CORRIDOR
                     self.crossed_outside_time = self.track[-1].time
-                if self.crossed_outside_time is not None and (self.track[
-                                                                  -1].time - self.crossed_outside_time).total_seconds() > self.scorecard.get_corridor_grace_time(
-                    self.contestant):
-                    # We have exceeded the grace time. Reset outside time and award penalty
-                    self.crossed_outside_time = None
+            elif self.corridor_state == self.OUTSIDE_CORRIDOR:
+                outside_time = (self.track[-1].time - self.crossed_outside_time).total_seconds()
+                penalty_time = outside_time - self.scorecard.get_corridor_grace_time(self.contestant)
+                if penalty_time > 0:
+                    penalty_time = np.round(penalty_time)
                     self.update_score(self.last_gate,
-                                      self.scorecard.get_corridor_outside_penalty(self.contestant),
+                                      self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time,
                                       "outside corridor",
-                                      self.track[-1].latitude, self.track[-1].longitude, "anomaly", "outside_corridor",
+                                      self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
+                                      "anomaly", self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
                                       maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(
                                           self.contestant))

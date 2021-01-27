@@ -53,6 +53,10 @@ def ang_v(A: np.ndarray, B: np.ndarray, axis=0, radians=True) -> np.ndarray:
     return np.arccos(np.clip(dot_v(A, B, axis=axis), -1, 1)) * factor
 
 
+def bearing_difference(bearing1, bearing2) -> float:
+    return (bearing2 - bearing1 + 540) % 360 - 180
+
+
 def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
     """
 
@@ -237,7 +241,7 @@ def get_heading_difference(heading1, heading2):
     return (heading2 - heading1 + 540) % 360 - 180
 
 
-def cross_track_distance(lat1, lon1, lat2, lon2, lat, lon)->float:
+def cross_track_distance(lat1, lon1, lat2, lon2, lat, lon) -> float:
     """
 
     :param lat1:
@@ -347,6 +351,9 @@ def create_bisecting_line_between_segments_corridor_width_lonlat(x1, y1, x2, y2,
     :param length: metres
     :return:
     """
+    b1 = calculate_bearing((y1, x1), (y2, x2))
+    b2 = calculate_bearing((y2, x2), (y3, x3))
+    diff = bearing_difference(b1, b2)
     pc = ccrs.PlateCarree()
     epsg = ccrs.epsg(3857)
     x1, y1 = epsg.transform_point(x1, y1, pc)
@@ -355,7 +362,10 @@ def create_bisecting_line_between_segments_corridor_width_lonlat(x1, y1, x2, y2,
     s, f = create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3, y3, corridor_width)
     x1, y1 = pc.transform_point(s[0], s[1], epsg)
     x2, y2 = pc.transform_point(f[0], f[1], epsg)
-    return [[x1, y1], [x2, y2]]
+    line = [[x1, y1], [x2, y2]]
+    if diff < 0:
+        line.reverse()
+    return line
 
 
 def create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3, y3, corridor_width):
@@ -376,9 +386,9 @@ def create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3,
     a = l2 - l1
     b = l2 - l3
     bisection_angle = ang_v(a, b) / 2
-    print(f'bisection_angle: {bisection_angle}')
+    # print(f'bisection_angle: {bisection_angle}')
     segment_length = (corridor_width / 2) / np.sin(bisection_angle)
-    print(f'segment_length: {segment_length}')
+    # print(f'segment_length: {segment_length}')
     d = norm_v(norm_v(a) + norm_v(b))
     if any(np.isnan(d)):
         return create_perpendicular_line_at_end_xy(x1, y1, x2, y2, corridor_width)
@@ -421,7 +431,7 @@ def create_perpendicular_line_at_end_xy(x1, y1, x2, y2, length):
     l1 = np.array([x1, y1])
     l2 = np.array([x2, y2])
     a = norm_v(l2 - l1)
-    b = norm_v(np.array([-a[1], a[0]])) * length/2
+    b = norm_v(np.array([-a[1], a[0]])) * length / 2
     # slope = (y2 - y1) / (x2 - x1)
     # dy = math.sqrt((length / 2) ** 2 / (slope ** 2 + 1))
     # dx = -slope * dy

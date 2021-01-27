@@ -17,7 +17,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from rest_framework.exceptions import ValidationError
 from solo.models import SingletonModel
 
-from display.coordinate_utilities import create_perpendicular_line_at_end_lonlat
+from display.coordinate_utilities import create_perpendicular_line_at_end_lonlat, bearing_difference
 from display.my_pickled_object_field import MyPickledObjectField
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
@@ -85,8 +85,6 @@ def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
             found_current = True
 
 
-def bearing_difference(bearing1, bearing2) -> float:
-    return (bearing2 - bearing1 + 540) % 360 - 180
 
 
 def is_procedure_turn(bearing1, bearing2) -> bool:
@@ -274,7 +272,7 @@ class Scorecard(models.Model):
     ##### ANR Corridor
     corridor_width = models.FloatField(default=0.3, help_text="The corridor width for ANR tasks")
     corridor_grace_time = models.IntegerField(default=5, help_text="The corridor grace time for ANR tasks")
-    corridor_outside_penalty = models.FloatField(default=200,
+    corridor_outside_penalty = models.FloatField(default=3,
                                                  help_text="The penalty awarded for leaving the ANR corridor")
     corridor_maximum_penalty = models.FloatField(default=-1, help_text="The maximum penalty for leaving the corridor")
 

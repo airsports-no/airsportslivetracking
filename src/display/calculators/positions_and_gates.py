@@ -6,8 +6,7 @@ import dateutil
 
 from display.convert_flightcontest_gpx import Waypoint
 from display.coordinate_utilities import line_intersect, fraction_of_leg, calculate_bearing, nv_intersect, \
-    Projector
-from display.models import bearing_difference
+    Projector, bearing_difference
 
 logger = logging.getLogger(__name__)
 
