@@ -82,7 +82,7 @@ class AnrCorridorCalculator(PrecisionCalculator):
                     penalty_time = np.round(penalty_time)
                     self.update_score(self.last_gate,
                                       self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time,
-                                      "outside corridor",
+                                      "outside corridor ({} seconds)".format(int(penalty_time)),
                                       self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
                                       "anomaly", self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
                                       maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(

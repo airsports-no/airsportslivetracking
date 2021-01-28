@@ -5,6 +5,7 @@ from typing import List, TYPE_CHECKING, Optional
 
 import pytz
 
+from display.calculators.calculator_utilities import round_time
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon
@@ -94,6 +95,13 @@ class Calculator(threading.Thread):
         if self.takeoff_gate is not None:
             self.gates.insert(0, self.takeoff_gate)
         self.in_range_of_gate = None
+
+    def recalculate_gates_times_from_start_time(self, start_time: datetime.datetime):
+        gate_times = self.contestant.calculate_and_get_gate_times(start_time)
+        for item in self.outstanding_gates:  # type: Gate
+            item.expected_time = gate_times[item.name]
+        if self.landing_gate is not None:
+            self.landing_gate.expected_time = gate_times[self.landing_gate.name]
 
     def run(self):
         logger.info("Started calculator for contestant {}".format(self.contestant))
@@ -250,6 +258,9 @@ class Calculator(threading.Thread):
                     logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
                     self.update_tracking_state(self.STARTED)
                     self.starting_line.infinite_passing_time = intersection_time
+                    # Recalculate gate times if adaptive
+                    if self.contestant.adaptive_start:
+                        self.recalculate_gates_times_from_start_time(round_time(intersection_time))
             else:
                 return
         i = len(self.outstanding_gates) - 1

@@ -228,7 +228,7 @@ def plot_leg_bearing(current_waypoint, next_waypoint, character_offset: int = 4)
         label = "\n" + " " * len(course_text) + " " * character_offset + course_text
     plt.text(course_position[1], course_position[0], label,
              verticalalignment="center", color="red",
-             horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=16,
+             horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=14,
              rotation=-bearing,
              linespacing=2, family="monospace")
 

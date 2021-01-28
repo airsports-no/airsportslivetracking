@@ -38,3 +38,15 @@ def load_track_points_traccar_csv(points: List[Tuple[datetime.datetime, float, f
              "latitude": point[1], "longitude": point[2],
              "altitude": 0, "speed": 0, "course": 0, "battery_level": 100})
     return positions
+
+
+def round_time(dt=None, round_to=60):
+    """Round a datetime object to any time laps in seconds
+    dt : datetime.datetime object, default now.
+    roundTo : Closest number of seconds to round to, default 1 minute.
+    Author: Thierry Husson 2012 - Use it as you want but don't blame me.
+    """
+    if dt is None: dt = datetime.datetime.now()
+    seconds = (dt.replace(tzinfo=None) - dt.min).seconds
+    rounding = (seconds + round_to / 2) // round_to * round_to
+    return dt + datetime.timedelta(0, rounding - seconds, -dt.microsecond)

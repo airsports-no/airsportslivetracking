@@ -544,6 +544,8 @@ class NavigationTask(models.Model):
 class Contestant(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE)
+    adaptive_start = models.BooleanField(default=False,
+                                         help_text="If true, takeoff time and minutes to starting point is ignored. Start time is set to the closest minute to the time crossing the starting line. This is typically used for a case where it is difficult to control the start time because of external factors such as ATC.")
     takeoff_time = models.DateTimeField(
         help_text="The time the take of gate (if it exists) should be crossed. Otherwise it is the time power should be applied")
     minutes_to_starting_point = models.FloatField(default=5,
@@ -627,21 +629,15 @@ class Contestant(models.Model):
             raise ValidationError("Tracker start time '{}' is after takeoff time '{}' for contestant number {}".format(
                 self.tracker_start_time, self.takeoff_time, self.contestant_number))
 
-    @property
-    def gate_times(self) -> Dict:
-        if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
-            if self.navigation_task.route.takeoff_gate is not None and self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times:
-                self.predefined_gate_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
-            if self.navigation_task.route.landing_gate is not None and self.navigation_task.route.landing_gate.name not in self.predefined_gate_times:
-                self.predefined_gate_times[
-                    self.navigation_task.route.landing_gate.name] = self.finished_by_time + datetime.timedelta(
-                    minutes=1)
-            return self.predefined_gate_times
-        gates = self.navigation_task.route.waypoints
+    def calculate_and_get_gate_times(self, start_point_override: Optional[datetime.datetime] = None) -> Dict:
+        gates = self.navigation_task.route.waypoints  # type: List[Waypoint]
         if len(gates) == 0:
             return {}
         crossing_times = {}
-        crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
+        if start_point_override is not None:
+            crossing_time = start_point_override
+        else:
+            crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
         crossing_times[gates[0].name] = crossing_time
         for index in range(len(gates) - 1):  # type: Waypoint
             gate = gates[index]
@@ -659,6 +655,23 @@ class Contestant(models.Model):
                 self.navigation_task.route.landing_gate.name] = self.finished_by_time + datetime.timedelta(
                 minutes=1)
         return crossing_times
+
+    @property
+    def gate_times(self) -> Dict:
+        if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
+            if self.navigation_task.route.takeoff_gate is not None and self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times:
+                self.predefined_gate_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
+            if self.navigation_task.route.landing_gate is not None and self.navigation_task.route.landing_gate.name not in self.predefined_gate_times:
+                self.predefined_gate_times[
+                    self.navigation_task.route.landing_gate.name] = self.finished_by_time + datetime.timedelta(
+                    minutes=1)
+            return self.predefined_gate_times
+        zero_time = None
+        if self.adaptive_start:
+            zero_time = self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(hour=0, minute=0,
+                                                                                                     second=0,
+                                                                                                     microsecond=0)
+        return self.calculate_and_get_gate_times(zero_time)
 
     def get_gate_time_offset(self, gate_name):
         planned = self.gate_times.get(gate_name)

@@ -10,6 +10,7 @@ def get_default_scorecard():
     scorecard.task_type = [TASK_ANR_CORRIDOR]
     scorecard.calculator = Scorecard.ANR_CORRIDOR
     scorecard.corridor_maximum_penalty = 1000
+    scorecard.corridor_outside_penalty = 3
     regular_gate_score = GateScore.objects.get_or_create(name=f"{scorecard.name}_regular")[0]
     regular_gate_score.extended_gate_width = 0.3
     regular_gate_score.bad_crossing_extended_gate_penalty = 0

@@ -430,6 +430,6 @@ class ContestantForm(forms.ModelForm):
         model = Contestant
         fields = (
             "contestant_number", "team", "tracker_start_time", "tracking_service", "tracker_device_id",
-            "takeoff_time",
+            "takeoff_time", "adaptive_start",
             "finished_by_time",
             "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed")
