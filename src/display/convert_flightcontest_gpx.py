@@ -8,7 +8,8 @@ from django.core.exceptions import ValidationError
 from fastkml import kml
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
-    create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat
+    create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat, \
+    create_rounded_corridor_corner, bearing_difference
 from display.models import Route, is_procedure_turn, Scorecard
 from gpxpy.gpx import GPX
 
@@ -127,7 +128,7 @@ def create_precision_route_from_formset(route_name, data: Dict, use_procedure_tu
     return create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
 
 
-def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_width: float) -> Route:
+def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_width: float, rounded_corners: bool) -> Route:
     """
     Generate a route where only the first point and last points have gate and time checks. All other gates are secret
     without gate or tone checks.  Each gate has a width equal
@@ -151,7 +152,7 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
     waypoint_list[-1].gate_check = True
     waypoint_list[-1].time_check = True
     logger.debug(f"Created waypoints {waypoint_list}")
-    return create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, False)
+    return create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners)
 
 
 def create_precision_route_from_csv(route_name: str, lines: List[str], use_procedure_turns: bool) -> Route:
@@ -196,21 +197,22 @@ def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_pro
     calculate_and_update_legs(waypoint_list, use_procedure_turns)
     insert_gate_ranges(waypoint_list)
 
-    object = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=use_procedure_turns)
-    object.save()
-    return object
+    instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=use_procedure_turns)
+    instance.save()
+    return instance
 
 
-def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
+def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners: bool) -> Route:
     gates = waypoint_list
     for index in range(1, len(gates) - 1):
-        gates[index].gate_line = create_bisecting_line_between_segments_corridor_width_lonlat(gates[index - 1].longitude,
-                                                                                              gates[index - 1].latitude,
-                                                                                              gates[index].longitude,
-                                                                                              gates[index].latitude,
-                                                                                              gates[index + 1].longitude,
-                                                                                              gates[index + 1].latitude,
-                                                                                              gates[index].width * 1852)
+        gates[index].gate_line = create_bisecting_line_between_segments_corridor_width_lonlat(
+            gates[index - 1].longitude,
+            gates[index - 1].latitude,
+            gates[index].longitude,
+            gates[index].latitude,
+            gates[index + 1].longitude,
+            gates[index + 1].latitude,
+            gates[index].width * 1852)
         # Switch from longitude, Latitude to lattitude, longitude
         gates[index].gate_line[0].reverse()
         gates[index].gate_line[1].reverse()
@@ -232,12 +234,23 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, use_
     gates[-1].gate_line[0].reverse()
     gates[-1].gate_line[1].reverse()
 
-    calculate_and_update_legs(waypoint_list, use_procedure_turns)
+
+    # Calculate bearings and distances
+    calculate_and_update_legs(waypoint_list, False)
     insert_gate_ranges(waypoint_list)
 
-    object = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=use_procedure_turns)
-    object.save()
-    return object
+    # All the gate lines are now in the correct direction, round corners if required
+    if rounded_corners:
+        for index in range(1, len(gates) - 1):
+            waypoint = gates[index]  # type: Waypoint
+            turn_degrees = bearing_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
+            waypoint.left_corridor_line, waypoint.right_corridor_line = create_rounded_corridor_corner(
+                waypoint.gate_line, waypoint.width, turn_degrees)
+
+    instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
+    instance.rounded_corners = rounded_corners
+    instance.save()
+    return instance
 
 
 def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bool):

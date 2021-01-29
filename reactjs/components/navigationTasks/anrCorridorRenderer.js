@@ -12,16 +12,22 @@ export default class AnrCorridorRenderer extends Component {
 
     renderRoute() {
         this.props.navigationTask.route.waypoints.map((gate) => {
-            polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
-                color: "blue"
-            }).addTo(this.props.map)
-            // }
+            if (["sp", "fp"].includes(gate.type)) {
+                polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
+                    color: "blue"
+                }).addTo(this.props.map)
+            }
         })
         let outsideTrack = []
         let insideTrack = []
         for (const waypoint of this.props.navigationTask.route.waypoints) {
-            outsideTrack.push(waypoint.gate_line[0])
-            insideTrack.push(waypoint.gate_line[1])
+            if (this.props.navigationTask.route.rounded_corners && waypoint.left_corridor_line) {
+                outsideTrack.push(...waypoint.left_corridor_line)
+                insideTrack.push(...waypoint.right_corridor_line)
+            } else {
+                outsideTrack.push(waypoint.gate_line[0])
+                insideTrack.push(waypoint.gate_line[1])
+            }
         }
         this.props.navigationTask.route.waypoints.filter((waypoint) => {
             return waypoint.gate_check || waypoint.time_check

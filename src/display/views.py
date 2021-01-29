@@ -668,8 +668,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         elif task_type == TASK_ANR_CORRIDOR:
             data = self.get_cleaned_data_for_step("anr_route_import")["file"]
             data.seek(0)
+            rounded_corners = self.get_cleaned_data_for_step("anr_route_import")["rounded_corners"]
             corridor_width = self.get_cleaned_data_for_step("anr_corridor_override")["corridor_width"]
-            route = create_anr_corridor_route_from_kml("route", data, corridor_width)
+            route = create_anr_corridor_route_from_kml("route", data, corridor_width, rounded_corners)
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
         if task_type == TASK_PRECISION:

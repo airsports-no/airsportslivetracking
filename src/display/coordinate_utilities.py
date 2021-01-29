@@ -314,6 +314,78 @@ def get_procedure_turn_track(latitude, longitude, bearing_in, bearing_out, turn_
     return points_list
 
 
+def rotate_vector_angle(x, y, degrees):
+    # Rotation is counterclockwise for positive angles, so negate the angle to make it make sense
+    rad = -to_rad(degrees)
+    return np.array([x * np.cos(rad) - y * np.sin(rad), x * np.sin(rad) + y * np.cos(rad)])
+
+
+def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tuple[float, float]],
+                                   corridor_width: float, turn_degrees: float) -> Tuple[
+    List[Tuple[float, float]], List[Tuple[float, float]]]:
+    """
+    Create a rounded line for the left and right corridor walls for the turn described by the bisecting line
+
+    :param left_turn: If left turn, the first coordinate of the bisecting line is the inside corner, otherwise the
+    second coordinate is the inside corner
+    :param corridor_width: The width of the corridor NM
+    :param turn_degrees: The number of degrees for the turn
+    :param bisecting_line: The line that bisects the middle of the turn
+    :return: List of points that make up the left-hand corridor line, list of points that make up the right-hand corridor line
+    """
+    if turn_degrees == 0:
+        return [bisecting_line[0]], [bisecting_line[1]]
+    print(f"bisecting_line: {bisecting_line}")
+    print(f"turn_degrees: {turn_degrees}")
+    left_turn = turn_degrees < 0
+    initial_offset = -1 * turn_degrees / 2
+    if left_turn:
+        bisection_bearing = calculate_bearing(*bisecting_line)
+        circle_centre = bisecting_line[0]
+        circle_perimeter = bisecting_line[1]
+    else:
+        bisection_bearing = calculate_bearing(*list(reversed(bisecting_line)))
+        circle_centre = bisecting_line[1]
+        circle_perimeter = bisecting_line[0]
+    pc = ccrs.PlateCarree()
+    epsg = ccrs.epsg(3857)
+    centre_x, centre_y = epsg.transform_point(*reversed(circle_centre), pc)
+    perimeter_x, perimeter_y = epsg.transform_point(*reversed(circle_perimeter), pc)
+    unit_circle = norm_v(
+        np.array([perimeter_x, perimeter_y] - np.array([centre_x, centre_y])))
+    starting_point = rotate_vector_angle(unit_circle[0], unit_circle[1], initial_offset)
+    print(f"startingpoint: {starting_point}")
+    centre_curve = []
+    for angle in np.arange(0, turn_degrees, turn_degrees / 10):
+        centre_curve.append(
+            (np.array(rotate_vector_angle(starting_point[0], starting_point[1],
+                                          angle)) * corridor_width * 1862) + np.array(
+                [centre_x, centre_y]))
+    print(f"centre_curve: {centre_curve}")
+    left_edge = []
+    right_edge = []
+    bisecting_line_left = epsg.transform_point(*reversed(bisecting_line[0]), pc)
+    bisecting_line_right = epsg.transform_point(*reversed(bisecting_line[1]), pc)
+    bisection_centre = np.array([(bisecting_line_left[0] + bisecting_line_right[0]) / 2,
+                                 (bisecting_line_left[1] + bisecting_line_right[1]) / 2])
+    bisection_perimeter = np.array([perimeter_x, perimeter_y])
+    for position in centre_curve:
+        outer_to_position = position - bisection_perimeter
+        left_edge.append(list(np.array(bisecting_line_left) + outer_to_position))
+        right_edge.append(list(np.array(bisecting_line_right) + outer_to_position))
+    left_edge = np.array(left_edge)
+    right_edge = np.array(right_edge)
+    print(f"left_edge: {left_edge}")
+    print(f"left_edge.shape: {left_edge.shape}")
+    left_edge_lonlat = pc.transform_points(epsg, left_edge[:, 0], left_edge[:, 1])
+    right_edge_lonlat = pc.transform_points(epsg, right_edge[:, 0], right_edge[:, 1])
+    left_edge_lonlat[:, [0, 1]] = left_edge_lonlat[:, [1, 0]]
+    right_edge_lonlat[:, [0, 1]] = right_edge_lonlat[:, [1, 0]]
+    print(f"left_edge_lonlat: {left_edge_lonlat}")
+    print(f"left_edge_lonlat.shape: {left_edge_lonlat.shape}")
+    return left_edge_lonlat, right_edge_lonlat
+
+
 def create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length):
     """
 

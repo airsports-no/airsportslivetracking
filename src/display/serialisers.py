@@ -67,6 +67,9 @@ class WaypointSerialiser(serializers.Serializer):
     inside_distance = serializers.FloatField(help_text="The distance at which we enter the gate vicinity",
                                              read_only=True, required=False)
 
+    left_corridor_line = serializers.JSONField()
+    right_corridor_line = serializers.JSONField()
+
 
 class RouteSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)

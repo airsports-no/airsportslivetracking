@@ -23,6 +23,9 @@ class Waypoint:
         self.is_procedure_turn = False
         self.is_steep_turn = False
 
+        self.left_corridor_line = None
+        self.right_corridor_line = None
+
         self.inside_distance = 0
         self.outside_distance = 0
 
@@ -39,8 +42,9 @@ class Waypoint:
     @property
     def procedure_turn_points(self):
         if self.is_procedure_turn:
-            return get_procedure_turn_track(self.latitude, self.longitude, self.bearing_from_previous, self.bearing_next,
-                                        0.2)
+            return get_procedure_turn_track(self.latitude, self.longitude, self.bearing_from_previous,
+                                            self.bearing_next,
+                                            0.2)
         return []
 
     def __str__(self):

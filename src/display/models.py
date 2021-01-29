@@ -68,6 +68,7 @@ class Aeroplane(models.Model):
 class Route(models.Model):
     name = models.CharField(max_length=200)
     use_procedure_turns = models.BooleanField(default=True, blank=True)
+    rounded_corners = models.BooleanField(default=False, blank=True)
     waypoints = MyPickledObjectField(default=list)
     takeoff_gate = MyPickledObjectField(default=None, null=True)
     landing_gate = MyPickledObjectField(default=None, null=True)

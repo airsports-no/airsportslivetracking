@@ -99,8 +99,8 @@ class PrecisionScoreOverrideForm(forms.Form):
 
 
 class ANRCorridorScoreOverrideForm(forms.Form):
-    corridor_width = forms.FloatField(required=True)
-    corridor_grace_time = forms.IntegerField(required=True)
+    corridor_width = forms.FloatField(required=True, initial=1)
+    corridor_grace_time = forms.IntegerField(required=True, initial=1)
 
     def build_score_override(self, navigation_task: NavigationTask) -> TrackScoreOverride:
         return TrackScoreOverride.objects.create(navigation_task=navigation_task,
@@ -135,6 +135,7 @@ class PrecisionImportRouteForm(forms.Form):
 
 class ANRCorridorImportRouteForm(forms.Form):
     file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml"])])
+    rounded_corners = forms.BooleanField(required=False, initial=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
