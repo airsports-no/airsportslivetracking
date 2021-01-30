@@ -37,7 +37,7 @@ from rest_framework.viewsets import ModelViewSet, ViewSet
 
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx, create_precision_route_from_csv, \
     load_route_points_from_kml, \
-    create_precision_route_from_formset, create_anr_corridor_route_from_kml
+    create_precision_route_from_formset, create_anr_corridor_route_from_kml, load_features_from_kml
 from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, \
     FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
@@ -671,8 +671,13 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 second_step_data = self.get_cleaned_data_for_step("waypoint_definition")
                 print(" Second step data")
                 pprint(second_step_data)
-                route = create_precision_route_from_formset(initial_step_data["name"], second_step_data,
-                                                            use_procedure_turns)
+                if initial_step_data["file_type"] == FILE_TYPE_KML:
+                    data = self.get_cleaned_data_for_step("precision_route_import")["file"]
+                    data.seek(0)
+                else:
+                    data = None
+                route = create_precision_route_from_formset("route", second_step_data,
+                                                            use_procedure_turns, data)
         elif task_type == TASK_ANR_CORRIDOR:
             data = self.get_cleaned_data_for_step("anr_route_import")["file"]
             data.seek(0)
@@ -711,7 +716,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             if data.get("file_type") == FILE_TYPE_KML:
                 # print(" (subfile contents {}".format(data["file"].read()))
                 data["file"].seek(0)
-                positions = load_route_points_from_kml(data['file'])
+                features = load_features_from_kml(data["file"])
+                positions = features.get("route", [])
                 initial = []
                 for position in positions:
                     initial.append({

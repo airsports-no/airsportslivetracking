@@ -136,6 +136,19 @@ class TaskTypeForm(forms.Form):
         self.helper = FormHelper()
         self.helper.add_input(Submit("submit", "Submit"))
 
+kml_description = HTML("""
+            <p>The KML must contain at least the following:
+            <ol>
+            <li>route: A path with the name "route" which makes up the route that should be flown.</li>
+            </ol>
+            The KML file can optionally also include:
+            <ol>
+            <li>to: A path with the name "to" that defines the takeoff gate. This is typically located across the runway</li>
+            <li>ldg: A path with the name "ldg" that defines the landing gate. This is typically located across the runway. It can be at the same location as the take of gate, but it must be a separate path</li>
+            <li>prohibited: A polygon with the name "prohibited_*" where '*' can be replaced with an arbitrary text. They can be between zero and infinite number of these, and they describe prohibited zones either in an ANR context, or can be used to mark airspace that should not be infringed, for instance.</li>
+            </ol>
+            </p>
+            """)
 
 class PrecisionImportRouteForm(forms.Form):
     file_type = forms.ChoiceField(choices=FILE_TYPES)
@@ -144,7 +157,16 @@ class PrecisionImportRouteForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.add_input(Submit("submit", "Submit"))
+        self.helper.layout = Layout(
+            Fieldset(
+                "Route import",
+                "file",
+            ),
+            kml_description,
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
 
 
 class ANRCorridorImportRouteForm(forms.Form):
@@ -162,19 +184,7 @@ class ANRCorridorImportRouteForm(forms.Form):
                 "file",
                 "rounded_corners"
             ),
-            HTML("""
-            <p>The KML must contain at least the following:
-            <ol>
-            <li>route: A path with the name "route" which makes up the route that should be flown.</li>
-            </ol>
-            The KML file can optionally also include:
-            <ol>
-            <li>to: A path with the name "to" that defines the takeoff gate. This is typically located across the runway</li>
-            <li>ldg: A path with the name "ldg" that defines the landing gate. This is typically located across the runway. It can be at the same location as the take of gate, but it must be a separate path</li>
-            <li>prohibited: A polygon with the name "prohibited_*" where '*' can be replaced with an arbitrary text. They can be between zero and infinite number of these, and they describe prohibited zones either in an ANR context, or can be used to mark airspace that should not be infringed, for instance.</li>
-            </ol>
-            </p>
-            """),
+            kml_description,
             ButtonHolder(
                 Submit("submit", "Submit")
             )

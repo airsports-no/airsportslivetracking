@@ -1,7 +1,7 @@
 # from lxml import etree
 import logging
 from plistlib import Dict
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import gpxpy
 from django.core.exceptions import ValidationError
@@ -88,6 +88,7 @@ def load_features_from_kml(input_kml) -> Dict:
     return lines
 
 
+#####  Should not be used anymore
 def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
     """
     Requires a single place marked with a line string inside the KML file
@@ -189,13 +190,34 @@ def build_waypoint(name, latitude, longitude, type, width, time_check, gate_chec
     return waypoint
 
 
-def create_precision_route_from_formset(route_name, data: Dict, use_procedure_turns: bool) -> Route:
+def extract_additional_features_from_kml_features(features: Dict, route: Route):
+    takeoff_gate_line = features.get("to")
+    if takeoff_gate_line is not None:
+        route.takeoff_gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
+    route.takeoff_gate.gate_line = takeoff_gate_line
+    landing_gate_line = features.get("ldg")
+    if landing_gate_line is not None:
+        route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
+    route.save()
+    # Create prohibited zones
+    for name in features.keys():
+        if name.startswith("prohibited_"):
+            zone_name = name.split("_")[1]
+            Prohibited.objects.create(name=zone_name, route=route, path=features[name])
+
+
+def create_precision_route_from_formset(route_name, data: Dict, use_procedure_turns: bool, input_kml: Optional = None) -> Route:
     waypoint_list = []
     for item in data:
         waypoint_list.append(
             build_waypoint(item["name"], item["latitude"], item["longitude"], item["type"], item["width"],
                            item["time_check"], item["gate_check"]))
-    return create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
+
+    route = create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
+    if input_kml is not None:
+        features = load_features_from_kml(input_kml)
+        extract_additional_features_from_kml_features(features, route)
+    return route
 
 
 def create_gate_from_line(gate_line, name: str, type: str) -> Waypoint:
@@ -233,20 +255,7 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
     waypoint_list[-1].time_check = True
     logger.debug(f"Created waypoints {waypoint_list}")
     route = create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners)
-    takeoff_gate_line = features.get("to")
-    if takeoff_gate_line is not None:
-        route.takeoff_gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
-    route.takeoff_gate.gate_line = takeoff_gate_line
-    landing_gate_line = features.get("ldg")
-    if landing_gate_line is not None:
-        route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
-    route.save()
-    print(f"takeoff_gate: {route.takeoff_gate}")
-    # Create prohibited zones
-    for name in features.keys():
-        if name.startswith("prohibited_"):
-            zone_name = name.split("_")[1]
-            Prohibited.objects.create(name=zone_name, route=route, path=features[name])
+    extract_additional_features_from_kml_features(features, route)
     return route
 
 
