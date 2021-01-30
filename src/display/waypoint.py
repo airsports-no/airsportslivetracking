@@ -23,11 +23,34 @@ class Waypoint:
         self.is_procedure_turn = False
         self.is_steep_turn = False
 
-        self.left_corridor_line = None
-        self.right_corridor_line = None
+        self._left_corridor_line = None
+        self._right_corridor_line = None
 
         self.inside_distance = 0
         self.outside_distance = 0
+
+    ######## Required for backwards compatibility
+    @property
+    def left_corridor_line(self):
+        if hasattr(self, "_left_corridor_line"):
+            return self._left_corridor_line
+        return []
+    
+    @left_corridor_line.setter
+    def left_corridor_line(self, value):
+        self._left_corridor_line = value
+
+    @property
+    def right_corridor_line(self):
+        if hasattr(self, "_right_corridor_line"):
+            return self._right_corridor_line
+        return []
+
+    @right_corridor_line.setter
+    def right_corridor_line(self, value):
+        self._right_corridor_line = value
+    #########################
+
 
     @property
     def gate_line_infinite(self):
