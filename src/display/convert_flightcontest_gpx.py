@@ -163,6 +163,12 @@ def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
                 if waypoint.type == "ldg":
                     assert not landing_gate
                     landing_gate = waypoint
+    if len(waypoints) < 2:
+        raise ValidationError("A route must at least have a starting point and finish point")
+    if waypoints[0].type != "sp":
+        raise ValidationError("The first waypoint must be of type starting point")
+    if waypoints[-1].type != "fp":
+        raise ValidationError("The last waypoint must be of type finish point")
 
     calculate_and_update_legs(waypoints, use_procedure_turns)
     insert_gate_ranges(waypoints)
@@ -198,7 +204,7 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
     landing_gate_line = features.get("ldg")
     if landing_gate_line is not None:
         route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
-        route.landing_gate.gate_line=landing_gate_line
+        route.landing_gate.gate_line = landing_gate_line
     route.save()
     # Create prohibited zones
     for name in features.keys():
@@ -207,7 +213,8 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
             Prohibited.objects.create(name=zone_name, route=route, path=features[name])
 
 
-def create_precision_route_from_formset(route_name, data: Dict, use_procedure_turns: bool, input_kml: Optional = None) -> Route:
+def create_precision_route_from_formset(route_name, data: Dict, use_procedure_turns: bool,
+                                        input_kml: Optional = None) -> Route:
     waypoint_list = []
     for item in data:
         waypoint_list.append(
@@ -278,6 +285,12 @@ def create_precision_route_from_csv(route_name: str, lines: List[str], use_proce
 
 
 def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
+    if len(waypoint_list) < 2:
+        raise ValidationError("A route must at least have a starting point and finish point")
+    if waypoint_list[0].type != "sp":
+        raise ValidationError("The first waypoint must be of type starting point")
+    if waypoint_list[-1].type != "fp":
+        raise ValidationError("The last waypoint must be of type finish point")
     gates = waypoint_list
     for index in range(len(gates) - 1):
         gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
@@ -308,6 +321,13 @@ def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_pro
 
 
 def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners: bool) -> Route:
+    if len(waypoint_list) < 2:
+        raise ValidationError("A route must at least have a starting point and finish point")
+    if waypoint_list[0].type != "sp":
+        raise ValidationError("The first waypoint must be of type starting point")
+    if waypoint_list[-1].type != "fp":
+        raise ValidationError("The last waypoint must be of type finish point")
+
     gates = waypoint_list
     for index in range(1, len(gates) - 1):
         gates[index].gate_line = create_bisecting_line_between_segments_corridor_width_lonlat(
