@@ -31,7 +31,7 @@
 		</Pair>
 	</StyleMap>
 	<Placemark>
-		<name>eidsvoll</name>
+		<name>route</name>
 		<styleUrl>#m_ylw-pushpin</styleUrl>
 		<LineString>
 			<tessellate>1</tessellate>

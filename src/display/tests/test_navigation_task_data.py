@@ -661,6 +661,8 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         for index, waypoint in enumerate(route["waypoints"]):
             del waypoint["procedure_turn_points"]
             del waypoint["inside_distance"]
+            del waypoint["left_corridor_line"]
+            del waypoint["right_corridor_line"]
             del waypoint["outside_distance"]
             self.assertDictEqual(expected_route["waypoints"][index], waypoint)
             self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])

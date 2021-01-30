@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import dateutil
 from django.test import TransactionTestCase
 
-from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
+from display.calculators.calculator_factory import calculator_factory
 from display.calculators.calculator_utilities import load_track_points_traccar_csv
 from display.convert_flightcontest_gpx import create_anr_corridor_route_from_kml
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Person, Team, Contestant, ContestantTrack, \
@@ -27,7 +27,7 @@ class TestANR(TransactionTestCase):
     @patch("display.models.get_traccar_instance")
     def setUp(self, p):
         with open("display/calculators/tests/eidsvoll.kml", "r") as file:
-            route = create_anr_corridor_route_from_kml("test", file, 0.5)
+            route = create_anr_corridor_route_from_kml("test", file, 0.5, False)
         navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
         navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -63,7 +63,7 @@ class TestANR(TransactionTestCase):
                                                     minutes_to_starting_point=7,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
-        calculator = AnrCorridorCalculator(self.contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(track)
         calculator.join()
@@ -87,7 +87,7 @@ class TestANR(TransactionTestCase):
                                                     minutes_to_starting_point=7,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
-        calculator = AnrCorridorCalculator(self.contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(track)
         calculator.join()

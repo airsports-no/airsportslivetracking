@@ -1,29 +1,35 @@
 import logging
-from typing import TYPE_CHECKING
+from typing import List, Callable
 import numpy as np
 from shapely.geometry import Polygon, Point
 
 import cartopy.crs as ccrs
-from display.calculators.calculator_utilities import cross_track_gate
-from display.calculators.precision_calculator import PrecisionCalculator
-from display.models import Contestant
 
-if TYPE_CHECKING:
-    from influx_facade import InfluxFacade
+from display.calculators.calculator import Calculator
+from display.calculators.positions_and_gates import Position, Gate
+from display.models import Contestant, Scorecard, Route
 
 logger = logging.getLogger(__name__)
 
 
-class AnrCorridorCalculator(PrecisionCalculator):
+class AnrCorridorCalculator(Calculator):
     """
     Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
     """
+
+    def passed_finishpoint(self):
+        pass
+
+    def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
+        pass
+
     INSIDE_CORRIDOR = 0
     OUTSIDE_CORRIDOR = 1
     OUTSIDE_CORRIDOR_PENALTY_TYPE = "outside_corridor"
 
-    def __init__(self, contestant: "Contestant", influx: "InfluxFacade", live_processing: bool = True):
-        super().__init__(contestant, influx, live_processing)
+    def __init__(self, contestant: "Contestant", scorecard: "Scorecard", gates: List["Gate"], route: "Route",
+                 update_score: Callable):
+        super().__init__(contestant, scorecard, gates, route, update_score)
         self.corridor_state = self.INSIDE_CORRIDOR
         self.crossed_outside_time = None
         self.last_outside_penalty = None
@@ -53,37 +59,33 @@ class AnrCorridorCalculator(PrecisionCalculator):
         p = Point(x, y)
         return self.track_polygon.contains(p)
 
-    def calculate_score(self):
-        super().calculate_score()
-        self.check_outside_corridor()
+    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
+        self.check_outside_corridor(track, last_gate)
 
-    def check_outside_corridor(self):
-        if self.tracking_state == self.FINISHED:
-            return
-        if self.last_gate and len(self.outstanding_gates) > 0:
-            # We are inside the corridor, between starting point and finish point
-            if not self._check_inside_polygon(self.track[-1].latitude, self.track[-1].longitude):
-                # We are outside the corridor
-                if self.corridor_state == self.INSIDE_CORRIDOR:
-                    logger.info(
-                        "{} {}: Heading outside of corridor".format(self.contestant, self.track[-1].time))
-
-                    self.crossed_outside_position = self.track[-1]
-                    self.corridor_state = self.OUTSIDE_CORRIDOR
-                    self.crossed_outside_time = self.track[-1].time
-            elif self.corridor_state == self.OUTSIDE_CORRIDOR:
-                self.corridor_state = self.INSIDE_CORRIDOR
-                outside_time = (self.track[-1].time - self.crossed_outside_time).total_seconds()
-                penalty_time = outside_time - self.scorecard.get_corridor_grace_time(self.contestant)
+    def check_outside_corridor(self, track: List["Position"], last_gate: "Gate"):
+        position = track[-1]
+        if not self._check_inside_polygon(position.latitude, position.longitude):
+            # We are outside the corridor
+            if self.corridor_state == self.INSIDE_CORRIDOR:
                 logger.info(
-                    "{} {}: Back inside the corridor after {} seconds".format(self.contestant, self.track[-1].time,
-                                                                              outside_time))
-                if penalty_time > 0:
-                    penalty_time = np.round(penalty_time)
-                    self.update_score(self.last_gate,
-                                      self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time,
-                                      "outside corridor ({} seconds)".format(int(penalty_time)),
-                                      self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
-                                      "anomaly", self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
-                                      maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(
-                                          self.contestant))
+                    "{} {}: Heading outside of corridor".format(self.contestant, position.time))
+
+                self.crossed_outside_position = position
+                self.corridor_state = self.OUTSIDE_CORRIDOR
+                self.crossed_outside_time = position.time
+        elif self.corridor_state == self.OUTSIDE_CORRIDOR:
+            self.corridor_state = self.INSIDE_CORRIDOR
+            outside_time = (position.time - self.crossed_outside_time).total_seconds()
+            penalty_time = outside_time - self.scorecard.get_corridor_grace_time(self.contestant)
+            logger.info(
+                "{} {}: Back inside the corridor after {} seconds".format(self.contestant, position.time,
+                                                                          outside_time))
+            if penalty_time > 0:
+                penalty_time = np.round(penalty_time)
+                self.update_score(last_gate,
+                                  self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time,
+                                  "outside corridor ({} seconds)".format(int(penalty_time)),
+                                  self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
+                                  "anomaly", self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
+                                  maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(
+                                      self.contestant))

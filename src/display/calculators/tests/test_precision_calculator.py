@@ -7,8 +7,8 @@ import gpxpy
 from django.contrib.auth.models import User
 from django.test import TestCase, TransactionTestCase
 
+from display.calculators.calculator_factory import calculator_factory
 from display.calculators.positions_and_gates import Gate
-from display.calculators.precision_calculator import PrecisionCalculator
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx, calculate_extended_gate
 from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew, \
     Contest, Person, TrackScoreOverride, GateScoreOverride
@@ -71,7 +71,7 @@ class TestFullTrack(TransactionTestCase):
 
     def test_correct_scoring_correct_track_precision(self, patch):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
-        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
@@ -128,7 +128,7 @@ class TestFullTrack(TransactionTestCase):
         self.contestant.track_score_override = track_override
         self.contestant.save()
         self.contestant.gate_score_override.add(gate_override)
-        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
@@ -145,7 +145,7 @@ class TestFullTrack(TransactionTestCase):
                                                minutes_to_starting_point=6, air_speed=speed,
                                                wind_direction=165, wind_speed=8)
         positions = load_track_points("display/calculators/tests/Helge.gpx")
-        calculator = PrecisionCalculator(contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
@@ -154,7 +154,7 @@ class TestFullTrack(TransactionTestCase):
 
     def test_correct_scoring_bad_track_precision(self, patch):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
-        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
@@ -163,13 +163,14 @@ class TestFullTrack(TransactionTestCase):
 
     def test_missed_procedure_turn(self, patch):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
-        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         print(contestant_track.score_log)
         strings = [item["string"] for item in contestant_track.score_log]
+
         self.assertTrue("TP1: 200.0 points incorrect procedure turn" in strings)
         self.assertTrue("TP4: 200.0 points incorrect procedure turn" in strings)
         # This is a bit in question, but I think it is correct since he never crosses the extended gate line
@@ -218,7 +219,7 @@ class Test2017WPFC(TransactionTestCase):
                                                     minutes_to_starting_point=8,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=18)
-        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(track)
         calculator.join()
@@ -304,7 +305,7 @@ class TestNM2019(TransactionTestCase):
                                                     minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(track)
         calculator.join()
@@ -324,7 +325,7 @@ class TestNM2019(TransactionTestCase):
                                                     minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        calculator = PrecisionCalculator(self.contestant, Mock(), live_processing=False)
+        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
         calculator.start()
         calculator.add_positions(track)
         calculator.join()

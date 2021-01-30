@@ -194,10 +194,11 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
     takeoff_gate_line = features.get("to")
     if takeoff_gate_line is not None:
         route.takeoff_gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
-    route.takeoff_gate.gate_line = takeoff_gate_line
+        route.takeoff_gate.gate_line = takeoff_gate_line
     landing_gate_line = features.get("ldg")
     if landing_gate_line is not None:
         route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
+        route.landing_gate.gate_line=landing_gate_line
     route.save()
     # Create prohibited zones
     for name in features.keys():

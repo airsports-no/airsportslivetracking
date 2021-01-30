@@ -1,43 +1,55 @@
 import datetime
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Callable
 
 from display.calculators.calculator import Calculator
-from display.calculators.calculator_utilities import distance_between_gates, bearing_between
+from display.calculators.calculator_utilities import bearing_between
 from display.coordinate_utilities import get_heading_difference, calculate_distance_lat_lon
-from display.models import Contestant
+from display.models import Contestant, Scorecard, Route
 
 if TYPE_CHECKING:
-    from influx_facade import InfluxFacade
     from display.calculators.positions_and_gates import Gate, Position
 
 logger = logging.getLogger(__name__)
 
 
-class PrecisionCalculator(Calculator):
+class BacktrackingAndProcedureTurnsCalculator(Calculator):
     """
     Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
     """
     PROCEDURE_TURN_SCORE_TYPE = "procedure_turn"
     BACKTRACKING_SCORE_TYPE = "backtracking"
-    BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
+
+    BEFORE_START = 0
+    STARTED = 1
+    FINISHED = 2
+    TAKEOFF = 4
+
+    TRACKING = 3
 
     DEVIATING = 8
     BACKTRACKING = 5
     PROCEDURE_TURN = 6
     FAILED_PROCEDURE_TURN = 7
     BACKTRACKING_TEMPORARY = 9
-    TRACKING_MAP = dict(Calculator.TRACKING_MAP)
-    TRACKING_MAP.update({
+    TRACKING_MAP = {
+        BEFORE_START: "Waiting...",
+        FINISHED: "Finished",
+        STARTED: "Started",
+        TAKEOFF: "Takeoff",
+        TRACKING: "Tracking",
         BACKTRACKING: "Backtracking",
         PROCEDURE_TURN: "Procedure turn",
         FAILED_PROCEDURE_TURN: "Failed procedure turn",
         DEVIATING: "Deviating",
         BACKTRACKING_TEMPORARY: "Off-track"
-    })
+    }
 
-    def __init__(self, contestant: "Contestant", influx: "InfluxFacade", live_processing: bool = True):
-        super().__init__(contestant, influx, live_processing=live_processing)
+    def __init__(self, contestant: "Contestant", scorecard: "Scorecard", gates: List["Gate"], route: "Route",
+                 update_score: Callable):
+        super().__init__(contestant, scorecard, gates, route, update_score)
+        self.contestant = contestant
+        self.scorecard = scorecard
         self.current_procedure_turn_gate = None
         self.current_procedure_turn_directions = []
         self.current_procedure_turn_slices = []
@@ -46,7 +58,6 @@ class PrecisionCalculator(Calculator):
         self.backtracking_start_time = None
         self.circling_lookback_seconds = 120
         self.circling_position_list = []
-        self.last_gate_index = 0
         self.last_bearing = None
         self.last_gate_previous_round = None
         self.current_speed_estimate = 0
@@ -55,32 +66,23 @@ class PrecisionCalculator(Calculator):
         self.between_tracks = False
         self.calculate_track = False
         self.circling = False
+        self.tracking_state = self.BEFORE_START
 
-    def check_intersections(self):
-        # Check starting line
-        if not self.starting_line.has_infinite_been_passed():
-            # First check extended and see if we are in the correct direction
-            # Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
-            # A 2.2.14
-            intersection_time = self.starting_line.get_gate_extended_intersection_time(self.projector, self.track)
-            if intersection_time:
-                if not self.starting_line.is_passed_in_correct_direction_track_to_next(self.track):
-                    # Add penalty for crossing in the wrong direction
-                    score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp",
-                                                                                                self.contestant)
-                    self.update_score(self.starting_line, score,
-                                      "crossing extended starting gate backwards",
-                                      self.track[-1].latitude, self.track[-1].longitude, "anomaly",
-                                      self.BACKWARD_STARTING_LINE_SCORE_TYPE)
-        super(PrecisionCalculator, self).check_intersections()
+    def update_tracking_state(self, tracking_state: int):
+        if tracking_state == self.tracking_state:
+            return
+        logger.info("{}: Changing state to {}".format(self.contestant, self.TRACKING_MAP[tracking_state]))
+        self.tracking_state = tracking_state
+        self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
-    def calculate_score(self):
-        self.check_intersections()
+    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
         # Need to do the track score first since this might declare the remaining gates as missed if we are done
         # with the track. We can then calculate gate score and consider the missed gates.
-        self.calculate_track_score()
-        self.detect_circling()
-        self.calculate_gate_score()
+        self.calculate_track_score(track, last_gate, in_range_of_gate)
+        self.detect_circling(track, last_gate)
+
+    def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
+        self.circling_position_list = []
 
     def update_current_leg(self, current_leg):
         if current_leg:
@@ -90,78 +92,9 @@ class PrecisionCalculator(Calculator):
 
     TIME_FORMAT = "%H:%M:%S"
 
-    def calculate_gate_score(self):
-        index = 0
-        finished = False
-        current_position = self.track[-1]
-        for gate in self.gates[self.last_gate_index:]:  # type: Gate
-            if finished:
-                break
-            if gate.missed:
-                index += 1
-                if gate.gate_check:
-                    score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
-                                                                               gate.expected_time, None)
-                    self.update_score(gate, score, "missing gate", current_position.latitude,
-                                      current_position.longitude, "anomaly", "gate_score",
-                                      planned=gate.expected_time)
-                    # Commented out because of A.2.2.16
-                    # if gate.is_procedure_turn and not gate.extended_passing_time:
-                    # Penalty if not crossing extended procedure turn turning point, then the procedure turn was per definition not performed
-                    # score = self.scorecard.get_procedure_turn_penalty_for_gate_type(gate.type,
-                    #                                                                 self.contestant)
-                    # self.update_score(gate, score,
-                    #                   "missing procedure turn",
-                    #                   current_position.latitude, current_position.longitude, "anomaly")
-            elif gate.passing_time is not None:
-                index += 1
-                if gate.time_check:
-                    time_difference = (gate.passing_time - gate.expected_time).total_seconds()
-                    # logger.info("Time difference at gate {}: {}".format(gate.name, time_difference))
-                    self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
-                    gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
-                                                                                    gate.expected_time,
-                                                                                    gate.passing_time)
-                    self.update_score(gate, gate_score,
-                                      "passing gate",
-                                      current_position.latitude, current_position.longitude, "information",
-                                      self.GATE_SCORE_TYPE,
-                                      planned=gate.expected_time, actual=gate.passing_time)
-                else:
-                    self.update_score(gate, 0,
-                                      "passing gate (no time check)",
-                                      current_position.latitude, current_position.longitude, "information",
-                                      self.GATE_SCORE_TYPE,
-                                      planned=gate.expected_time, actual=gate.passing_time)
-
-            else:
-                finished = True
-        self.last_gate_index += index
-
-    def any_gate_passed(self):
-        return any([gate.has_been_passed() for gate in self.gates])
-
-    def all_gates_passed(self):
-        return all([gate.has_been_passed() for gate in self.gates])
-
-    def miss_outstanding_gates(self):
-        for item in self.outstanding_gates:
-            item.missed = True
-        self.outstanding_gates = []
-
-    def detect_circling(self):
-        PILOT_NAME = "PilotFirst-016"
-        if len(self.track) == 0:
-            return
-        if not self.calculate_track:
-            if self.contestant.team.crew.member1.first_name == PILOT_NAME:
-                logger.info("{}: Resetting position list since we are not calculating track".format(self.contestant))
-            self.circling_position_list = []
-            return
-        last_position = self.track[-1]
+    def detect_circling(self, track: List["Position"], last_gate: "Gate"):
+        last_position = track[-1]
         if self.tracking_state in (self.BACKTRACKING, self.PROCEDURE_TURN):
-            if self.contestant.team.crew.member1.first_name == PILOT_NAME:
-                logger.info("{}: Resetting position list".format(self.contestant))
             self.circling_position_list = []
         self.circling_position_list.append(last_position)
         while len(self.circling_position_list) > 0:
@@ -179,9 +112,6 @@ class PrecisionCalculator(Calculator):
             for index in range(0, len(bearings) - 2):
                 turn_slices.append(get_heading_difference(bearings[index], bearings[index + 1]))
             total_turn = sum(turn_slices)
-            if self.contestant.team.crew.member1.first_name == PILOT_NAME:
-                logger.info("{}: total_turn {:.0f} position_length = {}".format(self.contestant, total_turn,
-                                                                                len(self.circling_position_list)))
             if abs(total_turn) > 180 and not self.circling:
                 # We are circling
                 self.circling = True
@@ -192,7 +122,7 @@ class PrecisionCalculator(Calculator):
                                                                                                              -1].time -
                                                                                                          self.circling_position_list[
                                                                                                              0].time).total_seconds()))
-                self.update_score(self.last_gate or self.gates[0],
+                self.update_score(last_gate or self.gates[0],
                                   self.scorecard.get_backtracking_penalty(self.contestant),
                                   "circling",
                                   last_position.latitude, last_position.longitude, "anomaly",
@@ -202,70 +132,49 @@ class PrecisionCalculator(Calculator):
                 # No longer circling
                 self.circling = False
 
-    def calculate_track_score(self):
-        self.calculate_track = False
-        if self.tracking_state == self.FINISHED:
-            return
-        if self.track_terminated:
-            self.miss_outstanding_gates()
-            logger.info("{}: This is the end of the track, terminating".format(self.contestant))
-            self.update_tracking_state(self.FINISHED)
-            return
-        now = datetime.datetime.now(datetime.timezone.utc)
-        if self.live_processing and now > self.contestant.finished_by_time:
-            self.miss_outstanding_gates()
-            logger.info("{}: Current time {} is beyond contestant finish time {}, terminating".format(
-                now, self.contestant.finished_by_time, self.contestant))
-            self.update_tracking_state(self.FINISHED)
-            return
-        if not self.starting_line.has_infinite_been_passed() or self.last_gate is None:
-            return
+    def passed_finishpoint(self):
+        self.update_tracking_state(self.FINISHED)
 
-        last_position = self.track[-1]  # type: Position
-        finish_index = len(self.track) - 1
-        speed = self.get_speed()
-        # TODO: Check that we have had speed greater than 0, but maybe that is not enough for taxiing and waiting
-        if (speed == 0 or last_position.time > self.contestant.finished_by_time) and not self.all_gates_passed():
-        # if (last_position.time > self.contestant.finished_by_time) and not self.all_gates_passed():
-            self.miss_outstanding_gates()
-            logger.info("{}: Speed is 0, terminating".format(self.contestant))
-            self.update_tracking_state(self.FINISHED)
+    def calculate_track_score(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
+        if not last_gate:
             return
+        if last_gate.type == "to":
+            self.update_tracking_state(self.TAKEOFF)
+        if last_gate.type == "sp" and last_gate!=self.last_gate_previous_round:
+            self.update_tracking_state(self.STARTED)
+
+        last_position = track[-1]  # type: Position
+        finish_index = len(track) - 1
         look_back = 1
         start_index = max(finish_index - look_back, 0)
-        just_passed_gate = self.last_gate != self.last_gate_previous_round
+        just_passed_gate = last_gate != self.last_gate_previous_round
         # logger.info("Current leg: {} - {}".format(current_leg, current_leg.bearing))
-        self.update_current_leg(self.last_gate)
-        first_position = self.track[start_index]
-        if len(self.outstanding_gates) == 0:
-            logger.info("{}: No more turning points, terminating".format(self.contestant))
-            self.update_tracking_state(self.FINISHED)
-            self.contestant.contestanttrack.set_calculator_finished()
-            return
+        self.update_current_leg(last_gate)
+        first_position = track[start_index]
         bearing = bearing_between(first_position, last_position)
-        bearing_difference = abs(get_heading_difference(bearing, self.last_gate.bearing))
+        bearing_difference = abs(get_heading_difference(bearing, last_gate.bearing))
         # Do not perform track evaluation between multiple subsequent tracks. This means that between iFP and iSP the
         # contestant is free to do whatever he wants.
-        if not self.between_tracks and self.last_gate.type in ("ifp", "ildg", "ito", "fp"):
-            self.between_tracks = True
-            logger.info("Past intermediate finish point, stop track evaluation")
-        if self.between_tracks and self.last_gate.type == "isp":
-            self.between_tracks = False
-            logger.info("Past intermediate starting point, resume track evaluation")
-        if self.between_tracks:
-            return
-        self.calculate_track = True
+        # if not self.between_tracks and last_gate.type in ("ifp", "ildg", "ito", "fp"):
+        #     self.between_tracks = True
+        #     logger.info("Past intermediate finish point, stop track evaluation")
+        # if self.between_tracks and last_gate.type == "isp":
+        #     self.between_tracks = False
+        #     logger.info("Past intermediate starting point, resume track evaluation")
+        # if self.between_tracks:
+        #     return
+        # self.calculate_track = True
         # logger.info(bearing_difference)
-        if just_passed_gate and self.last_gate.is_procedure_turn and self.last_gate.has_extended_been_passed() and self.tracking_state not in (
+        if just_passed_gate and last_gate.is_procedure_turn and last_gate.has_extended_been_passed() and self.tracking_state not in (
                 self.FAILED_PROCEDURE_TURN, self.PROCEDURE_TURN):
             # A.2.2.15
             self.update_tracking_state(self.PROCEDURE_TURN)
             self.current_procedure_turn_slices = []
             self.current_procedure_turn_directions = []
-            self.current_procedure_turn_gate = self.last_gate
+            self.current_procedure_turn_gate = last_gate
             self.current_procedure_turn_bearing_difference = get_heading_difference(
-                self.last_gate.bearing_from_previous,
-                self.last_gate.bearing)
+                last_gate.bearing_from_previous,
+                last_gate.bearing)
             if self.current_procedure_turn_bearing_difference > 0:
                 self.current_procedure_turn_bearing_difference -= 360
             else:
@@ -298,26 +207,26 @@ class PrecisionCalculator(Calculator):
             backtracking = False
             if bearing_difference > self.scorecard.backtracking_bearing_difference:
                 backtracking = True
-                logger.info("{}: Backtracking according to last gate {}".format(self.contestant, self.last_gate))
-                if self.in_range_of_gate is not None and self.in_range_of_gate != self.last_gate:
-                    outgoing_bearing_difference = abs(get_heading_difference(bearing, self.in_range_of_gate.bearing))
+                logger.info("{}: Backtracking according to last gate {}".format(self.contestant, last_gate))
+                if in_range_of_gate is not None and in_range_of_gate != last_gate:
+                    outgoing_bearing_difference = abs(get_heading_difference(bearing, in_range_of_gate.bearing))
                     if outgoing_bearing_difference <= self.scorecard.backtracking_bearing_difference:
                         # We are not backtracking according to the outgoing gate, so ignore it
                         backtracking = False
                         logger.info("{}: Not backtracking according to gate in range {}".format(self.contestant,
-                                                                                                self.in_range_of_gate))
+                                                                                                in_range_of_gate))
 
             if backtracking:
                 if self.tracking_state == self.TRACKING:
                     # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
-                    is_grace_time_after_steep_turn = self.last_gate.infinite_passing_time is not None and self.last_gate.is_steep_turn and (
-                            last_position.time - self.last_gate.infinite_passing_time).total_seconds() < self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds(
-                        self.last_gate.type, self.contestant)
+                    is_grace_time_after_steep_turn = last_gate.infinite_passing_time is not None and last_gate.is_steep_turn and (
+                            last_position.time - last_gate.infinite_passing_time).total_seconds() < self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds(
+                        last_gate.type, self.contestant)
                     is_grace_distance_after_turn = calculate_distance_lat_lon(
-                        (self.last_gate.latitude, self.last_gate.longitude),
+                        (last_gate.latitude, last_gate.longitude),
                         (last_position.latitude,
                          last_position.longitude)) / 1852 < self.scorecard.get_backtracking_after_gate_grace_period_nm(
-                        self.last_gate.type, self.contestant)
+                        last_gate.type, self.contestant)
                     if not is_grace_time_after_steep_turn and not is_grace_distance_after_turn:
                         logger.info(
                             "{} {}: Started backtracking, let's see if this goes on for more than {} seconds".format(
@@ -330,7 +239,7 @@ class PrecisionCalculator(Calculator):
                             "{} {}: Backtracking within {} NM of passing a gate, ignoring".format(self.contestant,
                                                                                                   last_position.time,
                                                                                                   self.scorecard.get_backtracking_after_gate_grace_period_nm(
-                                                                                                      self.last_gate.type,
+                                                                                                      last_gate.type,
                                                                                                       self.contestant)))
                     elif is_grace_time_after_steep_turn:
                         logger.info(
@@ -338,13 +247,13 @@ class PrecisionCalculator(Calculator):
                                 self.contestant,
                                 last_position.time,
                                 self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds(
-                                    self.last_gate.type, self.contestant)))
+                                    last_gate.type, self.contestant)))
                 if self.tracking_state == self.BACKTRACKING_TEMPORARY:
                     if (
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.get_backtracking_grace_time_seconds(
                         self.contestant):
                         self.update_tracking_state(self.BACKTRACKING)
-                        self.update_score(self.last_gate,
+                        self.update_score(last_gate,
                                           self.scorecard.get_backtracking_penalty(self.contestant),
                                           "backtracking",
                                           last_position.latitude, last_position.longitude, "anomaly",
@@ -365,12 +274,5 @@ class PrecisionCalculator(Calculator):
 
                 self.update_tracking_state(self.TRACKING)
         self.last_bearing = bearing
-        self.last_gate_previous_round = self.last_gate
+        self.last_gate_previous_round = last_gate
 
-    def get_speed(self):
-        previous_index = min(5, len(self.track))
-        distance = distance_between_gates(self.track[-previous_index], self.track[-1]) / 1852
-        time_difference = (self.track[-1].time - self.track[-previous_index].time).total_seconds() / 3600
-        if time_difference == 0:
-            time_difference = 0.01
-        return distance / time_difference
