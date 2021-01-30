@@ -10,7 +10,7 @@ from shapely import geometry
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
     create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat, \
-    create_rounded_corridor_corner, bearing_difference
+    create_rounded_corridor_corner, bearing_difference, calculate_fractional_distance_point_lat_lon
 from display.models import Route, is_procedure_turn, Scorecard, Prohibited
 from gpxpy.gpx import GPX
 
@@ -18,11 +18,14 @@ from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
 
+
 def add_line(place_mark):
     return list(zip(*reversed(place_mark.geometry.xy)))
 
+
 def add_polygon(place_mark):
     return list(zip(*reversed(place_mark.geometry.exterior.xy)))
+
 
 def parse_geometries(placemark):
     if hasattr(placemark, "geometry"):  # check if the placemark has a geometry or not
@@ -54,6 +57,7 @@ def parse_geometries(placemark):
         #             add_multiline(geom)
         #         elif geom.geom_type == "Polygon":
         #             add_multipolygon(geom)
+
 
 def parse_placemarks(document) -> List[Placemark]:
     place_marks = []
@@ -194,6 +198,14 @@ def create_precision_route_from_formset(route_name, data: Dict, use_procedure_tu
     return create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
 
 
+def create_gate_from_line(gate_line, name: str, type: str) -> Waypoint:
+    gate_length = calculate_distance_lat_lon(*gate_line)
+    gate_position = calculate_fractional_distance_point_lat_lon(gate_line[0], gate_line[1], 0.5)
+    waypoint = build_waypoint(name, gate_position[0], gate_position[1], type, gate_length, True, True)
+    waypoint.gate_line = gate_line
+    return waypoint
+
+
 def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_width: float,
                                        rounded_corners: bool) -> Route:
     """
@@ -221,8 +233,13 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
     waypoint_list[-1].time_check = True
     logger.debug(f"Created waypoints {waypoint_list}")
     route = create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners)
-    route.takeoff_gate = features.get("to")
-    route.landing_gate = features.get("ldg")
+    takeoff_gate_line = features.get("to")
+    if takeoff_gate_line is not None:
+        route.takeoff_gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
+    route.takeoff_gate.gate_line = takeoff_gate_line
+    landing_gate_line = features.get("ldg")
+    if landing_gate_line is not None:
+        route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
     route.save()
     print(f"takeoff_gate: {route.takeoff_gate}")
     # Create prohibited zones

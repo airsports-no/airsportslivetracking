@@ -649,6 +649,14 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     def get_template_names(self):
         return [self.templates[self.steps.current]]
 
+    def render_done(self, form, **kwargs):
+        try:
+            return super().render_done(form, **kwargs)
+        except ValidationError as e:
+            from django.contrib import messages
+            messages.error(self.request, str(e))
+            return self.render_revalidation_failure("task_type", self.get_form_instance("task_type"), **kwargs)
+
     def done(self, form_list, **kwargs):
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
         if task_type == TASK_PRECISION:
