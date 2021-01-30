@@ -67,8 +67,8 @@ class WaypointSerialiser(serializers.Serializer):
     inside_distance = serializers.FloatField(help_text="The distance at which we enter the gate vicinity",
                                              read_only=True, required=False)
 
-    left_corridor_line = serializers.JSONField()
-    right_corridor_line = serializers.JSONField()
+    left_corridor_line = serializers.JSONField(required=False)
+    right_corridor_line = serializers.JSONField(required=False)
 
 
 
@@ -83,7 +83,7 @@ class RouteSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
     landing_gate = WaypointSerialiser(required=False, help_text="Optional landing gate")
     takeoff_gate = WaypointSerialiser(required=False, help_text="Optional takeoff gate")
-    prohibited_set = ProhibitedSerialiser(many=True)
+    prohibited_set = ProhibitedSerialiser(many=True, required=False)
 
     class Meta:
         model = Route
