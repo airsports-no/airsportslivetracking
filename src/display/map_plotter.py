@@ -268,11 +268,16 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
         bearing = waypoint_bearing(waypoint, index)
         if waypoint.type in ("sp", "fp"):
             plot_waypoint_name(route, waypoint, bearing, annotations, False, contestant, character_padding=5)
-        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
-        inner_track.append(waypoint.gate_line[0])
-        outer_track.append(waypoint.gate_line[1])
+        if route.rounded_corners and waypoint.left_corridor_line is not None:
+            inner_track.extend(waypoint.left_corridor_line)
+            outer_track.extend(waypoint.right_corridor_line)
+        else:
+            plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+            inner_track.append(waypoint.gate_line[0])
+            outer_track.append(waypoint.gate_line[1])
         if index < len(route.waypoints) - 1 and annotations:
             plot_leg_bearing(waypoint, route.waypoints[index + 1], 5)
+        print(inner_track)
     path = np.array(inner_track)
     ys, xs = path.T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
@@ -383,7 +388,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                                                                                   contestant.wind_speed), y=1, pad=-20,
                   color="black", fontsize=10, path_effects=buffer)
     else:
-        plt.title("Track: '{}'".format(route.name), y=1, pad=-20, path_effects=buffer)
+        plt.title("Track: {}".format(route.navigationtask.name), y=1, pad=-20, path_effects=buffer)
 
     # plt.tight_layout()
     fig = plt.gcf()

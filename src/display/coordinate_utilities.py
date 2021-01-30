@@ -387,7 +387,7 @@ def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tu
     right_edge_lonlat[:, [0, 1]] = right_edge_lonlat[:, [1, 0]]
     print(f"left_edge_lonlat: {left_edge_lonlat}")
     print(f"left_edge_lonlat.shape: {left_edge_lonlat.shape}")
-    return left_edge_lonlat, right_edge_lonlat
+    return left_edge_lonlat[:, :2].tolist(), right_edge_lonlat[:, :2].tolist()
 
 
 def create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length):
