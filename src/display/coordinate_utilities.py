@@ -321,7 +321,7 @@ def rotate_vector_angle(x, y, degrees):
 
 
 def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tuple[float, float]],
-                                   corridor_width: float, turn_degrees: float) -> Tuple[
+                                   corridor_width: float, corner_degrees: float) -> Tuple[
     List[Tuple[float, float]], List[Tuple[float, float]]]:
     """
     Create a rounded line for the left and right corridor walls for the turn described by the bisecting line
@@ -329,16 +329,17 @@ def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tu
     :param left_turn: If left turn, the first coordinate of the bisecting line is the inside corner, otherwise the
     second coordinate is the inside corner
     :param corridor_width: The width of the corridor NM
-    :param turn_degrees: The number of degrees for the turn
+    :paramcorner_degrees: The number of degrees for the turn
     :param bisecting_line: The line that bisects the middle of the turn
     :return: List of points that make up the left-hand corridor line, list of points that make up the right-hand corridor line
     """
-    if turn_degrees == 0:
+    if corner_degrees == 0:
         return [bisecting_line[0]], [bisecting_line[1]]
     print(f"bisecting_line: {bisecting_line}")
-    print(f"turn_degrees: {turn_degrees}")
-    left_turn = turn_degrees < 0
-    initial_offset = -1 * turn_degrees / 2
+    print(f"turn_degrees: {corner_degrees}")
+    corridor_width_metres = corridor_width * 1852
+    left_turn = corner_degrees < 0
+    turn_degrees = corner_degrees
     if left_turn:
         bisection_bearing = calculate_bearing(*bisecting_line)
         circle_centre = bisecting_line[0]
@@ -347,34 +348,37 @@ def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tu
         bisection_bearing = calculate_bearing(*list(reversed(bisecting_line)))
         circle_centre = bisecting_line[1]
         circle_perimeter = bisecting_line[0]
+    initial_offset = -1 * turn_degrees / 2
     pc = ccrs.PlateCarree()
     epsg = ccrs.epsg(3857)
-    centre_x, centre_y = epsg.transform_point(*reversed(circle_centre), pc)
-    perimeter_x, perimeter_y = epsg.transform_point(*reversed(circle_perimeter), pc)
-    unit_circle = norm_v(
-        np.array([perimeter_x, perimeter_y] - np.array([centre_x, centre_y])))
-    starting_point = rotate_vector_angle(unit_circle[0], unit_circle[1], initial_offset)
-    print(f"startingpoint: {starting_point}")
-    centre_curve = []
+    centre = np.array(epsg.transform_point(*reversed(circle_centre), pc))
+    perimeter = np.array(epsg.transform_point(*reversed(circle_perimeter), pc))
+
+    unit_circle = perimeter - centre
+    bisection_length = len_v(unit_circle)
+
+    bisection_corridor_difference = (bisection_length-corridor_width_metres)/2
+
+    unit_circle = norm_v(unit_circle)
+    turn_radius = bisection_length / 2
+
+    new_centre = (norm_v(rotate_vector_angle(unit_circle[0], unit_circle[1], 180)) * turn_radius) + centre
+
+    track_point = unit_circle
+
+    starting_point = norm_v(rotate_vector_angle(track_point[0], track_point[1], initial_offset))
+    outer_edge = []
+    inner_edge = []
     for angle in np.arange(0, turn_degrees, turn_degrees / 10):
-        centre_curve.append(
-            (np.array(rotate_vector_angle(starting_point[0], starting_point[1],
-                                          angle)) * corridor_width * 1862) + np.array(
-                [centre_x, centre_y]))
-    print(f"centre_curve: {centre_curve}")
-    left_edge = []
-    right_edge = []
-    bisecting_line_left = epsg.transform_point(*reversed(bisecting_line[0]), pc)
-    bisecting_line_right = epsg.transform_point(*reversed(bisecting_line[1]), pc)
-    bisection_centre = np.array([(bisecting_line_left[0] + bisecting_line_right[0]) / 2,
-                                 (bisecting_line_left[1] + bisecting_line_right[1]) / 2])
-    bisection_perimeter = np.array([perimeter_x, perimeter_y])
-    for position in centre_curve:
-        outer_to_position = position - bisection_perimeter
-        left_edge.append(list(np.array(bisecting_line_left) + outer_to_position))
-        right_edge.append(list(np.array(bisecting_line_right) + outer_to_position))
-    left_edge = np.array(left_edge)
-    right_edge = np.array(right_edge)
+        rotated = norm_v(rotate_vector_angle(starting_point[0], starting_point[1], angle))
+        outer_edge.append((rotated * (turn_radius + bisection_corridor_difference + corridor_width_metres)) + new_centre)
+        inner_edge.append((rotated * (turn_radius + bisection_corridor_difference)) + new_centre)
+    if left_turn:
+        left_edge = np.array(inner_edge)
+        right_edge = np.array(outer_edge)
+    else:
+        right_edge = np.array(inner_edge)
+        left_edge = np.array(outer_edge)
     print(f"left_edge: {left_edge}")
     print(f"left_edge.shape: {left_edge.shape}")
     left_edge_lonlat = pc.transform_points(epsg, left_edge[:, 0], left_edge[:, 1])
