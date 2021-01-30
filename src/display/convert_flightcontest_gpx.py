@@ -6,23 +6,60 @@ from typing import List, Tuple
 import gpxpy
 from django.core.exceptions import ValidationError
 from fastkml import kml, Placemark
+from shapely import geometry
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
     create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat, \
     create_rounded_corridor_corner, bearing_difference
-from display.models import Route, is_procedure_turn, Scorecard
+from display.models import Route, is_procedure_turn, Scorecard, Prohibited
 from gpxpy.gpx import GPX
 
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
 
+def add_line(place_mark):
+    return list(zip(*reversed(place_mark.geometry.xy)))
+
+def add_polygon(place_mark):
+    return list(zip(*reversed(place_mark.geometry.exterior.xy)))
+
+def parse_geometries(placemark):
+    if hasattr(placemark, "geometry"):  # check if the placemark has a geometry or not
+        if isinstance(placemark.geometry, geometry.Point):
+            # add_point(placemark)
+            pass
+        elif isinstance(placemark.geometry, geometry.LineString):
+            return add_line(placemark)
+        elif isinstance(placemark.geometry, geometry.LinearRing):
+            return add_line(placemark)  # LinearRing can be plotted through LineString
+        elif isinstance(placemark.geometry, geometry.Polygon):
+            return add_polygon(placemark)
+        # elif isinstance(placemark.geometry, geometry.MultiPoint):
+        #     for geom in placemark.geometry.geoms:
+        #         add_multipoint(geom)
+        # elif isinstance(placemark.geometry, geometry.MultiLineString):
+        #     for geom in placemark.geometry.geoms:
+        #         add_multiline(geom)
+        # elif isinstance(placemark.geometry, geometry.MultiPolygon):
+        #     for geom in placemark.geometry.geoms:
+        #         add_multipolygon(geom)
+        # elif isinstance(placemark.geometry, geometry.GeometryCollection):
+        #     for geom in placemark.geometry.geoms:
+        #         if geom.geom_type == "Point":
+        #             add_multipoint(geom)
+        #         elif geom.geom_type == "LineString":
+        #             add_multiline(geom)
+        #         elif geom.geom_type == "LinearRing":
+        #             add_multiline(geom)
+        #         elif geom.geom_type == "Polygon":
+        #             add_multipolygon(geom)
 
 def parse_placemarks(document) -> List[Placemark]:
     place_marks = []
     for feature in document:
         if isinstance(feature, kml.Placemark):
-            place_marks.append(feature)
+            place_marks.append((feature.name, parse_geometries(feature)))
     for feature in document:
         if isinstance(feature, kml.Folder):
             place_marks.extend(parse_placemarks(list(feature.features())))
@@ -41,8 +78,9 @@ def load_features_from_kml(input_kml) -> Dict:
     features = list(kml_document.features())
     place_marks = parse_placemarks(features)
     lines = {}
-    for mark in place_marks:
-        lines[mark.name.lower()] = list(zip(*reversed(mark.geometry.xy)))
+    for name, mark in place_marks:
+        lines[name.lower()] = mark
+    print(lines)
     return lines
 
 
@@ -185,6 +223,13 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
     route = create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners)
     route.takeoff_gate = features.get("to")
     route.landing_gate = features.get("ldg")
+    route.save()
+    print(f"takeoff_gate: {route.takeoff_gate}")
+    # Create prohibited zones
+    for name in features.keys():
+        if name.startswith("prohibited_"):
+            zone_name = name.split("_")[1]
+            Prohibited.objects.create(name=zone_name, route=route, path=features[name])
     return route
 
 

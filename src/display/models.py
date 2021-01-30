@@ -77,6 +77,12 @@ class Route(models.Model):
         return self.name
 
 
+class Prohibited(models.Model):
+    name = models.CharField(max_length=200)
+    route = models.ForeignKey(Route, on_delete=models.CASCADE)
+    path = MyPickledObjectField(default=list)
+
+
 def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
     found_current = False
     for gate in waypoints:

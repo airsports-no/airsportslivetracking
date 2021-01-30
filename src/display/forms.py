@@ -3,7 +3,7 @@ from typing import Dict
 
 from crispy_forms.bootstrap import StrictButton
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Div, ButtonHolder, Submit, Button, Fieldset, Field
+from crispy_forms.layout import Layout, Div, ButtonHolder, Submit, Button, Fieldset, Field, HTML
 from django import forms
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
@@ -148,13 +148,37 @@ class PrecisionImportRouteForm(forms.Form):
 
 
 class ANRCorridorImportRouteForm(forms.Form):
-    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml"])])
-    rounded_corners = forms.BooleanField(required=False, initial=False)
+    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml"])],
+                           help_text="File must be of type KML")
+    rounded_corners = forms.BooleanField(required=False, initial=False,
+                                         help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.add_input(Submit("submit", "Submit"))
+        self.helper.layout = Layout(
+            Fieldset(
+                "Route import",
+                "file",
+                "rounded_corners"
+            ),
+            HTML("""
+            <p>The KML must contain at least the following:
+            <ol>
+            <li>route: A path with the name "route" which makes up the route that should be flown.</li>
+            </ol>
+            The KML file can optionally also include:
+            <ol>
+            <li>to: A path with the name "to" that defines the takeoff gate. This is typically located across the runway</li>
+            <li>ldg: A path with the name "ldg" that defines the landing gate. This is typically located across the runway. It can be at the same location as the take of gate, but it must be a separate path</li>
+            <li>prohibited: A polygon with the name "prohibited_*" where '*' can be replaced with an arbitrary text. They can be between zero and infinite number of these, and they describe prohibited zones either in an ANR context, or can be used to mark airspace that should not be infringed, for instance.</li>
+            </ol>
+            </p>
+            """),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
 
 
 class WaypointFormHelper(FormHelper):

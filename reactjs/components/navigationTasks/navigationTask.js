@@ -19,6 +19,7 @@ import TurningPointDisplay from "../turningPointDisplay";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import PrecisionRenderer from "./precisionRenderer";
 import AnrCorridorRenderer from "./anrCorridorRenderer";
+import ProhibitedRenderer from "./prohibitedRenderer";
 
 const L = window['L']
 
@@ -131,13 +132,14 @@ class ConnectedNavigationTask extends Component {
     render() {
         if (this.props.navigationTask.contestant_set !== undefined) {
             let routeRenderer = null;
+            let prohibitedRender = null;
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard_data.task_type.includes("precision")) {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}/>
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}/>
                 }
-
+                prohibitedRender = <ProhibitedRenderer map={this.map} navigationTask={this.props.navigationTask}/>
             }
 
             const colourMap = this.buildColourMap()
@@ -171,6 +173,7 @@ class ConnectedNavigationTask extends Component {
             });
             return <div>
                 {routeRenderer}
+                {prohibitedRender}
                 {mapDisplay}
                 {tableDisplay}
             </div>

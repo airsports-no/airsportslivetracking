@@ -17,7 +17,7 @@ from timezone_field.rest_framework import TimeZoneSerializerField
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
     Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR, \
-    GateScoreOverride, TrackScoreOverride, GateScore, TASK_TYPES
+    GateScoreOverride, TrackScoreOverride, GateScore, TASK_TYPES, Prohibited
 from display.waypoint import Waypoint
 
 
@@ -71,10 +71,19 @@ class WaypointSerialiser(serializers.Serializer):
     right_corridor_line = serializers.JSONField()
 
 
+
+class ProhibitedSerialiser(serializers.ModelSerializer):
+    path = serializers.JSONField()
+    class Meta:
+        model = Prohibited
+        fields = "__all__"
+
+
 class RouteSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
     landing_gate = WaypointSerialiser(required=False, help_text="Optional landing gate")
     takeoff_gate = WaypointSerialiser(required=False, help_text="Optional takeoff gate")
+    prohibited_set = ProhibitedSerialiser(many=True)
 
     class Meta:
         model = Route
@@ -455,7 +464,6 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
     def get_scorecard_data(self, navigation_task):
         return ScorecardSerialiser(instance=navigation_task.scorecard).data
-
 
     class Meta:
         model = NavigationTask

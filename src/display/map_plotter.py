@@ -12,6 +12,7 @@ import numpy as np
 import cartopy.crs as ccrs
 from matplotlib import patheffects
 from matplotlib.transforms import Bbox
+from shapely.geometry import Polygon
 
 from display.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing, \
     calculate_fractional_distance_point_lat_lon, get_heading_difference, project_position_lat_lon
@@ -240,6 +241,17 @@ def waypoint_bearing(waypoint, index) -> float:
     return bearing
 
 
+def plot_prohibited_zones(route: Route, target_projection, ax):
+    for prohibited in route.prohibited_set.all():
+        line = []
+        for element in prohibited.path:
+            line.append(target_projection.transform_point(*list(reversed(element)), ccrs.PlateCarree()))
+        polygon = Polygon(line)
+        centre = polygon.centroid
+        ax.add_geometries([polygon], crs=target_projection, facecolor="red", alpha=0.4)
+        plt.text(centre.x, centre.y, prohibited.name, horizontalalignment="center")
+
+
 def plot_waypoint_name(route: Route, waypoint: Waypoint, bearing: float, annotations: bool, waypoints_only: bool,
                        contestant: Optional[Contestant], character_padding: int = 4):
     text = "{}".format(waypoint.name)
@@ -379,7 +391,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         path = plot_anr_corridor_track(route, contestant, annotations)
     else:
         path = []
-
+    plot_prohibited_zones(route, imagery.crs, ax)
     ax.gridlines(draw_labels=False, dms=True)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
