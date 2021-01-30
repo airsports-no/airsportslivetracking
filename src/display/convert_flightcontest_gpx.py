@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 import gpxpy
 from django.core.exceptions import ValidationError
-from fastkml import kml
+from fastkml import kml, Placemark
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
     create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat, \
@@ -16,6 +16,34 @@ from gpxpy.gpx import GPX
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
+
+
+def parse_placemarks(document) -> List[Placemark]:
+    place_marks = []
+    for feature in document:
+        if isinstance(feature, kml.Placemark):
+            place_marks.append(feature)
+    for feature in document:
+        if isinstance(feature, kml.Folder):
+            place_marks.extend(parse_placemarks(list(feature.features())))
+        if isinstance(feature, kml.Document):
+            place_marks.extend(parse_placemarks(list(feature.features())))
+    return place_marks
+
+
+def load_features_from_kml(input_kml) -> Dict:
+    document = input_kml.read()
+    if type(document) == str:
+        document = document.encode('utf-8')
+    # print(document)
+    kml_document = kml.KML()
+    kml_document.from_string(document)
+    features = list(kml_document.features())
+    place_marks = parse_placemarks(features)
+    lines = {}
+    for mark in place_marks:
+        lines[mark.name.lower()] = list(zip(*reversed(mark.geometry.xy)))
+    return lines
 
 
 def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
@@ -128,14 +156,16 @@ def create_precision_route_from_formset(route_name, data: Dict, use_procedure_tu
     return create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
 
 
-def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_width: float, rounded_corners: bool) -> Route:
+def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_width: float,
+                                       rounded_corners: bool) -> Route:
     """
     Generate a route where only the first point and last points have gate and time checks. All other gates are secret
     without gate or tone checks.  Each gate has a width equal
     to the corridor with. Create gate lines that cut the angle of the turn in half.
     """
     waypoint_list = []
-    points = load_route_points_from_kml(input_kml)
+    features = load_features_from_kml(input_kml)
+    points = features.get("route", [])
     if len(points) < 2:
         raise ValidationError(f"There are not enough waypoints in the file ({len(points)} must be greater than 1)")
     for index, item in enumerate(points):
@@ -152,7 +182,10 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
     waypoint_list[-1].gate_check = True
     waypoint_list[-1].time_check = True
     logger.debug(f"Created waypoints {waypoint_list}")
-    return create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners)
+    route = create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners)
+    route.takeoff_gate = features.get("to")
+    route.landing_gate = features.get("ldg")
+    return route
 
 
 def create_precision_route_from_csv(route_name: str, lines: List[str], use_procedure_turns: bool) -> Route:
@@ -233,7 +266,6 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
                                                                   gates[-1].width * 1852)
     gates[-1].gate_line[0].reverse()
     gates[-1].gate_line[1].reverse()
-
 
     # Calculate bearings and distances
     calculate_and_update_legs(waypoint_list, False)
