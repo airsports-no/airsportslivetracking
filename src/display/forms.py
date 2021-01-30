@@ -161,6 +161,7 @@ class PrecisionImportRouteForm(forms.Form):
             Fieldset(
                 "Route import",
                 "file",
+                "file_type"
             ),
             kml_description,
             ButtonHolder(

@@ -47,7 +47,7 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
-    TeamTestScore, TRACCAR, TASK_PRECISION, TASK_ANR_CORRIDOR
+    TeamTestScore, TRACCAR, TASK_PRECISION, TASK_ANR_CORRIDOR, Scorecard
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions
@@ -669,8 +669,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 route = create_precision_route_from_gpx(initial_step_data["file"].read(), use_procedure_turns)
             else:
                 second_step_data = self.get_cleaned_data_for_step("waypoint_definition")
-                print(" Second step data")
-                pprint(second_step_data)
                 if initial_step_data["file_type"] == FILE_TYPE_KML:
                     data = self.get_cleaned_data_for_step("precision_route_import")["file"]
                     data.seek(0)
@@ -701,6 +699,13 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 [(item["latitude"], item["longitude"]) for item in
                  self.get_form_initial("waypoint_definition")]).getvalue()).decode(
                 "utf-8")
+        if self.steps.current == "task_content":
+            useful_cards = []
+            for scorecard in Scorecard.objects.all():
+                if self.get_cleaned_data_for_step("task_type")["task_type"] in scorecard.task_type:
+                    useful_cards.append( scorecard.pk)
+            form.fields["scorecard"].queryset = Scorecard.objects.filter(pk__in = useful_cards)
+            form.fields["scorecard"].initial = Scorecard.objects.filter(pk__in = useful_cards).first()
         return context
 
     def get_form(self, step=None, data=None, files=None):
