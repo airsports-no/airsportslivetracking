@@ -1,4 +1,5 @@
 from string import Template
+from typing import Dict
 
 from crispy_forms.bootstrap import StrictButton
 from crispy_forms.helper import FormHelper
@@ -86,11 +87,17 @@ class ContestantMapForm(forms.Form):
 
 
 class PrecisionScoreOverrideForm(forms.Form):
-    backtracking_penalty = forms.FloatField(required=False)
+    backtracking_penalty = forms.FloatField(required=True)
 
     def build_score_override(self, navigation_task: NavigationTask) -> TrackScoreOverride:
         return TrackScoreOverride.objects.create(navigation_task=navigation_task,
                                                  bad_course_penalty=self.cleaned_data["backtracking_penalty"])
+
+    @classmethod
+    def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
+        return {
+            "backtracking_penalty": scorecard.backtracking_penalty,
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -100,12 +107,19 @@ class PrecisionScoreOverrideForm(forms.Form):
 
 class ANRCorridorScoreOverrideForm(forms.Form):
     corridor_width = forms.FloatField(required=True, initial=1)
-    corridor_grace_time = forms.IntegerField(required=True, initial=1)
+    corridor_grace_time = forms.IntegerField(required=True, initial=5)
 
     def build_score_override(self, navigation_task: NavigationTask) -> TrackScoreOverride:
         return TrackScoreOverride.objects.create(navigation_task=navigation_task,
                                                  corridor_width=self.cleaned_data["corridor_width"],
                                                  corridor_grace_time=self.cleaned_data["corridor_grace_time"])
+
+    @classmethod
+    def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
+        return {
+            "corridor_width": scorecard.corridor_width,
+            "corridor_grace_time": scorecard.corridor_grace_time
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

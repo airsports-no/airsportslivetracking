@@ -624,9 +624,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         ("anr_route_import", ANRCorridorImportRouteForm),
         ("precision_route_import", PrecisionImportRouteForm),
         ("waypoint_definition", formset_factory(WaypointForm, extra=0)),
+        ("task_content", NavigationTaskForm),
         ("precision_override", PrecisionScoreOverrideForm),
         ("anr_corridor_override", ANRCorridorScoreOverrideForm),
-        ("task_content", NavigationTaskForm)
     ]
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
     condition_dict = {
@@ -673,11 +673,11 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             route = create_anr_corridor_route_from_kml("route", data, corridor_width, rounded_corners)
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
+        # Build score overrides
         if task_type == TASK_PRECISION:
-            score_override = kwargs["form_dict"].get("precision_override").build_score_override(navigation_task)
-            logger.debug(f"Backtracking penalty override {score_override.bad_course_penalty}")
+            kwargs["form_dict"].get("precision_override").build_score_override(navigation_task)
         elif task_type == TASK_ANR_CORRIDOR:
-            score_override = kwargs["form_dict"].get("anr_corridor_override").build_score_override(navigation_task)
+            kwargs["form_dict"].get("anr_corridor_override").build_score_override(navigation_task)
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     def get_context_data(self, form, **kwargs):
@@ -711,6 +711,12 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                         "longitude": position[1],
                     })
                 return initial
+        if step == "anr_corridor_override":
+            scorecard = self.get_cleaned_data_for_step("task_content")["scorecard"]
+            return ANRCorridorScoreOverrideForm.extract_default_values_from_scorecard(scorecard)
+        if step == "precision_override":
+            scorecard = self.get_cleaned_data_for_step("task_content")["scorecard"]
+            return PrecisionScoreOverrideForm.extract_default_values_from_scorecard(scorecard)
         return {}
 
 
