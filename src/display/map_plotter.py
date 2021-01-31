@@ -211,7 +211,7 @@ def calculate_extent(width: float, height: float, centre: Tuple[float, float]):
     return [left_edge, right_edge, bottom_edge, top_edge]
 
 
-def plot_leg_bearing(current_waypoint, next_waypoint, character_offset: int = 4):
+def plot_leg_bearing(current_waypoint, next_waypoint, character_offset: int = 4, fontsize: int = 14):
     bearing = current_waypoint.bearing_next
     bearing_difference_next = get_heading_difference(next_waypoint.bearing_from_previous,
                                                      next_waypoint.bearing_next)
@@ -223,13 +223,13 @@ def plot_leg_bearing(current_waypoint, next_waypoint, character_offset: int = 4)
                                           True, 3)
     course_text = "{:03.0f}".format(current_waypoint.bearing_next)
     # Try to keep it out of the way of the next leg
-    if bearing_difference_next > 90 or bearing_difference_previous > 90:  # leftSide
-        label = "\n" + course_text + " " * len(course_text) + " " * character_offset
+    if bearing_difference_next > 60 or bearing_difference_previous > 60:  # leftSide
+        label = "" + course_text + " " * len(course_text) + " " * character_offset
     else:  # Right-sided is preferred
-        label = "\n" + " " * len(course_text) + " " * character_offset + course_text
+        label = "" + " " * len(course_text) + " " * character_offset + course_text
     plt.text(course_position[1], course_position[0], label,
              verticalalignment="center", color="red",
-             horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=14,
+             horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=fontsize,
              rotation=-bearing,
              linespacing=2, family="monospace")
 
@@ -287,8 +287,8 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
             plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
             inner_track.append(waypoint.gate_line[0])
             outer_track.append(waypoint.gate_line[1])
-        if index < len(route.waypoints) - 1 and annotations:
-            plot_leg_bearing(waypoint, route.waypoints[index + 1], 5)
+        if index < len(route.waypoints) - 1 and annotations and contestant is not None:
+            plot_leg_bearing(waypoint, route.waypoints[index + 1], 2, 10)
         print(inner_track)
     path = np.array(inner_track)
     ys, xs = path.T

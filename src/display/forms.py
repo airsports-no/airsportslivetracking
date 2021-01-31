@@ -14,7 +14,7 @@ from timezone_field import TimeZoneFormField
 
 from display.map_plotter import A4, A3, N250_MAP, OSM_MAP
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam, TASK_TYPES, TrackScoreOverride
+    ContestTeam, TASK_TYPES, TrackScoreOverride, GateScoreOverride
 
 TURNPOINT = "tp"
 STARTINGPOINT = "sp"
@@ -92,15 +92,29 @@ class ContestantMapForm(forms.Form):
 
 class PrecisionScoreOverrideForm(forms.Form):
     backtracking_penalty = forms.FloatField(required=True)
+    regular_gate_grace_time = forms.FloatField(required=True,
+                                               help_text="Grace time before and after turning points and secret gates")
+    regular_gate_penalty_per_second = forms.FloatField(required=True,
+                                                       help_text="Penalty per second time offset for regular and secret gates")
 
-    def build_score_override(self, navigation_task: NavigationTask) -> TrackScoreOverride:
-        return TrackScoreOverride.objects.create(navigation_task=navigation_task,
-                                                 bad_course_penalty=self.cleaned_data["backtracking_penalty"])
+    def build_score_override(self, navigation_task: NavigationTask):
+        TrackScoreOverride.objects.create(navigation_task=navigation_task,
+                                          bad_course_penalty=self.cleaned_data["backtracking_penalty"])
+        GateScoreOverride.objects.create(navigation_task=navigation_task,
+                                         for_gate_types=["tp", "secret"],
+                                         checkpoint_grace_period_after=self.cleaned_data[
+                                             "regular_gate_grace_time"],
+                                         checkpoint_grace_period_before=self.cleaned_data[
+                                             "regular_gate_grace_time"],
+                                         checkpoint_penalty_per_second=self.cleaned_data[
+                                             "regular_gate_penalty_per_second"])
 
     @classmethod
     def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
         return {
             "backtracking_penalty": scorecard.backtracking_penalty,
+            "regular_gate_grace_time": scorecard.turning_point_gate_score.graceperiod_before,
+            "regular_gate_penalty_per_second": scorecard.turning_point_gate_score.penalty_per_second
         }
 
     def __init__(self, *args, **kwargs):
@@ -117,12 +131,12 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                                                 help_text="A value less than 0 means that there is no maximum penalty. "
                                                           "Otherwise the combined penalty applied for a single corridor exclusion cannot exceed this.")
 
-    def build_score_override(self, navigation_task: NavigationTask) -> TrackScoreOverride:
-        return TrackScoreOverride.objects.create(navigation_task=navigation_task,
-                                                 corridor_width=self.cleaned_data["corridor_width"],
-                                                 corridor_grace_time=self.cleaned_data["corridor_grace_time"],
-                                                 corridor_outside_penalty=self.cleaned_data["corridor_outside_penalty"],
-                                                 corridor_maximum_penalty=self.cleaned_data["corridor_maximum_penalty"])
+    def build_score_override(self, navigation_task: NavigationTask):
+        TrackScoreOverride.objects.create(navigation_task=navigation_task,
+                                          corridor_width=self.cleaned_data["corridor_width"],
+                                          corridor_grace_time=self.cleaned_data["corridor_grace_time"],
+                                          corridor_outside_penalty=self.cleaned_data["corridor_outside_penalty"],
+                                          corridor_maximum_penalty=self.cleaned_data["corridor_maximum_penalty"])
 
     @classmethod
     def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
