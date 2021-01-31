@@ -27,5 +27,5 @@ class Calculator:
         pass
 
     @abstractmethod
-    def passed_finishpoint(self):
+    def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
         pass

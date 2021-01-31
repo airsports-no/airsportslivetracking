@@ -314,8 +314,8 @@ class Scorecard(models.Model):
         if contestant:
             override = contestant.get_track_score_override()
             if override:
-                if contestant.track_score_override.bad_course_penalty is not None:
-                    return contestant.track_score_override.bad_course_penalty
+                if override.bad_course_penalty is not None:
+                    return override.bad_course_penalty
         return self.backtracking_penalty
 
     def get_maximum_backtracking_penalty(self, contestant: "Contestant"):
@@ -323,23 +323,23 @@ class Scorecard(models.Model):
             override = contestant.get_track_score_override()
             if override:
                 if override.bad_course_maximum_penalty is not None:
-                    return contestant.track_score_override.bad_course_maximum_penalty
+                    return override.bad_course_maximum_penalty
         return self.backtracking_maximum_penalty
 
     def get_backtracking_grace_time_seconds(self, contestant: "Contestant"):
         if contestant:
             override = contestant.get_track_score_override()
             if override:
-                if contestant.track_score_override.bad_course_grace_time is not None:
-                    return contestant.track_score_override.bad_course_grace_time
+                if override.bad_course_grace_time is not None:
+                    return override.bad_course_grace_time
         return self.backtracking_grace_time_seconds
 
     def get_prohibited_zone_penalty(self, contestant: "Contestant"):
         if contestant:
             override = contestant.get_track_score_override()
             if override:
-                if contestant.track_score_override.prohibited_zone_penalty is not None:
-                    return contestant.track_score_override.prohibited_zone_penalty
+                if override.prohibited_zone_penalty is not None:
+                    return override.prohibited_zone_penalty
         return self.prohibited_zone_penalty
 
     def get_gate_timing_score_for_gate_type(self, gate_type: str, contestant: "Contestant",
@@ -384,32 +384,32 @@ class Scorecard(models.Model):
         if contestant:
             override = contestant.get_track_score_override()
             if override:
-                if contestant.track_score_override.corridor_width is not None:
-                    return contestant.track_score_override.corridor_width
+                if override.corridor_width is not None:
+                    return override.corridor_width
         return self.corridor_width
 
     def get_corridor_grace_time(self, contestant: "Contestant"):
         if contestant:
             override = contestant.get_track_score_override()
             if override:
-                if contestant.track_score_override.corridor_grace_time is not None:
-                    return contestant.track_score_override.corridor_grace_time
+                if override.corridor_grace_time is not None:
+                    return override.corridor_grace_time
         return self.corridor_grace_time
 
     def get_corridor_outside_penalty(self, contestant: "Contestant"):
         if contestant:
             override = contestant.get_track_score_override()
             if override:
-                if contestant.track_score_override.corridor_outside_penalty is not None:
-                    return contestant.track_score_override.corridor_outside_penalty
+                if override.corridor_outside_penalty is not None:
+                    return override.corridor_outside_penalty
         return self.corridor_outside_penalty
 
     def get_corridor_outside_maximum_penalty(self, contestant: "Contestant"):
         if contestant:
             override = contestant.get_track_score_override()
             if override:
-                if contestant.track_score_override.corridor_maximum_penalty is not None:
-                    return contestant.track_score_override.corridor_maximum_penalty
+                if override.corridor_maximum_penalty is not None:
+                    return override.corridor_maximum_penalty
         return self.corridor_maximum_penalty
 
 

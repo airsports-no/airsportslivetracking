@@ -17,7 +17,7 @@ class ProhibitedZoneCalculator(Calculator):
     Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
     """
 
-    def passed_finishpoint(self):
+    def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
         pass
 
     def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):

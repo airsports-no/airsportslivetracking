@@ -132,7 +132,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 # No longer circling
                 self.circling = False
 
-    def passed_finishpoint(self):
+    def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
         self.update_tracking_state(self.FINISHED)
 
     def calculate_track_score(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
