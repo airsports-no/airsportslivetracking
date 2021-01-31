@@ -21,6 +21,9 @@ class Position:
         self.course = course
         self.battery_level = battery_level
 
+    def __str__(self):
+        return f"{self.time}: {self.latitude}, {self.longitude}"
+
 
 class Gate:
     def __init__(self, gate: Waypoint, expected_time,

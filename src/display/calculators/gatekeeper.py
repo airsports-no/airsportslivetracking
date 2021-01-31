@@ -9,7 +9,8 @@ from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import round_time, distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
-from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon
+from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
+    calculate_fractional_distance_point_lat_lon
 from display.models import ContestantTrack, Contestant
 from display.waypoint import Waypoint
 
@@ -100,6 +101,26 @@ class Gatekeeper(threading.Thread):
         if self.landing_gate is not None:
             self.landing_gate.expected_time = gate_times[self.landing_gate.name]
 
+    def interpolate_track(self, position: Position) -> List[Position]:
+        if len(self.track) == 0:
+            return [position]
+        initial_time = self.track[-1].time
+        distance = calculate_distance_lat_lon((self.track[-1].latitude, self.track[-1].longitude), (position.latitude, position.longitude))
+        if distance<0.001:
+            return [position]
+        time_difference = int((position.time - initial_time).total_seconds())
+        positions = []
+        if time_difference > 2:
+            fraction = 1/time_difference
+            for step in range(1, time_difference):
+                new_position = calculate_fractional_distance_point_lat_lon(
+                    (self.track[-1].latitude, self.track[-1].longitude), (position.latitude, position.longitude),
+                    step * fraction)
+                positions.append(Position((initial_time + datetime.timedelta(seconds=step)).isoformat(), new_position[0], new_position[1],
+                                          position.altitude, position.speed, position.course, position.battery_level))
+        positions.append(position)
+        return positions
+
     def run(self):
         logger.info("Started calculator for contestant {}".format(self.contestant))
         while not self.track_terminated:
@@ -111,10 +132,11 @@ class Gatekeeper(threading.Thread):
                     if data is None:
                         # Signal the track processor that this is the end, and perform the track calculation
                         self.track_terminated = True
-                    else:
-                        self.track.append(data)
-                if len(self.track) > 1:
-                    self.calculate_score()
+                        continue
+                for position in self.interpolate_track(data):
+                    self.track.append(position)
+                    if len(self.track) > 1:
+                        self.calculate_score()
         logger.info("Terminating calculator for {}".format(self.contestant))
 
     def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,
@@ -204,7 +226,7 @@ class Gatekeeper(threading.Thread):
             self.enroute = False
             logger.info("Switching to not enroute")
             return
-        if self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "isp", "secret"]:
+        if self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]:
             self.enroute = True
             logger.info("Switching to enroute")
 

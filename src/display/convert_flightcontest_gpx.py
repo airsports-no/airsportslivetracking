@@ -275,7 +275,7 @@ def create_precision_route_from_csv(route_name: str, lines: List[str], use_proce
         waypoint = Waypoint(line[0])
         waypoint.latitude = float(line[2])
         waypoint.longitude = float(line[1])
-        waypoint.type = line[3]
+        waypoint.type = line[3].strip()
         waypoint.width = float(line[4])
         waypoint.time_check = True
         waypoint.gate_check = True

@@ -150,7 +150,7 @@ class TestFullTrack(TransactionTestCase):
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
-        self.assertEqual(471, contestant_track.score)
+        self.assertEqual(453, contestant_track.score)
 
     def test_correct_scoring_bad_track_precision(self, patch):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
@@ -159,7 +159,7 @@ class TestFullTrack(TransactionTestCase):
         calculator.add_positions(positions)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1800, contestant_track.score)
+        self.assertEqual(1700, contestant_track.score)
 
     def test_missed_procedure_turn(self, patch):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
@@ -224,7 +224,7 @@ class Test2017WPFC(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1152,
+        self.assertEqual(1122,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
@@ -310,7 +310,7 @@ class TestNM2019(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(875,
+        self.assertEqual(775,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
     def test_fredrik(self, patch):
@@ -330,5 +330,5 @@ class TestNM2019(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1000,
+        self.assertEqual(900,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.

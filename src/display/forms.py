@@ -22,13 +22,17 @@ FINISHPOINT = "fp"
 SECRETPOINT = "secret"
 TAKEOFF_GATE = "to"
 LANDING_GATE = "ldg"
+INTERMEDIARY_STARTINGPOINT = "isp"
+INTERMEDIARY_FINISHPOINT = "ifp"
 GATES_TYPES = (
     (TURNPOINT, "Turning point"),
     (STARTINGPOINT, "Starting point"),
     (FINISHPOINT, "Finish point"),
     (SECRETPOINT, "Secret point"),
     (TAKEOFF_GATE, "Takeoff gate"),
-    (LANDING_GATE, "Landing gate")
+    (LANDING_GATE, "Landing gate"),
+    (INTERMEDIARY_STARTINGPOINT, "Intermediary starting point"),
+    (INTERMEDIARY_FINISHPOINT, "Intermediary finish point")
 )
 
 FILE_TYPE_CSV = "csv"
@@ -136,6 +140,7 @@ class TaskTypeForm(forms.Form):
         self.helper = FormHelper()
         self.helper.add_input(Submit("submit", "Submit"))
 
+
 kml_description = HTML("""
             <p>The KML must contain at least the following:
             <ol>
@@ -149,6 +154,7 @@ kml_description = HTML("""
             </ol>
             </p>
             """)
+
 
 class PrecisionImportRouteForm(forms.Form):
     file_type = forms.ChoiceField(choices=FILE_TYPES)
