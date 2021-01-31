@@ -353,10 +353,11 @@ class Gatekeeper(threading.Thread):
                 logger.info("No more gates, terminating")
             self.track_terminated = True
         speed = self.get_speed()
-        # TODO: Check that we have had speed greater than 0, but maybe that is not enough for taxiing and waiting
-        if speed == 0 and self.last_gate is not None:
+        # Do not care about speed during low processing, we only care about the tracking interval from takeoff time
+        # to finish by time
+        if not self.live_processing and speed == 0 and self.last_gate is not None:
             if not already_terminated:
-                logger.info("Speed is zero, terminating")
+                logger.info("Speed is zero and not live processing, terminating")
             self.track_terminated = True
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.live_processing and now > self.contestant.finished_by_time:

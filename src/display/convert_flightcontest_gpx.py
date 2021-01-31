@@ -209,8 +209,8 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
     # Create prohibited zones
     for name in features.keys():
         if name.startswith("prohibited_"):
-            zone_name = name.split("_")[1]
-            Prohibited.objects.create(name=zone_name, route=route, path=features[name])
+            zone_type, zone_name = name.split("_")
+            Prohibited.objects.create(name=zone_name, route=route, path=features[name], type=zone_type)
 
 
 def create_precision_route_from_formset(route_name, data: Dict, use_procedure_turns: bool,

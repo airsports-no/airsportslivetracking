@@ -81,6 +81,7 @@ class Prohibited(models.Model):
     name = models.CharField(max_length=200)
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
     path = MyPickledObjectField(default=list)
+    type = models.CharField(max_length=100)
 
 
 def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
@@ -274,6 +275,9 @@ class Scorecard(models.Model):
     secret_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
                                           related_name="secret")
 
+    prohibited_zone_penalty = models.FloatField(default=200,
+                                                help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas")
+
     ##### ANR Corridor
     corridor_width = models.FloatField(default=0.3, help_text="The corridor width for ANR tasks")
     corridor_grace_time = models.IntegerField(default=5, help_text="The corridor grace time for ANR tasks")
@@ -329,6 +333,14 @@ class Scorecard(models.Model):
                 if contestant.track_score_override.bad_course_grace_time is not None:
                     return contestant.track_score_override.bad_course_grace_time
         return self.backtracking_grace_time_seconds
+
+    def get_prohibited_zone_penalty(self, contestant: "Contestant"):
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if contestant.track_score_override.prohibited_zone_penalty is not None:
+                    return contestant.track_score_override.prohibited_zone_penalty
+        return self.prohibited_zone_penalty
 
     def get_gate_timing_score_for_gate_type(self, gate_type: str, contestant: "Contestant",
                                             planned_time: datetime.datetime,
@@ -486,6 +498,8 @@ class TrackScoreOverride(models.Model):
                                            help_text="A amount of points awarded for a bad course")
     bad_course_maximum_penalty = models.FloatField(default=None, blank=True, null=True,
                                                    help_text="A amount of points awarded for a bad course")
+    prohibited_zone_penalty = models.FloatField(default=200,
+                                                help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas")
     ### ANR Corridor
     corridor_width = models.FloatField(default=None, blank=True, null=True,
                                        help_text="The width of the ANR corridor")

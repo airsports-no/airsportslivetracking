@@ -43,7 +43,7 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
     Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm, ContestantMapForm, LANDSCAPE, MapForm, \
     WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
-    PrecisionScoreOverrideForm
+    PrecisionScoreOverrideForm, STARTINGPOINT, FINISHPOINT
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
@@ -703,9 +703,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             useful_cards = []
             for scorecard in Scorecard.objects.all():
                 if self.get_cleaned_data_for_step("task_type")["task_type"] in scorecard.task_type:
-                    useful_cards.append( scorecard.pk)
-            form.fields["scorecard"].queryset = Scorecard.objects.filter(pk__in = useful_cards)
-            form.fields["scorecard"].initial = Scorecard.objects.filter(pk__in = useful_cards).first()
+                    useful_cards.append(scorecard.pk)
+            form.fields["scorecard"].queryset = Scorecard.objects.filter(pk__in=useful_cards)
+            form.fields["scorecard"].initial = Scorecard.objects.filter(pk__in=useful_cards).first()
         return context
 
     def get_form(self, step=None, data=None, files=None):
@@ -724,11 +724,17 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 features = load_features_from_kml(data["file"])
                 positions = features.get("route", [])
                 initial = []
-                for position in positions:
+                for index, position in enumerate(positions):
                     initial.append({
+                        "name": f"Waypoint {index}",
                         "latitude": position[0],
                         "longitude": position[1],
                     })
+                if len(positions) > 0:
+                    initial[0]["type"] = STARTINGPOINT
+                    initial[0]["name"] = "Starting point"
+                    initial[-1]["type"] = FINISHPOINT
+                    initial[-1]["name"] = "Finish point"
                 return initial
         if step == "anr_corridor_override":
             scorecard = self.get_cleaned_data_for_step("task_content")["scorecard"]
