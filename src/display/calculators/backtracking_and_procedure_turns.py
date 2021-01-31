@@ -66,6 +66,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.between_tracks = False
         self.calculate_track = False
         self.circling = False
+        # Put into separate parameter so that we can change this when finalising in order to terminate any ongoing
+        # backtracking
+        self.backtracking_limit = self.scorecard.backtracking_bearing_difference
         self.tracking_state = self.BEFORE_START
 
     def update_tracking_state(self, tracking_state: int):
@@ -133,6 +136,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 self.circling = False
 
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
+        self.backtracking_limit = 360
+        # Rerun track calculation one final time in order to terminate any ongoing backtracking
+        self.calculate_track_score(track, last_gate, last_gate)
         self.update_tracking_state(self.FINISHED)
 
     def calculate_track_score(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
@@ -205,7 +211,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                                           self.PROCEDURE_TURN_SCORE_TYPE)
         else:
             backtracking = False
-            if bearing_difference > self.scorecard.backtracking_bearing_difference:
+            if bearing_difference > self.backtracking_limit:
                 backtracking = True
                 logger.info("{}: Backtracking according to last gate {}".format(self.contestant, last_gate))
                 if in_range_of_gate is not None and in_range_of_gate != last_gate:

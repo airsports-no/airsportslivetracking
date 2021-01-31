@@ -69,11 +69,11 @@ class TestANR(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(293,  # 593,  # 2368,
+        self.assertEqual(496,  # 593,  # 2368,
                          contestant_track.score)
         strings = [item["string"] for item in contestant_track.score_log]
         self.assertTrue(
-            "SP: 93.0 points passing gate (+33 s)\n(planned: 07:52:00 +0100, actual: 07:52:33 +0100)" in strings)
+            "SP: 96.0 points passing gate (+33 s)\n(planned: 07:52:00 +0100, actual: 07:52:33 +0100)" in strings)
 
     def test_track_adaptive_start(self, p):
         track = load_track_points_traccar_csv(
@@ -93,11 +93,11 @@ class TestANR(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(275,  # 575,  # 2350,
+        self.assertEqual(478,  # 575,  # 2350,
                          contestant_track.score)
         strings = [item["string"] for item in contestant_track.score_log]
         self.assertTrue(
-            "SP: 75.0 points passing gate (-27 s)\n(planned: 07:53:00 +0100, actual: 07:52:33 +0100)" in strings)
+            "SP: 78.0 points passing gate (-27 s)\n(planned: 07:53:00 +0100, actual: 07:52:33 +0100)" in strings)
 
 
 class TestAnrCorridorCalculator(TransactionTestCase):
@@ -194,7 +194,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position2], gate, gate)
         self.calculator.calculate_enroute([position3], gate, gate)
         self.update_score.assert_called_with(gate, 48, 'outside corridor (16 seconds)', 60.5, 11, 'anomaly',
-                                             'outside_corridor', maximum_score=1000)
+                                             'outside_corridor', maximum_score=-1)
 
     def test_outside_20_seconds_until_finish(self):
         position = Mock()
@@ -215,7 +215,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position2], gate, gate)
         self.calculator.passed_finishpoint([position3], gate)
         self.update_score.assert_called_with(gate, 48, 'outside corridor (16 seconds)', 60.5, 11, 'anomaly',
-                                             'outside_corridor', maximum_score=1000)
+                                             'outside_corridor', maximum_score=-1)
 
     def test_outside_20_seconds_outside_route(self):
         position = Mock()
