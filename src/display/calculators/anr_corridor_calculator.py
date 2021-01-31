@@ -98,10 +98,13 @@ class AnrCorridorCalculator(Calculator):
                                                                           outside_time))
             if penalty_time > 0:
                 penalty_time = np.round(penalty_time)
+                score = self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time
+                maximum_score = self.scorecard.get_corridor_outside_maximum_penalty(self.contestant)
+                if maximum_score >= 0:
+                    score = min(score, maximum_score)
                 self.update_score(last_gate,
-                                  self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time,
+                                  score,
                                   "outside corridor ({} seconds)".format(int(penalty_time)),
                                   self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
                                   "anomaly", self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
-                                  maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(
-                                      self.contestant))
+                                  maximum_score=-1)

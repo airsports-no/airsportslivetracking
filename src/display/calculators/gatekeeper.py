@@ -152,7 +152,7 @@ class Gatekeeper(threading.Thread):
         :param longitude: The position of the contestant
         :param annotation_type: information or anomaly
         :param score_type: Keyword that is linked to maximum score. Schools are accumulated for each keyword and compared to maximum if supplied
-        :param maximum_score: Maximum score for the score type
+        :param maximum_score: Maximum score for the score type over the entire task
         :param planned: The planned passing time if gate
         :param actual: The actual passing time if gate
         :return:

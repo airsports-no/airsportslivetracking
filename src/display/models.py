@@ -261,6 +261,7 @@ class Scorecard(models.Model):
     backtracking_maximum_penalty = models.FloatField(default=-1,
                                                      help_text="Negative numbers means the maximum is ignored")
     below_minimum_altitude_penalty = models.FloatField(default=500)
+    below_minimum_altitude_maximum_penalty = models.FloatField(default=500)
 
     takeoff_gate_score = models.ForeignKey("GateScore", on_delete=models.SET_NULL, null=True, blank=True,
                                            related_name="takeoff")
@@ -486,8 +487,10 @@ class GateScore(models.Model):
                 grace_limit = self.get_graceperiod_after(score_override)
             else:
                 grace_limit = self.get_graceperiod_before(score_override)
-            return min(self.get_maximum_penalty(score_override),
-                       (round(abs(time_difference) - grace_limit)) * self.get_penalty_per_second(score_override))
+            score = (round(abs(time_difference) - grace_limit)) * self.get_penalty_per_second(score_override)
+            if self.get_maximum_penalty(score_override) >= 0:
+                return min(self.get_maximum_penalty(score_override), score)
+            return score
 
 
 class TrackScoreOverride(models.Model):

@@ -110,19 +110,27 @@ class PrecisionScoreOverrideForm(forms.Form):
 
 
 class ANRCorridorScoreOverrideForm(forms.Form):
-    corridor_width = forms.FloatField(required=True, initial=1)
-    corridor_grace_time = forms.IntegerField(required=True, initial=5)
+    corridor_width = forms.FloatField(required=True)
+    corridor_grace_time = forms.IntegerField(required=True)
+    corridor_outside_penalty = forms.FloatField(required=True)
+    corridor_maximum_penalty = forms.FloatField(required=True,
+                                                help_text="A value less than 0 means that there is no maximum penalty. "
+                                                          "Otherwise the combined penalty applied for a single corridor exclusion cannot exceed this.")
 
     def build_score_override(self, navigation_task: NavigationTask) -> TrackScoreOverride:
         return TrackScoreOverride.objects.create(navigation_task=navigation_task,
                                                  corridor_width=self.cleaned_data["corridor_width"],
-                                                 corridor_grace_time=self.cleaned_data["corridor_grace_time"])
+                                                 corridor_grace_time=self.cleaned_data["corridor_grace_time"],
+                                                 corridor_outside_penalty=self.cleaned_data["corridor_outside_penalty"],
+                                                 corridor_maximum_penalty=self.cleaned_data["corridor_maximum_penalty"])
 
     @classmethod
     def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
         return {
             "corridor_width": scorecard.corridor_width,
-            "corridor_grace_time": scorecard.corridor_grace_time
+            "corridor_grace_time": scorecard.corridor_grace_time,
+            "corridor_outside_penalty": scorecard.corridor_outside_penalty,
+            "corridor_maximum_penalty": scorecard.corridor_maximum_penalty
         }
 
     def __init__(self, *args, **kwargs):
