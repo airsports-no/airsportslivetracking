@@ -781,7 +781,7 @@ def create_new_copilot(wizard):
     return cleaned.get("use_existing_copilot") is None and cleaned.get("skip_copilot") is None
 
 
-class RegisterTeamWizard(GuardianPermissionRequiredMixin, CookieWizardView):
+class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     permission_required = ("update_contest",)
 
     def get_permission_object(self):
@@ -792,7 +792,6 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, CookieWizardView):
         "member1create": create_new_pilot,
         "member2create": create_new_copilot,
     }
-    post_data = {}
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "teams"))
     form_list = [
         ("member1search", Member1SearchForm),
@@ -820,37 +819,18 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, CookieWizardView):
         validate, `render_revalidation_failure` should get called.
         If everything is fine call `done`.
         """
-        final_forms = OrderedDict()
-        # walk through the form list and try to validate the data again.
-        for form_key in self.get_form_list():
-            form_obj = self.get_form(
-                step=form_key,
-                data=self.storage.get_step_data(form_key),
-                files=self.storage.get_step_files(form_key)
-            )
-            if not form_obj.is_valid():
-                logger.error(f"Failed validating form {form_key} {form_obj} {self.storage.get_step_data(form_key)}")
-                logger.error(f"Failed validating form {form_obj.errors}")
-                return self.render_revalidation_failure(form_key, form_obj, **kwargs)
-            final_forms[form_key] = form_obj
+        print(f"All post data: {self.request.session['my_post_data']}")
+        return super().render_done(form, **kwargs)
 
-        # render the done view and reset the wizard before returning the
-        # response. This is needed to prevent from rendering done with the
-        # same data twice.
-        done_response = self.done(final_forms.values(), form_dict=final_forms, **kwargs)
-        self.storage.reset()
-        return done_response
-
-    # def get_next_step(self, step=None):
-    #     return self.request.POST.get("wizard_next_step", super().get_next_step(step))
-    #
     def post(self, *args, **kwargs):
-        self.post_data[self.steps.current] = self.request.POST
+        if 'my_post_data' not in self.request.session:
+            self.request.session['my_post_data'] = {}
+        self.request.session['my_post_data'][self.steps.current] = self.request.POST
         print(f"Post data: {self.request.POST}")
         return super().post(*args, **kwargs)
 
     def get_post_data_for_step(self, step):
-        return self.post_data.get(step, {})
+        return self.request.session.get('my_post_data', {}).get(step, {})
 
     def done(self, form_list, **kwargs):
         print(f"All cleaned data: {self.get_all_cleaned_data()}")
