@@ -23,7 +23,7 @@ from django.utils import timezone
 from django.views.generic import ListView, DetailView, UpdateView, CreateView, DeleteView
 import logging
 
-from formtools.wizard.views import SessionWizardView
+from formtools.wizard.views import SessionWizardView, CookieWizardView
 from guardian.mixins import PermissionRequiredMixin as GuardianPermissionRequiredMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
@@ -42,9 +42,10 @@ from display.convert_flightcontest_gpx import create_precision_route_from_gpx, c
 from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, \
     FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
-    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, TrackingDataForm, ContestantMapForm, LANDSCAPE, MapForm, \
+    Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, ContestantMapForm, LANDSCAPE, \
+    MapForm, \
     WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
-    PrecisionScoreOverrideForm, STARTINGPOINT, FINISHPOINT
+    PrecisionScoreOverrideForm, STARTINGPOINT, FINISHPOINT, TrackingDataForm
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
@@ -268,10 +269,6 @@ def auto_complete_contestteam_pk(request):
             serialiser = ContestTeamSerialiser(search_qs, many=False)
             return Response(serialiser.data)
     raise MethodNotAllowed
-
-
-def person_search_view(request):
-    return render(request, "display/personsearch_form.html", {"form": Member1SearchForm()})
 
 
 def tracking_qr_code_view(request, pk):
@@ -609,7 +606,7 @@ def show_anr_path(wizard):
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (TASK_ANR_CORRIDOR,)
 
 
-class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
+class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, CookieWizardView):
     permission_required = ("update_contest",)
 
     def setup(self, request, *args, **kwargs):

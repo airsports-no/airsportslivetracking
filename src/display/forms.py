@@ -300,6 +300,7 @@ class Member1SearchForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
+        self.helper.form_tag = False
         self.helper.layout = Layout(
             Fieldset("Find pilot",
                      Div(
@@ -330,6 +331,7 @@ class Member2SearchForm(Member1SearchForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
+        self.helper.form_tag = False
         self.helper.layout = Layout(
             Fieldset("Find co-pilot",
                      Div(
@@ -355,6 +357,7 @@ class PersonForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
+        self.helper.form_tag = False
         self.helper.layout = Layout(
             Fieldset(
                 "Create new person",
@@ -416,6 +419,7 @@ class AeroplaneSearchForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["picture_display_field"].label = ""
         self.helper = FormHelper()
+        self.helper.form_tag = False
         self.helper.layout = Layout(
             Div(
                 Div("registration", "type", "colour", "picture", css_class="col-6"),
@@ -432,20 +436,11 @@ class AeroplaneSearchForm(forms.ModelForm):
         fields = ("registration", "type", "colour", "picture")
 
 
-class AeroplaneForm(forms.ModelForm):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    class Meta:
-        model = Aeroplane
-        fields = "__all__"
-
-
 class TrackingDataForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
+        self.helper.form_tag = False
         self.helper.layout = Layout(Fieldset(
             "Team contest information", "air_speed", "tracker_device_id", "tracking_service"),
             ButtonHolder(
@@ -467,6 +462,7 @@ class ClubSearchForm(forms.ModelForm):
         self.fields["logo_display_field"].label = ""
         self.fields["country_flag_display_field"].label = ""
         self.helper = FormHelper()
+        self.helper.form_tag = False
         self.helper.layout = Layout(
             Div(
                 Div("name", "logo", "country", "country_flag_display_field", css_class="col-6"),
