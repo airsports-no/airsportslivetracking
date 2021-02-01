@@ -773,15 +773,11 @@ class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
 
 def create_new_pilot(wizard):
     cleaned = wizard.get_post_data_for_step("member1search") or {}
-    print("pilot: {}".format(cleaned))
-    print(cleaned.get("use_existing_pilot"))
-    print(cleaned.get("use_existing_pilot") is not None)
     return cleaned.get("use_existing_pilot") is None
 
 
 def create_new_copilot(wizard):
     cleaned = wizard.get_post_data_for_step("member2search") or {}
-    print("copilot: {}".format(cleaned))
     return cleaned.get("use_existing_copilot") is None and cleaned.get("skip_copilot") is None
 
 
@@ -845,17 +841,19 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, CookieWizardView):
         self.storage.reset()
         return done_response
 
-    def get_next_step(self, step=None):
-        return self.request.POST.get("wizard_next_step", super().get_next_step(step))
-
+    # def get_next_step(self, step=None):
+    #     return self.request.POST.get("wizard_next_step", super().get_next_step(step))
+    #
     def post(self, *args, **kwargs):
         self.post_data[self.steps.current] = self.request.POST
+        print(f"Post data: {self.request.POST}")
         return super().post(*args, **kwargs)
 
     def get_post_data_for_step(self, step):
         return self.post_data.get(step, {})
 
     def done(self, form_list, **kwargs):
+        print(f"All cleaned data: {self.get_all_cleaned_data()}")
         form_dict = kwargs['form_dict']
         team_pk = self.kwargs.get("team_pk")
         contest_pk = self.kwargs.get("contest_pk")
