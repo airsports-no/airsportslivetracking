@@ -3,7 +3,7 @@ import datetime
 import os
 from datetime import timedelta
 from pprint import pprint
-from typing import Optional, Dict
+from typing import Optional, Dict, OrderedDict
 
 import redis_lock
 import dateutil
@@ -818,6 +818,34 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         "club": "display/club_form.html",
         "tracking": "display/tracking_form.html"
     }
+
+    def render_done(self, form, **kwargs):
+        """
+        This method gets called when all forms passed. The method should also
+        re-validate all steps to prevent manipulation. If any form fails to
+        validate, `render_revalidation_failure` should get called.
+        If everything is fine call `done`.
+        """
+        final_forms = OrderedDict()
+        # walk through the form list and try to validate the data again.
+        for form_key in self.get_form_list():
+            form_obj = self.get_form(
+                step=form_key,
+                data=self.storage.get_step_data(form_key),
+                files=self.storage.get_step_files(form_key)
+            )
+            if not form_obj.is_valid():
+                logger.error(f"Failed validating form {form_key} {form_obj} {self.storage.get_step_data(form_key)}")
+                logger.error(f"Failed validating form {form_obj.errors}")
+                return self.render_revalidation_failure(form_key, form_obj, **kwargs)
+            final_forms[form_key] = form_obj
+
+        # render the done view and reset the wizard before returning the
+        # response. This is needed to prevent from rendering done with the
+        # same data twice.
+        done_response = self.done(final_forms.values(), form_dict=final_forms, **kwargs)
+        self.storage.reset()
+        return done_response
 
     def get_next_step(self, step=None):
         return self.request.POST.get("wizard_next_step", super().get_next_step(step))

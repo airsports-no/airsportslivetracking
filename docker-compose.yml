@@ -162,6 +162,17 @@ services:
   redis:
     image: redis
     container_name: redis
+  logrotate:
+    image: blacklabelops/logrotate
+    volumes:
+      - ./celerylog:/logs/celery
+      - ./weblog:/logs/web
+      - ./processorlog:/logs/processor
+    environment:
+      LOGS_DIRECTORIES: /logs/*/*.log
+      LOGROTATE_COPIES: 60
+      LOGROTATE_INTERVAL: daily dateyesterday
+      LOGROTATE_DATEFORMAT: -%Y-%m-%d
 
 
 volumes:
