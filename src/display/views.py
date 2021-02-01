@@ -606,7 +606,7 @@ def show_anr_path(wizard):
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (TASK_ANR_CORRIDOR,)
 
 
-class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, CookieWizardView):
+class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     permission_required = ("update_contest",)
 
     def setup(self, request, *args, **kwargs):
@@ -785,7 +785,7 @@ def create_new_copilot(wizard):
     return cleaned.get("use_existing_copilot") is None and cleaned.get("skip_copilot") is None
 
 
-class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
+class RegisterTeamWizard(GuardianPermissionRequiredMixin, CookieWizardView):
     permission_required = ("update_contest",)
 
     def get_permission_object(self):
