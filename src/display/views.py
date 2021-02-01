@@ -3,7 +3,8 @@ import datetime
 import os
 from datetime import timedelta
 from pprint import pprint
-from typing import Optional, Dict, OrderedDict
+from typing import Optional, Dict
+from collections import OrderedDict
 
 import redis_lock
 import dateutil
