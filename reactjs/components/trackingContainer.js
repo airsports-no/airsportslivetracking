@@ -144,8 +144,9 @@ class ConnectedTrackingContainer extends Component {
                             {/*    <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>*/}
                             {/*</div>*/}
                             <div className={"logoImage"}>
-                                <a onClick={this.props.toggleExplicitlyDisplayAllTracks()}><img className={"img-fluid"}
-                                                                                                src={"/static/img/live_tracking.png"}/></a>
+                                <img className={"img-fluid"}
+                                     onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}
+                                     src={"/static/img/live_tracking.png"}/>
                             </div>
                             {/*<img alt={"Logo"} className={"logoImage"}*/}
                             {/*     id={"logoImage"}*/}

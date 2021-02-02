@@ -17,6 +17,7 @@ import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
 const L = window['L']
 
 const mapStateToProps = (state, props) => ({
+    explicitlyDisplayAllTracks: state.explicitlyDisplayAllTracks,
     contestantData: state.contestantData[props.contestant.id],
     displayTracks: state.displayTracks,
     isFetching: state.isFetchingContestantData[props.contestant.id],
@@ -122,13 +123,6 @@ class ConnectedContestantTrack extends Component {
             if (this.props.colour !== previousProps.colour) {
                 this.updateStyle()
             }
-            if (this.props.dim) {
-                this.dim()
-            } else if (this.props.highlight) {
-                this.highlight()
-            } else {
-                this.normal()
-            }
         }
         // if (this.props.contestantData !== undefined) {
         //     if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
@@ -181,7 +175,9 @@ class ConnectedContestantTrack extends Component {
                     } else {
                         if (displayTracks.includes(this.contestant.id)) {
                             this.showFullTrack()
-                            this.showAnnotations()
+                            if (displayTracks.length === 1) {
+                                this.showAnnotations()
+                            }
                         } else {
                             this.hideTrack()
                             this.hideAnnotations()

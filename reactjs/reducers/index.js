@@ -183,17 +183,15 @@ function rootReducer(state = initialState, action) {
     }
 
     if (action.type === EXPLICITLY_DISPLAY_ALL_TRACKS) {
-        if (!state.explicitlyDisplayAllTracks) {
+        if (!state.displayTracks || state.displayTracks.length < Object.keys(state.contestants).length) {
             return Object.assign({}, state, {
                 displayTracks: Object.keys(state.contestants).map((id) => {
-                    return id
+                    return parseInt(id)
                 }),
-                explicitlyDisplayAllTracks: true
             });
         } else {
             return Object.assign({}, state, {
                 displayTracks: null,
-                explicitlyDisplayAllTracks: false
             })
         }
     }
