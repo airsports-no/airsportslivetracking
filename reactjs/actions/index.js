@@ -17,7 +17,11 @@ import {
     REMOVE_HIGHLIGHT_CONTESTANT,
     REMOVE_HIGHLIGHT_CONTESTANT_TRACK,
     HIGHLIGHT_CONTESTANT_TRACK,
-    HIGHLIGHT_CONTESTANT_TABLE, REMOVE_HIGHLIGHT_CONTESTANT_TABLE, FULL_HEIGHT_TABLE, HALF_HEIGHT_TABLE
+    HIGHLIGHT_CONTESTANT_TABLE,
+    REMOVE_HIGHLIGHT_CONTESTANT_TABLE,
+    FULL_HEIGHT_TABLE,
+    HALF_HEIGHT_TABLE,
+    EXPLICITLY_DISPLAY_ALL_TRACKS
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -78,6 +82,10 @@ export function highlightContestantTable(contestantId) {
 
 export function removeHighlightContestantTable(contestantId) {
     return {type: REMOVE_HIGHLIGHT_CONTESTANT_TABLE, contestantId: contestantId}
+}
+
+export function toggleExplicitlyDisplayAllTracks() {
+    return {type: EXPLICITLY_DISPLAY_ALL_TRACKS}
 }
 
 

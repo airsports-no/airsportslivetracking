@@ -59,7 +59,7 @@ deleted = traccar.update_and_get_devices()
 # Group ID = 1
 for item in deleted:
     traccar.delete_device(item["id"])
-    traccar.create_device(item["name"], item["uniqueId"])
+#     traccar.create_device(item["name"], item["uniqueId"])
 
 scorecard = get_default_scorecard()
 original_contest = Contest.objects.filter(name="NM 2020").first()
@@ -69,8 +69,10 @@ if original_contest:
 
     original_contest.delete()
 aeroplane, _ = Aeroplane.objects.get_or_create(registration="LN-YDB")
-contest_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
-contest_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
+today = datetime.datetime.now(datetime.timezone.utc)
+tomorrow = today + datetime.timedelta(days=1)
+contest_start_time = today.replace(hour=0).astimezone()
+contest_finish_time = tomorrow.astimezone()
 contest = Contest.objects.create(name="NM 2020", is_public=True, start_time=contest_start_time,
                                  finish_time=contest_finish_time)
 with open("/data/NM.csv", "r") as file:
@@ -107,21 +109,23 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
                                                     "tracker_device_id": contestant})
         start_time = start_time - datetime.timedelta(hours=2)
         start_time = start_time.astimezone()
+        start_time = today.replace(hour=start_time.hour, minute=start_time.minute, second=start_time.second,
+                                   tzinfo=start_time.tzinfo)
         minutes_starting = 6
         # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
         contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team,
                                                       takeoff_time=start_time,
-                                                      finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                      finished_by_time=start_time + datetime.timedelta(hours=30),
                                                       tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                       tracker_device_id=contestant, contestant_number=index,
                                                       minutes_to_starting_point=minutes_starting,
                                                       air_speed=speed,
                                                       wind_direction=165, wind_speed=8)
-        print(navigation_task.pk)
+        print(f"{contestant_object} {start_time}")
         # with open(file, "r") as i:
         #     insert_gpx_file(contestant_object, i, influx)
 
-        tracks[contestant] = build_traccar_track(file)
+        tracks[contestant] = build_traccar_track(file, today, start_index=300)
 print("Sleeping for 10 seconds")
-time.sleep(10)
+# time.sleep(10)
 load_data_traccar(tracks)

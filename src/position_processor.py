@@ -24,6 +24,7 @@ from display.calculators.calculator_factory import calculator_factory
 
 logger = logging.getLogger(__name__)
 
+
 configuration = TraccarCredentials.objects.get()
 
 if __name__ == "__main__":
@@ -43,7 +44,7 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
             return
         calculators[contestant.pk] = calculator_factory(contestant, influx, live_processing=True)
         calculators[contestant.pk].start()
-    calculator = calculators[contestant.pk]  # type: Calculator
+    calculator = calculators[contestant.pk]  # type: Gatekeeper
     new_positions = []
     for position in positions:
         data = position["fields"]

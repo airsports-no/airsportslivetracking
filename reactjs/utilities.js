@@ -99,7 +99,7 @@ export function contestantTwoLines(contestant) {
         return null
     }
     const memberOne = contestant.team.crew.member1.last_name.toUpperCase()
-    const memberTwo = contestant.team.crew.member2 ? contestant.team.crew.member2.last_name.toUpperCase() : null
+    const memberTwo = contestant.team.crew.member2 ? contestant.team.crew.member2.last_name.toUpperCase() : ""
     return <div>
         <EllipsisWithTooltip>{memberOne}</EllipsisWithTooltip><EllipsisWithTooltip>{memberTwo}</EllipsisWithTooltip>
     </div>

@@ -7,7 +7,6 @@ from urllib.parse import urlencode
 import gpxpy
 import requests
 
-
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
@@ -17,10 +16,11 @@ if __name__ == "__main__":
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, Person, \
-    ContestTeam
+    ContestTeam, TRACCAR
 from influx_facade import InfluxFacade
 from display.calculators.calculator_factory import calculator_factory
 from playback_tools import insert_gpx_file
+
 influx = InfluxFacade()
 
 server = 'traccar:5055'
@@ -64,9 +64,9 @@ contest_finish_time = datetime.datetime(2014, 8, 1, 16, 0, 0).astimezone()
 contest = Contest.objects.create(name="WPFC 2017", is_public=True, start_time=contest_start_time,
                                  finish_time=contest_finish_time)
 with open("../data/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
-    route = create_precision_route_from_gpx(file)
+    route = create_precision_route_from_gpx(file, True)
 navigation_task = NavigationTask.objects.create(name="Route-1-Blue ", contest=contest,
-                                                route=route,
+                                                route=route, scorecard=scorecard,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
                                                 is_public=True)
 

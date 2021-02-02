@@ -92,11 +92,11 @@ class InfluxFacade:
     def generate_position_data(self, traccar: Traccar, positions: List) -> Dict:
         if len(positions) == 0:
             return {}
-        logger.info("Received {} positions".format(len(positions)))
+        # logger.info("Received {} positions".format(len(positions)))
         received_tracks = {}
         positions_to_store = []
         for position_data in positions:
-            logger.info("Incoming position: {}".format(position_data))
+            # logger.info("Incoming position: {}".format(position_data))
             try:
                 device_name = traccar.device_map[position_data["deviceId"]]
             except KeyError:
@@ -107,12 +107,15 @@ class InfluxFacade:
                     logger.error("Could not find device {}.".format(position_data["deviceId"]))
                     continue
             device_time = dateutil.parser.parse(position_data["deviceTime"])
-            logger.info(device_name)
+            # logger.info(device_name)
+            if device_time < datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1):
+                logger.info(f"Received old position, disregarding: {device_name} {device_time}")
+                continue
             # print(device_time)
             contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
             # print(contestant)
             if contestant:
-                logger.info("Found contestant {}".format(contestant))
+                # logger.info("Found contestant {}".format(contestant))
                 data = {
                     "measurement": "device_position",
                     "tags": {
@@ -142,7 +145,8 @@ class InfluxFacade:
         for item in data:
             position_data.append({
                 "latitude": item["fields"]["latitude"],
-                "longitude": item["fields"]["longitude"]
+                "longitude": item["fields"]["longitude"],
+                "time": item["time"]
             })
         channel_data = {
             "contestant_id": contestant.pk,

@@ -40,10 +40,10 @@ function memberTwoPicture(crew) {
 function memberName(member) {
     return <h4 className={"lower-thirds-pilot-names"}>
         <EllipsisWithTooltip>
-            {member.last_name.toUpperCase()}
+            {member.last_name?member.last_name.toUpperCase():""}
         </EllipsisWithTooltip>
         <EllipsisWithTooltip>
-            {member.first_name}
+            {member.first_name?member.first_name:""}
         </EllipsisWithTooltip>
     </h4>
 }

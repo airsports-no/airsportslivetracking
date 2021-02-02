@@ -3,8 +3,8 @@ import {connect} from "react-redux";
 // import {renderToString} from 'react-dom/server';
 import {
     displayOnlyContestantTrack,
-    fetchContestantData, highlightContestantTable, initialLoading,
-    initialLoadingComplete, removeHighlightContestantTable, setDisplay, showLowerThirds
+    fetchContestantData, highlightContestantTable, highlightContestantTrack, initialLoading,
+    initialLoadingComplete, removeHighlightContestantTable, removeHighlightContestantTrack, setDisplay, showLowerThirds
 } from "../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
@@ -28,10 +28,13 @@ const mapStateToProps = (state, props) => ({
 class ConnectedContestantTrack extends Component {
     constructor(props) {
         super(props);
+        this.trailLength = 120
         this.map = props.map
         this.contestant = props.contestant
         this.markers = L.markerClusterGroup()
-        this.lineCollection = null;
+        this.partialTrack = null;
+        this.fullTrack = null;
+        this.allPoints = []
         this.dot = null;
         this.dotText = null;
         this.previousLastTime = null;
@@ -115,7 +118,7 @@ class ConnectedContestantTrack extends Component {
     }
 
     componentDidUpdate(previousProps) {
-        if (this.lineCollection && this.dot) {
+        if (this.fullTrack && this.dot) {
             if (this.props.colour !== previousProps.colour) {
                 this.updateStyle()
             }
@@ -151,6 +154,13 @@ class ConnectedContestantTrack extends Component {
             if (this.props.contestantData !== undefined) {
                 if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
                     if (this.props.contestantData.positions.length > 0) {
+                        this.allPoints.push(...this.props.contestantData.positions.map((position) => {
+                            return {
+                                latitude: position.latitude,
+                                longitude: position.longitude,
+                                time: new Date(position.time)
+                            }
+                        }))
                         const positions = this.props.contestantData.positions.map((position) => {
                             return [position.latitude, position.longitude]
                         })
@@ -162,11 +172,15 @@ class ConnectedContestantTrack extends Component {
                 }
                 if (finishedInitialLoading) {
                     if (!displayTracks) {
-                        this.showTrack()
+                        if (this.props.highlight) {
+                            this.showFullTrack()
+                        } else {
+                            this.showTrack()
+                        }
                         this.hideAnnotations()
                     } else {
                         if (displayTracks.includes(this.contestant.id)) {
-                            this.showTrack()
+                            this.showFullTrack()
                             this.showAnnotations()
                         } else {
                             this.hideTrack()
@@ -179,7 +193,12 @@ class ConnectedContestantTrack extends Component {
     }
 
     updateStyle() {
-        this.lineCollection.setStyle({
+        this.fullTrack.setStyle({
+            color: this.props.colour,
+            opacity: 1,
+            weight: 3
+        })
+        this.partialTrack.setStyle({
             color: this.props.colour,
             opacity: 1,
             weight: 3
@@ -189,59 +208,87 @@ class ConnectedContestantTrack extends Component {
     }
 
     normal() {
-        this.lineCollection.setStyle({
-            color: this.props.colour,
-            opacity: 1,
-            weight: 3
-        })
+        // this.fullTrack.setStyle({
+        //     color: this.props.colour,
+        //     opacity: 1,
+        //     weight: 3
+        // })
     }
 
 
     highlight() {
-        this.lineCollection.setStyle({
-            color: "red",
-            opacity: 1,
-            weight: 6
-        })
+        // this.fullTrack.setStyle({
+        //     color: this.props.colour,
+        //     opacity: 1,
+        //     weight: 6
+        // })
     }
 
     dim() {
-        this.lineCollection.setStyle({
-            color: this.props.colour,
-            opacity: 0.2,
-            weight: 1
-        })
+        // this.fullTrack.setStyle({
+        //     color: this.props.colour,
+        //     opacity: 0.2,
+        //     weight: 1
+        // })
     }
 
     createLiveEntities(positions) {
         const newest_position = positions.slice(-1)[0];
-
-        this.lineCollection = L.polyline(positions, {
-            color: this.colour
+        this.partialTrack = L.polyline([newest_position], {
+            color: this.props.colour,
+            opacity: 1,
+            weight: 3
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
-        ).on('mouseover', (e) =>
-            this.props.highlightContestantTable(this.contestant.id)
-        ).on('mouseout', (e) =>
-            this.props.removeHighlightContestantTable(this.contestant.id)
+        ).on('mouseover', (e) => {
+                this.props.highlightContestantTable(this.contestant.id)
+                this.props.highlightContestantTrack(this.contestant.id)
+            }
+        ).on('mouseout', (e) => {
+                this.props.removeHighlightContestantTable(this.contestant.id)
+                this.props.removeHighlightContestantTrack(this.contestant.id)
+            }
         )
+        this.fullTrack = L.polyline(positions, {
+            color: this.props.colour,
+            opacity: 1,
+            weight: 3
+        }).on('click', (e) =>
+            this.handleContestantLinkClick(e, this.contestant.id)
+        ).on('mouseover', (e) => {
+                this.props.highlightContestantTable(this.contestant.id)
+                this.props.highlightContestantTrack(this.contestant.id)
+            }
+        ).on('mouseout', (e) => {
+                this.props.removeHighlightContestantTable(this.contestant.id)
+                this.props.removeHighlightContestantTrack(this.contestant.id)
+            }
+        ).addTo(this.map)
         this.dot = L.marker(newest_position, {icon: this.createAirplaneIcon()}).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
-        ).on('mouseover', (e) =>
-            this.props.highlightContestantTable(this.contestant.id)
-        ).on('mouseout', (e) =>
-            this.props.removeHighlightContestantTable(this.contestant.id)
+        ).on('mouseover', (e) => {
+                this.props.highlightContestantTable(this.contestant.id)
+                this.props.highlightContestantTrack(this.contestant.id)
+            }
+        ).on('mouseout', (e) => {
+                this.props.removeHighlightContestantTable(this.contestant.id)
+                this.props.removeHighlightContestantTrack(this.contestant.id)
+            }
         )
         this.dotText = L.marker(newest_position, {icon: this.createAirplaneTextIcon()}).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
-        ).on('mouseover', (e) =>
-            this.props.highlightContestantTable(this.contestant.id)
-        ).on('mouseout', (e) =>
-            this.props.removeHighlightContestantTable(this.contestant.id)
+        ).on('mouseover', (e) => {
+                this.props.highlightContestantTable(this.contestant.id)
+                this.props.highlightContestantTrack(this.contestant.id)
+            }
+        ).on('mouseout', (e) => {
+                this.props.removeHighlightContestantTable(this.contestant.id)
+                this.props.removeHighlightContestantTrack(this.contestant.id)
+            }
         )
     }
 
@@ -272,9 +319,20 @@ class ConnectedContestantTrack extends Component {
         }
     }
 
+    showFullTrack() {
+        if (this.dot) {
+            this.fullTrack.addTo(this.map)
+            this.partialTrack.removeFrom(this.map)
+            this.dot.addTo(this.map)
+            this.dotText.addTo(this.map)
+            this.displayed = true
+        }
+    }
+
     showTrack() {
-        if (!this.displayed && this.dot) {
-            this.lineCollection.addTo(this.map)
+        if (this.dot) {
+            this.fullTrack.removeFrom(this.map)
+            this.partialTrack.addTo(this.map)
             this.dot.addTo(this.map)
             this.dotText.addTo(this.map)
             this.displayed = true
@@ -282,8 +340,9 @@ class ConnectedContestantTrack extends Component {
     }
 
     hideTrack() {
-        if (this.displayed && this.dot) {
-            this.lineCollection.removeFrom(this.map)
+        if (this.dot) {
+            this.fullTrack.removeFrom(this.map)
+            this.partialTrack.removeFrom(this.map)
             this.dot.removeFrom(this.map)
             this.dotText.removeFrom(this.map)
             this.displayed = false
@@ -292,14 +351,14 @@ class ConnectedContestantTrack extends Component {
 
     createPolyline(positions) {
         positions.map((position) => {
-            this.lineCollection.addLatLng(position)
+            this.fullTrack.addLatLng(position)
         })
     }
 
 
     updateBearing() {
-        if (this.lineCollection) {
-            const positions = this.lineCollection.getLatLngs()
+        if (this.fullTrack) {
+            const positions = this.fullTrack.getLatLngs()
             if (positions.length > 1) {
                 const slice = positions.slice(-2)
                 this.bearing = getBearing(slice[0].lat, slice[0].lng, slice[1].lat, slice[1].lng)
@@ -307,6 +366,21 @@ class ConnectedContestantTrack extends Component {
             }
         }
         this.dot.setIcon(this.createAirplaneIcon())
+    }
+
+    trimPartialTrack() {
+        if (this.partialTrack) {
+            const latestTime = this.allPoints[this.allPoints.length - 1].time.getTime()
+            const partial = this.allPoints.filter((position) => {
+                return latestTime - position.time.getTime() < this.trailLength * 1000
+            }).map((position) => {
+                return [position.latitude, position.longitude]
+            })
+            if (partial.length > 0) {
+                this.partialTrack.setLatLngs(partial)
+                this.partialTrack.redraw()
+            }
+        }
     }
 
     renderPositions(b) {
@@ -320,9 +394,10 @@ class ConnectedContestantTrack extends Component {
                     this.dotText.setLatLng(b.slice(-1)[0])
                 }
                 b.map((position) => {
-                    this.lineCollection.addLatLng(position)
+                    this.fullTrack.addLatLng(position)
                 })
             }
+            this.trimPartialTrack()
             this.updateBearing()
         }
     }
@@ -341,6 +416,8 @@ const ContestantTrack = connect(mapStateToProps, {
     displayOnlyContestantTrack,
     showLowerThirds,
     highlightContestantTable,
-    removeHighlightContestantTable
+    removeHighlightContestantTable,
+    highlightContestantTrack,
+    removeHighlightContestantTrack
 })(ConnectedContestantTrack);
 export default ContestantTrack;

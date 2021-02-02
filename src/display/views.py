@@ -544,7 +544,8 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     for item in position_data:
         reduced_data.append({
             "latitude": item["latitude"],
-            "longitude": item["longitude"]
+            "longitude": item["longitude"],
+            "time": item["time"],
         })
     route_progress = contestant.calculate_progress(global_latest_time)
     positions = reduced_data

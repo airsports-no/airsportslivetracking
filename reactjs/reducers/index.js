@@ -22,7 +22,7 @@ import {
     HIGHLIGHT_CONTESTANT_TRACK,
     REMOVE_HIGHLIGHT_CONTESTANT_TRACK,
     FULL_HEIGHT_TABLE,
-    HALF_HEIGHT_TABLE
+    HALF_HEIGHT_TABLE, EXPLICITLY_DISPLAY_ALL_TRACKS
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -39,6 +39,7 @@ const initialState = {
     displayLowerThirds: null,
     highlightContestantTrack: [],
     highlightContestantTable: [],
+    explicitlyDisplayAllTracks: false
 };
 
 function rootReducer(state = initialState, action) {
@@ -179,6 +180,22 @@ function rootReducer(state = initialState, action) {
         return Object.assign({}, state, {
             displayTracks: null
         });
+    }
+
+    if (action.type === EXPLICITLY_DISPLAY_ALL_TRACKS) {
+        if (!state.explicitlyDisplayAllTracks) {
+            return Object.assign({}, state, {
+                displayTracks: Object.keys(state.contestants).map((id) => {
+                    return id
+                }),
+                explicitlyDisplayAllTracks: true
+            });
+        } else {
+            return Object.assign({}, state, {
+                displayTracks: null,
+                explicitlyDisplayAllTracks: false
+            })
+        }
     }
     if (action.type === HIDE_ALL_TRACKS) {
         return Object.assign({}, state, {

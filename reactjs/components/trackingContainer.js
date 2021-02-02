@@ -10,7 +10,7 @@ import {
     halfHeightTable,
     hideLowerThirds,
     setDisplay,
-    shrinkTrackingTable
+    shrinkTrackingTable, toggleExplicitlyDisplayAllTracks
 } from "../actions";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -144,7 +144,8 @@ class ConnectedTrackingContainer extends Component {
                             {/*    <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>*/}
                             {/*</div>*/}
                             <div className={"logoImage"}>
-                                <img className={"img-fluid"} src={"/static/img/live_tracking.png"}/>
+                                <a onClick={this.props.toggleExplicitlyDisplayAllTracks()}><img className={"img-fluid"}
+                                                                                                src={"/static/img/live_tracking.png"}/></a>
                             </div>
                             {/*<img alt={"Logo"} className={"logoImage"}*/}
                             {/*     id={"logoImage"}*/}
@@ -173,6 +174,7 @@ const
         displayAllTracks,
         hideLowerThirds,
         halfHeightTable,
-        fullHeightTable
+        fullHeightTable,
+        toggleExplicitlyDisplayAllTracks
     })(ConnectedTrackingContainer)
 export default TrackingContainer

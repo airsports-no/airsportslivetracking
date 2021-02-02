@@ -1,3 +1,4 @@
+import datetime
 import time
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
@@ -17,14 +18,16 @@ server = 'traccar:5055'
 # server = 'localhost:5055'
 
 
-def build_traccar_track(filename):
+def build_traccar_track(filename, today: datetime.datetime, start_index: int = 0):
     with open(filename, "r") as i:
         gpx = gpxpy.parse(i)
     positions = []
     for track in gpx.tracks:
         for segment in track.segments:
-            for point in segment.points:
-                positions.append((point.time, point.latitude, point.longitude))
+            for point in segment.points[start_index:]:
+                now = today.replace(hour=point.time.hour, minute=point.time.minute, second=point.time.second,
+                                    microsecond=point.time.microsecond)
+                positions.append((now, point.latitude, point.longitude))
     return positions
 
 

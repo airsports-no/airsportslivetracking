@@ -55,6 +55,7 @@ class Gatekeeper(threading.Thread):
         self.pending_points = []
         self.score = 0
         self.score_by_gate = {}
+        self.has_passed_finishpoint = False
         self.score_log = []
         self.last_gate_index = 0
         self.enroute = False
@@ -207,8 +208,10 @@ class Gatekeeper(threading.Thread):
             logger.info("Switching to enroute")
 
     def passed_finishpoint(self):
-        for calculator in self.calculators:
-            calculator.passed_finishpoint(self.track, self.last_gate)
+        if not self.has_passed_finishpoint:
+            self.has_passed_finishpoint = True
+            for calculator in self.calculators:
+                calculator.passed_finishpoint(self.track, self.last_gate)
 
     @abstractmethod
     def check_termination(self):
