@@ -4,7 +4,9 @@
     <H1>{{ object.name }}</H1>
     {{ ts }}
     {{ tss }}
-    <a href="{% url 'contest_list' %}">Back to contest list</a> | <a href="{% url 'frontend_view_map' object.pk %}">Track</a>
+    <a href="{% url 'contest_list' %}">Back to contest list</a> |
+    <a href="{% url 'frontend_view_map' object.pk %}">Track</a> |
+    <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a>
     <table class="table table-condensed">
         <thead>
         <tr>

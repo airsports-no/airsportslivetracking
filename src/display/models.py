@@ -17,6 +17,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from rest_framework.exceptions import ValidationError
 from solo.models import SingletonModel
 
+from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.coordinate_utilities import create_perpendicular_line_at_end_lonlat, bearing_difference
 from display.my_pickled_object_field import MyPickledObjectField
 from display.waypoint import Waypoint
@@ -557,6 +558,14 @@ class NavigationTask(models.Model):
         help_text="The finish time of the navigation test. Not really important, but nice to have")
     is_public = models.BooleanField(default=False,
                                     help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
+    wind_speed = models.FloatField(default=0,
+                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
+    wind_direction = models.FloatField(default=0,
+                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
+    minutes_to_starting_point = models.FloatField(default=5,
+                                                  help_text="The number of minutes from the take-off time until the starting point")
+    minutes_to_landing = models.FloatField(default=5,
+                                           help_text="The number of minutes from the finish point to the contestant should have landed")
 
     class Meta:
         ordering = ("start_time", "finish_time")
@@ -658,20 +667,15 @@ class Contestant(models.Model):
         if len(gates) == 0:
             return {}
         crossing_times = {}
+        relative_crossing_times = calculate_and_get_relative_gate_times(self.navigation_task.route, self.air_speed,
+                                                                        self.wind_speed, self.wind_direction)
+
         if start_point_override is not None:
             crossing_time = start_point_override
         else:
             crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
-        crossing_times[gates[0].name] = crossing_time
-        for index in range(len(gates) - 1):  # type: Waypoint
-            gate = gates[index]
-            next_gate = gates[index + 1]
-            ground_speed = self.get_groundspeed(gate.bearing_next)
-            crossing_time += datetime.timedelta(
-                hours=(gate.distance_next / 1852) / ground_speed)
-            crossing_times[next_gate.name] = crossing_time
-            if next_gate.is_procedure_turn:
-                crossing_time += datetime.timedelta(minutes=1)
+        for gate, relative in relative_crossing_times:
+            crossing_times[gate] = crossing_time + relative
         if self.navigation_task.route.takeoff_gate is not None and self.navigation_task.route.takeoff_gate.name not in crossing_times:
             crossing_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
         if self.navigation_task.route.landing_gate is not None and self.navigation_task.route.landing_gate.name not in crossing_times:

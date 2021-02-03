@@ -51,3 +51,4 @@ pytz
 tzlocal
 django-timezone-field
 django-multiselectfield
+pulp
