@@ -9,7 +9,8 @@ from display.views import import_route, frontend_view_map, \
     auto_complete_club, auto_complete_aeroplane, RegisterTeamWizard, ContestTeamList, remove_team_from_contest, \
     TeamUpdateView, auto_complete_person_id, PersonUpdateView, PersonList, NavigationTaskUpdateView, \
     ContestTeamTrackingUpdate, manifest, auto_complete_contestteam_pk, \
-    tracking_qr_code_view, get_contestant_map, get_navigation_task_map, add_contest_teams_to_navigation_task
+    tracking_qr_code_view, get_contestant_map, get_navigation_task_map, add_contest_teams_to_navigation_task, \
+    clear_future_contestants, render_contestants_timeline, get_contestant_schedule
 
 urlpatterns = [
     path('importroute', import_route, name="import_route"),
@@ -24,6 +25,9 @@ urlpatterns = [
     path('navigationtask/<int:pk>/update/', NavigationTaskUpdateView.as_view(), name="navigationtask_update"),
     path('navigationtask/<int:pk>/delete/', NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),
     path('navigationtask/<int:pk>/add_contestants/', add_contest_teams_to_navigation_task, name="navigationtask_addcontestants"),
+    path('navigationtask/<int:pk>/remove_contestants/', clear_future_contestants, name="navigationtask_removecontestants"),
+    path('navigationtask/<int:pk>/contestants_timeline/', render_contestants_timeline, name="navigationtask_contestantstimeline"),
+    path('navigationtask/<int:pk>/contestants_timeline_data/', get_contestant_schedule, name="navigationtask_contestantstimelinedata"),
     # path('navigationtask/<int:pk>/scoreoverride/', BasicScoreOverrideUpdateView.as_view(),
     #      name="navigationtask_scoreoverride"),
     path('contestant/<int:navigationtask_pk>/create/', ContestantCreateView.as_view(), name="contestant_create"),

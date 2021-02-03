@@ -6,7 +6,10 @@
     {{ tss }}
     <a href="{% url 'contest_list' %}">Back to contest list</a> |
     <a href="{% url 'frontend_view_map' object.pk %}">Track</a> |
-    <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a>
+    <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a>|
+    <a href="{% url 'navigationtask_removecontestants' object.pk %}">Remove contestants</a> |
+    <a href="{% url 'navigationtask_contestantstimeline' object.pk %}">Timeline</a>
+
     <table class="table table-condensed">
         <thead>
         <tr>

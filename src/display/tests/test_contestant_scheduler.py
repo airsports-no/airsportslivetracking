@@ -38,8 +38,10 @@ class TestContestantScheduler(TestCase):
             TeamDefinition(1, 5, "something", "traccar", "aircraft_two")
         ]
         now = datetime.datetime.now(datetime.timezone.utc)
-        solver = Solver(now, 60, teams, minimum_start_interval=0, tracker_switch_time=0)
+        solver = Solver(now, 60, teams, minimum_start_interval=0, tracker_switch_time=0, tracker_start_lead_time=1)
         team_definitions = solver.schedule_teams()
         self.assertEqual(2, len(team_definitions))
         self.assertEqual(now, min([item.start_time for item in team_definitions]))
-        self.assertEqual(5 * 60, abs((team_definitions[0].start_time - team_definitions[1].start_time).total_seconds()))
+        self.assertEqual(6 * 60, abs((team_definitions[0].start_time - team_definitions[1].start_time).total_seconds()))
+        self.assertEqual(0,team_definitions[0].start_slot)
+        self.assertEqual(6,team_definitions[1].start_slot)

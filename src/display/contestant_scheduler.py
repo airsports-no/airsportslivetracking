@@ -143,8 +143,8 @@ class Solver:
             for slot in range(self.contest_duration - team.flight_time):
                 self.problem += pulp.lpSum(
                     self.tracker_usage[f"{team.get_tracker_id()}_{tracker_slot}"] for tracker_slot in
-                    range(slot + 1, slot + team.flight_time + self.tracker_switch_time)) + self.tracker_usage[
-                                    f"{team.get_tracker_id()}_{slot}"] <= 1, f"tracker_not_overlapping_with_itself_{team.pk}_{slot}"
+                    range(max(0, slot - self.tracker_start_lead_time),
+                          slot + team.flight_time + self.tracker_switch_time)) <= 1, f"tracker_not_overlapping_with_itself_{team.pk}_{slot}"
 
         a = {}
         for team in self.teams:

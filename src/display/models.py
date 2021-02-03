@@ -611,6 +611,7 @@ class Contestant(models.Model):
 
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
+        ordering = ("takeoff_time",)
 
     def save(self, **kwargs):
         self.tracker_device_id = self.tracker_device_id.strip()
