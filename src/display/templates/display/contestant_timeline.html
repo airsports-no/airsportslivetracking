@@ -16,15 +16,20 @@
                 async: false
             }).responseJSON
             for (const row of rawData.rows) {
-                row.c[1].v = new Date(row.c[1].v)
                 row.c[2].v = new Date(row.c[2].v)
+                row.c[3].v = new Date(row.c[3].v)
             }
             console.log(rawData)
             var dataTable = new google.visualization.DataTable(rawData);
             console.log(dataTable)
+            var options = {
+                timeline: {
+                    groupByRowLabel: true
+                }
+            }
 
 
-            chart.draw(dataTable);
+            chart.draw(dataTable, options);
         }
     </script>
 {% endblock %}

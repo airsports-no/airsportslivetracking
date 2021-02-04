@@ -485,13 +485,14 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 def get_contestant_schedule(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     columns = [
+        {"id": "Aircraft", "type": "string"},
         {"id": "Contestant", "type": "string"},
         {"id": "Takeoff", "type": "date"},
         {"id": "Landing", "type": "date"},
     ]
     rows = []
     for contestant in navigation_task.contestant_set.all():
-        rows.append({"c":[{"v":str(contestant)}, {"v":contestant.takeoff_time}, {"v":contestant.finished_by_time}]})
+        rows.append({"c": [{"v":contestant.team.aeroplane.registration}, {"v": str(contestant)}, {"v": contestant.takeoff_time}, {"v": contestant.finished_by_time}]})
 
     return Response({"cols": columns, "rows": rows})
 
@@ -504,7 +505,7 @@ def render_contestants_timeline(request, pk):
 def clear_future_contestants(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     now = datetime.datetime.now(datetime.timezone.utc)
-    candidates = navigation_task.contestant_set.filter(takeoff_time__gte=now + datetime.timedelta(minutes=15))
+    candidates = navigation_task.contestant_set.all()#filter(takeoff_time__gte=now + datetime.timedelta(minutes=15))
     messages.success(request, f"{candidates.count()} contestants have been deleted")
     candidates.delete()
     return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
@@ -517,7 +518,7 @@ def add_contest_teams_to_navigation_task(request, pk):
     Apply basic the conflicting of speed, aircraft, and trackers
     """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    if not schedule_and_create_contestants(navigation_task, 15, 5, 30, 15, 5):
+    if not schedule_and_create_contestants(navigation_task, None, 5, 30, 15, 1):
         messages.error(request, "Optimisation failed")
     else:
         messages.success(request, "Optimisation successful")
