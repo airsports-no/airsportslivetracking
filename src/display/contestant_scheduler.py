@@ -57,7 +57,8 @@ class Solver:
         self.__invalidate_slots_that_do_not_complete_in_time()
         self.__minimum_start_interval()
         self.__one_and_only_one_start_time()
-        self.__generate_and_group_overlapping_aircraft_slots()
+        # self.__generate_and_group_overlapping_aircraft_slots()
+        self.__nonoverlapping_aircraft()
         self.__generate_and_group_overlapping_tracker_slots()
         self.__minimum_interval_between_teams()
         # self.__generate_not_overtaking_constraints()
@@ -169,6 +170,48 @@ class Solver:
             # For all time slots that do not allow finishing before the end of the contest duration, disable them
             for slot in range(self.contest_duration - team.flight_time + 1, self.contest_duration):
                 self.problem += self.start_slots[f"{team.pk}_{slot}"] == 0, f"invalid_slot_{team.pk}_{slot}"
+
+    def __nonoverlapping_aircraft(self):
+        logger.info("Nonoverlapping aircraft")
+        overlapping_aircraft = {}
+        for team in self.teams:
+            if team.aircraft_registration not in overlapping_aircraft:
+                overlapping_aircraft[team.aircraft_registration] = []
+            overlapping_aircraft[team.aircraft_registration].append(team)
+        for aircraft, teams in overlapping_aircraft.items():
+            if len(teams) > 1:
+                team_variables = pulp.LpVariable.dicts(
+                    "team_aircraft_usage",
+                    [f"{team.pk}_{other_team.pk}" for team in teams for other_team in teams],
+                    lowBound=0,
+                    upBound=1,
+                    cat=pulp.LpInteger
+                )
+                team_aircraft_start = pulp.LpVariable.dicts(
+                    "team_aircraft_start",
+                    [f"{team.pk}" for team in teams],
+                    lowBound=0,
+                    cat=pulp.LpInteger
+                )
+                for team in teams:
+                    # Get slot number of team aircraft usage
+                    self.problem += team_aircraft_start[f"{team.pk}"] - pulp.lpSum(
+                        self.start_slots[f"{team.pk}_{slot}"] * slot for slot in
+                        range(
+                            self.contest_duration - self.minimum_start_interval)) == 0, f"team_aircraft_start_slot_number_{team.pk}"
+                    for other_team in teams:
+                        if team != other_team:
+                            # Ensure no overlap
+                            self.problem += team_aircraft_start[
+                                                f"{team.pk}"] - team_aircraft_start[
+                                                f"{other_team.pk}"] + team.flight_time + self.aircraft_switch_time - self.very_large_variable * \
+                                            team_variables[
+                                                f"{team.pk}_{other_team.pk}"] <= 0, f"team_use_aircraft_before_other_{team.pk}_{other_team.pk}"
+                            # 1 = before
+                            self.problem += team_aircraft_start[
+                                                f"{other_team.pk}"] - team_aircraft_start[
+                                                f"{team.pk}"] - self.very_large_variable * (1 - team_variables[
+                                f"{team.pk}_{other_team.pk}"]) <= 0, f"other_use_aircraft_before_team_{team.pk}_{other_team.pk}"
 
     def __generate_and_group_overlapping_aircraft_slots(self):
         logger.info("Avoiding overlapping aircraft slots")

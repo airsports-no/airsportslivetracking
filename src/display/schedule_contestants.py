@@ -15,7 +15,7 @@ def schedule_and_create_contestants(navigation_task: NavigationTask, time_lock_m
     final_waypoint = navigation_task.route.waypoints[-1]
     now = datetime.datetime.now(datetime.timezone.utc)
     aa=list(navigation_task.contest.contestteam_set.all())
-    for contest_team in aa:#aa[:20]+aa[40:60]:
+    for contest_team in aa[:20]+aa[40:60]:
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
             if time_lock_minutes is None or contestant.takeoff_time - datetime.timedelta(minutes=time_lock_minutes) < now:
