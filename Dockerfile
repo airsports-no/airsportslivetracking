@@ -2,7 +2,7 @@ FROM ubuntu:18.04
 ENV PYTHONUNBUFFERED 1
 
 ###### SETUP BASE INFRASTRUCTURE ######
-RUN apt-get update && apt-get install -y python3.6 python3-pip curl build-essential vim libproj-dev proj-data proj-bin libgeos-dev libgdal-dev  redis-server daphne
+RUN apt-get update && apt-get install -y python3.6 python3-pip curl build-essential vim libproj-dev proj-data proj-bin libgeos-dev libgdal-dev  redis-server daphne libboost-program-options1.65.1 libcliquer1 libgsl23 libgslcblas0 libtbb2
 RUN curl -sL https://deb.nodesource.com/setup_10.x -o nodesource_setup.sh && bash nodesource_setup.sh && apt-get update && apt-get install -y nodejs && rm nodesource_setup.sh
 
 RUN pip3 install -U pip
@@ -35,6 +35,8 @@ RUN npm install
 COPY reactjs /reactjs
 RUN cd / && npm run webpack
 COPY src /src
+COPY scip /scip
+RUN apt install /scip/SCIPOptSuite-7.0.2-Linux-ubuntu.deb
 WORKDIR /src
 
 ###### LABEL THE CURRENT IMAGE ######

@@ -12,14 +12,16 @@ def schedule_and_create_contestants(navigation_task: NavigationTask, time_lock_m
                                     tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
                                     tracker_switch_time: int, minimum_start_interval: int) -> bool:
     contest_teams = []
+    final_waypoint = navigation_task.route.waypoints[-1]
     now = datetime.datetime.now(datetime.timezone.utc)
-    for contest_team in navigation_task.contest.contestteam_set.all()[:60]:
+    aa=list(navigation_task.contest.contestteam_set.all())
+    for contest_team in aa:#aa[:20]+aa[40:60]:
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
             if time_lock_minutes is None or contestant.takeoff_time - datetime.timedelta(minutes=time_lock_minutes) < now:
                 contest_teams.append((contest_team, contestant.air_speed, contestant.wind_speed,
                                       contestant.wind_direction, contestant.minutes_to_starting_point,
-                                      (contestant.finished_by_time - contestant.gate_times["fp"].total_seconds() / 60)))
+                                      (contestant.finished_by_time - contestant.gate_times[final_waypoint.name]).total_seconds() / 60))
         except ObjectDoesNotExist:
             contest_teams.append((contest_team, contest_team.air_speed, navigation_task.wind_speed,
                                   navigation_task.wind_direction, navigation_task.minutes_to_starting_point,
@@ -50,8 +52,11 @@ def schedule_and_create_contestants(navigation_task: NavigationTask, time_lock_m
             start_offset = team_definition.start_time - contestant.takeoff_time
             contestant.tracker_start_time = team_definition.start_time - datetime.timedelta(
                 minutes=tracker_leadtime_minutes)
-            contestant.start_time += start_offset
+            contestant.takeoff_time += start_offset
             contestant.finished_by_time += start_offset
+            if contestant.predefined_gate_times is not None:
+                for key, value in contestant.predefined_gate_times.items():
+                    contestant[key] = value + start_offset
             contestant.save()
         except ObjectDoesNotExist:
             if navigation_task.contestant_set.all().count() > 0:
