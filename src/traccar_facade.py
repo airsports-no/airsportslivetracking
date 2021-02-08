@@ -52,8 +52,8 @@ class Traccar:
         groups = self.get_groups()
         for group in groups:
             if group["name"] == "GlobalDevices":
-                return group["groupId"]
-        return self.create_group("GlobalDevices")["groupId"]
+                return group["id"]
+        return self.create_group("GlobalDevices")["id"]
 
     def create_device(self, device_name, identifier):
         response = self.session.post(self.base + "/api/devices", json={"uniqueId": identifier, "name": device_name,
@@ -64,10 +64,10 @@ class Traccar:
             return response.json()
 
     def add_device_to_shared_group(self, deviceId):
-        response = self.session.put(self.base + f"/api/devices/{deviceId}", json={"groupId":self.get_shared_group_id()})
+        response = self.session.put(self.base + f"/api/devices/{deviceId}/",
+                                    json={"groupId": self.get_shared_group_id()})
         if response.status_code == 200:
             return True
-
 
     def get_device(self, identifier) -> Optional[Dict]:
         response = self.session.get(self.base + "/api/devices/?uniqueId={}".format(identifier))

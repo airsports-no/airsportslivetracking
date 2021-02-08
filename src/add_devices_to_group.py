@@ -17,4 +17,7 @@ devices = traccar.update_and_get_devices()
 # Group ID = 1
 for item in devices:
     print(item)
-    traccar.add_device_to_shared_group(item["id"])
+    if traccar.add_device_to_shared_group(item["id"]):
+        print("Success")
+    else:
+        print("Failure")
