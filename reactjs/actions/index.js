@@ -21,7 +21,10 @@ import {
     REMOVE_HIGHLIGHT_CONTESTANT_TABLE,
     FULL_HEIGHT_TABLE,
     HALF_HEIGHT_TABLE,
-    EXPLICITLY_DISPLAY_ALL_TRACKS, TRACCAR_DATA_RECEIVED
+    EXPLICITLY_DISPLAY_ALL_TRACKS,
+    TRACCAR_DATA_RECEIVED,
+    GET_CONTEST_SUCCESSFUL,
+    GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -100,6 +103,7 @@ export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) =
 }
 
 
+
 export const dispatchContestantData = (data) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: data})
 }
@@ -125,4 +129,24 @@ export const fetchContestantData = (contestId, navigationTaskId, contestantId, f
 // Global map
 export const dispatchTraccarData = (data) => (dispatch) => {
     dispatch({type: TRACCAR_DATA_RECEIVED, payload: data})
+}
+
+export const fetchContests = () => (dispatch) => {
+    $.ajax({
+        url: "/api/v1/contests/",
+        datatype: 'json',
+        cache: false,
+        success: value => dispatch({type: GET_CONTEST_SUCCESSFUL, payload: value}),
+        error: error => console.log(error)
+    });
+}
+
+export const fetchContestsNavigationTaskSummaries = (contestId) => (dispatch) => {
+    $.ajax({
+        url: "/api/v1/contests/" + contestId + "/navigation_task_summaries/",
+        datatype: 'json',
+        cache: false,
+        success: value => dispatch({type: GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL, payload: value}),
+        error: error => console.log(error)
+    });
 }

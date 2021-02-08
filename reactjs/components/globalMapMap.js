@@ -2,15 +2,17 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {tileLayer} from "leaflet";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
-import {dispatchTraccarData} from "../actions";
+import {dispatchTraccarData, fetchContests} from "../actions";
 import axios from "axios";
+import ContestsGlobalMap from "./contests/contestsGlobalMap";
 
 const L = window['L']
 const server = "traccar.airsports.no";
 const token = "f4DSCgfm46IqkRAxTb2N2VV6eGver6tt";
 export const mapStateToProps = (state, props) => ({})
 export const mapDispatchToProps = {
-    dispatchTraccarData
+    dispatchTraccarData,
+    fetchContests
 }
 
 class Aircraft {
@@ -71,6 +73,7 @@ class Aircraft {
 class ConnectedGlobalMapMap extends Component {
     constructor(props) {
         super(props);
+        this.state = {map: null}
         this.map = null;
         this.aircraft = {}  // deviceId is key
     }
@@ -125,6 +128,7 @@ class ConnectedGlobalMapMap extends Component {
     componentDidMount() {
         this.initialiseMap()
         this.initiateSession()
+        this.props.fetchContests()
     }
 
 
@@ -142,12 +146,13 @@ class ConnectedGlobalMapMap extends Component {
             zoomOffset: -1,
             accessToken: token
         }).addTo(this.map);
-        this.map.setView([0, 0], 1)
+        this.map.setView([0, 0], 2)
+        this.setState({map: this.map})
     }
 
 
     render() {
-        return null
+        return <ContestsGlobalMap map={this.state.map}/>
     }
 
 }

@@ -64,7 +64,8 @@ from display.serialisers import ContestantTrackSerialiser, \
     TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
     GpxTrackSerialiser, PersonSerialiser, ExternalNavigationTaskTeamIdSerialiser, \
     ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser, \
-    TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser
+    TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser, \
+    NavigationTasksSummarySerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -1157,6 +1158,14 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_contest",
                                     klass=self.queryset) | self.queryset.filter(is_public=True)
+
+    @action(["GET"], detail=True)
+    def navigation_task_summaries(self, request, pk=None, **kwargs):
+        contests = get_objects_for_user(self.request.user, "view_contest",
+                                        klass=Contest)
+        navigation_tasks = NavigationTask.objects.filter(
+            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)).filter(contest_id=pk)
+        return Response(NavigationTasksSummarySerialiser(navigation_tasks, many=True).data)
 
     @action(["GET"], detail=True)
     def teams(self, request, pk=None, **kwargs):

@@ -37,6 +37,12 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSeria
         }
 
 
+class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = NavigationTask
+        fields = ("pk", "name", "start_time", "finish_time")
+
+
 class WaypointSerialiser(serializers.Serializer):
     def create(self, validated_data):
         pass
@@ -71,9 +77,9 @@ class WaypointSerialiser(serializers.Serializer):
     right_corridor_line = serializers.JSONField(required=False)
 
 
-
 class ProhibitedSerialiser(serializers.ModelSerializer):
     path = serializers.JSONField()
+
     class Meta:
         model = Prohibited
         fields = "__all__"

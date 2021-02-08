@@ -232,6 +232,8 @@ class Contest(models.Model):
                                                        max_length=50)
     name = models.CharField(max_length=100, unique=True)
     time_zone = TimeZoneField()
+    latitude = models.FloatField(default=0, help_text="Approximate location of contest, used for global map display")
+    longitude = models.FloatField(default=0, help_text="Approximate location of contest, used for global map display")
     start_time = models.DateTimeField(
         help_text="The start time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
     finish_time = models.DateTimeField(
