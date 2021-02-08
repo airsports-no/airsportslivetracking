@@ -33,10 +33,10 @@ class ConnectedGlobalMapContainer extends Component {
                             <img className={"img-fluid"}
                                  src={"/static/img/live_tracking.png"}/>
                         </div>
-                        {TrackerDisplay}
                         <div id="cesiumContainer"/>
                     </div>
                 </div>
+                {TrackerDisplay}
             </div>
         )
     }

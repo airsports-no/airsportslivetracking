@@ -56,6 +56,11 @@ class Aircraft {
         }).addTo(this.map)
     }
 
+    updateDevice(device) {
+        this.displayText = device.name
+        this.dotText.setIcon(this.createAirplaneTextIcon())
+    }
+
     updatePosition(position) {
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
@@ -81,12 +86,25 @@ class ConnectedGlobalMapMap extends Component {
             };
             this.client.onmessage = (message) => {
                 let data = JSON.parse(message.data);
-                this.handlePositions(data.positions)
+                if (data.positions !== undefined) {
+                    this.handlePositions(data.positions)
+                }
+                if (data.devices !== undefined) {
+                    this.handleDevices(data.devices)
+                }
             };
 
         })
     }
 
+
+    handleDevices(devices) {
+        devices.map((device) => {
+            if (this.aircraft[device.id] !== undefined) {
+                this.aircraft[device.id].updateDevice(device)
+            }
+        })
+    }
 
     handlePositions(positions) {
         positions.map((position) => {
@@ -94,7 +112,7 @@ class ConnectedGlobalMapMap extends Component {
             const deviceTime = new Date(position.deviceTime)
             if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
                 if (this.aircraft[position.deviceId] === undefined) {
-                    this.aircraft[position.deviceId] = new Aircraft(position.deviceId, "blue", position)
+                    this.aircraft[position.deviceId] = new Aircraft(position.deviceId, "blue", position, this.map)
                 } else {
                     this.aircraft[position.deviceId].updatePosition(position)
                 }
@@ -124,11 +142,12 @@ class ConnectedGlobalMapMap extends Component {
             zoomOffset: -1,
             accessToken: token
         }).addTo(this.map);
+        this.map.setView([0, 0], 1)
     }
 
 
     render() {
-        return null;
+        return null
     }
 
 }

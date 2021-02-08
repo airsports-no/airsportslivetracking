@@ -107,7 +107,7 @@ def frontend_view_map(request, pk):
 
 
 def global_map(request):
-    return render(request, "display/globalmap.html")
+    return render(request, "display/globalmap.html", {"skip_nav": True})
 
 
 def results_service(request):
