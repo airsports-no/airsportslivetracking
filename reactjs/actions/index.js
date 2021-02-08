@@ -21,7 +21,7 @@ import {
     REMOVE_HIGHLIGHT_CONTESTANT_TABLE,
     FULL_HEIGHT_TABLE,
     HALF_HEIGHT_TABLE,
-    EXPLICITLY_DISPLAY_ALL_TRACKS
+    EXPLICITLY_DISPLAY_ALL_TRACKS, TRACCAR_DATA_RECEIVED
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -104,6 +104,7 @@ export const dispatchContestantData = (data) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: data})
 }
 
+
 export const fetchContestantData = (contestId, navigationTaskId, contestantId, fromTime) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_REQUEST, id: contestantId})
     let url = "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/contestants/" + contestantId + "/track_frontend/"
@@ -118,4 +119,10 @@ export const fetchContestantData = (contestId, navigationTaskId, contestantId, f
         error: error => dispatch({type: GET_CONTESTANT_DATA_FAILED, id: contestantId}),
         timeout: 60000
     });
+}
+
+
+// Global map
+export const dispatchTraccarData = (data) => (dispatch) => {
+    dispatch({type: TRACCAR_DATA_RECEIVED, payload: data})
 }

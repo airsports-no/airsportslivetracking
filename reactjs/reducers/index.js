@@ -22,7 +22,7 @@ import {
     HIGHLIGHT_CONTESTANT_TRACK,
     REMOVE_HIGHLIGHT_CONTESTANT_TRACK,
     FULL_HEIGHT_TABLE,
-    HALF_HEIGHT_TABLE, EXPLICITLY_DISPLAY_ALL_TRACKS
+    HALF_HEIGHT_TABLE, EXPLICITLY_DISPLAY_ALL_TRACKS, TRACCAR_DATA_RECEIVED
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -233,6 +233,19 @@ function rootReducer(state = initialState, action) {
     if (action.type === HIDE_LOWER_THIRDS) {
         return Object.assign({}, state, {
             displayLowerThirds: null
+        });
+    }
+    if (action.type === TRACCAR_DATA_RECEIVED) {
+        let positions = {}
+        action.data.map((position) => {
+            const now = new Date()
+            const deviceTime = new Date(position.deviceTime)
+            if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000) {
+                positions[position.deviceId] = position
+            }
+        })
+        return Object.assign({}, state, {
+            traccarPositions: positions
         });
     }
     return state;

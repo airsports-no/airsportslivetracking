@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load render_bundle from webpack_loader %}
+{% load static %}
+{% block document_configuration %}
+<script>
+    document.configuration = {
+    }
+</script>
+{% endblock %}
+
+{% block contentfluid %}
+    <div class="row">
+        <div id="root">
+            <img class="center" src="{% static 'img/loading.gif' %}" alt="loading..."/>
+        </div>
+    </div>
+    </div>
+    {% render_bundle 'vendors' %}
+    {% render_bundle 'GlobalMap' %}
+{% endblock %}

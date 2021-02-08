@@ -21,4 +21,5 @@
     <entry key='database.url'>jdbc:mysql://mysql:3306/traccar?serverTimezone=UTC&amp;useSSL=false&amp;allowMultiQueries=true&amp;autoReconnect=true&amp;useUnicode=yes&amp;characterEncoding=UTF-8&amp;sessionVariables=sql_mode=''&amp;allowPublicKeyRetrieval=true</entry>
     <entry key='database.user'>traccar</entry>
     <entry key='database.password'>traccar</entry>
+    <entry key="web.origin">*</entry>
 </properties>

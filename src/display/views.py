@@ -106,6 +106,10 @@ def frontend_view_map(request, pk):
                    "display_map": "true", "display_table": "false", "skip_nav": True})
 
 
+def global_map(request):
+    return render(request, "display/globalmap.html")
+
+
 def results_service(request):
     return render(request, "display/resultsservice.html")
 
