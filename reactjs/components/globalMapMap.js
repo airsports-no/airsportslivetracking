@@ -71,7 +71,7 @@ class ConnectedGlobalMapMap extends Component {
     }
 
     initiateSession() {
-        axios.get("http://" + server + "/api/session?token=" + token, {withCredentials: true}).then(res => {
+        axios.get("https://" + server + "/api/session?token=" + token, {withCredentials: true}).then(res => {
             this.client = new W3CWebSocket("wss://" + server + "/api/socket")
             console.log("Initiated session")
             console.log(res)
@@ -81,7 +81,7 @@ class ConnectedGlobalMapMap extends Component {
             };
             this.client.onmessage = (message) => {
                 let data = JSON.parse(message.data);
-                this.props.dispatchTraccarData(data)
+                this.handlePositions(data.positions)
             };
 
         })
