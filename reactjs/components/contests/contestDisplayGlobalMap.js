@@ -20,7 +20,7 @@ class ConnectedContestDisplayGlobalMap extends Component {
     componentDidMount() {
         // this.props.fetchContestsNavigationTaskSummaries(this.props.contest.id)
         this.circle = L.circle([this.props.contest.latitude, this.props.contest.longitude], {
-            radius: 200000,
+            radius: 50000,
             color: "red",
             opacity: 0.3
         }).bindTooltip(this.props.contest.name, {
