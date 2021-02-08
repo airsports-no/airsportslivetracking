@@ -507,3 +507,8 @@ class ContestantForm(forms.ModelForm):
             "takeoff_time", "adaptive_start",
             "finished_by_time",
             "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed")
+
+
+class ContestTeamOptimisationForm(forms.Form):
+    contest_teams = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple())
+    # optimise = forms.BooleanField(required=False, initial=False, help_text="Try to further optimise the schedule")

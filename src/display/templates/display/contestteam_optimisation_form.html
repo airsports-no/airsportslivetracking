@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load static %}
+{% load bootstrap4 %}
+{% block content %}
+
+    {{ form.media }}
+    {{ form.errors }}
+    <h2>Contestant optimisation</h2>
+    <b>Warning:</b> this might take some time, especially with a large number of teams (more than 30) when many share
+    the same aircraft. It should not take more than 10 minutes, or it will fail.<br/>
+    <a href="{% url 'navigationtask_detail' navigation_task.pk %}">Back to task details</a>
+    <p>
+        <a href="#" onclick="select_all()">Select all</a>/<a href="#" onclick="deselect_all()">Deselect all</a>
+    </p>
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Optimise</button>
+        {% endbuttons %}
+    </form>
+
+    <script type="text/javascript">
+        function select_all() {
+            $('input[type=checkbox]').prop('checked', true);
+        }
+
+        function deselect_all() {
+            $('input[type=checkbox]').prop('checked', false);
+        }
+
+    </script>
+
+{% endblock %}

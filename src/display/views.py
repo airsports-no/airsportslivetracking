@@ -48,7 +48,7 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
     Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, ContestantMapForm, LANDSCAPE, \
     MapForm, \
     WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
-    PrecisionScoreOverrideForm, STARTINGPOINT, FINISHPOINT, TrackingDataForm
+    PrecisionScoreOverrideForm, STARTINGPOINT, FINISHPOINT, TrackingDataForm, ContestTeamOptimisationForm
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
@@ -492,7 +492,8 @@ def get_contestant_schedule(request, pk):
     ]
     rows = []
     for contestant in navigation_task.contestant_set.all():
-        rows.append({"c": [{"v":contestant.team.aeroplane.registration}, {"v": str(contestant)}, {"v": contestant.takeoff_time}, {"v": contestant.finished_by_time}]})
+        rows.append({"c": [{"v": contestant.team.aeroplane.registration}, {"v": str(contestant)},
+                           {"v": contestant.takeoff_time}, {"v": contestant.finished_by_time}]})
 
     return Response({"cols": columns, "rows": rows})
 
@@ -505,7 +506,7 @@ def render_contestants_timeline(request, pk):
 def clear_future_contestants(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     now = datetime.datetime.now(datetime.timezone.utc)
-    candidates = navigation_task.contestant_set.all()#filter(takeoff_time__gte=now + datetime.timedelta(minutes=15))
+    candidates = navigation_task.contestant_set.all()  # filter(takeoff_time__gte=now + datetime.timedelta(minutes=15))
     messages.success(request, f"{candidates.count()} contestants have been deleted")
     candidates.delete()
     return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
@@ -517,12 +518,41 @@ def add_contest_teams_to_navigation_task(request, pk):
 
     Apply basic the conflicting of speed, aircraft, and trackers
     """
+    TIME_LOCK_MINUTES = 30
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    if not schedule_and_create_contestants(navigation_task, None, 5, 30, 15, 1):
-        messages.error(request, "Optimisation failed")
-    else:
-        messages.success(request, "Optimisation successful")
-    return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
+    form = ContestTeamOptimisationForm()
+    if request.method == "POST":
+        form = ContestTeamOptimisationForm(request.POST)
+        form.fields["contest_teams"].choices = [(str(item.pk), str(item)) for item in
+                                                navigation_task.contest.contestteam_set.all()]
+        if form.is_valid():
+            if not schedule_and_create_contestants(navigation_task,
+                                                   [int(item) for item in form.cleaned_data["contest_teams"]], 5,
+                                                   30, 15, 5, optimise=form.cleaned_data.get("optimise", False)):
+                messages.error(request, "Optimisation failed")
+            else:
+                messages.success(request, "Optimisation successful")
+            return redirect(reverse("navigationtask_contestantstimeline", kwargs={"pk": navigation_task.pk}))
+    now = datetime.datetime.now(datetime.timezone.utc)
+    selected_existing = []
+    used_contest_teams = set()
+    for contestant in navigation_task.contestant_set.all():
+        selected = False
+        if contestant.takeoff_time - datetime.timedelta(
+                minutes=TIME_LOCK_MINUTES) > now:
+            selected = True
+        contest_team = navigation_task.contest.contestteam_set.get(team=contestant.team)
+        selected_existing.append((contest_team, f"{contest_team} (at {contestant.takeoff_time})", selected))
+        used_contest_teams.add(contest_team.pk)
+    selected_existing.extend([(item, str(item), False) for item in
+                              navigation_task.contest.contestteam_set.exclude(pk__in=used_contest_teams)])
+    # initial = navigation_task.contest.contestteam_set.filter(
+    #     team__in=[item.team for item in navigation_task.contestant_set.all()])
+    form.fields["contest_teams"].choices = [(str(item[0].pk), item[1]) for item in
+                                            selected_existing]
+    form.fields["contest_teams"].initial = [str(item[0].pk) for item in selected_existing if item[2]]
+    return render(request, "display/contestteam_optimisation_form.html",
+                  {"form": form, "navigation_task": navigation_task})
 
 
 connection = Redis("redis")

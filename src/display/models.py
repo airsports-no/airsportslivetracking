@@ -216,6 +216,9 @@ class ContestTeam(models.Model):
     class Meta:
         unique_together = ("contest", "team")
 
+    def __str__(self):
+        return str(self.team)
+
 
 class Contest(models.Model):
     DESCENDING = "desc"
