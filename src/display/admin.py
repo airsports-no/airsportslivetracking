@@ -93,9 +93,11 @@ class MyEmailUserAdmin(EmailUserAdmin):
 class MyUserAdmin(MyEmailUserAdmin, HasAddPermissionsMixing):
     fieldsets = (
         (None, {'fields': ('email', 'password', 'person')}),
+        ('Personal Info', {'fields': ('first_name', 'last_name')}),
         ('Permissions', {'fields': ('is_active', 'is_staff',
                                     'is_superuser', 'is_verified',
                                     'groups')}),
+        ('Important dates', {'fields': ('last_login', 'date_joined')})
     )
 
 
