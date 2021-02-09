@@ -49,6 +49,15 @@ class NavigationTaskAdmin(admin.ModelAdmin):
     )
 
 
+class PersonAdmin(admin.ModelAdmin):
+    readonly_fields = ("app_tracking_id",)
+
+    def app_tracking_id(self, instance):
+        return str(instance.app_tracking_id)
+
+    app_tracking_id.short_description = "Tracking ID"
+
+
 class HasAddPermissionsMixing:
     def has_add_permission(self, request, obj=None):
         return False
@@ -86,6 +95,7 @@ class ContestAdmin(GuardedModelAdmin):
         assign_perm("view_contest", request.user, obj),
         return result
 
+
 class MyEmailUserAdmin(EmailUserAdmin):
     inlines = [SignupCodeInlinePermission, EmailChangeCodeInlinePermission, PasswordResetCodeInlinePermission]
 
@@ -120,5 +130,5 @@ admin.site.register(Aeroplane)
 admin.site.register(Team)
 admin.site.register(Crew)
 admin.site.register(Contestant, ContestantTrackAdmin)
-admin.site.register(Person)
+admin.site.register(Person, PersonAdmin)
 admin.site.register(Club)
