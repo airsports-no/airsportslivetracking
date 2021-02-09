@@ -586,7 +586,8 @@ class TestImportSerialiser(TransactionTestCase):
 
 @patch("display.models.get_traccar_instance")
 class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
-    def setUp(self):
+    @patch("display.models.get_traccar_instance")
+    def setUp(self, p):
         Contest.objects.all().delete()
         create_scorecards()
         with open("display/tests/importnavigationtaskfcteamid.json", "r") as i:

@@ -163,7 +163,7 @@ class Solver:
                         next_aircraft_available[
                             team.aircraft_registration] = next_available + team.flight_time + self.aircraft_switch_time
                         next_tracker_available[
-                            team.get_tracker_id()] = next_available + team.flight_time + self.tracker_switch_time
+                            team.get_tracker_id()] = next_available + team.flight_time + self.tracker_switch_time + self.tracker_start_lead_time
                         self.start_slot_numbers[f"{team.pk}"].setInitialValue(next_available)
                         current_slot = next_available + self.minimum_start_interval
                         break
