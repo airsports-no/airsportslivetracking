@@ -929,8 +929,8 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
     traccar = get_traccar_instance()
     created = False
     if instance.app_tracking_id is not None:
-        device, created = traccar.get_or_create_device(instance.app_aircraft_registration, instance.app_tracking_id)
+        device, created = traccar.get_or_create_device(instance.app_aircraft_registration, str(instance.app_tracking_id))
     if created and original_tracking_id is not None and original_tracking_id != instance.app_tracking_id:
-        original_device = traccar.get_device(original_tracking_id)
+        original_device = traccar.get_device(str(original_tracking_id))
         if original_device is not None:
             traccar.delete_device(original_device["id"])
