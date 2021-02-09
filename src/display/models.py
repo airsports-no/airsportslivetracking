@@ -758,11 +758,11 @@ class Contestant(models.Model):
         except ObjectDoesNotExist:
             try:
                 return cls.objects.get(tracker_start_time__lte=stamp,
-                                       finished_by_time__gte=stamp, team__crew__member1__app_tracking_id=device)
+                                       finished_by_time__gte=stamp, team__crew__member1__app_tracking_id=uuid.UUID(device))
             except ObjectDoesNotExist:
                 try:
                     return cls.objects.get(tracker_start_time__lte=stamp,
-                                           finished_by_time__gte=stamp, team__crew__member2__app_tracking_id=device)
+                                           finished_by_time__gte=stamp, team__crew__member2__app_tracking_id=uuid.UUID(device))
                 except ObjectDoesNotExist:
                     return None
 
