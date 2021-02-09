@@ -1,5 +1,6 @@
 import datetime
 import math
+import uuid
 from plistlib import Dict
 from typing import List, Optional
 import cartopy.crs as ccrs
@@ -128,7 +129,7 @@ class Person(models.Model):
     last_name = models.CharField(max_length=200)
     email = CharNullField(max_length=60, blank=True, null=True)
     phone = PhoneNumberField(blank=True, null=True)
-    app_tracking_id = CharNullField(max_length=100, unique=True, null=True, blank=True)
+    app_tracking_id = models.UUIDField(default=uuid.uuid4, editable=False)
     app_aircraft_registration = models.CharField(max_length=100, default="", blank=True)
     picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
     biography = models.TextField(blank=True)
@@ -220,7 +221,8 @@ class ContestTeam(models.Model):
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
     tracker_device_id = models.CharField(max_length=100,
-                                         help_text="ID of physical tracking device that will be brought into the plane")
+                                         help_text="ID of physical tracking device that will be brought into the plane",
+                                         blank=True)
 
     class Meta:
         unique_together = ("contest", "team")
@@ -605,7 +607,8 @@ class Contestant(models.Model):
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
     tracker_device_id = models.CharField(max_length=100,
-                                         help_text="ID of physical tracking device that will be brought into the plane")
+                                         help_text="ID of physical tracking device that will be brought into the plane",
+                                         blank=True)
     tracker_start_time = models.DateTimeField(
         help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this.")
     competition_class_longform = models.CharField(max_length=100,
@@ -753,7 +756,15 @@ class Contestant(models.Model):
             return cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
                                    finished_by_time__gte=stamp)
         except ObjectDoesNotExist:
-            return None
+            try:
+                return cls.objects.get(tracker_start_time__lte=stamp,
+                                       finished_by_time__gte=stamp, team__crew__member1__app_tracking_id=device)
+            except ObjectDoesNotExist:
+                try:
+                    return cls.objects.get(tracker_start_time__lte=stamp,
+                                           finished_by_time__gte=stamp, team__crew__member2__app_tracking_id=device)
+                except ObjectDoesNotExist:
+                    return None
 
 
 CONTESTANT_CACHE_KEY = "contestant"
@@ -918,7 +929,6 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
     traccar = get_traccar_instance()
     created = False
     if instance.app_tracking_id is not None:
-        instance.app_tracking_id = instance.app_tracking_id.strip()
         device, created = traccar.get_or_create_device(instance.app_aircraft_registration, instance.app_tracking_id)
     if created and original_tracking_id is not None and original_tracking_id != instance.app_tracking_id:
         original_device = traccar.get_device(original_tracking_id)
