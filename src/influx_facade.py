@@ -1,5 +1,6 @@
 import datetime
 import logging
+import uuid
 from plistlib import Dict
 from typing import List, Union, Set, Optional
 
@@ -128,7 +129,7 @@ class InfluxFacade:
             contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
             if not contestant:
                 try:
-                    person = Person.objects.get(app_tracking_id=device_name)
+                    person = Person.objects.get(app_tracking_id=uuid.UUID(device_name))
                     global_tracking_name = person.app_aircraft_registration
                 except ObjectDoesNotExist:
                     # logger.info("Found no person for tracking ID {}".format(device_name))
