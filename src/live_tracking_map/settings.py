@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'display.apps.DisplayConfig',
     'rest_framework',
     'rest_framework.authtoken',
     'timezone_field',
@@ -54,10 +53,24 @@ INSTALLED_APPS = [
     "crispy_forms",
     "google_analytics",
     "channels",
+    'authemail',
+    'display.apps.DisplayConfig',
     'multiselectfield'
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"
+GUARDIAN_MONKEY_PATCH=False
+AUTH_USER_MODEL = 'display.MyUser'
+
+EMAIL_FROM = os.environ.get('AUTHEMAIL_DEFAULT_EMAIL_FROM') or '<YOUR DEFAULT_EMAIL_FROM HERE>'
+EMAIL_BCC = os.environ.get('AUTHEMAIL_DEFAULT_EMAIL_BCC') or '<YOUR DEFAULT_EMAIL_BCC HERE>'
+
+EMAIL_HOST = os.environ.get('AUTHEMAIL_EMAIL_HOST') or ''
+EMAIL_PORT = os.environ.get('AUTHEMAIL_EMAIL_PORT') or 587
+EMAIL_HOST_USER = os.environ.get('AUTHEMAIL_EMAIL_HOST_USER') or '<YOUR EMAIL_HOST_USER HERE>'
+EMAIL_HOST_PASSWORD = os.environ.get('AUTHEMAIL_EMAIL_HOST_PASSWORD') or '<YOUR EMAIL_HOST_PASSWORD HERE>'
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

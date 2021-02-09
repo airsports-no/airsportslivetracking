@@ -43,6 +43,7 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('docs/', docs.with_ui()),
     re_path('djga/', include('google_analytics.urls')),
+    path('api/accounts/', include('authemail.urls')),
     url(r"^api/v1/", include(api.urlpatters)),
     url(r'^resultsservice/.?', results_service, name="resultsservice"),
 ]

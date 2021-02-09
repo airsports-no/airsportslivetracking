@@ -8,6 +8,7 @@
 
 {% block content %}
     <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+    {{ form.errors }}
     <form method="post" class="form" enctype="multipart/form-data">
         {{ form.media }}
         {{ form.field_errors }}

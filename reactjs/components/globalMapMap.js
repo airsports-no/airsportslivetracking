@@ -23,6 +23,7 @@ class Aircraft {
         this.longform = ""
         this.dot = null
         this.dotText = null
+        this.time = new Date(initial_position.time)
         this.createLiveEntities(initial_position)
     }
 
@@ -58,15 +59,11 @@ class Aircraft {
         }).addTo(this.map)
     }
 
-    updateDevice(device) {
-        this.displayText = device.name
-        this.dotText.setIcon(this.createAirplaneTextIcon())
-    }
-
     updatePosition(position) {
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
         this.dot.setIcon(this.createAirplaneIcon(position.course))
+        this.time = new Date(position.time)
     }
 }
 
@@ -76,6 +73,9 @@ class ConnectedGlobalMapMap extends Component {
         this.state = {map: null}
         this.map = null;
         this.aircraft = {}  // deviceId is key
+        this.purgeInterval = 1200
+        this.purgePositions = this.purgePositions.bind(this)
+        setInterval(this.purgePositions, this.purgeInterval)
     }
 
     initiateSession() {
@@ -119,13 +119,13 @@ class ConnectedGlobalMapMap extends Component {
     //     })
     // }
 
-
-    handleDevices(devices) {
-        devices.map((device) => {
-            if (this.aircraft[device.id] !== undefined) {
-                this.aircraft[device.id].updateDevice(device)
+    purgePositions() {
+        for (let id of Object.keys(this.aircraft)) {
+            const now = new Date()
+            if (now.getTime() - this.aircraft[id].time.getTime() > this.purgeInterval * 1000) {
+                delete this.aircraft[id]
             }
-        })
+        }
     }
 
     handlePositions(positions) {

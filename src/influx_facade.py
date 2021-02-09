@@ -22,6 +22,7 @@ password = "notsecret"
 
 logger = logging.getLogger(__name__)
 GLOBAL_TRANSMISSION_INTERVAL = 30
+PURGE_GLOBAL_MAP_INTERVAL = 1200
 
 
 class InfluxFacade:
@@ -29,6 +30,15 @@ class InfluxFacade:
         self.channel_layer = get_channel_layer()
         self.client = InfluxDBClient(host, port, user, password, dbname)
         self.global_map = {}
+        self.last_purge = datetime.datetime.now(datetime.timezone.utc)
+
+    def purge_global_map(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if (now - self.last_purge).total_seconds() > PURGE_GLOBAL_MAP_INTERVAL:
+            self.last_purge = now
+            for key, value in self.global_map.items():
+                if (now - value[0]).total_seconds() > PURGE_GLOBAL_MAP_INTERVAL:
+                    del self.global_map[key]
 
     def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):
         try:
@@ -149,25 +159,30 @@ class InfluxFacade:
                     received_tracks[contestant].append(data)
                 except KeyError:
                     received_tracks[contestant] = [data]
-            last_global = self.global_map.get(position_data["deviceId"], datetime.datetime.min.replace(tzinfo=datetime.timezone.utc))
+            last_global, last_data = self.global_map.get(position_data["deviceId"],
+                                                         (datetime.datetime.min.replace(tzinfo=datetime.timezone.utc),
+                                                          {}))
             now = datetime.datetime.now(datetime.timezone.utc)
             if (now - last_global).total_seconds() > GLOBAL_TRANSMISSION_INTERVAL:
-                self.global_map[position_data["deviceId"]] = now
-                async_to_sync(self.channel_layer.group_send)(
-                    "tracking_global",
-                    {
-                        "type": "tracking.data",
-                        "data": {
-                            "name": global_tracking_name,
-                            "deviceId": position_data["deviceId"],
-                            "latitude": float(position_data["latitude"]),
-                            "longitude": float(position_data["longitude"]),
-                            "altitude": float(position_data["altitude"]),
-                            "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
-                            "speed": float(position_data["speed"]),
-                            "course": float(position_data["course"])
-                        }
+                data = {
+                    "type": "tracking.data",
+                    "data": {
+                        "name": global_tracking_name,
+                        "time": device_time,
+                        "deviceId": position_data["deviceId"],
+                        "latitude": float(position_data["latitude"]),
+                        "longitude": float(position_data["longitude"]),
+                        "altitude": float(position_data["altitude"]),
+                        "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
+                        "speed": float(position_data["speed"]),
+                        "course": float(position_data["course"])
                     }
+                }
+
+                self.global_map[position_data["deviceId"]] = (now, data)
+
+                async_to_sync(self.channel_layer.group_send)(
+                    "tracking_global", data
                 )
 
         return received_tracks
