@@ -169,7 +169,7 @@ class InfluxFacade:
                     "type": "tracking.data",
                     "data": {
                         "name": global_tracking_name,
-                        "time": device_time,
+                        "time": device_time.isoformat(),
                         "deviceId": position_data["deviceId"],
                         "latitude": float(position_data["latitude"]),
                         "longitude": float(position_data["longitude"]),
