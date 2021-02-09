@@ -12,6 +12,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import permission_required, login_required
 from django.contrib.auth.mixins import PermissionRequiredMixin, LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
@@ -1150,6 +1152,7 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     }
     default_serialiser_class = ContestSerialiser
     lookup_url_kwarg = "pk"
+
     permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
 
     def get_serializer_class(self):
@@ -1184,8 +1187,7 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         Violating this will result in a validation error and an exception.
         """
         Task.objects.filter(contest=self.get_object(), name=request.data["name"]).delete()
-        serialiser = self.get_serializer_class()(data=request.data,
-                                                 context={"contest": self.get_object()})
+        serialiser = self.get_serializer(data=request.data)
         serialiser.is_valid(True)
         serialiser.save()
         return Response(serialiser.data, status=status.HTTP_201_CREATED)
@@ -1207,14 +1209,22 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         ContestSummaryWithoutReferenceSerialiser. DELETE requires no specific input.
         """
         if self.request.method == "POST":
-            serialiser = self.get_serializer(data=request.data, many=isinstance(request.data, list),
-                                             context={"contest": self.get_object()})
+            serialiser = self.get_serializer(data=request.data, many=isinstance(request.data, list))
             serialiser.is_valid(True)
             serialiser.save()
             return Response(serialiser.data, status=status.HTTP_201_CREATED)
         else:
             ContestSummary.objects.filter(contest=self.get_object()).delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        try:
+            context.update({"contest": self.get_object()})
+        except AssertionError:
+            # This is when we are creating a new contest
+            pass
+        return context
 
 
 class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
@@ -1225,6 +1235,11 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
 
     http_method_names = ['get', 'post', 'delete', 'put']
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({"contest": get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))})
+        return context
+
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
         contests = get_objects_for_user(self.request.user, "view_contest",
@@ -1233,9 +1248,7 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
             Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)).filter(contest_id=contest_id)
 
     def create(self, request, *args, **kwargs):
-        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
-        serialiser = self.get_serializer(data=request.data,
-                                         context={"request": request, "contest": contest})
+        serialiser = self.get_serializer(data=request.data)
         if serialiser.is_valid():
             serialiser.save()
             return Response(serialiser.data, status=status.HTTP_201_CREATED)
@@ -1275,21 +1288,23 @@ class ContestantViewSet(ModelViewSet):
                                                                                       navigation_task__contest__is_public=True)).filter(
             navigation_task_id=navigation_task_id)
 
-    def create(self, request, *args, **kwargs):
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
         navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
-        serialiser = self.get_serializer(data=request.data,
-                                         context={"request": request, "navigation_task": navigation_task})
+        context.update({"navigation_task": navigation_task})
+        return context
+
+    def create(self, request, *args, **kwargs):
+        serialiser = self.get_serializer(data=request.data)
         if serialiser.is_valid():
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
-        navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
         instance = self.get_object()
         partial = kwargs.pop('partial', False)
         serialiser = self.get_serializer(instance=instance, data=request.data,
-                                         # context={"request": request, "navigation_task": navigation_task},
                                          partial=partial)
         if serialiser.is_valid():
             serialiser.save()
@@ -1361,10 +1376,14 @@ class ImportFCNavigationTask(ModelViewSet):
 
     lookup_key = "contest_pk"
 
-    def create(self, request, *args, **kwargs):
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
         contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
-        serialiser = self.serializer_class(data=request.data,
-                                           context={"request": request, "contest": contest})
+        context.update({"contest": contest})
+        return context
+
+    def create(self, request, *args, **kwargs):
+        serialiser = self.get_serializer(data=request.data)
         if serialiser.is_valid(raise_exception=True):
             serialiser.save()
             return Response(serialiser.data, status=status.HTTP_201_CREATED)

@@ -1,6 +1,8 @@
 import datetime
 
 from django.contrib.auth.models import User, Permission
+from django.contrib.auth import get_user_model
+
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
 from rest_framework import status
@@ -42,10 +44,10 @@ class TestCreateNavigationTask(APITestCase):
                 "name": "name"},
                                 "scorecard": get_default_scorecard().name
                                 }
-        self.user_owner = User.objects.create(username="withpermissions")
+        self.user_owner = get_user_model().objects.create(email="withpermissions")
         permission = Permission.objects.get(codename="add_contest")
         self.user_owner.user_permissions.add(permission)
-        self.user_without_permissions = User.objects.create(username="withoutpermissions")
+        self.user_without_permissions = get_user_model().objects.create(email="withoutpermissions")
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
                                                                   "start_time": datetime.datetime.now(
@@ -92,13 +94,13 @@ class TestAccessNavigationTask(APITestCase):
                         }
 
         get_default_scorecard()
-        self.user_owner = User.objects.create(username="withpermissions")
+        self.user_owner = get_user_model().objects.create(email="withpermissions")
         self.user_owner.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
             Permission.objects.get(codename="change_contest"),
             Permission.objects.get(codename="delete_contest")
         )
-        self.user_someone_else = User.objects.create(username="withoutpermissions")
+        self.user_someone_else = get_user_model().objects.create(email="withoutpermissions")
         self.user_someone_else.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
             Permission.objects.get(codename="change_contest"),
@@ -118,7 +120,7 @@ class TestAccessNavigationTask(APITestCase):
                                   data=self.NAVIGATION_TASK_DATA, format="json")
         print(result.content)
         self.navigation_task = NavigationTask.objects.get(pk=result.json()["id"])
-        self.different_user_with_object_permissions = User.objects.create(username="objectpermissions")
+        self.different_user_with_object_permissions = get_user_model().objects.create(email="objectpermissions")
         self.different_user_with_object_permissions.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
             Permission.objects.get(codename="change_contest"),

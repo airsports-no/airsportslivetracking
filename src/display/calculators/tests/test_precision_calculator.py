@@ -5,6 +5,8 @@ from unittest.mock import Mock, patch
 
 import gpxpy
 from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
 from django.test import TestCase, TransactionTestCase
 
 from display.calculators.calculator_factory import calculator_factory
@@ -183,7 +185,8 @@ class TestFullTrack(TransactionTestCase):
 
 @patch("display.models.get_traccar_instance")
 class Test2017WPFC(TransactionTestCase):
-    def setUp(self):
+    @patch("display.models.get_traccar_instance")
+    def setUp(self, p):
         with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
             route = create_precision_route_from_gpx(file, True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
@@ -224,7 +227,7 @@ class Test2017WPFC(TransactionTestCase):
         calculator.add_positions(track)
         calculator.join()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(11522,
+        self.assertEqual(1152,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
@@ -243,7 +246,7 @@ class TestScoreverride(TransactionTestCase):
                                          finish_time=datetime.datetime.now(
                                              datetime.timezone.utc),
                                          time_zone="Europe/Oslo")
-        user = User.objects.create(username="user")
+        user = get_user_model().objects.create(email="user")
         request = Mock()
         request.user = user
         serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=task_data, context={"contest": contest,
@@ -269,7 +272,8 @@ class TestScoreverride(TransactionTestCase):
 
 @patch("display.models.get_traccar_instance")
 class TestNM2019(TransactionTestCase):
-    def setUp(self):
+    @patch("display.models.get_traccar_instance")
+    def setUp(self, p):
         with open("display/calculators/tests/NM2019.gpx", "r") as file:
             route = create_precision_route_from_gpx(file, True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()

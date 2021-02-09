@@ -62,8 +62,8 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 GUARDIAN_MONKEY_PATCH=False
 AUTH_USER_MODEL = 'display.MyUser'
 
-EMAIL_FROM = os.environ.get('AUTHEMAIL_DEFAULT_EMAIL_FROM') or '<YOUR DEFAULT_EMAIL_FROM HERE>'
-EMAIL_BCC = os.environ.get('AUTHEMAIL_DEFAULT_EMAIL_BCC') or '<YOUR DEFAULT_EMAIL_BCC HERE>'
+EMAIL_FROM = os.environ.get('AUTHEMAIL_DEFAULT_EMAIL_FROM') or "tracking@airsports.no"
+EMAIL_BCC = os.environ.get('AUTHEMAIL_DEFAULT_EMAIL_BCC') or "tracking@airsports.no"
 
 EMAIL_HOST = os.environ.get('AUTHEMAIL_EMAIL_HOST') or ''
 EMAIL_PORT = os.environ.get('AUTHEMAIL_EMAIL_PORT') or 587

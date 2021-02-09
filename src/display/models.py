@@ -4,7 +4,7 @@ from plistlib import Dict
 from typing import List, Optional
 import cartopy.crs as ccrs
 from authemail.models import EmailAbstractUser, EmailUserManager
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 
 from django.db import models

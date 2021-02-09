@@ -1,7 +1,10 @@
 import datetime
 from pprint import pprint
+from unittest.mock import patch
 
 from django.contrib.auth.models import User, Permission
+from django.contrib.auth import get_user_model
+
 from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -9,10 +12,10 @@ from rest_framework.test import APITestCase
 from display.models import Contest, Aeroplane, Person, Crew, Team, Task, TaskTest, ContestSummary, TaskSummary, \
     TeamTestScore
 
-
+@patch("display.models.get_traccar_instance")
 class TestTaskResultsApi(APITestCase):
     def setUp(self):
-        self.user = User.objects.create(username="test")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="change_contest")
         self.user.user_permissions.add(permission)
         self.client.force_login(user=self.user)
@@ -22,7 +25,7 @@ class TestTaskResultsApi(APITestCase):
         assign_perm("display.view_contest", self.user, self.contest)
         self.aeroplane = Aeroplane.objects.create(registration="test")
 
-    def test_put_task(self):
+    def test_put_task(self, p):
 
         contestants = {
             "Anders": {
@@ -117,7 +120,7 @@ class TestTaskResultsApi(APITestCase):
         self.assertEqual(3, TeamTestScore.objects.get(team=first_team, task_test__name="landing_three").points)
         self.assertEqual(246, TeamTestScore.objects.get(team=first_team, task_test__name="landing_four").points)
 
-    def test_overwrite_task_results(self):
+    def test_overwrite_task_results(self, p):
         another_contest = Contest.objects.create(name="another NM 2020", start_time=datetime.datetime.now(datetime.timezone.utc),
                                                  finish_time=datetime.datetime.now(datetime.timezone.utc))
         assign_perm("display.change_contest", self.user, another_contest)
@@ -170,7 +173,7 @@ class TestTaskResultsApi(APITestCase):
         self.assertEqual(1, TaskSummary.objects.all().count())
         self.assertEqual(2, TaskSummary.objects.first().points)
 
-    def test_delete_task_results(self):
+    def test_delete_task_results(self, p):
         pilot = Person.get_or_create("Pilot", "Pilot", None, None)
         crew, _ = Crew.objects.get_or_create(member1=pilot)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=self.aeroplane)
@@ -211,7 +214,7 @@ class TestTaskResultsApi(APITestCase):
         self.assertEqual(0, TaskTest.objects.all().count())
         self.assertEqual(0, TeamTestScore.objects.all().count())
 
-    def test_post_contest_summary(self):
+    def test_post_contest_summary(self, p):
         pilot = Person.get_or_create("Pilot", "Pilot", None, None)
         pilot2 = Person.get_or_create("Pilot2", "Pilot", None, None)
         crew, _ = Crew.objects.get_or_create(member1=pilot)
@@ -236,7 +239,7 @@ class TestTaskResultsApi(APITestCase):
         self.assertEqual(1, ContestSummary.objects.get(team=team).points)
         self.assertEqual(2, ContestSummary.objects.get(team=team2).points)
 
-    def test_delete_contest_summary(self):
+    def test_delete_contest_summary(self, p):
         pilot = Person.get_or_create("Pilot", "Pilot", None, None)
         crew, _ = Crew.objects.get_or_create(member1=pilot)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=self.aeroplane)
