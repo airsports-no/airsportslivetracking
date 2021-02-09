@@ -14,7 +14,7 @@ services:
       - TZ=Europe/London
       - ONLY_SUBDOMAINS=false
       - URL=airsports.no
-      - SUBDOMAINS=tracking,traccar,traccarclient
+      - SUBDOMAINS=tracking,traccar,traccarclient,www
       - EMAIL=frankose@ifi.uio.no
       - VALIDATION=http
     volumes:
