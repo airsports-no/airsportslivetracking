@@ -121,6 +121,8 @@ class Person(models.Model):
     last_name = models.CharField(max_length=200)
     email = CharNullField(max_length=60, blank=True, null=True)
     phone = PhoneNumberField(blank=True, null=True)
+    app_tracking_id = CharNullField(max_length=100, unique=True, null=True)
+    app_aircraft_registration = models.CharField(max_length=100, default="")
     picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
@@ -897,3 +899,19 @@ def remove_track_from_influx(sender, instance: NavigationTask, **kwargs):
     from influx_facade import InfluxFacade
     influx = InfluxFacade()
     influx.clear_data_for_contestant(instance.pk)
+
+
+@receiver(pre_save, sender=Person)
+def register_personal_tracker(sender, instance: Person, **kwargs):
+    try:
+        original = Person.objects.get(pk=instance.pk)
+        original_tracking_id = original.app_tracking_id
+    except ObjectDoesNotExist:
+        original_tracking_id = None
+    instance.app_tracking_id = instance.app_tracking_id.strip()
+    traccar = get_traccar_instance()
+    device, created = traccar.get_or_create_device(instance.app_aircraft_registration, instance.app_tracking_id)
+    if created and original_tracking_id is not None and original_tracking_id != instance.app_tracking_id:
+        original_device = traccar.get_device(original_tracking_id)
+        if original_device is not None:
+            traccar.delete_device(original_device["id"])

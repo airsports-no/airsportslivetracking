@@ -17,7 +17,7 @@ class ConnectedContestsGlobalMap extends Component {
     render() {
         if (this.props.map!==null) {
             const contests = this.props.contests.map((contest) => {
-                return <ContestDisplayGlobalMap map={this.props.map} contest={contest}/>
+                return <ContestDisplayGlobalMap key={contest.id} map={this.props.map} contest={contest}/>
             })
             return <div>{contests}</div>
         }

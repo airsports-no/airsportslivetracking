@@ -99,7 +99,8 @@ class Gatekeeper(threading.Thread):
         return positions
 
     def run(self):
-        logger.info("Started calculator for contestant {}".format(self.contestant))
+        logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
+                                                                        self.contestant.finished_by_time))
         while not self.track_terminated:
             self.process_event.wait(LOOP_TIME)
             self.process_event.clear()

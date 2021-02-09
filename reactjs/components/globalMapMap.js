@@ -79,26 +79,45 @@ class ConnectedGlobalMapMap extends Component {
     }
 
     initiateSession() {
-        axios.get("https://" + server + "/api/session?token=" + token, {withCredentials: true}).then(res => {
-            this.client = new W3CWebSocket("wss://" + server + "/api/socket")
-            console.log("Initiated session")
-            console.log(res)
+        let getUrl = window.location;
+        let baseUrl = getUrl.protocol + "//" + getUrl.host + "/" + getUrl.pathname.split('/')[1]
+        let protocol = "wss"
+        if (getUrl.host.includes("localhost")) {
+            protocol = "ws"
+        }
+        this.client = new W3CWebSocket(protocol + "://" + getUrl.host + "/ws/tracks/global/")
+        this.client.onopen = () => {
+            console.log("Client connected")
+        };
+        this.client.onmessage = (message) => {
+            let data = JSON.parse(message.data);
+            this.handlePositions([data])
+        };
 
-            this.client.onopen = () => {
-                console.log("Client connected")
-            };
-            this.client.onmessage = (message) => {
-                let data = JSON.parse(message.data);
-                if (data.positions !== undefined) {
-                    this.handlePositions(data.positions)
-                }
-                if (data.devices !== undefined) {
-                    this.handleDevices(data.devices)
-                }
-            };
-
-        })
     }
+
+
+    // initiateSession() {
+    //     axios.get("https://" + server + "/api/session?token=" + token, {withCredentials: true}).then(res => {
+    //         this.client = new W3CWebSocket("wss://" + server + "/api/socket")
+    //         console.log("Initiated session")
+    //         console.log(res)
+    //
+    //         this.client.onopen = () => {
+    //             console.log("Client connected")
+    //         };
+    //         this.client.onmessage = (message) => {
+    //             let data = JSON.parse(message.data);
+    //             if (data.positions !== undefined) {
+    //                 this.handlePositions(data.positions)
+    //             }
+    //             if (data.devices !== undefined) {
+    //                 this.handleDevices(data.devices)
+    //             }
+    //         };
+    //
+    //     })
+    // }
 
 
     handleDevices(devices) {
@@ -115,7 +134,7 @@ class ConnectedGlobalMapMap extends Component {
             const deviceTime = new Date(position.deviceTime)
             if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
                 if (this.aircraft[position.deviceId] === undefined) {
-                    this.aircraft[position.deviceId] = new Aircraft(position.deviceId, "blue", position, this.map)
+                    this.aircraft[position.deviceId] = new Aircraft(position.name, "blue", position, this.map)
                 } else {
                     this.aircraft[position.deviceId].updatePosition(position)
                 }

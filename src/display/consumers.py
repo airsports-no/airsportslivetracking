@@ -56,3 +56,29 @@ class TrackingConsumer(WebsocketConsumer):
         data = event["data"]
         # logger.info("Received data: {}".format(data))
         self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
+
+
+class GlobalConsumer(WebsocketConsumer):
+    def connect(self):
+        self.group_name = "tracking_global"
+
+        async_to_sync(self.channel_layer.group_add)(
+            self.group_name,
+            self.channel_name
+        )
+        self.accept()
+
+    def disconnect(self, code):
+        async_to_sync(self.channel_layer.group_discard)(
+            self.group_name,
+            self.channel_name
+        )
+
+    def receive(self, text_data, **kwargs):
+        message = json.loads(text_data)
+        logger.info(message)
+
+    def tracking_data(self, event):
+        data = event["data"]
+        # logger.info("Received data: {}".format(data))
+        self.send(text_data=json.dumps(data, cls=DateTimeEncoder))

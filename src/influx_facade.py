@@ -6,10 +6,11 @@ from typing import List, Union, Set, Optional
 import dateutil
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.core.exceptions import ObjectDoesNotExist
 from influxdb import InfluxDBClient
 from influxdb.resultset import ResultSet
 
-from display.models import ContestantTrack, Contestant
+from display.models import ContestantTrack, Contestant, Person
 from display.serialisers import ContestantTrackSerialiser
 from traccar_facade import Traccar
 
@@ -20,12 +21,14 @@ dbname = "airsport"
 password = "notsecret"
 
 logger = logging.getLogger(__name__)
+GLOBAL_TRANSMISSION_INTERVAL = 30
 
 
 class InfluxFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
         self.client = InfluxDBClient(host, port, user, password, dbname)
+        self.global_map = {}
 
     def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):
         try:
@@ -96,6 +99,7 @@ class InfluxFacade:
         received_tracks = {}
         positions_to_store = []
         for position_data in positions:
+            global_tracking_name = ""
             # logger.info("Incoming position: {}".format(position_data))
             try:
                 device_name = traccar.device_map[position_data["deviceId"]]
@@ -113,9 +117,16 @@ class InfluxFacade:
                 continue
             # print(device_time)
             contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
+            if not contestant:
+                try:
+                    person = Person.objects.get(app_tracking_id=device_name)
+                    global_tracking_name = person.app_aircraft_registration
+                except ObjectDoesNotExist:
+                    pass
             # print(contestant)
             if contestant:
                 # logger.info("Found contestant {}".format(contestant))
+                global_tracking_name = contestant.team.aeroplane.registration
                 data = {
                     "measurement": "device_position",
                     "tags": {
@@ -138,6 +149,27 @@ class InfluxFacade:
                     received_tracks[contestant].append(data)
                 except KeyError:
                     received_tracks[contestant] = [data]
+            last_global = self.global_map.get(position_data["deviceId"], datetime.datetime.min.replace(tzinfo=datetime.timezone.utc))
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if (now - last_global).total_seconds() > GLOBAL_TRANSMISSION_INTERVAL:
+                self.global_map[position_data["deviceId"]] = now
+                async_to_sync(self.channel_layer.group_send)(
+                    "tracking_global",
+                    {
+                        "type": "tracking.data",
+                        "data": {
+                            "name": global_tracking_name,
+                            "deviceId": position_data["deviceId"],
+                            "latitude": float(position_data["latitude"]),
+                            "longitude": float(position_data["longitude"]),
+                            "altitude": float(position_data["altitude"]),
+                            "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
+                            "speed": float(position_data["speed"]),
+                            "course": float(position_data["course"])
+                        }
+                    }
+                )
+
         return received_tracks
 
     def put_position_data_for_contestant(self, contestant: "Contestant", data: List, route_progress):

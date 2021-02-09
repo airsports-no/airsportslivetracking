@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Dict, TYPE_CHECKING, Optional
+from typing import List, Dict, TYPE_CHECKING, Optional, Tuple
 
 import requests
 from requests import Session
@@ -79,11 +79,11 @@ class Traccar:
                 return None
         return None
 
-    def get_or_create_device(self, device_name, identifier) -> Dict:
+    def get_or_create_device(self, device_name, identifier) -> Tuple[Dict, bool]:
         existing_device = self.get_device(identifier)
         if existing_device is None:
-            return self.create_device(device_name, identifier)
-        return existing_device
+            return self.create_device(device_name, identifier), True
+        return existing_device, False
 
     def delete_all_devices(self):
         devices = self.update_and_get_devices()
