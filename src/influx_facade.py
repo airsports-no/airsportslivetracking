@@ -131,7 +131,7 @@ class InfluxFacade:
                     person = Person.objects.get(app_tracking_id=device_name)
                     global_tracking_name = person.app_aircraft_registration
                 except ObjectDoesNotExist:
-                    logger.info("Found no person for tracking ID {}".format(device_name))
+                    # logger.info("Found no person for tracking ID {}".format(device_name))
                     pass
             # print(contestant)
             if contestant:
@@ -163,7 +163,7 @@ class InfluxFacade:
                                                          (datetime.datetime.min.replace(tzinfo=datetime.timezone.utc),
                                                           {}))
             now = datetime.datetime.now(datetime.timezone.utc)
-            logger.info(f"Checking transmission for ({contestant}) {global_tracking_name} with last transmitted {last_global} and device ID {position_data['deviceId']}")
+            # logger.info(f"Checking transmission for ({contestant}) {global_tracking_name} with last transmitted {last_global} and device ID {position_data['deviceId']}")
             if (now - last_global).total_seconds() > GLOBAL_TRANSMISSION_INTERVAL:
                 data = {
                     "type": "tracking.data",
