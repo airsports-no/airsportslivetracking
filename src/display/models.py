@@ -59,7 +59,7 @@ class TraccarCredentials(SingletonModel):
 
 
 class MyUser(EmailAbstractUser, GuardianUserMixin):
-    person = models.ForeignKey("Person", on_delete=models.SET_NULL, null=True)
+    person = models.ForeignKey("Person", on_delete=models.SET_NULL, null=True, blank=True)
     objects = EmailUserManager()
 
 
