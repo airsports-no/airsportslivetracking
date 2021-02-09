@@ -121,7 +121,7 @@ class InfluxFacade:
                     logger.error("Could not find device {}.".format(position_data["deviceId"]))
                     continue
             device_time = dateutil.parser.parse(position_data["deviceTime"])
-            # logger.info(device_name)
+            logger.info(device_name)
             if device_time < datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1):
                 logger.info(f"Received old position, disregarding: {device_name} {device_time}")
                 continue
@@ -129,7 +129,7 @@ class InfluxFacade:
             contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
             if not contestant:
                 try:
-                    person = Person.objects.get(app_tracking_id=uuid.UUID(device_name))
+                    person = Person.objects.get(app_tracking_id=device_name)
                     global_tracking_name = person.app_aircraft_registration
                 except ObjectDoesNotExist:
                     # logger.info("Found no person for tracking ID {}".format(device_name))

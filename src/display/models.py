@@ -2,6 +2,8 @@ import datetime
 import math
 import uuid
 from plistlib import Dict
+from random import choice
+from string import ascii_uppercase, digits, ascii_lowercase
 from typing import List, Optional
 import cartopy.crs as ccrs
 from authemail.models import EmailAbstractUser, EmailUserManager
@@ -129,7 +131,7 @@ class Person(models.Model):
     last_name = models.CharField(max_length=200)
     email = CharNullField(max_length=60, blank=True, null=True)
     phone = PhoneNumberField(blank=True, null=True)
-    app_tracking_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    app_tracking_id = models.CharField(max_length=28, editable=False)
     app_aircraft_registration = models.CharField(max_length=100, default="", blank=True)
     picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
     biography = models.TextField(blank=True)
@@ -758,11 +760,11 @@ class Contestant(models.Model):
         except ObjectDoesNotExist:
             try:
                 return cls.objects.get(tracker_start_time__lte=stamp,
-                                       finished_by_time__gte=stamp, team__crew__member1__app_tracking_id=uuid.UUID(device))
+                                       finished_by_time__gte=stamp, team__crew__member1__app_tracking_id=device)
             except ObjectDoesNotExist:
                 try:
                     return cls.objects.get(tracker_start_time__lte=stamp,
-                                           finished_by_time__gte=stamp, team__crew__member2__app_tracking_id=uuid.UUID(device))
+                                           finished_by_time__gte=stamp, team__crew__member2__app_tracking_id=device)
                 except ObjectDoesNotExist:
                     return None
 
@@ -919,6 +921,10 @@ def remove_track_from_influx(sender, instance: NavigationTask, **kwargs):
     influx.clear_data_for_contestant(instance.pk)
 
 
+def generate_random_string(length) -> str:
+    return "".join(choice(ascii_uppercase + ascii_lowercase + digits) for i in range(length))
+
+
 @receiver(pre_save, sender=Person)
 def register_personal_tracker(sender, instance: Person, **kwargs):
     try:
@@ -927,9 +933,13 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
     except ObjectDoesNotExist:
         original_tracking_id = None
     traccar = get_traccar_instance()
-    created = False
-    if instance.app_tracking_id is not None:
-        device, created = traccar.get_or_create_device(instance.app_aircraft_registration, str(instance.app_tracking_id))
+    random_string = ""
+    existing = True
+    while existing:
+        random_string = generate_random_string(28)
+        existing = Person.objects.filter(app_tracking_id=random_string).exists()
+    instance.app_tracking_id = random_string
+    device, created = traccar.get_or_create_device(instance.app_aircraft_registration, str(instance.app_tracking_id))
     if created and original_tracking_id is not None and original_tracking_id != instance.app_tracking_id:
         original_device = traccar.get_device(str(original_tracking_id))
         if original_device is not None:
