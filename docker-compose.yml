@@ -12,7 +12,7 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/London
-      - ONLY_SUBDOMAINS=true
+      - ONLY_SUBDOMAINS=false
       - URL=airsports.no
       - SUBDOMAINS=tracking,traccar
       - EMAIL=frankose@ifi.uio.no
