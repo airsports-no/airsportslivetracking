@@ -34,6 +34,13 @@ services:
                 "bash", "-c", "python3 manage.py migrate && cd / && npm run webpack && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
 
     container_name: tracker_web
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
     build:
       context: .
       dockerfile: Dockerfile
@@ -59,6 +66,13 @@ services:
                "bash", "-c", "/daphne.sh" ]
 
     container_name: tracker_daphne
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
     build:
       context: .
       dockerfile: Dockerfile
@@ -82,6 +96,13 @@ services:
                "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log" ]
 
     container_name: tracker_celery
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
     build:
       context: .
       dockerfile: Dockerfile
@@ -105,6 +126,13 @@ services:
                "bash", "-c", "python3 position_processor.py" ]
     container_name: tracker_processor
     restart: unless-stopped
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
     build:
       context: .
       dockerfile: Dockerfile
