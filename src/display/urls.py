@@ -15,7 +15,7 @@ from display.views import import_route, frontend_view_map, \
 urlpatterns = [
     path('importroute', import_route, name="import_route"),
     path('frontend/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
-    path('accounts/signup/verify', signup_verify, name ="signup_verify"),
+    path('accounts/signup/verify/', signup_verify, name ="signup_verify"),
     path('token/renew', renew_token, name="renewtoken"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
     path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),

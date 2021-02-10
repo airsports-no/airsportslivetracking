@@ -56,7 +56,10 @@ class TrackingConsumer(WebsocketConsumer):
     def tracking_data(self, event):
         data = event["data"]
         # logger.info("Received data: {}".format(data))
-        self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
+        try:
+            self.send(text_data=json.dumps(data["data"], cls=DateTimeEncoder))
+        except KeyError:
+            logger.exception("Did not find expected data block in {}".format(data))
 
 
 class GlobalConsumer(WebsocketConsumer):
