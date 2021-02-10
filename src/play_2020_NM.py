@@ -74,7 +74,7 @@ tomorrow = today + datetime.timedelta(days=1)
 contest_start_time = today.replace(hour=0).astimezone()
 contest_finish_time = tomorrow.astimezone()
 contest = Contest.objects.create(name="NM 2020", is_public=True, start_time=contest_start_time,
-                                 finish_time=contest_finish_time)
+                                 finish_time=contest_finish_time, time_zone="Europe/Oslo")
 with open("/data/NM.csv", "r") as file:
     route = create_precision_route_from_csv("NM 2020", file.readlines()[1:], True)
 

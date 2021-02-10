@@ -121,7 +121,7 @@ class InfluxFacade:
                     logger.error("Could not find device {}.".format(position_data["deviceId"]))
                     continue
             device_time = dateutil.parser.parse(position_data["deviceTime"])
-            logger.info(device_name)
+            # logger.info(device_name)
             if device_time < datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1):
                 logger.info(f"Received old position, disregarding: {device_name} {device_time}")
                 continue
