@@ -19,7 +19,7 @@ class ConnectedGlobalMapContainer extends Component {
             <div id="map-holder">
                 <div id='main_div' className={"fill"}>
                     <div className={"fill"}>
-                        <a className={"btn"} id="returnLink" href={"/contest/"}>
+                        <a className={"btn"} id="returnLink" href={"/contests/"}>
                             <img src={"/static/img/hub.png"} id={"returnLinkImage"} alt={"Hub"}/>
                         </a>
                         <div id={"disclaimer"}>
