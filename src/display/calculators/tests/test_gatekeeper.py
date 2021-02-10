@@ -7,10 +7,11 @@ from display.calculators.gatekeeper import Gatekeeper
 from display.calculators.positions_and_gates import Position
 from display.convert_flightcontest_gpx import create_precision_route_from_csv
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Contestant, Person, Team
+from mock_utilities import TraccarMock
 
 
 class TestInterpolation(TransactionTestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, patch):
         with open("display/calculators/tests/NM.csv", "r") as file:
             route = create_precision_route_from_csv("navigation_task", file.readlines()[1:], True)

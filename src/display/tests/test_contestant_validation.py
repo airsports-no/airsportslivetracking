@@ -6,13 +6,14 @@ from rest_framework.exceptions import ValidationError
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import NavigationTask, Contest, Route, Contestant, Aeroplane, Crew, Team, Person
+from mock_utilities import TraccarMock
 
 TRACKER_NAME = "tracker"
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestContestantValidation(TransactionTestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, patch):
         self.contest = Contest.objects.create(name="TestContest",
                                               start_time=datetime.datetime.now(datetime.timezone.utc),

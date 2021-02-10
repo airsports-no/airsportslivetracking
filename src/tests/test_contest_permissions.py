@@ -11,6 +11,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase, APIClient
 
 from display.models import Contest
+from mock_utilities import TraccarMock
 
 
 class TestCreateContest(APITestCase):
@@ -47,7 +48,7 @@ class TestCreateContest(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestAccessContest(APITestCase):
     def setUp(self):
         self.user_owner = get_user_model().objects.create(email="withpermissions")

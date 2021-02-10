@@ -6,10 +6,11 @@ from django.test import TestCase
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Aeroplane, NavigationTask, Team, Contestant, Crew, Contest, Person
 from display.views import create_precision_route_from_csv
+from mock_utilities import TraccarMock
 
 
 class TestContestantGatesCalculation(TestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, patch):
         with open("display/tests/NM.csv", "r") as file:
             route = create_precision_route_from_csv("navigation_task", file.readlines()[1:], True)

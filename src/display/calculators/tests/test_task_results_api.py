@@ -1,6 +1,6 @@
 import datetime
 from pprint import pprint
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from django.contrib.auth.models import User, Permission
 from django.contrib.auth import get_user_model
@@ -11,8 +11,10 @@ from rest_framework.test import APITestCase
 
 from display.models import Contest, Aeroplane, Person, Crew, Team, Task, TaskTest, ContestSummary, TaskSummary, \
     TeamTestScore
+from mock_utilities import TraccarMock
 
-@patch("display.models.get_traccar_instance")
+
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestTaskResultsApi(APITestCase):
     def setUp(self):
         self.user = get_user_model().objects.create(email="test")
@@ -65,15 +67,17 @@ class TestTaskResultsApi(APITestCase):
                 "tasktest_set": []
             }
             tests, summary = data
+            index = 0
             for contestant_name, scores in contestants.items():
-                pilot = Person.get_or_create(contestant_name, "Pilot", None, None)
+                pilot = Person.get_or_create(contestant_name, "Pilot", None, f"e-mai{index}l5@domain.com")
+                index += 1
                 crew, _ = Crew.objects.get_or_create(member1=pilot)
                 team, _ = Team.objects.get_or_create(crew=crew, aeroplane=self.aeroplane)
                 task_data["tasksummary_set"].append({"team": team.pk, "points": scores[summary]})
             for index, test in enumerate(tests):
                 test_results = []
                 for contestant_name, scores in contestants.items():
-                    pilot = Person.get_or_create(contestant_name, "Pilot", None, None)
+                    pilot = Person.get_or_create(contestant_name, "Pilot", None, "e-mail6@domain.com")
                     crew, _ = Crew.objects.get_or_create(member1=pilot)
                     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=self.aeroplane)
                     test_results.append({
@@ -121,11 +125,12 @@ class TestTaskResultsApi(APITestCase):
         self.assertEqual(246, TeamTestScore.objects.get(team=first_team, task_test__name="landing_four").points)
 
     def test_overwrite_task_results(self, p):
-        another_contest = Contest.objects.create(name="another NM 2020", start_time=datetime.datetime.now(datetime.timezone.utc),
+        another_contest = Contest.objects.create(name="another NM 2020",
+                                                 start_time=datetime.datetime.now(datetime.timezone.utc),
                                                  finish_time=datetime.datetime.now(datetime.timezone.utc))
         assign_perm("display.change_contest", self.user, another_contest)
         assign_perm("display.view_contest", self.user, another_contest)
-        pilot = Person.get_or_create("Pilot", "Pilot", None, None)
+        pilot = Person.get_or_create("Pilot", "Pilot", None, "e-mail2@domain.com")
         crew, _ = Crew.objects.get_or_create(member1=pilot)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=self.aeroplane)
         Task.objects.all().delete()
@@ -174,7 +179,7 @@ class TestTaskResultsApi(APITestCase):
         self.assertEqual(2, TaskSummary.objects.first().points)
 
     def test_delete_task_results(self, p):
-        pilot = Person.get_or_create("Pilot", "Pilot", None, None)
+        pilot = Person.get_or_create("Pilot", "Pilot", None, "e-mail1@domain.com")
         crew, _ = Crew.objects.get_or_create(member1=pilot)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=self.aeroplane)
         Task.objects.all().delete()
@@ -215,8 +220,8 @@ class TestTaskResultsApi(APITestCase):
         self.assertEqual(0, TeamTestScore.objects.all().count())
 
     def test_post_contest_summary(self, p):
-        pilot = Person.get_or_create("Pilot", "Pilot", None, None)
-        pilot2 = Person.get_or_create("Pilot2", "Pilot", None, None)
+        pilot = Person.get_or_create("Pilot", "Pilot", None, "e-mail3@domain.com")
+        pilot2 = Person.get_or_create("Pilot2", "Pilot", None, "e-mail4@domain.com")
         crew, _ = Crew.objects.get_or_create(member1=pilot)
         crew2, _ = Crew.objects.get_or_create(member1=pilot2)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=self.aeroplane)
@@ -240,7 +245,7 @@ class TestTaskResultsApi(APITestCase):
         self.assertEqual(2, ContestSummary.objects.get(team=team2).points)
 
     def test_delete_contest_summary(self, p):
-        pilot = Person.get_or_create("Pilot", "Pilot", None, None)
+        pilot = Person.get_or_create("Pilot", "Pilot", None, "e-mail@domain.com")
         crew, _ = Crew.objects.get_or_create(member1=pilot)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=self.aeroplane)
         summary_data = [

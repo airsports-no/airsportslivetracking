@@ -380,12 +380,6 @@ class PersonForm(forms.ModelForm):
             raise ValidationError("Phone number must be unique")
         return phone
 
-    def clean_email(self):
-        email = self.cleaned_data["email"]
-        if email is not None and len(email) > 0 and Person.objects.filter(email=email).exists():
-            raise ValidationError("E-mail must be unique")
-        return email
-
     class Meta:
         model = Person
         fields = "__all__"

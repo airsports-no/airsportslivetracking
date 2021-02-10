@@ -21,6 +21,7 @@ from display.default_scorecards.default_scorecard_fai_precision_2020 import get_
 from display.models import Contest, NavigationTask, Team, Crew, Person, Aeroplane, Contestant, ContestTeam, \
     TrackScoreOverride, GateScoreOverride
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
+from mock_utilities import TraccarMock
 
 data_with_gate_times = {"name": "3. Nav.", "start_time": "2017-08-01T06:15:00Z",
                         "finish_time": "2017-08-01T09:10:36Z", "is_public": True,
@@ -86,7 +87,8 @@ data = {
                 "crew": {
                     "member1": {
                         "first_name": "first_name",
-                        "last_name": "last_name"
+                        "last_name": "last_name",
+                        "email": "first@domain.com"
                     }
                 },
                 "country": "NO"
@@ -130,11 +132,14 @@ data = {
                 "crew": {
                     "member1": {
                         "first_name": "first_name",
-                        "last_name": "last_name"
+                        "last_name": "last_name",
+                        "email": "first2@domain.com"
+
                     },
                     "member2": {
                         "first_name": "another_name",
-                        "last_name": "another_name"
+                        "last_name": "another_name",
+                        "email": "second2@domain.com"
                     }
                 },
                 "country": "SE"
@@ -562,7 +567,7 @@ with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as f:
 data["route_file"] = route_string
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestImportSerialiser(TransactionTestCase):
     def setUp(self):
         self.user = get_user_model().objects.create(email="test")
@@ -584,9 +589,9 @@ class TestImportSerialiser(TransactionTestCase):
         serialiser.save()
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
         Contest.objects.all().delete()
         create_scorecards()
@@ -602,7 +607,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
         assign_perm("display.view_contest", self.user, self.contest)
         get_default_scorecard()
         for index in range(3):
-            person = Person.objects.create(first_name="{}".format(index), last_name="{}".format(index))
+            person = Person.objects.create(first_name="{}".format(index), last_name="{}".format(index), email=f"personal{index}@domain.com")
             aeroplane = Aeroplane.objects.create(registration="{}".format(index))
             crew = Crew.objects.create(member1=person)
             team = Team.objects.create(crew=crew, aeroplane=aeroplane)
@@ -617,7 +622,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestImportFCNavigationTask(APITransactionTestCase):
     def setUp(self):
         create_scorecards()

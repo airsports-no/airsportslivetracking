@@ -17,6 +17,7 @@ from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestan
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 from display.views import create_precision_route_from_csv
 from influx_facade import InfluxFacade
+from mock_utilities import TraccarMock
 from playback_tools import insert_gpx_file
 
 
@@ -34,9 +35,9 @@ def load_track_points(filename):
     return positions
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestFullTrack(TransactionTestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, patch):
         with open("display/calculators/tests/NM.csv", "r") as file:
             route = create_precision_route_from_csv("navigation_task", file.readlines()[1:], True)
@@ -183,9 +184,9 @@ class TestFullTrack(TransactionTestCase):
         self.assertFalse("TP6: 200.0 points missing procedure turn" in strings)
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class Test2017WPFC(TransactionTestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
         with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
             route = create_precision_route_from_gpx(file, True)
@@ -231,9 +232,9 @@ class Test2017WPFC(TransactionTestCase):
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestScoreverride(TransactionTestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
         with open("display/calculators/tests/bugs_with_gate_score_overrides.json", "r") as file:
             task_data = json.load(file)
@@ -270,9 +271,9 @@ class TestScoreverride(TransactionTestCase):
         self.assertEqual(23, contestant_track.score)
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestNM2019(TransactionTestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
         with open("display/calculators/tests/NM2019.gpx", "r") as file:
             route = create_precision_route_from_gpx(file, True)

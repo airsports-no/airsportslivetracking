@@ -11,6 +11,7 @@ from display.calculators.calculator_utilities import load_track_points_traccar_c
 from display.convert_flightcontest_gpx import create_anr_corridor_route_from_kml
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Person, Team, Contestant, ContestantTrack, \
     TrackScoreOverride
+from mock_utilities import TraccarMock
 
 
 def load_traccar_track(track_file) -> List[Tuple[datetime.datetime, float, float]]:
@@ -23,9 +24,9 @@ def load_traccar_track(track_file) -> List[Tuple[datetime.datetime, float, float
     return positions
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestANR(TransactionTestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
         with open("display/calculators/tests/eidsvoll.kml", "r") as file:
             route = create_anr_corridor_route_from_kml("test", file, 0.5, False)
@@ -101,7 +102,7 @@ class TestANR(TransactionTestCase):
 
 
 class TestAnrCorridorCalculator(TransactionTestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
         with patch("display.convert_flightcontest_gpx.load_features_from_kml",
                    return_value={"route": [(60, 11), (60, 12), (61, 12), (61, 11)]}):

@@ -11,6 +11,7 @@ from rest_framework.test import APITestCase
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Contest, NavigationTask, Contestant
+from mock_utilities import TraccarMock
 
 line = {
     "name": "land",
@@ -50,7 +51,8 @@ CONTESTANT_DATA = {
         "crew": {
             "member1": {
                 "first_name": "first_name",
-                "last_name": "last_name"
+                "last_name": "last_name",
+                "email": "name@domain.com"
             }
         },
         "country": "NO"
@@ -68,7 +70,7 @@ CONTESTANT_DATA = {
 }
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestCreateNavigationTask(APITestCase):
     def setUp(self):
         create_scorecards()
@@ -118,9 +120,9 @@ class TestCreateNavigationTask(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_200_OK)
 
 
-@patch("display.models.get_traccar_instance")
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestAccessNavigationTask(APITestCase):
-    @patch("display.models.get_traccar_instance")
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, patch):
         create_scorecards()
         self.user_owner = get_user_model().objects.create(email="withpermissions")
@@ -180,6 +182,7 @@ class TestAccessNavigationTask(APITestCase):
         self.client.force_login(user=self.different_user_with_object_permissions)
         data = dict(CONTESTANT_DATA)
         data["wind_speed"] = 30
+        data["team"]["crew"]["member1"]["email"] = "putotheruser@domain.com"
         url = reverse("contestants-detail",
                       kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
                               "pk": self.contestant.pk})
@@ -240,6 +243,7 @@ class TestAccessNavigationTask(APITestCase):
         self.client.force_login(user=self.user_owner)
         data = dict(CONTESTANT_DATA)
         data["wind_speed"] = 30
+        data["team"]["crew"]["member1"]["email"] = "putCreator@domain.com"
         url = reverse("contestants-detail",
                       kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
                               "pk": self.contestant.pk})

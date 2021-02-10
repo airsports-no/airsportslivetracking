@@ -159,13 +159,12 @@ class Person(models.Model):
                 possible_person = Person.objects.filter(first_name__iexact=first_name,
                                                         last_name__iexact=last_name).first()
                 if possible_person is None:
-                    return Person.objects.get_or_create(
-                        defaults={"phone": phone,
-                                  "email": phone,
-                                  "first_name": first_name,
-                                  "last_name": last_name},
-                        first_name__iexact=first_name,
-                        last_name__iexact=last_name)[0]
+                    return Person.objects.create(
+                        phone=phone,
+                        email=email,
+                        first_name=first_name,
+                        last_name=last_name
+                    )
                 return possible_person
             return None
         return possible_person.first()
