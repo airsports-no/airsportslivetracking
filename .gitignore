@@ -1,0 +1,13 @@
+node_modules/
+venv/
+assets/
+/documentation/~$rsports Tracking API documentation.docx
+/mapserver/
+/swag/config/
+/teams/
+/celerylog/
+/.idea/
+/processorlog/
+/static/bundles/local/
+/weblog/
+/src/media/
