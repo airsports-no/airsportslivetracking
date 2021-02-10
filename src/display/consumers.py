@@ -4,6 +4,7 @@ import logging
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 
 from display.models import NavigationTask
@@ -67,6 +68,9 @@ class GlobalConsumer(WebsocketConsumer):
             self.channel_name
         )
         self.accept()
+        existing = cache.get("GLOBAL_MAP_DATA") or {}
+        for age, data in existing.values():
+            self.send(json.dumps(data))
 
     def disconnect(self, code):
         async_to_sync(self.channel_layer.group_discard)(

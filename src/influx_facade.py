@@ -7,6 +7,7 @@ from typing import List, Union, Set, Optional
 import dateutil
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from influxdb import InfluxDBClient
 from influxdb.resultset import ResultSet
@@ -40,6 +41,7 @@ class InfluxFacade:
             for key, value in self.global_map.items():
                 if (now - value[0]).total_seconds() > PURGE_GLOBAL_MAP_INTERVAL:
                     del self.global_map[key]
+            cache.set("GLOBAL_MAP_DATA", self.global_map)
 
     def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):
         try:
@@ -182,7 +184,7 @@ class InfluxFacade:
                 }
 
                 self.global_map[position_data["deviceId"]] = (now, data)
-
+                cache.set("GLOBAL_MAP_DATA", self.global_map)
                 async_to_sync(self.channel_layer.group_send)(
                     "tracking_global", data
                 )
