@@ -56,10 +56,7 @@ class TrackingConsumer(WebsocketConsumer):
     def tracking_data(self, event):
         data = event["data"]
         # logger.info("Received data: {}".format(data))
-        try:
-            self.send(text_data=json.dumps(data["data"], cls=DateTimeEncoder))
-        except KeyError:
-            logger.exception("Did not find expected data block in {}".format(data))
+        self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
 
 
 class GlobalConsumer(WebsocketConsumer):
@@ -73,7 +70,11 @@ class GlobalConsumer(WebsocketConsumer):
         self.accept()
         existing = cache.get("GLOBAL_MAP_DATA") or {}
         for age, data in existing.values():
-            self.send(json.dumps(data))
+            try:
+                self.send(json.dumps(data['data']))
+            except KeyError:
+                logger.exception("Did not find expected data block in {}".format(data))
+
 
     def disconnect(self, code):
         async_to_sync(self.channel_layer.group_discard)(
