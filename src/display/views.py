@@ -126,7 +126,8 @@ def signup_verify(request):
                 person = Person.objects.get(email=user.email)
                 messages.success(request, f"Email address verified. Found existing profile {person} for user.")
             except ObjectDoesNotExist:
-                person = Person.objects.create(first_name=user.first_name, last_name=user.last_name, email=user.email)
+                person = Person.objects.create(first_name=user.first_name, last_name=user.last_name, email=user.email,
+                                               app_aircraft_registration=user.first_name)
                 messages.success(request, f"Email address verified. Created new profile {person} for user.")
             user.person = person
             user.save()

@@ -15,7 +15,7 @@ from guardian.mixins import GuardianUserMixin
 from multiselectfield import MultiSelectField
 from timezone_field import TimeZoneField
 # Create your models here.
-from django.db.models.signals import post_save, pre_save, post_delete
+from django.db.models.signals import post_save, pre_save, post_delete, pre_delete
 from django.dispatch import receiver
 from django_countries.fields import CountryField
 from phonenumber_field.modelfields import PhoneNumberField
@@ -938,8 +938,17 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         random_string = generate_random_string(28)
         existing = Person.objects.filter(app_tracking_id=random_string).exists()
     instance.app_tracking_id = random_string
-    device, created = traccar.get_or_create_device(instance.app_aircraft_registration, str(instance.app_tracking_id))
+    device, created = traccar.get_or_create_device(instance.app_aircraft_registration, instance.app_tracking_id)
     if created and original_tracking_id is not None and original_tracking_id != instance.app_tracking_id:
-        original_device = traccar.get_device(str(original_tracking_id))
+        original_device = traccar.get_device(original_tracking_id)
+        if original_device is not None:
+            traccar.delete_device(original_device["id"])
+
+
+@receiver(pre_delete, sender=Person)
+def register_personal_tracker(sender, instance: Person, **kwargs):
+    if instance.app_tracking_id is not None:
+        traccar = get_traccar_instance()
+        original_device = traccar.get_device(instance.app_tracking_id)
         if original_device is not None:
             traccar.delete_device(original_device["id"])
