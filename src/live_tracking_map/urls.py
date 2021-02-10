@@ -22,6 +22,8 @@ from django.views.generic import RedirectView, TemplateView
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
+from rest_framework.authtoken.views import obtain_auth_token
+
 from display.views import ContestList, results_service, global_map
 from . import api, settings
 
