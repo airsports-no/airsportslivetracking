@@ -129,7 +129,7 @@ class CharNullField(models.CharField):
 class Person(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
-    email = CharNullField(max_length=60, blank=True, null=True)
+    email = models.EmailField(unique=True)
     phone = PhoneNumberField(blank=True, null=True)
     app_tracking_id = models.CharField(max_length=28, editable=False)
     app_aircraft_registration = models.CharField(max_length=100, default="", blank=True)

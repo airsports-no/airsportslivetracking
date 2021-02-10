@@ -8,6 +8,7 @@ from collections import OrderedDict
 
 import redis_lock
 import dateutil
+from authemail.models import SignupCode
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required, login_required
 from django.contrib.auth.mixins import PermissionRequiredMixin, LoginRequiredMixin, UserPassesTestMixin
@@ -54,7 +55,7 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
-    TeamTestScore, TRACCAR, TASK_PRECISION, TASK_ANR_CORRIDOR, Scorecard
+    TeamTestScore, TRACCAR, TASK_PRECISION, TASK_ANR_CORRIDOR, Scorecard, MyUser
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions
@@ -107,6 +108,34 @@ def frontend_view_map(request, pk):
     return render(request, "display/root.html",
                   {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
                    "display_map": "true", "display_table": "false", "skip_nav": True})
+
+
+def signup_verify(request):
+    """
+    Duplicates the functionality from authemail for verifying emails. Attempts to match the user to an existing
+    person and returns the landing page with information about success or failure.
+    """
+    code = request.GET.get('code', '')
+    verified = SignupCode.objects.set_user_is_verified(code)
+    if verified:
+        try:
+            signup_code = SignupCode.objects.get(code=code)
+            user = signup_code.user  # type: MyUser
+            # Try to find existing person
+            try:
+                person = Person.objects.get(email=user.email)
+                messages.success(request, f"Email address verified. Found existing profile {person} for user.")
+            except ObjectDoesNotExist:
+                person = Person.objects.create(first_name=user.first_name, last_name=user.last_name, email=user.email)
+                messages.success(request, f"Email address verified. Created new profile {person} for user.")
+            user.person = person
+            user.save()
+            signup_code.delete()
+        except SignupCode.DoesNotExist:
+            pass
+    else:
+        messages.success(request, f"Unable to verify user")
+    return redirect(reverse("global_map"))
 
 
 def global_map(request):

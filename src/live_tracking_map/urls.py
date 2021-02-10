@@ -22,7 +22,7 @@ from django.views.generic import RedirectView, TemplateView
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
-from display.views import ContestList, results_service
+from display.views import ContestList, results_service, global_map
 from . import api, settings
 
 docs = get_schema_view(
@@ -35,7 +35,8 @@ docs = get_schema_view(
 )
 
 urlpatterns = [
-    path('', ContestList.as_view(), name="contest_list"),
+    path('contests/', ContestList.as_view(), name="contest_list"),
+    path('globalmap/', global_map, name="global_map"),
     path('admin/', admin.site.urls),
     path('display/', include("display.urls")),
     path('accounts/token/', TemplateView.as_view(template_name="token.html"), name="token"),
