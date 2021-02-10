@@ -1168,8 +1168,7 @@ class IsPublicMixin:
         return Response({'is_public': instance.is_public})
 
 
-class UserPersonViewSet(mixins.CreateModelMixin,
-                        GenericViewSet):
+class UserPersonViewSet(GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = PersonSerialiser
 
@@ -1182,16 +1181,16 @@ class UserPersonViewSet(mixins.CreateModelMixin,
     def get_queryset(self):
         return Person.objects.filter(myuser=self.request.user)
 
-    def create(self, request, *args, **kwargs):
-        if request.user.person is not None:
-            raise ValidationError("The user already has a profile")
-        return super().create(request, *args, **kwargs)
-
-    def perform_create(self, serializer):
-        person = serializer.save()
-        self.request.user.person = person
-        self.request.user.save()
-        return person
+    # def create(self, request, *args, **kwargs):
+    #     if request.user.person is not None:
+    #         raise ValidationError("The user already has a profile")
+    #     return super().create(request, *args, **kwargs)
+    #
+    # def perform_create(self, serializer):
+    #     person = serializer.save()
+    #     self.request.user.person = person
+    #     self.request.user.save()
+    #     return person
 
     def perform_update(self, serializer):
         serializer.save()
@@ -1207,7 +1206,7 @@ class UserPersonViewSet(mixins.CreateModelMixin,
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
-    @action(detail=False, methods=["patch"])
+    @action(detail=False, methods=["put"])
     def update_profile(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()

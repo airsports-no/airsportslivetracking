@@ -19,6 +19,8 @@ RUN pip3 uninstall --yes shapely
 RUN pip3 uninstall --yes cartopy
 RUN pip3 install shapely cartopy --no-binary shapely --no-binary cartopy
 
+COPY django-rest-authemail /django-rest-authemail
+RUN pip3 install -U -e /django-rest-authemail
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 COPY config /config
