@@ -45,6 +45,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
+      - ./django-rest-authemail:/django-rest-authemail
       - ./static:/static
       - ./assets:/assets/
       - ./src:/src/
