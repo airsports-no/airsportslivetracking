@@ -1,4 +1,5 @@
 import datetime
+import logging
 import math
 import uuid
 from plistlib import Dict
@@ -42,6 +43,8 @@ TASK_TYPES = (
     (TASK_PRECISION, "Precision"),
     (TASK_ANR_CORRIDOR, "ANR corridor")
 )
+
+logger = logging.getLogger(__name__)
 
 
 def user_directory_path(instance, filename):
@@ -932,16 +935,20 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
     except ObjectDoesNotExist:
         original_tracking_id = None
     traccar = get_traccar_instance()
-    random_string = ""
+    random_string = "SHOULD_NOT_BE_HERE with"
     existing = True
     while existing:
         random_string = generate_random_string(28)
+        logger.info(f"Generated random string {random_string} for person {instance}")
         existing = Person.objects.filter(app_tracking_id=random_string).exists()
     instance.app_tracking_id = random_string
+    logger.info(f"Assigned random string {instance.app_tracking_id} to person {instance}")
     device, created = traccar.get_or_create_device(instance.app_aircraft_registration, instance.app_tracking_id)
+    logger.info(f"Traccar device {device} was created: {created}")
     if created and original_tracking_id is not None and original_tracking_id != instance.app_tracking_id:
         original_device = traccar.get_device(original_tracking_id)
         if original_device is not None:
+            logger.info(f"Clearing original device {original_device}")
             traccar.delete_device(original_device["id"])
 
 
