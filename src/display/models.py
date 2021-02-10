@@ -953,7 +953,7 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
 
 
 @receiver(pre_delete, sender=Person)
-def register_personal_tracker(sender, instance: Person, **kwargs):
+def delete_personal_tracker(sender, instance: Person, **kwargs):
     if instance.app_tracking_id is not None:
         traccar = get_traccar_instance()
         original_device = traccar.get_device(instance.app_tracking_id)
