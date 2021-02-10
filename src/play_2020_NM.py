@@ -91,18 +91,21 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     if contestant in contestants:
         print(contestant)
         if contestant == "Frank-Olaf":
-            member1, _ = Person.objects.get_or_create(first_name="Frank Olaf", last_name="Sem-Jacobsen")
-            member2, _ = Person.objects.get_or_create(first_name="Espen", last_name="Grønstad")
+            member1, _ = Person.objects.get_or_create(first_name="Frank Olaf", last_name="Sem-Jacobsen",
+                                                      email="frankose@ifi.uio.no")
+            member2, _ = Person.objects.get_or_create(first_name="Espen", last_name="Grønstad",
+                                                      email="espengronstad@gmail.com")
             crew, _ = Crew.objects.get_or_create(member1=member1, member2=member2)
         else:
             person = Person.objects.filter(first_name=contestant, last_name="Pilot").first()
             if not person:
-                person = Person.objects.create(first_name=contestant, last_name="Pilot")
+                person = Person.objects.create(first_name=contestant, last_name="Pilot",
+                                               email=f"bogus{index}@domain.com")
             crew, _ = Crew.objects.get_or_create(
                 member1=person)
 
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane,
-                                             club=Club.objects.get(name="Kjeller Sportsflyklubb"))
+                                             club=Club.objects.get_or_create(name="Kjeller Sportsflyklubb")[0])
         start_time, speed, _ = contestants[contestant]
         ContestTeam.objects.get_or_create(team=team, contest=contest,
                                           defaults={"air_speed": speed, "tracking_service": TRACCAR,
