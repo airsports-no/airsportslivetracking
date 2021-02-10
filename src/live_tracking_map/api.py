@@ -1,7 +1,7 @@
 from rest_framework_nested import routers
 
 from display.views import ContestViewSet, ImportFCNavigationTask, NavigationTaskViewSet, ContestantViewSet, \
-    ContestResultsSummaryViewSet, ImportFCNavigationTaskTeamId
+    ContestResultsSummaryViewSet, ImportFCNavigationTaskTeamId, UserPersonViewSet
 from django.urls import path, include
 
 router = routers.DefaultRouter()
@@ -19,6 +19,7 @@ contestant_router = routers.NestedSimpleRouter(navigation_task_router, r'navigat
 contestant_router.register(r'contestants', ContestantViewSet, basename='contestants')
 
 router.register(r'contestresults', ContestResultsSummaryViewSet, basename="contestresults")
+router.register(r'userprofile', UserPersonViewSet, basename="userprofile")
 # results_details_router = routers.NestedSimpleRouter(router, r'contestresults', lookup='contest')
 # results_details_router.register(r'details', ContestResultsDetailsViewSet, basename="contestresultsdetails")
 

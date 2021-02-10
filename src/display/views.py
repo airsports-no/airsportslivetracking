@@ -20,7 +20,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.db.models import Q
 from django.forms import formset_factory
-from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -31,14 +31,14 @@ from formtools.wizard.views import SessionWizardView, CookieWizardView
 from guardian.mixins import PermissionRequiredMixin as GuardianPermissionRequiredMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
-from rest_framework import status, permissions
+from rest_framework import status, permissions, mixins
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied, MethodNotAllowed
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet, ViewSet
+from rest_framework.viewsets import ModelViewSet, ViewSet, GenericViewSet
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduler import TeamDefinition, Solver
@@ -1166,6 +1166,61 @@ class IsPublicMixin:
         instance.is_public = False
         instance.save()
         return Response({'is_public': instance.is_public})
+
+
+class UserPersonViewSet(mixins.CreateModelMixin,
+                        GenericViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = PersonSerialiser
+
+    def get_object(self):
+        instance = self.get_queryset().first()
+        if instance is None:
+            raise Http404
+        return instance
+
+    def get_queryset(self):
+        return Person.objects.filter(myuser=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        if request.user.person is not None:
+            raise ValidationError("The user already has a profile")
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        person = serializer.save()
+        self.request.user.person = person
+        self.request.user.save()
+        return person
+
+    def perform_update(self, serializer):
+        serializer.save()
+
+    @action(detail=False, methods=["patch"])
+    def partial_update_profile(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update_profile(request, *args, **kwargs)
+
+    @action(detail=False, methods=["get"])
+    def retrieve_profile(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["patch"])
+    def update_profile(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
 
 
 class ContestViewSet(IsPublicMixin, ModelViewSet):
