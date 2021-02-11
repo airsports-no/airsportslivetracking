@@ -34,17 +34,15 @@ class InfluxFacade:
         self.client = InfluxDBClient(host, port, user, password, dbname)
         self.global_map = {}
         self.last_purge = datetime.datetime.now(datetime.timezone.utc)
-        self.purge_global_map()
 
 
     def purge_global_map(self):
         now = datetime.datetime.now(datetime.timezone.utc)
-        if (now - self.last_purge).total_seconds() > PURGE_GLOBAL_MAP_INTERVAL:
-            self.last_purge = now
-            for key, value in self.global_map.items():
-                if (now - value[0]).total_seconds() > PURGE_GLOBAL_MAP_INTERVAL:
-                    del self.global_map[key]
-            cache.set("GLOBAL_MAP_DATA", self.global_map)
+        self.last_purge = now
+        for key, value in self.global_map.items():
+            if (now - value[0]).total_seconds() > PURGE_GLOBAL_MAP_INTERVAL:
+                del self.global_map[key]
+        cache.set("GLOBAL_MAP_DATA", self.global_map)
         threading.Timer(PURGE_GLOBAL_MAP_INTERVAL, self.purge_global_map).start()
 
     def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):

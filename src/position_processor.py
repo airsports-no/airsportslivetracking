@@ -31,6 +31,7 @@ if __name__ == "__main__":
     traccar = Traccar.create_from_configuration(configuration)
     devices = traccar.get_device_map()
 influx = InfluxFacade()
+influx.purge_global_map()
 calculators = {}
 position_buffer = {}
 POSITION_BUFFER_SIZE = 5
