@@ -37,6 +37,7 @@ class InfluxFacade:
 
 
     def purge_global_map(self):
+        logger.info("Purging global map cache")
         now = datetime.datetime.now(datetime.timezone.utc)
         self.last_purge = now
         for key, value in self.global_map.items():
@@ -44,6 +45,8 @@ class InfluxFacade:
                 del self.global_map[key]
         cache.set("GLOBAL_MAP_DATA", self.global_map)
         threading.Timer(PURGE_GLOBAL_MAP_INTERVAL, self.purge_global_map).start()
+        logger.info("Purged global map cache")
+
 
     def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):
         try:
