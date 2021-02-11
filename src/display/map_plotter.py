@@ -342,7 +342,7 @@ def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoin
                                 plt.text(line_position[1], line_position[0], text, verticalalignment="center",
                                          color="blue",
                                          horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8,
-                                         rotation=-bearing,
+                                         rotation=-waypoint.bearing_next,
                                          linespacing=2, family="monospace")
 
             if waypoint.is_procedure_turn:
