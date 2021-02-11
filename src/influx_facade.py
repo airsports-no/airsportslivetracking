@@ -197,6 +197,9 @@ class InfluxFacade:
             position_data.append({
                 "latitude": item["fields"]["latitude"],
                 "longitude": item["fields"]["longitude"],
+                "speed": item["fields"]["speed"],
+                "course": item["fields"]["course"],
+                "altitude": item["fields"]["altitude"],
                 "time": item["time"]
             })
         channel_data = {
