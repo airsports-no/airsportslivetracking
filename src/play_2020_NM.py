@@ -59,7 +59,7 @@ deleted = traccar.update_and_get_devices()
 # Group ID = 1
 for item in deleted:
     traccar.delete_device(item["id"])
-#     traccar.create_device(item["name"], item["uniqueId"])
+    traccar.create_device(item["name"], item["uniqueId"])
 
 scorecard = get_default_scorecard()
 original_contest = Contest.objects.filter(name="NM 2020").first()
