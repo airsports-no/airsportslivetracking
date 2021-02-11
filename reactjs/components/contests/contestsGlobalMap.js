@@ -15,9 +15,10 @@ class ConnectedContestsGlobalMap extends Component {
     }
 
     render() {
-        if (this.props.map!==null) {
+        if (this.props.map !== null) {
             const contests = this.props.contests.map((contest) => {
-                return <ContestDisplayGlobalMap key={contest.id} map={this.props.map} contest={contest}/>
+                if (contest.latitude !== 0 && contest.longitude !== 0)
+                    return <ContestDisplayGlobalMap key={contest.id} map={this.props.map} contest={contest}/>
             })
             return <div>{contests}</div>
         }
