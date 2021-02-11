@@ -3,6 +3,7 @@ import base64
 import dateutil
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction, IntegrityError
+from django.http import Http404
 from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm
@@ -372,7 +373,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
 
     def create(self, validated_data):
-        navigation_task = self.context["navigation_task"]
+        try:
+            navigation_task = self.context["navigation_task"]
+        except KeyError:
+            raise Http404("Navigation task not found")
         validated_data["navigation_task"] = navigation_task
         gate_times = validated_data.pop("gate_times", {})
         track_score_override_data = validated_data.pop("track_score_override", None)
@@ -480,7 +484,11 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         track_score_override_data = validated_data.pop("track_score_override", None)
         gate_score_override_data = validated_data.pop("gate_score_override", None)
         contestant_set = validated_data.pop("contestant_set", [])
-        validated_data["contest"] = self.context["contest"]
+        try:
+            validated_data["contest"] = self.context["contest"]
+        except KeyError:
+            raise Http404("Contest not found")
+
         route = validated_data.pop("route", None)
         route_serialiser = RouteSerialiser(data=route)
         route_serialiser.is_valid(raise_exception=True)
@@ -537,7 +545,11 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             route = create_precision_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")),
                                                     validated_data["scorecard"].use_procedure_turns)
             user = self.context["request"].user
-            validated_data["contest"] = self.context["contest"]
+            try:
+                validated_data["contest"] = self.context["contest"]
+            except KeyError:
+                raise Http404("Contest not found")
+
             validated_data["route"] = route
             assign_perm("view_route", user, route)
             assign_perm("delete_route", user, route)
@@ -652,7 +664,11 @@ class ContestSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
         exclude = ("contest",)
 
     def create(self, validated_data):
-        validated_data["contest"] = self.context["contest"]
+        try:
+            validated_data["contest"] = self.context["contest"]
+        except KeyError:
+            raise Http404("Contest not found")
+
         return ContestSummary.objects.create(**validated_data)
 
 
@@ -687,7 +703,11 @@ class TaskWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
     def create(self, validated_data):
         task_test_data = validated_data.pop("tasktest_set", [])
         task_summary_data = validated_data.pop("tasksummary_set", [])
-        validated_data["contest"] = self.context["contest"]
+        try:
+            validated_data["contest"] = self.context["contest"]
+        except KeyError:
+            raise Http404("Contest not found")
+
         task = Task.objects.create(**validated_data)
         for item in task_summary_data:
             item["task"] = task

@@ -1321,7 +1321,11 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context.update({"contest": get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))})
+        try:
+            context.update({"contest": get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))})
+        except Http404:
+            # This has to be handled where we retrieve the context
+            pass
         return context
 
     def get_queryset(self):
@@ -1374,8 +1378,12 @@ class ContestantViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
-        context.update({"navigation_task": navigation_task})
+        try:
+            navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+            context.update({"navigation_task": navigation_task})
+        except Http404:
+            # This has to be handled where we retrieve the context
+            pass
         return context
 
     def create(self, request, *args, **kwargs):
@@ -1462,8 +1470,12 @@ class ImportFCNavigationTask(ModelViewSet):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
-        context.update({"contest": contest})
+        try:
+            contest = get_object_or_404(Contest, pk=self.kwargs.get(self.lookup_key))
+            context.update({"contest": contest})
+        except Http404:
+            # This has to be handled below
+            pass
         return context
 
     def create(self, request, *args, **kwargs):
