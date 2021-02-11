@@ -13,6 +13,7 @@ import {
     shrinkTrackingTable, toggleExplicitlyDisplayAllTracks
 } from "../actions";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import Disclaimer from "./disclaimer";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -133,12 +134,7 @@ class ConnectedTrackingContainer extends Component {
                                 {/*<i className={"mdi mdi-home"} id={"returnLinkImage"}/>*/}
                                 <img src={"/static/img/hub.png"} id={"returnLinkImage"} alt={"Hub"}/>
                             </a>
-                            <div id={"disclaimer"}>
-                                <img src={"/static/img/nlf_white.png"} className={"logo"}/>
-                                THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING IN COLLABORATION<br/>
-                                WITH NORGES LUFTSPORTSFORBUND NLF - <a href={"#"} style={{color: "white"}}>FOR MORE
-                                INFO / DISCLAIMER</a>
-                            </div>
+                            <Disclaimer/>
 
                             {/*<div id={"sponsor"}>*/}
                             {/*    <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>*/}

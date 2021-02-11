@@ -2,6 +2,7 @@ import React, {Component} from "react";
 import TaskItem from "./taskItem";
 import {zoomFocusContest} from "../../actions";
 import {connect} from "react-redux";
+import EllipsisWithTooltip from "react-ellipsis-with-tooltip";
 
 
 export const mapStateToProps = (state, props) => ({
@@ -40,17 +41,18 @@ class ConnectedContestItem extends Component {
     render() {
         const tasks = this.props.contest.navigationtask_set.sort(sortTaskTimes)
         return <div>
-            <div className={"card-header active"} onClick={() => this.handleClick()}>
-                {this.props.contest.name}
-
+            <div className={"card-header active row"} onClick={() => this.handleClick()}>
+                <div className={"col-8"}>
+                    {this.props.contest.name}
+                </div>
+                <div className={"col-4"}>
+                {new Date(this.props.contest.start_time).toLocaleDateString()}
+                </div>
             </div>
             <ul className={"list-group list-group-flush"}>
                 {tasks.map((task) => {
                     return <TaskItem key={"task" + task.pk} navigationTask={task}/>
                 })}</ul>
-            <div className={"card-footer text-white"}>
-                {new Date(this.props.contest.start_time).toLocaleDateString()}
-            </div>
         </div>
     }
 }

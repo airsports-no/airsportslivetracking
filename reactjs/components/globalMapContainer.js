@@ -5,6 +5,7 @@ import TrackLoadingIndicator from "./trackLoadingIndicator";
 import GlobalMapMap from "./globalMapMap";
 import {fetchContests} from "../actions";
 import GlobalEventList from "./contests/globalEventList";
+import Disclaimer from "./disclaimer";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -38,12 +39,7 @@ class ConnectedGlobalMapContainer extends Component {
                             </div>
 
                         </div>
-                        <div id={"disclaimer"}>
-                            <img src={"/static/img/nlf_white.png"} className={"logo"}/>
-                            THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING IN COLLABORATION<br/>
-                            WITH NORGES LUFTSPORTSFORBUND NLF - <a href={"#"} style={{color: "white"}}>FOR MORE
-                            INFO / DISCLAIMER</a>
-                        </div>
+                        <Disclaimer/>
 
                         <div className={"logoImage"}>
                             <img className={"img-fluid"}

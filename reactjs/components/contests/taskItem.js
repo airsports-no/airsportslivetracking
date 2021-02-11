@@ -8,7 +8,8 @@ export default class TaskItem extends Component {
     }
 
     render() {
-        return <li className={"list-group-item list-group-item-secondary list-group-item-action"} onClick={()=>this.handleClick()}>{this.props.navigationTask.name}
+        return <li className={"list-group-item list-group-item-secondary list-group-item-action"} onClick={()=>this.handleClick()}>
+            {this.props.navigationTask.name}
         </li>
     }
 }
