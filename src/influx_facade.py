@@ -40,7 +40,8 @@ class InfluxFacade:
         logger.info("Purging global map cache")
         now = datetime.datetime.now(datetime.timezone.utc)
         self.last_purge = now
-        for key, value in self.global_map.items():
+        for key in list(self.global_map.keys()):
+            value = self.global_map[key]
             if (now - value[0]).total_seconds() > PURGE_GLOBAL_MAP_INTERVAL:
                 del self.global_map[key]
         cache.set("GLOBAL_MAP_DATA", self.global_map)
