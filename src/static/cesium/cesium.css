@@ -325,6 +325,10 @@ tr.hidden {
     /*width: 40px;*/
 }
 
+#settingsButton {
+    font-size: 50px !important;
+}
+
 #logoButtonWrapper {
     bottom: 20px;
     right: 20px;
@@ -335,6 +339,14 @@ tr.hidden {
 
 #returnLink {
     top: 10px;
+    right: 10px;
+    position: fixed;
+    z-index: 2;
+}
+
+
+#settingsLink {
+    bottom: 40px;
     right: 10px;
     position: fixed;
     z-index: 2;

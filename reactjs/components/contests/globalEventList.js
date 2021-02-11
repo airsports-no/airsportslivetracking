@@ -33,17 +33,20 @@ class ConnectedGlobalEventList extends Component {
         super(props)
     }
 
-    handleManagementClick(){
+    handleManagementClick() {
         window.location.href = document.configuration.managementLink
     }
 
 
     render() {
-        const now = new Date()
-        let header=<div className={"card-header"}>Events</div>
+        let settingsButton = null
         if (document.configuration.managementLink) {
-            header = <div className={"card-header active"} onClick={()=>this.handleManagementClick()}>Events (management)</div>
+            settingsButton = <a className={"btn"} href={document.configuration.managementLink}>
+                <i className={"taskTitle mdi mdi-settings"} />
+            </a>
         }
+
+        const now = new Date()
         const upcomingEvents = this.props.contests.filter((contest) => {
             const startTime = new Date(contest.start_time)
             const finishTime = new Date(contest.finish_time)
@@ -67,7 +70,7 @@ class ConnectedGlobalEventList extends Component {
         }).sort(sortContestTimes)
         return <div>
             <div className={"card text-white bg-dark"}>
-                {header}
+                <div className={"card-header taskTitle"}>Events <span style={{float: "right"}}>{settingsButton}</span></div>
                 <div className={"card-body"}>
                     Ongoing events
                     <TimePeriodEventList contests={ongoingEvents}/>
