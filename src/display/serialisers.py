@@ -22,8 +22,15 @@ from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, C
 from display.waypoint import Waypoint
 
 
+class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = NavigationTask
+        fields = ("pk", "name", "start_time", "finish_time")
+
+
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(required=True)
+    navigationtask_set = NavigationTasksSummarySerialiser(many=True, read_only=True)
 
     class Meta:
         model = Contest
@@ -36,12 +43,6 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSeria
             "delete_contest": [user],
             "view_contest": [user]
         }
-
-
-class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
-    class Meta:
-        model = NavigationTask
-        fields = ("pk", "name", "start_time", "finish_time")
 
 
 class WaypointSerialiser(serializers.Serializer):

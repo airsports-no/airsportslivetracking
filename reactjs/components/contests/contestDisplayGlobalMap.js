@@ -1,15 +1,10 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {dispatchTraccarData, fetchContests, fetchContestsNavigationTaskSummaries} from "../../actions";
 
 const L = window['L']
 
-export const mapStateToProps = (state, props) => ({
-    contests: state.contests
-})
-export const mapDispatchToProps = {
-    fetchContestsNavigationTaskSummaries
-}
+export const mapStateToProps = (state, props) => ({})
+export const mapDispatchToProps = {}
 
 class ConnectedContestDisplayGlobalMap extends Component {
     constructor(props) {

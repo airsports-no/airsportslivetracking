@@ -2,10 +2,16 @@
 {% load render_bundle from webpack_loader %}
 {% load static %}
 {% block document_configuration %}
-<script>
-    document.configuration = {
-    }
-</script>
+    <script>
+        document.configuration = {
+            {% if user.is_authenticated %}
+                managementLink: "{% url 'contest_list' %}",
+            {% else %}
+                managementLink: null,
+            {% endif %}
+            navigationTaskMap: navigationTaskId => "{% url 'frontend_view_map' 0 %}".replace("0", navigationTaskId)
+        }
+    </script>
 {% endblock %}
 
 {% block contentfluid %}

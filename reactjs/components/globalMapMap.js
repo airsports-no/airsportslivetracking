@@ -2,17 +2,11 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {tileLayer} from "leaflet";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
-import {dispatchTraccarData, fetchContests} from "../actions";
-import axios from "axios";
 import ContestsGlobalMap from "./contests/contestsGlobalMap";
 
 const L = window['L']
-const server = "traccar.airsports.no";
-const token = "f4DSCgfm46IqkRAxTb2N2VV6eGver6tt";
 export const mapStateToProps = (state, props) => ({})
 export const mapDispatchToProps = {
-    dispatchTraccarData,
-    fetchContests
 }
 
 class Aircraft {
@@ -147,7 +141,6 @@ class ConnectedGlobalMapMap extends Component {
     componentDidMount() {
         this.initialiseMap()
         this.initiateSession()
-        this.props.fetchContests()
     }
 
 

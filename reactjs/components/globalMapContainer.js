@@ -3,6 +3,8 @@ import {connect} from "react-redux";
 import React, {Component} from "react";
 import TrackLoadingIndicator from "./trackLoadingIndicator";
 import GlobalMapMap from "./globalMapMap";
+import {fetchContests} from "../actions";
+import GlobalEventList from "./contests/globalEventList";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -13,15 +15,30 @@ class ConnectedGlobalMapContainer extends Component {
         super(props);
     }
 
+    componentDidMount() {
+        this.props.fetchContests()
+    }
+
+
     render() {
         let TrackerDisplay = <GlobalMapMap/>
         return (
             <div id="map-holder">
                 <div id='main_div' className={"fill"}>
                     <div className={"fill"}>
-                        <a className={"btn"} id="returnLink" href={"/contests/"}>
+                        <a className={"btn"} id="returnLink" href={"/"}>
                             <img src={"/static/img/hub.png"} id={"returnLinkImage"} alt={"Hub"}/>
                         </a>
+                        <div className={"globalMapBackdrop"}>
+                            <h3>Events</h3>
+                            <div
+                                className={""}>
+                                <div className={""}>
+                                    <GlobalEventList/>
+                                </div>
+                            </div>
+
+                        </div>
                         <div id={"disclaimer"}>
                             <img src={"/static/img/nlf_white.png"} className={"logo"}/>
                             THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING IN COLLABORATION<br/>
@@ -43,5 +60,5 @@ class ConnectedGlobalMapContainer extends Component {
 }
 
 const
-    GlobalMapContainer = connect(mapStateToProps, {})(ConnectedGlobalMapContainer)
+    GlobalMapContainer = connect(mapStateToProps, {fetchContests})(ConnectedGlobalMapContainer)
 export default GlobalMapContainer
