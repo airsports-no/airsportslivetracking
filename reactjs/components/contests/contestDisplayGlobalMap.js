@@ -19,9 +19,9 @@ class ConnectedContestDisplayGlobalMap extends Component {
             color: "red",
             opacity: 0.3
         }).bindTooltip(this.props.contest.name, {
-            permanent: true,
+            permanent: false,
             direction: "center"
-        }).openTooltip().addTo(this.props.map)
+        }).addTo(this.props.map)
     }
 
     componentWillUnmount() {

@@ -30,7 +30,6 @@ class ConnectedGlobalMapContainer extends Component {
                             <img src={"/static/img/hub.png"} id={"returnLinkImage"} alt={"Hub"}/>
                         </a>
                         <div className={"globalMapBackdrop"}>
-                            <h3>Events</h3>
                             <div
                                 className={""}>
                                 <div className={""}>

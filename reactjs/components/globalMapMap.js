@@ -3,10 +3,15 @@ import {connect} from "react-redux";
 import {tileLayer} from "leaflet";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import ContestsGlobalMap from "./contests/contestsGlobalMap";
+import {zoomFocusContest} from "../actions";
 
 const L = window['L']
-export const mapStateToProps = (state, props) => ({})
+export const mapStateToProps = (state, props) => ({
+    zoomContest: state.zoomContest,
+    contests: state.contests
+})
 export const mapDispatchToProps = {
+    zoomFocusContest
 }
 
 class Aircraft {
@@ -136,6 +141,20 @@ class ConnectedGlobalMapMap extends Component {
             }
         })
 
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.zoomContest !== this.props.zoomContest && this.map && this.props.zoomContest) {
+            const contest = this.props.contests.find((contest) => {
+                if (contest.id === this.props.zoomContest) {
+                    return contest
+                }
+            })
+            if (contest) {
+                this.map.flyTo([contest.latitude, contest.longitude], 8)
+                this.props.zoomFocusContest(null)
+            }
+        }
     }
 
     componentDidMount() {

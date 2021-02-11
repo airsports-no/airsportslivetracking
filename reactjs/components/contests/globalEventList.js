@@ -33,8 +33,17 @@ class ConnectedGlobalEventList extends Component {
         super(props)
     }
 
+    handleManagementClick(){
+        window.location.href = document.configuration.managementLink
+    }
+
+
     render() {
         const now = new Date()
+        let header=<div className={"card-header"}>Events</div>
+        if (document.configuration.managementLink) {
+            header = <div className={"card-header active"} onClick={()=>this.handleManagementClick()}>Events (management)</div>
+        }
         const upcomingEvents = this.props.contests.filter((contest) => {
             const startTime = new Date(contest.start_time)
             const finishTime = new Date(contest.finish_time)
@@ -56,19 +65,17 @@ class ConnectedGlobalEventList extends Component {
                 return contest
             }
         }).sort(sortContestTimes)
-        let managementLink=null;
-        if (document.configuration.managementLink){
-            managementLink = <a href={document.configuration.managementLink}>Event management</a>
-        }
         return <div>
-            <div>
-                <p>{managementLink}</p>
-                Ongoing events
-                <TimePeriodEventList contests={ongoingEvents}/>
-                Upcoming events
-                <TimePeriodEventList contests={upcomingEvents}/>
-                Past events
-                <TimePeriodEventList contests={earlierEvents}/>
+            <div className={"card text-white bg-dark"}>
+                {header}
+                <div className={"card-body"}>
+                    Ongoing events
+                    <TimePeriodEventList contests={ongoingEvents}/>
+                    Upcoming events
+                    <TimePeriodEventList contests={upcomingEvents}/>
+                    Past events
+                    <TimePeriodEventList contests={earlierEvents}/>
+                </div>
             </div>
 
         </div>

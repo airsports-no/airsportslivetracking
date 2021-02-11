@@ -22,7 +22,11 @@ import {
     HIGHLIGHT_CONTESTANT_TRACK,
     REMOVE_HIGHLIGHT_CONTESTANT_TRACK,
     FULL_HEIGHT_TABLE,
-    HALF_HEIGHT_TABLE, EXPLICITLY_DISPLAY_ALL_TRACKS, TRACCAR_DATA_RECEIVED, GET_CONTEST_SUCCESSFUL
+    HALF_HEIGHT_TABLE,
+    EXPLICITLY_DISPLAY_ALL_TRACKS,
+    TRACCAR_DATA_RECEIVED,
+    GET_CONTEST_SUCCESSFUL,
+    GLOBAL_MAP_ZOOM_FOCUS_CONTEST
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -40,7 +44,8 @@ const initialState = {
     highlightContestantTrack: [],
     highlightContestantTable: [],
     explicitlyDisplayAllTracks: false,
-    contests: []
+    contests: [],
+    zoomContest: null,
 };
 
 function rootReducer(state = initialState, action) {
@@ -249,9 +254,15 @@ function rootReducer(state = initialState, action) {
             traccarPositions: positions
         });
     }
-    if (action.type === GET_CONTEST_SUCCESSFUL){
+    if (action.type === GET_CONTEST_SUCCESSFUL) {
         return Object.assign({}, state, {
             contests: action.payload
+        })
+    }
+    if (action.type === GLOBAL_MAP_ZOOM_FOCUS_CONTEST) {
+
+        return Object.assign({}, state, {
+            zoomContest: action.payload
         })
     }
     return state;
