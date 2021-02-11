@@ -33,7 +33,7 @@ docs = get_schema_view(
         default_version='v1',
         description="Full API for Airsports tracker",
     ),
-    permission_classes=(permissions.AllowAny,),
+    permission_classes=(permissions.IsAuthenticated,),
 )
 
 urlpatterns = [
