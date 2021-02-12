@@ -14,6 +14,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
+from django.db import transaction
 from django.db.models import Q
 from django.forms import formset_factory
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
@@ -1447,6 +1448,7 @@ class ImportFCNavigationTask(ModelViewSet):
             pass
         return context
 
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         serialiser = self.get_serializer(data=request.data)
         if serialiser.is_valid(raise_exception=True):

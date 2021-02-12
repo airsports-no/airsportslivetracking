@@ -127,7 +127,7 @@ class CharNullField(models.CharField):
 class Person(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
     phone = PhoneNumberField(blank=True, null=True)
     creation_time = models.DateTimeField(auto_now_add=True,
                                          help_text="Used to figure out when a not validated personal and user should be deleted")
@@ -179,6 +179,11 @@ class Person(models.Model):
                 return possible_person
             return None
         return possible_person.first()
+
+    def validate(self):
+        if Person.objects.filter(email=self.email).exclude(pk=self.pk).exists():
+            raise ValidationError("A person with this email already exists")
+
 
 
 class Crew(models.Model):
@@ -937,6 +942,7 @@ def generate_random_string(length) -> str:
 
 @receiver(pre_save, sender=Person)
 def register_personal_tracker(sender, instance: Person, **kwargs):
+    instance.validate()
     if instance.pk is None:
         try:
             original = Person.objects.get(pk=instance.pk)
