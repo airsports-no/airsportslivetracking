@@ -128,11 +128,15 @@ class InfluxFacade:
                     continue
             device_time = dateutil.parser.parse(position_data["deviceTime"])
             # logger.info(device_name)
+            now = datetime.datetime.now(datetime.timezone.utc)
             last_seen_key = f"last_seen_{position_data['deviceId']}"
-            last_seen = cache.get(last_seen_key)
-            if last_seen == device_time:
-                logger.info(f"Received repeated position, disregarding: {device_name} {device_time}")
-                continue
+            if (now - device_time).total_seconds() > 30:
+                # Only check the cache if the position is old
+                last_seen = cache.get(last_seen_key)
+                if last_seen == device_time or device_time < now - datetime.timedelta(hours=4):
+                    # If we have seen it or it is really old, ignore it
+                    logger.info(f"Received repeated position, disregarding: {device_name} {device_time}")
+                    continue
             cache.set(last_seen_key, device_time)
             # print(device_time)
             contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
