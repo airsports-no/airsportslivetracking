@@ -241,6 +241,7 @@ CACHES = {
         'LOCATION': [
             'redis:6379',
         ],
+        "TIMEOUT": None,
         'OPTIONS': {
             'DB': 1,
             'PARSER_CLASS': 'redis.connection.HiredisParser',
