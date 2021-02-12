@@ -35,7 +35,6 @@ class InfluxFacade:
         self.global_map = {}
         self.last_purge = datetime.datetime.now(datetime.timezone.utc)
 
-
     def purge_global_map(self):
         logger.info("Purging global map cache")
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -47,7 +46,6 @@ class InfluxFacade:
         cache.set("GLOBAL_MAP_DATA", self.global_map)
         threading.Timer(PURGE_GLOBAL_MAP_INTERVAL, self.purge_global_map).start()
         logger.info("Purged global map cache")
-
 
     def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):
         try:
@@ -130,9 +128,12 @@ class InfluxFacade:
                     continue
             device_time = dateutil.parser.parse(position_data["deviceTime"])
             # logger.info(device_name)
-            if device_time < datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1):
-                logger.info(f"Received old position, disregarding: {device_name} {device_time}")
+            last_seen_key = f"last_seen_{position_data['deviceId']}"
+            last_seen = cache.get(last_seen_key)
+            if last_seen == device_time:
+                logger.info(f"Received repeated position, disregarding: {device_name} {device_time}")
                 continue
+            cache.set(last_seen_key, device_time)
             # print(device_time)
             contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
             if not contestant:
