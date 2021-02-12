@@ -42,7 +42,7 @@ class ConnectedGlobalEventList extends Component {
         let settingsButton = null
         if (document.configuration.managementLink) {
             settingsButton = <a className={"btn"} href={document.configuration.managementLink}>
-                <i className={"taskTitle mdi mdi-settings"} />
+                <i className={"taskTitle mdi mdi-settings"}/>
             </a>
         }
 
@@ -70,14 +70,40 @@ class ConnectedGlobalEventList extends Component {
         }).sort(sortContestTimes)
         return <div>
             <div className={"card text-white bg-dark"}>
-                <div className={"card-header taskTitle"}>Events <span style={{float: "right"}}>{settingsButton}</span></div>
+                <div className={"card-header taskTitle"}>Events <span style={{float: "right"}}>{settingsButton}</span>
+                </div>
                 <div className={"card-body"}>
-                    Ongoing events
-                    <TimePeriodEventList contests={ongoingEvents}/>
-                    Upcoming events
-                    <TimePeriodEventList contests={upcomingEvents}/>
-                    Past events
-                    <TimePeriodEventList contests={earlierEvents}/>
+                    <div className={"list-group list-group-root"}>
+                        <a href={"#ongoing"}
+                           className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
+                           data-toggle={"collapse"}><span><i className={"mdi mdi-keyboard-arrow-right"}/>
+                           Ongoing events</span>
+                            <span className={"badge badge-primary badge-pill"}>{ongoingEvents.length}</span>
+                        </a>
+                        <div className={"list-group collapse"} id={"ongoing"}>
+                            <TimePeriodEventList contests={ongoingEvents}/>
+                        </div>
+                        <a href={"#upcoming"}
+                           className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
+                           data-toggle={"collapse"}>
+                            <span><i className={"mdi mdi-keyboard-arrow-right"}/>Upcoming events</span>
+                            <span className={"badge badge-primary badge-pill"}>{upcomingEvents.length}</span>
+                        </a>
+                        <div className={"list-group collapse"} id={"upcoming"}>
+                            <TimePeriodEventList contests={upcomingEvents}/>
+                        </div>
+                        <a href={"#past"}
+                           className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
+                           data-toggle={"collapse"}>
+                            <span>
+                            <i className={"mdi mdi-keyboard-arrow-right"}/>Past events
+                                </span>
+                            <span className={"badge badge-primary badge-pill"}>{earlierEvents.length}</span>
+                        </a>
+                        <div className={"list-group collapse"} id={"past"}>
+                            <TimePeriodEventList contests={earlierEvents}/>
+                        </div>
+                    </div>
                 </div>
             </div>
 

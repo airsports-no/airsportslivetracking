@@ -40,20 +40,31 @@ class ConnectedContestItem extends Component {
 
     render() {
         const tasks = this.props.contest.navigationtask_set.sort(sortTaskTimes)
-        return <div>
-            <div className={"card-header active row"} onClick={() => this.handleClick()}>
-                <div className={"col-8"}>
-                    {this.props.contest.name}
+        return <span className={"second-in-between"}>
+            <a href={"#contest" + this.props.contest.id}
+               className={"list-group-item list-group-item-action list-group-item-secondary "}
+               data-toggle="collapse">
+                <div className={"d-flex justify-content-between align-items-centre"}>
+                        <span>
+                    <i className={"mdi mdi-keyboard-arrow-right"}/>
+                            {this.props.contest.name}
+                        </span>
+                        <span>
+                            {new Date(this.props.contest.start_time).toLocaleDateString()}
+                        </span>
+                    <i className={"mdi mdi-zoom-in"} onClick={() => this.handleClick()}/>
+                    {/*{this.props.contest.latitude !== 0 && this.props.contest.longitude !== 0 ?*/}
+                    {/*    <i className={"mdi mdi-zoom-in"} onClick={() => this.handleClick()}/> : null}*/}
+                    <span
+                        className={"badge badge-primary badge-pill"}>{this.props.contest.navigationtask_set.length}</span>
                 </div>
-                <div className={"col-4"}>
-                {new Date(this.props.contest.start_time).toLocaleDateString()}
-                </div>
-            </div>
-            <ul className={"list-group list-group-flush"}>
+            </a>
+            <div className={"list-group collapse"} id={"contest" + this.props.contest.id}>
                 {tasks.map((task) => {
                     return <TaskItem key={"task" + task.pk} navigationTask={task}/>
-                })}</ul>
-        </div>
+                })}
+            </div>
+        </span>
     }
 }
 
