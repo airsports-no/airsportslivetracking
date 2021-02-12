@@ -2,18 +2,14 @@ import base64
 import datetime
 import os
 from datetime import timedelta
-from pprint import pprint
 from typing import Optional, Dict
-from collections import OrderedDict
 
 import redis_lock
 import dateutil
-from authemail.models import SignupCode
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required, login_required
 from django.contrib.auth.mixins import PermissionRequiredMixin, LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
-from django.contrib.auth import get_user_model
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
@@ -108,35 +104,6 @@ def frontend_view_map(request, pk):
     return render(request, "display/root.html",
                   {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
                    "display_map": "true", "display_table": "false", "skip_nav": True})
-
-
-def signup_verify(request):
-    """
-    Duplicates the functionality from authemail for verifying emails. Attempts to match the user to an existing
-    person and returns the landing page with information about success or failure.
-    """
-    code = request.GET.get('code', '')
-    verified = SignupCode.objects.set_user_is_verified(code)
-    if verified:
-        try:
-            signup_code = SignupCode.objects.get(code=code)
-            user = signup_code.user  # type: MyUser
-            # Try to find existing person
-            try:
-                person = Person.objects.get(email=user.email)
-                messages.success(request, f"Email address verified. Found existing profile {person} for user.")
-            except ObjectDoesNotExist:
-                person = Person.objects.create(first_name=user.first_name, last_name=user.last_name, email=user.email,
-                                               app_aircraft_registration=user.first_name)
-                messages.success(request, f"Email address verified. Created new profile {person} for user.")
-            user.person = person
-            user.save()
-            signup_code.delete()
-        except SignupCode.DoesNotExist:
-            pass
-    else:
-        messages.success(request, f"Unable to verify user")
-    return redirect(reverse("global_map"))
 
 
 def global_map(request):
@@ -1179,7 +1146,9 @@ class UserPersonViewSet(GenericViewSet):
         return instance
 
     def get_queryset(self):
-        return Person.objects.filter(myuser=self.request.user)
+        return Person.objects.get_or_create(email=self.request.user.email,
+                                            defaults={"first_name": self.request.user.first_name,
+                                                      "last_name": self.request.user.last_name, "validated": False})[0]
 
     # def create(self, request, *args, **kwargs):
     #     if request.user.person is not None:

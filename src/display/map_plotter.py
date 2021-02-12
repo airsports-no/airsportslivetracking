@@ -15,7 +15,8 @@ from matplotlib.transforms import Bbox
 from shapely.geometry import Polygon
 
 from display.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing, \
-    calculate_fractional_distance_point_lat_lon, get_heading_difference, project_position_lat_lon
+    calculate_fractional_distance_point_lat_lon, get_heading_difference, project_position_lat_lon, \
+    create_perpendicular_line_at_end_lonlat
 from display.wind_utilities import calculate_ground_speed_combined
 
 if __name__ == "__main__":
@@ -25,7 +26,7 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.models import Route, Contestant, NavigationTask, create_perpendicular_line_at_end_lonlat
+from display.models import Route, Contestant, NavigationTask
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5

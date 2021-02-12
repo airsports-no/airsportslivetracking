@@ -53,13 +53,13 @@ INSTALLED_APPS = [
     "crispy_forms",
     "google_analytics",
     "channels",
-    'authemail',
+    'drf_firebase_auth',
     'display.apps.DisplayConfig',
     'multiselectfield'
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"
-GUARDIAN_MONKEY_PATCH=False
+GUARDIAN_MONKEY_PATCH = False
 AUTH_USER_MODEL = 'display.MyUser'
 
 EMAIL_FROM = os.environ.get('AUTHEMAIL_DEFAULT_EMAIL_FROM') or "tracking@airsports.no"
@@ -71,6 +71,10 @@ EMAIL_HOST_USER = os.environ.get('AUTHEMAIL_EMAIL_HOST_USER') or '<YOUR EMAIL_HO
 EMAIL_HOST_PASSWORD = os.environ.get('AUTHEMAIL_EMAIL_HOST_PASSWORD') or '<YOUR EMAIL_HOST_PASSWORD HERE>'
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
+
+DRF_FIREBASE_AUTH = {
+    "FIREBASE_SERVICE_ACCOUNT_KEY": "/secret/airsports-firebase-admin.json"
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -127,9 +131,9 @@ GOOGLE_ANALYTICS = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
+        'drf_firebase_auth.authentication.FirebaseAuthentication'
     ]
 }
 # Database

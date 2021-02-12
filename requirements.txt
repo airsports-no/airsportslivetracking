@@ -52,3 +52,5 @@ tzlocal
 django-timezone-field
 django-multiselectfield
 pulp
+drf-firebase-auth
+django-use-email-as-username

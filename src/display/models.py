@@ -1,17 +1,15 @@
 import datetime
 import logging
-import math
-import uuid
 from plistlib import Dict
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
 from typing import List, Optional
-import cartopy.crs as ccrs
-from authemail.models import EmailAbstractUser, EmailUserManager
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 
 from django.db import models
+from django.db.models import Q
+from django.utils import timezone
+from django_use_email_as_username.models import BaseUser, BaseUserManager
 from guardian.mixins import GuardianUserMixin
 from multiselectfield import MultiSelectField
 from timezone_field import TimeZoneField
@@ -24,13 +22,11 @@ from rest_framework.exceptions import ValidationError
 from solo.models import SingletonModel
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
-from display.coordinate_utilities import create_perpendicular_line_at_end_lonlat, bearing_difference
+from display.coordinate_utilities import bearing_difference
 from display.my_pickled_object_field import MyPickledObjectField
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
-
-import numpy as np
 
 TRACCAR = "traccar"
 TRACKING_SERVICES = (
@@ -64,9 +60,8 @@ class TraccarCredentials(SingletonModel):
         verbose_name = "Traccar credentials"
 
 
-class MyUser(EmailAbstractUser, GuardianUserMixin):
-    person = models.ForeignKey("Person", on_delete=models.SET_NULL, null=True, blank=True)
-    objects = EmailUserManager()
+class MyUser(BaseUser, GuardianUserMixin):
+    objects = BaseUserManager()
 
 
 class Aeroplane(models.Model):
@@ -134,8 +129,21 @@ class Person(models.Model):
     last_name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     phone = PhoneNumberField(blank=True, null=True)
-    app_tracking_id = models.CharField(max_length=28, editable=False)
-    app_aircraft_registration = models.CharField(max_length=100, default="", blank=True)
+    creation_time = models.DateTimeField(auto_now_add=True,
+                                         help_text="Used to figure out when a not validated personal and user should be deleted")
+    validated = models.BooleanField(default=True,
+                                    help_text="Usually true, but set to false for persons created automatically during "
+                                              "app API login. This is used to signify that the user profile must be "
+                                              "updated. If this remains false for more than a few days, the person "
+                                              "object and corresponding user will be deleted from the system.  This "
+                                              "must therefore be set to True when submitting an updated profile from "
+                                              "the app.")
+    app_tracking_id = models.CharField(max_length=28, editable=False,
+                                       help_text="An automatically generated tracking ID which is distributed to the tracking app")
+    simulator_tracking_id = models.CharField(max_length=28, editable=False,
+                                             help_text="An automatically generated tracking ID which is distributed to the simulator integration. Persons or contestants identified by this field should not be displayed on the global map.")
+    app_aircraft_registration = models.CharField(max_length=100, default="", blank=True,
+                                                 help_text="The display name of person positions on the global tracking map (should be an aircraft registration")
     picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
@@ -936,13 +944,17 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         except ObjectDoesNotExist:
             original_tracking_id = None
         traccar = get_traccar_instance()
-        random_string = "SHOULD_NOT_BE_HERE with"
+        app_random_string = "SHOULD_NOT_BE_HERE"
+        simulator_random_string = "SHOULD_NOT_BE_HERE"
         existing = True
         while existing:
-            random_string = generate_random_string(28)
-            logger.info(f"Generated random string {random_string} for person {instance}")
-            existing = Person.objects.filter(app_tracking_id=random_string).exists()
-        instance.app_tracking_id = random_string
+            app_random_string = generate_random_string(28)
+            simulator_random_string = generate_random_string(28)
+            logger.info(f"Generated random string {app_random_string} for person {instance}")
+            existing = Person.objects.filter(
+                Q(app_tracking_id=app_random_string) | Q(simulator_tracking_id=simulator_random_string)).exists()
+        instance.app_tracking_id = app_random_string
+        instance.simulator_tracking_id = simulator_random_string
         logger.info(f"Assigned random string {instance.app_tracking_id} to person {instance}")
         device, created = traccar.get_or_create_device(instance.app_aircraft_registration, instance.app_tracking_id)
         logger.info(f"Traccar device {device} was created: {created}")

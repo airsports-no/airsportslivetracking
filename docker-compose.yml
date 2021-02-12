@@ -45,6 +45,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
+      - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
       - ./static:/static
       - ./assets:/assets/
@@ -78,6 +79,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
+      - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
       - ./static:/static
       - ./assets:/assets/
@@ -109,6 +111,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
+      - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
       - ./static:/static
       - ./assets:/assets/
@@ -140,6 +143,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
+      - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
       - ./src:/src/
       - ./processorlog:/logs/
