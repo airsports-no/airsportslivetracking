@@ -55,8 +55,8 @@ class ConnectedContestItem extends Component {
                     <i className={"mdi mdi-zoom-in"} onClick={() => this.handleClick()}/>
                     {/*{this.props.contest.latitude !== 0 && this.props.contest.longitude !== 0 ?*/}
                     {/*    <i className={"mdi mdi-zoom-in"} onClick={() => this.handleClick()}/> : null}*/}
-                    <span
-                        className={"badge badge-primary badge-pill"}>{this.props.contest.navigationtask_set.length}</span>
+                    <span style={{"padding-top": "0.5em"}}
+                        className={"badge badge-dark badge-pill"}>{this.props.contest.navigationtask_set.length}</span>
                 </div>
             </a>
             <div className={"list-group collapse"} id={"contest" + this.props.contest.id}>

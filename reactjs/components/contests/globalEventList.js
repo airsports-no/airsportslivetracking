@@ -78,7 +78,7 @@ class ConnectedGlobalEventList extends Component {
                            className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
                            data-toggle={"collapse"}><span><i className={"mdi mdi-keyboard-arrow-right"}/>
                            Ongoing events</span>
-                            <span className={"badge badge-primary badge-pill"}>{ongoingEvents.length}</span>
+                            <span style={{"padding-top": "0.5em"}} className={"badge badge-dark badge-pill"}>{ongoingEvents.length}</span>
                         </a>
                         <div className={"list-group collapse"} id={"ongoing"}>
                             <TimePeriodEventList contests={ongoingEvents}/>
@@ -87,7 +87,7 @@ class ConnectedGlobalEventList extends Component {
                            className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
                            data-toggle={"collapse"}>
                             <span><i className={"mdi mdi-keyboard-arrow-right"}/>Upcoming events</span>
-                            <span className={"badge badge-primary badge-pill"}>{upcomingEvents.length}</span>
+                            <span style={{"padding-top": "0.5em"}} className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
                         </a>
                         <div className={"list-group collapse"} id={"upcoming"}>
                             <TimePeriodEventList contests={upcomingEvents}/>
@@ -98,7 +98,7 @@ class ConnectedGlobalEventList extends Component {
                             <span>
                             <i className={"mdi mdi-keyboard-arrow-right"}/>Past events
                                 </span>
-                            <span className={"badge badge-primary badge-pill"}>{earlierEvents.length}</span>
+                            <span style={{"padding-top": "0.5em"}} className={"badge badge-dark badge-pill"}>{earlierEvents.length}</span>
                         </a>
                         <div className={"list-group collapse"} id={"past"}>
                             <TimePeriodEventList contests={earlierEvents}/>
