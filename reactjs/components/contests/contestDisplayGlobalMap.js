@@ -1,9 +1,13 @@
 import React, {Component} from "react";
+import ReactDOMServer from "react-dom/server";
 import {connect} from "react-redux";
+import ContestPopupItem from "./contestPopupItem";
 
 const L = window['L']
 
-export const mapStateToProps = (state, props) => ({})
+export const mapStateToProps = (state, props) => ({
+    zoomContest: state.zoomContest
+})
 export const mapDispatchToProps = {}
 
 class ConnectedContestDisplayGlobalMap extends Component {
@@ -18,10 +22,22 @@ class ConnectedContestDisplayGlobalMap extends Component {
             radius: 50000,
             color: "red",
             opacity: 0.3
-        }).bindTooltip(this.props.contest.name, {
+        }).addTo(this.props.map)
+        this.circle.bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={this.props.contest}/>), {
             permanent: false,
             direction: "center"
-        }).addTo(this.props.map)
+        })
+    }
+
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.zoomContest !== this.props.zoomContest && this.props.zoomContest) {
+            if (this.props.contest.id === this.props.zoomContest) {
+                this.circle.openPopup()
+            } else {
+                this.circle.closePopup()
+            }
+        }
     }
 
     componentWillUnmount() {

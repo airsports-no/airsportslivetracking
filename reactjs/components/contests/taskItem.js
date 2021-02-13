@@ -8,9 +8,9 @@ export default class TaskItem extends Component {
     }
 
     render() {
-        return <a href={"#"} className={"list-group-item list-group-item-secondary list-group-item-action"} onClick={()=>this.handleClick()}>
-            <i className={"mdi mdi-keyboard-tab"}/>{this.props.navigationTask.name}<i className={"mdi mdi-zoom-in"}/>
-        </a>
+        return <li className={"list-group-item list-group-item-secondary list-group-item-action d-flex justify-content-between align-items-center"}>
+            {this.props.navigationTask.name}<button type={"button"} className={"btn btn-primary"} onClick={()=>this.handleClick()}>Show</button>
+        </li>
     }
 }
 

@@ -39,31 +39,28 @@ class ConnectedContestItem extends Component {
     }
 
     render() {
-        const tasks = this.props.contest.navigationtask_set.sort(sortTaskTimes)
         return <span className={"second-in-between"}>
-            <a href={"#contest" + this.props.contest.id}
-               className={"list-group-item list-group-item-action list-group-item-secondary "}
-               data-toggle="collapse">
-                <div className={"d-flex justify-content-between align-items-centre"}>
-                        <span>
-                    <i className={"mdi mdi-keyboard-arrow-right"}/>
-                            {this.props.contest.name}
-                        </span>
-                        <span>
+                <div
+                    className={"list-group-item list-group-item-secondary list-group-item-action"}
+                    onClick={() => this.handleClick()}
+                >
+                    <div className={"row"}>
+                        <div className={"col-3"}>
+                    <img className={"img-fluid"} src={this.props.contest.logo} alt={"Event logo"}
+                         style={{width: "100%", maxHeight: "60px"}}/>
+                         </div>
+                        <div className={"col-9"}>
+
+                         <span className={"d-flex justify-content-between align-items-centre"}>
+                            {this.props.contest.name}<br/>
                             {new Date(this.props.contest.start_time).toLocaleDateString()}
-                        </span>
-                    <i className={"mdi mdi-zoom-in"} onClick={() => this.handleClick()}/>
+                    <i className={"mdi mdi-public"} style={{fontSize: "40px"}}/>
+                    </span>
+                        </div>
+                        </div>
                     {/*{this.props.contest.latitude !== 0 && this.props.contest.longitude !== 0 ?*/}
                     {/*    <i className={"mdi mdi-zoom-in"} onClick={() => this.handleClick()}/> : null}*/}
-                    <span style={{"padding-top": "0.5em"}}
-                        className={"badge badge-dark badge-pill"}>{this.props.contest.navigationtask_set.length}</span>
                 </div>
-            </a>
-            <div className={"list-group collapse"} id={"contest" + this.props.contest.id}>
-                {tasks.map((task) => {
-                    return <TaskItem key={"task" + task.pk} navigationTask={task}/>
-                })}
-            </div>
         </span>
     }
 }

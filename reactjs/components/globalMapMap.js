@@ -152,7 +152,7 @@ class ConnectedGlobalMapMap extends Component {
             })
             if (contest) {
                 this.map.flyTo([contest.latitude, contest.longitude], 8)
-                this.props.zoomFocusContest(null)
+                // this.props.zoomFocusContest(null)
             }
         }
     }
