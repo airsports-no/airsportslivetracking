@@ -251,10 +251,7 @@ class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         club = None
         club_data = validated_data.pop("club", None)
         if club_data:
-            try:
-                club_instance = Club.objects.get(name=club_data.get("name"))
-            except ObjectDoesNotExist:
-                club_instance = None
+            club_instance = Club.objects.filter(name=club_data.get("name")).first()
             club_serialiser = ClubSerialiser(instance=club_instance, data=club_data)
             club_serialiser.is_valid(True)
             club = club_serialiser.save()
