@@ -22,11 +22,11 @@ class ConnectedGlobalMapContainer extends Component {
 
 
     render() {
-        let settingsButton=null
+        let settingsButton = null
         if (document.configuration.managementLink) {
             settingsButton = <a className={"btn"} id="settingsLink" href={document.configuration.managementLink}>
-                            <i className={"taskTitle mdi mdi-settings"} id={'menuButton'}/>
-                        </a>
+                <i className={"taskTitle mdi mdi-settings"} id={'menuButton'}/>
+            </a>
         }
 
         let TrackerDisplay = <GlobalMapMap/>
@@ -38,13 +38,7 @@ class ConnectedGlobalMapContainer extends Component {
                             <img src={"/static/img/hub.png"} id={"returnLinkImage"} alt={"Hub"}/>
                         </a>
                         <div className={"globalMapBackdrop"}>
-                            <div
-                                className={""}>
-                                <div className={""}>
-                                    <GlobalEventList/>
-                                </div>
-                            </div>
-
+                            <GlobalEventList/>
                         </div>
                         <Disclaimer/>
                         {/*{settingsButton}*/}

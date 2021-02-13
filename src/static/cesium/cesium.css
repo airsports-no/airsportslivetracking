@@ -20,18 +20,22 @@ body {
     left: 60px;
     top: 10px;
     /*bottom: 50px;*/
-    max-height: 85%;
+    max-height: 85vh;
     position: fixed;
     z-index: 3;
     display: inline-block;
     background-color: #666666;
     box-shadow: 5px 10px 5px rgba(0, 0, 0, 0.6);
     border-radius: 15px;
-    width: 30%;
+    width: 30vw;
     font-size: clamp(0.3rem, 0.0000rem + 1.3333vw, 1rem);
     overflow-y: auto;
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
+}
+
+.eventListScrolling {
+    /*position: relative;*/
 }
 
 .outerBackdropNarrow {
@@ -603,27 +607,28 @@ html, body {
 
 .list-group.list-group-root .list-group {
     margin-bottom: 0;
+    padding-left: 10px
 }
 
 .list-group.list-group-root .list-group-item {
     border-radius: 0;
     border-width: 1px 0 0 0;
+    padding-left: 10px
 }
 
 .list-group.list-group-root > .list-group-item:first-child {
     border-top-width: 0;
+    /*padding-left: 10px*/
 }
 
 .list-group.list-group-root > .list-group > .first-in-between > .second-in-between > .list-group-item {
-    padding-left: 30px;
+    /*padding-left: 10px;*/
+
 }
 
-.list-group.list-group-root > .list-group > .first-in-between > .second-in-between > .list-group > .list-group-item {
-    padding-left: 45px;
-}
 
 .list-group-item .mdi {
-    margin-right: 5px;
+    margin-right: 0;
 }
 
 .collapse {

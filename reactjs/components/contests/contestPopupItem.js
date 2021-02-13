@@ -37,7 +37,7 @@ export default class ContestPopupItem extends Component {
                         {new Date(this.props.contest.start_time).toLocaleDateString()} - {new Date(this.props.contest.finish_time).toLocaleDateString()}
                     </h6>
                     <p className={"card-text"}>
-                        <ul className={"list-group list-group-flush"}>
+                        <ul className={"d-flex flex-wrap"}>
                             {tasks.map((task) => {
                                 return <TaskItem key={"task" + task.pk} navigationTask={task}/>
                             })}

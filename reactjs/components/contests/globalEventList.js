@@ -69,10 +69,18 @@ class ConnectedGlobalEventList extends Component {
             }
         }).sort(sortContestTimes)
         return <div>
-            <div className={"card text-white bg-dark"}>
-                <div className={"card-header taskTitle"}>Events <span style={{float: "right"}}>{settingsButton}</span>
+                <div
+                    className={"titleWrapper"}>
+                    <a data-toggle={"collapse"} data-target={"#eventMenu"}
+                       style={{paddingLeft: "14px", paddingRight: "12px"}}>
+                        <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
+                    </a>
+                    <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
+                       data-target={"#eventMenu"}>Events</a>
+
+                    <span style={{float: "right"}}>{settingsButton}</span>
                 </div>
-                <div className={"card-body"}>
+                <div id={"eventMenu"} className={"collapse show eventListScrolling"}>
                     <div className={"list-group"} id={"ongoing"}>
                         <TimePeriodEventList contests={ongoingEvents}/>
                     </div>
@@ -101,8 +109,9 @@ class ConnectedGlobalEventList extends Component {
                         </div>
                     </div>
                 </div>
-            </div>
-
+                {/*<div>*/}
+                {/*    <img src={"/static/img/air_sports.png"}  className={"img-fluid"}/>*/}
+                {/*</div>*/}
         </div>
     }
 }

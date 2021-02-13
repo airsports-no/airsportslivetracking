@@ -44,24 +44,22 @@ class ConnectedContestItem extends Component {
                     className={"list-group-item list-group-item-secondary list-group-item-action"}
                     onClick={() => this.handleClick()}
                 >
-                    <div className={"row"}>
-                        <div className={"col-3"}>
                     <img className={"img-fluid"} src={this.props.contest.logo} alt={"Event logo"}
-                         style={{width: "100%", maxHeight: "60px"}}/>
-                         </div>
-                        <div className={"col-9"}>
+                         style={{width: "100%", maxHeight: "60px", maxWidth: "60px", float: "left"}}/>
 
-                         <span className={"d-flex justify-content-between align-items-centre"}>
-                            {this.props.contest.name}<br/>
-                            {new Date(this.props.contest.start_time).toLocaleDateString()}
-                    <i className={"mdi mdi-public"} style={{fontSize: "40px"}}/>
+                         <span className={"d-flex justify-content-between align-items-centre"}
+                               style={{paddingLeft: "10px"}}>
+                             <span>
+                                 <b>{this.props.contest.name}</b><br/>
+                                 {new Date(this.props.contest.start_time).toLocaleDateString()} -
+                                 {new Date(this.props.contest.finish_time).toLocaleDateString()}
+                             </span>
+                             <i className={"mdi mdi-public"} style={{fontSize: "40px"}}/>
                     </span>
-                        </div>
-                        </div>
                     {/*{this.props.contest.latitude !== 0 && this.props.contest.longitude !== 0 ?*/}
                     {/*    <i className={"mdi mdi-zoom-in"} onClick={() => this.handleClick()}/> : null}*/}
                 </div>
-        </span>
+    </span>
     }
 }
 
