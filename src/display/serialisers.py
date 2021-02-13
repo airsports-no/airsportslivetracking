@@ -241,10 +241,7 @@ class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         aeroplane_serialiser.is_valid(True)
         aeroplane = aeroplane_serialiser.save()
         crew_data = validated_data.pop("crew")
-        try:
-            crew_instance = Crew.objects.get(pk=crew_data.get("id"))
-        except ObjectDoesNotExist:
-            crew_instance = None
+        crew_instance = Crew.objects.get(pk=crew_data.get("id")).first()
         crew_serialiser = CrewSerialiser(instance=crew_instance, data=crew_data)
         crew_serialiser.is_valid(True)
         crew = crew_serialiser.save()
