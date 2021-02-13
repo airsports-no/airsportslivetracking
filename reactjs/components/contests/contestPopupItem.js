@@ -28,24 +28,23 @@ function sortTaskTimes(a, b) {
 export default class ContestPopupItem extends Component {
     render() {
         const tasks = this.props.contest.navigationtask_set.sort(sortTaskTimes)
-        return <div style={{width: "301px"}}>
-            <div className={""} id={"contest" + this.props.contest.id}>
-                <img className={"card-img-top"} src={this.props.contest.header_image} alt={"Contest promo image"}/>
-                <div className={""}>
-                    <h5 className={"card-title"}>{this.props.contest.name}</h5>
-                    <h6 className={"card-subtitle mb-2 text-muted"}>
-                        {new Date(this.props.contest.start_time).toLocaleDateString()} - {new Date(this.props.contest.finish_time).toLocaleDateString()}
-                    </h6>
-                    <p className={"card-text"}>
-                        <ul className={"d-flex flex-wrap"}>
-                            {tasks.map((task) => {
-                                return <TaskItem key={"task" + task.pk} navigationTask={task}/>
-                            })}
+        return <div className={""} id={"contest" + this.props.contest.id}>
+            <img className={"card-img-top img-fluid"} src={this.props.contest.header_image}
+                 alt={"Contest promo image"}/>
+            <div className={""}>
+                <h5 className={"card-title"}>{this.props.contest.name}</h5>
+                <h6 className={"card-subtitle mb-2 text-muted"}>
+                    {new Date(this.props.contest.start_time).toLocaleDateString()} - {new Date(this.props.contest.finish_time).toLocaleDateString()}
+                </h6>
+                <p className={"card-text"}>
+                    <ul className={"d-flex flex-wrap justify-content-around"}>
+                        {tasks.map((task) => {
+                            return <TaskItem key={"task" + task.pk} navigationTask={task}/>
+                        })}
 
-                        </ul>
+                    </ul>
 
-                    </p>
-                </div>
+                </p>
             </div>
         </div>
     }
