@@ -4,10 +4,17 @@
 {% block document_configuration %}
     <script>
         document.configuration = {
-            {% if user.is_authenticated %}
+            {% if perms.display.change_contest %}
                 managementLink: "{% url 'contest_list' %}",
             {% else %}
                 managementLink: null,
+            {% endif %}
+            {% if user.is_authenticated %}
+                loginLink: null,
+                logoutLink: "{% url 'logout' %}",
+            {% else %}
+                loginLink: "{% url 'login' %}",
+                logoutLink: null,
             {% endif %}
             navigationTaskMap: navigationTaskId => "{% url 'frontend_view_map' 0 %}".replace("0", navigationTaskId)
         }

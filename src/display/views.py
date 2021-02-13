@@ -25,6 +25,7 @@ from django.views.generic import ListView, DetailView, UpdateView, CreateView, D
 import logging
 
 from formtools.wizard.views import SessionWizardView, CookieWizardView
+from guardian.decorators import permission_required_or_403
 from guardian.mixins import PermissionRequiredMixin as GuardianPermissionRequiredMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm
 from redis import Redis
@@ -55,7 +56,8 @@ from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_K
     TeamTestScore, TRACCAR, TASK_PRECISION, TASK_ANR_CORRIDOR, Scorecard, MyUser
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
-    ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions
+    ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
+    ContestPermissionsWithoutObjects
 from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedTeamSerialiser, \
@@ -134,7 +136,7 @@ def manifest(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_aeroplane(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -152,7 +154,7 @@ def auto_complete_aeroplane(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_club(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -170,7 +172,7 @@ def auto_complete_club(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_phone(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -188,7 +190,7 @@ def auto_complete_person_phone(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_id(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -206,7 +208,7 @@ def auto_complete_person_id(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_first_name(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -225,7 +227,7 @@ def auto_complete_person_first_name(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_last_name(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -244,7 +246,7 @@ def auto_complete_person_last_name(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_email(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -262,7 +264,7 @@ def auto_complete_person_email(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_contestteam_pk(request):
     if request.is_ajax():
         request_number = int(request.POST.get("request"))
@@ -286,6 +288,7 @@ def tracking_qr_code_view(request, pk):
                                                              "navigation_task": NavigationTask.objects.get(pk=pk)})
 
 
+@permission_required_or_403('display.view_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_map(request, pk):
     if request.method == "POST":
         form = ContestantMapForm(request.POST)
@@ -304,6 +307,7 @@ def get_contestant_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
+@permission_required_or_403('display.view_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 def get_navigation_task_map(request, pk):
     if request.method == "POST":
         form = MapForm(request.POST)
@@ -322,8 +326,9 @@ def get_navigation_task_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
-class ContestList(ListView):
+class ContestList(PermissionRequiredMixin, ListView):
     model = Contest
+    permission_required = ("view_contest",)
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_contest",
@@ -333,7 +338,7 @@ class ContestList(ListView):
 class ContestCreateView(PermissionRequiredMixin, CreateView):
     model = Contest
     success_url = reverse_lazy("contest_list")
-    permission_required = ("delete_contest",)
+    permission_required = ("add_contest",)
     form_class = ContestForm
 
     def form_valid(self, form):
@@ -411,6 +416,9 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
     permission_required = ("view_contest",)
     template_name = "display/contestant_gate_times.html"
 
+    def get_permission_object(self):
+        return self.get_object().navigation_task.contest
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if hasattr(self.object, "contestanttrack"):
@@ -443,7 +451,7 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
 
 class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = Contestant
-    permission_required = ("delete_contest",)
+    permission_required = ("change_contest",)
     template_name = "model_delete.html"
 
     def get_success_url(self):
@@ -487,6 +495,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
 
 @api_view(["GET"])
+@permission_required_or_403('display.view_contest', (Contest, "navigationtest_set__pk", "pk"))
 def get_contestant_schedule(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     columns = [
@@ -503,11 +512,13 @@ def get_contestant_schedule(request, pk):
     return Response({"cols": columns, "rows": rows})
 
 
+@permission_required_or_403('display.view_contest', (Contest, "navigationtest_set__pk", "pk"))
 def render_contestants_timeline(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     return render(request, "display/contestant_timeline.html", context={"navigation_task": navigation_task})
 
 
+@permission_required_or_403('display.view_contest', (Contest, "navigationtest_set__pk", "pk"))
 def clear_future_contestants(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -517,6 +528,7 @@ def clear_future_contestants(request, pk):
     return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
+@permission_required_or_403('display.change_contest', (Contest, "navigationtest_set__pk", "pk"))
 def add_contest_teams_to_navigation_task(request, pk):
     """
     Add all teams registered for a contest to a task. If the team is already assigned as a contestant, ignore it.
@@ -649,6 +661,7 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     return data
 
 
+# todo: Can this be removed? I do not think we use this separately anymore.
 @permission_required("display.add_route", login_url='/accounts/login/')
 def import_route(request):
     form = PrecisionImportRouteForm()
@@ -1418,7 +1431,7 @@ class ContestantViewSet(ModelViewSet):
         return Response(response)
 
 
-class ImportFCNavigationTask(ModelViewSet):
+class ImportFCNavigationTask(GuardianPermissionRequiredMixin, ModelViewSet):
     """
     This is a shortcut to post a new navigation task to the tracking system. It requires the existence of a contest to
     which it will belong. The entire task with contestants and their associated times, crews, and aircraft, together
@@ -1470,7 +1483,7 @@ class ImportFCNavigationTaskTeamId(ImportFCNavigationTask):
     serializer_class = ExternalNavigationTaskTeamIdSerialiser
 
 
-@login_required()
+@permission_required('display.change_contest')
 def renew_token(request):
     user = request.user
     Token.objects.filter(user=user).delete()

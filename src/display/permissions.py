@@ -6,7 +6,7 @@ from rest_framework.permissions import SAFE_METHODS
 from display.models import Contest
 
 
-class ContestPermissions(permissions.BasePermission):
+class ContestPermissionsWithoutObjects(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in ['POST']:
             return request.user.has_perm('display.add_contest')
@@ -15,6 +15,9 @@ class ContestPermissions(permissions.BasePermission):
         if request.method in ['DELETE']:
             return request.user.has_perm('display.delete_contest')
         return request.method in SAFE_METHODS
+
+
+class ContestPermissions(ContestPermissionsWithoutObjects):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ['GET']:

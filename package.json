@@ -14,6 +14,8 @@
     "@babel/core": "^7.6.4",
     "@babel/preset-env": "^7.6.3",
     "@babel/preset-react": "^7.6.3",
+    "@mdi/js": "^5.9.55",
+    "@mdi/react": "^1.4.0",
     "babel-loader": "^8.0.6",
     "cesium": "^1.62.0",
     "compression-webpack-plugin": "^3.0.0",

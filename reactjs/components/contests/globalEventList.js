@@ -2,6 +2,8 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {dispatchTraccarData, fetchContests, fetchContestsNavigationTaskSummaries} from "../../actions";
 import TimePeriodEventList from "./timePeriodEventList";
+import Icon from "@mdi/react";
+import {mdiCog, mdiLogin, mdiLogout} from '@mdi/js'
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests
@@ -42,7 +44,25 @@ class ConnectedGlobalEventList extends Component {
         let settingsButton = null
         if (document.configuration.managementLink) {
             settingsButton = <a className={"btn"} href={document.configuration.managementLink}>
-                <i className={"taskTitle mdi mdi-settings"}/>
+                <Icon path={mdiCog} title={"Settings"} size={1.1} color={"white"}/>
+            </a>
+        }
+
+
+        let loginButton = null
+        if (document.configuration.loginLink) {
+            loginButton = <a className={"btn"} href={document.configuration.loginLink}>
+                <Icon path={mdiLogin} title={"Login"} size={1.1} color={"white"}/>
+                {/*<i className={"taskTitle mdi mdi-login"}/>*/}
+            </a>
+        }
+
+
+        let logoutButton = null
+        if (document.configuration.logoutLink) {
+            logoutButton = <a className={"btn"} href={document.configuration.logoutLink}>
+                <Icon path={mdiLogout} title={"Logout"} size={1.1} color={"white"}/>
+                {/*<i className={"taskTitle mdi mdi-logout"}/>*/}
             </a>
         }
 
@@ -69,49 +89,49 @@ class ConnectedGlobalEventList extends Component {
             }
         }).sort(sortContestTimes)
         return <div>
-                <div
-                    className={"titleWrapper"}>
-                    <a data-toggle={"collapse"} data-target={"#eventMenu"}
-                       style={{paddingLeft: "14px", paddingRight: "12px"}}>
-                        <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
-                    </a>
-                    <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
-                       data-target={"#eventMenu"}>Events</a>
+            <div
+                className={"titleWrapper"}>
+                <a data-toggle={"collapse"} data-target={"#eventMenu"}
+                   style={{paddingLeft: "14px", paddingRight: "12px"}}>
+                    <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
+                </a>
+                <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
+                   data-target={"#eventMenu"}>Events</a>
 
-                    <span style={{float: "right"}}>{settingsButton}</span>
+                <span style={{float: "right"}}>{loginButton}{settingsButton}{logoutButton}</span>
+            </div>
+            <div id={"eventMenu"} className={"collapse show eventListScrolling"}>
+                <div className={"list-group"} id={"ongoing"}>
+                    <TimePeriodEventList contests={ongoingEvents}/>
                 </div>
-                <div id={"eventMenu"} className={"collapse show eventListScrolling"}>
-                    <div className={"list-group"} id={"ongoing"}>
-                        <TimePeriodEventList contests={ongoingEvents}/>
+                <div className={"list-group list-group-root"}>
+                    <a href={"#upcoming"}
+                       className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
+                       data-toggle={"collapse"}>
+                        <span><i className={"mdi mdi-keyboard-arrow-right"}/>Upcoming events</span>
+                        <span style={{"padding-top": "0.5em"}}
+                              className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
+                    </a>
+                    <div className={"list-group collapse"} id={"upcoming"}>
+                        <TimePeriodEventList contests={upcomingEvents}/>
                     </div>
-                    <div className={"list-group list-group-root"}>
-                        <a href={"#upcoming"}
-                           className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
-                           data-toggle={"collapse"}>
-                            <span><i className={"mdi mdi-keyboard-arrow-right"}/>Upcoming events</span>
-                            <span style={{"padding-top": "0.5em"}}
-                                  className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
-                        </a>
-                        <div className={"list-group collapse"} id={"upcoming"}>
-                            <TimePeriodEventList contests={upcomingEvents}/>
-                        </div>
-                        <a href={"#past"}
-                           className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
-                           data-toggle={"collapse"}>
+                    <a href={"#past"}
+                       className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
+                       data-toggle={"collapse"}>
                             <span>
                             <i className={"mdi mdi-keyboard-arrow-right"}/>Past events
                                 </span>
-                            <span style={{"padding-top": "0.5em"}}
-                                  className={"badge badge-dark badge-pill"}>{earlierEvents.length}</span>
-                        </a>
-                        <div className={"list-group collapse"} id={"past"}>
-                            <TimePeriodEventList contests={earlierEvents}/>
-                        </div>
+                        <span style={{"padding-top": "0.5em"}}
+                              className={"badge badge-dark badge-pill"}>{earlierEvents.length}</span>
+                    </a>
+                    <div className={"list-group collapse"} id={"past"}>
+                        <TimePeriodEventList contests={earlierEvents}/>
                     </div>
                 </div>
-                {/*<div>*/}
-                {/*    <img src={"/static/img/air_sports.png"}  className={"img-fluid"}/>*/}
-                {/*</div>*/}
+            </div>
+            {/*<div>*/}
+            {/*    <img src={"/static/img/air_sports.png"}  className={"img-fluid"}/>*/}
+            {/*</div>*/}
         </div>
     }
 }
