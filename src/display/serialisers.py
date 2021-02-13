@@ -233,15 +233,12 @@ class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     @staticmethod
     def nested_update(validated_data):
         aeroplane_data = validated_data.pop("aeroplane")
-        try:
-            aeroplane_instance = Aeroplane.objects.get(registration=aeroplane_data.get("registration"))
-        except ObjectDoesNotExist:
-            aeroplane_instance = None
+        aeroplane_instance = Aeroplane.objects.filter(registration=aeroplane_data.get("registration")).first()
         aeroplane_serialiser = AeroplaneSerialiser(instance=aeroplane_instance, data=aeroplane_data)
         aeroplane_serialiser.is_valid(True)
         aeroplane = aeroplane_serialiser.save()
         crew_data = validated_data.pop("crew")
-        crew_instance = Crew.objects.get(pk=crew_data.get("id")).first()
+        crew_instance = Crew.objects.filter(pk=crew_data.get("id")).first()
         crew_serialiser = CrewSerialiser(instance=crew_instance, data=crew_data)
         crew_serialiser.is_valid(True)
         crew = crew_serialiser.save()
