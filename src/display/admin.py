@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django_use_email_as_username.admin import BaseUserAdmin
 from guardian.admin import GuardedModelAdmin
@@ -66,7 +67,7 @@ class ContestAdmin(GuardedModelAdmin):
 
 
 # admin.site.unregister(User)
-admin.site.register(MyUser, BaseUserAdmin)
+admin.site.register(get_user_model(), BaseUserAdmin)
 admin.site.register(NavigationTask, NavigationTaskAdmin)
 admin.site.register(Scorecard)
 admin.site.register(Route)

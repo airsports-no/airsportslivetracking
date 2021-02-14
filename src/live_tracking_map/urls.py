@@ -24,7 +24,7 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework.authtoken.views import obtain_auth_token
 
-from display.views import ContestList, results_service, global_map
+from display.views import ContestList, results_service, global_map, view_token
 from . import api, settings
 
 docs = get_schema_view(
@@ -41,7 +41,7 @@ urlpatterns = [
     path('', global_map, name="global_map"),
     path('admin/', admin.site.urls),
     path('display/', include("display.urls")),
-    path('accounts/token/', TemplateView.as_view(template_name="token.html"), name="token"),
+    path('accounts/token/', view_token, name="token"),
     path('accounts/password_change/done/', RedirectView.as_view(url='/', permanent=False)),
     path('accounts/', include('django.contrib.auth.urls')),
     path('docs/', docs.with_ui()),

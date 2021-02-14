@@ -1096,6 +1096,7 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
         return context
 
 
+@permission_required_or_403('display.change_contest', (Contest, "pk", "pk"))
 def remove_team_from_contest(request, contest_pk, team_pk):
     contest = get_object_or_404(Contest, pk=contest_pk)
     team = get_object_or_404(Team, pk=team_pk)
@@ -1431,7 +1432,7 @@ class ContestantViewSet(ModelViewSet):
         return Response(response)
 
 
-class ImportFCNavigationTask(GuardianPermissionRequiredMixin, ModelViewSet):
+class ImportFCNavigationTask(ModelViewSet):
     """
     This is a shortcut to post a new navigation task to the tracking system. It requires the existence of a contest to
     which it will belong. The entire task with contestants and their associated times, crews, and aircraft, together
@@ -1489,6 +1490,11 @@ def renew_token(request):
     Token.objects.filter(user=user).delete()
     Token.objects.create(user=user)
     return redirect(reverse("token"))
+
+
+@permission_required('display.view_contest')
+def view_token(request):
+    return render(request, "token.html")
 
 
 ########## Results service ##########

@@ -91,7 +91,8 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'live_tracking_map.urls'
 
 CELERY_IMPORTS = ('google_analytics.tasks')
-
+LOGOUT_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/"
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
