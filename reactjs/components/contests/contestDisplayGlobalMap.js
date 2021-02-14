@@ -17,10 +17,15 @@ class ConnectedContestDisplayGlobalMap extends Component {
     }
 
     componentDidMount() {
+        const now = new Date()
+        let colour = "blue"
+        if (new Date(this.props.contest.start_time).getTime() < now.getTime() && new Date(this.props.contest.finish_time).getTime() > now.getTime()) {
+            colour = "red"
+        }
         // this.props.fetchContestsNavigationTaskSummaries(this.props.contest.id)
         this.circle = L.circle([this.props.contest.latitude, this.props.contest.longitude], {
             radius: 50000,
-            color: "red",
+            color: colour,
             opacity: 0.3
         }).addTo(this.props.map)
         this.circle.bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={this.props.contest}/>), {
