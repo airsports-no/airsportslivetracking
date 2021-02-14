@@ -64,7 +64,7 @@ class TestCreateNavigationTask(APITestCase):
         result = self.client.post(reverse("navigationtasks-list", kwargs={"contest_pk": self.contest_id}),
                                   data=self.NAVIGATION_TASK_DATA, format="json")
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_navigation_task_without_privileges(self):
         self.client.force_login(user=self.user_without_permissions)
@@ -174,7 +174,7 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),
             data=data, format="json")
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_put_navigation_task_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
@@ -206,7 +206,7 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),
             data=data, format="json")
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_patch_navigation_task_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
@@ -232,7 +232,7 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.put(
             reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_publish_navigation_task_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
@@ -281,7 +281,7 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.delete(
             reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_public_navigation_task_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
@@ -299,7 +299,7 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.delete(
             reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_navigation_task_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)

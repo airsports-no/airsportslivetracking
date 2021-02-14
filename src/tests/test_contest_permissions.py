@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase, APIClient
 
-from display.models import Contest
+from display.models import Contest, Team, Aeroplane, Crew, Person, ContestTeam
 from mock_utilities import TraccarMock
 
 
@@ -27,7 +27,7 @@ class TestCreateContest(APITestCase):
                                                        "start_time": datetime.datetime.now(datetime.timezone.utc),
                                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_contest_without_privileges(self):
         self.client.force_login(user=self.user_without_permissions)
@@ -91,7 +91,7 @@ class TestAccessContest(APITestCase):
     def test_put_contestant_from_other_user_with_permissions(self, patch):
         self.client.force_login(user=self.different_user_with_object_permissions)
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
-                                 data={"name": "TestContest2","time_zone":"Europe/Oslo",
+                                 data={"name": "TestContest2", "time_zone": "Europe/Oslo",
                                        "start_time": datetime.datetime.now(datetime.timezone.utc),
                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
@@ -127,7 +127,7 @@ class TestAccessContest(APITestCase):
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
                                  data={"name": "TestContest2"})
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_modify_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
@@ -141,7 +141,7 @@ class TestAccessContest(APITestCase):
     def test_modify_contest_as_creator(self, patch):
         self.client.force_login(user=self.user_owner)
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
-                                 data={"name": "TestContest2","time_zone":"Europe/Oslo",
+                                 data={"name": "TestContest2", "time_zone": "Europe/Oslo",
                                        "start_time": datetime.datetime.now(datetime.timezone.utc),
                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
@@ -153,7 +153,7 @@ class TestAccessContest(APITestCase):
         self.client.logout()
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_publish_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
@@ -185,7 +185,7 @@ class TestAccessContest(APITestCase):
 
     def test_view_contest_as_creator(self, patch):
         self.client.force_login(user=self.user_owner)
-        result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),time_zone="Europe/Oslo",
+        result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}), time_zone="Europe/Oslo",
                                  data={"name": "TestContest2"})
         print(result)
         print(result.content)
@@ -197,13 +197,13 @@ class TestAccessContest(APITestCase):
         self.contest.save()
         result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_contest_without_login(self, patch):
         self.client.logout()
         result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
@@ -246,8 +246,39 @@ class TestAccessContest(APITestCase):
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_200_OK)
 
+    def test_remove_team_from_contest_without_login(self, patch):
+        team = Team.objects.create(crew=Crew.objects.create(
+            member1=Person.objects.create(first_name="first", last_name="last", email="someone@somewhere.com")),
+            aeroplane=Aeroplane.objects.create(registration="registration"))
+        ContestTeam.objects.create(team=team, contest=self.contest)
+        self.client.logout()
+        result = self.client.get(reverse("remove_team", kwargs={'contest_pk': self.contest_id, "team_pk": team.pk}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_remove_team_from_contest_as_someone_else(self, patch):
+        team = Team.objects.create(crew=Crew.objects.create(
+            member1=Person.objects.create(first_name="first", last_name="last", email="someone@somewhere.com")),
+            aeroplane=Aeroplane.objects.create(registration="registration"))
+        ContestTeam.objects.create(team=team, contest=self.contest)
+        self.client.force_login(user=self.user_someone_else)
+        result = self.client.get(reverse("remove_team", kwargs={'contest_pk': self.contest_id, "team_pk": team.pk}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_remove_team_from_contest_as_creator(self, patch):
+        team = Team.objects.create(crew=Crew.objects.create(
+            member1=Person.objects.create(first_name="first", last_name="last", email="someone@somewhere.com")),
+            aeroplane=Aeroplane.objects.create(registration="registration"))
+        ContestTeam.objects.create(team=team, contest=self.contest)
+        self.client.force_login(user=self.user_owner)
+        result = self.client.get(reverse("remove_team", kwargs={'contest_pk': self.contest_id, "team_pk": team.pk}))
+        print(result)
+        self.assertEqual(result.status_code, status.HTTP_302_FOUND)
+
 
 class TestTokenAuthentication(APITestCase):
+
     def setUp(self):
         self.user = get_user_model().objects.create(email="user")
         self.user.user_permissions.add(Permission.objects.get(codename="add_contest"),

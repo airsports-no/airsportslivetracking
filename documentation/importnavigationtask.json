@@ -33,7 +33,7 @@
           "member1": {
             "first_name": "first_name",
             "last_name": "last_name",
-            "email": "name@domain.com",
+            "email": "name@domain.com"
           }
         },
         "country": "NO"

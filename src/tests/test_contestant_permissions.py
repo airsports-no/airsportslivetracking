@@ -99,7 +99,7 @@ class TestCreateNavigationTask(APITestCase):
                                                                       "navigationtask_pk": self.navigation_task.pk}),
                                   data=CONTESTANT_DATA, format="json")
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_navigation_task_without_privileges(self, patch):
         self.client.force_login(user=self.user_without_permissions)
@@ -225,7 +225,7 @@ class TestAccessNavigationTask(APITestCase):
                             "pk": self.contestant.pk}),
             data=data, format="json")
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_put_ncontestant_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
@@ -263,7 +263,7 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.patch(url,
                                    data=data, format="json")
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_patch_contestant_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
@@ -331,7 +331,7 @@ class TestAccessNavigationTask(APITestCase):
 
         result = self.client.delete(url)
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_public_contestant_as_someone_else(self, patch):
         self.contest.is_public = True
@@ -355,7 +355,7 @@ class TestAccessNavigationTask(APITestCase):
 
         result = self.client.delete(url)
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_contestant_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)

@@ -1096,7 +1096,7 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
         return context
 
 
-@permission_required_or_403('display.change_contest', (Contest, "pk", "pk"))
+@permission_required_or_403('display.change_contest', (Contest, "pk", "contest_pk"))
 def remove_team_from_contest(request, contest_pk, team_pk):
     contest = get_object_or_404(Contest, pk=contest_pk)
     team = get_object_or_404(Team, pk=team_pk)

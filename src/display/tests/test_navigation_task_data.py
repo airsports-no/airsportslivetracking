@@ -134,7 +134,7 @@ data = {
                     "member1": {
                         "first_name": "first_name",
                         "last_name": "last_name",
-                        "email": "first2@domain.com"
+                        "email": "first@domain.com"
 
                     },
                     "member2": {
@@ -762,9 +762,9 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         person = Person.objects.create(first_name="first", last_name="last", email="to@to.com")
         first_team = self.data["contestant_set"][0]["team"]
         second_team = self.data["contestant_set"][1]["team"]
-        first_team["crew"]["member1"]["email"] = "to1@to.com"
-        second_team["crew"]["member1"]["email"] = "to2@to.com"
-        second_team["crew"]["member2"]["email"] = "to3@to.com"
+        first_team["crew"]["member1"]["email"] = "to@to.com"
+        second_team["crew"]["member1"]["email"] = "to@to.com"
+        second_team["crew"]["member2"]["email"] = "to@to.com"
         response = self.client.post(reverse("importnavigationtask-list", kwargs={"contest_pk": self.contest.pk}),
                                     data=self.data, format="json")
         print(response.content)
@@ -781,8 +781,9 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         team = Team.objects.create(crew=crew, aeroplane=aircraft)
         first_team = self.data["contestant_set"][0]["team"]
         second_team = self.data["contestant_set"][1]["team"]
-        first_team["crew"]["member1"]["email"] = "to1@to.com"
-        second_team["crew"]["member1"]["email"] = "to2@to.com"
+        first_team["crew"]["member1"]["email"] = "to@to.com"
+        second_team["crew"]["member1"]["email"] = "to@to.com"
+        second_team["crew"]["member2"]["email"] = "to@to.com"
         second_team["aeroplane"]["registration"] = "LN-YDB"
         del second_team["crew"]["member2"]
 

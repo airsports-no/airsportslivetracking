@@ -17,7 +17,6 @@ class TestContestantScheduler(TestCase):
         self.assertEqual(now, min([item.start_time for item in team_definitions]))
         self.assertEqual(5 * 60, abs((team_definitions[0].start_time - team_definitions[1].start_time).total_seconds()))
 
-
     def test_overtaking(self):
         teams = [
             TeamDefinition(0, 2, "something", "traccar", "aircraft_one"),
@@ -28,9 +27,8 @@ class TestContestantScheduler(TestCase):
         team_definitions = solver.schedule_teams()
         print(now)
         self.assertEqual(now, min([item.start_time for item in team_definitions]))
-        self.assertEqual(0,team_definitions[0].start_slot)
-        self.assertEqual(2,team_definitions[1].start_slot)
-
+        self.assertEqual(0, team_definitions[0].start_slot)
+        self.assertEqual(2, team_definitions[1].start_slot)
 
     def test_overlapping_tracker(self):
         teams = [
@@ -43,5 +41,6 @@ class TestContestantScheduler(TestCase):
         self.assertEqual(2, len(team_definitions))
         self.assertEqual(now, min([item.start_time for item in team_definitions]))
         self.assertEqual(6 * 60, abs((team_definitions[0].start_time - team_definitions[1].start_time).total_seconds()))
-        self.assertEqual(0,team_definitions[0].start_slot)
-        self.assertEqual(6,team_definitions[1].start_slot)
+        team_definitions = sorted(team_definitions, key=lambda k: k.start_slot)
+        self.assertEqual(0, team_definitions[0].start_slot)
+        self.assertEqual(6, team_definitions[1].start_slot)

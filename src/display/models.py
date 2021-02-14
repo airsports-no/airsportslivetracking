@@ -189,6 +189,10 @@ class Crew(models.Model):
     member1 = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="crewmember_one")
     member2 = models.ForeignKey(Person, on_delete=models.PROTECT, null=True, blank=True, related_name="crewmember_two")
 
+    def validate(self):
+        if Crew.objects.filter(member1=self.member1, member2=self.member2).exclude(pk=self.pk).exists():
+            raise ValidationError("A crew with this email already exists")
+
     def __str__(self):
         if self.member2:
             return "{} and {}".format(self.member1, self.member2)
@@ -202,6 +206,10 @@ class Club(models.Model):
 
     # class Meta:
     #     unique_together = ("name", "country")
+
+    def validate(self):
+        if Club.objects.filter(name=self.name).exclude(pk=self.pk).exists():
+            raise ValidationError("A club with this email already exists")
 
     def __str__(self):
         return self.name
@@ -925,6 +933,16 @@ def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs
 @receiver(pre_save, sender=Contestant)
 def validate_contestant(sender, instance: Contestant, **kwargs):
     instance.clean()
+
+
+@receiver(pre_save, sender=Crew)
+def validate_crew(sender, instance: Crew, **kwargs):
+    instance.validate()
+
+
+@receiver(pre_save, sender=Club)
+def validate_club(sender, instance: Club, **kwargs):
+    instance.validate()
 
 
 @receiver(post_delete, sender=NavigationTask)
