@@ -253,7 +253,7 @@ class TestAutoCompletePersonPhone(APITestCase):
             "search": "123",
         }, format="json", **AJAX_HEADER)
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertListEqual([{'label': 'first_name last_name', 'value': 'last_name'}], result.json())
+        self.assertListEqual(['+471234678'], result.json())
 
     def test_search_fail(self):
         self.client.force_login(self.user)
