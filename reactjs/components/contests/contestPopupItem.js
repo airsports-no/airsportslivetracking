@@ -31,7 +31,7 @@ export default class ContestPopupItem extends Component {
         return <div className={""} id={"contest" + this.props.contest.id}>
             <img className={"mx-auto d-block"}
                  src={this.props.contest.header_image && this.props.contest.header_image.length > 0 ? this.props.contest.header_image : "/static/img/airsportslogo.png"}
-                 alt={"Contest promo image"} style={{maxHeight: "200px", maxWidth: "350px"}}/>
+                 alt={"Contest promo image"} style={{maxHeight: "200px", maxWidth: "260px"}}/>
             <div className={""}>
                 <h5 className={"card-title"}>{this.props.contest.name}</h5>
                 <h6 className={"card-subtitle mb-2 text-muted"}>
