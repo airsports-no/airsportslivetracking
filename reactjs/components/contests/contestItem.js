@@ -44,7 +44,9 @@ class ConnectedContestItem extends Component {
                     className={"list-group-item list-group-item-secondary list-group-item-action"}
                     onClick={() => this.handleClick()}
                 >
-                    <img className={"img-fluid"} src={this.props.contest.logo} alt={"Event logo"}
+                    <img className={"img-fluid"}
+                         src={this.props.contest.logo && this.props.contest.logo.length > 0 ? this.props.contest.logo : "/static/img/airsportslogo.png"}
+                         alt={"Event logo"}
                          style={{width: "100%", maxHeight: "60px", maxWidth: "60px", float: "left"}}/>
 
                          <span className={"d-flex justify-content-between align-items-centre"}

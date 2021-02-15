@@ -275,6 +275,7 @@ class Contest(models.Model):
         help_text="The finish time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
     contest_teams = models.ManyToManyField(Team, blank=True, through=ContestTeam)
     is_public = models.BooleanField(default=False)
+    contest_website = models.CharField(help_text="URL to contest website", blank=True, default="", max_length=300)
     header_image = models.ImageField(upload_to='images/contests/', null=True, blank=True,
                                      help_text="Nice image that is shown on top of the event information on the map.")
     logo = models.ImageField(upload_to='images/contestlogos/', null=True, blank=True,

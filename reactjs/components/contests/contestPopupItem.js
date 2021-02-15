@@ -29,22 +29,27 @@ export default class ContestPopupItem extends Component {
     render() {
         const tasks = this.props.contest.navigationtask_set.sort(sortTaskTimes)
         return <div className={""} id={"contest" + this.props.contest.id}>
-            <img className={"card-img-top img-fluid"} src={this.props.contest.header_image}
-                 alt={"Contest promo image"}/>
+            <img className={"mx-auto d-block"}
+                 src={this.props.contest.header_image && this.props.contest.header_image.length > 0 ? this.props.contest.header_image : "/static/img/airsportslogo.png"}
+                 alt={"Contest promo image"} style={{maxHeight: "200px", maxWidth: "350px"}}/>
             <div className={""}>
                 <h5 className={"card-title"}>{this.props.contest.name}</h5>
                 <h6 className={"card-subtitle mb-2 text-muted"}>
+                    <div className={"float-right"}>
+                        {this.props.contest.contest_website.length > 0 ?
+                            <a href={this.props.contest.contest_website}>Contest website</a> : ""}
+                    </div>
                     {new Date(this.props.contest.start_time).toLocaleDateString()} - {new Date(this.props.contest.finish_time).toLocaleDateString()}
                 </h6>
-                <p className={"card-text"}>
-                    <ul className={"d-flex flex-wrap justify-content-around"}>
-                        {tasks.map((task) => {
-                            return <TaskItem key={"task" + task.pk} navigationTask={task}/>
-                        })}
+                {/*<p className={"card-text"}>*/}
+                <ul className={"d-flex flex-wrap justify-content-around"} style={{paddingLeft: "0px"}}>
+                    {tasks.map((task) => {
+                        return <TaskItem key={"task" + task.pk} navigationTask={task}/>
+                    })}
 
-                    </ul>
+                </ul>
 
-                </p>
+                {/*</p>*/}
             </div>
         </div>
     }

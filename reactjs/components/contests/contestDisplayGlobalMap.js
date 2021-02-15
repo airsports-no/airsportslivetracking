@@ -30,9 +30,9 @@ class ConnectedContestDisplayGlobalMap extends Component {
         }).addTo(this.props.map)
         this.circle.bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={this.props.contest}/>), {
             className: "contest-popup",
-            maxWidth: 500,
+            maxWidth: 350,
             // maxWidth: 500,
-            maxHeight: 400,
+            maxHeight: 300,
             // minWidth: 100,
             permanent: false,
             direction: "center"
