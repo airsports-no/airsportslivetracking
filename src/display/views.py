@@ -495,7 +495,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
 
 @api_view(["GET"])
-@permission_required_or_403('display.view_contest', (Contest, "navigationtest_set__pk", "pk"))
+@permission_required_or_403('display.view_contest', (Contest, "navigationtask_set__pk", "pk"))
 def get_contestant_schedule(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     columns = [
@@ -512,13 +512,13 @@ def get_contestant_schedule(request, pk):
     return Response({"cols": columns, "rows": rows})
 
 
-@permission_required_or_403('display.view_contest', (Contest, "navigationtest_set__pk", "pk"))
+@permission_required_or_403('display.view_contest', (Contest, "navigationtask_set__pk", "pk"))
 def render_contestants_timeline(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     return render(request, "display/contestant_timeline.html", context={"navigation_task": navigation_task})
 
 
-@permission_required_or_403('display.view_contest', (Contest, "navigationtest_set__pk", "pk"))
+@permission_required_or_403('display.view_contest', (Contest, "navigationtask_set__pk", "pk"))
 def clear_future_contestants(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -528,7 +528,7 @@ def clear_future_contestants(request, pk):
     return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
-@permission_required_or_403('display.change_contest', (Contest, "navigationtest_set__pk", "pk"))
+@permission_required_or_403('display.change_contest', (Contest, "navigationtask_set__pk", "pk"))
 def add_contest_teams_to_navigation_task(request, pk):
     """
     Add all teams registered for a contest to a task. If the team is already assigned as a contestant, ignore it.
