@@ -263,25 +263,6 @@ def auto_complete_person_email(request):
     raise MethodNotAllowed
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
-def auto_complete_contestteam_pk(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get('search', '')
-            search_qs = Team.objects.filter(pk=q)
-            result = [item.email for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get('search', '')
-            contest = request.POST.get('contest', '')
-            search_qs = ContestTeam.objects.get(team__pk=q, contest__pk=contest)
-            serialiser = ContestTeamSerialiser(search_qs, many=False)
-            return Response(serialiser.data)
-    raise MethodNotAllowed
-
-
 def tracking_qr_code_view(request, pk):
     url = reverse("frontend_view_map", kwargs={"pk": pk})
     return render(request, "display/tracking_qr_code.html", {"url": "https://tracking.airsports.no{}".format(url),

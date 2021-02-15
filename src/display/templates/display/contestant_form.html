@@ -20,26 +20,5 @@
         $('#id_takeoff_time').datetimepicker({dateFormat: "yy-mm-dd"});
         $('#id_finished_by_time').datetimepicker({dateFormat: "yy-mm-dd"});
         $('#id_tracker_start_time').datetimepicker({dateFormat: "yy-mm-dd"});
-        $(document).ready(function () {
-            $("#id_team").change(function () {
-                var team = $(this).val(); // display the selected text
-                console.log("Selected team: " + team)
-                // AJAX
-                $.ajax({
-                    url: "/display/contestteam/autocomplete/pk/",
-                    type: 'post',
-                    data: {search: team, contest: {{ navigation_task.contest.pk }}, request: 2},
-                    dataType: 'json',
-                    success: function (response) {
-
-                        // Set value to textboxes
-                        document.getElementById('id_tracker_device_id').value = response['tracker_device_id'];
-
-
-                    }
-                });
-
-            });
-        });
     </script>
 {% endblock %}

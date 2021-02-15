@@ -8,7 +8,7 @@ from display.views import import_route, frontend_view_map, \
     auto_complete_person_email, auto_complete_person_first_name, auto_complete_person_last_name, \
     auto_complete_club, auto_complete_aeroplane, RegisterTeamWizard, ContestTeamList, remove_team_from_contest, \
     TeamUpdateView, auto_complete_person_id, PersonUpdateView, PersonList, NavigationTaskUpdateView, \
-    ContestTeamTrackingUpdate, manifest, auto_complete_contestteam_pk, \
+    ContestTeamTrackingUpdate, manifest, \
     tracking_qr_code_view, get_contestant_map, get_navigation_task_map, add_contest_teams_to_navigation_task, \
     clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map
 
@@ -49,7 +49,6 @@ urlpatterns = [
     path('contestant/autocomplete/lastname/', auto_complete_person_last_name, name="autocomplete_last_name"),
     path('aeroplane/autocomplete/registration/', auto_complete_aeroplane, name="autocomplete_aeroplane"),
     path('club/autocomplete/name/', auto_complete_club, name="autocomplete_club"),
-    path('contestteam/autocomplete/pk/', auto_complete_contestteam_pk, name="autocomplete_team_pk"),
     path('navigationtaskwizard/<int:contest_pk>/', NewNavigationTaskWizard.as_view(), name="navigationtaskwizard"),
     path('person/<int:pk>/update/', PersonUpdateView.as_view(), name="person_update"),
     path('person/', PersonList.as_view(), name="person_list"),
