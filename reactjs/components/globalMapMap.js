@@ -6,6 +6,7 @@ import ContestsGlobalMap from "./contests/contestsGlobalMap";
 import {zoomFocusContest} from "../actions";
 
 const L = window['L']
+const TRAIL_LENGTH = 180;
 export const mapStateToProps = (state, props) => ({
     zoomContest: state.zoomContest,
     contests: state.contests
@@ -22,8 +23,16 @@ class Aircraft {
         this.longform = ""
         this.dot = null
         this.dotText = null
-        this.time = new Date(initial_position.time)
-        this.createLiveEntities(initial_position)
+        this.trail = null;
+        const position = this.replaceTime(initial_position)
+        this.trailPositions = [position]
+        this.time = position.time
+        this.createLiveEntities(position)
+    }
+
+    replaceTime(position) {
+        position.time = new Date(position.time)
+        return position
     }
 
     createAirplaneIcon(bearing) {
@@ -56,13 +65,37 @@ class Aircraft {
         this.dotText = L.marker([position.latitude, position.longitude], {icon: this.createAirplaneTextIcon()}).bindTooltip(this.longform, {
             permanent: false
         }).addTo(this.map)
+        this.trail = L.polyline([[position.latitude, position.longitude]], {
+            color: this.colour,
+            opacity: 1,
+            weight: 3
+        }).addTo(this.map)
     }
 
-    updatePosition(position) {
+    updateTrail(position) {
+        this.trailPositions.push(position)
+
+        const latestTime = position.time.getTime()
+        while (this.trailPositions.length > 0 && latestTime - this.trailPositions[0].time.getTime() > TRAIL_LENGTH*1000) {
+            this.trailPositions.shift()
+        }
+        const partial = this.trailPositions.map((internal_position) => {
+            return [internal_position.latitude, internal_position.longitude]
+        })
+        if (partial.length > 0) {
+            this.trail.setLatLngs(partial)
+            this.trail.redraw()
+        }
+
+    }
+
+    updatePosition(p) {
+        const position = this.replaceTime(p)
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
         this.dot.setIcon(this.createAirplaneIcon(position.course))
-        this.time = new Date(position.time)
+        this.updateTrail(position)
+        this.time = position.time
     }
 }
 
