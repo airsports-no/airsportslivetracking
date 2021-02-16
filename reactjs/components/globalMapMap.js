@@ -27,7 +27,7 @@ class Aircraft {
     }
 
     createAirplaneIcon(bearing) {
-        const size = 32;
+        const size = 26;
         return L.divIcon({
             html: '<i class="mdi mdi-airplanemode-active" style="color: ' + this.colour + '; transform: rotate(' + bearing + 'deg); font-size: ' + size + 'px"/>',
             iconAnchor: [size / 2, size / 2],
@@ -38,7 +38,7 @@ class Aircraft {
 
 
     createAirplaneTextIcon() {
-        const size = 20;
+        const size = 16;
         return L.divIcon({
             html: '<div style="color: ' + this.colour + '; font-size: ' + size + 'px">' + this.displayText + '</div>',
             iconAnchor: [100, -16],
