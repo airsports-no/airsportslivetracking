@@ -74,7 +74,7 @@ class ConnectedGlobalMapMap extends Component {
         this.aircraft = {}  // deviceId is key
         this.purgeInterval = 1200
         this.purgePositions = this.purgePositions.bind(this)
-        setInterval(this.purgePositions, this.purgeInterval)
+        setInterval(this.purgePositions, this.purgeInterval*1000)
     }
 
     initiateSession() {
