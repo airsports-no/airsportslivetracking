@@ -98,34 +98,37 @@ class ConnectedGlobalEventList extends Component {
                 <a href={"#"} className={'eventTitle taskTitleName'} data-toggle={"collapse"}
                    data-target={"#eventMenu"}>Events</a>
 
-                <span className={"eventTitle"} style={{float: "right"}}>{loginButton}{settingsButton}{logoutButton}</span>
+                <span className={"eventTitle"}
+                      style={{float: "right"}}>{loginButton}{settingsButton}{logoutButton}</span>
             </div>
-            <div id={"eventMenu"} className={"collapse show eventListScrolling"}>
-                <div className={"list-group"} id={"ongoing"}>
-                    <TimePeriodEventList contests={ongoingEvents}/>
-                </div>
-                <div className={"list-group list-group-root"}>
-                    <a href={"#upcoming"}
-                       className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
-                       data-toggle={"collapse"}>
-                        <span><i className={"mdi mdi-keyboard-arrow-right"}/>Upcoming events</span>
-                        <span style={{"padding-top": "0.5em"}}
-                              className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
-                    </a>
-                    <div className={"list-group collapse"} id={"upcoming"}>
-                        <TimePeriodEventList contests={upcomingEvents}/>
+            <div className={"eventListScrolling"}>
+                <div id={"eventMenu"} className={"collapse show"}>
+                    <div className={"list-group"} id={"ongoing"}>
+                        <TimePeriodEventList contests={ongoingEvents}/>
                     </div>
-                    <a href={"#past"}
-                       className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
-                       data-toggle={"collapse"}>
+                    <div className={"list-group list-group-root"}>
+                        <a href={"#upcoming"}
+                           className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
+                           data-toggle={"collapse"}>
+                            <span><i className={"mdi mdi-keyboard-arrow-right"}/>Upcoming events</span>
+                            <span style={{"padding-top": "0.5em"}}
+                                  className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
+                        </a>
+                        <div className={"list-group collapse"} id={"upcoming"}>
+                            <TimePeriodEventList contests={upcomingEvents}/>
+                        </div>
+                        <a href={"#past"}
+                           className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
+                           data-toggle={"collapse"}>
                             <span>
                             <i className={"mdi mdi-keyboard-arrow-right"}/>Past events
                                 </span>
-                        <span style={{"padding-top": "0.5em"}}
-                              className={"badge badge-dark badge-pill"}>{earlierEvents.length}</span>
-                    </a>
-                    <div className={"list-group collapse"} id={"past"}>
-                        <TimePeriodEventList contests={earlierEvents}/>
+                            <span style={{"padding-top": "0.5em"}}
+                                  className={"badge badge-dark badge-pill"}>{earlierEvents.length}</span>
+                        </a>
+                        <div className={"list-group collapse"} id={"past"}>
+                            <TimePeriodEventList contests={earlierEvents}/>
+                        </div>
                     </div>
                 </div>
             </div>

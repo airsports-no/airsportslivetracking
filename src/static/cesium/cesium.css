@@ -19,8 +19,8 @@ body {
     transform-origin: top left;
     left: 60px;
     top: 10px;
-    bottom: 50px;
-    /*max-height: 85vh;*/
+    /*bottom: 50px;*/
+    max-height: 80vh;
     position: fixed;
     z-index: 3;
     display: flex;
@@ -33,10 +33,11 @@ body {
     font-size: 1rem;
 }
 
-.flexWrapper{
+.flexWrapper {
     display: flex;
     overflow: hidden;
     flex-direction: column;
+    width: 100%;
 }
 
 .contest-popup {
