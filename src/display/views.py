@@ -642,33 +642,6 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     return data
 
 
-# todo: Can this be removed? I do not think we use this separately anymore.
-@permission_required("display.add_route", login_url='/accounts/login/')
-def import_route(request):
-    form = PrecisionImportRouteForm()
-    if request.method == "POST":
-        form = PrecisionImportRouteForm(request.POST, request.FILES)
-        if form.is_valid():
-            name = "route"
-            file_type = form.cleaned_data["file_type"]
-            print(file_type)
-            route = None
-            if file_type == FILE_TYPE_CSV:
-                data = [item.decode(encoding="UTF-8") for item in request.FILES['file'].readlines()]
-                route = create_precision_route_from_csv(name, data[1:])
-            elif file_type == FILE_TYPE_FLIGHTCONTEST_GPX:
-                route = create_precision_route_from_gpx(request.FILES["file"])
-            else:
-                raise ValidationError("Currently unsupported type: {}".format(file_type))
-            if route is not None:
-                assign_perm("view_route", request.user, route)
-                assign_perm("delete_route", request.user, route)
-                assign_perm("change_route", request.user, route)
-
-            return redirect("/")
-    return render(request, "display/import_route_form.html", {"form": form})
-
-
 # Everything below he is related to management and requires authentication
 def show_route_definition_step(wizard):
     cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}

@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import TemplateView
 
-from display.views import import_route, frontend_view_map, \
+from display.views import frontend_view_map, \
     GetDataFromTimeForContestant, renew_token, results_service, NewNavigationTaskWizard, NavigationTaskDetailView, \
     ContestantUpdateView, ContestantCreateView, ContestantGateTimesView, ContestCreateView, ContestUpdateView, \
     ContestantDeleteView, ContestDeleteView, NavigationTaskDeleteView, auto_complete_person_phone, \
@@ -13,7 +13,6 @@ from display.views import import_route, frontend_view_map, \
     clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map
 
 urlpatterns = [
-    path('importroute', import_route, name="import_route"),
     path('frontend/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
     path('token/renew', renew_token, name="renewtoken"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
