@@ -88,17 +88,17 @@ class ConnectedGlobalEventList extends Component {
                 return contest
             }
         }).sort(sortContestTimes)
-        return <div>
+        return <div className={"flexWrapper"}>
             <div
                 className={"titleWrapper"}>
                 <a data-toggle={"collapse"} data-target={"#eventMenu"}
                    style={{paddingLeft: "14px", paddingRight: "12px"}}>
-                    <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
+                    <i className={"eventTitle mdi mdi-menu"} id={'menuButton'}/>
                 </a>
-                <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
+                <a href={"#"} className={'eventTitle taskTitleName'} data-toggle={"collapse"}
                    data-target={"#eventMenu"}>Events</a>
 
-                <span style={{float: "right"}}>{loginButton}{settingsButton}{logoutButton}</span>
+                <span className={"eventTitle"} style={{float: "right"}}>{loginButton}{settingsButton}{logoutButton}</span>
             </div>
             <div id={"eventMenu"} className={"collapse show eventListScrolling"}>
                 <div className={"list-group"} id={"ongoing"}>
