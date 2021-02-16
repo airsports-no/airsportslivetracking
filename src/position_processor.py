@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List, TYPE_CHECKING
 
 from django.core.cache import cache
+from django.db import connections
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -23,7 +24,6 @@ from display.models import Contestant, TraccarCredentials, ContestantTrack, CONT
 from display.calculators.calculator_factory import calculator_factory
 
 logger = logging.getLogger(__name__)
-
 
 configuration = TraccarCredentials.objects.get()
 
@@ -86,9 +86,16 @@ def build_and_push_position_data(data):
         cleanup_calculators()
 
 
+def clean_db_positions():
+    for c in connections.all():
+        c.close_if_unusable_or_obsolete()
+
+
 def on_message(ws, message):
+    clean_db_positions()
     data = json.loads(message)
     build_and_push_position_data(data)
+    clean_db_positions()
 
 
 def on_error(ws, error):
