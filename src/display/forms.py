@@ -95,7 +95,7 @@ class PrecisionScoreOverrideForm(forms.Form):
     regular_gate_grace_time = forms.FloatField(required=True,
                                                help_text="Grace time before and after turning points and secret gates")
     regular_gate_penalty_per_second = forms.FloatField(required=True,
-                                                       help_text="Penalty per second time offset for regular and secret gates")
+                                                       help_text="Penalty per second time offset (beyond regular_gate_grace_time) for regular and secret gates")
 
     def build_score_override(self, navigation_task: NavigationTask):
         TrackScoreOverride.objects.create(navigation_task=navigation_task,
@@ -120,13 +120,25 @@ class PrecisionScoreOverrideForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.add_input(Submit("submit", "Submit"))
+        self.helper.layout = Layout(
+            Fieldset(
+                "If required, override default scorecard penalty points",
+                "backtracking_penalty",
+                "regular_gate_grace_time",
+                "regular_gate_penalty_per_second"
+            ),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
 
 
 class ANRCorridorScoreOverrideForm(forms.Form):
-    corridor_width = forms.FloatField(required=True)
-    corridor_grace_time = forms.IntegerField(required=True)
-    corridor_outside_penalty = forms.FloatField(required=True)
+    corridor_width = forms.FloatField(required=True, help_text="The width of the ANR corridor in NM")
+    corridor_grace_time = forms.IntegerField(required=True,
+                                             help_text="The number of seconds the contestant can stay outside the corridor before penalties start")
+    corridor_outside_penalty = forms.FloatField(required=True,
+                                                help_text="The number of penalty points given per second outside the corridor beyond corridor_grace_time")
     corridor_maximum_penalty = forms.FloatField(required=True,
                                                 help_text="A value less than 0 means that there is no maximum penalty. "
                                                           "Otherwise the combined penalty applied for a single corridor exclusion cannot exceed this.")
@@ -150,6 +162,19 @@ class ANRCorridorScoreOverrideForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "If required, override default scorecard penalty points",
+                "corridor_width",
+                "corridor_grace_time",
+                "corridor_outside_penalty",
+                "corridor_maximum_penalty"
+            ),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+
         self.helper.add_input(Submit("submit", "Submit"))
 
 
@@ -160,7 +185,15 @@ class TaskTypeForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.add_input(Submit("submit", "Submit"))
+        self.helper.layout = Layout(
+            Fieldset(
+                "Select the task type from the drop-down list",
+                "task_type",
+            ),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
 
 
 kml_description = HTML("""
@@ -249,7 +282,19 @@ class NavigationTaskForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.add_input(Submit("submit", "Submit"))
+        self.helper.layout = Layout(
+            Fieldset(
+                "Navigation task details",
+                "name",
+                "start_time",
+                "finish_time",
+                "is_public",
+                "scorecard"
+            ),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
 
 
 # class BasicScoreOverrideForm(forms.ModelForm):
@@ -296,7 +341,8 @@ class ContestForm(forms.ModelForm):
             ),
             Fieldset(
                 "Contest location (optional)",
-                HTML("If no position is given, position will be extracted from the starting position of the first task added to the contest"),
+                HTML(
+                    "If no position is given, position will be extracted from the starting position of the first task added to the contest"),
                 "latitude",
                 "longitude"
             ),
