@@ -288,7 +288,7 @@ def get_contestant_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
-@permission_required_or_403('display.view_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+@permission_required_or_403('display.view_contest', (Contest, "navigationtask__pk", "pk"))
 def get_navigation_task_map(request, pk):
     if request.method == "POST":
         form = MapForm(request.POST)
