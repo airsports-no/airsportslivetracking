@@ -281,6 +281,36 @@ class ContestForm(forms.ModelForm):
         model = Contest
         exclude = ("contest_teams",)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+        self.helper.layout = Layout(
+            Fieldset(
+                "Contest details",
+                "name",
+                "time_zone",
+                "start_time",
+                "finish_time",
+                "is_public"
+            ),
+            Fieldset(
+                "Contest location (optional)",
+                HTML("If no position is given, position will be extracted from the navigation tasks"),
+                "latitude",
+                "longitude"
+            ),
+            Fieldset(
+                "Publicity",
+                "contest_website",
+                "header_image",
+                "logo"
+            ),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+
 
 class PictureWidget(forms.widgets.Widget):
     def render(self, name, value, attrs=None, renderer=None):
