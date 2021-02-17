@@ -41,7 +41,7 @@ FILE_TYPE_KML = "kml"
 FILE_TYPES = (
     (FILE_TYPE_CSV, "CSV"),
     (FILE_TYPE_FLIGHTCONTEST_GPX, "FlightContest GPX file"),
-    (FILE_TYPE_KML, "KML file")
+    (FILE_TYPE_KML, "KML/KMZ file")
 )
 
 MAP_SIZES = (
@@ -172,7 +172,7 @@ kml_description = HTML("""
             <ol>
             <li>to: A path with the name "to" that defines the takeoff gate. This is typically located across the runway</li>
             <li>ldg: A path with the name "ldg" that defines the landing gate. This is typically located across the runway. It can be at the same location as the take of gate, but it must be a separate path</li>
-            <li>prohibited: A polygon with the name "prohibited_*" where '*' can be replaced with an arbitrary text. They can be between zero and infinite number of these, and they describe prohibited zones either in an ANR context, or can be used to mark airspace that should not be infringed, for instance.</li>
+            <li>prohibited: Zero or more polygons with the name "prohibited_*" where '*' can be replaced with an arbitrary text. These polygons describe prohibited zones either in an ANR context, or can be used to mark airspace that should not be infringed, for instance.</li>
             </ol>
             </p>
             """)
@@ -180,7 +180,7 @@ kml_description = HTML("""
 
 class PrecisionImportRouteForm(forms.Form):
     file_type = forms.ChoiceField(choices=FILE_TYPES)
-    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "csv", "gpx"])])
+    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz", "csv", "gpx"])])
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -199,8 +199,8 @@ class PrecisionImportRouteForm(forms.Form):
 
 
 class ANRCorridorImportRouteForm(forms.Form):
-    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml"])],
-                           help_text="File must be of type KML")
+    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz"])],
+                           help_text="File must be of type KML or KMZ")
     rounded_corners = forms.BooleanField(required=False, initial=False,
                                          help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
 

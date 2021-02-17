@@ -2,6 +2,7 @@
 import logging
 from plistlib import Dict
 from typing import List, Tuple, Optional
+from zipfile import ZipFile
 
 import gpxpy
 from django.core.exceptions import ValidationError
@@ -25,6 +26,28 @@ def add_line(place_mark):
 
 def add_polygon(place_mark):
     return list(zip(*reversed(place_mark.geometry.exterior.xy)))
+
+
+def open_kmz(file):
+    zip = ZipFile(file)
+    for z in zip.filelist:
+        print(z)
+        if z.filename[-4:] == '.kml':
+            fstring = zip.read(z)
+            break
+    else:
+        raise Exception("Could not find kml file in %s" % file)
+    return fstring
+
+
+def open_kml(file):
+    try:
+        fstring = open_kmz(file)
+    except Exception:
+        # In case zipfile screwed with the buffer
+        file.seek(0)
+        fstring = file.read()
+    return fstring
 
 
 def parse_geometries(placemark):
@@ -73,10 +96,10 @@ def parse_placemarks(document) -> List[Placemark]:
 
 
 def load_features_from_kml(input_kml) -> Dict:
-    document = input_kml.read()
+    document = open_kml(input_kml)
     if type(document) == str:
         document = document.encode('utf-8')
-    # print(document)
+    print(document)
     kml_document = kml.KML()
     kml_document.from_string(document)
     features = list(kml_document.features())
