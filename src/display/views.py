@@ -738,6 +738,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             kwargs["form_dict"].get("precision_override").build_score_override(navigation_task)
         elif task_type == TASK_ANR_CORRIDOR:
             kwargs["form_dict"].get("anr_corridor_override").build_score_override(navigation_task)
+        # Update contest location if necessary
+        navigation_task_location = route.waypoints[0]
+        self.contest.update_position_if_not_set(navigation_task_location.latitude, navigation_task_location.longitude)
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     def get_context_data(self, form, **kwargs):

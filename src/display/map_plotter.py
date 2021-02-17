@@ -521,7 +521,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
                  horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=6)
         index += 1
     figdata = BytesIO()
-    plt.savefig(figdata, format='png', dpi=200, bbox_inches="tight", pad_inches=0)
+    plt.savefig(figdata, format='png', dpi=100, bbox_inches="tight", pad_inches=0)
     plt.close()
     figdata.seek(0)
     return figdata

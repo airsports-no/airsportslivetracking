@@ -296,7 +296,7 @@ class ContestForm(forms.ModelForm):
             ),
             Fieldset(
                 "Contest location (optional)",
-                HTML("If no position is given, position will be extracted from the navigation tasks"),
+                HTML("If no position is given, position will be extracted from the starting position of the first task added to the contest"),
                 "latitude",
                 "longitude"
             ),

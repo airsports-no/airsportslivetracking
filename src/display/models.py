@@ -289,6 +289,11 @@ class Contest(models.Model):
     class Meta:
         ordering = ("-start_time", "-finish_time")
 
+    def update_position_if_not_set(self, latitude, longitude):
+        if self.latitude == 0 and self.longitude == 0:
+            self.latitude = latitude
+            self.longitude = longitude
+            self.save()
 
 class Scorecard(models.Model):
     PRECISION = 0
