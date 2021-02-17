@@ -2,8 +2,8 @@ const path = require("path");
 const fs = require("fs");
 const webpack = require('webpack');
 const BundleTracker = require('webpack-bundle-tracker');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
+// const CopyWebpackPlugin = require('copy-webpack-plugin');
+// const HtmlWebpackPlugin = require('html-webpack-plugin');
 // var CompressionPlugin = require("compression-webpack-plugin");
 // var BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 // const cesiumSource = 'node_modules/cesium/Source';
@@ -80,8 +80,8 @@ module.exports = {
         //         comments: false
         //     }
         // }),
-        // new webpack.HashedModuleIdsPlugin(),
-        // new webpack.optimize.AggressiveMergingPlugin()//Merge chunks
+        new webpack.HashedModuleIdsPlugin(),
+        new webpack.optimize.AggressiveMergingPlugin()//Merge chunks
     ], // add all common plugins here
 
     module: {
