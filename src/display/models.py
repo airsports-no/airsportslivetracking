@@ -254,6 +254,16 @@ class ContestTeam(models.Model):
     def __str__(self):
         return str(self.team)
 
+    def get_tracker_id(self)->str:
+        if self.tracker_device_id is not None  and len(self.tracker_device_id)>0:
+            return self.tracker_device_id
+        if self.team.crew.member1.app_tracking_id is not None  and len(self.team.crew.member1.app_tracking_id)>0:
+            return self.team.crew.member1.app_tracking_id
+        if self.team.crew.member2 is not None and self.team.crew.member2.app_tracking_id is not None  and len(self.team.crew.member2.app_tracking_id)>0:
+            return self.team.crew.member2.app_tracking_id
+        logger.error(f"ContestTeam {self.team} for contest {self.contest} does not have a tracker ID")
+        return ""
+
 
 class Contest(models.Model):
     DESCENDING = "desc"

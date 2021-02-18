@@ -33,7 +33,7 @@ def schedule_and_create_contestants(navigation_task: NavigationTask, contest_tea
                                                            wind_speed, wind_direction)
         duration = datetime.timedelta(minutes=minutes_to_starting_point + minutes_to_landing) + gate_times[-1][1]
         team_data.append(
-            TeamDefinition(contest_team.pk, duration.total_seconds() / 60, contest_team.tracker_device_id,
+            TeamDefinition(contest_team.pk, duration.total_seconds() / 60, contest_team.get_tracker_id(),
                            contest_team.tracking_service, contest_team.team.aeroplane.registration))
     print("Initiating solver")
     solver = Solver(navigation_task.start_time,

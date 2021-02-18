@@ -291,6 +291,11 @@ class NavigationTaskForm(forms.ModelForm):
                 "is_public",
                 "scorecard"
             ),
+            Fieldset(
+                "Getting to and from the track",
+                "minutes_to_starting_point",
+                "minutes_to_landing"
+            ),
             ButtonHolder(
                 Submit("submit", "Submit")
             )
