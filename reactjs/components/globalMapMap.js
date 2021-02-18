@@ -76,7 +76,7 @@ class Aircraft {
         this.trailPositions.push(position)
 
         const latestTime = position.time.getTime()
-        while (this.trailPositions.length > 0 && latestTime - this.trailPositions[0].time.getTime() > TRAIL_LENGTH*1000) {
+        while (this.trailPositions.length > 0 && latestTime - this.trailPositions[0].time.getTime() > TRAIL_LENGTH * 1000) {
             this.trailPositions.shift()
         }
         const partial = this.trailPositions.map((internal_position) => {
@@ -97,9 +97,18 @@ class Aircraft {
         this.updateTrail(position)
         this.time = position.time
     }
+
+    removeFromMap() {
+        if (this.dot) {
+            this.dot.removeFrom(this.map)
+            this.trail.removeFrom(this.map)
+            this.dotText.removeFrom(this.map)
+        }
+    }
 }
 
-class ConnectedGlobalMapMap extends Component {
+class ConnectedGlobalMapMap
+    extends Component {
     constructor(props) {
         super(props);
         this.state = {map: null}
@@ -107,7 +116,7 @@ class ConnectedGlobalMapMap extends Component {
         this.aircraft = {}  // deviceId is key
         this.purgeInterval = 1200
         this.purgePositions = this.purgePositions.bind(this)
-        setInterval(this.purgePositions, this.purgeInterval*1000)
+        setInterval(this.purgePositions, this.purgeInterval * 1000)
     }
 
     initiateSession() {
@@ -155,6 +164,7 @@ class ConnectedGlobalMapMap extends Component {
         for (let id of Object.keys(this.aircraft)) {
             const now = new Date()
             if (now.getTime() - this.aircraft[id].time.getTime() > this.purgeInterval * 1000) {
+                this.aircraft[id].removeFromMap()
                 delete this.aircraft[id]
             }
         }
