@@ -254,12 +254,13 @@ class ContestTeam(models.Model):
     def __str__(self):
         return str(self.team)
 
-    def get_tracker_id(self)->str:
-        if self.tracker_device_id is not None  and len(self.tracker_device_id)>0:
+    def get_tracker_id(self) -> str:
+        if self.tracker_device_id is not None and len(self.tracker_device_id) > 0:
             return self.tracker_device_id
-        if self.team.crew.member1.app_tracking_id is not None  and len(self.team.crew.member1.app_tracking_id)>0:
+        if self.team.crew.member1.app_tracking_id is not None and len(self.team.crew.member1.app_tracking_id) > 0:
             return self.team.crew.member1.app_tracking_id
-        if self.team.crew.member2 is not None and self.team.crew.member2.app_tracking_id is not None  and len(self.team.crew.member2.app_tracking_id)>0:
+        if self.team.crew.member2 is not None and self.team.crew.member2.app_tracking_id is not None and len(
+                self.team.crew.member2.app_tracking_id) > 0:
             return self.team.crew.member2.app_tracking_id
         logger.error(f"ContestTeam {self.team} for contest {self.contest} does not have a tracker ID")
         return ""
@@ -304,6 +305,7 @@ class Contest(models.Model):
             self.latitude = latitude
             self.longitude = longitude
             self.save()
+
 
 class Scorecard(models.Model):
     PRECISION = 0
@@ -708,7 +710,7 @@ class Contestant(models.Model):
     def clean(self):
         # Validate single-use tracker
         overlapping_trackers = Contestant.objects.filter(tracking_service=self.tracking_service,
-                                                         tracker_device_id=self.tracker_device_id,
+                                                         tracker_device_id=self.get_tracker_id(),
                                                          tracker_start_time__lte=self.finished_by_time,
                                                          finished_by_time__gte=self.tracker_start_time).exclude(
             pk=self.pk)
@@ -794,6 +796,17 @@ class Contestant(models.Model):
     @gate_times.setter
     def gate_times(self, value):
         self.predefined_gate_times = value
+
+    def get_tracker_id(self) -> str:
+        if self.tracker_device_id is not None and len(self.tracker_device_id) > 0:
+            return self.tracker_device_id
+        if self.team.crew.member1.app_tracking_id is not None and len(self.team.crew.member1.app_tracking_id) > 0:
+            return self.team.crew.member1.app_tracking_id
+        if self.team.crew.member2 is not None and self.team.crew.member2.app_tracking_id is not None and len(
+                self.team.crew.member2.app_tracking_id) > 0:
+            return self.team.crew.member2.app_tracking_id
+        logger.error(f"Contestant {self.team} for navigation task {self.navigation_task} does not have a tracker ID")
+        return ""
 
     @classmethod
     def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):
