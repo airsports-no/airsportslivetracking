@@ -136,12 +136,14 @@ class Solver:
             if team.aircraft_registration not in overlapping_aircraft:
                 overlapping_aircraft[team.aircraft_registration] = []
             overlapping_aircraft[team.aircraft_registration].append(team)
-            if team.member1 is not None and team.member1 not in overlapping_crew:
-                overlapping_crew[team.member1] = []
-            overlapping_crew[team.member1].append(team)
-            if team.member2 is not None and team.member2 not in overlapping_crew:
-                overlapping_crew[team.member2] = []
-            overlapping_crew[team.member2].append(team)
+            if team.member1 is not None:
+                if team.member1 not in overlapping_crew:
+                    overlapping_crew[team.member1] = []
+                overlapping_crew[team.member1].append(team)
+            if team.member2 is not None:
+                if team.member2 not in overlapping_crew:
+                    overlapping_crew[team.member2] = []
+                overlapping_crew[team.member2].append(team)
         used_teams = set()
         next_aircraft_available = {}
         next_tracker_available = {}
