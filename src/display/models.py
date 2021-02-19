@@ -275,7 +275,7 @@ class Contest(models.Model):
     )
     summary_score_sorting_direction = models.CharField(default=ASCENDING, choices=SORTING_DIRECTION,
                                                        help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
-                                                       max_length=50)
+                                                       max_length=50, blank=True)
     name = models.CharField(max_length=100, unique=True)
     time_zone = TimeZoneField()
     latitude = models.FloatField(default=0, help_text="Approximate location of contest, used for global map display",
