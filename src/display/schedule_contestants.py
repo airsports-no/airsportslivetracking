@@ -10,7 +10,7 @@ from display.models import NavigationTask, ContestTeam, Contestant
 
 def schedule_and_create_contestants(navigation_task: NavigationTask, contest_teams_pks: List[int],
                                     tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
-                                    tracker_switch_time: int, minimum_start_interval: int,
+                                    tracker_switch_time: int, minimum_start_interval: int, crew_switch_time: int,
                                     optimise: bool = False) -> bool:
     contest_teams = []
     final_waypoint = navigation_task.route.waypoints[-1]
@@ -34,13 +34,15 @@ def schedule_and_create_contestants(navigation_task: NavigationTask, contest_tea
         duration = datetime.timedelta(minutes=minutes_to_starting_point + minutes_to_landing) + gate_times[-1][1]
         team_data.append(
             TeamDefinition(contest_team.pk, duration.total_seconds() / 60, contest_team.get_tracker_id(),
-                           contest_team.tracking_service, contest_team.team.aeroplane.registration))
+                           contest_team.tracking_service, contest_team.team.aeroplane.registration,
+                           contest_team.team.crew.member1.pk if contest_team.team.crew.member1 else None,
+                           contest_team.team.crew.member2.pk if contest_team.team.crew.member2 else None))
     print("Initiating solver")
     solver = Solver(navigation_task.start_time,
                     int((navigation_task.finish_time - navigation_task.start_time).total_seconds() / 60), team_data,
                     minimum_start_interval=minimum_start_interval, aircraft_switch_time=aircraft_switch_time_minutes,
                     tracker_start_lead_time=tracker_leadtime_minutes, tracker_switch_time=tracker_switch_time,
-                    optimise=optimise)
+                    crew_switch_time=crew_switch_time, optimise=optimise)
     print("Running solver")
     team_definitions = solver.schedule_teams()
     if len(team_definitions) == 0:

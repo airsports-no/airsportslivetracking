@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 import numpy as np
 import pulp as pulp
 
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class TeamDefinition:
     def __init__(self, pk: int, flight_time: float, tracker_id: str, tracker_service: str,
-                 aircraft_registration: str):
+                 aircraft_registration: str, member1: Optional[int], member2: Optional[int]):
         """
 
         :param pk:
@@ -18,6 +18,8 @@ class TeamDefinition:
         :param flight_time: decimal_minutes
         :param tracker_id:
         :param tracker_service:
+        :param member1: Key of crewmember or None
+        :param member2: Key of crewmember or None
         :param aircraft_registration:
         """
         self.pk = pk
@@ -25,6 +27,8 @@ class TeamDefinition:
         self.tracker_id = tracker_id
         self.tracker_service = tracker_service
         self.aircraft_registration = aircraft_registration
+        self.member1 = member1
+        self.member2 = member2
         self.start_time = None
         self.start_slot = None
 
@@ -34,8 +38,9 @@ class TeamDefinition:
 
 class Solver:
     def __init__(self, first_takeoff_time: datetime.datetime, contest_duration: int, teams: List[TeamDefinition],
-                 minimum_start_interval: int = 5, aircraft_switch_time: int = 0,
-                 tracker_switch_time: int = 5, tracker_start_lead_time: int = 0, optimise: bool = False):
+                 minimum_start_interval: int = 5, aircraft_switch_time: int = 20,
+                 tracker_switch_time: int = 5, tracker_start_lead_time: int = 0, crew_switch_time: int = 20,
+                 optimise: bool = False):
         self.first_takeoff_time = first_takeoff_time
         self.teams = teams
         self.team_map = {team.pk: team for team in teams}
@@ -46,6 +51,7 @@ class Solver:
         self.minimum_start_interval = int(np.ceil(minimum_start_interval / self.minutes_per_slot))
         self.aircraft_switch_time = int(np.ceil(aircraft_switch_time / self.minutes_per_slot))
         self.tracker_switch_time = int(np.ceil(tracker_switch_time / self.minutes_per_slot))
+        self.crew_switch_time = int(np.ceil(crew_switch_time / self.minutes_per_slot))
         self.tracker_start_lead_time = int(np.ceil(tracker_start_lead_time / self.minutes_per_slot))
         self.very_large_variable = self.contest_duration ** 2
 
@@ -122,6 +128,7 @@ class Solver:
     def __create_obvious_solution(self):
         overlapping_trackers = {}
         overlapping_aircraft = {}
+        overlapping_crew = {}
         for team in self.teams:
             if team.get_tracker_id() not in overlapping_trackers:
                 overlapping_trackers[team.get_tracker_id()] = []
@@ -129,19 +136,31 @@ class Solver:
             if team.aircraft_registration not in overlapping_aircraft:
                 overlapping_aircraft[team.aircraft_registration] = []
             overlapping_aircraft[team.aircraft_registration].append(team)
+            if team.member1 is not None and team.member1 not in overlapping_crew:
+                overlapping_crew[team.member1] = []
+            overlapping_crew[team.member1].append(team)
+            if team.member2 is not None and team.member2 not in overlapping_crew:
+                overlapping_crew[team.member2] = []
+            overlapping_crew[team.member2].append(team)
         used_teams = set()
         next_aircraft_available = {}
         next_tracker_available = {}
+        next_crew_available = {}
 
         def get_next_possibility_for_team(team, earliest_slot):
-            return max(next_tracker_available.get(team.get_tracker_id(), earliest_slot), max(earliest_slot,
-                                                                                             next_aircraft_available.get(
-                                                                                                 team.aircraft_registration,
-                                                                                                 earliest_slot)))
+            return np.amax([
+                next_crew_available.get(team.member1, earliest_slot),
+                next_crew_available.get(team.member2, earliest_slot),
+                next_tracker_available.get(team.get_tracker_id(), earliest_slot),
+                next_aircraft_available.get(team.aircraft_registration, earliest_slot),
+                earliest_slot
+            ])
 
         for team in self.teams:
             team.priority = len(overlapping_trackers[team.get_tracker_id()]) * len(
-                overlapping_aircraft[team.aircraft_registration])
+                overlapping_aircraft[team.aircraft_registration]) * len(
+                overlapping_crew.get(team.member1, [1])) * len(
+                overlapping_crew.get(team.member2, [1]))
         current_slot = 0
         latest_finish = 0
         while len(used_teams) < len(self.teams):
@@ -164,6 +183,12 @@ class Solver:
                             team.aircraft_registration] = next_available + team.flight_time + self.aircraft_switch_time
                         next_tracker_available[
                             team.get_tracker_id()] = next_available + team.flight_time + self.tracker_switch_time + self.tracker_start_lead_time
+                        if team.member1 is not None:
+                            next_crew_available[
+                                team.member1] = next_available + team.flight_time + self.crew_switch_time
+                        if team.member2 is not None:
+                            next_crew_available[
+                                team.member2] = next_available + team.flight_time + self.crew_switch_time
                         self.start_slot_numbers[f"{team.pk}"].setInitialValue(next_available)
                         current_slot = next_available + self.minimum_start_interval
                         break

@@ -526,7 +526,7 @@ def add_contest_teams_to_navigation_task(request, pk):
         if form.is_valid():
             if not schedule_and_create_contestants(navigation_task,
                                                    [int(item) for item in form.cleaned_data["contest_teams"]], 5,
-                                                   30, 15, 5, optimise=form.cleaned_data.get("optimise", False)):
+                                                   30, 15, 5, 15, optimise=form.cleaned_data.get("optimise", False)):
                 messages.error(request, "Optimisation failed")
             else:
                 messages.success(request, "Optimisation successful")
