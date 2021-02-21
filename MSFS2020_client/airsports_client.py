@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 import requests
 from SimConnect import *
 
-TRACKING_ID = ""
+TRACKING_ID = "qwerty"
 
 # Create SimConnect link
 sm = SimConnect()

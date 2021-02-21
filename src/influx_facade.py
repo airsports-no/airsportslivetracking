@@ -24,7 +24,7 @@ dbname = "airsport"
 password = "notsecret"
 
 logger = logging.getLogger(__name__)
-GLOBAL_TRANSMISSION_INTERVAL = 30
+GLOBAL_TRANSMISSION_INTERVAL = 5
 PURGE_GLOBAL_MAP_INTERVAL = 1200
 
 
