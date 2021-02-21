@@ -222,10 +222,14 @@ def build_waypoint(name, latitude, longitude, type, width, time_check, gate_chec
 def extract_additional_features_from_kml_features(features: Dict, route: Route):
     takeoff_gate_line = features.get("to")
     if takeoff_gate_line is not None:
+        if len(takeoff_gate_line) != 2:
+            raise ValidationError("Take-off gate should have exactly 2 points")
         route.takeoff_gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
         route.takeoff_gate.gate_line = takeoff_gate_line
     landing_gate_line = features.get("ldg")
     if landing_gate_line is not None:
+        if len(landing_gate_line) != 2:
+            raise ValidationError("Landing gate should have exactly 2 points")
         route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
         route.landing_gate.gate_line = landing_gate_line
     route.save()

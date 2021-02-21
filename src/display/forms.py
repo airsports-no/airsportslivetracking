@@ -175,7 +175,6 @@ class ANRCorridorScoreOverrideForm(forms.Form):
             )
         )
 
-        self.helper.add_input(Submit("submit", "Submit"))
 
 
 class TaskTypeForm(forms.Form):
@@ -277,7 +276,7 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "is_public", "scorecard")
+        fields = ("name", "start_time", "finish_time", "is_public", "scorecard", "minutes_to_starting_point", "minutes_to_landing")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
