@@ -57,12 +57,12 @@ class AnrCorridorCalculator(Calculator):
     def build_polygon(self):
         points = []
         for waypoint in self.contestant.navigation_task.route.waypoints:
-            if self.contestant.navigation_task.route.rounded_corners:
+            if self.contestant.navigation_task.route.rounded_corners and waypoint.left_corridor_line is not None:
                 points.extend(waypoint.left_corridor_line)
             else:
                 points.append(waypoint.gate_line[0])
         for waypoint in reversed(self.contestant.navigation_task.route.waypoints):
-            if self.contestant.navigation_task.route.rounded_corners:
+            if self.contestant.navigation_task.route.rounded_corners and waypoint.right_corridor_line is not None:
                 points.extend(list(reversed(waypoint.right_corridor_line)))
             else:
                 points.append(waypoint.gate_line[1])
