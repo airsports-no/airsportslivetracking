@@ -1,6 +1,8 @@
+import matplotlib.pyplot as plt
 import logging
 from typing import List, Callable
 import numpy as np
+from cartopy.io.img_tiles import OSM
 from shapely.geometry import Polygon, Point
 
 import cartopy.crs as ccrs
@@ -53,6 +55,7 @@ class AnrCorridorCalculator(Calculator):
         self.pc = ccrs.PlateCarree()
         self.epsg = ccrs.epsg(3857)
         self.track_polygon = self.build_polygon()
+        self.plot_polygon()
 
     def build_polygon(self):
         points = []
@@ -68,8 +71,18 @@ class AnrCorridorCalculator(Calculator):
                 points.append(waypoint.gate_line[1])
         points = np.array(points)
         print(points.shape)
-        transformed_points = self.epsg.transform_points(self.pc, points[:, 0], points[:, 1])
+        print(points)
+        transformed_points = self.epsg.transform_points(self.pc, points[:, 1], points[:, 0])
         return Polygon(transformed_points)
+
+    def plot_polygon(self):
+        # imagery = OSM()
+        ax = plt.axes(projection=self.epsg)
+        # ax.add_image(imagery, 8)
+        ax.set_aspect("auto")
+        ax.plot(self.track_polygon.boundary.xy[0],self.track_polygon.boundary.xy[1])
+        ax.add_geometries([self.track_polygon], crs=self.epsg, facecolor="blue", alpha=0.4)
+        plt.savefig("polygon.png", dpi=100)
 
     def _check_inside_polygon(self, latitude, longitude) -> bool:
         """

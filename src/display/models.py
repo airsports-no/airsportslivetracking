@@ -1001,8 +1001,10 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         try:
             original = Person.objects.get(pk=instance.pk)
             original_tracking_id = original.app_tracking_id
+            simulator_original_tracking_id = original.simulator_tracking_id
         except ObjectDoesNotExist:
             original_tracking_id = None
+            simulator_original_tracking_id = None
         traccar = get_traccar_instance()
         app_random_string = "SHOULD_NOT_BE_HERE"
         simulator_random_string = "SHOULD_NOT_BE_HERE"
@@ -1023,6 +1025,13 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
             if original_device is not None:
                 logger.info(f"Clearing original device {original_device}")
                 traccar.delete_device(original_device["id"])
+        device, created = traccar.get_or_create_device(instance.app_aircraft_registration + "_simulator", instance.simulator_tracking_id)
+        logger.info(f"Traccar device {device} was created: {created}")
+        if created and simulator_original_tracking_id is not None and simulator_original_tracking_id != instance.simulator_tracking_id:
+            original_device = traccar.get_device(simulator_original_tracking_id)
+            if original_device is not None:
+                logger.info(f"Clearing original device {original_device}")
+                traccar.delete_device(original_device["id"])
 
 
 @receiver(pre_delete, sender=Person)
@@ -1030,5 +1039,10 @@ def delete_personal_tracker(sender, instance: Person, **kwargs):
     if instance.app_tracking_id is not None:
         traccar = get_traccar_instance()
         original_device = traccar.get_device(instance.app_tracking_id)
+        if original_device is not None:
+            traccar.delete_device(original_device["id"])
+    if instance.simulator_tracking_id is not None:
+        traccar = get_traccar_instance()
+        original_device = traccar.get_device(instance.simulator_tracking_id)
         if original_device is not None:
             traccar.delete_device(original_device["id"])
