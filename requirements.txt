@@ -54,3 +54,4 @@ django-multiselectfield
 pulp
 drf-firebase-auth
 django-use-email-as-username
+SimConnect

@@ -54,7 +54,12 @@ class PersonAdmin(admin.ModelAdmin):
     def app_tracking_id(self, instance):
         return str(instance.app_tracking_id)
 
-    app_tracking_id.short_description = "Tracking ID"
+    def simulator_tracking_id(self, instance):
+        return str(instance.simulator_tracking_id)
+
+
+    app_tracking_id.short_description = "App tracking ID"
+    simulator_tracking_id.short_description = "Simulator tracking ID"
 
 
 class ContestAdmin(GuardedModelAdmin):
