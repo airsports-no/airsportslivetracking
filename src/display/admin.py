@@ -49,14 +49,13 @@ class NavigationTaskAdmin(admin.ModelAdmin):
 
 
 class PersonAdmin(admin.ModelAdmin):
-    readonly_fields = ("app_tracking_id",)
+    readonly_fields = ("app_tracking_id", "simulator_tracking_id")
 
     def app_tracking_id(self, instance):
         return str(instance.app_tracking_id)
 
     def simulator_tracking_id(self, instance):
         return str(instance.simulator_tracking_id)
-
 
     app_tracking_id.short_description = "App tracking ID"
     simulator_tracking_id.short_description = "Simulator tracking ID"
