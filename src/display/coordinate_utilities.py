@@ -331,7 +331,7 @@ def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tu
     :param corridor_width: The width of the corridor NM
     :paramcorner_degrees: The number of degrees for the turn
     :param bisecting_line: The line that bisects the middle of the turn
-    :return: List of points that make up the left-hand corridor line, list of points that make up the right-hand corridor line
+    :return: List of points that make up the left-hand corridor line, list of points that make up the right-hand corridor line (lon, lat)
     """
     if corner_degrees == 0:
         return [bisecting_line[0]], [bisecting_line[1]]
@@ -454,7 +454,7 @@ def create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3,
     :param x3:
     :param y3:
     :param length: metres
-    :return:
+    :return: lon, lat
     """
     l1 = np.array([x1, y1])
     l2 = np.array([x2, y2])

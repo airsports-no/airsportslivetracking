@@ -56,12 +56,16 @@ class AnrCorridorCalculator(Calculator):
 
     def build_polygon(self):
         points = []
-
         for waypoint in self.contestant.navigation_task.route.waypoints:
-            # latitude, longitude, so reverse
-            points.append(list(reversed(waypoint.gate_line[0])))
+            if self.contestant.navigation_task.route.rounded_corners:
+                points.append(waypoint.left_corridor_line)
+            else:
+                points.append(waypoint.gate_line[0])
         for waypoint in reversed(self.contestant.navigation_task.route.waypoints):
-            points.append(list(reversed(waypoint.gate_line[1])))
+            if self.contestant.navigation_task.route.rounded_corners:
+                points.append(waypoint.right_corridor_line)
+            else:
+                points.append(waypoint.gate_line[1])
         points = np.array(points)
         print(points.shape)
         transformed_points = self.epsg.transform_points(self.pc, points[:, 0], points[:, 1])
