@@ -58,12 +58,12 @@ class AnrCorridorCalculator(Calculator):
         points = []
         for waypoint in self.contestant.navigation_task.route.waypoints:
             if self.contestant.navigation_task.route.rounded_corners:
-                points.append(waypoint.left_corridor_line)
+                points.extend(waypoint.left_corridor_line)
             else:
                 points.append(waypoint.gate_line[0])
         for waypoint in reversed(self.contestant.navigation_task.route.waypoints):
             if self.contestant.navigation_task.route.rounded_corners:
-                points.append(waypoint.right_corridor_line)
+                points.extend(list(reversed(waypoint.right_corridor_line)))
             else:
                 points.append(waypoint.gate_line[1])
         points = np.array(points)
