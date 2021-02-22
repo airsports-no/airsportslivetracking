@@ -279,6 +279,7 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
     for index, waypoint in enumerate(route.waypoints):
         ys, xs = np.array(waypoint.gate_line).T
         bearing = waypoint_bearing(waypoint, index)
+
         if waypoint.type in ("sp", "fp"):
             plot_waypoint_name(route, waypoint, bearing, annotations, False, contestant, character_padding=5)
         if route.rounded_corners and waypoint.left_corridor_line is not None:
@@ -289,6 +290,8 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
             inner_track.append(waypoint.gate_line[0])
             outer_track.append(waypoint.gate_line[1])
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
+            plot_minute_marks(waypoint, contestant, route.waypoints, index, mark_offset=4,
+                              line_width_nm=contestant.navigation_task.scorecard.get_corridor_width(contestant)*2)
             plot_leg_bearing(waypoint, route.waypoints[index + 1], 2, 10)
         print(inner_track)
     path = np.array(inner_track)
@@ -298,6 +301,32 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
     ys, xs = path.T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
     return path
+
+
+def plot_minute_marks(waypoint: Waypoint, contestant: Contestant, track, index, mark_offset=1,
+                      line_width_nm: float = 0.5):
+    gate_start_time = contestant.gate_times.get(waypoint.name)
+    if waypoint.is_procedure_turn:
+        gate_start_time += datetime.timedelta(minutes=1)
+    minute_lines = create_minute_lines((waypoint.latitude, waypoint.longitude),
+                                       (track[index + 1].latitude, track[index + 1].longitude),
+                                       contestant.air_speed, contestant.wind_speed,
+                                       contestant.wind_direction,
+                                       gate_start_time,
+                                       contestant.gate_times.get(track[0].name), line_width_nm=line_width_nm)
+    for mark_line, line_position, timestamp in minute_lines:
+        xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat
+        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+        time_format = "%M"
+        if timestamp.second != 0:
+            time_format = "%M:%S"
+        time_string = timestamp.strftime(time_format)
+        text = "\n" + " " * mark_offset + " " * len(time_string) + time_string
+        plt.text(line_position[1], line_position[0], text, verticalalignment="center",
+                 color="blue",
+                 horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8,
+                 rotation=-waypoint.bearing_next,
+                 linespacing=2, family="monospace")
 
 
 def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoints_only: bool, annotations: bool):
@@ -323,28 +352,7 @@ def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoin
                     if index < len(track) - 1:
                         if annotations:
                             plot_leg_bearing(waypoint, track[index + 1])
-                            gate_start_time = contestant.gate_times.get(waypoint.name)
-                            if waypoint.is_procedure_turn:
-                                gate_start_time += datetime.timedelta(minutes=1)
-                            minute_lines = create_minute_lines((waypoint.latitude, waypoint.longitude),
-                                                               (track[index + 1].latitude, track[index + 1].longitude),
-                                                               contestant.air_speed, contestant.wind_speed,
-                                                               contestant.wind_direction,
-                                                               gate_start_time,
-                                                               contestant.gate_times.get(track[0].name))
-                            for mark_line, line_position, timestamp in minute_lines:
-                                xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat
-                                plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
-                                time_format = "%M"
-                                if timestamp.second != 0:
-                                    time_format = "%M:%S"
-                                time_string = timestamp.strftime(time_format)
-                                text = "\n " + " " * len(time_string) + time_string
-                                plt.text(line_position[1], line_position[0], text, verticalalignment="center",
-                                         color="blue",
-                                         horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8,
-                                         rotation=-waypoint.bearing_next,
-                                         linespacing=2, family="monospace")
+                            plot_minute_marks(waypoint, contestant, track, index)
 
             if waypoint.is_procedure_turn:
                 line.extend(waypoint.procedure_turn_points)
