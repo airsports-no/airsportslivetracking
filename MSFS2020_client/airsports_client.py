@@ -14,18 +14,23 @@ print("Got link")
 aq = AircraftRequests(sm, _time=2000)
 print("Created aircraft requests")
 
-def send(id, time, lat, lon, speed):
-    params = (('id', id), ('timestamp', int(time)), ('lat', lat), ('lon', lon), ('speed', speed))
+
+def send(id, time, lat, lon, speed, altitude):
+    params = (
+    ('id', id), ('timestamp', int(time)), ('lat', lat), ('lon', lon), ('speed', speed), ('altitude', altitude))
     print(f"Posting position: {params}")
-    response=requests.post("https://traccar.airsports.no/?" + urlencode(params))
+    response = requests.post("https://traccar.airsports.no/?" + urlencode(params))
     print(response.status_code)
     print(response.text)
 
 
 while True:
+    altitude = aq.get("PLANE_ALTITUDE")
     latitude = aq.get("PLANE_LATITUDE")
     longitude = aq.get("PLANE_LONGITUDE")
+    velocity = aq.get("GROUND_VELOCITY")
     now = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc)
     print(now)
-    send(TRACKING_ID, time.mktime(now.timetuple()), latitude, longitude, 0)
+    if longitude != 0 and latitude != 0:
+        send(TRACKING_ID, time.mktime(now.timetuple()), latitude, longitude, velocity, altitude)
     time.sleep(2)
