@@ -240,6 +240,8 @@ class GatekeeperRoute(Gatekeeper):
             self.track_terminated = True
         if not already_terminated and self.track_terminated:
             self.miss_outstanding_gates()
+        if self.track_terminated:
+            self.contestant.contestanttrack.set_calculator_finished()
 
     def calculate_gate_score(self):
         index = 0

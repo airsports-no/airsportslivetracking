@@ -813,17 +813,17 @@ class Contestant(models.Model):
         try:
             # Device belongs to contestant from 30 minutes before takeoff
             return cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
-                                   finished_by_time__gte=stamp)
+                                   finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
         except ObjectDoesNotExist:
             try:
                 return cls.objects.get(Q(team__crew__member1__app_tracking_id=device) | Q(
                     team__crew__member1__simulator_tracking_id=device), tracker_start_time__lte=stamp,
-                                       finished_by_time__gte=stamp)
+                                       finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
             except ObjectDoesNotExist:
                 try:
                     return cls.objects.get(Q(team__crew__member2__app_tracking_id=device) | Q(
                         team__crew__member2__simulator_tracking_id=device), tracker_start_time__lte=stamp,
-                                           finished_by_time__gte=stamp)
+                                           finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
                 except ObjectDoesNotExist:
                     return None
 
@@ -1025,7 +1025,8 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
             if original_device is not None:
                 logger.info(f"Clearing original device {original_device}")
                 traccar.delete_device(original_device["id"])
-        device, created = traccar.get_or_create_device(instance.app_aircraft_registration + "_simulator", instance.simulator_tracking_id)
+        device, created = traccar.get_or_create_device(instance.app_aircraft_registration + "_simulator",
+                                                       instance.simulator_tracking_id)
         logger.info(f"Traccar device {device} was created: {created}")
         if created and simulator_original_tracking_id is not None and simulator_original_tracking_id != instance.simulator_tracking_id:
             original_device = traccar.get_device(simulator_original_tracking_id)
