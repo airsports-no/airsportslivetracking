@@ -17,16 +17,17 @@ def send(id, time, lat, lon, speed, altitude):
     print(response.text)
 
 
-if __name__ == "__main__":
+def run():
     failed = True
     while failed:
         failed = False
         try:
             # Create SimConnect link
             sm = SimConnect()
-        except:
+        except ConnectionError:
             print("Failed connecting")
-            failed = True
+            return
+            # failed = True
     print("Got link")
     # Note the default _time is 2000 to be refreshed every 2 seconds
     aq = AircraftRequests(sm, _time=2000)
@@ -42,3 +43,7 @@ if __name__ == "__main__":
         if longitude != 0 and latitude != 0:
             send(TRACKING_ID, time.mktime(now.timetuple()), latitude, longitude, velocity, altitude)
         time.sleep(2)
+
+
+if __name__ == "__main__":
+    run()
