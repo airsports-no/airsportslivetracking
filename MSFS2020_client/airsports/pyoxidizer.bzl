@@ -156,10 +156,10 @@ def make_exe(dist):
     # python_config.run_command = "<code>"
 
     # Run a Python module as __main__ when the interpreter starts.
-    # python_config.run_module = "<module>"
+    python_config.run_module = "client.airsports_client"
 
     # Run a Python file when the interpreter starts.
-    python_config.run_filename = "C:\Users\frank\Documents\live_tracking_map\MSFS2020_client\airsports_client.py"
+    # python_config.run_filename = "C:\Users\frank\Documents\live_tracking_map\MSFS2020_client\airsports_client.py"
 
     # Produce a PythonExecutable from a Python distribution, embedded
     # resources, and other options. The returned object represents the
@@ -207,15 +207,12 @@ def make_exe(dist):
         resource.add_location = "filesystem-relative:lib"
         exe.add_python_resource(resource)
 
-    return exe
-
     # Read Python files from a local directory and add them to our embedded
     # context, taking just the resources belonging to the `foo` and `bar`
     # Python packages.
-    #exe.add_python_resources(exe.read_package_root(
-    #    path="/src/mypackage",
-    #    packages=["foo", "bar"],
-    #))
+    exe.add_python_resources(exe.pip_install(
+        ["C:\\Users\\frank\\Documents\\live_tracking_map\\MSFS2020_client\\dist\\airsports_client-0.0.1-py2.py3-none-any.whl"]
+    ))
 
     # Discover Python files from a virtualenv and add them to our embedded
     # context.

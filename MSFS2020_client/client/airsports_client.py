@@ -12,9 +12,12 @@ def send(id, time, lat, lon, speed, altitude):
     params = (
         ('id', id), ('timestamp', int(time)), ('lat', lat), ('lon', lon), ('speed', speed), ('altitude', altitude))
     print(f"Posting position: {params}")
-    response = requests.post("https://traccar.airsports.no/?" + urlencode(params))
-    print(response.status_code)
-    print(response.text)
+    try:
+        response = requests.post("https://traccar.airsports.no/?" + urlencode(params))
+        print(response.status_code)
+        print(response.text)
+    except:
+        print("Sending failed")
 
 
 def run():
