@@ -203,14 +203,13 @@ def make_exe(dist):
     # to our binary.
     # exe.add_python_resources(exe.pip_install(["-r", "../requirements.txt"]))
 
-    for resource in exe.pip_install(["SimConnect", "requests"]):
+    for resource in exe.pip_install(["SimConnect", "requests","pysimplegui","cryptography","pycryptodome"]):
         resource.add_location = "filesystem-relative:lib"
         exe.add_python_resource(resource)
 
 
-    for resource in exe.pip_install(["SimConnect", "requests"]):
-        resource.add_location = "filesystem-relative:lib"
-        exe.add_python_resource(resource)
+#    for resource in exe.pip_install(["pyrebase4", "pysimplegui"]):
+#        exe.add_python_resource(resource)
 
     # Read Python files from a local directory and add them to our embedded
     # context, taking just the resources belonging to the `foo` and `bar`
