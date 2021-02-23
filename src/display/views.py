@@ -1112,7 +1112,7 @@ class UserPersonViewSet(GenericViewSet):
     serializer_class = PersonSerialiser
 
     def get_object(self):
-        instance = self.get_queryset().first()
+        instance = self.get_queryset()
         if instance is None:
             raise Http404
         return instance
