@@ -159,6 +159,9 @@ class GatekeeperRoute(Gatekeeper):
                         self.takeoff_gate.missed = True
                     logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
                     self.starting_line.infinite_passing_time = intersection_time
+                    # Starting point and starting line are the same place, so if we have not passed the starting point
+                    # within a few seconds of intersection time, then the starting point gate is missed.
+                    self.outstanding_gates[0].maybe_missed_time = intersection_time
                     # Recalculate gate times if adaptive
                     if self.contestant.adaptive_start:
                         self.recalculate_gates_times_from_start_time(round_time(intersection_time))
@@ -209,7 +212,7 @@ class GatekeeperRoute(Gatekeeper):
                     extended_next_gate.maybe_missed_time = self.track[-1].time
         if len(self.outstanding_gates) > 0:
             gate = self.outstanding_gates[0]
-            time_limit = 2
+            time_limit = 5
             if gate.maybe_missed_time and (self.track[-1].time - gate.maybe_missed_time).total_seconds() > time_limit:
                 logger.info("{} {}: Did not cross {} within {} seconds of infinite crossing, so missing gate".format(
                     self.contestant, self.track[-1].time,
