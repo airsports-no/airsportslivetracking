@@ -1,2 +1,4 @@
 SimConnect
 requests
+pyrebase4
+pysimplegui
