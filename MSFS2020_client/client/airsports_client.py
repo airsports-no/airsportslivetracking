@@ -1,7 +1,9 @@
 import datetime
+import json
 import math
 import threading
 import time
+from locale import setlocale, LC_CTYPE
 from typing import Dict
 from urllib.parse import urlencode
 import PySimpleGUIWx as sg
@@ -11,6 +13,8 @@ import requests
 from requests import HTTPError
 
 from client.my_firebase import initialize_app
+
+setlocale(LC_CTYPE, "")
 
 currently_tracking = False
 
@@ -127,7 +131,12 @@ class User:
             # window["PROFILE_IMAGE"].update(data=fetch_profile_image_data(profile["picture"]))
         except HTTPError as e:
             # print(e)
-            sg.popup(str(e))
+            try:
+                error = json.loads(e.strerror)
+                message = error["error"]["message"]
+            except:
+                message = str(e)
+            sg.popup(message)
         except MissingEmailVerificationError:
             window["RESEND_VERIFICATION"].update(disabled=False)
             sg.popup("Email address is not verified, please check your inbox")
@@ -149,7 +158,12 @@ class User:
             return True
         except HTTPError as e:
             # print(e)
-            sg.popup(str(e))
+            try:
+                error = json.loads(e.strerror)
+                message = error["error"]["message"]
+            except:
+                message = str(e)
+            sg.popup(message)
         return False
 
     def save_profile(self, window):
