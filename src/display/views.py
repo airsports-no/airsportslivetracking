@@ -910,6 +910,8 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             member1 = get_object_or_404(Person, pk=existing_member_one_data["person_id"])
         else:
             member1 = form_dict["member1create"].save()
+            member1.validated = True
+            member1.save()
 
         member_two_search = self.get_post_data_for_step("member2search")
         member_two_skip = member_two_search.get("skip_copilot") is not None
@@ -920,6 +922,8 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
                 member2 = Person.objects.get(pk=existing_member_two_data["person_id"])
             else:
                 member2 = form_dict["member2create"].save()
+                member2.validated = True
+                member2.save()
         else:
             member2 = None
         crew, _ = Crew.objects.get_or_create(member1=member1, member2=member2)
