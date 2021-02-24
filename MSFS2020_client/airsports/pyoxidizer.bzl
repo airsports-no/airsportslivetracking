@@ -203,7 +203,7 @@ def make_exe(dist):
     # to our binary.
     # exe.add_python_resources(exe.pip_install(["-r", "../requirements.txt"]))
 
-    for resource in exe.pip_install(["SimConnect", "requests","pysimplegui", "httplib2", "oauth2client", "requests_toolbelt"]):
+    for resource in exe.pip_install(["SimConnect", "requests","pysimpleguiwx", "httplib2", "oauth2client", "requests_toolbelt"]):
         resource.add_location = "filesystem-relative:lib"
         exe.add_python_resource(resource)
 
@@ -217,7 +217,7 @@ def make_exe(dist):
     exe.add_python_resources(exe.pip_install(
         ["C:\\Users\\frank\\Documents\\live_tracking_map\\MSFS2020_client\\dist\\airsports_client-0.0.1-py2.py3-none-any.whl"]
     ))
-
+    exe.tcl_files_path = "lib"
     # Discover Python files from a virtualenv and add them to our embedded
     # context.
     #exe.add_python_resources(exe.read_virtualenv(path="/path/to/venv"))

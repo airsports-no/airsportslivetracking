@@ -61,6 +61,7 @@ class TraccarCredentials(SingletonModel):
 
 
 class MyUser(BaseUser, GuardianUserMixin):
+    username = models.CharField(max_length=50, default = "not_applicable")
     objects = BaseUserManager()
 
 
@@ -812,20 +813,25 @@ class Contestant(models.Model):
     def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):
         try:
             # Device belongs to contestant from 30 minutes before takeoff
-            return cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
+            contestant =  cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
                                    finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
         except ObjectDoesNotExist:
             try:
-                return cls.objects.get(Q(team__crew__member1__app_tracking_id=device) | Q(
+                contestant =  cls.objects.get(Q(team__crew__member1__app_tracking_id=device) | Q(
                     team__crew__member1__simulator_tracking_id=device), tracker_start_time__lte=stamp,
                                        finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
             except ObjectDoesNotExist:
                 try:
-                    return cls.objects.get(Q(team__crew__member2__app_tracking_id=device) | Q(
+                    contestant =  cls.objects.get(Q(team__crew__member2__app_tracking_id=device) | Q(
                         team__crew__member2__simulator_tracking_id=device), tracker_start_time__lte=stamp,
                                            finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
                 except ObjectDoesNotExist:
                     return None
+        # Only allow contestants with validated team members compete
+        if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
+            if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
+                return contestant
+        return None
 
 
 CONTESTANT_CACHE_KEY = "contestant"
