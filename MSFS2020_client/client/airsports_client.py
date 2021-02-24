@@ -26,6 +26,8 @@ authenticator = firebase.auth()
 # TRACKING_ID = "Ia4oiwa1lxFfjJR9cKorkOpn5o9V"  # Jonas app
 tracking_event = threading.Event()
 
+class MissingEmailVerificationError(Exception):
+    pass
 
 def load_tracking_id():
     with open("client.cfg", "r") as i:
@@ -149,6 +151,11 @@ if __name__ == "__main__":
             try:
                 user = authenticator.sign_in_with_email_and_password(values["EMAIL"], values["PASSWORD"])
                 print(user)
+                user_account = authenticator.get_account_info(user["idToken"])
+                print(user_account)
+                user_account = user_account["users"][0]
+                if not user_account["emailVerified"]:
+                    raise MissingEmailVerificationError("User email is not verified")
                 profile = fetch_profile(user)
                 window["Login"].update(disabled=True)
                 window["Signup"].update(disabled=True)
@@ -162,6 +169,9 @@ if __name__ == "__main__":
             except HTTPError as e:
                 print(e)
                 sg.popup(str(e))
+            except MissingEmailVerificationError:
+                user = None
+                sg.popup("Email address is not verified, please check your inbox")
         if event == "Signup":
             try:
                 new_user = authenticator.create_user_with_email_and_password(values["EMAIL"], values["PASSWORD"])

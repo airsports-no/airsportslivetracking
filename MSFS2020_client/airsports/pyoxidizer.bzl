@@ -203,7 +203,7 @@ def make_exe(dist):
     # to our binary.
     # exe.add_python_resources(exe.pip_install(["-r", "../requirements.txt"]))
 
-    for resource in exe.pip_install(["SimConnect", "requests","pysimplegui","cryptography","pycryptodome"]):
+    for resource in exe.pip_install(["SimConnect", "requests","pysimplegui", "httplib2", "oauth2client", "requests_toolbelt"]):
         resource.add_location = "filesystem-relative:lib"
         exe.add_python_resource(resource)
 

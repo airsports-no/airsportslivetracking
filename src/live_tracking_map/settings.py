@@ -73,7 +73,8 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
 DRF_FIREBASE_AUTH = {
-    "FIREBASE_SERVICE_ACCOUNT_KEY": "/secret/airsports-firebase-admin.json"
+    "FIREBASE_SERVICE_ACCOUNT_KEY": "/secret/airsports-firebase-admin.json",
+    'FIREBASE_AUTH_EMAIL_VERIFICATION': True
 }
 
 MIDDLEWARE = [

@@ -1,10 +1,5 @@
-import datetime
 import json
 from oauth2client.service_account import ServiceAccountCredentials
-from requests.packages.urllib3.contrib.appengine import is_appengine_sandbox
-from requests_toolbelt.adapters import appengine
-import python_jwt as jwt
-from Crypto.PublicKey import RSA
 import requests
 from requests import HTTPError
 
@@ -32,13 +27,7 @@ class Firebase:
                 self.credentials = ServiceAccountCredentials.from_json_keyfile_name(config["serviceAccount"], scopes)
             if service_account_type is dict:
                 self.credentials = ServiceAccountCredentials.from_json_keyfile_dict(config["serviceAccount"], scopes)
-        if is_appengine_sandbox():
-            # Fix error in standard GAE environment
-            # is releated to https://github.com/kennethreitz/requests/issues/3187
-            # ProtocolError('Connection aborted.', error(13, 'Permission denied'))
-            adapter = appengine.AppEngineAdapter(max_retries=3)
-        else:
-            adapter = requests.adapters.HTTPAdapter(max_retries=3)
+        adapter = requests.adapters.HTTPAdapter(max_retries=3)
 
         for scheme in ('http://', 'https://'):
             self.requests.mount(scheme, adapter)
@@ -72,20 +61,6 @@ class Auth:
         raise_detailed_error(request_object)
         self.current_user = request_object.json()
         return request_object.json()
-
-    def create_custom_token(self, uid, additional_claims=None, expiry_minutes=60):
-        service_account_email = self.credentials.service_account_email
-        private_key = RSA.importKey(self.credentials._private_key_pkcs8_pem)
-        payload = {
-            "iss": service_account_email,
-            "sub": service_account_email,
-            "aud": "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
-            "uid": uid
-        }
-        if additional_claims:
-            payload["claims"] = additional_claims
-        exp = datetime.timedelta(minutes=expiry_minutes)
-        return jwt.generate_jwt(payload, private_key, "RS256", exp)
 
     def sign_in_with_custom_token(self, token):
         request_ref = "https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyCustomToken?key={0}".format(self.api_key)
