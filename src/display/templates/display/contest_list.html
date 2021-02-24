@@ -18,7 +18,8 @@
             {% get_obj_perms request.user for contest as "contest_permissions" %}
 
             <tr>
-                <td colspan="4"><span style="text-align: center"><h3>{{ contest.name }}</h3></span></td>
+                <td colspan="4"><span style="text-align: center"><h3>{{ contest.name }} {% if contest.is_public %}
+                    (public){% endif %}</h3></span></td>
                 {% if "change_contest" in contest_permissions %}
                     <td><a href="{% url 'contest_team_list' contest.pk %}">Team list</a> |
                         <a href="{% url 'navigationtaskwizard' contest.pk %}">New navigation task</a> | <a
@@ -29,11 +30,16 @@
             </tr>
             {% for object in contest.navigationtask_set.all %}
                 <tr>
-                    {% if "view_contest" in contest_permissions %}
-                        <td><a href="{% url 'navigationtask_detail' object.id %}">{{ object.name }}</a></td>
-                    {% else %}
-                        <td>{{ object.name }}</td>
-                    {% endif %}
+                    <td>
+                        {% if "view_contest" in contest_permissions %}
+                            <a href="{% url 'navigationtask_detail' object.id %}">{{ object.name }}</a>
+                        {% else %}
+                            {{ object.name }}
+                        {% endif %}
+                        {% if object.is_public %}
+                            (public{% if not contest.is_public %}, but contest is not{% endif %})
+                        {% endif %}
+                    </td>
                     <td>
                         {{ object.start_time|timezone:contest.time_zone|date:"Y-m-d H:i:s e" }}
                     </td>
