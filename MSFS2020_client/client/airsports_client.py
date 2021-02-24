@@ -73,6 +73,7 @@ def run(tracking_id, stamp_field):
     # print("Got link")
     # Note the default _time is 2000 to be refreshed every 2 seconds
     aq = AircraftRequests(sm, _time=2000)
+
     # print("Created aircraft requests")
 
     def transmit_position():
@@ -86,8 +87,8 @@ def run(tracking_id, stamp_field):
         velocity = aq.get("GROUND_VELOCITY")
         course = aq.get("PLANE_HEADING_DEGREES_TRUE")
         now = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc)
-        print(now)
-        stamp_field.update(str(now))
+        # print(now)
+        stamp_field.update("Latest position time: {}".format(now))
         if longitude != 0 and latitude != 0 and longitude is not None and latitude is not None:
             send(tracking_id, time.mktime(now.timetuple()), latitude, longitude, velocity, altitude, course)
         threading.Timer(2, transmit_position).start()
@@ -113,8 +114,10 @@ class User:
             window["RESEND_VERIFICATION"].update(disabled=True)
             window["UPDATE_FIRST_NAME"].update(disabled=False)
             window["UPDATE_LAST_NAME"].update(disabled=False)
+            window["UPDATE_AIRCRAFT_REGISTRATION"].update(disabled=False)
             window["FIRST_NAME"].update(self.profile["first_name"])
             window["LAST_NAME"].update(self.profile["last_name"])
+            window["AIRCRAFT_REGISTRATION"].update(self.profile["app_aircraft_registration"])
             progress_bar.update_bar(3)
             if self.profile['validated']:
                 window["START_TRACKING"].update(disabled=False)
@@ -190,8 +193,8 @@ def fetch_profile(user: Dict):
     response = requests.get("https://airsports.no/api/v1/userprofile/retrieve_profile/",
                             headers={'Authorization': "JWT {}".format(user['idToken'])}
                             )
-    print(response.status_code)
-    print(response.text)
+    # print(response.status_code)
+    # print(response.text)
     if response.status_code == 200:
         return response.json()
 
@@ -200,21 +203,23 @@ if __name__ == "__main__":
     user_object = User()
     authentication = [
         [sg.Text("Login or create new account")],
-        [sg.Text("Email"), sg.InputText(size=(30, 1), key="EMAIL")],
-        [sg.Text("Password"), sg.InputText(size=(30, 1), key="PASSWORD", password_char="*")],
+        [sg.Text("Email:"), sg.InputText(size=(30, 1), key="EMAIL")],
+        [sg.Text("Password:"), sg.InputText(size=(28, 1), key="PASSWORD", password_char="*")],
         [sg.Button("Login"), sg.Button("Signup"),
          sg.Button("Resend verification email", key="RESEND_VERIFICATION", disabled=True)],
         [sg.ProgressBar(max_value=3, orientation="h", size=(100, 20), key="LOGIN_PROGRESS")],
-        [sg.Button("Start tracking", key="START_TRACKING", disabled=True), sg.Text(size=(20, 1),key='TRANSMIT_TIME')],
+        [sg.Button("Start tracking", key="START_TRACKING", disabled=True), sg.Text(size=(20, 1), key='TRANSMIT_TIME')],
         [sg.Button("Stop tracking", key="STOP_TRACKING", disabled=True)],
         # [sg.HSeparator()],
         [sg.Button("Quit")],
     ]
     profile = [
-        [sg.Text("First name"), sg.Text(size=(30, 1), key="FIRST_NAME"),
+        [sg.Text("First name:"), sg.Text(size=(30, 1), key="FIRST_NAME"),
          sg.Button("Update", key="UPDATE_FIRST_NAME", disabled=True)],
-        [sg.Text("Last name"), sg.Text(size=(30, 1), key="LAST_NAME"),
+        [sg.Text("Last name:"), sg.Text(size=(30, 1), key="LAST_NAME"),
          sg.Button("Update", key="UPDATE_LAST_NAME", disabled=True)],
+        [sg.Text("Aircraft registration:"), sg.Text(size=(25, 1), key="AIRCRAFT_REGISTRATION"),
+         sg.Button("Update", key="UPDATE_AIRCRAFT_REGISTRATION", disabled=True)],
         [sg.Button("Save profile", key="SAVE_PROFILE", disabled=True)],
         # [sg.Image(key="PROFILE_IMAGE", size=(100, 100))]
 
@@ -234,6 +239,7 @@ if __name__ == "__main__":
     window["STOP_TRACKING"].update(disabled=True)
     window["UPDATE_FIRST_NAME"].update(disabled=True)
     window["UPDATE_LAST_NAME"].update(disabled=True)
+    window["UPDATE_AIRCRAFT_REGISTRATION"].update(disabled=True)
     window["SAVE_PROFILE"].update(disabled=True)
     progress_bar = window["LOGIN_PROGRESS"]
     profile = None
@@ -270,6 +276,13 @@ if __name__ == "__main__":
                                                                  default_text=user_object.profile["last_name"])
             window["LAST_NAME"].update(user_object.profile["last_name"])
             window["SAVE_PROFILE"].update(disabled=False)
+        if event == "UPDATE_AIRCRAFT_REGISTRATION":
+            user_object.profile["app_aircraft_registration"] = sg.popup_get_text("Aircraft registration",
+                                                                                 "Please update your aircraft registration",
+                                                                                 default_text=user_object.profile[
+                                                                                     "app_aircraft_registration"])
+            window["AIRCRAFT_REGISTRATION"].update(user_object.profile["app_aircraft_registration"])
+            window["SAVE_PROFILE"].update(disabled=False)
         if event == "SAVE_PROFILE":
             if user_object is not None:
                 if user_object.save_profile(window):
@@ -285,7 +298,8 @@ if __name__ == "__main__":
                 tracking_event.clear()
                 window["START_TRACKING"].update(disabled=True)
                 window["STOP_TRACKING"].update(disabled=False)
-                threading.Thread(target=run, args=(user_object.profile["simulator_tracking_id"],window["TRANSMIT_TIME"])).start()
+                threading.Thread(target=run,
+                                 args=(user_object.profile["simulator_tracking_id"], window["TRANSMIT_TIME"])).start()
             else:
                 sg.popup("Still tracking")
         if event == "STOP_TRACKING":
