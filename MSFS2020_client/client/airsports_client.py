@@ -56,7 +56,8 @@ def send(id, time, lat, lon, speed, altitude, course):
 def run(tracking_id, stamp_field):
     global currently_tracking
     currently_tracking = True
-    stamp_field.update("Connecting...")
+    connection_string = "Connecting to MSFS2020..."
+    stamp_field.update(connection_string)
     # print(f"Running with ID: '{tracking_id}'")
     failed = True
     while failed:
@@ -65,9 +66,8 @@ def run(tracking_id, stamp_field):
             # Create SimConnect link
             sm = SimConnect()
         except ConnectionError:
-            print("Failed connecting")
             currently_tracking = False
-            stamp_field.update("Connecting... failed")
+            stamp_field.update(connection_string + "failed")
             return
             # failed = True
     # print("Got link")
@@ -150,17 +150,20 @@ class User:
         return False
 
     def save_profile(self, window):
-        window["START_TRACKING"].update(disabled=False)
         # print("Saving profile")
         self.profile["validated"] = True
-        del self.profile["picture"]
+        try:
+            del self.profile["picture"]
+        except KeyError:
+            pass
         response = requests.put("https://airsports.no/api/v1/userprofile/update_profile/",
                                 headers={'Authorization': "JWT {}".format(self.user_token)},
                                 data=self.profile)
-        print(response.status_code)
-        print(response.text)
+        # print(response.status_code)
+        # print(response.text)
         if response.status_code == 200:
             return True
+        sg.popup(response.text)
         return False
 
 
@@ -270,9 +273,8 @@ if __name__ == "__main__":
         if event == "SAVE_PROFILE":
             if user_object is not None:
                 if user_object.save_profile(window):
+                    window["START_TRACKING"].update(disabled=False)
                     sg.popup("Success", "Profile saved successfully")
-                else:
-                    sg.popup("Failure", "Saving user profile failed")
             else:
                 sg.popup("Error", "You are not logged in")
         if event == "START_TRACKING":
