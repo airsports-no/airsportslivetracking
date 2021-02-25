@@ -10,14 +10,15 @@ from display.views import frontend_view_map, \
     TeamUpdateView, auto_complete_person_id, PersonUpdateView, PersonList, NavigationTaskUpdateView, \
     ContestTeamTrackingUpdate, manifest, \
     tracking_qr_code_view, get_contestant_map, get_navigation_task_map, add_contest_teams_to_navigation_task, \
-    clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map
+    clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map, ContestDetailView
 
 urlpatterns = [
     path('frontend/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
     path('token/renew', renew_token, name="renewtoken"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
-    path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),
+    path('contest/<int:pk>/', ContestDetailView.as_view(), name="contest_details"),
     path('contest/<int:pk>/delete/', ContestDeleteView.as_view(), name="contest_delete"),
+    path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
     path('navigationtask/<int:pk>/qr/', tracking_qr_code_view, name="navigationtask_qr"),
     path('navigationtask/<int:pk>/map/', get_navigation_task_map, name="navigationtask_map"),

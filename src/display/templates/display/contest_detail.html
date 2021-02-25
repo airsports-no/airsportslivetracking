@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load guardian_tags %}
+{% load tz %}
+{% block content %}
+    <H1>{{ object.name }}</H1>
+    {{ object.start_time|timezone:object.time_zone|date:"Y-m-d H:i:s e" }} -
+    {{ object.finish_time|timezone:object.time_zone|date:"Y-m-d H:i:s e" }}
+    <p>
+    {% get_obj_perms request.user for contest as "contest_permissions" %}
+
+    {% if "change_contest" in contest_permissions %}
+        <a href="{% url 'contest_team_list' object.pk %}">Team list</a> |
+        <a href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a> | <a
+            href="{% url 'contest_update' object.pk %}">update</a>
+        {% if "delete_contest" in contest_permissions %}
+            | <a href="{% url 'contest_delete' object.pk %}">delete</a>
+        {% endif %}{% endif %}
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Task</th>
+            <th>Start time</th>
+            <th>Finish time</th>
+            <th>Scorecard</th>
+        </tr>
+        </thead>
+        {% for navigation_task in object.navigationtask_set.all %}
+            <tr>
+                <td>
+                    {% if "view_contest" in contest_permissions %}
+                        <a href="{% url 'navigationtask_detail' navigation_task.id %}">{{ navigation_task.name }}</a>
+                    {% else %}
+                        {{ navigation_task.name }}
+                    {% endif %}
+                    {% if navigation_task.is_public %}
+                        (public{% if not contest.is_public %}, but contest is not{% endif %})
+                    {% endif %}
+                </td>
+                <td>
+                    {{ navigation_task.start_time|timezone:contest.time_zone|date:"Y-m-d H:i:s e" }}
+                </td>
+                <td>{{ navigation_task.finish_time|timezone:contest.time_zone|date:"Y-m-d H:i:s e" }}</td>
+                <td>{{ navigation_task.scorecard }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% if perms.display.add_contest %}
+        <a href="{% url 'contest_create' %}">New contest</a>
+        {% if user.is_superuser %}
+            | <a href="{% url 'person_list' %}">Person overview</a>
+        {% endif %}
+    {% endif %}
+{% endblock %}

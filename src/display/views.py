@@ -336,6 +336,9 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
         assign_perm("change_contest", self.request.user, instance)
         return HttpResponseRedirect(self.success_url)
 
+class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
+    model = Contest
+    permission_required = ("display.any form of view_contest")
 
 class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = Contest
