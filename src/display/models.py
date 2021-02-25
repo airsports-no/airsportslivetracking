@@ -4,6 +4,8 @@ from plistlib import Dict
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
 from typing import List, Optional
+
+from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 
 from django.db import models
@@ -61,7 +63,7 @@ class TraccarCredentials(SingletonModel):
 
 
 class MyUser(BaseUser, GuardianUserMixin):
-    username = models.CharField(max_length=50, default = "not_applicable")
+    username = models.CharField(max_length=50, default="not_applicable")
     objects = BaseUserManager()
 
 
@@ -813,18 +815,19 @@ class Contestant(models.Model):
     def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):
         try:
             # Device belongs to contestant from 30 minutes before takeoff
-            contestant =  cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
-                                   finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
+            contestant = cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
+                                         finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
         except ObjectDoesNotExist:
             try:
-                contestant =  cls.objects.get(Q(team__crew__member1__app_tracking_id=device) | Q(
+                contestant = cls.objects.get(Q(team__crew__member1__app_tracking_id=device) | Q(
                     team__crew__member1__simulator_tracking_id=device), tracker_start_time__lte=stamp,
-                                       finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
+                                             finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
             except ObjectDoesNotExist:
                 try:
-                    contestant =  cls.objects.get(Q(team__crew__member2__app_tracking_id=device) | Q(
+                    contestant = cls.objects.get(Q(team__crew__member2__app_tracking_id=device) | Q(
                         team__crew__member2__simulator_tracking_id=device), tracker_start_time__lte=stamp,
-                                           finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
+                                                 finished_by_time__gte=stamp,
+                                                 contestanttrack__calculator_finished=False)
                 except ObjectDoesNotExist:
                     return None
         # Only allow contestants with validated team members compete
@@ -1053,3 +1056,9 @@ def delete_personal_tracker(sender, instance: Person, **kwargs):
         original_device = traccar.get_device(instance.simulator_tracking_id)
         if original_device is not None:
             traccar.delete_device(original_device["id"])
+
+
+@receiver(post_save, sender=User)
+def create_random_password_for_user(sender, instance: User, **kwargs):
+    if not instance.has_usable_password():
+        instance.set_password(User.objects.make_random_password(length=20))

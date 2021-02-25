@@ -1482,3 +1482,5 @@ class ContestResultsSummaryViewSet(ModelViewSet):
 class TeamResultsSummaryViewSet(ModelViewSet):
     queryset = Team.objects.all()
     serializer_class = TeamResultsSummarySerialiser
+
+
