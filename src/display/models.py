@@ -1058,7 +1058,7 @@ def delete_personal_tracker(sender, instance: Person, **kwargs):
             traccar.delete_device(original_device["id"])
 
 
-@receiver(post_save, sender=User)
+@receiver(post_save, sender=MyUser)
 def create_random_password_for_user(sender, instance: User, **kwargs):
     if not instance.has_usable_password():
         instance.set_password(User.objects.make_random_password(length=20))
