@@ -312,7 +312,7 @@ class ContestList(PermissionRequiredMixin, ListView):
     permission_required = ("display.view_contest",)
 
     def get_queryset(self):
-        return get_objects_for_user(self.request.user, "view_contest",
+        return get_objects_for_user(self.request.user, "display.view_contest",
                                     klass=Contest)
 
 
