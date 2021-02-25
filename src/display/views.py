@@ -309,7 +309,7 @@ def get_navigation_task_map(request, pk):
 
 class ContestList(PermissionRequiredMixin, ListView):
     model = Contest
-    permission_required = ("view_contest",)
+    permission_required = ("display.view_contest",)
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "view_contest",
