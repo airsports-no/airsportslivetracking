@@ -307,15 +307,12 @@ def get_navigation_task_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
-class ContestList(PermissionRequiredMixin, ListView):
+class ContestList(GuardianPermissionRequiredMixin, ListView):
     model = Contest
     permission_required = ("display.view_contest",)
 
-    def get_queryset(self):
-        return get_objects_for_user(self.request.user, "display.view_contest")
 
-
-class ContestCreateView(PermissionRequiredMixin, CreateView):
+class ContestCreateView(GuardianPermissionRequiredMixin, CreateView):
     model = Contest
     success_url = reverse_lazy("contest_list")
     permission_required = ("display.add_contest",)
