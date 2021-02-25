@@ -128,12 +128,14 @@ class TestAccessNavigationTask(APITestCase):
         self.user_owner = get_user_model().objects.create(email="withpermissions")
         self.user_owner.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
+            Permission.objects.get(codename="view_contest"),
             Permission.objects.get(codename="change_contest"),
             Permission.objects.get(codename="delete_contest")
         )
         self.user_someone_else = get_user_model().objects.create(email="withoutpermissions")
         self.user_someone_else.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
+            Permission.objects.get(codename="view_contest"),
             Permission.objects.get(codename="change_contest"),
             Permission.objects.get(codename="delete_contest")
         )
@@ -306,7 +308,7 @@ class TestAccessNavigationTask(APITestCase):
                               "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_view_contestant_as_creator(self, patch):
         self.client.force_login(user=self.user_owner)
@@ -455,7 +457,7 @@ class TestAccessNavigationTask(APITestCase):
                               "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_view_hidden_contest_public_navigation_task_contestant_without_privileges(self, patch):
         self.contest.is_public = False
@@ -468,7 +470,7 @@ class TestAccessNavigationTask(APITestCase):
                               "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_contestant_track_public_contest_public_navigation_task_without_login(self, patch):
         self.contest.is_public = True
@@ -535,7 +537,7 @@ class TestAccessNavigationTask(APITestCase):
                               "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_contestant_track_public_contest_hidden_navigation_task_without_provisions(self, patch):
         self.contest.is_public = True
@@ -548,7 +550,7 @@ class TestAccessNavigationTask(APITestCase):
                               "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_contestant_track_frontend_public_contest_public_navigation_task_without_privileges(self, patch):
         self.contest.is_public = True
@@ -574,7 +576,7 @@ class TestAccessNavigationTask(APITestCase):
                               "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_contestant_track_frontend_public_contest_hidden_navigation_task_without_provisions(self, patch):
         self.contest.is_public = True
@@ -587,4 +589,4 @@ class TestAccessNavigationTask(APITestCase):
                               "pk": self.contestant.pk})
         result = self.client.get(url)
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)

@@ -5,7 +5,7 @@ from django.contrib.auth.models import User, Permission
 from django.contrib.auth import get_user_model
 
 from django.urls import reverse
-from guardian.shortcuts import assign_perm
+from guardian.shortcuts import assign_perm, get_objects_for_user
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase, APIClient
@@ -53,12 +53,14 @@ class TestAccessContest(APITestCase):
     def setUp(self):
         self.user_owner = get_user_model().objects.create(email="withpermissions")
         self.user_owner.user_permissions.add(Permission.objects.get(codename="add_contest"),
+                                             Permission.objects.get(codename="view_contest"),
                                              Permission.objects.get(codename="change_contest"),
                                              Permission.objects.get(codename="delete_contest"))
         self.user_owner.refresh_from_db()
         self.user_someone_else = get_user_model().objects.create(email="withoutpermissions")
         self.user_someone_else.user_permissions.add(Permission.objects.get(codename="add_contest"),
                                                     Permission.objects.get(codename="change_contest"),
+                                                    Permission.objects.get(codename="view_contest"),
                                                     Permission.objects.get(codename="delete_contest"))
 
         self.client.force_login(user=self.user_owner)
@@ -79,6 +81,28 @@ class TestAccessContest(APITestCase):
         assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
+
+    def test_get_objects_for_user(self, p):
+        contests = get_objects_for_user(self.user_owner, "display.view_contest", accept_global_perms=False)
+        self.assertEqual(1, contests.count())
+        contests = get_objects_for_user(self.user_someone_else, "display.view_contest", accept_global_perms=False)
+        self.assertEqual(0, contests.count())
+
+    def test_list_contests_as_someone_else(self, p):
+        self.client.force_login(user=self.user_someone_else)
+        result = self.client.get(reverse("contests-list"))
+        print(result)
+        print(result.json())
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(0, len(result.json()))
+
+    def test_list_contests_as_owner(self, p):
+        self.client.force_login(user=self.user_owner)
+        result = self.client.get(reverse("contests-list"))
+        print(result)
+        print(result.json())
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(1, len(result.json()))
 
     def test_view_contest_from_other_user_with_permissions(self, patch):
         self.client.force_login(user=self.different_user_with_object_permissions)

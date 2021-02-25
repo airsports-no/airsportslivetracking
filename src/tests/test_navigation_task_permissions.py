@@ -97,11 +97,13 @@ class TestAccessNavigationTask(APITestCase):
         self.user_owner = get_user_model().objects.create(email="withpermissions")
         self.user_owner.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
+            Permission.objects.get(codename="view_contest"),
             Permission.objects.get(codename="change_contest"),
             Permission.objects.get(codename="delete_contest")
         )
         self.user_someone_else = get_user_model().objects.create(email="withoutpermissions")
         self.user_someone_else.user_permissions.add(
+            Permission.objects.get(codename="view_contest"),
             Permission.objects.get(codename="add_contest"),
             Permission.objects.get(codename="change_contest"),
             Permission.objects.get(codename="delete_contest")
@@ -126,6 +128,7 @@ class TestAccessNavigationTask(APITestCase):
             Permission.objects.get(codename="change_contest"),
             Permission.objects.get(codename="delete_contest")
         )
+        assign_perm("add_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)

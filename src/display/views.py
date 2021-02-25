@@ -307,12 +307,19 @@ def get_navigation_task_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
-class ContestList(GuardianPermissionRequiredMixin, ListView):
+class ContestList(PermissionRequiredMixin, ListView):
     model = Contest
     permission_required = ("display.view_contest",)
 
+    def get_queryset(self):
+        print(self.request.user)
+        # Important not to accept global permissions, otherwise any content creator can view everything
+        objects =  get_objects_for_user(self.request.user, "display.view_contest", accept_global_perms=False)
+        print(list(objects))
+        return objects
 
-class ContestCreateView(GuardianPermissionRequiredMixin, CreateView):
+
+class ContestCreateView(PermissionRequiredMixin, CreateView):
     model = Contest
     success_url = reverse_lazy("contest_list")
     permission_required = ("display.add_contest",)
@@ -559,7 +566,7 @@ class GetDataFromTimeForContestant(RetrieveAPIView):
 
     def get_queryset(self):
         contests = get_objects_for_user(self.request.user, "display.change_contest",
-                                        klass=Contest)
+                                        klass=Contest, accept_global_perms=False)
         return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
                                                                                       navigation_task__contest__is_public=True))
 
@@ -1185,12 +1192,12 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "display.view_contest",
-                                    klass=self.queryset) | self.queryset.filter(is_public=True)
+                                    klass=self.queryset, accept_global_perms=False) | self.queryset.filter(is_public=True)
 
     @action(["GET"], detail=True)
     def navigation_task_summaries(self, request, pk=None, **kwargs):
         contests = get_objects_for_user(self.request.user, "display.view_contest",
-                                        klass=Contest)
+                                        klass=Contest, accept_global_perms=False)
         navigation_tasks = NavigationTask.objects.filter(
             Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)).filter(contest_id=pk)
         return Response(NavigationTasksSummarySerialiser(navigation_tasks, many=True).data)
@@ -1272,7 +1279,7 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
         contests = get_objects_for_user(self.request.user, "display.view_contest",
-                                        klass=Contest)
+                                        klass=Contest, accept_global_perms=False)
         return NavigationTask.objects.filter(
             Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)).filter(contest_id=contest_id)
 
@@ -1312,7 +1319,7 @@ class ContestantViewSet(ModelViewSet):
     def get_queryset(self):
         navigation_task_id = self.kwargs.get("navigationtask_pk")
         contests = get_objects_for_user(self.request.user, "display.change_contest",
-                                        klass=Contest)
+                                        klass=Contest, accept_global_perms=False)
         return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
                                                                                       navigation_task__contest__is_public=True)).filter(
             navigation_task_id=navigation_task_id)
