@@ -340,7 +340,7 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = Contest
     success_url = reverse_lazy("contest_list")
-    permission_required = ("display.update_contest",)
+    permission_required = ("display.change_contest",)
     form_class = ContestForm
 
     def get_permission_object(self):
@@ -665,7 +665,7 @@ def show_anr_path(wizard):
 
 
 class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
-    permission_required = ("display.update_contest",)
+    permission_required = ("display.change_contest",)
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
@@ -805,7 +805,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
 
 
 class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
-    permission_required = ("display.update_contest",)
+    permission_required = ("display.change_contest",)
 
     def get_permission_object(self):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
@@ -819,7 +819,7 @@ class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
 
 
 class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
-    permission_required = ("display.update_contest",)
+    permission_required = ("display.change_contest",)
 
     def get_permission_object(self):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
@@ -843,7 +843,7 @@ def create_new_copilot(wizard):
 
 
 class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
-    permission_required = ("display.update_contest",)
+    permission_required = ("display.change_contest",)
 
     def get_permission_object(self):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
