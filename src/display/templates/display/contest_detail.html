@@ -44,10 +44,4 @@
             </tr>
         {% endfor %}
     </table>
-    {% if perms.display.add_contest %}
-        <a href="{% url 'contest_create' %}">New contest</a>
-        {% if user.is_superuser %}
-            | <a href="{% url 'person_list' %}">Person overview</a>
-        {% endif %}
-    {% endif %}
 {% endblock %}

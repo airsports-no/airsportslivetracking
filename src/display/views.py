@@ -314,14 +314,13 @@ class ContestList(PermissionRequiredMixin, ListView):
     def get_queryset(self):
         print(self.request.user)
         # Important not to accept global permissions, otherwise any content creator can view everything
-        objects =  get_objects_for_user(self.request.user, "display.view_contest", accept_global_perms=False)
+        objects = get_objects_for_user(self.request.user, "display.view_contest", accept_global_perms=False)
         print(list(objects))
         return objects
 
 
 class ContestCreateView(PermissionRequiredMixin, CreateView):
     model = Contest
-    success_url = reverse_lazy("contest_list")
     permission_required = ("display.add_contest",)
     form_class = ContestForm
 
@@ -334,20 +333,28 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
         assign_perm("view_contest", self.request.user, instance)
         assign_perm("add_contest", self.request.user, instance)
         assign_perm("change_contest", self.request.user, instance)
-        return HttpResponseRedirect(self.success_url)
+        self.object = instance
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse('contest_details', kwargs={'pk': self.object.pk})
+
 
 class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = Contest
     permission_required = ("display.any form of view_contest")
 
+
 class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = Contest
-    success_url = reverse_lazy("contest_list")
     permission_required = ("display.change_contest",)
     form_class = ContestForm
 
     def get_permission_object(self):
         return self.get_object()
+
+    def get_success_url(self):
+        return reverse('contest_details', kwargs={'pk': self.get_object().pk})
 
 
 class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
@@ -372,10 +379,12 @@ class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
     model = NavigationTask
     permission_required = ("display.change_contest",)
     form_class = NavigationTaskForm
-    success_url = reverse_lazy("contest_list")
 
     def get_permission_object(self):
         return self.get_object().contest
+
+    def get_success_url(self):
+        return reverse('contest_details', kwargs={'pk': self.get_object().contest.pk})
 
 
 # class BasicScoreOverrideUpdateView(GuardianPermissionRequiredMixin, UpdateView):
@@ -400,6 +409,9 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
 
     def get_permission_object(self):
         return self.get_object().contest
+
+    def get_success_url(self):
+        return reverse('contest_details', kwargs={'pk': self.get_object().contest.pk})
 
 
 class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
@@ -1199,7 +1211,8 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
 
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "display.view_contest",
-                                    klass=self.queryset, accept_global_perms=False) | self.queryset.filter(is_public=True)
+                                    klass=self.queryset, accept_global_perms=False) | self.queryset.filter(
+            is_public=True)
 
     @action(["GET"], detail=True)
     def navigation_task_summaries(self, request, pk=None, **kwargs):
@@ -1492,5 +1505,3 @@ class ContestResultsSummaryViewSet(ModelViewSet):
 class TeamResultsSummaryViewSet(ModelViewSet):
     queryset = Team.objects.all()
     serializer_class = TeamResultsSummarySerialiser
-
-

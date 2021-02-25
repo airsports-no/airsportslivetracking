@@ -2,21 +2,22 @@
 {% load tz %}
 {% load guardian_tags %}
 {% block content %}
+    {% get_obj_perms request.user for object.contest as "contest_permissions" %}
     <H1>Navigation task {{ object.name }} in contest {{ object.contest.name }}</H1>
     {{ object.start_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }} -
     {{ object.finish_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }}
     <p>
-    <a href="{% url 'contest_details' object.contest.pk %}">Back to contest</a> |
-    <a href="{% url 'frontend_view_map' object.pk %}">Track</a> |
-    <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a>|
-    <a href="{% url 'navigationtask_removecontestants' object.pk %}">Remove contestants</a> |
-    <a href="{% url 'navigationtask_contestantstimeline' object.pk %}">Timeline</a> |
-    <a href="{% url 'navigationtask_qr' object.pk %}">QR</a> |
-    {% if "change_contest" in contest_permissions %}
-        <br/><a href="{% url 'navigationtask_delete' object.pk %}">delete</a>
-        | <a href="{% url 'navigationtask_update' object.pk %}">update</a>
-        {#                            | <a href="{% url 'navigationtask_scoreoverride' navigation_task.pk %}">Score override</a>#}
-    {% endif %}
+        <a href="{% url 'contest_details' object.contest.pk %}">Back to contest</a> |
+        <a href="{% url 'frontend_view_map' object.pk %}">Track</a> |
+        <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a>|
+        <a href="{% url 'navigationtask_removecontestants' object.pk %}">Remove contestants</a> |
+        <a href="{% url 'navigationtask_contestantstimeline' object.pk %}">Timeline</a> |
+        <a href="{% url 'navigationtask_qr' object.pk %}">QR</a>
+        {% if "change_contest" in contest_permissions %}
+            <br/><a href="{% url 'navigationtask_delete' object.pk %}">delete</a>
+            | <a href="{% url 'navigationtask_update' object.pk %}">update</a>
+            {#                            | <a href="{% url 'navigationtask_scoreoverride' navigation_task.pk %}">Score override</a>#}
+        {% endif %}
 
     <table class="table table-condensed">
         <thead>
