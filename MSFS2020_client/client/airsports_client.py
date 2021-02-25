@@ -115,13 +115,15 @@ class User:
                                                                                        values["PASSWORD"])
             window["Login"].update(disabled=True)
             window["Signup"].update(disabled=True)
-            window["RESEND_VERIFICATION"].update(disabled=True)
             window["UPDATE_FIRST_NAME"].update(disabled=False)
             window["UPDATE_LAST_NAME"].update(disabled=False)
             window["UPDATE_AIRCRAFT_REGISTRATION"].update(disabled=False)
             window["FIRST_NAME"].update(self.profile["first_name"])
             window["LAST_NAME"].update(self.profile["last_name"])
             window["AIRCRAFT_REGISTRATION"].update(self.profile["app_aircraft_registration"])
+            window["RESEND_VERIFICATION"].update(disabled=True)
+            window["RESET_PASSWORD"].update(disabled=True)
+
             progress_bar.update_bar(3)
             if self.profile['validated']:
                 window["START_TRACKING"].update(disabled=False)
@@ -220,7 +222,8 @@ if __name__ == "__main__":
         [sg.Text("Email:"), sg.InputText(size=(30, 1), key="EMAIL")],
         [sg.Text("Password:"), sg.InputText(size=(28, 1), key="PASSWORD", password_char="*")],
         [sg.Button("Login"), sg.Button("Signup"),
-         sg.Button("Resend verification email", key="RESEND_VERIFICATION", disabled=True)],
+         sg.Button("Resend verification email", key="RESEND_VERIFICATION"),
+         sg.Button("Reset password", key="RESET_PASSWORD")],
         [sg.ProgressBar(max_value=3, orientation="h", size=(100, 20), key="LOGIN_PROGRESS")],
         [sg.Button("Start tracking", key="START_TRACKING", disabled=True), sg.Text(size=(20, 1), key='TRANSMIT_TIME')],
         [sg.Button("Stop tracking", key="STOP_TRACKING", disabled=True)],
@@ -248,7 +251,6 @@ if __name__ == "__main__":
     ]
     window = sg.Window(title="Airsports Live Tracking MSFS2020", layout=layout)  # , margins=(20, 20))
     window.read(timeout=0.1)
-    window["RESEND_VERIFICATION"].update(disabled=True)
     window["START_TRACKING"].update(disabled=True)
     window["STOP_TRACKING"].update(disabled=True)
     window["UPDATE_FIRST_NAME"].update(disabled=True)
