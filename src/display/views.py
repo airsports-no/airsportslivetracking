@@ -330,6 +330,10 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
         instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
         instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
         instance.save()
+        assign_perm("delete_contest", self.request.user, instance)
+        assign_perm("view_contest", self.request.user, instance)
+        assign_perm("add_contest", self.request.user, instance)
+        assign_perm("change_contest", self.request.user, instance)
         return HttpResponseRedirect(self.success_url)
 
 
