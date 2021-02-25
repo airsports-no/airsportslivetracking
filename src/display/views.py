@@ -312,14 +312,13 @@ class ContestList(PermissionRequiredMixin, ListView):
     permission_required = ("display.view_contest",)
 
     def get_queryset(self):
-        return get_objects_for_user(self.request.user, "display.view_contest",
-                                    klass=Contest)
+        return get_objects_for_user(self.request.user, "display.view_contest")
 
 
 class ContestCreateView(PermissionRequiredMixin, CreateView):
     model = Contest
     success_url = reverse_lazy("contest_list")
-    permission_required = ("add_contest",)
+    permission_required = ("display.add_contest",)
     form_class = ContestForm
 
     def form_valid(self, form):
@@ -333,7 +332,7 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = Contest
     success_url = reverse_lazy("contest_list")
-    permission_required = ("update_contest",)
+    permission_required = ("display.update_contest",)
     form_class = ContestForm
 
     def get_permission_object(self):
@@ -342,7 +341,7 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
 
 class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = Contest
-    permission_required = ("delete_contest",)
+    permission_required = ("display.delete_contest",)
     template_name = "model_delete.html"
     success_url = reverse_lazy("contest_list")
 
@@ -352,7 +351,7 @@ class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
 
 class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = NavigationTask
-    permission_required = ("view_contest",)
+    permission_required = ("display.view_contest",)
 
     def get_permission_object(self):
         return self.get_object().contest
@@ -360,7 +359,7 @@ class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
 
 class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = NavigationTask
-    permission_required = ("change_contest",)
+    permission_required = ("display.change_contest",)
     form_class = NavigationTaskForm
     success_url = reverse_lazy("contest_list")
 
@@ -370,7 +369,7 @@ class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
 
 # class BasicScoreOverrideUpdateView(GuardianPermissionRequiredMixin, UpdateView):
 #     model = BasicScoreOverride
-#     permission_required = ("change_contest",)
+#     permission_required = ("display.change_contest",)
 #     form_class = BasicScoreOverrideForm
 #     success_url = reverse_lazy("contest_list")
 #
@@ -384,7 +383,7 @@ class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
 
 class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = NavigationTask
-    permission_required = ("delete_contest",)
+    permission_required = ("display.delete_contest",)
     template_name = "model_delete.html"
     success_url = reverse_lazy("contest_list")
 
@@ -394,7 +393,7 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
 
 class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = Contestant
-    permission_required = ("view_contest",)
+    permission_required = ("display.view_contest",)
     template_name = "display/contestant_gate_times.html"
 
     def get_permission_object(self):
@@ -416,7 +415,7 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
 class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     form_class = ContestantForm
     model = Contestant
-    permission_required = ("change_contest",)
+    permission_required = ("display.change_contest",)
 
     def get_form_kwargs(self):
         arguments = super().get_form_kwargs()
@@ -432,7 +431,7 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
 
 class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = Contestant
-    permission_required = ("change_contest",)
+    permission_required = ("display.change_contest",)
     template_name = "model_delete.html"
 
     def get_success_url(self):
@@ -445,7 +444,7 @@ class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
 class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
     form_class = ContestantForm
     model = Contestant
-    permission_required = ("change_contest",)
+    permission_required = ("display.change_contest",)
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
@@ -562,7 +561,7 @@ class GetDataFromTimeForContestant(RetrieveAPIView):
     lookup_url_kwarg = "contestant_pk"
 
     def get_queryset(self):
-        contests = get_objects_for_user(self.request.user, "change_contest",
+        contests = get_objects_for_user(self.request.user, "display.change_contest",
                                         klass=Contest)
         return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
                                                                                       navigation_task__contest__is_public=True))
@@ -658,7 +657,7 @@ def show_anr_path(wizard):
 
 
 class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
-    permission_required = ("update_contest",)
+    permission_required = ("display.update_contest",)
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
@@ -798,7 +797,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
 
 
 class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
-    permission_required = ("update_contest",)
+    permission_required = ("display.update_contest",)
 
     def get_permission_object(self):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
@@ -812,7 +811,7 @@ class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
 
 
 class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
-    permission_required = ("update_contest",)
+    permission_required = ("display.update_contest",)
 
     def get_permission_object(self):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
@@ -836,7 +835,7 @@ def create_new_copilot(wizard):
 
 
 class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
-    permission_required = ("update_contest",)
+    permission_required = ("display.update_contest",)
 
     def get_permission_object(self):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
@@ -1040,7 +1039,7 @@ class PersonUpdateView(SuperuserRequiredMixin, UpdateView):
 
 class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
     model = ContestTeam
-    permission_required = ("view_contest",)
+    permission_required = ("display.view_contest",)
 
     def get_permission_object(self):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
@@ -1069,10 +1068,10 @@ class IsPublicMixin:
     def check_publish_permissions(self, user: User):
         instance = self.get_object()
         if isinstance(instance, Contest):
-            if user.has_perm("change_contest", instance):
+            if user.has_perm("display.change_contest", instance):
                 return True
         if isinstance(instance, NavigationTask):
-            if user.has_perm("change_contest", instance.contest):
+            if user.has_perm("display.change_contest", instance.contest):
                 return True
         raise PermissionDenied("User does not have permission to publish {}".format(instance))
 
@@ -1188,12 +1187,12 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_queryset(self):
-        return get_objects_for_user(self.request.user, "view_contest",
+        return get_objects_for_user(self.request.user, "display.view_contest",
                                     klass=self.queryset) | self.queryset.filter(is_public=True)
 
     @action(["GET"], detail=True)
     def navigation_task_summaries(self, request, pk=None, **kwargs):
-        contests = get_objects_for_user(self.request.user, "view_contest",
+        contests = get_objects_for_user(self.request.user, "display.view_contest",
                                         klass=Contest)
         navigation_tasks = NavigationTask.objects.filter(
             Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)).filter(contest_id=pk)
@@ -1275,7 +1274,7 @@ class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
 
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
-        contests = get_objects_for_user(self.request.user, "view_contest",
+        contests = get_objects_for_user(self.request.user, "display.view_contest",
                                         klass=Contest)
         return NavigationTask.objects.filter(
             Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)).filter(contest_id=contest_id)
@@ -1315,7 +1314,7 @@ class ContestantViewSet(ModelViewSet):
 
     def get_queryset(self):
         navigation_task_id = self.kwargs.get("navigationtask_pk")
-        contests = get_objects_for_user(self.request.user, "change_contest",
+        contests = get_objects_for_user(self.request.user, "display.change_contest",
                                         klass=Contest)
         return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
                                                                                       navigation_task__contest__is_public=True)).filter(
