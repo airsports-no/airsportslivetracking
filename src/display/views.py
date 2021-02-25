@@ -342,7 +342,7 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
 class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = Contest
-    permission_required = ("display.any form of view_contest")
+    permission_required = ("display.view_contest",)
 
 
 class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):

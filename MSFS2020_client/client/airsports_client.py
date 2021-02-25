@@ -282,6 +282,12 @@ if __name__ == "__main__":
                 sg.popup("Resent verification email")
             except HTTPError as e:
                 sg.popup(str(e))
+        if event == "RESET_PASSWORD":
+            try:
+                authenticator.send_password_reset_email(values["EMAIL"])
+                sg.popup("Sent password reset instructions")
+            except HTTPError as e:
+                sg.popup(str(e))
         if event == "UPDATE_FIRST_NAME":
             user_object.profile["first_name"] = sg.popup_get_text("First name", "Please update your first name",
                                                                   default_text=user_object.profile["first_name"])
