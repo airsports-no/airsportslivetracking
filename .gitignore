@@ -12,3 +12,16 @@ processorlog/
 static/bundles/local/
 weblog/
 src/media/
+MSFS2020_client/build/
+MSFS2020_client/airsports/build/
+MSFS2020_client/airsports_client.egg-info/
+*.pyc
+gpxpy
+data
+*.log
+*.gz
+*.whl
+*.lp
+FC
+*.zip
+*.sqlite3

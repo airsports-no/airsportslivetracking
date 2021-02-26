@@ -183,7 +183,7 @@ def make_exe(dist):
     # exe.windows_subsystem = "console"
 
     # Make the executable a non-console application on Windows.
-    # exe.windows_subsystem = "windows"
+    exe.windows_subsystem = "windows"
 
     # Invoke `pip download` to install a single package using wheel archives
     # obtained via `pip download`. `pip_download()` returns objects representing

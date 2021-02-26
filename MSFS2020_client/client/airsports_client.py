@@ -100,6 +100,14 @@ def run(tracking_id, stamp_field):
     transmit_position()
 
 
+def get_json_error_message(e):
+    try:
+        error = json.loads(e.strerror)
+        return error["error"]["message"]
+    except:
+        return str(e)
+
+
 class User:
     def __init__(self):
         self.user = None
@@ -132,13 +140,7 @@ class User:
             return True
             # window["PROFILE_IMAGE"].update(data=fetch_profile_image_data(profile["picture"]))
         except HTTPError as e:
-            # print(e)
-            try:
-                error = json.loads(e.strerror)
-                message = error["error"]["message"]
-            except:
-                message = str(e)
-            sg.popup(message)
+            sg.popup(get_json_error_message(e))
         except MissingEmailVerificationError:
             window["RESEND_VERIFICATION"].update(disabled=False)
             sg.popup("Email address is not verified, please check your inbox")
@@ -159,13 +161,7 @@ class User:
             sg.popup("Verification", "Signup complete, please check for verification email before signing in.")
             return True
         except HTTPError as e:
-            # print(e)
-            try:
-                error = json.loads(e.strerror)
-                message = error["error"]["message"]
-            except:
-                message = str(e)
-            sg.popup(message)
+            sg.popup(get_json_error_message(e))
         return False
 
     def save_profile(self, window):
@@ -281,13 +277,13 @@ if __name__ == "__main__":
                 authenticator.send_email_verification(user_token)
                 sg.popup("Resent verification email")
             except HTTPError as e:
-                sg.popup(str(e))
+                sg.popup(get_json_error_message(e))
         if event == "RESET_PASSWORD":
             try:
                 authenticator.send_password_reset_email(values["EMAIL"])
                 sg.popup("Sent password reset instructions")
             except HTTPError as e:
-                sg.popup(str(e))
+                sg.popup(get_json_error_message(e))
         if event == "UPDATE_FIRST_NAME":
             user_object.profile["first_name"] = sg.popup_get_text("First name", "Please update your first name",
                                                                   default_text=user_object.profile["first_name"])
