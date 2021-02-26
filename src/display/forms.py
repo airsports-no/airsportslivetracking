@@ -176,7 +176,6 @@ class ANRCorridorScoreOverrideForm(forms.Form):
         )
 
 
-
 class TaskTypeForm(forms.Form):
     task_type = forms.ChoiceField(choices=TASK_TYPES,
                                   help_text="The type of the task. This determines how the route file is processed")
@@ -276,7 +275,8 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "is_public", "scorecard", "minutes_to_starting_point", "minutes_to_landing")
+        fields = ("name", "start_time", "finish_time", "is_public", "scorecard", "minutes_to_starting_point",
+                  "minutes_to_landing", "wind_speed", "wind_direction")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -289,6 +289,11 @@ class NavigationTaskForm(forms.ModelForm):
                 "finish_time",
                 "is_public",
                 "scorecard"
+            ),
+            Fieldset(
+                "Wind",
+                "wind_speed",
+                "wind_direction"
             ),
             Fieldset(
                 "Getting to and from the track",
@@ -360,7 +365,6 @@ class ContestForm(forms.ModelForm):
                 Submit("submit", "Submit")
             )
         )
-
 
 
 class PictureWidget(forms.widgets.Widget):
