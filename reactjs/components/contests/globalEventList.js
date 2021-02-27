@@ -39,11 +39,12 @@ function sortContestTimes(a, b) {
 }
 
 function PastEvents(props) {
-    const contestBoxes = props.contests.map((contest) => {
+    let contestBoxes = props.contests.map((contest) => {
         return <div style={{paddingTop: "2px", paddingBottom: "4px", width: "300px"}}>
             <li className={"card"}><ContestPopupItem contest={contest}/></li>
         </div>
     })
+    contestBoxes.reverse()
     return (
         <Modal {...props} aria-labelledby="contained-modal-title-vcenter">
             <Modal.Header closeButton>
