@@ -1,7 +1,7 @@
 import datetime
 from typing import Optional, List
 
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduler import TeamDefinition, Solver
@@ -15,6 +15,9 @@ def schedule_and_create_contestants(navigation_task: NavigationTask, contest_tea
     contest_teams = []
     final_waypoint = navigation_task.route.waypoints[-1]
     selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
+    if tracker_switch_time < tracker_leadtime_minutes:
+        raise ValidationError(
+            f"The tracker switch time {tracker_switch_time} must be larger than the tracker leadtime {tracker_leadtime_minutes}")
     for contest_team in selected_contest_teams:
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
@@ -69,7 +72,7 @@ def schedule_and_create_contestants(navigation_task: NavigationTask, contest_tea
                 maximum_contestant = 0
             contestant = Contestant.objects.create(takeoff_time=team_definition.start_time,
                                                    finished_by_time=team_definition.start_time + datetime.timedelta(
-                                                       minutes=team_definition.flight_time),
+                                                       minutes=team_definition.flight_time) + tracker_switch_time - tracker_leadtime_minutes,
                                                    air_speed=contest_team.air_speed,
                                                    wind_speed=navigation_task.wind_speed,
                                                    wind_direction=navigation_task.wind_direction,

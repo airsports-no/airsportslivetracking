@@ -631,7 +631,7 @@ class NavigationTask(models.Model):
                                        help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
     minutes_to_starting_point = models.FloatField(default=5,
                                                   help_text="The number of minutes from the take-off time until the starting point")
-    minutes_to_landing = models.FloatField(default=5,
+    minutes_to_landing = models.FloatField(default=30,
                                            help_text="The number of minutes from the finish point to the contestant should have landed")
 
     class Meta:

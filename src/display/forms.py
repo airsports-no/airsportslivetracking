@@ -590,4 +590,9 @@ class ContestantForm(forms.ModelForm):
 
 class ContestTeamOptimisationForm(forms.Form):
     contest_teams = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple())
+    minutes_between_contestants = forms.FloatField(initial=5)
+    minutes_for_aircraft_switch = forms.IntegerField(initial=30)
+    minutes_for_tracker_switch = forms.IntegerField(initial=15)
+    minutes_for_crew_switch = forms.IntegerField(initial=15)
+    tracker_lead_time_minutes = forms.IntegerField(initial=15)
     # optimise = forms.BooleanField(required=False, initial=False, help_text="Try to further optimise the schedule")

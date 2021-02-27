@@ -547,8 +547,13 @@ def add_contest_teams_to_navigation_task(request, pk):
                                                 navigation_task.contest.contestteam_set.all()]
         if form.is_valid():
             if not schedule_and_create_contestants(navigation_task,
-                                                   [int(item) for item in form.cleaned_data["contest_teams"]], 5,
-                                                   30, 15, 5, 15, optimise=form.cleaned_data.get("optimise", False)):
+                                                   [int(item) for item in form.cleaned_data["contest_teams"]],
+                                                   form.cleaned_data["tracker_lead_time_minutes"],
+                                                   form.cleaned_data["minutes_for_aircraft_switch"],
+                                                   form.cleaned_data["minutes_for_tracker_switch"],
+                                                   form.cleaned_data["minutes_between_contestants"],
+                                                   form.cleaned_data["minutes_for_crew_switch"],
+                                                   optimise=form.cleaned_data.get("optimise", False)):
                 messages.error(request, "Optimisation failed")
             else:
                 messages.success(request, "Optimisation successful")
