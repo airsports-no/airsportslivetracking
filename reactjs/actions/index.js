@@ -24,7 +24,7 @@ import {
     EXPLICITLY_DISPLAY_ALL_TRACKS,
     TRACCAR_DATA_RECEIVED,
     GET_CONTEST_SUCCESSFUL,
-    GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL, GLOBAL_MAP_ZOOM_FOCUS_CONTEST
+    GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL, GLOBAL_MAP_ZOOM_FOCUS_CONTEST, DISPLAY_PAST_EVENTS_MODAL
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -103,7 +103,6 @@ export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) =
 }
 
 
-
 export const dispatchContestantData = (data) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: data})
 }
@@ -133,6 +132,14 @@ export const dispatchTraccarData = (data) => (dispatch) => {
 
 export const zoomFocusContest = (data) => (dispatch) => {
     dispatch({type: GLOBAL_MAP_ZOOM_FOCUS_CONTEST, payload: data})
+}
+
+export const displayPastEventsModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_PAST_EVENTS_MODAL, payload: true})
+}
+
+export const hidePastEventsModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_PAST_EVENTS_MODAL, payload: false})
 }
 
 export const fetchContests = () => (dispatch) => {

@@ -412,16 +412,17 @@ tr.hidden {
     background-color: #262626;
     color: white;
     font-size: 0.5rem;
-    width: 350px;
+    width: 400px;
     padding-top: 4px;
     padding-left: 4px;
     height: 35px;
 }
 
 #disclaimer .logo {
-    height: 20px;
+    height: 30px;
     float: right;
     padding-right: 10px;
+    /*padding-top: 4px;*/
 }
 
 #returnLinkImage {
@@ -668,3 +669,7 @@ html, body {
     display: block;
 }
 
+.modal-90w {
+    width: 90vw;
+    max-width: 90vw;
+}

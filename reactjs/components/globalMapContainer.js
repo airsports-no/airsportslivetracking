@@ -37,9 +37,7 @@ class ConnectedGlobalMapContainer extends Component {
                         <a className={"btn"} id="returnLink" href={"/"}>
                             <img src={"/static/img/hub.png"} id={"returnLinkImage"} alt={"Hub"}/>
                         </a>
-                        <div className={"globalMapBackdrop"}>
                             <GlobalEventList/>
-                        </div>
                         <Disclaimer/>
                         {/*{settingsButton}*/}
 

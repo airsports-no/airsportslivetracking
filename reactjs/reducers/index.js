@@ -26,7 +26,7 @@ import {
     EXPLICITLY_DISPLAY_ALL_TRACKS,
     TRACCAR_DATA_RECEIVED,
     GET_CONTEST_SUCCESSFUL,
-    GLOBAL_MAP_ZOOM_FOCUS_CONTEST
+    GLOBAL_MAP_ZOOM_FOCUS_CONTEST, DISPLAY_PAST_EVENTS_MODAL
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -46,6 +46,7 @@ const initialState = {
     explicitlyDisplayAllTracks: false,
     contests: [],
     zoomContest: null,
+    displayPastEventsModal: false,
 };
 
 function rootReducer(state = initialState, action) {
@@ -263,6 +264,11 @@ function rootReducer(state = initialState, action) {
 
         return Object.assign({}, state, {
             zoomContest: action.payload
+        })
+    }
+    if (action.type===DISPLAY_PAST_EVENTS_MODAL){
+        return Object.assign({}, state, {
+            displayPastEventsModal: action.payload
         })
     }
     return state;
