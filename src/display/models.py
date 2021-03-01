@@ -3,8 +3,9 @@ import logging
 from plistlib import Dict
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
+import eval7 as eval7
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -26,6 +27,7 @@ from solo.models import SingletonModel
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.coordinate_utilities import bearing_difference
 from display.my_pickled_object_field import MyPickledObjectField
+from display.poker_cards import PLAYING_CARDS
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
@@ -33,13 +35,6 @@ from display.traccar_factory import get_traccar_instance
 TRACCAR = "traccar"
 TRACKING_SERVICES = (
     (TRACCAR, "Traccar"),
-)
-
-TASK_PRECISION = "precision"
-TASK_ANR_CORRIDOR = "anr_corridor"
-TASK_TYPES = (
-    (TASK_PRECISION, "Precision"),
-    (TASK_ANR_CORRIDOR, "ANR corridor")
 )
 
 logger = logging.getLogger(__name__)
@@ -310,18 +305,63 @@ class Contest(models.Model):
             self.save()
 
 
+class NavigationTask(models.Model):
+    PRECISION = 'precision'
+    ANR_CORRIDOR = 'anr_corridor'
+    POKER = 'poker'
+    NAVIGATION_TASK_TYPES = (
+        (PRECISION, "Precision"),
+        (ANR_CORRIDOR, "ANR Corridor"),
+        (POKER, "Poker run")
+    )
+    name = models.CharField(max_length=200)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
+    route = models.OneToOneField(Route, on_delete=models.PROTECT)
+    scorecard = models.ForeignKey("Scorecard", on_delete=models.PROTECT,
+                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+                                      lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
+    track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True, blank=True)
+    gate_score_override = models.ManyToManyField("GateScoreOverride", blank=True)
+    start_time = models.DateTimeField(
+        help_text="The start time of the navigation test. Not really important, but nice to have")
+    finish_time = models.DateTimeField(
+        help_text="The finish time of the navigation test. Not really important, but nice to have")
+    is_public = models.BooleanField(default=False,
+                                    help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
+    wind_speed = models.FloatField(default=0,
+                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
+    wind_direction = models.FloatField(default=0,
+                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
+    minutes_to_starting_point = models.FloatField(default=5,
+                                                  help_text="The number of minutes from the take-off time until the starting point")
+    minutes_to_landing = models.FloatField(default=30,
+                                           help_text="The number of minutes from the finish point to the contestant should have landed")
+
+    @property
+    def is_poker_run(self) -> bool:
+        return self.POKER in self.scorecard.task_type
+
+    class Meta:
+        ordering = ("start_time", "finish_time")
+
+    def __str__(self):
+        return "{}: {}".format(self.name, self.start_time.isoformat())
+
+
 class Scorecard(models.Model):
-    PRECISION = 0
-    ANR_CORRIDOR = 1
+    PRECISION = "precision"
+    ANR_CORRIDOR = "anr_corridor"
+    POKER = "poker"
     CALCULATORS = (
         (PRECISION, "Precision"),
-        (ANR_CORRIDOR, "ANR Corridor")
+        (ANR_CORRIDOR, "ANR Corridor"),
+        (POKER, "Poker run")
     )
 
     name = models.CharField(max_length=100, default="default", unique=True)
-    calculator = models.IntegerField(choices=CALCULATORS, default=PRECISION,
-                                     help_text="Supported calculator types")
-    task_type = MultiSelectField(choices=TASK_TYPES, default=list)
+    calculator = models.CharField(choices=CALCULATORS, default=PRECISION, max_length=20,
+                                  help_text="Supported calculator types")
+    task_type = MultiSelectField(choices=NavigationTask.NAVIGATION_TASK_TYPES, default=list)
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     backtracking_penalty = models.FloatField(default=200)
     backtracking_bearing_difference = models.FloatField(default=90)
@@ -610,37 +650,6 @@ class GateScoreOverride(models.Model):
         return "Gate score override for {}".format(self.navigation_task)
 
 
-class NavigationTask(models.Model):
-    name = models.CharField(max_length=200)
-    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
-    route = models.OneToOneField(Route, on_delete=models.PROTECT)
-    scorecard = models.ForeignKey("Scorecard", on_delete=models.PROTECT,
-                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-                                      lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
-    track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True, blank=True)
-    gate_score_override = models.ManyToManyField("GateScoreOverride", blank=True)
-    start_time = models.DateTimeField(
-        help_text="The start time of the navigation test. Not really important, but nice to have")
-    finish_time = models.DateTimeField(
-        help_text="The finish time of the navigation test. Not really important, but nice to have")
-    is_public = models.BooleanField(default=False,
-                                    help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
-    wind_speed = models.FloatField(default=0,
-                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
-    wind_direction = models.FloatField(default=0,
-                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
-    minutes_to_starting_point = models.FloatField(default=5,
-                                                  help_text="The number of minutes from the take-off time until the starting point")
-    minutes_to_landing = models.FloatField(default=30,
-                                           help_text="The number of minutes from the finish point to the contestant should have landed")
-
-    class Meta:
-        ordering = ("start_time", "finish_time")
-
-    def __str__(self):
-        return "{}: {}".format(self.name, self.start_time.isoformat())
-
-
 class Contestant(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE)
@@ -693,7 +702,9 @@ class Contestant(models.Model):
         # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.navigation_task.name, self.takeoff_time,
         #                                       self.finished_by_time)
 
-    def calculate_progress(self, latest_time: datetime):
+    def calculate_progress(self, latest_time: datetime) -> float:
+        if NavigationTask.POKER in self.navigation_task.scorecard.task_type:
+            return 100 * self.contestanttrack.playingcard_set.all().count() / 5
         route_progress = 100
         if len(self.navigation_task.route.waypoints) > 0 and not self.contestanttrack.calculator_finished:
             first_gate = self.navigation_task.route.waypoints[0]
@@ -836,6 +847,16 @@ class Contestant(models.Model):
                 return contestant
         return None
 
+    def get_latest_position(self) -> Optional[Dict]:
+        from influx_facade import InfluxFacade
+        influx = InfluxFacade()
+        result_set = influx.get_latest_position_for_contestant(self.pk)
+        position_data = list(result_set.get_points(tags={"contestant": str(self.pk)}))
+        try:
+            return position_data[0]
+        except IndexError:
+            return None
+
 
 CONTESTANT_CACHE_KEY = "contestant"
 
@@ -882,6 +903,56 @@ class ContestantTrack(models.Model):
     def update_gate_time(self, gate_name: str, passing_time: datetime.datetime):
         self.gate_actual_times[gate_name] = passing_time
         self.save()
+
+
+########### POKER
+class PlayingCard(models.Model):
+    contestant_track = models.ForeignKey(ContestantTrack, on_delete=models.CASCADE)
+    card = models.CharField(max_length=2, choices=PLAYING_CARDS)
+
+    @classmethod
+    def evaluate_hand(cls, contestant: Contestant) -> Tuple[int, str]:
+        hand = [eval7.Card(s.card) for s in cls.objects.filter(contestant_track=contestant.contestanttrack)]
+        score = eval7.evaluate(hand)
+        return score, eval7.handtype(score)
+
+    @classmethod
+    def maximum_score(cls) -> int:
+        return 135004160
+
+    @classmethod
+    def get_relative_score(cls, contestant: Contestant) -> Tuple[float, str]:
+        score, hand_type = cls.evaluate_hand(contestant)
+        return 100 * score / cls.maximum_score(), hand_type
+
+    @classmethod
+    def add_contestant_card(cls, contestant: Contestant, card: str, waypoint: str):
+        from influx_facade import InfluxFacade
+        influx = InfluxFacade()
+        poker_card = cls.objects.create(contestant_track=contestant.contestanttrack, card=card)
+        relative_score, hand_description = cls.get_relative_score(contestant)
+        score_per_gate = contestant.contestanttrack.score_per_gate
+        score_per_gate[waypoint] = relative_score
+        internal_message = {
+            "gate": waypoint,
+            "message": "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description),
+            "points": relative_score,
+            "planned": None,
+            "actual": None,
+            "offset_string": None
+        }
+        string = "{}: {}".format(waypoint, internal_message["message"])
+        internal_message["string"] = string
+        contestant.contestanttrack.update_score(score_per_gate, relative_score,
+                                                contestant.contestanttrack.score_log + [internal_message])
+        pos = contestant.get_latest_position()
+        longitude = 0
+        latitude = 0
+        if pos:
+            latitude = pos["latitude"]
+            longitude = pos["longitude"]
+        influx.add_annotation(contestant, latitude, longitude, string, "information",
+                              datetime.datetime.now(datetime.timezone.utc))
 
 
 ########## Scoring portal models ##########

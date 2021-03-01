@@ -268,6 +268,13 @@ class InfluxFacade:
         response = self.client.query(query, bind_params=bind_params)
         return response
 
+    def get_latest_position_for_contestant(self, contestant_pk) -> ResultSet:
+        query = "select * from device_position where contestant=$contestant ORDER BY desc LIMIT 1"
+        bind_params = {'contestant': str(contestant_pk)}
+        query += ";"
+        response = self.client.query(query, bind_params=bind_params)
+        return response
+
     def get_annotations_for_contestant(self, contestant_pk, from_time: Union[datetime.datetime, str],
                                        until_time: Union[datetime.datetime, str]) -> ResultSet:
         if isinstance(from_time, datetime.datetime):

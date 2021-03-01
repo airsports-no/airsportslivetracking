@@ -1,5 +1,5 @@
 #
-from display.models import GateScore, Scorecard, TASK_ANR_CORRIDOR
+from display.models import GateScore, Scorecard, NavigationTask
 
 
 def get_default_scorecard():
@@ -8,7 +8,7 @@ def get_default_scorecard():
     scorecard.backtracking_grace_time_seconds = 0  # verified?
     scorecard.backtracking_maximum_penalty = 400  # verified
     scorecard.use_procedure_turns = False
-    scorecard.task_type = [TASK_ANR_CORRIDOR]
+    scorecard.task_type = [NavigationTask.ANR_CORRIDOR]
     scorecard.calculator = Scorecard.ANR_CORRIDOR
     scorecard.corridor_maximum_penalty = -1
     scorecard.corridor_outside_penalty = 3  # verified

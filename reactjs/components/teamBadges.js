@@ -1,6 +1,7 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
+import Hand from "../react-playing-cards-local/src/PlayingCard/Hand/Hand";
 
 const question = "/static/img/questionmark.png"
 
@@ -40,10 +41,10 @@ function memberTwoPicture(crew) {
 function memberName(member) {
     return <h4 className={"lower-thirds-pilot-names"}>
         <EllipsisWithTooltip>
-            {member.last_name?member.last_name.toUpperCase():""}
+            {member.last_name ? member.last_name.toUpperCase() : ""}
         </EllipsisWithTooltip>
         <EllipsisWithTooltip>
-            {member.first_name?member.first_name:""}
+            {member.first_name ? member.first_name : ""}
         </EllipsisWithTooltip>
     </h4>
 }
@@ -61,83 +62,123 @@ const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestant.id],
 })
 
-class ConnectedLowerThirdTeam extends Component {
 
-    render() {
-        if (this.props.team === null) return null
-        const singleCrew = this.props.contestant.team.crew.member2 == null
-        let crewPictures = <div className={"row"}>
+function CrewPictures(props) {
+    if (props.contestant.team.crew.member2 != null) {
+        return <div className={"row"}>
             <div className={"col-4"}/>
             <div className={"col-4 inheritDisplay"}>
-                {memberOnePicture(this.props.contestant.team.crew)}
+                {memberOnePicture(props.contestant.team.crew)}
             </div>
             <div className={"col-4 inheritDisplay"}>
-                {memberTwoPicture(this.props.contestant.team.crew)}
+                {memberTwoPicture(props.contestant.team.crew)}
             </div>
         </div>
-        if (singleCrew) {
-            crewPictures = <div className={"row"}>
-                <div className={"col-4"}/>
-                <div className={"col-8 inheritDisplay"}>
-                    {memberOnePicture(this.props.contestant.team.crew)}
-                </div>
-            </div>
-
-        }
-        let crewNames = <div className={"row"}>
-            <div className={"col-6 text-center"}>
-                {memberName(this.props.contestant.team.crew.member1)}
-            </div>
-            <div className={"col-6 text-center"}>
-                {this.props.contestant.team.crew.member2 !== null ? memberName(this.props.contestant.team.crew.member2) : null}
+    } else {
+        return <div className={"row"}>
+            <div className={"col-4"}/>
+            <div className={"col-8 inheritDisplay"}>
+                {memberOnePicture(props.contestant.team.crew)}
             </div>
         </div>
-        if (singleCrew) {
-            crewNames = <div className={"row"}>
-                <div className={"col-12 text-center"}>
-                    {memberName(this.props.contestant.team.crew.member1)}
-                </div>
-            </div>
+    }
+}
 
-        }
-        return <div className={"lowerThirdsScale"}>
-            <div className={singleCrew ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
-                <div className={"card-transparent"}>
-                    {crewPictures}
-                    <div className={"bg-dark text-light lower-thirds-name-box"}>
-                        <div className={"row"}>
-                            <div className={"col-4"}>
-                                <div className={"row"}>
-                                    <div className={"text-center col-12"}>
-                                        <div className={"lower-thirds-current-score"}>
-                                            {this.props.contestantData.contestant_track.score}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className={"row"}>
-                                    <div className={"text-center col-12"}>
-                                        <div className={"lower-thirds-current-score-text"}>
-                                            LIVE SCORE
-                                        </div>
-                                    </div>
-                                </div>
-                                {/*<img className={"lowerThirdsTeamImage img-fluid rounded"}*/}
-                                {/*     src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>*/}
-                            </div>
-                            <div className={"col-8"}>
-                                {crewNames}
-                                <div className={"row"}>
-                                    <div className={"col-12 text-center"}>
-                                        <h4>{clubDisplay(this.props.contestant.team.club)}</h4>
-                                    </div>
-                                </div>
-                            </div>
+function CrewNames(props) {
+    if (props.contestant.team.crew.member2 != null) {
+        return <div className={"row"}>
+            <div className={"col-6 text-center"}>
+                {memberName(props.contestant.team.crew.member1)}
+            </div>
+            <div className={"col-6 text-center"}>
+                {props.contestant.team.crew.member2 !== null ? memberName(props.contestant.team.crew.member2) : null}
+            </div>
+        </div>
+    } else {
+        return <div className={"row"}>
+            <div className={"col-12 text-center"}>
+                {memberName(props.contestant.team.crew.member1)}
+            </div>
+        </div>
+    }
+}
+
+function ScoreAndNames(props) {
+    return <div className={"bg-dark text-light lower-thirds-name-box"} style={{position: "relative", zIndex: 99}}>
+        <div className={"row"}>
+            <div className={"col-4"}>
+                <div className={"row"}>
+                    <div className={"text-center col-12"}>
+                        <div className={"lower-thirds-current-score"}>
+                            {props.contestantData.contestant_track.score.toFixed(0)}
                         </div>
+                    </div>
+                </div>
+                <div className={"row"}>
+                    <div className={"text-center col-12"}>
+                        <div className={"lower-thirds-current-score-text"}>
+                            LIVE SCORE
+                        </div>
+                    </div>
+                </div>
+                {/*<img className={"lowerThirdsTeamImage img-fluid rounded"}*/}
+                {/*     src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>*/}
+            </div>
+            <div className={"col-8"}>
+                <CrewNames contestant={props.contestant}/>
+                <div className={"row"}>
+                    <div className={"col-12 text-center"}>
+                        <h4>{clubDisplay(props.contestant.team.club)}</h4>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+}
 
+
+function PlayingCards(props) {
+    const cards = props.contestantData.contestant_track.playingcard_set.map((card) => {
+        return card.card.toLowerCase()
+    })
+    return <Hand hide={false} layout={"fan"} cards={cards} cardSize={200}/>
+}
+
+class ConnectedLowerThirdTeam extends Component {
+
+    singleCrew() {
+        return this.props.contestant.team.crew.member2 == null
+    }
+
+    profileImages() {
+        if (this.props.team === null) return null
+        return <div className={"lowerThirdsScale"}>
+            <div className={this.singleCrew() ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
+                <div className={"card-transparent"}>
+                    <CrewPictures contestant={this.props.contestant}/>
+                    <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}/>
+                </div>
+            </div>
+        </div>
+    }
+
+    pokerHand() {
+        if (this.props.team === null) return null
+        return <div className={"lowerThirdsScale"}>
+            <div className={this.singleCrew() ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
+                <div className={"card-transparent"}>
+                    <PlayingCards contestantData={this.props.contestantData} contestant={this.props.contestant}/>
+                    <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}/>
+                </div>
+            </div>
+        </div>
+    }
+
+    render() {
+        if (this.props.scorecard_data.task_type.includes("poker")) {
+            return this.pokerHand()
+        }
+        return this.profileImages()
     }
 }
 

@@ -18,7 +18,7 @@ from timezone_field.rest_framework import TimeZoneSerializerField
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
     Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR, \
-    GateScoreOverride, TrackScoreOverride, GateScore, TASK_TYPES, Prohibited
+    GateScoreOverride, TrackScoreOverride, GateScore, Prohibited, PlayingCard
 from display.waypoint import Waypoint
 
 
@@ -261,7 +261,7 @@ class ContestTeamNestedSerialiser(serializers.ModelSerializer):
 
 
 class ScorecardSerialiser(serializers.ModelSerializer):
-    task_type = MultipleChoiceField(read_only=True, choices=TASK_TYPES)
+    task_type = MultipleChoiceField(read_only=True, choices=NavigationTask.NAVIGATION_TASK_TYPES)
 
     class Meta:
         model = Scorecard
@@ -342,12 +342,19 @@ class ContestantTrackWithTrackPointsSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class PlayingCardSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = PlayingCard
+        fields = "__all__"
+
+
 class ContestantTrackSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
     """
     score_log = serializers.JSONField()
     score_per_gate = serializers.JSONField()
+    playingcard_set = PlayingCardSerialiser(many=True)
 
     class Meta:
         model = ContestantTrack

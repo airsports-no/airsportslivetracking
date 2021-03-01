@@ -49,6 +49,9 @@
                 <td>{{ contestant.contestanttrack.current_state }}</td>
                 <td>{{ contestant.contestanttrack.score|stringformat:"d" }}</td>
                 <td>
+                    {% if object.is_poker_run %}
+                        <a href="{% url 'contestant_deal_card' contestant.pk %}">deal poker card</a> |
+                    {% endif %}
                     <a href="{% url 'contestant_map' contestant.pk %}">map</a> |
                     <a href="{% url 'contestant_delete' contestant.pk %}">delete</a>
                 </td>

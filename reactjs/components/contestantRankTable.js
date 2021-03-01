@@ -168,6 +168,9 @@ class ConnectedContestantRankTable extends Component {
                 text: "SCORE",
                 classes: "align-middle",
                 sort: true,
+                formatter: (cell, row) => {
+                    return cell.toFixed(0)
+                }
             },
             {
                 dataField: "projectedScore",

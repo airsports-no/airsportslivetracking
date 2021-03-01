@@ -59,10 +59,16 @@ class Aircraft {
     }
 
     createLiveEntities(position) {
-        this.dot = L.marker([position.latitude, position.longitude], {icon: this.createAirplaneIcon(position.course)}).bindTooltip(this.longform, {
+        this.dot = L.marker([position.latitude, position.longitude], {
+            icon: this.createAirplaneIcon(position.course),
+            zIndexOffset: 99999
+        }).bindTooltip(this.longform, {
             permanent: false
         }).addTo(this.map)
-        this.dotText = L.marker([position.latitude, position.longitude], {icon: this.createAirplaneTextIcon()}).bindTooltip(this.longform, {
+        this.dotText = L.marker([position.latitude, position.longitude], {
+            icon: this.createAirplaneTextIcon(),
+            zIndexOffset: 99999
+        }).bindTooltip(this.longform, {
             permanent: false
         }).addTo(this.map)
         this.trail = L.polyline([[position.latitude, position.longitude]], {

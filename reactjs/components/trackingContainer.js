@@ -149,8 +149,8 @@ class ConnectedTrackingContainer extends Component {
                             {/*     src={"/static/img/airsports.png"}/>*/}
                             <div id="cesiumContainer"/>
                             {this.props.displayLowerThirds !== null ?
-                                <LowerThirdTeam
-                                    contestant={this.props.contestants[this.props.displayLowerThirds]}/> : null}
+                                <LowerThirdTeam scorecard_data={this.props.navigationTask.scorecard_data}
+                                                contestant={this.props.contestants[this.props.displayLowerThirds]}/> : null}
 
                             {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
                             {/*</div>*/}

@@ -30,7 +30,7 @@ const mapStateToProps = (state, props) => ({
 
 function FormatMessage(props) {
     const message = props.message
-    let string = message.points + " points for " + message.message;
+    let string = message.points.toFixed(2) + " points for " + message.message;
     let offset_string = null
     if (message.offset_string != null) {
         offset_string = " (" + message.offset_string + ")"
@@ -39,7 +39,7 @@ function FormatMessage(props) {
     if (message.planned != null && message.actual != null) {
         times = "\n(planned: " + message.planned + ", actual: " + message.actual + ")"
     }
-    return <div className={"preWrap"}>{message.points} points {message.message} {offset_string}<span
+    return <div className={"preWrap"}>{message.points.toFixed(2)} points {message.message} {offset_string}<span
         className={"gateTimesText"}>{times}</span></div>
 }
 
@@ -98,7 +98,7 @@ class ConnectedContestantDetailsDisplay extends Component {
                         <div className={"row"}>
                             <div className={"col-6"}>{contestantTwoLines(this.props.contestant)}</div>
                             <div className={"col-2 text-center"}
-                                 style={{color: "#e01b1c"}}>SCORE<br/>{this.props.contestantData.score}</div>
+                                 style={{color: "#e01b1c"}}>SCORE<br/>{this.props.contestantData.score.toFixed(0)}</div>
                             <div className={"col-2 text-center"} style={{color: "orange"}}>EST<br/>{projectedScore}
                             </div>
                             <div className={"col-2 details-progress-circle"} style={{paddingTop: "5px"}}><ProgressCircle

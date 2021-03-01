@@ -14,7 +14,8 @@ from timezone_field import TimeZoneFormField
 
 from display.map_plotter import A4, A3, N250_MAP, OSM_MAP
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam, TASK_TYPES, TrackScoreOverride, GateScoreOverride
+    ContestTeam, TrackScoreOverride, GateScoreOverride
+from display.poker_cards import PLAYING_CARDS
 
 TURNPOINT = "tp"
 STARTINGPOINT = "sp"
@@ -177,7 +178,7 @@ class ANRCorridorScoreOverrideForm(forms.Form):
 
 
 class TaskTypeForm(forms.Form):
-    task_type = forms.ChoiceField(choices=TASK_TYPES,
+    task_type = forms.ChoiceField(choices=NavigationTask.NAVIGATION_TASK_TYPES,
                                   help_text="The type of the task. This determines how the route file is processed")
 
     def __init__(self, *args, **kwargs):
@@ -596,3 +597,8 @@ class ContestTeamOptimisationForm(forms.Form):
     minutes_for_crew_switch = forms.IntegerField(initial=15)
     tracker_lead_time_minutes = forms.IntegerField(initial=15)
     # optimise = forms.BooleanField(required=False, initial=False, help_text="Try to further optimise the schedule")
+
+
+class AssignPokerCardForm(forms.Form):
+    waypoint = forms.ChoiceField(choices=())
+    playing_card = forms.ChoiceField(choices=PLAYING_CARDS)

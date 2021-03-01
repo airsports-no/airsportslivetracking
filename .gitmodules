@@ -1,3 +1,0 @@
-[submodule "django-rest-authemail"]
-	path = django-rest-authemail
-	url = https://github.com/kolaf/django-rest-authemail.git

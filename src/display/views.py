@@ -49,11 +49,12 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
     Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, ContestantMapForm, LANDSCAPE, \
     MapForm, \
     WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
-    PrecisionScoreOverrideForm, STARTINGPOINT, FINISHPOINT, TrackingDataForm, ContestTeamOptimisationForm
+    PrecisionScoreOverrideForm, STARTINGPOINT, FINISHPOINT, TrackingDataForm, ContestTeamOptimisationForm, \
+    AssignPokerCardForm
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
-    TeamTestScore, TRACCAR, TASK_PRECISION, TASK_ANR_CORRIDOR, Scorecard, MyUser
+    TeamTestScore, TRACCAR, Scorecard, MyUser, PlayingCard
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
@@ -267,6 +268,27 @@ def tracking_qr_code_view(request, pk):
     url = reverse("frontend_view_map", kwargs={"pk": pk})
     return render(request, "display/tracking_qr_code.html", {"url": "https://tracking.airsports.no{}".format(url),
                                                              "navigation_task": NavigationTask.objects.get(pk=pk)})
+
+
+@permission_required_or_403('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+def deal_card_to_contestant(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    if request.method == "POST":
+        form = AssignPokerCardForm(request.POST)
+        form.fields["waypoint"].choices = [(item.name, item.name) for item in
+                                           contestant.navigation_task.route.waypoints]
+        if form.is_valid():
+            waypoint = form.cleaned_data["waypoint"]
+            card = form.cleaned_data["playing_card"]
+            PlayingCard.add_contestant_card(contestant, card, waypoint)
+            return redirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task_id}))
+    form = AssignPokerCardForm()
+    form.fields["waypoint"].choices = [(item.name, item.name) for item in
+                                       contestant.navigation_task.route.waypoints]
+    return render(request, "display/deal_card_form.html", {"form": form, "contestant": contestant})
+
+# @permission_required_or_403('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+# def view_cards(request, pk):
 
 
 @permission_required_or_403('display.view_contest', (Contest, "navigationtask__contestant__pk", "pk"))
@@ -603,12 +625,13 @@ class GetDataFromTimeForContestant(RetrieveAPIView):
 
 def cached_generate_data(contestant_pk, from_time: Optional[datetime.datetime]) -> Dict:
     key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk, from_time)
-    response = cache.get(key)
+    # response = cache.get(key)
+    response = None
     if response is None:
         logger.info("Cache miss {}".format(contestant_pk))
         with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk), expire=30,
                              auto_renewal=True):
-            response = cache.get(key)
+            # response = cache.get(key)
             logger.info("Cache miss second time {}".format(contestant_pk))
             if response is None:
                 response = _generate_data(contestant_pk, from_time)
@@ -673,15 +696,16 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
 def show_route_definition_step(wizard):
     cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}
     return cleaned_data.get("file_type") == FILE_TYPE_KML and wizard.get_cleaned_data_for_step("task_type").get(
-        "task_type") in (TASK_PRECISION,)
+        "task_type") in (NavigationTask.PRECISION, NavigationTask.POKER)
 
 
 def show_precision_path(wizard):
-    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (TASK_PRECISION,)
+    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
+        NavigationTask.PRECISION, NavigationTask.POKER)
 
 
 def show_anr_path(wizard):
-    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (TASK_ANR_CORRIDOR,)
+    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (NavigationTask.ANR_CORRIDOR,)
 
 
 class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
@@ -735,7 +759,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
 
     def done(self, form_list, **kwargs):
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
-        if task_type == TASK_PRECISION:
+        if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
             initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
             use_procedure_turns = self.get_cleaned_data_for_step("task_content")["scorecard"].use_procedure_turns
             if initial_step_data["file_type"] == FILE_TYPE_CSV:
@@ -752,7 +776,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                     data = None
                 route = create_precision_route_from_formset("route", second_step_data,
                                                             use_procedure_turns, data)
-        elif task_type == TASK_ANR_CORRIDOR:
+        elif task_type == NavigationTask.ANR_CORRIDOR:
             data = self.get_cleaned_data_for_step("anr_route_import")["file"]
             data.seek(0)
             rounded_corners = self.get_cleaned_data_for_step("anr_route_import")["rounded_corners"]
@@ -761,9 +785,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
         # Build score overrides
-        if task_type == TASK_PRECISION:
+        if task_type == NavigationTask.PRECISION:
             kwargs["form_dict"].get("precision_override").build_score_override(navigation_task)
-        elif task_type == TASK_ANR_CORRIDOR:
+        elif task_type == NavigationTask.ANR_CORRIDOR:
             kwargs["form_dict"].get("anr_corridor_override").build_score_override(navigation_task)
         # Update contest location if necessary
         navigation_task_location = route.waypoints[0]

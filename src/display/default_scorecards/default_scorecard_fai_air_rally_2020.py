@@ -1,5 +1,5 @@
 #
-from display.models import GateScore, Scorecard, TASK_PRECISION
+from display.models import GateScore, Scorecard, NavigationTask
 
 
 # No procedure turn
@@ -12,7 +12,7 @@ def get_default_scorecard():
     scorecard.backtracking_grace_time_seconds = 5
     scorecard.backtracking_maximum_penalty = 1000
     scorecard.use_procedure_turns = False
-    scorecard.task_type = [TASK_PRECISION]
+    scorecard.task_type = [NavigationTask.PRECISION]
     scorecard.calculator = Scorecard.PRECISION
 
     regular_gate_score = GateScore.objects.get_or_create(name=f"{scorecard.name}_regular")[0]

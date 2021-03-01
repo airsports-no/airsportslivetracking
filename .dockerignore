@@ -1,0 +1,14 @@
+.git
+static
+node_modules
+*pyc
+.idea
+venv
+weblog
+MSFS2020_client
+assets
+celerylog
+data
+FC
+mapserver
+processorlog

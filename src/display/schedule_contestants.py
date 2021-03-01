@@ -72,7 +72,7 @@ def schedule_and_create_contestants(navigation_task: NavigationTask, contest_tea
                 maximum_contestant = 0
             contestant = Contestant.objects.create(takeoff_time=team_definition.start_time,
                                                    finished_by_time=team_definition.start_time + datetime.timedelta(
-                                                       minutes=team_definition.flight_time) + tracker_switch_time - tracker_leadtime_minutes,
+                                                       minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes),
                                                    air_speed=contest_team.air_speed,
                                                    wind_speed=navigation_task.wind_speed,
                                                    wind_direction=navigation_task.wind_direction,
