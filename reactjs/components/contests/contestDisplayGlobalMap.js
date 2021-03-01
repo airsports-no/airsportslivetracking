@@ -23,10 +23,9 @@ class ConnectedContestDisplayGlobalMap extends Component {
             colour = "red"
         }
         // this.props.fetchContestsNavigationTaskSummaries(this.props.contest.id)
-        this.circle = L.circle([this.props.contest.latitude, this.props.contest.longitude], {
-            radius: 50000,
-            color: colour,
-            opacity: 0.3
+        this.circle = L.marker([this.props.contest.latitude, this.props.contest.longitude], {
+            title: this.props.contest.name,
+
         }).addTo(this.props.map)
         this.circle.bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={this.props.contest}/>), {
             className: "contest-popup",
