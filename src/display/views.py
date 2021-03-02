@@ -280,6 +280,9 @@ def deal_card_to_contestant(request, pk):
         if form.is_valid():
             waypoint = form.cleaned_data["waypoint"]
             card = form.cleaned_data["playing_card"]
+            random_card = form.cleaned_data["random_card"]
+            if random_card:
+                card = PlayingCard.get_random_unique_card(contestant)
             PlayingCard.add_contestant_card(contestant, card, waypoint)
             return redirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task_id}))
     form = AssignPokerCardForm()

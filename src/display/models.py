@@ -1,5 +1,6 @@
 import datetime
 import logging
+import random
 from plistlib import Dict
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
@@ -909,6 +910,19 @@ class ContestantTrack(models.Model):
 class PlayingCard(models.Model):
     contestant_track = models.ForeignKey(ContestantTrack, on_delete=models.CASCADE)
     card = models.CharField(max_length=2, choices=PLAYING_CARDS)
+
+    @classmethod
+    def get_random_unique_card(cls, contestant: Contestant) -> str:
+        cards = [item[0] for item in PLAYING_CARDS]
+        existing_cards = contestant.contestanttrack.playingcard_set.all().values_list("card", flat=True)
+        available_cards = set(cards) - set(existing_cards)
+        if len(available_cards) == 0:
+            raise ValueError(
+                f"There are no available cards to choose for the contestant, he/she already has {len(existing_cards)}.")
+        random_card = random.choice(list(available_cards))
+        while contestant.contestanttrack.playingcard_set.filter(card=random_card).exists():
+            random_card = random.choice([item[0] for item in PLAYING_CARDS])
+        return random_card
 
     @classmethod
     def evaluate_hand(cls, contestant: Contestant) -> Tuple[int, str]:
