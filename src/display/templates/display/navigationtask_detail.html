@@ -53,7 +53,7 @@
                 <td>
                     {% if object.is_poker_run %}
                         {% if "change_contest" in contest_permissions %}
-                            <a href="{% url 'contestant_deal_card' contestant.pk %}">deal poker card</a> |
+                            <a href="{% url 'contestant_cards_list' contestant.pk %}">playing cards</a> |
                         {% endif %}
                     {% endif %}
                     <a href="{% url 'contestant_map' contestant.pk %}">map</a> |

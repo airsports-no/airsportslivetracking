@@ -12,7 +12,7 @@ from display.views import frontend_view_map, \
     tracking_qr_code_view, get_contestant_map, get_navigation_task_map, add_contest_teams_to_navigation_task, \
     clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map, ContestDetailView, \
     deal_card_to_contestant, list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
-    change_user_contest_permissions
+    change_user_contest_permissions, contestant_cards_list, contestant_card_remove
 
 urlpatterns = [
     path('frontend/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
@@ -45,6 +45,8 @@ urlpatterns = [
     path('contestant/<int:navigationtask_pk>/create/', ContestantCreateView.as_view(), name="contestant_create"),
     path('contestant/<int:pk>/map/', get_contestant_map, name="contestant_map"),
     path('contestant/<int:pk>/deal_card/', deal_card_to_contestant, name="contestant_deal_card"),
+    path('contestant/<int:pk>/list_cards/', contestant_cards_list, name="contestant_cards_list"),
+    path('contestant/<int:pk>/remove_card/<int:card_pk>/', contestant_card_remove, name="contestant_card_remove"),
     path('contestant/<int:pk>/update/', ContestantUpdateView.as_view(), name="contestant_update"),
     path('contestant/<int:pk>/delete/', ContestantDeleteView.as_view(), name="contestant_delete"),
     path('contestant/<int:pk>/gates/', ContestantGateTimesView.as_view(), name="contestant_gate_times"),

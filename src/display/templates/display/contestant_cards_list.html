@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+    <H1>Hand for {{ contestant }}</H1>
+    <a href="{% url 'navigationtask_detail' contestant.navigation_task.pk %}">Back to contestant list</a>
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Card</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+
+        {% for card in cards %}
+            <tr>
+                <td>{{ card.get_card_display }}</td>
+                <td>
+                    <a href="{% url 'contestant_card_remove' contestant.pk card.pk %}">remove</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    <a href="{% url 'contestant_deal_card' contestant.pk %}">Deal new card</a>
+{% endblock %}

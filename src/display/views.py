@@ -4,7 +4,6 @@ import os
 from datetime import timedelta
 from typing import Optional, Dict
 
-import guardian
 import redis_lock
 import dateutil
 from django.contrib import messages
@@ -26,7 +25,7 @@ from django.views.generic import ListView, DetailView, UpdateView, CreateView, D
 import logging
 
 from formtools.wizard.views import SessionWizardView, CookieWizardView
-from guardian.decorators import guardian.decorators.permission_required
+from guardian.decorators import permission_required as guardian_permission_required
 from guardian.mixins import PermissionRequiredMixin as GuardianPermissionRequiredMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm, get_users_with_perms, remove_perm, get_user_perms
 from redis import Redis
@@ -39,10 +38,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ViewSet, GenericViewSet
 
-from display.calculate_gate_times import calculate_and_get_relative_gate_times
-from display.contestant_scheduler import TeamDefinition, Solver
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx, create_precision_route_from_csv, \
-    load_route_points_from_kml, \
     create_precision_route_from_formset, create_anr_corridor_route_from_kml, load_features_from_kml
 from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, \
     FILE_TYPE_FLIGHTCONTEST_GPX, \
@@ -75,8 +71,6 @@ from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
-from playback_tools import insert_gpx_file
-from traccar_facade import Traccar
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +271,21 @@ def tracking_qr_code_view(request, pk):
                                                              "navigation_task": NavigationTask.objects.get(pk=pk)})
 
 
-@guardian.decorators.permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+@guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+def contestant_card_remove(request, pk, card_pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    contestant.contestanttrack.playingcard_set.filter(pk=card_pk).delete()
+    return redirect(reverse("contestant_cards_list", kwargs={"pk": contestant.pk}))
+
+
+@guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+def contestant_cards_list(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    cards = contestant.contestanttrack.playingcard_set.all().order_by('card')
+    return render(request, "display/contestant_cards_list.html", {"cards": cards, "contestant": contestant})
+
+
+@guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 def deal_card_to_contestant(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     if request.method == "POST":
@@ -291,18 +299,18 @@ def deal_card_to_contestant(request, pk):
             if random_card:
                 card = PlayingCard.get_random_unique_card(contestant)
             PlayingCard.add_contestant_card(contestant, card, waypoint)
-            return redirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task_id}))
+            return redirect(reverse("contestant_cards_list", kwargs={"pk": contestant.pk}))
     form = AssignPokerCardForm()
     form.fields["waypoint"].choices = [(item.name, item.name) for item in
                                        contestant.navigation_task.route.waypoints]
     return render(request, "display/deal_card_form.html", {"form": form, "contestant": contestant})
 
 
-# @guardian.decorators.permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+# @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 # def view_cards(request, pk):
 
 
-@guardian.decorators.permission_required('display.view_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+@guardian_permission_required('display.view_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_map(request, pk):
     if request.method == "POST":
         form = ContestantMapForm(request.POST)
@@ -321,7 +329,7 @@ def get_contestant_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
-@guardian.decorators.permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
 def get_navigation_task_map(request, pk):
     if request.method == "POST":
         form = MapForm(request.POST)
@@ -340,12 +348,14 @@ def get_navigation_task_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
-@guardian.decorators.permission_required('display.change_contest', (Contest, "pk", "pk"))
+@guardian_permission_required('display.change_contest', (Contest, "pk", "pk"))
 def list_contest_permissions(request, pk):
     contest = get_object_or_404(Contest, pk=pk)
     users_and_permissions = get_users_with_perms(contest, attach_perms=True)
     users = []
     for user in users_and_permissions.keys():
+        if user == request.user:
+            continue
         data = {item: True for item in users_and_permissions[user]}
         data["email"] = user.email
         data["pk"] = user.pk
@@ -353,7 +363,7 @@ def list_contest_permissions(request, pk):
     return render(request, "display/contest_permissions.html", {"users": users, "contest": contest})
 
 
-@guardian.decorators.permission_required('display.change_contest', (Contest, "pk", "pk"))
+@guardian_permission_required('display.change_contest', (Contest, "pk", "pk"))
 def delete_user_contest_permissions(request, pk, user_pk):
     contest = get_object_or_404(Contest, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
@@ -363,7 +373,7 @@ def delete_user_contest_permissions(request, pk, user_pk):
     return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
 
 
-@guardian.decorators.permission_required('display.change_contest', (Contest, "pk", "pk"))
+@guardian_permission_required('display.change_contest', (Contest, "pk", "pk"))
 def change_user_contest_permissions(request, pk, user_pk):
     contest = get_object_or_404(Contest, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
@@ -383,7 +393,7 @@ def change_user_contest_permissions(request, pk, user_pk):
     return render(request, "display/contest_permissions_form.html", {"form": form})
 
 
-@guardian.decorators.permission_required('display.change_contest', (Contest, "pk", "pk"))
+@guardian_permission_required('display.change_contest', (Contest, "pk", "pk"))
 def add_user_contest_permissions(request, pk):
     contest = get_object_or_404(Contest, pk=pk)
     if request.method == "POST":
@@ -597,7 +607,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
 
 @api_view(["GET"])
-@guardian.decorators.permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
 def get_contestant_schedule(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     columns = [
@@ -614,13 +624,13 @@ def get_contestant_schedule(request, pk):
     return Response({"cols": columns, "rows": rows})
 
 
-@guardian.decorators.permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
 def render_contestants_timeline(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     return render(request, "display/contestant_timeline.html", context={"navigation_task": navigation_task})
 
 
-@guardian.decorators.permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
 def clear_future_contestants(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -630,7 +640,7 @@ def clear_future_contestants(request, pk):
     return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
-@guardian.decorators.permission_required('display.change_contest', (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required('display.change_contest', (Contest, "navigationtask__pk", "pk"))
 def add_contest_teams_to_navigation_task(request, pk):
     """
     Add all teams registered for a contest to a task. If the team is already assigned as a contestant, ignore it.
@@ -1185,7 +1195,7 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
         return context
 
 
-@guardian.decorators.permission_required('display.change_contest', (Contest, "pk", "contest_pk"))
+@guardian_permission_required('display.change_contest', (Contest, "pk", "contest_pk"))
 def remove_team_from_contest(request, contest_pk, team_pk):
     contest = get_object_or_404(Contest, pk=contest_pk)
     team = get_object_or_404(Team, pk=team_pk)
