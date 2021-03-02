@@ -5,7 +5,7 @@
 
 
 {% block content %}
-    <h2>Deal card to contestant {{ contestant }}</h2>
+    <h2>Manage permissions for contest {{ contest }}</h2>
     <form method="post" class="form">
         {% csrf_token %}
         {% bootstrap_form form %}

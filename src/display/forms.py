@@ -603,4 +603,17 @@ class AssignPokerCardForm(forms.Form):
     waypoint = forms.ChoiceField(choices=())
     playing_card = forms.ChoiceField(choices=PLAYING_CARDS)
     random_card = forms.BooleanField(required=False,
-                                help_text="If checked the contestant is assigned a random card instead of the one selected above.")
+                                     help_text="If checked the contestant is assigned a random card instead of the one selected above.")
+
+
+class AddContestPermissionsForm(forms.Form):
+    email = forms.EmailField()
+    change_contest = forms.BooleanField(required=False)
+    view_contest = forms.BooleanField(required=False)
+    delete_contest = forms.BooleanField(required=False)
+
+
+class ChangeContestPermissionsForm(forms.Form):
+    change_contest = forms.BooleanField(required=False)
+    view_contest = forms.BooleanField(required=False)
+    delete_contest = forms.BooleanField(required=False)
