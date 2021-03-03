@@ -134,7 +134,6 @@ class User:
             window["CURRENT_TASK_START"].update("")
             window["CURRENT_TASK_FINISH"].update("")
             window["CURRENT_TASK_LINK"].update("")
-        threading.Timer(30, self.refresh_current_navigation_task, (window,)).start()
 
     def sign_in(self, window, values):
         progress_bar = window["LOGIN_PROGRESS"]
@@ -257,7 +256,7 @@ if __name__ == "__main__":
          sg.Button("Update", key="UPDATE_AIRCRAFT_REGISTRATION", disabled=True)],
         [sg.Button("Save profile", key="SAVE_PROFILE", disabled=True)],
         [sg.Text("Currently competing in task:")],
-        [sg.Text(key="CURRENT_TASK_NAME", size=(40, 1))],
+        [sg.Text(key="CURRENT_TASK_NAME", size=(40, 1), enable_events=True)],
         [sg.Text(key="CURRENT_TASK_START", size=(25, 1)), sg.Text("-"),
          sg.Text(key="CURRENT_TASK_FINISH", size=(25, 1))],
         [sg.Text(key="CURRENT_TASK_LINK", size=(40, 1), enable_events=True)]
@@ -341,6 +340,8 @@ if __name__ == "__main__":
             if not user_object.profile["validated"]:
                 sg.popup("Please update your user profile")
                 continue
+            if user_object is not None:
+                user_object.refresh_current_navigation_task(window)
             if not currently_tracking:
                 tracking_event.clear()
                 window["START_TRACKING"].update(disabled=True)
@@ -355,5 +356,9 @@ if __name__ == "__main__":
             tracking_event.set()
         if event == "CURRENT_TASK_LINK":
             webbrowser.open(window["CURRENT_TASK_LINK"].get())
+        if event == "CURRENT_TASK_NAME":
+            if user_object is not None:
+                user_object.refresh_current_navigation_task(window)
+
 
     window.close()
