@@ -25,7 +25,7 @@ from display.waypoint import Waypoint
 class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
     class Meta:
         model = NavigationTask
-        fields = ("pk", "name", "start_time", "finish_time")
+        fields = ("pk", "name", "start_time", "finish_time", "tracking_link")
 
 
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):

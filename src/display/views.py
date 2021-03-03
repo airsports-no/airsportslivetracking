@@ -1251,7 +1251,14 @@ class IsPublicMixin:
 
 class UserPersonViewSet(GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = PersonSerialiser
+    serializer_classes = {
+        "get_current_app_navigation_task": NavigationTasksSummarySerialiser,
+        "get_current_sim_navigation_task": NavigationTasksSummarySerialiser
+    }
+    default_serialiser_class = PersonSerialiser
+
+    def get_serializer_class(self):
+        return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_object(self):
         instance = self.get_queryset()
@@ -1288,6 +1295,24 @@ class UserPersonViewSet(GenericViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def get_current_sim_navigation_task(self, request, *args, **kwargs):
+        person = self.get_object()
+        contestant = Contestant.get_contestant_for_device_at_time(person.simulator_tracking_id,
+                                                                  datetime.datetime.now(datetime.timezone.utc))
+        if not contestant:
+            raise Http404
+        return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
+
+    @action(detail=False, methods=["get"])
+    def get_current_app_navigation_task(self, request, *args, **kwargs):
+        person = self.get_object()
+        contestant = Contestant.get_contestant_for_device_at_time(person.simulator_tracking_id,
+                                                                  datetime.datetime.now(datetime.timezone.utc))
+        if not contestant:
+            raise Http404
+        return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
 
     @action(detail=False, methods=["put"])
     def update_profile(self, request, *args, **kwargs):

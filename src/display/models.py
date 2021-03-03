@@ -12,6 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from django.db import models
 from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 from django_use_email_as_username.models import BaseUser, BaseUserManager
 from guardian.mixins import GuardianUserMixin
@@ -32,6 +33,7 @@ from display.poker_cards import PLAYING_CARDS
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
+from live_tracking_map.settings import SERVER_ROOT
 
 TRACCAR = "traccar"
 TRACKING_SERVICES = (
@@ -341,6 +343,10 @@ class NavigationTask(models.Model):
     @property
     def is_poker_run(self) -> bool:
         return self.POKER in self.scorecard.task_type
+
+    @property
+    def tracking_link(self) -> str:
+        return SERVER_ROOT + reverse("frontend_view_map", kwargs={"pk": self.pk})
 
     class Meta:
         ordering = ("start_time", "finish_time")
