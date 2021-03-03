@@ -98,7 +98,7 @@ class ConnectedContestantDetailsDisplay extends Component {
                         <div className={"row"}>
                             <div className={"col-6"}>{contestantTwoLines(this.props.contestant)}</div>
                             <div className={"col-2 text-center"}
-                                 style={{color: "#e01b1c"}}>SCORE<br/>{this.props.contestantData.score.toFixed(0)}</div>
+                                 style={{color: "#e01b1c"}}>SCORE<br/>{this.props.contestantData.score.toFixed(2)}</div>
                             <div className={"col-2 text-center"} style={{color: "orange"}}>EST<br/>{projectedScore}
                             </div>
                             <div className={"col-2 details-progress-circle"} style={{paddingTop: "5px"}}><ProgressCircle

@@ -169,7 +169,7 @@ class ConnectedContestantRankTable extends Component {
                 classes: "align-middle",
                 sort: true,
                 formatter: (cell, row) => {
-                    return cell.toFixed(0)
+                    return cell.toFixed(2)
                 }
             },
             {
