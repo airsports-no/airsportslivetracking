@@ -84,6 +84,7 @@ class GatekeeperRoute(Gatekeeper):
         else:
             time_difference = datetime.timedelta(minutes=0)
         gate_times = self.contestant.calculate_and_get_gate_times(start_time)
+        self.contestant.gate_times = gate_times
         for item in self.outstanding_gates:  # type: Gate
             item.expected_time = gate_times[item.name]
         if self.landing_gate is not None:
