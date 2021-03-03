@@ -3,9 +3,11 @@ import json
 import math
 import threading
 import time
+import webbrowser
 from locale import setlocale, LC_CTYPE
 from typing import Dict
 from urllib.parse import urlencode
+# import PySimpleGUI as sg
 import PySimpleGUIWx as sg
 
 from SimConnect import *
@@ -115,6 +117,24 @@ class User:
         self.user_token = None
         self.profile = None
 
+    def refresh_current_navigation_task(self, window):
+        response = requests.get("https://airsports.no/api/v1/userprofile/get_current_sim_navigation_task/",
+                                headers={'Authorization': "JWT {}".format(self.user['idToken'])}
+                                )
+        # print(response.status_code)
+        # print(response.text)
+        if response.status_code == 200:
+            data = response.json()
+            window["CURRENT_TASK_NAME"].update(data["name"])
+            window["CURRENT_TASK_START"].update(data["start_time"])
+            window["CURRENT_TASK_FINISH"].update(data["finish_time"])
+            window["CURRENT_TASK_LINK"].update(data["tracking_link"])
+        else:
+            window["CURRENT_TASK_NAME"].update("None")
+            window["CURRENT_TASK_START"].update("")
+            window["CURRENT_TASK_FINISH"].update("")
+            window["CURRENT_TASK_LINK"].update("")
+
     def sign_in(self, window, values):
         progress_bar = window["LOGIN_PROGRESS"]
         progress_bar.update_bar(1)
@@ -133,6 +153,7 @@ class User:
             window["RESET_PASSWORD"].update(disabled=True)
 
             progress_bar.update_bar(3)
+            self.refresh_current_navigation_task(window)
             if self.profile['validated']:
                 window["START_TRACKING"].update(disabled=False)
             else:
@@ -220,7 +241,7 @@ if __name__ == "__main__":
         [sg.Button("Login"), sg.Button("Signup"),
          sg.Button("Resend verification email", key="RESEND_VERIFICATION"),
          sg.Button("Reset password", key="RESET_PASSWORD")],
-        [sg.ProgressBar(max_value=3, orientation="h", size=(100, 20), key="LOGIN_PROGRESS")],
+        [sg.ProgressBar(max_value=3, orientation="h", size=(10, 20), key="LOGIN_PROGRESS")],
         [sg.Button("Start tracking", key="START_TRACKING", disabled=True), sg.Text(size=(20, 1), key='TRANSMIT_TIME')],
         [sg.Button("Stop tracking", key="STOP_TRACKING", disabled=True)],
         # [sg.HSeparator()],
@@ -234,6 +255,13 @@ if __name__ == "__main__":
         [sg.Text("Aircraft registration:"), sg.Text(size=(25, 1), key="AIRCRAFT_REGISTRATION"),
          sg.Button("Update", key="UPDATE_AIRCRAFT_REGISTRATION", disabled=True)],
         [sg.Button("Save profile", key="SAVE_PROFILE", disabled=True)],
+        [sg.Text("Currently competing in task:")],
+        [sg.Text(key="CURRENT_TASK_NAME", size=(40, 1), enable_events=True)],
+        [sg.Text(key="CURRENT_TASK_START", size=(25, 1)), sg.Text("-"),
+         sg.Text(key="CURRENT_TASK_FINISH", size=(25, 1))],
+        [sg.Text(key="CURRENT_TASK_LINK", size=(40, 1), enable_events=True)]
+        # [sg.Image(r'airsports.png', size=(400, 66))],
+
         # [sg.Image(key="PROFILE_IMAGE", size=(100, 100))]
 
     ]
@@ -243,7 +271,7 @@ if __name__ == "__main__":
             sg.Column(authentication),
             # sg.VSeparator(),
             sg.Column(profile)
-        ]
+        ],
     ]
     window = sg.Window(title="Airsports Live Tracking MSFS2020", layout=layout)  # , margins=(20, 20))
     window.read(timeout=0.1)
@@ -312,6 +340,8 @@ if __name__ == "__main__":
             if not user_object.profile["validated"]:
                 sg.popup("Please update your user profile")
                 continue
+            if user_object is not None:
+                user_object.refresh_current_navigation_task(window)
             if not currently_tracking:
                 tracking_event.clear()
                 window["START_TRACKING"].update(disabled=True)
@@ -324,5 +354,11 @@ if __name__ == "__main__":
             window["START_TRACKING"].update(disabled=False)
             window["STOP_TRACKING"].update(disabled=True)
             tracking_event.set()
+        if event == "CURRENT_TASK_LINK":
+            webbrowser.open(window["CURRENT_TASK_LINK"].get())
+        if event == "CURRENT_TASK_NAME":
+            if user_object is not None:
+                user_object.refresh_current_navigation_task(window)
+
 
     window.close()

@@ -1,3 +1,4 @@
+from multiprocessing.queues import Queue
 from typing import TYPE_CHECKING
 
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
@@ -11,12 +12,12 @@ if TYPE_CHECKING:
 from display.models import Contestant, Scorecard
 
 
-def calculator_factory(contestant: "Contestant", influx: "InfluxFacade", live_processing: bool = True) -> "Gatekeeper":
+def calculator_factory(contestant: "Contestant", position_queue: Queue, live_processing: bool = True) -> "Gatekeeper":
     if contestant.navigation_task.scorecard.calculator == Scorecard.PRECISION:
-        return GatekeeperRoute(contestant, influx, [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator],
+        return GatekeeperRoute(contestant, position_queue, [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator],
                                live_processing=live_processing)
     if contestant.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
-        return GatekeeperRoute(contestant, influx,
+        return GatekeeperRoute(contestant, position_queue,
                                [BacktrackingAndProcedureTurnsCalculator, AnrCorridorCalculator,
                                 ProhibitedZoneCalculator],
                                live_processing=live_processing)

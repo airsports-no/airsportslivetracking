@@ -788,6 +788,10 @@ class Contestant(models.Model):
                                                                                                      microsecond=0)
         return self.calculate_and_get_gate_times(zero_time)
 
+    @gate_times.setter
+    def gate_times(self, value):
+        self.predefined_gate_times = value
+
     def get_gate_time_offset(self, gate_name):
         planned = self.gate_times.get(gate_name)
         if planned is None:
@@ -813,10 +817,6 @@ class Contestant(models.Model):
             if gate_type in item.for_gate_types:
                 return item
         return None
-
-    @gate_times.setter
-    def gate_times(self, value):
-        self.predefined_gate_times = value
 
     def get_tracker_id(self) -> str:
         if self.tracker_device_id is not None and len(self.tracker_device_id) > 0:

@@ -1,6 +1,7 @@
 import datetime
 import logging
 import threading
+from multiprocessing.queues import Queue
 from typing import List, TYPE_CHECKING, Optional, Callable
 
 import pytz
@@ -44,9 +45,9 @@ class GatekeeperRoute(Gatekeeper):
     GATE_SCORE_TYPE = "gate_score"
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
-    def __init__(self, contestant: "Contestant", influx: "InfluxFacade", calculators: List[Callable],
+    def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
                  live_processing: bool = True):
-        super().__init__(contestant, influx, calculators, live_processing)
+        super().__init__(contestant, position_queue, calculators, live_processing)
         self.accumulated_scores = ScoreAccumulator()
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
                                   calculate_extended_gate(self.gates[0].waypoint, self.scorecard,
@@ -234,10 +235,10 @@ class GatekeeperRoute(Gatekeeper):
 
     def check_termination(self):
         already_terminated = self.track_terminated
-        if len(self.outstanding_gates) == 0:
-            if not already_terminated:
-                logger.info("No more gates, terminating")
-            self.track_terminated = True
+        # if len(self.outstanding_gates) == 0:
+        #     if not already_terminated:
+        #         logger.info("No more gates, terminating")
+        #     self.track_terminated = True
         speed = self.get_speed()
         # Do not care about speed during low processing, we only care about the tracking interval from takeoff time
         # to finish by time

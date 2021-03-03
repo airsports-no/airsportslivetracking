@@ -278,7 +278,7 @@ class TestAccessContest(APITestCase):
         self.client.logout()
         result = self.client.get(reverse("remove_team", kwargs={'contest_pk': self.contest_id, "team_pk": team.pk}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_302_FOUND)
 
     def test_remove_team_from_contest_as_someone_else(self, patch):
         team = Team.objects.create(crew=Crew.objects.create(
@@ -288,7 +288,7 @@ class TestAccessContest(APITestCase):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.get(reverse("remove_team", kwargs={'contest_pk': self.contest_id, "team_pk": team.pk}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_302_FOUND)
 
     def test_remove_team_from_contest_as_creator(self, patch):
         team = Team.objects.create(crew=Crew.objects.create(

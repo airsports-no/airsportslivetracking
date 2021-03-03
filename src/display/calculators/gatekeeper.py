@@ -2,11 +2,11 @@ import datetime
 import logging
 import threading
 from abc import abstractmethod
+from multiprocessing.queues import Queue
 from typing import List, TYPE_CHECKING, Optional, Callable
 
 import pytz
 
-from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import round_time, distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
@@ -15,8 +15,7 @@ from display.coordinate_utilities import line_intersect, fraction_of_leg, Projec
 from display.models import ContestantTrack, Contestant
 from display.waypoint import Waypoint
 
-if TYPE_CHECKING:
-    from influx_facade import InfluxFacade
+from influx_facade import InfluxFacade
 
 logger = logging.getLogger(__name__)
 
@@ -40,19 +39,19 @@ class ScoreAccumulator:
 LOOP_TIME = 60
 
 
-class Gatekeeper(threading.Thread):
+class Gatekeeper:
     GATE_SCORE_TYPE = "gate_score"
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
-    def __init__(self, contestant: "Contestant", influx: "InfluxFacade", calculators: List[Callable],
+    def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
                  live_processing: bool = True):
         super().__init__()
         self.live_processing = live_processing
         self.track_terminated = False
         self.contestant = contestant
-        self.influx = influx
+        self.position_queue = position_queue
+        self.influx = InfluxFacade()
         self.track = []  # type: List[Position]
-        self.pending_points = []
         self.score = 0
         self.score_by_gate = {}
         self.has_passed_finishpoint = False
@@ -102,19 +101,16 @@ class Gatekeeper(threading.Thread):
         logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
         while not self.track_terminated:
-            self.process_event.wait(LOOP_TIME)
-            self.process_event.clear()
-            while len(self.pending_points) > 0:
-                with self.position_update_lock:
-                    data = self.pending_points.pop(0)
-                    if data is None:
-                        # Signal the track processor that this is the end, and perform the track calculation
-                        self.track_terminated = True
-                        continue
-                for position in self.interpolate_track(data):
-                    self.track.append(position)
-                    if len(self.track) > 1:
-                        self.calculate_score()
+            data = self.position_queue.get()
+            if data is None:
+                # Signal the track processor that this is the end, and perform the track calculation
+                self.track_terminated = True
+                continue
+            data = Position(**data)
+            for position in self.interpolate_track(data):
+                self.track.append(position)
+                if len(self.track) > 1:
+                    self.calculate_score()
         logger.info("Terminating calculator for {}".format(self.contestant))
 
     def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,
@@ -178,12 +174,6 @@ class Gatekeeper(threading.Thread):
             gates.append(Gate(item, expected_times[item.name],
                               calculate_extended_gate(item, self.scorecard, self.contestant)))
         return gates
-
-    def add_positions(self, positions):
-        with self.position_update_lock:
-            self.pending_points.extend(
-                [Position(**position) if position is not None else None for position in positions])
-        self.process_event.set()
 
     def pop_gate(self, index, update_last: bool = True):
         gate = self.outstanding_gates.pop(index)

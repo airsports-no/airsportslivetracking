@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime
+from multiprocessing import Process, Queue
 from typing import List, TYPE_CHECKING
 
 from django.core.cache import cache
@@ -32,32 +32,44 @@ if __name__ == "__main__":
     devices = traccar.get_device_map()
 influx = InfluxFacade()
 influx.purge_global_map()
-calculators = {}
+processes = {}
 position_buffer = {}
 POSITION_BUFFER_SIZE = 5
 calculator_lock = threading.Lock()
 
 
+def calculator_process(contestant_pk: int, position_queue: Queue):
+    """
+    To be run in a separate process
+    """
+    django.db.connections.close_all()
+    contestant = Contestant.objects.get(pk=contestant_pk)
+    calculator = calculator_factory(contestant, position_queue, live_processing=True)
+    calculator.run()
+
+
 def add_positions_to_calculator(contestant: Contestant, positions: List):
-    if contestant.pk not in calculators:
+    key = contestant.pk
+    if key not in processes:
         contestant_track, _ = ContestantTrack.objects.get_or_create(contestant=contestant)
         if contestant_track.calculator_finished:
             return
-        calculators[contestant.pk] = calculator_factory(contestant, influx, live_processing=True)
-        calculators[contestant.pk].start()
-    calculator = calculators[contestant.pk]  # type: Gatekeeper
-    new_positions = []
+        q = Queue()
+        django.db.connections.close_all()
+        p = Process(target=calculator_process, args=(key, q), daemon=True)
+        processes[key] = (q, p)
+        p.start()
+    queue = processes[key][0]  # type: Queue
     for position in positions:
         data = position["fields"]
         data["time"] = position["time"]
-        new_positions.append(data)
-    calculator.add_positions(new_positions)
+        queue.put(data)
 
 
 def cleanup_calculators():
-    for key, calculator in dict(calculators).items():
-        if not calculator.is_alive():
-            calculators.pop(key)
+    for key, (queue, process) in dict(processes).items():
+        if not process.is_alive():
+            processes.pop(key)
 
 
 def build_and_push_position_data(data):
