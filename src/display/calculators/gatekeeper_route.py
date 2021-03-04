@@ -48,6 +48,7 @@ class GatekeeperRoute(Gatekeeper):
     def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
                  live_processing: bool = True):
         super().__init__(contestant, position_queue, calculators, live_processing)
+        self.last_backwards = None
         self.accumulated_scores = ScoreAccumulator()
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
                                   calculate_extended_gate(self.gates[0].waypoint, self.scorecard,
@@ -155,11 +156,15 @@ class GatekeeperRoute(Gatekeeper):
                     # Add penalty for crossing in the wrong direction
                     score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp",
                                                                                                 self.contestant)
-                    if score > 0:
-                        self.update_score(self.starting_line, score,
-                                          "crossing extended starting gate backwards",
-                                          self.track[-1].latitude, self.track[-1].longitude, "anomaly",
-                                          self.BACKWARD_STARTING_LINE_SCORE_TYPE)
+                    # Add a grace time to prevent multiple backwards penalties for a single crossing
+                    if self.last_backwards is None or intersection_time > self.last_backwards + datetime.timedelta(
+                            seconds=15):
+                        self.last_backwards = intersection_time
+                        if score > 0:
+                            self.update_score(self.starting_line, score,
+                                              "crossing extended starting gate backwards",
+                                              self.track[-1].latitude, self.track[-1].longitude, "anomaly",
+                                              self.BACKWARD_STARTING_LINE_SCORE_TYPE)
             # First check extended and see if we are in the correct direction
             # Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
             # A 2.2.14
