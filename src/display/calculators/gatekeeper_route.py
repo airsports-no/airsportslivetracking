@@ -85,15 +85,16 @@ class GatekeeperRoute(Gatekeeper):
             time_difference = datetime.timedelta(minutes=0)
         gate_times = self.contestant.calculate_and_get_gate_times(start_time)
         self.contestant.gate_times = gate_times
+        logger.debug(f"Recalculating gates times for contestant {self.contestant}: {self.contestant.gate_times}")
         for item in self.outstanding_gates:  # type: Gate
             item.expected_time = gate_times[item.name]
         if self.landing_gate is not None:
             self.landing_gate.expected_time = gate_times[self.landing_gate.name]
         try:
             self.contestant.finished_by_time += time_difference
-            self.contestant.save()
         except:
             logger.exception("Failed updating finished by time for contestant {}".format(self.contestant))
+        self.contestant.save()
 
     def check_gate_in_range(self):
         if len(self.outstanding_gates) == 0 or len(self.track) == 0:
