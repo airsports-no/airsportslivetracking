@@ -1,21 +1,14 @@
 import datetime
 import logging
-import threading
-import uuid
 from plistlib import Dict
-from typing import List, Union, Set, Optional
+from typing import List, Union, Optional
 
 import dateutil
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-from django.core.cache import cache
-from django.core.exceptions import ObjectDoesNotExist
 from influxdb import InfluxDBClient
 from influxdb.resultset import ResultSet
 
-from display.models import ContestantTrack, Contestant, Person
-from display.serialisers import ContestantTrackSerialiser
-from traccar_facade import Traccar
+from display.models import Contestant
+from websocket_channels import WebsocketFacade
 
 host = "influx"
 port = 8086
@@ -24,34 +17,17 @@ dbname = "airsport"
 password = "notsecret"
 
 logger = logging.getLogger(__name__)
-GLOBAL_TRANSMISSION_INTERVAL = 5
-PURGE_GLOBAL_MAP_INTERVAL = 1200
 
 
 class InfluxFacade:
     def __init__(self):
-        self.channel_layer = get_channel_layer()
         self.client = InfluxDBClient(host, port, user, password, dbname)
-        self.global_map = {}
-        self.last_purge = datetime.datetime.now(datetime.timezone.utc)
+        self.websocket_facade = WebsocketFacade()
 
-    def purge_global_map(self):
-        logger.info("Purging global map cache")
-        now = datetime.datetime.now(datetime.timezone.utc)
-        self.last_purge = now
-        for key in list(self.global_map.keys()):
-            value = self.global_map[key]
-            if (now - value[0]).total_seconds() > PURGE_GLOBAL_MAP_INTERVAL:
-                del self.global_map[key]
-        cache.set("GLOBAL_MAP_DATA", self.global_map)
-        threading.Timer(PURGE_GLOBAL_MAP_INTERVAL, self.purge_global_map).start()
-        logger.info("Purged global map cache")
-
-    def add_annotation(self, contestant, latitude, longitude, message, annotation_type, stamp):
-        try:
-            contestant.annotation_index += 1
-        except:
-            contestant.annotation_index = 0
+    def add_annotation(self, contestant: "Contestant", latitude: float, longitude: float, message: str,
+                       annotation_type: str, stamp: datetime.datetime):
+        contestant.annotation_index += 1
+        Contestant.objects.bulk_update([contestant], ["annotation_index"])
         data = {
             "measurement": "annotation",
             "tags": {
@@ -67,168 +43,39 @@ class InfluxFacade:
                 "type": annotation_type
             }
         }
-        group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        annotation = {}
-        annotation.update(data["tags"])
-        annotation["time"] = data["time"]
-        annotation.update(data["fields"])
-        channel_data = {
-            "contestant_id": contestant.pk,
-            "positions": [],
-            "annotations": [annotation],
-            "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
-
-        }
-        async_to_sync(self.channel_layer.group_send)(
-            group_key,
-            {"type": "tracking.data", "data": channel_data}
-        )
         self.client.write_points([data])
+        self.websocket_facade.transmit_annotations(contestant, stamp, latitude, longitude, message, annotation_type)
+
+    def generate_position_block_for_contestant(self, contestant: Contestant, position_data: Dict,
+                                               device_time: datetime.datetime) -> Dict:
+        return {
+            "measurement": "device_position",
+            "tags": {
+                "contestant": contestant.pk,
+                "navigation_task": contestant.navigation_task_id,
+                "device_id": position_data["deviceId"]
+            },
+            "time": device_time.isoformat(),
+            "fields": {
+                "latitude": float(position_data["latitude"]),
+                "longitude": float(position_data["longitude"]),
+                "altitude": float(position_data["altitude"]),
+                "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
+                "speed": float(position_data["speed"]),
+                "course": float(position_data["course"])
+            }
+        }
 
     def generate_position_data_for_contestant(self, contestant: Contestant, positions: List) -> List:
         data = []
         for position_data in positions:
             device_time = dateutil.parser.parse(position_data["deviceTime"])
-            data.append({
-                "measurement": "device_position",
-                "tags": {
-                    "contestant": contestant.pk,
-                    "navigation_task": contestant.navigation_task_id,
-                    "device_id": position_data["deviceId"]
-                },
-                "time": device_time.isoformat(),
-                "fields": {
-                    "latitude": float(position_data["latitude"]),
-                    "longitude": float(position_data["longitude"]),
-                    "altitude": float(position_data["altitude"]),
-                    "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
-                    "speed": float(position_data["speed"]),
-                    "course": float(position_data["course"])
-                }
-            })
+            data.append(self.generate_position_block_for_contestant(contestant, position_data, device_time))
         return data
 
-    def generate_position_data(self, traccar: Traccar, positions: List) -> Dict:
-        if len(positions) == 0:
-            return {}
-        # logger.info("Received {} positions".format(len(positions)))
-        received_tracks = {}
-        for position_data in positions:
-            global_tracking_name = ""
-            # logger.info("Incoming position: {}".format(position_data))
-            try:
-                device_name = traccar.device_map[position_data["deviceId"]]
-            except KeyError:
-                traccar.get_device_map()
-                try:
-                    device_name = traccar.device_map[position_data["deviceId"]]
-                except KeyError:
-                    logger.error("Could not find device {}.".format(position_data["deviceId"]))
-                    continue
-            device_time = dateutil.parser.parse(position_data["deviceTime"])
-            # logger.info(device_name)
-            now = datetime.datetime.now(datetime.timezone.utc)
-            last_seen_key = f"last_seen_{position_data['deviceId']}"
-            if (now - device_time).total_seconds() > 30:
-                # Only check the cache if the position is old
-                last_seen = cache.get(last_seen_key)
-                if last_seen == device_time or device_time < now - datetime.timedelta(hours=24):
-                    # If we have seen it or it is really old, ignore it
-                    logger.info(f"Received repeated position, disregarding: {device_name} {device_time}")
-                    continue
-            cache.set(last_seen_key, device_time)
-            # print(device_time)
-            contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
-            if not contestant:
-                try:
-                    person = Person.objects.get(app_tracking_id=device_name)
-                    global_tracking_name = person.app_aircraft_registration
-                except ObjectDoesNotExist:
-                    # logger.info("Found no person for tracking ID {}".format(device_name))
-                    pass
-            # print(contestant)
-            if contestant:
-                # logger.info("Found contestant {}".format(contestant))
-                global_tracking_name = contestant.team.aeroplane.registration
-                data = {
-                    "measurement": "device_position",
-                    "tags": {
-                        "contestant": contestant.pk,
-                        "navigation_task": contestant.navigation_task_id,
-                        "device_id": position_data["deviceId"]
-                    },
-                    "time": device_time.isoformat(),
-                    "time_object": device_time,
-                    "fields": {
-                        "latitude": float(position_data["latitude"]),
-                        "longitude": float(position_data["longitude"]),
-                        "altitude": float(position_data["altitude"]),
-                        "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
-                        "speed": float(position_data["speed"]),
-                        "course": float(position_data["course"])
-                    }
-                }
-                try:
-                    received_tracks[contestant].append(data)
-                except KeyError:
-                    received_tracks[contestant] = [data]
-            last_global, last_data = self.global_map.get(position_data["deviceId"],
-                                                         (datetime.datetime.min.replace(tzinfo=datetime.timezone.utc),
-                                                          {}))
-            now = datetime.datetime.now(datetime.timezone.utc)
-            # logger.info(f"Checking transmission for ({contestant}) {global_tracking_name} with last transmitted {last_global} and device ID {position_data['deviceId']}")
-            if (now - last_global).total_seconds() > GLOBAL_TRANSMISSION_INTERVAL:
-                data = {
-                    "type": "tracking.data",
-                    "data": {
-                        "name": global_tracking_name,
-                        "time": device_time.isoformat(),
-                        "deviceId": position_data["deviceId"],
-                        "latitude": float(position_data["latitude"]),
-                        "longitude": float(position_data["longitude"]),
-                        "altitude": float(position_data["altitude"]),
-                        "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
-                        "speed": float(position_data["speed"]),
-                        "course": float(position_data["course"])
-                    }
-                }
-
-                self.global_map[position_data["deviceId"]] = (now, data)
-                cache.set("GLOBAL_MAP_DATA", self.global_map)
-                async_to_sync(self.channel_layer.group_send)(
-                    "tracking_global", data
-                )
-
-        return received_tracks
-
     def put_position_data_for_contestant(self, contestant: "Contestant", data: List, route_progress):
-        position_data = []
-        for item in data:
-            position_data.append({
-                "latitude": item["fields"]["latitude"],
-                "longitude": item["fields"]["longitude"],
-                "speed": item["fields"]["speed"],
-                "course": item["fields"]["course"],
-                "altitude": item["fields"]["altitude"],
-                "time": item["time"]
-            })
-        channel_data = {
-            "contestant_id": contestant.pk,
-            "positions": position_data,
-            "annotations": [],
-            "progress": route_progress,
-            "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
-
-        }
-        group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        async_to_sync(self.channel_layer.group_send)(
-            group_key,
-            {"type": "tracking.data", "data": channel_data}
-        )
+        self.websocket_facade.transmit_navigation_task_position_data(contestant, data, route_progress)
         self.client.write_points(data)
-        # logger.debug("Successfully put {} position".format(len(data)))
 
     def clear_data_for_contestant(self, contestant_id: int):
         self.client.delete_series(tags={"contestant": str(contestant_id)})

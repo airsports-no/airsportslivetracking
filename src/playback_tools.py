@@ -1,13 +1,17 @@
 import datetime
 import time
+from queue import Queue
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
+
+import dateutil
 from django.core.cache import cache
 
 import requests
 import gpxpy
 
 from display.calculators.calculator_factory import calculator_factory
+from influx_facade import InfluxFacade
 
 if TYPE_CHECKING:
     from display.models import Contestant
@@ -67,17 +71,15 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx):
                     "deviceTime": point.time.isoformat()
                 })
     generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
-    influx.put_position_data_for_contestant(contestant_object, generated_positions, 100)
-    calculator = calculator_factory(contestant_object, influx, live_processing=False)
-    calculator.start()
-    new_positions = []
-    for position in generated_positions:
-        data = position["fields"]
-        data["time"] = position["time"]
-        new_positions.append(data)
-    new_positions.append(None)
-    calculator.add_positions(new_positions)
-    calculator.join()
+    q = Queue()
+    for i in generated_positions:
+        q.put(i)
+    q.put(None)
+    calculator = calculator_factory(contestant_object, q, live_processing=False)
+    calculator.run()
+    while not q.empty():
+        q.get_nowait()
+
     from display.models import CONTESTANT_CACHE_KEY
     key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant_object.pk)
     # logger.info("Clearing cache for {}".format(contestant))

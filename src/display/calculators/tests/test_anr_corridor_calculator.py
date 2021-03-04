@@ -1,4 +1,5 @@
 import datetime
+from multiprocessing import Queue
 from typing import List, Tuple
 from unittest.mock import Mock, patch
 
@@ -11,6 +12,7 @@ from display.calculators.calculator_utilities import load_track_points_traccar_c
 from display.convert_flightcontest_gpx import create_anr_corridor_route_from_kml
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Person, Team, Contestant, ContestantTrack, \
     TrackScoreOverride
+from influx_facade import InfluxFacade
 from mock_utilities import TraccarMock
 
 
@@ -65,12 +67,20 @@ class TestANR(TransactionTestCase):
                                                     minutes_to_starting_point=7,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(track)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(496,  # 593,  # 2368,
+        self.assertEqual(1371,  # 593,  # 2368,
                          contestant_track.score)
         strings = [item["string"] for item in contestant_track.score_log]
         self.assertTrue(
@@ -89,12 +99,21 @@ class TestANR(TransactionTestCase):
                                                     minutes_to_starting_point=7,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(track)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(478,  # 575,  # 2350,
+        self.assertEqual(1353,  # 575,  # 2350,
                          contestant_track.score)
         strings = [item["string"] for item in contestant_track.score_log]
         self.assertTrue(
@@ -239,7 +258,6 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.update_score.assert_not_called()
 
 
-
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestANRPolygon(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
@@ -281,4 +299,17 @@ class TestANRPolygon(TransactionTestCase):
                                                     minutes_to_starting_point=7,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+

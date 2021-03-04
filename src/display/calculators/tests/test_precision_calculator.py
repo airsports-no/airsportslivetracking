@@ -1,8 +1,10 @@
 import base64
 import datetime
 import json
+from queue import Queue
 from unittest.mock import Mock, patch
 
+import dateutil
 import gpxpy
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
@@ -31,7 +33,7 @@ def load_track_points(filename):
                 positions.append(
                     {"time": point.time.isoformat(),
                      "latitude": point.latitude, "longitude": point.longitude,
-                     "altitude": point.elevation, "speed": 0, "course": 0, "battery_level": 100})
+                     "altitude": point.elevation if point.elevation else 0, "speed": 0, "course": 0, "battery_level": 100})
     return positions
 
 
@@ -74,10 +76,19 @@ class TestFullTrack(TransactionTestCase):
 
     def test_correct_scoring_correct_track_precision(self, patch):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(positions)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in positions:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(153, contestant_track.score)
 
@@ -131,10 +142,20 @@ class TestFullTrack(TransactionTestCase):
         self.contestant.track_score_override = track_override
         self.contestant.save()
         self.contestant.gate_score_override.add(gate_override)
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(positions)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in positions:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(12, contestant_track.score)
 
@@ -148,28 +169,56 @@ class TestFullTrack(TransactionTestCase):
                                                minutes_to_starting_point=6, air_speed=speed,
                                                wind_direction=165, wind_speed=8)
         positions = load_track_points("display/calculators/tests/Helge.gpx")
-        calculator = calculator_factory(contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(positions)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(contestant, q, live_processing=False)
+        for i in positions:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
         self.assertEqual(471, contestant_track.score)
 
     def test_correct_scoring_bad_track_precision(self, patch):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(positions)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in positions:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1800, contestant_track.score)
 
     def test_missed_procedure_turn(self, patch):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(positions)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in positions:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         print(contestant_track.score_log)
         strings = [item["string"] for item in contestant_track.score_log]
@@ -223,10 +272,20 @@ class Test2017WPFC(TransactionTestCase):
                                                     minutes_to_starting_point=8,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=18)
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(track)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1152,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
@@ -310,10 +369,20 @@ class TestNM2019(TransactionTestCase):
                                                     minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(track)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(875,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
@@ -330,10 +399,20 @@ class TestNM2019(TransactionTestCase):
                                                     minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        calculator = calculator_factory(self.contestant, Mock(), live_processing=False)
-        calculator.start()
-        calculator.add_positions(track)
-        calculator.join()
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1000,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.

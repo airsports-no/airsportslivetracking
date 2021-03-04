@@ -106,8 +106,10 @@ class Gatekeeper:
                 # Signal the track processor that this is the end, and perform the track calculation
                 self.track_terminated = True
                 continue
-            data = Position(**data)
-            for position in self.interpolate_track(data):
+            p = Position(data["time"], **data["fields"])
+            progress = self.contestant.calculate_progress(p.time)
+            self.influx.put_position_data_for_contestant(self.contestant, [data], progress)
+            for position in self.interpolate_track(p):
                 self.track.append(position)
                 if len(self.track) > 1:
                     self.calculate_score()

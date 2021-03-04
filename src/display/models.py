@@ -692,6 +692,7 @@ class Contestant(models.Model):
                                    help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
     wind_direction = models.FloatField(default=0,
                                        help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
+    annotation_index = models.IntegerField(default=0, help_text="Internal housekeeping for annotation transmission")
 
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
