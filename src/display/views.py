@@ -1321,6 +1321,10 @@ class UserPersonViewSet(GenericViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+        instance.refresh_from_db()
+        request.user.first_name = instance.first_name
+        request.user.last_name = instance.last_name
+        request.user.save()
 
         if getattr(instance, '_prefetched_objects_cache', None):
             # If 'prefetch_related' has been applied to a queryset, we need to
