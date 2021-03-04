@@ -99,7 +99,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
         if (now - device_time).total_seconds() > 30:
             # Only check the cache if the position is old
             last_seen = cache.get(last_seen_key)
-            if last_seen == device_time or device_time < now - datetime.timedelta(hours=24):
+            if last_seen == device_time or device_time < now - datetime.timedelta(hours=4):
                 # If we have seen it or it is really old, ignore it
                 logger.info(f"Received repeated position, disregarding: {device_name} {device_time}")
                 continue
