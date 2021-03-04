@@ -1,6 +1,5 @@
 import base64
 import logging
-from typing import TYPE_CHECKING
 
 from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
@@ -10,7 +9,8 @@ from display.models import Contestant
 from playback_tools import insert_gpx_file
 
 influx = InfluxFacade()
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
 
 @shared_task
 def import_gpx_track(contestant_pk: int, gpx_file: str):

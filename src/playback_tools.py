@@ -54,7 +54,7 @@ def load_data_traccar(tracks):
         time.sleep(0.8)
 
 
-def insert_gpx_file(contestant_object: "Contestant", file, influx):
+def insert_gpx_file(contestant_object: "Contestant", file, influx: InfluxFacade):
     gpx = gpxpy.parse(file)
     positions = []
     for track in gpx.tracks:
@@ -71,6 +71,7 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx):
                     "deviceTime": point.time.isoformat()
                 })
     generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
+    influx.put_position_data_for_contestant(contestant_object, generated_positions, 100)
     q = Queue()
     for i in generated_positions:
         q.put(i)

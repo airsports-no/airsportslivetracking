@@ -108,7 +108,8 @@ class Gatekeeper:
                 continue
             p = Position(data["time"], **data["fields"])
             progress = self.contestant.calculate_progress(p.time)
-            self.influx.put_position_data_for_contestant(self.contestant, [data], progress)
+            if self.live_processing:
+                self.influx.put_position_data_for_contestant(self.contestant, [data], progress)
             for position in self.interpolate_track(p):
                 self.track.append(position)
                 if len(self.track) > 1:
