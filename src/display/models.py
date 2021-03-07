@@ -717,6 +717,8 @@ class Contestant(models.Model):
     def calculate_progress(self, latest_time: datetime) -> float:
         if NavigationTask.POKER in self.navigation_task.scorecard.task_type:
             return 100 * self.contestanttrack.playingcard_set.all().count() / 5
+        if NavigationTask.LANDING in self.navigation_task.scorecard.task_type:
+            return 50
         route_progress = 100
         if len(self.navigation_task.route.waypoints) > 0 and not self.contestanttrack.calculator_finished:
             first_gate = self.navigation_task.route.waypoints[0]
