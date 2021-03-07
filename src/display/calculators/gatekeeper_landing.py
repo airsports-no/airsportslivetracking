@@ -64,6 +64,7 @@ class GatekeeperLanding(Gatekeeper):
             if intersection_time:
                 if self.last_intersection is None or intersection_time > self.last_intersection + datetime.timedelta(
                         seconds=30):
+                    self.last_intersection = intersection_time
                     self.update_score(self.landing_gate, 1, "passed landing line", self.track[-1].latitude,
                                       self.track[-1].longitude, "information", "landing_line")
                     self.contestant.contestanttrack.update_gate_time(self.landing_gate.name, intersection_time)
