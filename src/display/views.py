@@ -39,7 +39,8 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ViewSet, GenericViewSet
 
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx, create_precision_route_from_csv, \
-    create_precision_route_from_formset, create_anr_corridor_route_from_kml, load_features_from_kml
+    create_precision_route_from_formset, create_anr_corridor_route_from_kml, load_features_from_kml, \
+    create_landing_line_from_kml
 from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTaskForm, FILE_TYPE_CSV, \
     FILE_TYPE_FLIGHTCONTEST_GPX, \
     FILE_TYPE_KML, ContestantForm, ContestForm, Member1SearchForm, TeamForm, PersonForm, \
@@ -47,7 +48,8 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
     MapForm, \
     WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
     PrecisionScoreOverrideForm, STARTINGPOINT, FINISHPOINT, TrackingDataForm, ContestTeamOptimisationForm, \
-    AssignPokerCardForm, ChangeContestPermissionsForm, AddContestPermissionsForm
+    AssignPokerCardForm, ChangeContestPermissionsForm, AddContestPermissionsForm, RouteCreationForm, \
+    LandingImportRouteForm
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
@@ -269,6 +271,12 @@ def tracking_qr_code_view(request, pk):
     url = reverse("frontend_view_map", kwargs={"pk": pk})
     return render(request, "display/tracking_qr_code.html", {"url": "https://tracking.airsports.no{}".format(url),
                                                              "navigation_task": NavigationTask.objects.get(pk=pk)})
+
+
+@guardian_permission_required('display.change_contest', (Contest, "pk", "pk"))
+def create_route_test(request, pk):
+    form = RouteCreationForm()
+    return render(request, "display/route_creation_form.html", {"form": form})
 
 
 @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
@@ -795,6 +803,10 @@ def show_anr_path(wizard):
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (NavigationTask.ANR_CORRIDOR,)
 
 
+def show_landing_path(wizard):
+    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (NavigationTask.LANDING,)
+
+
 class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     permission_required = ("display.change_contest",)
 
@@ -810,6 +822,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         ("task_type", TaskTypeForm),
         ("anr_route_import", ANRCorridorImportRouteForm),
         ("precision_route_import", PrecisionImportRouteForm),
+        ("landing_route_import", LandingImportRouteForm),
         ("waypoint_definition", formset_factory(WaypointForm, extra=0)),
         ("task_content", NavigationTaskForm),
         ("precision_override", PrecisionScoreOverrideForm),
@@ -819,6 +832,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     condition_dict = {
         "anr_route_import": show_anr_path,
         "precision_route_import": show_precision_path,
+        "landing_route_import": show_landing_path,
         "waypoint_definition": show_route_definition_step,
         "precision_override": show_precision_path,
         "anr_corridor_override": show_anr_path
@@ -826,6 +840,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     templates = {
         "task_type": "display/navigationtaskwizardform.html",
         "anr_route_import": "display/navigationtaskwizardform.html",
+        "landing_route_import": "display/navigationtaskwizardform.html",
         "precision_route_import": "display/navigationtaskwizardform.html",
         "waypoint_definition": "display/waypoints_form.html",
         "task_content": "display/navigationtaskwizardform.html",
@@ -869,6 +884,10 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             rounded_corners = self.get_cleaned_data_for_step("anr_route_import")["rounded_corners"]
             corridor_width = self.get_cleaned_data_for_step("anr_corridor_override")["corridor_width"]
             route = create_anr_corridor_route_from_kml("route", data, corridor_width, rounded_corners)
+        elif task_type == NavigationTask.LANDING:
+            data = self.get_cleaned_data_for_step("landing_route_import")["file"]
+            data.seek(0)
+            route = create_landing_line_from_kml("route", data)
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
         # Build score overrides

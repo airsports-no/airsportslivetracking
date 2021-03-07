@@ -12,7 +12,7 @@ from display.views import frontend_view_map, \
     tracking_qr_code_view, get_contestant_map, get_navigation_task_map, add_contest_teams_to_navigation_task, \
     clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map, ContestDetailView, \
     deal_card_to_contestant, list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
-    change_user_contest_permissions, contestant_cards_list, contestant_card_remove
+    change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test
 
 urlpatterns = [
     path('frontend/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
@@ -25,6 +25,7 @@ urlpatterns = [
          name="contest_permissions_change"),
     path('contest/<int:pk>/permissions/<int:user_pk>/delete', delete_user_contest_permissions,
          name="contest_permissions_delete"),
+    path('contest/<int:pk>/create_route/', create_route_test, name="create_route"),
     path('contest/<int:pk>/delete/', ContestDeleteView.as_view(), name="contest_delete"),
     path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),

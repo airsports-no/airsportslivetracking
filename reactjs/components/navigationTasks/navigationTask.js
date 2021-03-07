@@ -20,6 +20,7 @@ import {w3cwebsocket as W3CWebSocket} from "websocket";
 import PrecisionRenderer from "./precisionRenderer";
 import AnrCorridorRenderer from "./anrCorridorRenderer";
 import ProhibitedRenderer from "./prohibitedRenderer";
+import LandingRenderer from "./landingRenderer";
 
 const L = window['L']
 
@@ -138,6 +139,8 @@ class ConnectedNavigationTask extends Component {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}/>
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}/>
+                } else if (this.props.navigationTask.scorecard_data.task_type.includes("landing")) {
+                    routeRenderer = <LandingRenderer map={this.map} navigationTask={this.props.navigationTask}/>
                 }
                 prohibitedRender = <ProhibitedRenderer map={this.map} navigationTask={this.props.navigationTask}/>
             }

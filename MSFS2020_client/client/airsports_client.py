@@ -1,16 +1,20 @@
 import datetime
 import json
 import math
+import os
+import sys
 import threading
 import time
 import webbrowser
+from io import BytesIO
 from locale import setlocale, LC_CTYPE
 from typing import Dict
 from urllib.parse import urlencode
-# import PySimpleGUI as sg
-import PySimpleGUIWx as sg
+import PySimpleGUI as sg
+# import PySimpleGUIWx as sg
+from PIL import Image
 
-from SimConnect import *
+from client.SimConnectCust import *
 import requests
 from requests import HTTPError
 
@@ -94,7 +98,7 @@ def run(tracking_id, stamp_field):
         course = aq.get("PLANE_HEADING_DEGREES_TRUE")
         now = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc)
         # print(now)
-        stamp_field.update("Latest position time: {}".format(now))
+        stamp_field.update("Latest position time: {}".format(now.strftime("%Y-%m-%d %H:%M:%S")))
         if longitude != 0 and latitude != 0 and longitude is not None and latitude is not None:
             send(tracking_id, time.mktime(now.timetuple()), latitude, longitude, velocity, altitude, course)
         threading.Timer(2, transmit_position).start()
@@ -158,8 +162,8 @@ class User:
                 window["START_TRACKING"].update(disabled=False)
             else:
                 sg.popup("Please update profile to enable tracking")
+            window["PROFILE_IMAGE"].update(data=fetch_profile_image_data(self.profile["picture"]))
             return True
-            # window["PROFILE_IMAGE"].update(data=fetch_profile_image_data(profile["picture"]))
         except HTTPError as e:
             sg.popup(get_json_error_message(e))
         except MissingEmailVerificationError:
@@ -204,7 +208,16 @@ class User:
 
 
 def fetch_profile_image_data(image_url) -> bytearray:
-    return requests.get(image_url).content
+    # return requests.get(image_url).content
+    image_stream = BytesIO()  # or io.BytesIO()
+    image_data = requests.get(image_url).content
+    # store the gif bytes to the IO and open as image
+    image_stream.write(image_data)
+    image = Image.open(image_stream)
+    image.thumbnail((100, 100))
+    png_bytes_io = BytesIO()  # or io.BytesIO()
+    image.save(png_bytes_io, format='PNG')
+    return png_bytes_io.getvalue()
 
 
 def sign_in_user(email, password):
@@ -233,8 +246,13 @@ def fetch_profile(user: Dict):
 
 
 if __name__ == "__main__":
+    if getattr(sys, 'frozen', False):
+        wd = sys._MEIPASS
+    else:
+        wd = ''
     user_object = User()
     authentication = [
+        [sg.Image(os.path.join(wd, 'airsports.png'), size=(350, 66)), ],
         [sg.Text("Login or create new account")],
         [sg.Text("Email:"), sg.InputText(size=(30, 1), key="EMAIL")],
         [sg.Text("Password:"), sg.InputText(size=(28, 1), key="PASSWORD", password_char="*")],
@@ -242,7 +260,7 @@ if __name__ == "__main__":
          sg.Button("Resend verification email", key="RESEND_VERIFICATION"),
          sg.Button("Reset password", key="RESET_PASSWORD")],
         [sg.ProgressBar(max_value=3, orientation="h", size=(10, 20), key="LOGIN_PROGRESS")],
-        [sg.Button("Start tracking", key="START_TRACKING", disabled=True), sg.Text(size=(20, 1), key='TRANSMIT_TIME')],
+        [sg.Button("Start tracking", key="START_TRACKING", disabled=True), sg.Text(size=(40, 1), key='TRANSMIT_TIME')],
         [sg.Button("Stop tracking", key="STOP_TRACKING", disabled=True)],
         # [sg.HSeparator()],
         [sg.Button("Quit")],
@@ -254,15 +272,13 @@ if __name__ == "__main__":
          sg.Button("Update", key="UPDATE_LAST_NAME", disabled=True)],
         [sg.Text("Aircraft registration:"), sg.Text(size=(25, 1), key="AIRCRAFT_REGISTRATION"),
          sg.Button("Update", key="UPDATE_AIRCRAFT_REGISTRATION", disabled=True)],
+        [sg.Image(key="PROFILE_IMAGE", size=(100, 100))],
         [sg.Button("Save profile", key="SAVE_PROFILE", disabled=True)],
         [sg.Text("Currently competing in task:")],
         [sg.Text(key="CURRENT_TASK_NAME", size=(40, 1), enable_events=True)],
-        [sg.Text(key="CURRENT_TASK_START", size=(25, 1)), sg.Text("-"),
+        [sg.Text(key="CURRENT_TASK_START", size=(25, 1)),
          sg.Text(key="CURRENT_TASK_FINISH", size=(25, 1))],
-        [sg.Text(key="CURRENT_TASK_LINK", size=(40, 1), enable_events=True)]
-        # [sg.Image(r'airsports.png', size=(400, 66))],
-
-        # [sg.Image(key="PROFILE_IMAGE", size=(100, 100))]
+        [sg.Text(key="CURRENT_TASK_LINK", size=(40, 1), enable_events=True)],
 
     ]
 
@@ -274,13 +290,13 @@ if __name__ == "__main__":
         ],
     ]
     window = sg.Window(title="Airsports Live Tracking MSFS2020", layout=layout)  # , margins=(20, 20))
-    window.read(timeout=0.1)
-    window["START_TRACKING"].update(disabled=True)
-    window["STOP_TRACKING"].update(disabled=True)
-    window["UPDATE_FIRST_NAME"].update(disabled=True)
-    window["UPDATE_LAST_NAME"].update(disabled=True)
-    window["UPDATE_AIRCRAFT_REGISTRATION"].update(disabled=True)
-    window["SAVE_PROFILE"].update(disabled=True)
+    # window.read(timeout=0.1)
+    # window["START_TRACKING"].update(disabled=True)
+    # window["STOP_TRACKING"].update(disabled=True)
+    # window["UPDATE_FIRST_NAME"].update(disabled=True)
+    # window["UPDATE_LAST_NAME"].update(disabled=True)
+    # window["UPDATE_AIRCRAFT_REGISTRATION"].update(disabled=True)
+    # window["SAVE_PROFILE"].update(disabled=True)
     progress_bar = window["LOGIN_PROGRESS"]
     profile = None
     user = None
@@ -359,6 +375,5 @@ if __name__ == "__main__":
         if event == "CURRENT_TASK_NAME":
             if user_object is not None:
                 user_object.refresh_current_navigation_task(window)
-
 
     window.close()

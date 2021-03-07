@@ -312,10 +312,12 @@ class NavigationTask(models.Model):
     PRECISION = 'precision'
     ANR_CORRIDOR = 'anr_corridor'
     POKER = 'poker'
+    LANDING = "landing"
     NAVIGATION_TASK_TYPES = (
         (PRECISION, "Precision"),
         (ANR_CORRIDOR, "ANR Corridor"),
-        (POKER, "Poker run")
+        (POKER, "Poker run"),
+        (LANDING, "Landing")
     )
     name = models.CharField(max_length=200)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
@@ -359,10 +361,12 @@ class Scorecard(models.Model):
     PRECISION = "precision"
     ANR_CORRIDOR = "anr_corridor"
     POKER = "poker"
+    LANDING = "landing"
     CALCULATORS = (
         (PRECISION, "Precision"),
         (ANR_CORRIDOR, "ANR Corridor"),
-        (POKER, "Poker run")
+        (POKER, "Poker run"),
+        (LANDING, "Landing")
     )
 
     name = models.CharField(max_length=100, default="default", unique=True)

@@ -5,6 +5,7 @@ from crispy_forms.bootstrap import StrictButton
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Div, ButtonHolder, Submit, Button, Fieldset, Field, HTML
 from django import forms
+from django.contrib.gis.forms import MultiLineStringField, OSMWidget, LineStringField
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.forms import HiddenInput
@@ -211,7 +212,7 @@ kml_description = HTML("""
 
 
 class PrecisionImportRouteForm(forms.Form):
-    file_type = forms.ChoiceField(choices=FILE_TYPES)
+    file_type = forms.ChoiceField(choices=FILE_TYPES, default=FILE_TYPE_KML)
     file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz", "csv", "gpx"])])
 
     def __init__(self, *args, **kwargs):
@@ -246,6 +247,38 @@ class ANRCorridorImportRouteForm(forms.Form):
                 "rounded_corners"
             ),
             kml_description,
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+
+
+class LandingImportRouteForm(forms.Form):
+    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz"])],
+                           help_text="File must be of type KML or KMZ")
+    rounded_corners = forms.BooleanField(required=False, initial=False,
+                                         help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "Route import",
+                "file",
+                "rounded_corners"
+            ),
+            HTML("""
+                        <p>The KML must contain at least the following:
+                        <ol>
+                        <li>ldg: A path with the name "ldg" that defines the landing gate. This is typically located across the runway. It can be at the same location as the take of gate, but it must be a separate path</li>
+                        </ol>
+                        The KML file can optionally also include:
+                        <ol>
+                        <li>prohibited: Zero or more polygons with the name "prohibited_*" where '*' can be replaced with an arbitrary text. These polygons describe prohibited zones either in an ANR context, or can be used to mark airspace that should not be infringed, for instance.</li>
+                        </ol>
+                        </p>
+                        """),
             ButtonHolder(
                 Submit("submit", "Submit")
             )
@@ -617,3 +650,7 @@ class ChangeContestPermissionsForm(forms.Form):
     change_contest = forms.BooleanField(required=False)
     view_contest = forms.BooleanField(required=False)
     delete_contest = forms.BooleanField(required=False)
+
+
+class RouteCreationForm(forms.Form):
+    route = LineStringField(widget=OSMWidget(attrs={'map_width': 800, 'map_height': 500}))

@@ -294,6 +294,22 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
     return route
 
 
+def create_landing_line_from_kml(route_name: str, input_kml) -> Route:
+    """
+    Generate a route where only the first point and last points have gate and time checks. All other gates are secret
+    without gate or tone checks.  Each gate has a width equal
+    to the corridor with. Create gate lines that cut the angle of the turn in half.
+    """
+    features = load_features_from_kml(input_kml)
+    if "ldg" not in features:
+        raise ValidationError("File is missing a 'to' line")
+    route = Route.objects.create(name=route_name, waypoints=[], use_procedure_turns=False)
+    extract_additional_features_from_kml_features(features, route)
+    route.waypoints = [route.landing_gate]
+    route.save()
+    return route
+
+
 def create_precision_route_from_csv(route_name: str, lines: List[str], use_procedure_turns: bool) -> Route:
     print("lines: {}".format(lines))
     waypoint_list = []
