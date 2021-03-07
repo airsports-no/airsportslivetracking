@@ -212,7 +212,7 @@ kml_description = HTML("""
 
 
 class PrecisionImportRouteForm(forms.Form):
-    file_type = forms.ChoiceField(choices=FILE_TYPES, default=FILE_TYPE_KML)
+    file_type = forms.ChoiceField(choices=FILE_TYPES, initial=FILE_TYPE_KML)
     file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz", "csv", "gpx"])])
 
     def __init__(self, *args, **kwargs):
