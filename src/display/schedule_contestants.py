@@ -5,19 +5,70 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduler import TeamDefinition, Solver
-from display.models import NavigationTask, ContestTeam, Contestant
+from display.models import NavigationTask, ContestTeam, Contestant, Scorecard
 
 
 def schedule_and_create_contestants(navigation_task: NavigationTask, contest_teams_pks: List[int],
                                     tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
                                     tracker_switch_time: int, minimum_start_interval: int, crew_switch_time: int,
                                     optimise: bool = False) -> bool:
+    if Scorecard.LANDING in navigation_task.scorecard.task_type:
+        return schedule_and_create_contestants_landing_task(navigation_task, contest_teams_pks,
+                                                            tracker_leadtime_minutes, aircraft_switch_time_minutes,
+                                                            tracker_switch_time, minimum_start_interval,
+                                                            crew_switch_time, optimise)
+    else:
+        return schedule_and_create_contestants_navigation_tasks(navigation_task, contest_teams_pks,
+                                                                tracker_leadtime_minutes, aircraft_switch_time_minutes,
+                                                                tracker_switch_time, minimum_start_interval,
+                                                                crew_switch_time, optimise)
+
+
+def schedule_and_create_contestants_landing_task(navigation_task: NavigationTask, contest_teams_pks: List[int],
+                                                 tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
+                                                 tracker_switch_time: int, minimum_start_interval: int,
+                                                 crew_switch_time: int,
+                                                 optimise: bool = False) -> bool:
+    selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
+    # Remove contestants that are not selected:
+    navigation_task.contestant_set.exclude(team__in=[item.team for item in selected_contest_teams]).delete()
+    for index, contest_team in enumerate(selected_contest_teams):
+        try:
+            contestant = navigation_task.contestant_set.get(team=contest_team.team)
+            contestant.takeoff_time = navigation_task.start_time
+            contestant.finished_by_time = navigation_task.finish_time
+            contestant.tracker_start_time = navigation_task.start_time
+            contestant.save()
+        except ObjectDoesNotExist:
+            Contestant.objects.create(takeoff_time=navigation_task.start_time,
+                                      finished_by_time=navigation_task.finish_time,
+                                      air_speed=contest_team.air_speed,
+                                      wind_speed=navigation_task.wind_speed,
+                                      wind_direction=navigation_task.wind_direction,
+                                      team=contest_team.team,
+                                      minutes_to_starting_point=navigation_task.minutes_to_starting_point,
+                                      navigation_task=navigation_task,
+                                      tracking_service=contest_team.tracking_service,
+                                      tracker_device_id=contest_team.tracker_device_id,
+                                      tracker_start_time=navigation_task.start_time,
+                                      contestant_number=index + 1)
+    return True
+
+
+def schedule_and_create_contestants_navigation_tasks(navigation_task: NavigationTask, contest_teams_pks: List[int],
+                                                     tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
+                                                     tracker_switch_time: int, minimum_start_interval: int,
+                                                     crew_switch_time: int,
+                                                     optimise: bool = False) -> bool:
     contest_teams = []
     final_waypoint = navigation_task.route.waypoints[-1]
     selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
     if tracker_switch_time < tracker_leadtime_minutes:
         raise ValidationError(
             f"The tracker switch time {tracker_switch_time} must be larger than the tracker leadtime {tracker_leadtime_minutes}")
+    # Remove contestants that are not selected:
+    navigation_task.contestant_set.exclude(team__in=[item.team for item in selected_contest_teams]).delete()
+
     for contest_team in selected_contest_teams:
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)

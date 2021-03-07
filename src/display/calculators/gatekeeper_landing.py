@@ -45,6 +45,7 @@ class GatekeeperLanding(Gatekeeper):
     def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
                  live_processing: bool = True):
         super().__init__(contestant, position_queue, calculators, live_processing)
+        self.last_intersection = None
         self.accumulated_scores = ScoreAccumulator()
         self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
                                  datetime.datetime.min,
@@ -61,9 +62,11 @@ class GatekeeperLanding(Gatekeeper):
         if self.landing_gate is not None:
             intersection_time = self.landing_gate.get_gate_intersection_time(self.projector, self.track)
             if intersection_time:
-                self.update_score(self.landing_gate, 1, "passed landing line", self.track[-1].latitude,
-                                  self.track[-1].longitude, "information", "landing_line")
-                self.contestant.contestanttrack.update_gate_time(self.landing_gate.name, intersection_time)
+                if self.last_intersection is None or intersection_time > self.last_intersection + datetime.timedelta(
+                        seconds=30):
+                    self.update_score(self.landing_gate, 1, "passed landing line", self.track[-1].latitude,
+                                      self.track[-1].longitude, "information", "landing_line")
+                    self.contestant.contestanttrack.update_gate_time(self.landing_gate.name, intersection_time)
 
     def check_termination(self):
         already_terminated = self.track_terminated

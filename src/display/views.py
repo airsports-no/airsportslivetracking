@@ -679,10 +679,10 @@ def add_contest_teams_to_navigation_task(request, pk):
     selected_existing = []
     used_contest_teams = set()
     for contestant in navigation_task.contestant_set.all():
-        selected = False
-        if contestant.takeoff_time - datetime.timedelta(
-                minutes=TIME_LOCK_MINUTES) > now:
-            selected = True
+        selected = True
+        # if contestant.takeoff_time - datetime.timedelta(
+        #         minutes=TIME_LOCK_MINUTES) > now:
+        #     selected = True
         contest_team = navigation_task.contest.contestteam_set.get(team=contestant.team)
         selected_existing.append((contest_team, f"{contest_team} (at {contestant.takeoff_time})", selected))
         used_contest_teams.add(contest_team.pk)
