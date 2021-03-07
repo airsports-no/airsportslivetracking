@@ -256,8 +256,6 @@ class ANRCorridorImportRouteForm(forms.Form):
 class LandingImportRouteForm(forms.Form):
     file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz"])],
                            help_text="File must be of type KML or KMZ")
-    rounded_corners = forms.BooleanField(required=False, initial=False,
-                                         help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
