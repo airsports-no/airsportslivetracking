@@ -756,7 +756,7 @@ class Contestant(models.Model):
                                                          tracker_start_time__lte=self.finished_by_time,
                                                          finished_by_time__gte=self.tracker_start_time).exclude(
             pk=self.pk)
-        if overlapping_trackers.count() > 0:
+        if overlapping_trackers.exists():
             intervals = []
             for contestant in overlapping_trackers:
                 smallest_end = min(contestant.finished_by_time, self.finished_by_time)
@@ -765,6 +765,34 @@ class Contestant(models.Model):
             raise ValidationError(
                 "The tracker '{}' is in use by other contestants for the intervals: {}".format(self.tracker_device_id,
                                                                                                intervals))
+        # Validate that persons are not part of other contestants for the same interval
+        overlapping1 = Contestant.objects.filter(
+            Q(team__crew__member1=self.team.crew.member1) | Q(team__crew__member2=self.team.crew.member1),
+            tracker_start_time__lte=self.finished_by_time,
+            finished_by_time__gte=self.tracker_start_time)
+        if overlapping1.exists():
+            intervals = []
+            for contestant in overlapping1:
+                smallest_end = min(contestant.finished_by_time, self.finished_by_time)
+                largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
+                intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
+            raise ValidationError(
+                f"The pilot '{self.team.crew.member1}' is competing as a different contestant for the intervals: {intervals}")
+
+        if self.team.crew.member2 is not None:
+            overlapping2 = Contestant.objects.filter(
+                Q(team__crew__member1=self.team.crew.member2) | Q(team__crew__member2=self.team.crew.member2),
+                tracker_start_time__lte=self.finished_by_time,
+                finished_by_time__gte=self.tracker_start_time)
+            if overlapping2.exists():
+                intervals = []
+                for contestant in overlapping2:
+                    smallest_end = min(contestant.finished_by_time, self.finished_by_time)
+                    largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
+                    intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
+                raise ValidationError(
+                    f"The copilot '{self.team.crew.member2}' is competing as a different contestant for the intervals: {intervals}")
+
         # Validate takeoff time after tracker start
         if self.tracker_start_time > self.takeoff_time:
             raise ValidationError("Tracker start time '{}' is after takeoff time '{}' for contestant number {}".format(
