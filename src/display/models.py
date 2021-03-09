@@ -769,7 +769,7 @@ class Contestant(models.Model):
         overlapping1 = Contestant.objects.filter(
             Q(team__crew__member1=self.team.crew.member1) | Q(team__crew__member2=self.team.crew.member1),
             tracker_start_time__lte=self.finished_by_time,
-            finished_by_time__gte=self.tracker_start_time)
+            finished_by_time__gte=self.tracker_start_time).exclude(pk = self.pk)
         if overlapping1.exists():
             intervals = []
             for contestant in overlapping1:
@@ -783,7 +783,7 @@ class Contestant(models.Model):
             overlapping2 = Contestant.objects.filter(
                 Q(team__crew__member1=self.team.crew.member2) | Q(team__crew__member2=self.team.crew.member2),
                 tracker_start_time__lte=self.finished_by_time,
-                finished_by_time__gte=self.tracker_start_time)
+                finished_by_time__gte=self.tracker_start_time).exclude(pk = self.pk)
             if overlapping2.exists():
                 intervals = []
                 for contestant in overlapping2:
