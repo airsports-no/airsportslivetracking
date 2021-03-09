@@ -493,8 +493,12 @@ class PersonForm(forms.ModelForm):
 
     def clean_phone(self):
         phone = self.cleaned_data["phone"]
-        if phone is not None and len(phone) > 0 and Person.objects.filter(phone=phone).exists():
-            raise ValidationError("Phone number must be unique")
+        if phone is not None and len(phone) > 0:
+            existing = Person.objects.filter(phone=phone)
+            if self.instance is not None:
+                existing = existing.exclude(pk = self.instance.pk)
+            if existing.exists():
+                raise ValidationError("Phone number must be unique")
         return phone
 
     class Meta:

@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import List, Dict, TYPE_CHECKING, Optional, Tuple
 
 import requests
@@ -6,6 +7,8 @@ from requests import Session
 
 if TYPE_CHECKING:
     from display.models import TraccarCredentials
+
+logger = logging.getLogger(__name__)
 
 
 class Traccar:
@@ -65,7 +68,7 @@ class Traccar:
 
     def add_device_to_shared_group(self, deviceId):
         response = self.session.put(self.base + f"/api/devices/{deviceId}/",
-                                    json={"groupId": self.get_shared_group_id()})
+                                    json={"groupId": self.get_shared_group_id(), "id": deviceId})
         if response.status_code == 200:
             return True
 
@@ -78,6 +81,21 @@ class Traccar:
             except IndexError:
                 return None
         return None
+
+    def update_device_name(self, device_name: str, identifier: str) -> bool:
+        existing_device = self.get_device(identifier)
+        logger.info(f" Found existing device {existing_device}")
+        if existing_device is None:
+            logger.warning("Failed fetching assumed to be existing device {}".format(identifier))
+            return False
+        key = existing_device["id"]
+        response = self.session.put(self.base + f"/api/devices/{key}/",
+                                    json={"name": device_name, "id": key, "uniqueId": identifier})
+        if response.status_code != 200:
+            logger.error(f"Failed updating device name because of: {response.status_code} {response.text}")
+            return False
+        logger.info(f"Updated device name for {identifier} to {device_name}")
+        return True
 
     def get_or_create_device(self, device_name, identifier) -> Tuple[Dict, bool]:
         existing_device = self.get_device(identifier)

@@ -1167,14 +1167,14 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         instance.app_tracking_id = app_random_string
         instance.simulator_tracking_id = simulator_random_string
         logger.info(f"Assigned random string {instance.app_tracking_id} to person {instance}")
-        device, created = traccar.get_or_create_device(instance.app_aircraft_registration, instance.app_tracking_id)
+        device, created = traccar.get_or_create_device(str(instance), instance.app_tracking_id)
         logger.info(f"Traccar device {device} was created: {created}")
         if created and original_tracking_id is not None and original_tracking_id != instance.app_tracking_id:
             original_device = traccar.get_device(original_tracking_id)
             if original_device is not None:
                 logger.info(f"Clearing original device {original_device}")
                 traccar.delete_device(original_device["id"])
-        device, created = traccar.get_or_create_device(instance.app_aircraft_registration + "_simulator",
+        device, created = traccar.get_or_create_device(str(instance) + " simulator",
                                                        instance.simulator_tracking_id)
         logger.info(f"Traccar device {device} was created: {created}")
         if created and simulator_original_tracking_id is not None and simulator_original_tracking_id != instance.simulator_tracking_id:
@@ -1182,6 +1182,12 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
             if original_device is not None:
                 logger.info(f"Clearing original device {original_device}")
                 traccar.delete_device(original_device["id"])
+    else:
+        original = Person.objects.get(pk=instance.pk)
+        if str(original) != str(instance):
+            traccar = get_traccar_instance()
+            traccar.update_device_name(str(instance), instance.app_tracking_id)
+            traccar.update_device_name(str(instance) + " simulator", instance.simulator_tracking_id)
 
 
 @receiver(pre_delete, sender=Person)

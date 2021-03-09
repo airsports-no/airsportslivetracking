@@ -1287,8 +1287,12 @@ class UserPersonViewSet(GenericViewSet):
 
     def get_queryset(self):
         return Person.objects.get_or_create(email=self.request.user.email,
-                                            defaults={"first_name": self.request.user.first_name,
-                                                      "last_name": self.request.user.last_name, "validated": False})[0]
+                                            defaults={
+                                                "first_name": self.request.user.first_name if self.request.user.first_name and len(
+                                                    self.request.user.first_name) > 0 else "unknown",
+                                                "last_name": self.request.user.last_name if self.request.user.last_name and len(
+                                                    self.request.user.last_name) > 0 else "unknown",
+                                                "validated": False})[0]
 
     # def create(self, request, *args, **kwargs):
     #     if request.user.person is not None:
