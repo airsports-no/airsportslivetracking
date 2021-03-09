@@ -696,6 +696,8 @@ class Contestant(models.Model):
                                                    help_text="The abbreviated class of the contestant, e.g. beginner, professional, et cetera",
                                                    blank=True, null=True)
     track_score_override = models.ForeignKey(TrackScoreOverride, on_delete=models.SET_NULL, null=True)
+    calculator_started = models.BooleanField(default=False,
+                                             help_text="Set to true when the calculator has started. After this point it is not permitted to change the contestant")
     gate_score_override = models.ManyToManyField(GateScoreOverride)
     predefined_gate_times = MyPickledObjectField(default=None, null=True, blank=True,
                                                  help_text="Dictionary of gates and their starting times (with time zone)")
@@ -769,7 +771,7 @@ class Contestant(models.Model):
         overlapping1 = Contestant.objects.filter(
             Q(team__crew__member1=self.team.crew.member1) | Q(team__crew__member2=self.team.crew.member1),
             tracker_start_time__lte=self.finished_by_time,
-            finished_by_time__gte=self.tracker_start_time).exclude(pk = self.pk)
+            finished_by_time__gte=self.tracker_start_time).exclude(pk=self.pk)
         if overlapping1.exists():
             intervals = []
             for contestant in overlapping1:
@@ -783,7 +785,7 @@ class Contestant(models.Model):
             overlapping2 = Contestant.objects.filter(
                 Q(team__crew__member1=self.team.crew.member2) | Q(team__crew__member2=self.team.crew.member2),
                 tracker_start_time__lte=self.finished_by_time,
-                finished_by_time__gte=self.tracker_start_time).exclude(pk = self.pk)
+                finished_by_time__gte=self.tracker_start_time).exclude(pk=self.pk)
             if overlapping2.exists():
                 intervals = []
                 for contestant in overlapping2:
@@ -797,6 +799,27 @@ class Contestant(models.Model):
         if self.tracker_start_time > self.takeoff_time:
             raise ValidationError("Tracker start time '{}' is after takeoff time '{}' for contestant number {}".format(
                 self.tracker_start_time, self.takeoff_time, self.contestant_number))
+        # Validate no timing changes after calculator start
+        if self.pk is not None:
+            original = Contestant.objects.get(pk=self.pk)
+            if original.calculator_started:
+                if original.takeoff_time != self.takeoff_time:
+                    raise ValidationError(
+                        f"Calculator has started for {self}, it is not possible to change takeoff time")
+                if original.tracker_start_time != self.tracker_start_time:
+                    raise ValidationError(
+                        f"Calculator has started for {self}, it is not possible to change tracker start time")
+                if original.wind_speed != self.wind_speed:
+                    raise ValidationError(f"Calculator has started for {self}, it is not possible to change wind speed")
+                if original.wind_direction != self.wind_direction:
+                    raise ValidationError(
+                        f"Calculator has started for {self}, it is not possible to change wind direction")
+                if original.adaptive_start != self.adaptive_start:
+                    raise ValidationError(f"Calculator has started for {self}, it is not possible to change adaptive start")
+                if original.minutes_to_starting_point != self.minutes_to_starting_point:
+                    raise ValidationError(f"Calculator has started for {self}, it is not possible to change minutes to starting point")
+
+
 
     def calculate_and_get_gate_times(self, start_point_override: Optional[datetime.datetime] = None) -> Dict:
         gates = self.navigation_task.route.waypoints  # type: List[Waypoint]
@@ -1184,6 +1207,7 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
                 traccar.delete_device(original_device["id"])
     else:
         original = Person.objects.get(pk=instance.pk)
+        # Update traccar device names
         if str(original) != str(instance):
             traccar = get_traccar_instance()
             traccar.update_device_name(str(instance), instance.app_tracking_id)

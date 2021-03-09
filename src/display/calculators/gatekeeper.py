@@ -49,6 +49,8 @@ class Gatekeeper:
         self.live_processing = live_processing
         self.track_terminated = False
         self.contestant = contestant
+        self.contestant.calculator_started = True
+        self.contestant.save()
         self.position_queue = position_queue
         self.influx = InfluxFacade()
         self.track = []  # type: List[Position]
