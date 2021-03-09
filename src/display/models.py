@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple
 import eval7 as eval7
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 from django.db import models
 from django.db.models import Q
@@ -334,9 +335,15 @@ class NavigationTask(models.Model):
     is_public = models.BooleanField(default=False,
                                     help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
     wind_speed = models.FloatField(default=0,
-                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
+                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.",
+                                   validators=[
+                                       MaxValueValidator(360), MinValueValidator(0)
+                                   ])
     wind_direction = models.FloatField(default=0,
-                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
+                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.",
+                                       validators=[
+                                           MaxValueValidator(40), MinValueValidator(0)
+                                       ])
     minutes_to_starting_point = models.FloatField(default=5,
                                                   help_text="The number of minutes from the take-off time until the starting point")
     minutes_to_landing = models.FloatField(default=30,
@@ -693,9 +700,15 @@ class Contestant(models.Model):
     predefined_gate_times = MyPickledObjectField(default=None, null=True, blank=True,
                                                  help_text="Dictionary of gates and their starting times (with time zone)")
     wind_speed = models.FloatField(default=0,
-                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.")
+                                   help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.",
+                                   validators=[
+                                       MaxValueValidator(40), MinValueValidator(0)
+                                   ])
     wind_direction = models.FloatField(default=0,
-                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.")
+                                       help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.",
+                                       validators=[
+                                           MaxValueValidator(360), MinValueValidator(0)
+                                       ])
     annotation_index = models.IntegerField(default=0, help_text="Internal housekeeping for annotation transmission")
 
     class Meta:
