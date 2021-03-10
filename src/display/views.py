@@ -1337,9 +1337,12 @@ class UserPersonViewSet(GenericViewSet):
             raise Http404
         return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
 
-    @action(detail=False, methods=["put"])
+    @action(detail=False, methods=["put", "patch"])
     def update_profile(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        if self.request.method == "PATCH":
+            partial = True
+        else:
+            partial = False
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
