@@ -463,6 +463,6 @@ def insert_gate_ranges(waypoints: List[Waypoint]):
     turning_points = [item for item in waypoints if item.type == "tp"]
     for main_gate in turning_points:
         distances = list(get_distance_to_other_gates(main_gate, turning_points).values())
-        minimum_distance = min(min(distances) / 2, 6000)
+        minimum_distance = min(min(distances) / 3, 4000)
         main_gate.inside_distance = minimum_distance
-        main_gate.outside_distance = 1000 + minimum_distance
+        main_gate.outside_distance = 500 + minimum_distance

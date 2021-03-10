@@ -111,27 +111,32 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             for index in range(0, len(self.circling_position_list) - 2):
                 bearings.append(
                     bearing_between(self.circling_position_list[index], self.circling_position_list[index + 1]))
-            turn_slices = []
+            bearings.reverse()
+            difference = 0
+            found_circling = False
             for index in range(0, len(bearings) - 2):
-                turn_slices.append(get_heading_difference(bearings[index], bearings[index + 1]))
-            total_turn = sum(turn_slices)
-            if abs(total_turn) > 180 and not self.circling:
-                # We are circling
-                self.circling = True
-                logger.info("{} {}: Detected circling more than 180° the past {} seconds".format(self.contestant,
-                                                                                                 last_position.time,
-                                                                                                 (
-                                                                                                         self.circling_position_list[
-                                                                                                             -1].time -
-                                                                                                         self.circling_position_list[
-                                                                                                             0].time).total_seconds()))
-                self.update_score(last_gate or self.gates[0],
-                                  self.scorecard.get_backtracking_penalty(self.contestant),
-                                  "circling",
-                                  last_position.latitude, last_position.longitude, "anomaly",
-                                  self.BACKTRACKING_SCORE_TYPE,
-                                  self.scorecard.get_maximum_backtracking_penalty(self.contestant))
-            elif abs(total_turn) <= 180:
+                difference += get_heading_difference(bearings[index], bearings[index + 1])
+                if abs(difference) > 180:
+                    # Keep only the latest (last) portion that makes up the total turn
+                    self.circling_position_list = self.circling_position_list[-index - 1:]
+                    found_circling = True
+                    if not self.circling:
+                        self.circling = True
+                        logger.info("{} {}: Detected circling more than 180° the past {} seconds".format(self.contestant,
+                                                                                                         last_position.time,
+                                                                                                         (
+                                                                                                                 self.circling_position_list[
+                                                                                                                     -1].time -
+                                                                                                                 self.circling_position_list[
+                                                                                                                     0].time).total_seconds()))
+                        self.update_score(last_gate or self.gates[0],
+                                          self.scorecard.get_backtracking_penalty(self.contestant),
+                                          "circling",
+                                          last_position.latitude, last_position.longitude, "anomaly",
+                                          self.BACKTRACKING_SCORE_TYPE,
+                                          self.scorecard.get_maximum_backtracking_penalty(self.contestant))
+                    break
+            if not found_circling:
                 # No longer circling
                 self.circling = False
 
@@ -146,7 +151,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             return
         if last_gate.type == "to":
             self.update_tracking_state(self.TAKEOFF)
-        if last_gate.type == "sp" and last_gate!=self.last_gate_previous_round:
+        if last_gate.type == "sp" and last_gate != self.last_gate_previous_round:
             self.update_tracking_state(self.STARTED)
 
         last_position = track[-1]  # type: Position
@@ -281,4 +286,3 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 self.update_tracking_state(self.TRACKING)
         self.last_bearing = bearing
         self.last_gate_previous_round = last_gate
-
