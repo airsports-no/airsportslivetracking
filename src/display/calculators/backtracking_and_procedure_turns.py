@@ -1,10 +1,10 @@
 import datetime
 import logging
-from typing import TYPE_CHECKING, List, Callable
+from typing import TYPE_CHECKING, List, Callable, Optional
 
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import bearing_between
-from display.coordinate_utilities import get_heading_difference, calculate_distance_lat_lon
+from display.coordinate_utilities import get_heading_difference, calculate_distance_lat_lon, bearing_difference
 from display.models import Contestant, Scorecard, Route
 
 if TYPE_CHECKING:
@@ -56,12 +56,13 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.current_procedure_turn_bearing_difference = 0
         self.current_procedure_turn_start_time = None
         self.backtracking_start_time = None
-        self.circling_lookback_seconds = 120
-        self.circling_position_list = []
+        self.circling_lookback = datetime.timedelta(seconds=90)
+        self.non_circling_lookback = datetime.timedelta(seconds=30)
         self.last_bearing = None
         self.last_gate_previous_round = None
         self.current_speed_estimate = 0
         self.previous_gate_distances = None
+        self.earliest_circle_check = None
         self.inside_gates = None
         self.between_tracks = False
         self.calculate_track = False
@@ -82,7 +83,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         # Need to do the track score first since this might declare the remaining gates as missed if we are done
         # with the track. We can then calculate gate score and consider the missed gates.
         self.calculate_track_score(track, last_gate, in_range_of_gate)
-        self.detect_circling(track, last_gate)
+        self.detect_circling(track, last_gate, in_range_of_gate)
 
     def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
         self.circling_position_list = []
@@ -95,50 +96,53 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
 
     TIME_FORMAT = "%H:%M:%S"
 
-    def detect_circling(self, track: List["Position"], last_gate: "Gate"):
-        last_position = track[-1]
-        if self.tracking_state in (self.BACKTRACKING, self.PROCEDURE_TURN):
-            self.circling_position_list = []
-        self.circling_position_list.append(last_position)
-        while len(self.circling_position_list) > 0:
-            if (self.circling_position_list[-1].time - self.circling_position_list[
-                0].time).total_seconds() > self.circling_lookback_seconds:
-                self.circling_position_list.pop(0)
-            else:
+    def detect_circling(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: Optional["Gate"]):
+        """
+        Only detect circling inside range of gates, otherwise we deal with backtracking
+
+        :param track:
+        :param last_gate:
+        :param in_range_of_gate:
+        :return:
+        """
+        next_position = track[-1]
+        now = next_position.time
+        if self.earliest_circle_check is None or last_gate is None or self.tracking_state in (
+                self.BACKTRACKING, self.PROCEDURE_TURN) or in_range_of_gate is None:
+            self.earliest_circle_check = now
+        found_circling = False
+        current_position_index = len(track) - 2
+        current_position = track[current_position_index]
+        difference = 0
+        previous_bearing = None
+        while current_position_index > 0 and current_position.time > now - self.circling_lookback and current_position.time > self.earliest_circle_check:
+            current_position_index -= 1
+            current_bearing = bearing_between(current_position, next_position)
+            if previous_bearing is not None:
+                difference += bearing_difference(previous_bearing, current_bearing)
+            previous_bearing = current_bearing
+            next_position = current_position
+            current_position = track[current_position_index]
+            if abs(difference) > 180:
+                found_circling = True
+                if not self.circling:
+                    self.circling = True
+                    logger.info(
+                        "{} {}: Detected circling more than 180° the past {} seconds".format(self.contestant,
+                                                                                             now,
+                                                                                             (
+                                                                                                     now -
+                                                                                                     current_position.time).total_seconds()))
+                    self.update_score(last_gate or self.gates[0],
+                                      self.scorecard.get_backtracking_penalty(self.contestant),
+                                      "circling",
+                                      next_position.latitude, next_position.longitude, "anomaly",
+                                      self.BACKTRACKING_SCORE_TYPE,
+                                      self.scorecard.get_maximum_backtracking_penalty(self.contestant))
                 break
-        if len(self.circling_position_list) > 1:
-            bearings = []
-            for index in range(0, len(self.circling_position_list) - 2):
-                bearings.append(
-                    bearing_between(self.circling_position_list[index], self.circling_position_list[index + 1]))
-            bearings.reverse()
-            difference = 0
-            found_circling = False
-            for index in range(0, len(bearings) - 2):
-                difference += get_heading_difference(bearings[index], bearings[index + 1])
-                if abs(difference) > 180:
-                    # Keep only the latest (last) portion that makes up the total turn
-                    self.circling_position_list = self.circling_position_list[-index - 1:]
-                    found_circling = True
-                    if not self.circling:
-                        self.circling = True
-                        logger.info("{} {}: Detected circling more than 180° the past {} seconds".format(self.contestant,
-                                                                                                         last_position.time,
-                                                                                                         (
-                                                                                                                 self.circling_position_list[
-                                                                                                                     -1].time -
-                                                                                                                 self.circling_position_list[
-                                                                                                                     0].time).total_seconds()))
-                        self.update_score(last_gate or self.gates[0],
-                                          self.scorecard.get_backtracking_penalty(self.contestant),
-                                          "circling",
-                                          last_position.latitude, last_position.longitude, "anomaly",
-                                          self.BACKTRACKING_SCORE_TYPE,
-                                          self.scorecard.get_maximum_backtracking_penalty(self.contestant))
-                    break
-            if not found_circling:
-                # No longer circling
-                self.circling = False
+        if not found_circling:
+            # No longer circling
+            self.circling = False
 
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
         self.backtracking_limit = 360

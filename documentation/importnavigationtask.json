@@ -75,7 +75,7 @@
         "crew": {
           "member1": {
             "first_name": "first_name",
-            "last_name": "last_name",
+            "last_name": "last_name2",
             "email": "different_name@domain.com"
           }
         },

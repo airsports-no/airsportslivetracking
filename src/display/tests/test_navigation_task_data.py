@@ -102,7 +102,7 @@ data = {
         {
             "air_speed": 70,
             "contestant_number": 1,
-            "finished_by_time": "2020-08-01T10:10:00Z",
+            "finished_by_time": "2020-08-01T12:10:00Z",
             "gate_times": {
                 'T/O': '2020-08-01T08:10:00Z',
                 'LDG': '2020-08-01T10:10:00Z',
@@ -125,7 +125,7 @@ data = {
             },
             "minutes_to_starting_point": 6,
             "scorecard": "FAI Precision 2020",
-            "takeoff_time": "2020-08-01T08:10:00Z",
+            "takeoff_time": "2020-08-01T10:10:00Z",
             "team": {
                 "aeroplane": {
                     "registration": "LN-YDB2",
@@ -146,7 +146,7 @@ data = {
                 "country": "SE"
             },
             "tracker_device_id": "tracker_1",
-            "tracker_start_time": "2020-08-01T08:00:00Z",
+            "tracker_start_time": "2020-08-01T10:00:01Z",
             "wind_direction": 0,
             "wind_speed": 0
         },
@@ -686,11 +686,12 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         other_data["name"] = "Second task"
         for item in other_data["contestant_set"]:
             item["tracker_device_id"] += "1"
+            item['team']['crew']['member1']['first_name']+="1"
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), other_data, format="json")
         print(res.content)
-        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
-        self.assertEqual(2, len(ContestTeam.objects.filter(contest=self.contest)))
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, res.status_code, "Failed to POST importnavigationtask")
+        # self.assertEqual(2, len(ContestTeam.objects.filter(contest=self.contest)))
 
     def test_basic_score_override(self, patch):
         other_data = deepcopy(self.data)

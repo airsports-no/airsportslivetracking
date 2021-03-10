@@ -46,7 +46,8 @@ class TestInterpolation(TransactionTestCase):
                                                     air_speed=speed,
                                                     wind_direction=165, wind_speed=8)
 
-    def test_no_interpolation(self):
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    def test_no_interpolation(self, p):
         gatekeeper = Gatekeeper(self.contestant, Mock(), [])
         start_position = Position("2020-01-01T00:00:00Z", 60, 11, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
@@ -55,7 +56,8 @@ class TestInterpolation(TransactionTestCase):
         self.assertEqual(1, len(interpolated))
         self.assertEqual(next_position, interpolated[0])
 
-    def test_interpolation(self):
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    def test_interpolation(self, p):
         gatekeeper = Gatekeeper(self.contestant, Mock(), [])
         start_position = Position("2020-01-01T00:00:00Z", 60, 11, 0, 0, 0, 0)
         gatekeeper.track = [start_position]

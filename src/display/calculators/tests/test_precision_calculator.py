@@ -161,7 +161,11 @@ class TestFullTrack(TransactionTestCase):
 
     def test_helge_track_precision(self, patch):
         start_time, speed = datetime.datetime(2020, 8, 1, 10, 55, tzinfo=datetime.timezone.utc), 75
-        contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Misters", last_name="Pilot", email="a@gg.com"))
+        aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        team = Team.objects.create(crew=crew, aeroplane=aeroplane)
+
+        contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=team,
                                                takeoff_time=start_time,
                                                tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                finished_by_time=start_time + datetime.timedelta(hours=2),
@@ -287,7 +291,7 @@ class Test2017WPFC(TransactionTestCase):
 
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1152,
+        self.assertEqual(1352,  # Increased by 200 after new circling cacl
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
@@ -414,5 +418,5 @@ class TestNM2019(TransactionTestCase):
 
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1000,
+        self.assertEqual(1200,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
