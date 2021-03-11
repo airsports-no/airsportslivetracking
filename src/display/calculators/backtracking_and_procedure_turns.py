@@ -111,6 +111,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 self.BACKTRACKING, self.PROCEDURE_TURN) or in_range_of_gate is None:
             self.mark_circling_finished_if_ongoing(last_gate, now, next_position)
             self.earliest_circle_check = now
+            return
         found_circling = False
         current_position_index = len(track) - 2
         current_position = track[current_position_index]
@@ -131,7 +132,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     logger.info(
                         "{} {}: Detected circling more than 180° the past {} seconds".format(self.contestant,
                                                                                              now, (
-                                                                                                         now - current_position.time).total_seconds()))
+                                                                                                     now - current_position.time).total_seconds()))
                     self.update_score(last_gate or self.gates[0],
                                       self.scorecard.get_backtracking_penalty(self.contestant),
                                       "circling start",
@@ -142,7 +143,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 break
         if not found_circling:
             # No longer circling, market reset if we were circling
-            self.mark_circling_finished_if_ongoing(last_gate, now, current_position)
+            self.mark_circling_finished_if_ongoing(last_gate, now, track[-1])
 
     def mark_circling_finished_if_ongoing(self, last_gate, now, current_position):
         if self.circling:
@@ -235,7 +236,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 logger.info("{}: Backtracking according to last gate {}".format(self.contestant, last_gate))
                 if in_range_of_gate is not None and in_range_of_gate != last_gate:
                     outgoing_bearing_difference = abs(get_heading_difference(bearing, in_range_of_gate.bearing))
-                    if outgoing_bearing_difference <= self.scorecard.backtracking_bearing_difference:
+                    if outgoing_bearing_difference <= self.scorecard.backtracking_bearing_difference and self.tracking_state != self.BACKTRACKING:
                         # We are not backtracking according to the outgoing gate, so ignore it
                         backtracking = False
                         logger.info("{}: Not backtracking according to gate in range {}".format(self.contestant,
