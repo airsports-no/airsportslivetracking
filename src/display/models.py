@@ -155,12 +155,12 @@ class Person(models.Model):
     @property
     def phone_country_prefix(self):
         phone = self.phone  # type: PhoneNumber
-        return phone.country_code
+        return phone.country_code if phone else ""
 
     @property
     def phone_national_number(self):
         phone = self.phone  # type: PhoneNumber
-        return phone.national_number
+        return phone.national_number if phone else ""
 
     @property
     def country_flag_url(self):
