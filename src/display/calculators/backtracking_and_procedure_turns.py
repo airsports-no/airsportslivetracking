@@ -139,17 +139,18 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                                       next_position.latitude, next_position.longitude, "anomaly",
                                       self.BACKTRACKING_SCORE_TYPE,
                                       self.scorecard.get_maximum_backtracking_penalty(self.contestant))
-                    self.update_score(last_gate or self.gates[0],
-                                      0,
-                                      "circling finished",
-                                      next_position.latitude, next_position.longitude, "information",
-                                      self.BACKTRACKING_SCORE_TYPE)
 
                 break
         if not found_circling:
             # No longer circling, market reset if we were circling
             if self.circling:
                 self.earliest_circle_check = now
+                self.update_score(last_gate or self.gates[0],
+                                  0,
+                                  "circling finished",
+                                  current_position.latitude, current_position.longitude, "information",
+                                  self.BACKTRACKING_SCORE_TYPE)
+
             self.circling = False
 
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
