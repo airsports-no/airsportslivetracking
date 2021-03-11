@@ -165,8 +165,10 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
     # phone = PhoneNumberField(required=False)
-    phone_country_prefix = serializers.CharField(max_length=5, required=False)
-    phone_national_number = serializers.CharField(max_length=30, required=False)
+    phone_country_prefix = serializers.CharField(max_length=5, required=False,
+                                                 help_text="International prefix for a phone number, e.g. +47")
+    phone_national_number = serializers.CharField(max_length=30, required=False,
+                                                  help_text="Actual phone number without international prefix")
 
     def create(self, validated_data):
         country_prefix = validated_data.pop("phone_country_prefix", None)
