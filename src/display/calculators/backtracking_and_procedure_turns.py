@@ -109,6 +109,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         now = next_position.time
         if self.earliest_circle_check is None or last_gate is None or self.tracking_state in (
                 self.BACKTRACKING, self.PROCEDURE_TURN) or in_range_of_gate is None:
+            self.mark_circling_finished_if_ongoing(last_gate, now, next_position)
             self.earliest_circle_check = now
         found_circling = False
         current_position_index = len(track) - 2
@@ -129,10 +130,8 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     self.circling = True
                     logger.info(
                         "{} {}: Detected circling more than 180° the past {} seconds".format(self.contestant,
-                                                                                             now,
-                                                                                             (
-                                                                                                     now -
-                                                                                                     current_position.time).total_seconds()))
+                                                                                             now, (
+                                                                                                         now - current_position.time).total_seconds()))
                     self.update_score(last_gate or self.gates[0],
                                       self.scorecard.get_backtracking_penalty(self.contestant),
                                       "circling start",
@@ -143,14 +142,16 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 break
         if not found_circling:
             # No longer circling, market reset if we were circling
-            if self.circling:
-                self.earliest_circle_check = now
-                self.update_score(last_gate or self.gates[0],
-                                  0,
-                                  "circling finished",
-                                  current_position.latitude, current_position.longitude, "information",
-                                  self.BACKTRACKING_SCORE_TYPE)
+            self.mark_circling_finished_if_ongoing(last_gate, now, current_position)
 
+    def mark_circling_finished_if_ongoing(self, last_gate, now, current_position):
+        if self.circling:
+            self.earliest_circle_check = now
+            self.update_score(last_gate or self.gates[0],
+                              0,
+                              "circling finished",
+                              current_position.latitude, current_position.longitude, "information",
+                              self.BACKTRACKING_SCORE_TYPE)
             self.circling = False
 
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
