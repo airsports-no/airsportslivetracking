@@ -169,21 +169,23 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     phone_national_number = serializers.CharField(max_length=30)
 
     def create(self, validated_data):
-        country_prefix = validated_data.pop("phone_country_prefix")
-        phone_national_number = validated_data.pop("phone_national_number")
+        country_prefix = validated_data.pop("phone_country_prefix", None)
+        phone_national_number = validated_data.pop("phone_national_number", None)
         instance = super().create(validated_data)
-        instance.phone = country_prefix + phone_national_number
-        self.validate_phone(instance.phone)
-        instance.save()
+        if country_prefix is not None and phone_national_number is not None:
+            instance.phone = country_prefix + phone_national_number
+            self.validate_phone(instance.phone)
+            instance.save()
         return instance
 
     def update(self, instance, validated_data):
-        country_prefix = validated_data.pop("phone_country_prefix")
-        phone_national_number = validated_data.pop("phone_national_number")
+        country_prefix = validated_data.pop("phone_country_prefix", None)
+        phone_national_number = validated_data.pop("phone_national_number", None)
         instance = super().update(instance, validated_data)
-        instance.phone = country_prefix + phone_national_number
-        self.validate_phone(instance.phone)
-        instance.save()
+        if country_prefix is not None and phone_national_number is not None:
+            instance.phone = country_prefix + phone_national_number
+            self.validate_phone(instance.phone)
+            instance.save()
         return instance
 
     def validate_phone(self, phone):
