@@ -164,9 +164,9 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
 class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
-    phone = PhoneNumberField(required=False)
-    phone_country_prefix = serializers.CharField(max_length=5)
-    phone_national_number = serializers.CharField(max_length=30)
+    # phone = PhoneNumberField(required=False)
+    phone_country_prefix = serializers.CharField(max_length=5, required=False)
+    phone_national_number = serializers.CharField(max_length=30, required=False)
 
     def create(self, validated_data):
         country_prefix = validated_data.pop("phone_country_prefix", None)
@@ -197,6 +197,7 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     class Meta:
         model = Person
         fields = "__all__"
+        exclude = ("phone",)
 
 
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
