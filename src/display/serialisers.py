@@ -1,6 +1,7 @@
 import base64
 
 import dateutil
+import phonenumbers
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction, IntegrityError
 from django.http import Http404
@@ -10,7 +11,7 @@ from guardian.shortcuts import assign_perm
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework import serializers
 from rest_framework.fields import MultipleChoiceField
-from rest_framework.generics import get_object_or_404
+from rest_framework.exceptions import ValidationError
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
@@ -164,6 +165,32 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
     phone = PhoneNumberField(required=False)
+    phone_country_prefix = serializers.CharField(max_length=5)
+    phone_national_number = serializers.CharField(max_length=30)
+
+    def create(self, validated_data):
+        country_prefix = validated_data.pop("phone_country_prefix")
+        phone_national_number = validated_data.pop("phone_national_number")
+        instance = super().create(validated_data)
+        instance.phone = country_prefix + phone_national_number
+        self.validate_phone(instance.phone)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        country_prefix = validated_data.pop("phone_country_prefix")
+        phone_national_number = validated_data.pop("phone_national_number")
+        instance = super().update(instance, validated_data)
+        instance.phone = country_prefix + phone_national_number
+        self.validate_phone(instance.phone)
+        instance.save()
+        return instance
+
+    def validate_phone(self, phone):
+        if not phonenumbers.is_possible_number(phone):
+            raise ValidationError(f"Phone number {phone} is not a possible number")
+        if not phonenumbers.is_valid_number(phone):
+            raise ValidationError(f"Phone number {phone} is not a valid number")
 
     class Meta:
         model = Person

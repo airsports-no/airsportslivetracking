@@ -36,6 +36,8 @@ from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
 from live_tracking_map.settings import SERVER_ROOT
 
+from phonenumbers.phonenumber import PhoneNumber
+
 TRACCAR = "traccar"
 TRACKING_SERVICES = (
     (TRACCAR, "Traccar"),
@@ -149,6 +151,16 @@ class Person(models.Model):
     picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
+
+    @property
+    def phone_country_prefix(self):
+        phone = self.phone  # type: PhoneNumber
+        return phone.country_code
+
+    @property
+    def phone_national_number(self):
+        phone = self.phone  # type: PhoneNumber
+        return phone.national_number
 
     @property
     def country_flag_url(self):
