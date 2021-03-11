@@ -147,8 +147,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
 
                 break
         if not found_circling:
-            # No longer circling
-            self.earliest_circle_check = now
+            # No longer circling, market reset if we were circling
+            if self.circling:
+                self.earliest_circle_check = now
             self.circling = False
 
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
