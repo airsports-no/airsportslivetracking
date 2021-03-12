@@ -44,6 +44,10 @@ function FormatMessage(props) {
 }
 
 class ConnectedContestantDetailsDisplay extends Component {
+    constructor(props) {
+        super(props)
+    }
+
     calculateRank() {
         const contestants = this.props.contestants.filter((contestant) => {
             return contestant != null && contestant.contestant !== undefined
@@ -57,6 +61,14 @@ class ConnectedContestantDetailsDisplay extends Component {
             rank += 1
         }
         return -1
+    }
+
+    componentDidUpdate(prevProps) {
+        this.scrollToBottom()
+    }
+
+    scrollToBottom = () => {
+        this.messagesEnd.scrollIntoView({behavior: "smooth"});
     }
 
     resetToAllContestants() {
@@ -147,6 +159,11 @@ class ConnectedContestantDetailsDisplay extends Component {
                             bootstrap4 striped hover condensed rowEvents={rowEvents}
                             bordered={false}//pagination={paginationFactory(paginationOptions)}
             />
+            <div style={{float: "left", clear: "both"}}
+                 ref={(el) => {
+                     this.messagesEnd = el;
+                 }}>
+            </div>
         </div>
 
     }
