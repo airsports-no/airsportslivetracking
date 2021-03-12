@@ -119,7 +119,7 @@ class ConnectedTrackingContainer extends Component {
                                     {/*{TableHeightLink}*/}
                                 </div>
                                 <div id={"insetMenu"}
-                                     aria-expanded={false} aria-controls={"insetMenu"} className={"collapse"}>
+                                     aria-expanded={true} aria-controls={"insetMenu"} className={"collapse show"}>
                                     <div
                                         className={"backdrop " + (this.props.displayExpandedTrackingTable ? "backdropFull" : "backdropHalf")}>
                                         <div className={"text-light bg-dark"}>
