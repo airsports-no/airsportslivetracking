@@ -65,12 +65,12 @@ class ConnectedContestantDetailsDisplay extends Component {
     }
 
     componentDidUpdate(prevProps) {
-        if (this.props.contestantData === undefined || prevProps.contestantData === undefined) {
-            return
-        }
-        if (this.props.contestantData.score_log.length !== prevProps.contestantData.score_log.length) {
-            this.scrollToBottom()
-        }
+        // if (this.props.contestantData === undefined || prevProps.contestantData === undefined) {
+        //     return
+        // }
+        // if (this.props.contestantData.score_log.length !== prevProps.contestantData.score_log.length) {
+        //     this.scrollToBottom()
+        // }
     }
 
     scrollToBottom() {
@@ -139,12 +139,13 @@ class ConnectedContestantDetailsDisplay extends Component {
         if (!this.props.contestantData) {
             return <div/>
         }
-        const events = this.props.contestantData.score_log.map((line, index) => {
+        let events = this.props.contestantData.score_log.map((line, index) => {
             return {
                 key: this.props.contestantData.contestant_id + "details" + index,
                 message: line,
             }
         })
+        events.reverse()
 
         const paginationOptions = {
             sizePerPage: 20,
