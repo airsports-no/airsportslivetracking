@@ -68,7 +68,7 @@ class ConnectedContestantDetailsDisplay extends Component {
         this.scrollToBottom()
     }
 
-    scrollToBottom = () => {
+    scrollToBottom() {
         this.messagesEnd.scrollIntoView({behavior: "smooth"});
     }
 
