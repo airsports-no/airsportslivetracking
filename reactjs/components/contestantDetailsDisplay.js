@@ -46,6 +46,7 @@ function FormatMessage(props) {
 class ConnectedContestantDetailsDisplay extends Component {
     constructor(props) {
         super(props)
+        this.messagesEnd = null
     }
 
     calculateRank() {
