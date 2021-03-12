@@ -65,7 +65,12 @@ class ConnectedContestantDetailsDisplay extends Component {
     }
 
     componentDidUpdate(prevProps) {
-        this.scrollToBottom()
+        if (this.props.contestantData === undefined || prevProps.contestantData === undefined) {
+            return
+        }
+        if (this.props.contestantData.score_log.length !== prevProps.contestantData.score_log.length) {
+            this.scrollToBottom()
+        }
     }
 
     scrollToBottom() {
