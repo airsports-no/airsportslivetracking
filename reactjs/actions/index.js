@@ -107,7 +107,7 @@ export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) =
 
 export const fetchDisclaimer = () => (dispatch) => {
     $.ajax({
-        url: "/disclaimer_english/",
+        url: "/disclaimer/",
         datatype: 'html',
         cache: false,
         success: value => dispatch({type: FETCH_DISCLAIMER_SUCCESSFUL, payload: value}),
