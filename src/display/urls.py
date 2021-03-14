@@ -15,7 +15,7 @@ from display.views import frontend_view_map, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test
 
 urlpatterns = [
-    path('frontend/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
+    path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
     path('token/renew', renew_token, name="renewtoken"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
     path('contest/<int:pk>/', ContestDetailView.as_view(), name="contest_details"),
