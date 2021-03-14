@@ -111,13 +111,12 @@ def frontend_view_map(request, pk):
         raise Http404
     return render(request, "display/root.html",
                   {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
-                   "display_map": "true", "display_table": "false", "skip_nav": True,
-                   "disclaimer": render_to_string("display/disclaimer_english.html")})
+                   "display_map": "true", "display_table": "false", "skip_nav": True})
 
 
 def global_map(request):
     return render(request, "display/globalmap.html",
-                  {"skip_nav": True, "disclaimer": render_to_string("display/disclaimer_english.html")})
+                  {"skip_nav": True})
 
 
 def results_service(request):
