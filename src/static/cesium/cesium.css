@@ -418,11 +418,11 @@ tr.hidden {
     z-index: 2;
     background-color: #262626;
     color: white;
-    font-size: 0.5rem;
-    width: 330px;
-    padding-top: 4px;
-    padding-left: 4px;
-    height: 45px;
+    font-size: 0.7rem;
+    /*width: 330px;*/
+    padding: 4px;
+    /*padding-left: 4px;*/
+    /*height: 45px;*/
 }
 
 #disclaimer .logo {
@@ -441,8 +441,9 @@ tr.hidden {
 
 .logoImage {
     /*height: 80px;*/
-    width: 15vw;
+    /*width: 20vw;*/
     bottom: 18px;
+    width: 350px;
     right: 20px;
     position: fixed;
     z-index: 2;

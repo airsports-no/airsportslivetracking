@@ -41,10 +41,10 @@ class ConnectedDisclaimer extends Component {
 
     render() {
         return <div>
-            <div id={"disclaimer"} onClick={this.props.displayDisclaimerModal}>
-                <img src={"/static/img/airsports_no_text_white.png"} className={"logo"}/>
-                THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING, AND IS INTENDED FOR ENTERTAINMENT ONLY!
-                PLEASE CLICK FOR THE FULL DISCLAIMER.
+            <div id={"disclaimer"} onClick={this.props.displayDisclaimerModal}>TERMS AND DISCLAIMER
+                {/*<img src={"/static/img/airsports_no_text_white.png"} className={"logo"}/>*/}
+                {/*THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING, AND IS INTENDED FOR ENTERTAINMENT ONLY!*/}
+                {/*PLEASE CLICK FOR THE FULL DISCLAIMER.*/}
             </div>
             <DisclaimerLong disclaimer={this.props.disclaimer} show={this.props.disclaimerModalShow}
                             dialogClassName="modal-90w" onHide={() => this.props.hideDisclaimerModal()}/>
