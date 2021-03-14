@@ -14,7 +14,7 @@ function DisclaimerLong(props) {
         <Modal {...props} aria-labelledby="contained-modal-title-vcenter">
             <Modal.Header closeButton>
                 <Modal.Title id="contained-modal-title-vcenter">
-                    Disclaimer
+                    Terms and conditions
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
