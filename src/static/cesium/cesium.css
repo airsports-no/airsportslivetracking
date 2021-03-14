@@ -441,9 +441,10 @@ tr.hidden {
 
 .logoImage {
     /*height: 80px;*/
-    /*width: 20vw;*/
+    width: 20vw;
     bottom: 18px;
-    width: 350px;
+    max-width: 400px;
+    min-width: 300px;
     right: 20px;
     position: fixed;
     z-index: 2;
