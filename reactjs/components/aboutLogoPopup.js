@@ -1,5 +1,5 @@
 import React, {Component} from "react";
-import {Container, Modal} from "react-bootstrap";
+import {Button, Container, Modal} from "react-bootstrap";
 import {connect} from "react-redux";
 import {
     displayAboutModal,
@@ -26,15 +26,19 @@ function AboutLogoModal(props) {
             <Modal.Body>
                 <Container>
                     <div>
-                        Air Sports Live Tracking is an online tracking platform for use in competition flying and social flying events.
+                        Air Sports Live Tracking is an online tracking platform for use in competition flying and social
+                        flying events.
                     </div>
                     <div>
                         {aboutText}
                     </div>
                     {/*<div dangerouslySetInnerHTML={{__html: aboutText}}/>*/}
-                    <SocialMediaLinks/>
                 </Container>
             </Modal.Body>
+            <Modal.Footer>
+                <SocialMediaLinks/>
+            </Modal.Footer>
+
         </Modal>
     );
 }
