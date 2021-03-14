@@ -149,7 +149,7 @@ class ConnectedGlobalEventList extends Component {
                                    className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
                                    data-toggle={"collapse"}>
                                     <span><i className={"mdi mdi-keyboard-arrow-right"}/>Upcoming events</span>
-                                    <span style={{"padding-top": "0.5em"}}
+                                    <span style={{"paddingTop": "0.5em"}}
                                           className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
                                 </a>
                                 <div className={"list-group collapse"} id={"upcoming"}>
@@ -161,7 +161,7 @@ class ConnectedGlobalEventList extends Component {
                             <span>
                             Past events
                                 </span>
-                                    <span style={{"padding-top": "0.5em"}}
+                                    <span style={{"paddingTop": "0.5em"}}
                                           className={"badge badge-dark badge-pill"}>{earlierEvents.length}</span>
                                 </a>
                                 {/*<div className={"list-group collapse"} id={"past"}>*/}

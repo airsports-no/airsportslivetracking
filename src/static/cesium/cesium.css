@@ -2,6 +2,13 @@ body {
     font-family: "Roboto condensed", "Lucida Grande", Verdana, Arial, sans-serif;
 }
 
+.social-media-box {
+    position:fixed;
+    z-index: 3;
+    right: 20px;
+    top: 100px;
+}
+
 .outerBackdrop {
     transform-origin: top left;
     left: 60px;

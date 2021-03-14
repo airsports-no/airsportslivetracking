@@ -39,6 +39,8 @@ docs = get_schema_view(
 urlpatterns = [
     path('contests/', ContestList.as_view(), name="contest_list"),
     path('', global_map, name="global_map"),
+    path('disclaimer_english/', TemplateView.as_view(template_name='display/disclaimer_english.html'),
+         name="disclaimer_english"),
     path('admin/', admin.site.urls),
     path('display/', include("display.urls")),
     path('accounts/token/', view_token, name="token"),

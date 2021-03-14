@@ -24,7 +24,10 @@ import {
     EXPLICITLY_DISPLAY_ALL_TRACKS,
     TRACCAR_DATA_RECEIVED,
     GET_CONTEST_SUCCESSFUL,
-    GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL, GLOBAL_MAP_ZOOM_FOCUS_CONTEST, DISPLAY_PAST_EVENTS_MODAL
+    GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL,
+    GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
+    DISPLAY_PAST_EVENTS_MODAL,
+    DISPLAY_DISCLAIMER_MODAL, FETCH_DISCLAIMER_SUCCESSFUL
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -102,6 +105,16 @@ export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) =
     });
 }
 
+export const fetchDisclaimer = () => (dispatch) => {
+    $.ajax({
+        url: "/disclaimer_english/",
+        datatype: 'html',
+        cache: false,
+        success: value => dispatch({type: FETCH_DISCLAIMER_SUCCESSFUL, payload: value}),
+        error: error => console.log(error)
+    });
+}
+
 
 export const dispatchContestantData = (data) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: data})
@@ -141,6 +154,16 @@ export const displayPastEventsModal = () => (dispatch) => {
 export const hidePastEventsModal = () => (dispatch) => {
     dispatch({type: DISPLAY_PAST_EVENTS_MODAL, payload: false})
 }
+
+
+export const displayDisclaimerModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_DISCLAIMER_MODAL, payload: true})
+}
+
+export const hideDisclaimerModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_DISCLAIMER_MODAL, payload: false})
+}
+
 
 export const fetchContests = () => (dispatch) => {
     $.ajax({

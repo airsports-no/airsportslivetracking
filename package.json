@@ -78,6 +78,7 @@
     "react-table": "^7.5.0",
     "react-table-scrollbar": "^0.1.9",
     "redux": "^4.0.5",
+    "social-media-icons-react": "^1.1.2",
     "websocket": "^1.0.32"
   }
 }

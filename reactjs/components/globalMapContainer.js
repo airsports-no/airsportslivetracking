@@ -3,13 +3,15 @@ import {connect} from "react-redux";
 import React, {Component} from "react";
 import TrackLoadingIndicator from "./trackLoadingIndicator";
 import GlobalMapMap from "./globalMapMap";
-import {fetchContests} from "../actions";
+import {displayDisclaimerModal, fetchContests, hideDisclaimerModal} from "../actions";
 import GlobalEventList from "./contests/globalEventList";
-import Disclaimer from "./disclaimer";
+import Disclaimer, {DisclaimerLong} from "./disclaimer";
+import {SocialMediaLinks} from "./socialMediaLinks";
 
 // import "leaflet/dist/leaflet.css"
 
-const mapStateToProps = (state, props) => ({})
+const mapStateToProps = (state, props) => ({
+})
 
 class ConnectedGlobalMapContainer extends Component {
     constructor(props) {
@@ -37,8 +39,10 @@ class ConnectedGlobalMapContainer extends Component {
                         <a className={"btn"} id="returnLink" href={"/"}>
                             <img src={"/static/img/hub.png"} id={"returnLinkImage"} alt={"Hub"}/>
                         </a>
-                            <GlobalEventList/>
+                        <GlobalEventList/>
                         <Disclaimer/>
+
+                        {/*<SocialMediaLinks/>*/}
                         {/*{settingsButton}*/}
 
                         <div className={"logoImage"}>
@@ -55,5 +59,7 @@ class ConnectedGlobalMapContainer extends Component {
 }
 
 const
-    GlobalMapContainer = connect(mapStateToProps, {fetchContests})(ConnectedGlobalMapContainer)
+    GlobalMapContainer = connect(mapStateToProps, {
+        fetchContests,
+    })(ConnectedGlobalMapContainer)
 export default GlobalMapContainer

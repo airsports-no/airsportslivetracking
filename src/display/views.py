@@ -19,6 +19,7 @@ from django.db.models import Q
 from django.forms import formset_factory
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect
+from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import ListView, DetailView, UpdateView, CreateView, DeleteView
@@ -110,11 +111,13 @@ def frontend_view_map(request, pk):
         raise Http404
     return render(request, "display/root.html",
                   {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
-                   "display_map": "true", "display_table": "false", "skip_nav": True})
+                   "display_map": "true", "display_table": "false", "skip_nav": True,
+                   "disclaimer": render_to_string("display/disclaimer_english.html")})
 
 
 def global_map(request):
-    return render(request, "display/globalmap.html", {"skip_nav": True})
+    return render(request, "display/globalmap.html",
+                  {"skip_nav": True, "disclaimer": render_to_string("display/disclaimer_english.html")})
 
 
 def results_service(request):

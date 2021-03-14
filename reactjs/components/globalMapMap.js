@@ -4,6 +4,7 @@ import {tileLayer} from "leaflet";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import ContestsGlobalMap from "./contests/contestsGlobalMap";
 import {zoomFocusContest} from "../actions";
+import {SocialMediaLinks} from "./socialMediaLinks";
 
 const L = window['L']
 const TRAIL_LENGTH = 180;

@@ -26,7 +26,11 @@ import {
     EXPLICITLY_DISPLAY_ALL_TRACKS,
     TRACCAR_DATA_RECEIVED,
     GET_CONTEST_SUCCESSFUL,
-    GLOBAL_MAP_ZOOM_FOCUS_CONTEST, DISPLAY_PAST_EVENTS_MODAL
+    GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
+    DISPLAY_PAST_EVENTS_MODAL,
+    DISPLAY_DISCLAIMER_MODAL,
+    FETCH_DISCLAIMER,
+    FETCH_DISCLAIMER_SUCCESSFUL
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -47,6 +51,7 @@ const initialState = {
     contests: [],
     zoomContest: null,
     displayPastEventsModal: false,
+    disclaimer: ""
 };
 
 function rootReducer(state = initialState, action) {
@@ -270,6 +275,17 @@ function rootReducer(state = initialState, action) {
         return Object.assign({}, state, {
             displayPastEventsModal: action.payload
         })
+    }
+    if (action.type===DISPLAY_DISCLAIMER_MODAL){
+        return Object.assign({}, state, {
+            displayDisclaimerModal: action.payload
+        })
+    }
+    if (action.type===FETCH_DISCLAIMER_SUCCESSFUL){
+        return Object.assign({}, state, {
+            disclaimer: action.payload
+        })
+
     }
     return state;
 }
