@@ -14,6 +14,8 @@ import {Loading} from "./basicComponents";
 import {ProgressCircle} from "./contestantProgress";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {displayAllTracks, hideLowerThirds, setDisplay} from "../actions";
+import {mdiMagnify, mdiPagePrevious, mdiPagePreviousOutline} from "@mdi/js";
+import Icon from "@mdi/react";
 
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
@@ -94,7 +96,8 @@ class ConnectedContestantDetailsDisplay extends Component {
             {
                 text: "",
                 headerFormatter: (column, colIndex, components) => {
-                    return <div>PLACE<br/>{ordinal_suffix_of(this.calculateRank())}</div>
+                    return <div>
+                        {ordinal_suffix_of(this.calculateRank())}<br/><Icon path={mdiPagePreviousOutline} title={"Logout"} size={1.1} color={"white"}/></div>
 
                 },
                 headerClasses: "text-center",

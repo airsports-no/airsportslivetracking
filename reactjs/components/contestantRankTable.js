@@ -16,6 +16,8 @@ import {
 import {Loading} from "./basicComponents";
 import {ProgressCircle, ProjectedScore} from "./contestantProgress";
 import 'react-circular-progressbar/dist/styles.css';
+import {mdiLogout, mdiMagnify} from "@mdi/js";
+import Icon from "@mdi/react";
 
 var moment = require("moment");
 var momentDurationFormatSetup = require("moment-duration-format");
@@ -95,6 +97,7 @@ class ConnectedContestantRankTable extends Component {
                 contestantNumber: contestant.contestant.contestant_number,
                 contestantId: contestant.contestant.id,
                 rank: index + 1,
+                dummy: null,
                 progress: progress,
                 name: contestantRankingTable(contestant.contestant),
                 score: contestant.track.score,
@@ -206,6 +209,14 @@ class ConnectedContestantRankTable extends Component {
                 headerClasses: "text-center",
                 style: (cell, row, rowIndex, colIndex) => {
                     return {width: 80 + 'px'}
+                },
+                classes: "align-middle"
+            },
+            {
+                dataField: "dummy",
+                text: "",
+                formatter: (cell, row) => {
+                    return <Icon path={mdiMagnify} title={"Logout"} size={1.1} color={"white"}/>
                 },
                 classes: "align-middle"
             },

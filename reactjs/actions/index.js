@@ -27,7 +27,7 @@ import {
     GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL,
     GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
     DISPLAY_PAST_EVENTS_MODAL,
-    DISPLAY_DISCLAIMER_MODAL, FETCH_DISCLAIMER_SUCCESSFUL
+    DISPLAY_DISCLAIMER_MODAL, FETCH_DISCLAIMER_SUCCESSFUL, DISPLAY_ABOUT_MODAL
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -162,6 +162,15 @@ export const displayDisclaimerModal = () => (dispatch) => {
 
 export const hideDisclaimerModal = () => (dispatch) => {
     dispatch({type: DISPLAY_DISCLAIMER_MODAL, payload: false})
+}
+
+
+export const displayAboutModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_ABOUT_MODAL, payload: true})
+}
+
+export const hideAboutModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_ABOUT_MODAL, payload: false})
 }
 
 

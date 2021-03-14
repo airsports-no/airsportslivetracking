@@ -30,7 +30,7 @@ import {
     DISPLAY_PAST_EVENTS_MODAL,
     DISPLAY_DISCLAIMER_MODAL,
     FETCH_DISCLAIMER,
-    FETCH_DISCLAIMER_SUCCESSFUL
+    FETCH_DISCLAIMER_SUCCESSFUL, DISPLAY_ABOUT_MODAL
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
@@ -51,6 +51,7 @@ const initialState = {
     contests: [],
     zoomContest: null,
     displayPastEventsModal: false,
+    displayAboutModal: false,
     disclaimer: ""
 };
 
@@ -279,6 +280,11 @@ function rootReducer(state = initialState, action) {
     if (action.type===DISPLAY_DISCLAIMER_MODAL){
         return Object.assign({}, state, {
             displayDisclaimerModal: action.payload
+        })
+    }
+    if (action.type===DISPLAY_ABOUT_MODAL){
+        return Object.assign({}, state, {
+            displayAboutModal: action.payload
         })
     }
     if (action.type===FETCH_DISCLAIMER_SUCCESSFUL){

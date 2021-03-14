@@ -7,6 +7,8 @@ import {displayDisclaimerModal, fetchContests, hideDisclaimerModal} from "../act
 import GlobalEventList from "./contests/globalEventList";
 import Disclaimer, {DisclaimerLong} from "./disclaimer";
 import {SocialMediaLinks} from "./socialMediaLinks";
+import AboutLogoPopup from "./aboutLogoPopup";
+import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -44,11 +46,7 @@ class ConnectedGlobalMapContainer extends Component {
 
                         {/*<SocialMediaLinks/>*/}
                         {/*{settingsButton}*/}
-
-                        <div className={"logoImage"}>
-                            <img className={"img-fluid"}
-                                 src={"/static/img/live_tracking.png"}/>
-                        </div>
+                        <AboutLogoPopup aboutText={aboutGlobalMap}/>
                         <div id="cesiumContainer"/>
                     </div>
                 </div>

@@ -14,6 +14,9 @@ import {
 } from "../actions";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import Disclaimer from "./disclaimer";
+import {mdiGoKartTrack, mdiMagnify} from "@mdi/js";
+import Icon from "@mdi/react";
+import AboutTaskPopup from "./aboutTaskPopup";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -132,18 +135,17 @@ class ConnectedTrackingContainer extends Component {
                             </div>
                             <a className={"btn"} id="returnLink" href={"/"}>
                                 {/*<i className={"mdi mdi-home"} id={"returnLinkImage"}/>*/}
-                                <img src={"/static/img/hub.png"} id={"returnLinkImage"} alt={"Hub"}/>
+                                <img src={"/static/img/airsports_no_text.png"} id={"returnLinkImage"} alt={"Hub"}/>
                             </a>
                             <Disclaimer/>
 
                             {/*<div id={"sponsor"}>*/}
                             {/*    <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>*/}
                             {/*</div>*/}
-                            <div className={"logoImage"}>
-                                <img className={"img-fluid"}
-                                     onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}
-                                     src={"/static/img/live_tracking.png"}/>
+                            <div className={"trackImage"}>
+                                <Icon path={mdiGoKartTrack} title={"Logout"} size={2.5} color={"#e01b1c"} onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
                             </div>
+                            <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             {/*<img alt={"Logo"} className={"logoImage"}*/}
                             {/*     id={"logoImage"}*/}
                             {/*     src={"/static/img/airsports.png"}/>*/}

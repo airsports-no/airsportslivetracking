@@ -40,8 +40,8 @@ function sortContestTimes(a, b) {
 
 function PastEvents(props) {
     let contestBoxes = props.contests.map((contest) => {
-        return <div style={{paddingTop: "2px", paddingBottom: "4px", width: "300px"}}>
-            <li className={"card"}><ContestPopupItem contest={contest}/></li>
+        return <div key={contest.id + "past_event_div"} style={{paddingTop: "2px", paddingBottom: "4px", width: "300px"}}>
+            <li key={contest.id + "past_event"} className={"card"}><ContestPopupItem contest={contest}/></li>
         </div>
     })
     contestBoxes.reverse()
