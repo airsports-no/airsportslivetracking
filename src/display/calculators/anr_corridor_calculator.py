@@ -97,6 +97,8 @@ class AnrCorridorCalculator(Calculator):
 
     def check_and_apply_outside_penalty(self, position: "Position", last_gate: Gate,
                                         apply_maximum_penalty: bool = False):
+        if self.crossed_outside_time is None:
+            return
         outside_time = (position.time - self.crossed_outside_time).total_seconds()
         penalty_time = outside_time - self.scorecard.get_corridor_grace_time(self.contestant)
         logger.info(
