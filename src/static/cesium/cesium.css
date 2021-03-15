@@ -183,6 +183,8 @@ tr.hidden {
     bottom: 20px;
     right: 20px;
     z-index: 2;
+    transform: scale(0.8);
+
 }
 
 .lowerThirdsSingle {
@@ -192,6 +194,7 @@ tr.hidden {
     bottom: 20px;
     right: 20px;
     z-index: 2;
+    transform: scale(0.8);
 }
 
 .lower-thirds-current-score {
