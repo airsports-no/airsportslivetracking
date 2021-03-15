@@ -155,8 +155,7 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                                          help_text="Penalty awarded when missing the starting point or finish point entirely")
 
     def build_score_override(self, navigation_task: NavigationTask):
-        navigation_task.track_score_override = TrackScoreOverride.objects.create(navigation_task=navigation_task,
-                                                                                 corridor_width=self.cleaned_data[
+        navigation_task.track_score_override = TrackScoreOverride.objects.create(corridor_width=self.cleaned_data[
                                                                                      "corridor_width"],
                                                                                  corridor_grace_time=self.cleaned_data[
                                                                                      "corridor_grace_time"],
@@ -168,8 +167,7 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                                                                                      "corridor_maximum_penalty"]
                                                                                  )
         navigation_task.save()
-        navigation_task.gate_score_override.add(GateScoreOverride.objects.create(navigation_task=navigation_task,
-                                                                                 for_gate_types=["sp", "fp"],
+        navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["sp", "fp"],
                                                                                  checkpoint_grace_period_after=
                                                                                  self.cleaned_data[
                                                                                      "gate_grace_time"],
