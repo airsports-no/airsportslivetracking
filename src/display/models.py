@@ -91,10 +91,10 @@ class Route(models.Model):
         for index in range(len(self.waypoints) - 1):
             waypoint = self.waypoints[index]  # type: Waypoint
             if waypoint.distance_next < 1852 and self.rounded_corners:
-                raise core.exceptions.ValidationError(
+                raise ValidationError(
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 1 NM when using rounded corners. Perhaps there is an error in your route file.")
-            if waypoint.distance_next < 1852 / 2 and self.waypoints[index + 1].type != "secret":
-                raise core.exceptions.ValidationError(
+            if waypoint.distance_next < 1852 / 2 and self.waypoints[index + 1].type != "secret" and waypoint.type != "secret":
+                raise ValidationError(
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 0.5 NM"
                 )
 
@@ -788,7 +788,7 @@ class Contestant(models.Model):
                 smallest_end = min(contestant.finished_by_time, self.finished_by_time)
                 largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
                 intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
-            raise core.exceptions.ValidationError(
+            raise ValidationError(
                 "The tracker '{}' is in use by other contestants for the intervals: {}".format(self.tracker_device_id,
                                                                                                intervals))
         # Validate that persons are not part of other contestants for the same interval
@@ -802,7 +802,7 @@ class Contestant(models.Model):
                 smallest_end = min(contestant.finished_by_time, self.finished_by_time)
                 largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
                 intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
-            raise core.exceptions.ValidationError(
+            raise ValidationError(
                 f"The pilot '{self.team.crew.member1}' is competing as a different contestant for the intervals: {intervals}")
 
         if self.team.crew.member2 is not None:
@@ -816,33 +816,33 @@ class Contestant(models.Model):
                     smallest_end = min(contestant.finished_by_time, self.finished_by_time)
                     largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
                     intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
-                raise core.exceptions.ValidationError(
+                raise ValidationError(
                     f"The copilot '{self.team.crew.member2}' is competing as a different contestant for the intervals: {intervals}")
 
         # Validate takeoff time after tracker start
         if self.tracker_start_time > self.takeoff_time:
-            raise core.exceptions.ValidationError("Tracker start time '{}' is after takeoff time '{}' for contestant number {}".format(
+            raise ValidationError("Tracker start time '{}' is after takeoff time '{}' for contestant number {}".format(
                 self.tracker_start_time, self.takeoff_time, self.contestant_number))
         # Validate no timing changes after calculator start
         if self.pk is not None:
             original = Contestant.objects.get(pk=self.pk)
             if original.calculator_started:
                 if original.takeoff_time != self.takeoff_time:
-                    raise core.exceptions.ValidationError(
+                    raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change takeoff time")
                 if original.tracker_start_time != self.tracker_start_time:
-                    raise core.exceptions.ValidationError(
+                    raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change tracker start time")
                 if original.wind_speed != self.wind_speed:
-                    raise core.exceptions.ValidationError(f"Calculator has started for {self}, it is not possible to change wind speed")
+                    raise ValidationError(f"Calculator has started for {self}, it is not possible to change wind speed")
                 if original.wind_direction != self.wind_direction:
-                    raise core.exceptions.ValidationError(
+                    raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change wind direction")
                 if original.adaptive_start != self.adaptive_start:
-                    raise core.exceptions.ValidationError(
+                    raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change adaptive start")
                 if original.minutes_to_starting_point != self.minutes_to_starting_point:
-                    raise core.exceptions.ValidationError(
+                    raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change minutes to starting point")
 
     def calculate_and_get_gate_times(self, start_point_override: Optional[datetime.datetime] = None) -> Dict:

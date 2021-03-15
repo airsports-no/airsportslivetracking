@@ -6,6 +6,8 @@ from typing import Optional, Dict
 
 import redis_lock
 import dateutil
+import rest_framework
+from django import core
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required, login_required
 from django.contrib.auth.mixins import PermissionRequiredMixin, LoginRequiredMixin, UserPassesTestMixin
@@ -677,7 +679,7 @@ def add_contest_teams_to_navigation_task(request, pk):
                     messages.error(request, "Optimisation failed")
                 else:
                     messages.success(request, "Optimisation successful")
-            except ValidationError as v:
+            except (ValidationError, rest_framework.exceptions.ValidationError) as v:
                 messages.error(request, f"Failed validating created contestant: {v}")
             return redirect(reverse("navigationtask_contestantstimeline", kwargs={"pk": navigation_task.pk}))
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -859,7 +861,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     def render_done(self, form, **kwargs):
         try:
             return super().render_done(form, **kwargs)
-        except ValidationError as e:
+        except (ValidationError, rest_framework.exceptions.ValidationError) as e:
             from django.contrib import messages
             messages.error(self.request, str(e))
             return self.render_revalidation_failure("task_type", self.get_form_instance("task_type"), **kwargs)

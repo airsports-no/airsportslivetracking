@@ -1,3 +1,5 @@
+import datetime
+
 import matplotlib.pyplot as plt
 import logging
 from typing import List, Callable
@@ -106,13 +108,13 @@ class AnrCorridorCalculator(Calculator):
             if apply_maximum_penalty:
                 score = self.scorecard.get_corridor_outside_maximum_penalty(self.contestant)
             # If this is called when we have crossed a gate, we need to reset the outside time to Grace time before now to start counting new points
-            self.crossed_outside_time = position.time - self.scorecard.get_corridor_grace_time(self.contestant)
+            self.crossed_outside_time = position.time - datetime.timedelta(seconds = self.scorecard.get_corridor_grace_time(self.contestant))
             self.crossed_outside_position = position
             self.update_score(last_gate,
                               score,
                               "outside corridor ({} seconds)".format(int(penalty_time)),
                               self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
-                              "anomaly", self.OUTSIDE_CORRIDOR_PENALTY_TYPE + last_gate.name,
+                              "anomaly", f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
                               maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(self.contestant))
 
     def check_outside_corridor(self, track: List["Position"], last_gate: "Gate"):

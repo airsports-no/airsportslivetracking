@@ -687,6 +687,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         for item in other_data["contestant_set"]:
             item["tracker_device_id"] += "1"
             item['team']['crew']['member1']['first_name']+="1"
+            item['team']['crew']['member1']['email'] += "1"
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), other_data, format="json")
         print(res.content)
@@ -744,20 +745,20 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(None, contestant.track_score_override)
         self.assertListEqual([], list(contestant.gate_score_override.all()))
 
-    def test_import_preexisting_phone(self, patch):
-        person = Person.objects.create(first_name="first", last_name="last", phone="+4773215338")
-        first_team = self.data["contestant_set"][0]["team"]
-        second_team = self.data["contestant_set"][1]["team"]
-        first_team["crew"]["member1"]["phone"] = "+4773215338"
-        second_team["crew"]["member1"]["phone"] = "+4773215338"
-        response = self.client.post(reverse("importnavigationtask-list", kwargs={"contest_pk": self.contest.pk}),
-                                    data=self.data, format="json")
-        print(response.content)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(2, Person.objects.all().count())
-        self.assertEqual(person, Person.objects.get(first_name="first"))
-        self.assertEqual(1, len(Person.objects.filter(first_name="first")))
-        self.assertEqual(2, Crew.objects.all().count())
+    # def test_import_preexisting_phone(self, patch):
+    #     person = Person.objects.create(first_name="first", last_name="last", phone="+4773215338")
+    #     first_team = self.data["contestant_set"][0]["team"]
+    #     second_team = self.data["contestant_set"][1]["team"]
+    #     first_team["crew"]["member1"]["phone"] = "+4773215338"
+    #     second_team["crew"]["member1"]["phone"] = "+4773215338"
+    #     response = self.client.post(reverse("importnavigationtask-list", kwargs={"contest_pk": self.contest.pk}),
+    #                                 data=self.data, format="json")
+    #     print(response.content)
+    #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    #     self.assertEqual(2, Person.objects.all().count())
+    #     self.assertEqual(person, Person.objects.get(first_name="first"))
+    #     self.assertEqual(1, len(Person.objects.filter(first_name="first")))
+    #     self.assertEqual(2, Crew.objects.all().count())
 
     def test_import_preexisting_email(self, patch):
         person = Person.objects.create(first_name="first", last_name="last", email="to@to.com")

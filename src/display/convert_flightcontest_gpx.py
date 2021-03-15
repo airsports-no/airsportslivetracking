@@ -5,8 +5,8 @@ from typing import List, Tuple, Optional
 from zipfile import ZipFile
 
 import gpxpy
-from django.core.exceptions import ValidationError
 from fastkml import kml, Placemark
+from rest_framework.exceptions import ValidationError
 from shapely import geometry
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
