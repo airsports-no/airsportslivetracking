@@ -187,10 +187,10 @@ class Solver:
                             team.get_tracker_id()] = next_available + team.flight_time + self.tracker_switch_time + self.tracker_start_lead_time
                         if team.member1 is not None:
                             next_crew_available[
-                                team.member1] = next_available + team.flight_time + self.crew_switch_time
+                                team.member1] = next_available + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time
                         if team.member2 is not None:
                             next_crew_available[
-                                team.member2] = next_available + team.flight_time + self.crew_switch_time
+                                team.member2] = next_available + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time
                         self.start_slot_numbers[f"{team.pk}"].setInitialValue(next_available)
                         current_slot = next_available + self.minimum_start_interval
                         break
