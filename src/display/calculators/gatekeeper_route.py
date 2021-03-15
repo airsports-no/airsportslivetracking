@@ -113,6 +113,8 @@ class GatekeeperRoute(Gatekeeper):
                     logger.info("{}: Missing gate {} since it has not been passed or detected missed before.".format(
                         self.contestant, self.in_range_of_gate))
                     self.in_range_of_gate.missed = True
+                    self.missed_gate(self.in_range_of_gate,self.track[-1])
+
                     self.pop_gate(0, True)
                 self.in_range_of_gate = None
 
@@ -174,6 +176,7 @@ class GatekeeperRoute(Gatekeeper):
                     # Start the clock
                     if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
                         self.takeoff_gate.missed = True
+
                     logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
                     self.starting_line.infinite_passing_time = intersection_time
                     # Starting point and starting line are the same place, so if we have not passed the starting point
@@ -186,7 +189,7 @@ class GatekeeperRoute(Gatekeeper):
                 return
         i = len(self.outstanding_gates) - 1
         crossed_gate = False
-
+        missed_gates = []
         while i >= 0:
             gate = self.outstanding_gates[i]
             intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
@@ -200,11 +203,17 @@ class GatekeeperRoute(Gatekeeper):
 
             if crossed_gate:
                 if gate.passing_time is None:
-                    logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))
                     gate.missed = True
+                    missed_gates.append(gate)
                 self.pop_gate(i,
                               not gate.missed)  # Only update the last gate with the one that was crossed, not the one we detect is missed because of it.
             i -= 1
+        if len(missed_gates)>0:
+            missed_gates.reverse()
+            for gate in missed_gates:
+                logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))
+                self.missed_gate(gate, self.track[-1])
+
         if not crossed_gate and len(self.outstanding_gates) > 0:
             extended_next_gate = self.outstanding_gates[0]  # type: Gate
             if extended_next_gate.type not in ("sp", "ildg",
@@ -235,6 +244,7 @@ class GatekeeperRoute(Gatekeeper):
                     self.contestant, self.track[-1].time,
                     gate, time_limit))
                 gate.missed = True
+                self.missed_gate(gate, self.track[-1])
                 self.pop_gate(0)
         self.check_gate_in_range()
         if self.last_gate and self.last_gate.type == "fp":

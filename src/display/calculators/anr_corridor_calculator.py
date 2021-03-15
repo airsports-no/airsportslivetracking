@@ -122,9 +122,10 @@ class AnrCorridorCalculator(Calculator):
                                   "entering corridor",
                                   position.latitude, position.longitude,
                                   "information", f"entering_corridor")
-            self.crossed_outside_position = position
-            self.crossed_outside_time = position.time - datetime.timedelta(
-                seconds=self.scorecard.get_corridor_grace_time(self.contestant))
+            else:
+                self.crossed_outside_position = position
+                self.crossed_outside_time = position.time - datetime.timedelta(
+                    seconds=self.scorecard.get_corridor_grace_time(self.contestant))
 
     def check_outside_corridor(self, track: List["Position"], last_gate: "Gate"):
         position = track[-1]
