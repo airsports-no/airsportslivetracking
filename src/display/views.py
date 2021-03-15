@@ -665,17 +665,20 @@ def add_contest_teams_to_navigation_task(request, pk):
         form.fields["contest_teams"].choices = [(str(item.pk), str(item)) for item in
                                                 navigation_task.contest.contestteam_set.all()]
         if form.is_valid():
-            if not schedule_and_create_contestants(navigation_task,
-                                                   [int(item) for item in form.cleaned_data["contest_teams"]],
-                                                   form.cleaned_data["tracker_lead_time_minutes"],
-                                                   form.cleaned_data["minutes_for_aircraft_switch"],
-                                                   form.cleaned_data["minutes_for_tracker_switch"],
-                                                   form.cleaned_data["minutes_between_contestants"],
-                                                   form.cleaned_data["minutes_for_crew_switch"],
-                                                   optimise=form.cleaned_data.get("optimise", False)):
-                messages.error(request, "Optimisation failed")
-            else:
-                messages.success(request, "Optimisation successful")
+            try:
+                if not schedule_and_create_contestants(navigation_task,
+                                                       [int(item) for item in form.cleaned_data["contest_teams"]],
+                                                       form.cleaned_data["tracker_lead_time_minutes"],
+                                                       form.cleaned_data["minutes_for_aircraft_switch"],
+                                                       form.cleaned_data["minutes_for_tracker_switch"],
+                                                       form.cleaned_data["minutes_between_contestants"],
+                                                       form.cleaned_data["minutes_for_crew_switch"],
+                                                       optimise=form.cleaned_data.get("optimise", False)):
+                    messages.error(request, "Optimisation failed")
+                else:
+                    messages.success(request, "Optimisation successful")
+            except ValidationError as v:
+                messages.error(request, f"Failed validating created contestant: {v}")
             return redirect(reverse("navigationtask_contestantstimeline", kwargs={"pk": navigation_task.pk}))
     now = datetime.datetime.now(datetime.timezone.utc)
     selected_existing = []

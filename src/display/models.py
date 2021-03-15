@@ -86,6 +86,17 @@ class Route(models.Model):
     takeoff_gate = MyPickledObjectField(default=None, null=True)
     landing_gate = MyPickledObjectField(default=None, null=True)
 
+    def clean(self):
+        for index in range(len(self.waypoints) - 1):
+            waypoint = self.waypoints[index]  # type: Waypoint
+            if waypoint.distance_next < 1852 and self.rounded_corners:
+                raise ValidationError(
+                    f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 1 NM when using rounded corners. Perhaps there is an error in your route file.")
+            if waypoint.distance_next < 1852 / 2 and self.waypoints[index + 1].type != "secret":
+                raise ValidationError(
+                    f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 0.5 NM"
+                )
+
     def __str__(self):
         return self.name
 
@@ -827,11 +838,11 @@ class Contestant(models.Model):
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change wind direction")
                 if original.adaptive_start != self.adaptive_start:
-                    raise ValidationError(f"Calculator has started for {self}, it is not possible to change adaptive start")
+                    raise ValidationError(
+                        f"Calculator has started for {self}, it is not possible to change adaptive start")
                 if original.minutes_to_starting_point != self.minutes_to_starting_point:
-                    raise ValidationError(f"Calculator has started for {self}, it is not possible to change minutes to starting point")
-
-
+                    raise ValidationError(
+                        f"Calculator has started for {self}, it is not possible to change minutes to starting point")
 
     def calculate_and_get_gate_times(self, start_point_override: Optional[datetime.datetime] = None) -> Dict:
         gates = self.navigation_task.route.waypoints  # type: List[Waypoint]
@@ -1160,6 +1171,11 @@ def validate_crew(sender, instance: Crew, **kwargs):
 @receiver(pre_save, sender=Club)
 def validate_club(sender, instance: Club, **kwargs):
     instance.validate()
+
+
+@receiver(pre_save, sender=Route)
+def validate_route(sender, instance: Route, **kwargs):
+    instance.clean()
 
 
 @receiver(post_delete, sender=NavigationTask)
