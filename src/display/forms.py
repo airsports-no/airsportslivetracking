@@ -189,7 +189,10 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                 "corridor_width",
                 "corridor_grace_time",
                 "corridor_outside_penalty",
-                "corridor_maximum_penalty"
+                "corridor_maximum_penalty",
+                "gate_grace_time",
+                "gate_penalty_per_second",
+                "gate_miss_penalty",
             ),
             ButtonHolder(
                 Submit("submit", "Submit")
