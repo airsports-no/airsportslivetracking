@@ -116,11 +116,12 @@ class AnrCorridorCalculator(Calculator):
                               self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
                               "anomaly", f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
                               maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(self.contestant))
-            self.update_score(last_gate,
-                              0,
-                              "entering corridor",
-                              position.latitude, position.longitude,
-                              "information", f"entering_corridor")
+            if self.corridor_state == self.INSIDE_CORRIDOR:
+                self.update_score(last_gate,
+                                  0,
+                                  "entering corridor",
+                                  position.latitude, position.longitude,
+                                  "information", f"entering_corridor")
             self.crossed_outside_position = position
             self.crossed_outside_time = position.time - datetime.timedelta(
                 seconds=self.scorecard.get_corridor_grace_time(self.contestant))

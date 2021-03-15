@@ -100,16 +100,19 @@ class PrecisionScoreOverrideForm(forms.Form):
                                                        help_text="Penalty per second time offset (beyond regular_gate_grace_time) for regular and secret gates")
 
     def build_score_override(self, navigation_task: NavigationTask):
-        TrackScoreOverride.objects.create(navigation_task=navigation_task,
-                                          bad_course_penalty=self.cleaned_data["backtracking_penalty"])
-        GateScoreOverride.objects.create(navigation_task=navigation_task,
-                                         for_gate_types=["tp", "secret"],
-                                         checkpoint_grace_period_after=self.cleaned_data[
-                                             "regular_gate_grace_time"],
-                                         checkpoint_grace_period_before=self.cleaned_data[
-                                             "regular_gate_grace_time"],
-                                         checkpoint_penalty_per_second=self.cleaned_data[
-                                             "regular_gate_penalty_per_second"])
+        navigation_task.track_score_override = TrackScoreOverride.objects.create(
+            bad_course_penalty=self.cleaned_data["backtracking_penalty"])
+        navigation_task.save()
+        navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["tp", "secret"],
+                                                                                 checkpoint_grace_period_after=
+                                                                                 self.cleaned_data[
+                                                                                     "regular_gate_grace_time"],
+                                                                                 checkpoint_grace_period_before=
+                                                                                 self.cleaned_data[
+                                                                                     "regular_gate_grace_time"],
+                                                                                 checkpoint_penalty_per_second=
+                                                                                 self.cleaned_data[
+                                                                                     "regular_gate_penalty_per_second"]))
 
     @classmethod
     def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
@@ -152,21 +155,32 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                                          help_text="Penalty awarded when missing the starting point or finish point entirely")
 
     def build_score_override(self, navigation_task: NavigationTask):
-        TrackScoreOverride.objects.create(navigation_task=navigation_task,
-                                          corridor_width=self.cleaned_data["corridor_width"],
-                                          corridor_grace_time=self.cleaned_data["corridor_grace_time"],
-                                          corridor_outside_penalty=self.cleaned_data["corridor_outside_penalty"],
-                                          corridor_maximum_penalty=self.cleaned_data["corridor_maximum_penalty"],
-                                          )
-        GateScoreOverride.objects.create(navigation_task=navigation_task,
-                                         for_gate_types=["sp", "fp"],
-                                         checkpoint_grace_period_after=self.cleaned_data[
-                                             "gate_grace_time"],
-                                         checkpoint_grace_period_before=self.cleaned_data[
-                                             "gate_grace_time"],
-                                         checkpoint_penalty_per_second=self.cleaned_data[
-                                             "gate_penalty_per_second"],
-                                         checkpoint_not_found=self.cleaned_data["gate_miss_penalty"])
+        navigation_task.track_score_override = TrackScoreOverride.objects.create(navigation_task=navigation_task,
+                                                                                 corridor_width=self.cleaned_data[
+                                                                                     "corridor_width"],
+                                                                                 corridor_grace_time=self.cleaned_data[
+                                                                                     "corridor_grace_time"],
+                                                                                 corridor_outside_penalty=
+                                                                                 self.cleaned_data[
+                                                                                     "corridor_outside_penalty"],
+                                                                                 corridor_maximum_penalty=
+                                                                                 self.cleaned_data[
+                                                                                     "corridor_maximum_penalty"]
+                                                                                 )
+        navigation_task.save()
+        navigation_task.gate_score_override.add(GateScoreOverride.objects.create(navigation_task=navigation_task,
+                                                                                 for_gate_types=["sp", "fp"],
+                                                                                 checkpoint_grace_period_after=
+                                                                                 self.cleaned_data[
+                                                                                     "gate_grace_time"],
+                                                                                 checkpoint_grace_period_before=
+                                                                                 self.cleaned_data[
+                                                                                     "gate_grace_time"],
+                                                                                 checkpoint_penalty_per_second=
+                                                                                 self.cleaned_data[
+                                                                                     "gate_penalty_per_second"],
+                                                                                 checkpoint_not_found=self.cleaned_data[
+                                                                                     "gate_miss_penalty"]))
 
     @classmethod
     def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:

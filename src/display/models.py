@@ -644,7 +644,6 @@ class GateScore(models.Model):
 
 
 class TrackScoreOverride(models.Model):
-    navigation_task = models.ForeignKey("NavigationTask", on_delete=models.CASCADE, null=True, blank=True)
     bad_course_grace_time = models.FloatField(default=None, blank=True, null=True,
                                               help_text="The number of seconds a bad course can be tolerated before generating a penalty")
     bad_course_penalty = models.FloatField(default=None, blank=True, null=True,
@@ -664,11 +663,10 @@ class TrackScoreOverride(models.Model):
                                                  help_text="The maximum penalty for leaving the corridor")
 
     def __str__(self):
-        return "Track score override for {}".format(self.navigation_task)
+        return "Track score override for {}".format(self.navigationtask_set.first())
 
 
 class GateScoreOverride(models.Model):
-    navigation_task = models.ForeignKey("NavigationTask", on_delete=models.CASCADE, null=True, blank=True)
     for_gate_types = MyPickledObjectField(default=list,
                                           help_text="List of gates types (eg. tp, secret, sp) that should be overridden (all lower case)")
     checkpoint_grace_period_before = models.FloatField(default=None, blank=True, null=True,
@@ -689,7 +687,7 @@ class GateScoreOverride(models.Model):
                                                            help_text="The penalty awarded when crossing the extended gate in the wrong direction (typically used for start gate)")
 
     def __str__(self):
-        return "Gate score override for {}".format(self.navigation_task)
+        return "Gate score override for {}".format(self.navigationtask_set.first())
 
 
 class Contestant(models.Model):
@@ -719,10 +717,10 @@ class Contestant(models.Model):
     competition_class_shortform = models.CharField(max_length=100,
                                                    help_text="The abbreviated class of the contestant, e.g. beginner, professional, et cetera",
                                                    blank=True, null=True)
-    track_score_override = models.ForeignKey(TrackScoreOverride, on_delete=models.SET_NULL, null=True)
+    track_score_override = models.ForeignKey(TrackScoreOverride, on_delete=models.SET_NULL, null=True, blank=True)
     calculator_started = models.BooleanField(default=False,
                                              help_text="Set to true when the calculator has started. After this point it is not permitted to change the contestant")
-    gate_score_override = models.ManyToManyField(GateScoreOverride)
+    gate_score_override = models.ManyToManyField(GateScoreOverride,blank=True)
     predefined_gate_times = MyPickledObjectField(default=None, null=True, blank=True,
                                                  help_text="Dictionary of gates and their starting times (with time zone)")
     wind_speed = models.FloatField(default=0,
