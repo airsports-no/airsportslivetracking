@@ -213,7 +213,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position], gate, gate)
         self.calculator.calculate_enroute([position2], gate, gate)
         self.calculator.calculate_enroute([position3], gate, gate)
-        self.update_score.assert_called_with(gate, 48, 'outside corridor (16 seconds)', 60.5, 11, 'anomaly',
+        self.update_score.assert_called_with(gate, 48, 'outside corridor (16 seconds)', 60, 11, 'anomaly',
                                              f'outside_corridor_{gate.name}', maximum_score=-1)
 
     def test_outside_20_seconds_until_finish(self):
