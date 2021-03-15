@@ -143,14 +143,30 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                                                 help_text="The number of penalty points given per second outside the corridor beyond corridor_grace_time")
     corridor_maximum_penalty = forms.FloatField(required=True,
                                                 help_text="A value less than 0 means that there is no maximum penalty. "
-                                                          "Otherwise the combined penalty applied for a single corridor exclusion cannot exceed this.")
+                                                          "Otherwise the combined penalty applied for a single corridor exclusion along a single leg cannot exceed this.")
+    gate_grace_time = forms.FloatField(required=True,
+                                       help_text="Grace time before and after starting point and finish point")
+    gate_penalty_per_second = forms.FloatField(required=True,
+                                               help_text="Penalty per second time offset (beyond gate grace time) for starting point and finish point")
+    gate_miss_penalty = forms.FloatField(required=True,
+                                         help_text="Penalty awarded when missing the starting point or finish point entirely")
 
     def build_score_override(self, navigation_task: NavigationTask):
         TrackScoreOverride.objects.create(navigation_task=navigation_task,
                                           corridor_width=self.cleaned_data["corridor_width"],
                                           corridor_grace_time=self.cleaned_data["corridor_grace_time"],
                                           corridor_outside_penalty=self.cleaned_data["corridor_outside_penalty"],
-                                          corridor_maximum_penalty=self.cleaned_data["corridor_maximum_penalty"])
+                                          corridor_maximum_penalty=self.cleaned_data["corridor_maximum_penalty"],
+                                          )
+        GateScoreOverride.objects.create(navigation_task=navigation_task,
+                                         for_gate_types=["sp", "fp"],
+                                         checkpoint_grace_period_after=self.cleaned_data[
+                                             "gate_grace_time"],
+                                         checkpoint_grace_period_before=self.cleaned_data[
+                                             "gate_grace_time"],
+                                         checkpoint_penalty_per_second=self.cleaned_data[
+                                             "gate_penalty_per_second"],
+                                         checkpoint_not_found=self.cleaned_data["gate_miss_penalty"])
 
     @classmethod
     def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
@@ -158,7 +174,10 @@ class ANRCorridorScoreOverrideForm(forms.Form):
             "corridor_width": scorecard.corridor_width,
             "corridor_grace_time": scorecard.corridor_grace_time,
             "corridor_outside_penalty": scorecard.corridor_outside_penalty,
-            "corridor_maximum_penalty": scorecard.corridor_maximum_penalty
+            "corridor_maximum_penalty": scorecard.corridor_maximum_penalty,
+            "gate_grace_time": scorecard.starting_point_gate_score.graceperiod_before,
+            "gate_penalty_per_second": scorecard.starting_point_gate_score.penalty_per_second,
+            "gate_miss_penalty": scorecard.starting_point_gate_score.missed_penalty
         }
 
     def __init__(self, *args, **kwargs):
@@ -496,7 +515,7 @@ class PersonForm(forms.ModelForm):
         if phone is not None and len(phone) > 0:
             existing = Person.objects.filter(phone=phone)
             if self.instance is not None:
-                existing = existing.exclude(pk = self.instance.pk)
+                existing = existing.exclude(pk=self.instance.pk)
             if existing.exists():
                 raise ValidationError("Phone number must be unique")
         return phone
