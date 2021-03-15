@@ -272,6 +272,7 @@ class GatekeeperRoute(Gatekeeper):
                 break
             if gate.missed:
                 index += 1
+                self.missed_gate(gate, current_position)
                 if gate.gate_check:
                     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
                                                                                gate.expected_time, None)

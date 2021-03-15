@@ -29,3 +29,7 @@ class Calculator:
     @abstractmethod
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
         pass
+
+    @abstractmethod
+    def missed_gate(self, gate: "Gate", position: "Position"):
+        pass
