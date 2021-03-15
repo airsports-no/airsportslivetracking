@@ -113,7 +113,7 @@ class GatekeeperRoute(Gatekeeper):
                     logger.info("{}: Missing gate {} since it has not been passed or detected missed before.".format(
                         self.contestant, self.in_range_of_gate))
                     self.in_range_of_gate.missed = True
-                    self.missed_gate(self.in_range_of_gate,self.track[-1])
+                    # self.missed_gate(self.in_range_of_gate,self.track[-1])
 
                     self.pop_gate(0, True)
                 self.in_range_of_gate = None
@@ -189,7 +189,7 @@ class GatekeeperRoute(Gatekeeper):
                 return
         i = len(self.outstanding_gates) - 1
         crossed_gate = False
-        missed_gates = []
+        # missed_gates = []
         while i >= 0:
             gate = self.outstanding_gates[i]
             intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
@@ -204,15 +204,15 @@ class GatekeeperRoute(Gatekeeper):
             if crossed_gate:
                 if gate.passing_time is None:
                     gate.missed = True
-                    missed_gates.append(gate)
+                    logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))
+                    # missed_gates.append(gate)
                 self.pop_gate(i,
                               not gate.missed)  # Only update the last gate with the one that was crossed, not the one we detect is missed because of it.
             i -= 1
-        if len(missed_gates)>0:
-            missed_gates.reverse()
-            for gate in missed_gates:
-                logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))
-                self.missed_gate(gate, self.track[-1])
+        # if len(missed_gates)>0:
+        #     missed_gates.reverse()
+        #     for gate in missed_gates:
+        #         self.missed_gate(gate, self.track[-1])
 
         if not crossed_gate and len(self.outstanding_gates) > 0:
             extended_next_gate = self.outstanding_gates[0]  # type: Gate
@@ -244,7 +244,7 @@ class GatekeeperRoute(Gatekeeper):
                     self.contestant, self.track[-1].time,
                     gate, time_limit))
                 gate.missed = True
-                self.missed_gate(gate, self.track[-1])
+                # self.missed_gate(gate, self.track[-1])
                 self.pop_gate(0)
         self.check_gate_in_range()
         if self.last_gate and self.last_gate.type == "fp":
@@ -277,12 +277,16 @@ class GatekeeperRoute(Gatekeeper):
         index = 0
         finished = False
         current_position = self.track[-1]
-        for gate in self.gates[self.last_gate_index:]:  # type: Gate
+        for gate_index, gate in enumerate(self.gates[self.last_gate_index:]):  # type: Gate
             if finished:
                 break
             if gate.missed:
+                if self.last_gate_index + gate_index>0:
+                    previous_gate = self.gates[self.last_gate_index + gate_index-1]
+                else:
+                    previous_gate = None
+                self.missed_gate(previous_gate, gate, current_position)
                 index += 1
-                self.missed_gate(gate, current_position)
                 if gate.gate_check:
                     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
                                                                                gate.expected_time, None)

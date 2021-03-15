@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import List, Callable, Dict
+from typing import List, Callable, Dict, Optional
 
 from display.calculators.positions_and_gates import Position, Gate
 from display.models import Contestant, Scorecard, Route
@@ -31,5 +31,5 @@ class Calculator:
         pass
 
     @abstractmethod
-    def missed_gate(self, gate: "Gate", position: "Position"):
+    def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: Position):
         pass

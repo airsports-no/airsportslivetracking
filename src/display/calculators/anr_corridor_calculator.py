@@ -2,7 +2,7 @@ import datetime
 
 import matplotlib.pyplot as plt
 import logging
-from typing import List, Callable
+from typing import List, Callable, Optional
 import numpy as np
 from cartopy.io.img_tiles import OSM
 from shapely.geometry import Polygon, Point
@@ -24,7 +24,7 @@ class AnrCorridorCalculator(Calculator):
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
         position = track[-1]
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
-            self.check_and_apply_outside_penalty(position, last_gate)
+            self.check_and_apply_outside_penalty(position, self.crossed_outside_gate or last_gate)
             self.corridor_state = self.INSIDE_CORRIDOR
 
     def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
@@ -38,11 +38,13 @@ class AnrCorridorCalculator(Calculator):
                  update_score: Callable):
         super().__init__(contestant, scorecard, gates, route, update_score)
         self.corridor_state = self.INSIDE_CORRIDOR
+        self.previous_corridor_state = self.INSIDE_CORRIDOR
         self.crossed_outside_time = None
         self.last_outside_penalty = None
         self.last_gate_missed_position = None
         self.previous_last_gate = None
         self.crossed_outside_position = None
+        self.crossed_outside_gate = None
         self.pc = ccrs.PlateCarree()
         self.epsg = ccrs.epsg(3857)
         self.track_polygon = self.build_polygon()
@@ -86,13 +88,19 @@ class AnrCorridorCalculator(Calculator):
     def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
         self.check_outside_corridor(track, last_gate)
 
-    def missed_gate(self, gate: Gate, position: Position):
+    def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: Position):
+        # Normally we want to apply to the previous gate if only a single gate has been missed. However, if we are
+        # missing multiple gates and we have entered the corridor, the previous gate has already been awarded its
+        # penalty, so we carry on with the current gate instead.
+        penalty_gate = previous_gate or gate
+        if previous_gate and self.corridor_state == self.INSIDE_CORRIDOR:
+            penalty_gate = gate
         if position == self.last_gate_missed_position:
             # If we are at the same position as the last missed the State it means that we are missing several gates
             # in a row. We need to apply maximum penalty for each leg
-            self.check_and_apply_outside_penalty(position, gate, apply_maximum_penalty=True)
+            self.check_and_apply_outside_penalty(position, penalty_gate, apply_maximum_penalty=True)
         else:
-            self.check_and_apply_outside_penalty(position, gate)
+            self.check_and_apply_outside_penalty(position, penalty_gate)
         self.last_gate_missed_position = position
 
     def check_and_apply_outside_penalty(self, position: "Position", last_gate: Gate,
@@ -101,9 +109,6 @@ class AnrCorridorCalculator(Calculator):
             return
         outside_time = (position.time - self.crossed_outside_time).total_seconds()
         penalty_time = outside_time - self.scorecard.get_corridor_grace_time(self.contestant)
-        logger.info(
-            "{} {}: Back inside the corridor after {} seconds".format(self.contestant, position.time,
-                                                                      outside_time))
         if penalty_time > 0:
             penalty_time = np.round(penalty_time)
             score = self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time
@@ -116,18 +121,20 @@ class AnrCorridorCalculator(Calculator):
                               self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
                               "anomaly", f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
                               maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(self.contestant))
-            if self.corridor_state == self.INSIDE_CORRIDOR:
+            if self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR:
+                # Do not print entering corridor if you are in the special case where we are cleaning up missed gates (indicated by apply maximum penalty)
                 self.update_score(last_gate,
                                   0,
                                   "entering corridor",
                                   position.latitude, position.longitude,
                                   "information", f"entering_corridor")
-            else:
+            elif self.corridor_state != self.INSIDE_CORRIDOR:
                 self.crossed_outside_position = position
                 self.crossed_outside_time = position.time - datetime.timedelta(
                     seconds=self.scorecard.get_corridor_grace_time(self.contestant))
 
     def check_outside_corridor(self, track: List["Position"], last_gate: "Gate"):
+        self.previous_corridor_state = self.corridor_state
         position = track[-1]
         if not self._check_inside_polygon(position.latitude, position.longitude):
             # We are outside the corridor
@@ -138,10 +145,13 @@ class AnrCorridorCalculator(Calculator):
                 self.crossed_outside_position = position
                 self.corridor_state = self.OUTSIDE_CORRIDOR
                 self.crossed_outside_time = position.time
+                self.crossed_outside_gate = last_gate
             else:
                 if last_gate != self.previous_last_gate:
-                    self.check_and_apply_outside_penalty(position, last_gate)
+                    self.check_and_apply_outside_penalty(position, self.previous_last_gate)
         elif self.corridor_state == self.OUTSIDE_CORRIDOR:
+            logger.info(
+                "{} {}: Back inside the corridor".format(self.contestant, position.time))
             self.corridor_state = self.INSIDE_CORRIDOR
             self.check_and_apply_outside_penalty(position, last_gate)
         self.previous_last_gate = last_gate

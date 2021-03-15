@@ -217,9 +217,9 @@ class Gatekeeper:
     def check_gates(self):
         raise NotImplementedError
 
-    def missed_gate(self, gate: Gate, position: Position):
+    def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: Position):
         for calculator in self.calculators:
-            calculator.missed_gate(gate, position)
+            calculator.missed_gate(previous_gate, gate, position)
 
     def calculate_score(self):
         if self.track_terminated:
