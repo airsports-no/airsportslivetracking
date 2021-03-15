@@ -110,15 +110,20 @@ class AnrCorridorCalculator(Calculator):
             if apply_maximum_penalty:
                 score = self.scorecard.get_corridor_outside_maximum_penalty(self.contestant)
             # If this is called when we have crossed a gate, we need to reset the outside time to Grace time before now to start counting new points
-            self.crossed_outside_time = position.time - datetime.timedelta(
-                seconds=self.scorecard.get_corridor_grace_time(self.contestant))
-            self.crossed_outside_position = position
             self.update_score(last_gate,
                               score,
                               "outside corridor ({} seconds)".format(int(penalty_time)),
                               self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
                               "anomaly", f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
                               maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(self.contestant))
+            self.update_score(last_gate,
+                              0,
+                              "entering corridor",
+                              position.latitude, position.longitude,
+                              "information", f"entering_corridor")
+            self.crossed_outside_position = position
+            self.crossed_outside_time = position.time - datetime.timedelta(
+                seconds=self.scorecard.get_corridor_grace_time(self.contestant))
 
     def check_outside_corridor(self, track: List["Position"], last_gate: "Gate"):
         position = track[-1]
