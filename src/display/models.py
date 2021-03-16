@@ -392,6 +392,7 @@ class NavigationTask(models.Model):
         task, _ = Task.objects.get_or_create(contest=self.contest, name=self.name,
                                              summary_score_sorting_direction=Task.ASCENDING,
                                              heading=self.name)
+        TaskTest.objects.filter(task=task, name="Navigation", heading="Navigation").delete()
         test = TaskTest.objects.create(task=task, name="Navigation", heading="Navigation", sorting=TaskTest.ASCENDING,
                                        index=0)
         for contestant in self.contestant_set.all().order_by("contestanttrack__score"):
