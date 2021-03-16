@@ -38,7 +38,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     data[taskSummary.team] = {}
                 }
                 Object.assign(data[taskSummary.team], {
-                    [taskSummary.task.toFixed(0)]: taskSummary.points,
+                    ["task_" + taskSummary.task.toFixed(0)]: taskSummary.points,
                 })
             })
             task.tasktest_set.map((taskTest) => {
@@ -47,7 +47,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         data[testScore.team] = {}
                     }
                     Object.assign(data[testScore.team], {
-                        [taskTest.id.toFixed(0)]: testScore.points
+                        ["test_" + taskTest.id.toFixed(0)]: testScore.points
                     })
                 })
             })
@@ -98,7 +98,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
         this.props.contest.results.task_set.map((task) => {
             task.tasktest_set.map((taskTest) => {
                 columns.push({
-                    dataField: taskTest.id.toFixed(0),
+                    dataField: "test_" + taskTest.id.toFixed(0),
                     text: taskTest.heading,
                     headerClasses: "text-muted",
                     sort: true,
@@ -107,7 +107,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 })
             });
             columns.push({
-                dataField: task.id.toFixed(0),
+                dataField: "task_" + task.id.toFixed(0),
                 text: task.heading,
                 sort: true,
                 events: {
