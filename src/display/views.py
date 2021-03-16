@@ -76,6 +76,7 @@ from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
+from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
 
@@ -559,6 +560,9 @@ def delete_score_item(request, pk, index):
         points = log_line["points"]
         contestant.contestanttrack.score -= points
         contestant.contestanttrack.save()
+        # Push the updated data so that it is reflected on the contest track
+        wf = WebsocketFacade()
+        wf.transmit_basic_information(contestant)
     except IndexError:
         messages.error(request, "Could not find score log to remove")
     return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": pk}))

@@ -40,6 +40,21 @@ class WebsocketFacade:
             {"type": "tracking.data", "data": channel_data}
         )
 
+    def transmit_basic_information(self, contestant: "Contestant"):
+        group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        channel_data = {
+            "contestant_id": contestant.pk,
+            "positions": [],
+            "annotations": [],
+            "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
+
+        }
+        async_to_sync(self.channel_layer.group_send)(
+            group_key,
+            {"type": "tracking.data", "data": channel_data}
+        )
+
     def transmit_navigation_task_position_data(self, contestant: "Contestant", data: List[Dict], route_progress: float):
         position_data = []
         for item in data:
@@ -66,7 +81,8 @@ class WebsocketFacade:
             {"type": "tracking.data", "data": channel_data}
         )
 
-    def transmit_global_position_data(self, global_tracking_name: str, position_data: Dict, device_time: datetime.datetime)->Dict:
+    def transmit_global_position_data(self, global_tracking_name: str, position_data: Dict,
+                                      device_time: datetime.datetime) -> Dict:
         data = {
             "type": "tracking.data",
             "data": {
