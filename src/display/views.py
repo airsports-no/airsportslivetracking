@@ -551,6 +551,19 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return reverse('contest_details', kwargs={'pk': self.get_object().contest.pk})
 
 
+@guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+def delete_score_item(request, pk, index):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    try:
+        log_line = contestant.contestanttrack.score_log.pop(index)
+        points = log_line["points"]
+        contestant.contestanttrack.score -= points
+        contestant.contestanttrack.save()
+    except IndexError:
+        messages.error(request, "Could not find score log to remove")
+    return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": pk}))
+
+
 class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = Contestant
     permission_required = ("display.view_contest",)
@@ -564,10 +577,11 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         if hasattr(self.object, "contestanttrack"):
             contestant_track = self.object.contestanttrack
             log = {}
-            for item in contestant_track.score_log:
+            for index, item in enumerate(contestant_track.score_log):
                 if item["gate"] not in log:
                     log[item["gate"]] = []
-                log[item["gate"]].append("{} points {}".format(item["points"], item["message"]))
+                log[item["gate"]].append(
+                    {"text": "{} points {}".format(item["points"], item["message"]), "index": index})
             context["log"] = log
         return context
 

@@ -161,6 +161,9 @@ class Gatekeeper:
             string += "\n(planned: {}, actual: --)".format(internal_message["planned"])
         internal_message["string"] = string
         logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))
+        # Take into account that external events may have changed the score
+        self.contestant.contestanttrack.refresh_from_db()
+        self.score = self.contestant.contestanttrack.score
         self.score += score
         try:
             self.score_by_gate[gate.name] += score

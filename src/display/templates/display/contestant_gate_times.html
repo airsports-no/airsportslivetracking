@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load guardian_tags %}
 {% block content %}
+{% get_obj_perms request.user for object.navigation_task.contest as "contest_permissions" %}
     <H1>Gate times for {{ object }}</H1>
     <h2>Total score: {{ object.contestanttrack.score }}</h2>
     <table class="table table-condensed">
@@ -18,14 +19,17 @@
                 <tr>
                     <td>{{ object.navigation_task.route.takeoff_gate.name }}</td>
                     <td>{{ gate_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}</td>
-                    <td>{% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name %}
-                        {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}{% else %}
-                        --{% endif %}</td>
+                    <td>
+                        {% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name %}
+                            {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}{% else %}
+                            --{% endif %}</td>
                     <td>{{ object|gate_time_offset:object.navigation_task.route.takeoff_gate.name }}</td>
                     <td>
                         {% with gate_log=log|dict_key:object.navigation_task.route.takeoff_gate.name %}
                             {% for item in gate_log %}
-                                {{ item }}<br/>
+                                {{ item.text }} {% if "change_contest" in contest_permissions %}
+                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}">Remove
+                                    penalty</a>{% endif %}<br/>
                             {% endfor %}
                         {% endwith %}
                     </td>
@@ -42,7 +46,9 @@
                     <td>
                         {% with gate_log=log|dict_key:gate.name %}
                             {% for item in gate_log %}
-                                {{ item }}<br/>
+                                {{ item.text }} {% if "change_contest" in contest_permissions %}
+                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}">Remove
+                                    penalty</a>{% endif %}<br/>
                             {% endfor %}
                         {% endwith %}
                     </td>
@@ -52,14 +58,17 @@
                 <tr>
                     <td>{{ object.navigation_task.route.landing_gate.name }}</td>
                     <td>{{ gate_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}</td>
-                    <td>{% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name %}
-                        {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}{% else %}
-                        --{% endif %}</td>
+                    <td>
+                        {% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name %}
+                            {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}{% else %}
+                            --{% endif %}</td>
                     <td>{{ object|gate_time_offset:object.navigation_task.route.landing_gate.name }}</td>
                     <td>
                         {% with gate_log=log|dict_key:object.navigation_task.route.landing_gate.name %}
                             {% for item in gate_log %}
-                                {{ item }}<br/>
+                                {{ item.text }} {% if "change_contest" in contest_permissions %}
+                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}">Remove
+                                    penalty</a>{% endif %}<br/>
                             {% endfor %}
                         {% endwith %}
                     </td>

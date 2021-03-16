@@ -13,7 +13,7 @@ from display.views import frontend_view_map, \
     clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map, ContestDetailView, \
     deal_card_to_contestant, list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test, \
-    export_navigation_task_results_to_results_service, clear_results_service
+    export_navigation_task_results_to_results_service, clear_results_service, delete_score_item
 
 urlpatterns = [
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
@@ -53,6 +53,7 @@ urlpatterns = [
     path('contestant/<int:pk>/remove_card/<int:card_pk>/', contestant_card_remove, name="contestant_card_remove"),
     path('contestant/<int:pk>/update/', ContestantUpdateView.as_view(), name="contestant_update"),
     path('contestant/<int:pk>/delete/', ContestantDeleteView.as_view(), name="contestant_delete"),
+    path('contestant/<int:pk>/gates/remove_score_item/<int:index>/', delete_score_item, name="contestant_remove_score_item"),
     path('contestant/<int:pk>/gates/', ContestantGateTimesView.as_view(), name="contestant_gate_times"),
     path('contest/<int:contest_pk>/team/<int:team_pk>/wizardupdate/', RegisterTeamWizard.as_view(), name="team_wizard"),
     path('contest/<int:contest_pk>/team/<int:team_pk>/remove/', remove_team_from_contest, name="remove_team"),
