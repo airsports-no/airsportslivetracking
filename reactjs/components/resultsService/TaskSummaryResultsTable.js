@@ -113,9 +113,9 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 events: {
                     onClick: (e, column, columnIndex, row, rowIndex) => {
                         if (!this.props.visibleTaskDetails[task.id]) {
-                            this.props.showTaskDetails(column.dataField)
+                            this.props.showTaskDetails(task.id.toFixed(0))
                         } else {
-                            this.props.hideTaskDetails(column.dataField)
+                            this.props.hideTaskDetails(task.id.toFixed(0))
                         }
                     }
                 },
