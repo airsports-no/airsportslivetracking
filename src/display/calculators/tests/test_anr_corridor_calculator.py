@@ -5,6 +5,7 @@ from typing import List, Tuple
 from unittest.mock import Mock, patch, call
 
 import dateutil
+from django.core.cache import cache
 from django.test import TransactionTestCase
 from django.test.utils import freeze_time
 
@@ -129,7 +130,7 @@ class TestANRPerLeg(TransactionTestCase):
                               'SP: 50.0 points outside corridor (48 seconds)',
                               'Waypoint 1: 42.0 points outside corridor (14 seconds)',
                               'Waypoint 1: 0 points entering corridor', 'Waypoint 1: 200.0 points backtracking',
-                              'Waypoint 1: 8.0 points outside corridor (226 seconds)',
+                              'Waypoint 1: 8.0 points outside corridor (capped) (226 seconds)',
                               'Waypoint 2: 50.0 points outside corridor (0 seconds)',
                               'Waypoint 3: 50.0 points outside corridor (0 seconds)',
                               'FP: 200.0 points missing gate',
@@ -137,6 +138,38 @@ class TestANRPerLeg(TransactionTestCase):
                               'Landing: 0.0 points missing gate'],
                              fixed_strings)
         self.assertEqual(850, contestant_track.score)
+
+    def test_manually_terminate_calculator(self, p):
+        track = load_track_points_traccar_csv(
+            load_traccar_track("display/calculators/tests/anr_miss_multiple_finish.csv"))
+        start_time, speed = datetime.datetime.now(datetime.timezone.utc), 70
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(minutes=30),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    tracker_device_id="Test contestant", contestant_number=1,
+                                                    minutes_to_starting_point=7,
+                                                    air_speed=speed, wind_direction=160,
+                                                    wind_speed=0)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=True)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i,
+                                                                 dateutil.parser.parse(i["time"]))
+            q.put(data)
+        threading.Timer(5, lambda: self.contestant.request_calculator_termination()).start()
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        strings = [item["string"] for item in contestant_track.score_log]
+        print(strings)
+        self.assertListEqual(['Takeoff: 0 points manually terminated'],
+                             strings)
+        self.assertEqual(0, contestant_track.score)
 
     def test_anr_miss_start_and_finish(self, p):
         track = load_track_points_traccar_csv(

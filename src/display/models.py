@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple
 import eval7 as eval7
 from django import core
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 
@@ -768,6 +769,13 @@ class Contestant(models.Model):
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
         ordering = ("takeoff_time",)
+
+    @property
+    def termination_request_key(self):
+        return f"termination_request_{self.pk}"
+
+    def request_calculator_termination(self):
+        cache.set(self.termination_request_key, True, timeout=3600)
 
     def save(self, **kwargs):
         self.tracker_device_id = self.tracker_device_id.strip()

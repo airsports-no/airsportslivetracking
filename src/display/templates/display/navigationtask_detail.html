@@ -57,8 +57,11 @@
                             <a href="{% url 'contestant_cards_list' contestant.pk %}">playing cards</a> |
                         {% endif %}
                     {% endif %}
-                    <a href="{% url 'contestant_map' contestant.pk %}">map</a> |
-                    <a href="{% url 'contestant_delete' contestant.pk %}">delete</a>
+                    {% if "change_contest" in contest_permissions %}
+                        <a href="{% url 'contestant_delete' contestant.pk %}">delete</a> |
+                        <a href="{% url 'contestant_stop_calculator' contestant.pk %}" onclick="return confirm('Are you sure you want to stop the calculator?')">stop calculator</a> |
+                    {% endif %}
+                    <a href="{% url 'contestant_map' contestant.pk %}">map</a>
                 </td>
             </tr>
         {% endfor %}

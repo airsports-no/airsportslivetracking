@@ -441,6 +441,14 @@ class ContestList(PermissionRequiredMixin, ListView):
         return objects
 
 
+@guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+def terminate_contestant_calculator(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    contestant.request_calculator_termination()
+    messages.success(request, "Calculator termination requested")
+    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
+
+
 @guardian_permission_required('display.change_contest', (Contest, "navigationtask__pk", "pk"))
 def export_navigation_task_results_to_results_service(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)

@@ -272,6 +272,13 @@ class GatekeeperRoute(Gatekeeper):
         if not already_terminated and self.track_terminated:
             self.miss_outstanding_gates()
             self.calculate_gate_score()
+        if not self.track_terminated:
+            self.track_terminated = self.is_termination_commanded()
+            if self.track_terminated:
+                self.update_score(self.last_gate or self.gates[0], 0, "manually terminated",
+                                  self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
+                                  self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,
+                                  "information", "")
         if self.track_terminated:
             self.contestant.contestanttrack.set_calculator_finished()
 

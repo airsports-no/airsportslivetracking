@@ -4,9 +4,10 @@ import threading
 from abc import abstractmethod
 from multiprocessing.queues import Queue
 from queue import Empty
-from typing import List, TYPE_CHECKING, Optional, Callable
+from typing import List, TYPE_CHECKING, Optional, Callable, Tuple
 
 import pytz
+from django.core.cache import cache
 
 from display.calculators.calculator_utilities import round_time, distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
@@ -25,16 +26,18 @@ class ScoreAccumulator:
     def __init__(self):
         self.related_score = {}
 
-    def set_and_update_score(self, score: float, score_type: str, maximum_score: Optional[float]) -> float:
+    def set_and_update_score(self, score: float, score_type: str, maximum_score: Optional[float]) -> Tuple[float, bool]:
         """
         Returns the calculated score given the maximum limits. If there is no maximum limit, score is returned
         """
+        capped = False
         current_score_for_type = self.related_score.setdefault(score_type, 0)
         if maximum_score is not None and maximum_score > -1:
             if current_score_for_type + score >= maximum_score:
                 score = maximum_score - current_score_for_type
+                capped = True
         self.related_score[score_type] += score
-        return score
+        return score, capped
 
 
 LOOP_TIME = 60
@@ -53,6 +56,7 @@ class Gatekeeper:
         self.contestant.calculator_started = True
         self.contestant.save()
         self.position_queue = position_queue
+        self.last_termination_command_check = None
         self.influx = InfluxFacade()
         self.track = []  # type: List[Position]
         self.score = 0
@@ -142,7 +146,7 @@ class Gatekeeper:
         :param actual: The actual passing time if gate
         :return:
         """
-        score = self.accumulated_scores.set_and_update_score(score, score_type, maximum_score)
+        score, capped = self.accumulated_scores.set_and_update_score(score, score_type, maximum_score)
         if planned is not None and actual is not None:
             offset = (actual - planned).total_seconds()
             offset_string = "{} s".format("+{}".format(int(offset)) if offset > 0 else int(offset))
@@ -159,6 +163,8 @@ class Gatekeeper:
             "offset_string": offset_string
         }
         string = "{}: {} points {}".format(gate.name, score, message)
+        if capped:
+            string += " (capped)"
         if offset_string:
             string += " ({})".format(offset_string)
         if planned and actual:
@@ -221,6 +227,15 @@ class Gatekeeper:
     @abstractmethod
     def check_termination(self):
         raise NotImplementedError
+
+    def is_termination_commanded(self) -> bool:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if self.last_termination_command_check is None or now > self.last_termination_command_check + datetime.timedelta(
+                seconds=30):
+            self.last_termination_command_check = now
+            termination_requested = cache.get(self.contestant.termination_request_key)
+            return termination_requested is not None
+        return False
 
     @abstractmethod
     def check_gates(self):
