@@ -126,6 +126,9 @@ class Gatekeeper:
                 self.track.append(position)
                 if len(self.track) > 1:
                     self.calculate_score()
+        self.contestant.contestanttrack.set_calculator_finished()
+        while not self.position_queue.empty():
+            self.position_queue.get_nowait()
         logger.info("Terminating calculator for {}".format(self.contestant))
 
     def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,

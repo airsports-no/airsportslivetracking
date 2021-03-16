@@ -1015,31 +1015,37 @@ class ContestantTrack(models.Model):
     gate_actual_times = MyPickledObjectField(default=dict)
 
     def update_last_gate(self, gate_name, time_difference):
+        self.refresh_from_db()
         self.last_gate = gate_name
         self.last_gate_time_offset = time_difference
         self.save()
 
     def update_score(self, score_per_gate, score, score_log):
+        self.refresh_from_db()
         self.score = score
         self.score_per_gate = score_per_gate
         self.score_log = score_log
         self.save()
 
     def updates_current_state(self, state: str):
+        self.refresh_from_db()
         if self.current_state != state:
             self.current_state = state
             self.save()
 
     def update_current_leg(self, current_leg: str):
+        self.refresh_from_db()
         if self.current_leg != current_leg:
             self.current_leg = current_leg
             self.save()
 
     def set_calculator_finished(self):
+        self.refresh_from_db()
         self.calculator_finished = True
         self.save()
 
     def update_gate_time(self, gate_name: str, passing_time: datetime.datetime):
+        self.refresh_from_db()
         self.gate_actual_times[gate_name] = passing_time
         self.save()
 
