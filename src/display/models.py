@@ -389,9 +389,9 @@ class NavigationTask(models.Model):
         return "{}: {}".format(self.name, self.start_time.isoformat())
 
     def export_to_results_service(self):
-        task, _ = Task.objects.get_or_create(contest=self.contest, name=self.name,
-                                             summary_score_sorting_direction=Task.ASCENDING,
-                                             heading=self.name)
+        task, _ = Task.objects.get_or_create(contest=self.contest, name=self.name, defaults={
+            "summary_score_sorting_direction": Task.ASCENDING,
+            "heading": self.name})
         TaskTest.objects.filter(task=task, name="Navigation", heading="Navigation").delete()
         test = TaskTest.objects.create(task=task, name="Navigation", heading="Navigation", sorting=TaskTest.ASCENDING,
                                        index=0)

@@ -47,7 +47,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         data[testScore.team] = {}
                     }
                     Object.assign(data[testScore.team], {
-                        [taskTest.id.toFixed(0)]: testScore.points
+                        [taskTest.task_test.toFixed(0)]: testScore.points
                     })
                 })
             })
