@@ -89,11 +89,12 @@ class TestANRPerLeg(TransactionTestCase):
         print(strings)
         self.assertListEqual(['Takeoff: 0.0 points missing gate\n(planned: 20:30:00 +0100, actual: --)',
                               'SP: 200.0 points missing gate\n(planned: 20:37:00 +0100, actual: --)',
-                              'SP: 50.0 points outside corridor (77 seconds)', 'Waypoint 1: 200.0 points backtracking',
-                              'Waypoint 1: 50.0 points outside corridor (152 seconds)',
+                              'SP: 50.0 points outside corridor (77 seconds) (capped)',
+                              'Waypoint 1: 200.0 points backtracking',
+                              'Waypoint 1: 50.0 points outside corridor (152 seconds) (capped)',
                               'Waypoint 1: 0 points entering corridor',
-                              'Waypoint 2: 50.0 points outside corridor (170 seconds)',
-                              'Waypoint 3: 50.0 points outside corridor (170 seconds)',
+                              'Waypoint 2: 50.0 points outside corridor (170 seconds) (capped)',
+                              'Waypoint 3: 50.0 points outside corridor (170 seconds) (capped)',
                               'FP: 200.0 points passing gate (-778 s)\n(planned: 20:48:09 +0100, actual: 20:35:11 +0100)'],
                              strings)
         self.assertEqual(800, contestant_track.score)
@@ -127,14 +128,14 @@ class TestANRPerLeg(TransactionTestCase):
         fixed_strings[1] = fixed_strings[1][:10]
         self.assertListEqual(['Takeoff: 0.0 points missing gate',
                               'SP: 200.0 ',
-                              'SP: 50.0 points outside corridor (48 seconds)',
+                              'SP: 50.0 points outside corridor (48 seconds) (capped)',
                               'Waypoint 1: 42.0 points outside corridor (14 seconds)',
                               'Waypoint 1: 0 points entering corridor', 'Waypoint 1: 200.0 points backtracking',
-                              'Waypoint 1: 8.0 points outside corridor (capped) (226 seconds)',
-                              'Waypoint 2: 50.0 points outside corridor (0 seconds)',
-                              'Waypoint 3: 50.0 points outside corridor (0 seconds)',
+                              'Waypoint 1: 8.0 points outside corridor (226 seconds) (capped)',
+                              'Waypoint 2: 50.0 points outside corridor (0 seconds) (capped)',
+                              'Waypoint 3: 50.0 points outside corridor (0 seconds) (capped)',
                               'FP: 200.0 points missing gate',
-                              'FP: 50.0 points outside corridor (0 seconds)',
+                              'FP: 50.0 points outside corridor (0 seconds) (capped)',
                               'Landing: 0.0 points missing gate'],
                              fixed_strings)
         self.assertEqual(850, contestant_track.score)
