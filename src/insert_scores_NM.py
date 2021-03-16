@@ -64,6 +64,10 @@ contestants = {
 }
 aeroplane = Aeroplane.objects.first()
 Task.objects.all().delete()
+ContestSummary.objects.all().delete()
+TaskSummary.objects.all().delete()
+TeamTestScore.objects.all().delete()
+
 navigation_task = Task.objects.create(name="navigation", contest=contest, heading="Navigation")
 planning_test = TaskTest.objects.create(name="planning", heading="Planning", task=navigation_task, index=0)
 navigation_test = TaskTest.objects.create(name="navigation", heading="Navigation", task=navigation_task, index=1)
@@ -76,7 +80,7 @@ landing_three = TaskTest.objects.create(name="landing_three", heading="Landing 3
 landing_four = TaskTest.objects.create(name="landing_four", heading="Landing 4", task=landing_task, index=3)
 
 for contestant_name, scores in contestants.items():
-    pilot = Person.get_or_create(contestant_name, "Pilot", None, None)
+    pilot = Person.get_or_create(contestant_name, "Pilot", None, f"{contestant_name}@somewhere.com")
     crew, _ = Crew.objects.get_or_create(member1=pilot)
     team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane)
     for test, value in scores.items():

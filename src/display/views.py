@@ -440,6 +440,12 @@ class ContestList(PermissionRequiredMixin, ListView):
         return objects
 
 
+@guardian_permission_required('display.change_contest', (Contest, "navigationtask__pk", "pk"))
+def export_navigation_task_results_to_results_service(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    navigation_task.export_to_results_service()
+    return HttpResponseRedirect(reverse("resultsservice") + f"{navigation_task.contest.pk}/taskresults/")
+
 class ContestCreateView(PermissionRequiredMixin, CreateView):
     model = Contest
     permission_required = ("display.add_contest",)

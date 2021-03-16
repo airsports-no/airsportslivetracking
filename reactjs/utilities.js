@@ -123,10 +123,15 @@ export function contestantLongForm(contestant) {
 
 export function teamLongForm(team) {
     return <div>
-        Pilot: {team.crew ? team.crew.pilot : "Unknown"}<br/>
-        Navigator: {team.crew ? team.crew.navigator : "Unknown"}<br/>
+        Pilot: {team.crew ? team.crew.member1.last_name + ', ' + team.crew.member1.first_name : "Unknown"}<br/>
+        {team.crew && team.crew.member2 ? 'Navigator: ' + team.crew.member2.last_name + ', ' + team.crew.member2.first_name : ""}<br/>
         {team.aeroplane.registration}
     </div>
+}
+
+
+export function teamLongFormText(team) {
+    return 'Pilot:' + (team.crew ? team.crew.member1.last_name + ', ' + team.crew.member1.first_name : "Unknown") + (team.crew && team.crew.member2 ? ' ;Navigator: ' + team.crew.member2.last_name + ', ' + team.crew.member2.first_name : "") + ' ;Aeroplane: ' + team.aeroplane.registration
 }
 
 export function calculateProjectedScore(score, progress) {

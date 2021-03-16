@@ -257,7 +257,7 @@ class GatekeeperRoute(Gatekeeper):
         #         logger.info("No more gates, terminating")
         #     self.track_terminated = True
         # speed = self.get_speed()
-        # Do not care about speed during low processing, we only care about the tracking interval from takeoff time
+        # Do not care about speed during live processing, we only care about the tracking interval from takeoff time
         # to finish by time
         # if not self.live_processing and speed == 0 and self.last_gate is not None:
         #     if not already_terminated:

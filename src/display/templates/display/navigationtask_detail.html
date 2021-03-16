@@ -12,6 +12,7 @@
         {% if "change_contest" in contest_permissions %}
             <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a>|
             <a href="{% url 'navigationtask_removecontestants' object.pk %}">Remove contestants</a> |
+            <a href="{% url 'navigationtask_exportresults' object.pk %}">Export results</a> |
         {% endif %}
         <a href="{% url 'navigationtask_contestantstimeline' object.pk %}">Timeline</a> |
         <a href="{% url 'navigationtask_qr' object.pk %}">QR</a>

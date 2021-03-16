@@ -93,7 +93,8 @@ class Route(models.Model):
             if waypoint.distance_next < 1852 and self.rounded_corners:
                 raise ValidationError(
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 1 NM when using rounded corners. Perhaps there is an error in your route file.")
-            if waypoint.distance_next < 1852 / 2 and self.waypoints[index + 1].type != "secret" and waypoint.type != "secret":
+            if waypoint.distance_next < 1852 / 2 and self.waypoints[
+                index + 1].type != "secret" and waypoint.type != "secret":
                 raise ValidationError(
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 0.5 NM"
                 )
@@ -386,6 +387,27 @@ class NavigationTask(models.Model):
 
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.isoformat())
+
+    def export_to_results_service(self):
+        task, _ = Task.objects.get_or_create(contest=self.contest, name=self.name,
+                                             summary_score_sorting_direction=Task.ASCENDING,
+                                             heading=self.name)
+        test = TaskTest.objects.create(task=task, name="Navigation", heading="Navigation", sorting=TaskTest.ASCENDING,
+                                       index=0)
+        for contestant in self.contestant_set.all():
+            TeamTestScore.objects.create(team=contestant.team, task_test=test, points=contestant.contestanttrack.score)
+            try:
+                existing_task_summary = TaskSummary.objects.get(team=contestant.team, task=task)
+                existing_task_summary.points += contestant.contestanttrack.score
+            except ObjectDoesNotExist:
+                TaskSummary.objects.create(team=contestant.team, task=task, points=contestant.contestanttrack.score)
+
+            try:
+                existing_contest_summary = ContestSummary.objects.get(team=contestant.team, contest=self.contest)
+                existing_contest_summary.points += contestant.contestanttrack.score
+            except ObjectDoesNotExist:
+                ContestSummary.objects.create(team=contestant.team, contest=self.contest,
+                                              points=contestant.contestanttrack.score)
 
 
 class Scorecard(models.Model):
@@ -720,7 +742,7 @@ class Contestant(models.Model):
     track_score_override = models.ForeignKey(TrackScoreOverride, on_delete=models.SET_NULL, null=True, blank=True)
     calculator_started = models.BooleanField(default=False,
                                              help_text="Set to true when the calculator has started. After this point it is not permitted to change the contestant")
-    gate_score_override = models.ManyToManyField(GateScoreOverride,blank=True)
+    gate_score_override = models.ManyToManyField(GateScoreOverride, blank=True)
     predefined_gate_times = MyPickledObjectField(default=None, null=True, blank=True,
                                                  help_text="Dictionary of gates and their starting times (with time zone)")
     wind_speed = models.FloatField(default=0,
