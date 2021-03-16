@@ -2,6 +2,7 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
 import Hand from "../react-playing-cards-local/src/PlayingCard/Hand/Hand";
+import {teamLongForm} from "../utilities";
 
 const question = "/static/img/questionmark.png"
 
@@ -10,17 +11,17 @@ export class TeamBadge extends Component {
         if (this.props.team) {
             return <div className={"card team-badge"}>
                 <div className={"card-body row"}>
-                    <div className={'col-6'}>
-                        <ProfilePicture picture={this.props.team.picture ? this.props.team.picture : question}
+                    <div className={'col-8'}>
+                        <TeamPicture team={this.props.team}
                                         text={this.props.team.nation}/>
                     </div>
-                    <div className={'col-6'}>
-                        <div className={"card-title"}>
-                            Crew
-                        </div>
-                        <div className={"card-text"}>
-                            <TeamMembers crew={this.props.team.crew}/>
-                        </div>
+                    <div className={'col-4'}>
+                        {/*<div className={"card-title"}>*/}
+                        {/*    Crew*/}
+                        {/*</div>*/}
+                        {/*<div className={"card-text"}>*/}
+                        {/*    {teamLongForm(this.props.team)}*/}
+                        {/*</div>*/}
                         <LongAircraft aircraft={this.props.team.aeroplane}/>
                     </div>
                 </div>
@@ -197,15 +198,29 @@ export class TeamMembers
 export class LongAircraft extends Component {
     render() {
         const aircraft = this.props.aircraft;
-        const picture = aircraft.picture ? aircraft.picture : question
-        return <div className="aircraft-header-container">
-            <div className="aircraft-header-img">
-                <img alt={aircraft.registration} className="img-long" src={picture}/>
-                <div className="rank-label-container">
-                    <span className="label label-default rank-label">{aircraft.registration}</span>
-                </div>
+        return <ProfilePicture picture={aircraft.picture} text={aircraft.registration}/>
+        // return <div className="aircraft-header-container">
+        //     <div className="aircraft-header-img">
+        //         <img alt={aircraft.registration} className="img-long" src={picture}/>
+        //         <div className="rank-label-container">
+        //             <span className="label label-default rank-label">{aircraft.registration}</span>
+        //         </div>
+        //     </div>
+        // </div>
+    }
+}
+
+export class TeamPicture extends Component {
+    render() {
+        if(this.props.team.picture){
+            return <ProfilePicture picture={this.props.team.picture} text={this.props.text}/>
+        }else {
+
+            return <div>
+                {<ProfilePicture picture={this.props.team.crew.member1.picture} text={this.props.team.crew.member1.first_name+' '+this.props.team.crew.member1.last_name}/>}
+                {this.props.team.crew.member2?<ProfilePicture picture={this.props.team.crew.member2.picture} text={this.props.team.crew.member2.first_name+' '+this.props.team.crew.member2.last_name}/>:null}
             </div>
-        </div>
+        }
     }
 }
 
@@ -213,7 +228,7 @@ export class ProfilePicture extends Component {
     render() {
         return <div className="profile-header-container">
             <div className="profile-header-img">
-                <img alt={this.props.text} className="img-square" src={this.props.picture}/>
+                <img alt={this.props.text} className="img-square" src={this.props.picture?this.props.picture:question}/>
                 <div className="rank-label-container">
                     <span className="label label-default rank-label">{this.props.text}</span>
                 </div>
