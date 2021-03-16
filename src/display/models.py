@@ -399,12 +399,14 @@ class NavigationTask(models.Model):
             try:
                 existing_task_summary = TaskSummary.objects.get(team=contestant.team, task=task)
                 existing_task_summary.points += contestant.contestanttrack.score
+                existing_task_summary.save()
             except ObjectDoesNotExist:
                 TaskSummary.objects.create(team=contestant.team, task=task, points=contestant.contestanttrack.score)
 
             try:
                 existing_contest_summary = ContestSummary.objects.get(team=contestant.team, contest=self.contest)
                 existing_contest_summary.points += contestant.contestanttrack.score
+                existing_contest_summary.save()
             except ObjectDoesNotExist:
                 ContestSummary.objects.create(team=contestant.team, contest=self.contest,
                                               points=contestant.contestanttrack.score)

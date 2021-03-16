@@ -446,6 +446,16 @@ def export_navigation_task_results_to_results_service(request, pk):
     navigation_task.export_to_results_service()
     return HttpResponseRedirect(reverse("resultsservice") + f"{navigation_task.contest.pk}/taskresults/")
 
+
+@guardian_permission_required('display.change_contest', (Contest, "pk", "pk"))
+def clear_results_service(request, pk):
+    contest = get_object_or_404(Contest, pk=pk)
+    contest.task_set.all().delete()
+    contest.contestsummary_set.all().delete()
+    messages.success(request, "Successfully cleared contest results from results service")
+    return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": pk}))
+
+
 class ContestCreateView(PermissionRequiredMixin, CreateView):
     model = Contest
     permission_required = ("display.add_contest",)

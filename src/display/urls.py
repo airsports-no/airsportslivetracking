@@ -13,16 +13,17 @@ from display.views import frontend_view_map, \
     clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map, ContestDetailView, \
     deal_card_to_contestant, list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test, \
-    export_navigation_task_results_to_results_service
+    export_navigation_task_results_to_results_service, clear_results_service
 
 urlpatterns = [
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
     path('token/renew', renew_token, name="renewtoken"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
     path('contest/<int:pk>/', ContestDetailView.as_view(), name="contest_details"),
-    path('contest/<int:pk>/permissions', list_contest_permissions, name="contest_permissions_list"),
-    path('contest/<int:pk>/permissions/add', add_user_contest_permissions, name="contest_permissions_add"),
-    path('contest/<int:pk>/permissions/<int:user_pk>/change', change_user_contest_permissions,
+    path('contest/<int:pk>/clear_results/', clear_results_service, name="contest_clear_results"),
+    path('contest/<int:pk>/permissions/', list_contest_permissions, name="contest_permissions_list"),
+    path('contest/<int:pk>/permissions/add/', add_user_contest_permissions, name="contest_permissions_add"),
+    path('contest/<int:pk>/permissions/<int:user_pk>/change/', change_user_contest_permissions,
          name="contest_permissions_change"),
     path('contest/<int:pk>/permissions/<int:user_pk>/delete', delete_user_contest_permissions,
          name="contest_permissions_delete"),
