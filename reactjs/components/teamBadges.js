@@ -228,7 +228,7 @@ export class ProfilePicture extends Component {
     render() {
         return <div className="profile-header-container">
             <div className="profile-header-img">
-                <img alt={this.props.text} className="img-square" src={this.props.picture?this.props.picture:question}/>
+                <img alt={this.props.text} className="img-fluid profile-header-img" src={this.props.picture?this.props.picture:question}/>
                 <div className="rank-label-container">
                     <span className="label label-default rank-label">{this.props.text}</span>
                 </div>

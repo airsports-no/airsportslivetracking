@@ -595,7 +595,7 @@ html, body {
  * Profile image component
  */
 .team-badge {
-    width: 400px;
+    /*width: 400px;*/
 }
 
 .profile-header-container {
@@ -605,6 +605,7 @@ html, body {
 
 .profile-header-img {
     /*padding: 54px;*/
+    max-height: 100px;
 }
 
 .profile-header-img > img.img-square {
