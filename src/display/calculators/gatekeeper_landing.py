@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 LOOP_TIME = 60
 
 
@@ -66,9 +65,6 @@ class GatekeeperLanding(Gatekeeper):
                                   self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
                                   self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,
                                   "information", "")
-
-        if self.track_terminated:
-            self.contestant.contestanttrack.set_calculator_finished()
 
     def check_gates(self):
         self.check_intersections()

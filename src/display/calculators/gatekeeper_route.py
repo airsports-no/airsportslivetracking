@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 LOOP_TIME = 60
 
 
@@ -262,8 +261,6 @@ class GatekeeperRoute(Gatekeeper):
                                   self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
                                   self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,
                                   "information", "")
-        if self.track_terminated:
-            self.contestant.contestanttrack.set_calculator_finished()
 
     def calculate_gate_score(self):
         index = 0
@@ -273,8 +270,8 @@ class GatekeeperRoute(Gatekeeper):
             if finished:
                 break
             if gate.missed:
-                if self.last_gate_index + gate_index>0:
-                    previous_gate = self.gates[self.last_gate_index + gate_index-1]
+                if self.last_gate_index + gate_index > 0:
+                    previous_gate = self.gates[self.last_gate_index + gate_index - 1]
                 else:
                     previous_gate = None
                 self.missed_gate(previous_gate, gate, current_position)
