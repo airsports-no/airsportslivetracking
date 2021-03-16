@@ -22,22 +22,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ScoreAccumulator:
-    def __init__(self):
-        self.related_score = {}
-
-    def set_and_update_score(self, score: float, score_type: str, maximum_score: Optional[float]) -> float:
-        """
-        Returns the calculated score given the maximum limits. If there is no maximum limit, score is returned
-        """
-        current_score_for_type = self.related_score.setdefault(score_type, 0)
-        if maximum_score is not None and maximum_score > -1:
-            if current_score_for_type + score >= maximum_score:
-                score = maximum_score - current_score_for_type
-        self.related_score[score_type] += score
-        return score
-
-
 LOOP_TIME = 60
 
 
@@ -49,7 +33,6 @@ class GatekeeperRoute(Gatekeeper):
                  live_processing: bool = True):
         super().__init__(contestant, position_queue, calculators, live_processing)
         self.last_backwards = None
-        self.accumulated_scores = ScoreAccumulator()
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
                                   calculate_extended_gate(self.gates[0].waypoint, self.scorecard,
                                                           self.contestant))
