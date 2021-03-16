@@ -12,7 +12,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 
-from django.db import models
+from django.db import models, IntegrityError
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
@@ -394,22 +394,27 @@ class NavigationTask(models.Model):
                                              heading=self.name)
         test = TaskTest.objects.create(task=task, name="Navigation", heading="Navigation", sorting=TaskTest.ASCENDING,
                                        index=0)
-        for contestant in self.contestant_set.all():
-            TeamTestScore.objects.create(team=contestant.team, task_test=test, points=contestant.contestanttrack.score)
+        for contestant in self.contestant_set.all().order_by("contestanttrack__score"):
             try:
-                existing_task_summary = TaskSummary.objects.get(team=contestant.team, task=task)
-                existing_task_summary.points += contestant.contestanttrack.score
-                existing_task_summary.save()
-            except ObjectDoesNotExist:
-                TaskSummary.objects.create(team=contestant.team, task=task, points=contestant.contestanttrack.score)
+                TeamTestScore.objects.create(team=contestant.team, task_test=test,
+                                             points=contestant.contestanttrack.score)
+                try:
+                    existing_task_summary = TaskSummary.objects.get(team=contestant.team, task=task)
+                    existing_task_summary.points += contestant.contestanttrack.score
+                    existing_task_summary.save()
+                except ObjectDoesNotExist:
+                    TaskSummary.objects.create(team=contestant.team, task=task, points=contestant.contestanttrack.score)
 
-            try:
-                existing_contest_summary = ContestSummary.objects.get(team=contestant.team, contest=self.contest)
-                existing_contest_summary.points += contestant.contestanttrack.score
-                existing_contest_summary.save()
-            except ObjectDoesNotExist:
-                ContestSummary.objects.create(team=contestant.team, contest=self.contest,
-                                              points=contestant.contestanttrack.score)
+                try:
+                    existing_contest_summary = ContestSummary.objects.get(team=contestant.team, contest=self.contest)
+                    existing_contest_summary.points += contestant.contestanttrack.score
+                    existing_contest_summary.save()
+                except ObjectDoesNotExist:
+                    ContestSummary.objects.create(team=contestant.team, contest=self.contest,
+                                                  points=contestant.contestanttrack.score)
+            except IntegrityError:
+                # Caused if there are multiple contestants for the same team. We ignore all but the first one so we only include the lowest score
+                pass
 
 
 class Scorecard(models.Model):
