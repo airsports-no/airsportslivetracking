@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load guardian_tags %}
 {% block content %}
-{% get_obj_perms request.user for object.navigation_task.contest as "contest_permissions" %}
+    {% get_obj_perms request.user for object.navigation_task.contest as "contest_permissions" %}
     <H1>Gate times for {{ object }}</H1>
     <h2>Total score: {{ object.contestanttrack.score }}</h2>
     <table class="table table-condensed">
@@ -28,7 +28,8 @@
                         {% with gate_log=log|dict_key:object.navigation_task.route.takeoff_gate.name %}
                             {% for item in gate_log %}
                                 {{ item.text }} {% if "change_contest" in contest_permissions %}
-                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}">Remove
+                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}"
+                                   onclick="return confirm('Are you sure you want to remove the penalty?')">Remove
                                     penalty</a>{% endif %}<br/>
                             {% endfor %}
                         {% endwith %}
@@ -47,7 +48,8 @@
                         {% with gate_log=log|dict_key:gate.name %}
                             {% for item in gate_log %}
                                 {{ item.text }} {% if "change_contest" in contest_permissions %}
-                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}">Remove
+                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}"
+                                   onclick="return confirm('Are you sure you want to remove the penalty?')">Remove
                                     penalty</a>{% endif %}<br/>
                             {% endfor %}
                         {% endwith %}
@@ -67,7 +69,8 @@
                         {% with gate_log=log|dict_key:object.navigation_task.route.landing_gate.name %}
                             {% for item in gate_log %}
                                 {{ item.text }} {% if "change_contest" in contest_permissions %}
-                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}">Remove
+                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}"
+                                   onclick="return confirm('Are you sure you want to remove the penalty?')">Remove
                                     penalty</a>{% endif %}<br/>
                             {% endfor %}
                         {% endwith %}
