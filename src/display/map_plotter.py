@@ -291,7 +291,7 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
             outer_track.append(waypoint.gate_line[1])
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
             plot_minute_marks(waypoint, contestant, route.waypoints, index, mark_offset=4,
-                              line_width_nm=contestant.navigation_task.scorecard.get_corridor_width(contestant)*2)
+                              line_width_nm=contestant.navigation_task.scorecard.get_corridor_width(contestant) * 2)
             plot_leg_bearing(waypoint, route.waypoints[index + 1], 2, 10)
         print(inner_track)
     path = np.array(inner_track)
@@ -524,10 +524,14 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     ys, xs = np.array(positions).T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH * 2)
     index = 1
-    for latitude, longitude in positions:
-        plt.text(longitude, latitude, f"Waypoint {index}", verticalalignment="center", color="blue",
+    for latitude, longitude in positions[1:-1]:
+        plt.text(longitude, latitude, f"TP {index}", verticalalignment="center", color="blue",
                  horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=6)
         index += 1
+    plt.text(positions[0][1], positions[0][0], f"SP", verticalalignment="center", color="blue",
+             horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=6)
+    plt.text(positions[-1][1], positions[-1][0], f"FP", verticalalignment="center", color="blue",
+             horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=6)
     figdata = BytesIO()
     plt.savefig(figdata, format='png', dpi=100, bbox_inches="tight", pad_inches=0)
     plt.close()

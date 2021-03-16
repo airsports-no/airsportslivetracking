@@ -977,15 +977,15 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 initial = []
                 for index, position in enumerate(positions):
                     initial.append({
-                        "name": f"Waypoint {index}",
+                        "name": f"TP {index}",
                         "latitude": position[0],
                         "longitude": position[1],
                     })
                 if len(positions) > 0:
                     initial[0]["type"] = STARTINGPOINT
-                    initial[0]["name"] = "Starting point"
+                    initial[0]["name"] = "SP"
                     initial[-1]["type"] = FINISHPOINT
-                    initial[-1]["name"] = "Finish point"
+                    initial[-1]["name"] = "FP"
                 return initial
         if step == "anr_corridor_override":
             scorecard = self.get_cleaned_data_for_step("task_content")["scorecard"]
