@@ -109,7 +109,7 @@ class AnrCorridorCalculator(Calculator):
             return
         outside_time = (position.time - self.crossed_outside_time).total_seconds()
         penalty_time = outside_time - self.scorecard.get_corridor_grace_time(self.contestant)
-        if penalty_time > 0:
+        if penalty_time > 0 or apply_maximum_penalty:
             penalty_time = np.round(penalty_time)
             score = self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time
             if apply_maximum_penalty:

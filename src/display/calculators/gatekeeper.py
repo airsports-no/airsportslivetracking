@@ -3,6 +3,7 @@ import logging
 import threading
 from abc import abstractmethod
 from multiprocessing.queues import Queue
+from queue import Empty
 from typing import List, TYPE_CHECKING, Optional, Callable
 
 import pytz
@@ -103,7 +104,12 @@ class Gatekeeper:
         logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
         while not self.track_terminated:
-            data = self.position_queue.get()
+            try:
+                data = self.position_queue.get(timeout=30)
+            except Empty:
+                # We have not received anything for 60 seconds, check if we should terminate
+                self.check_termination()
+                continue
             if data is None:
                 # Signal the track processor that this is the end, and perform the track calculation
                 self.track_terminated = True

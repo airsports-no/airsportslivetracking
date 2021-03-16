@@ -133,6 +133,7 @@ class GatekeeperRoute(Gatekeeper):
 
     def miss_outstanding_gates(self):
         for item in self.outstanding_gates:
+            logger.info(f"Missing outstanding gate {item}")
             item.missed = True
         self.outstanding_gates = []
 
@@ -270,6 +271,7 @@ class GatekeeperRoute(Gatekeeper):
             self.track_terminated = True
         if not already_terminated and self.track_terminated:
             self.miss_outstanding_gates()
+            self.calculate_gate_score()
         if self.track_terminated:
             self.contestant.contestanttrack.set_calculator_finished()
 

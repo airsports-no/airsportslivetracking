@@ -1,10 +1,12 @@
 import datetime
+import threading
 from multiprocessing import Queue
 from typing import List, Tuple
 from unittest.mock import Mock, patch, call
 
 import dateutil
 from django.test import TransactionTestCase
+from django.test.utils import freeze_time
 
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.calculator_factory import calculator_factory
@@ -94,6 +96,85 @@ class TestANRPerLeg(TransactionTestCase):
                               'FP: 200.0 points passing gate (-778 s)\n(planned: 20:48:09 +0100, actual: 20:35:11 +0100)'],
                              strings)
         self.assertEqual(800, contestant_track.score)
+
+    def test_anr_miss_multiple_finish(self, p):
+        track = load_track_points_traccar_csv(
+            load_traccar_track("display/calculators/tests/anr_miss_multiple_finish.csv"))
+        start_time, speed = datetime.datetime.now(datetime.timezone.utc), 70
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(seconds=30),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    tracker_device_id="Test contestant", contestant_number=1,
+                                                    minutes_to_starting_point=7,
+                                                    air_speed=speed, wind_direction=160,
+                                                    wind_speed=0)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=True)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i,
+                                                                 dateutil.parser.parse(i["time"]))
+            q.put(data)
+        calculator.run()
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        strings = [item["string"] for item in contestant_track.score_log]
+        print(strings)
+        fixed_strings = [item.split("\n")[0] for item in strings]
+        fixed_strings[1] = fixed_strings[1][:10]
+        self.assertListEqual(['Takeoff: 0.0 points missing gate',
+                              'SP: 200.0 ',
+                              'SP: 50.0 points outside corridor (48 seconds)',
+                              'Waypoint 1: 42.0 points outside corridor (14 seconds)',
+                              'Waypoint 1: 0 points entering corridor', 'Waypoint 1: 200.0 points backtracking',
+                              'Waypoint 1: 8.0 points outside corridor (226 seconds)',
+                              'Waypoint 2: 50.0 points outside corridor (0 seconds)',
+                              'Waypoint 3: 50.0 points outside corridor (0 seconds)',
+                              'FP: 200.0 points missing gate',
+                              'FP: 50.0 points outside corridor (0 seconds)',
+                              'Landing: 0.0 points missing gate'],
+                             fixed_strings)
+        self.assertEqual(850, contestant_track.score)
+
+    def test_anr_miss_start_and_finish(self, p):
+        track = load_track_points_traccar_csv(
+            load_traccar_track("display/calculators/tests/anr_miss_start_and_finish.csv"))
+        start_time, speed = datetime.datetime(2021, 3, 16, 14, 5, tzinfo=datetime.timezone.utc), 70
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(seconds=30),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    tracker_device_id="Test contestant", contestant_number=1,
+                                                    minutes_to_starting_point=7, adaptive_start=True,
+                                                    air_speed=speed, wind_direction=160,
+                                                    wind_speed=0)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i,
+                                                                 dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        strings = [item["string"] for item in contestant_track.score_log]
+        print(strings)
+        expected = ['Takeoff: 0.0 points missing gate\n(planned: 15:05:00 +0100, actual: --)',
+                    'SP: 200.0 points missing gate\n(planned: 14:17:00 +0100, actual: --)',
+                    'SP: 3.0 points outside corridor (1 seconds)', 'SP: 0 points entering corridor',
+                    'Waypoint 1: 0 points passing gate (no time check) (-56 s)\n(planned: 14:18:59 +0100, actual: 14:18:03 +0100)',
+                    'Waypoint 2: 0 points passing gate (no time check) (-167 s)\n(planned: 14:22:33 +0100, actual: 14:19:46 +0100)',
+                    'Waypoint 2: 24.0 points outside corridor (8 seconds)', 'Waypoint 2: 0 points entering corridor',
+                    'Waypoint 3: 0 points passing gate (no time check) (-220 s)\n(planned: 14:24:31 +0100, actual: 14:20:51 +0100)',
+                    'Waypoint 3: 21.0 points outside corridor (7 seconds)',
+                    'FP: 200.0 points missing gate\n(planned: 14:28:09 +0100, actual: --)']
+        self.assertListEqual(expected, strings)
+        self.assertEqual(448, contestant_track.score)
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
@@ -284,7 +365,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position2], gate, gate)
         self.calculator.calculate_enroute([position3], gate, gate)
         self.update_score.assert_has_calls([call(gate, 48.0, 'outside corridor (16 seconds)', 60.5, 11, 'anomaly',
-                                             f'outside_corridor_{gate.name}', maximum_score=-1)])
+                                                 f'outside_corridor_{gate.name}', maximum_score=-1)])
 
     def test_outside_20_seconds_until_finish(self):
         position = Mock()
