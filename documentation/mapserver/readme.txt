@@ -1,10 +1,6 @@
 install qgis
-Inside installation/bin folder you will find all the applications listed below, except gdal2tiles. This is located in \apps\Python37\Scripts
+install OSGeo4W64
 
-docker pull osgeo/gdal:alpine-small-latest
-ocker run --rm -it --entrypoint sh -v /mnt/c/Users/frank/Documents/live_tracking_map/mapserver:/maps osgeo/gdal:alpine-small-latest
-
-https://github.com/geo-data/mapserver-docker
 #Download mrsid from kartverket
 
 # Translate to geotiff
@@ -12,7 +8,8 @@ gdal_translate -co COMPRESS=JPEG -co TILED=YES /maps/33_N250.sid 33_N250.tif
 
 # Build vrt
 gdalbuildvrt mosaic.vrt 33_N250.tif
-gdalbuildvrt mosaic_bergen.vrt Bergen.tif
+
+# Prefer to use the stuff inside osgeo4w64android screen recording all
 'C:\Program Files\QGIS 3.16\bin\gdalbuildvrt.exe' mosaic_bergen.vrt .\Bergen_modifisert.tif
 c:\OSGeo4W64\apps\Python37\python.exe c:\OSGeo4W64\apps\Python37\Scripts\gdal2tiles.py mosaic_bergen.vrt bergen
 

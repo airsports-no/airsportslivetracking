@@ -99,6 +99,10 @@ class Route(models.Model):
                 raise ValidationError(
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 0.5 NM"
                 )
+            if waypoint.distance_next < 200:
+                raise ValidationError(
+                    f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 200m if not this or the next gate our secret"
+                    )
 
     def __str__(self):
         return self.name
