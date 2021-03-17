@@ -356,7 +356,7 @@ def plot_minute_marks(waypoint: Waypoint, contestant: Contestant, track, index, 
         gate_start_time += datetime.timedelta(minutes=1)
     first_segments = waypoint.get_centre_track_segments()
     last_segments = track[index + 1].get_centre_track_segments()
-    track_points = first_segments[len(first_segments) // 2:] + last_segments[:max(len(last_segments) // 2, 1)]
+    track_points = first_segments[len(first_segments) // 2:] + last_segments[:(len(last_segments) // 2) + 1]
     # print(f"track_points: {track_points}")
     ys, xs = np.array(track_points).T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=LINEWIDTH)

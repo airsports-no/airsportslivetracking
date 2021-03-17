@@ -647,8 +647,8 @@ class ContestantForm(forms.ModelForm):
         self.fields["team"].queryset = self.navigation_task.contest.contest_teams.all()
         self.fields["contestant_number"].initial = max([item.contestant_number for item in
                                                         self.navigation_task.contestant_set.all()]) + 1 if self.navigation_task.contestant_set.all().count() > 0 else 1
-        self.fields["wind_speed"] = self.navigation_task.wind_speed
-        self.fields["wind_direction"] = self.navigation_task.wind_direction
+        self.fields["wind_speed"].initial = self.navigation_task.wind_speed
+        self.fields["wind_direction"].initial = self.navigation_task.wind_direction
         # self.fields["tracking_device_id"].required = False
 
     class Meta:
