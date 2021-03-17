@@ -13,7 +13,7 @@ from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 from timezone_field import TimeZoneFormField
 
-from display.map_plotter import A4, A3, N250_MAP, OSM_MAP
+from display.map_plotter import A4, A3, N250_MAP, OSM_MAP, M517_BERGEN_MAP
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
     ContestTeam, TrackScoreOverride, GateScoreOverride
 from display.poker_cards import PLAYING_CARDS
@@ -68,7 +68,8 @@ ORIENTATIONS = (
 
 MAP_SOURCES = (
     (OSM_MAP, "OSM"),
-    (N250_MAP, "Norway 1:250,000")
+    (N250_MAP, "Norway 1:250,000"),
+    (M517_BERGEN_MAP, "Bergen M517")
 )
 
 
@@ -156,7 +157,7 @@ class ANRCorridorScoreOverrideForm(forms.Form):
 
     def build_score_override(self, navigation_task: NavigationTask):
         navigation_task.track_score_override = TrackScoreOverride.objects.create(corridor_width=self.cleaned_data[
-                                                                                     "corridor_width"],
+            "corridor_width"],
                                                                                  corridor_grace_time=self.cleaned_data[
                                                                                      "corridor_grace_time"],
                                                                                  corridor_outside_penalty=

@@ -1,4 +1,5 @@
 install qgis
+Inside installation/bin folder you will find all the applications listed below, except gdal2tiles. This is located in \apps\Python37\Scripts
 
 docker pull osgeo/gdal:alpine-small-latest
 ocker run --rm -it --entrypoint sh -v /mnt/c/Users/frank/Documents/live_tracking_map/mapserver:/maps osgeo/gdal:alpine-small-latest
@@ -12,6 +13,8 @@ gdal_translate -co COMPRESS=JPEG -co TILED=YES /maps/33_N250.sid 33_N250.tif
 # Build vrt
 gdalbuildvrt mosaic.vrt 33_N250.tif
 gdalbuildvrt mosaic_bergen.vrt Bergen.tif
+'C:\Program Files\QGIS 3.16\bin\gdalbuildvrt.exe' mosaic_bergen.vrt .\Bergen_modifisert.tif
+c:\OSGeo4W64\apps\Python37\python.exe c:\OSGeo4W64\apps\Python37\Scripts\gdal2tiles.py mosaic_bergen.vrt bergen
 
 # Optional retile, but I'm not sure if this is very useful.
 # gdal_retile.py -v -r bilinear -levels 4 -ps 2048 2048 -co "TILED=YES" -co "COMPRESS=JPEG" -targetDir /maps mosaic.vrt

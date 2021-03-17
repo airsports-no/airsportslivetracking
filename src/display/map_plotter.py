@@ -134,12 +134,22 @@ A3 = "A3"
 
 OSM_MAP = 0
 N250_MAP = 1
+M517_BERGEN_MAP = 2
+
+TILE_MAP = {
+    N250_MAP: "Norway_N250",
+    M517_BERGEN_MAP: "m517_bergen"
+}
 
 
 class LocalImages(GoogleWTS):
+    def __init__(self, folder: str):
+        super().__init__()
+        self.folder = folder
+
     def _image_url(self, tile):
         x, y, z = tile
-        return "file:///maptiles/Norway_N250/{}/{}/{}.png".format(z, x, y)
+        return "file:///maptiles/{}/{}/{}/{}.png".format(self.folder, z, x, y)
 
     def tileextent(self, x_y_z):
         """Return extent tuple ``(x0,x1,y0,y1)`` in Mercator coordinates."""
@@ -428,7 +438,9 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     if map_source == OSM_MAP:
         imagery = OSM()
     elif map_source == N250_MAP:
-        imagery = LocalImages()
+        imagery = LocalImages(TILE_MAP[N250_MAP])
+    elif map_source == M517_BERGEN_MAP:
+        imagery = LocalImages(TILE_MAP[M517_BERGEN_MAP])
     else:
         return
     if map_size == A3:
