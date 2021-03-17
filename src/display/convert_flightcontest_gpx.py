@@ -413,7 +413,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
             turn_degrees = bearing_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
             waypoint.left_corridor_line, waypoint.right_corridor_line = create_rounded_corridor_corner(
                 waypoint.gate_line, waypoint.width, turn_degrees)
-
+    correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
     instance.rounded_corners = rounded_corners
     instance.save()
@@ -447,6 +447,36 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
                                                                 next_gate.bearing_next)
             next_gate.is_steep_turn = is_procedure_turn(current_gate.bearing_next,
                                                         next_gate.bearing_next)
+
+
+def correct_distance_and_bearing_for_rounded_corridor(waypoints: List[Waypoint]):
+    """
+    Correct distance to next and the bearing to next to take into account the additional distance caused by rounded
+    corners
+    """
+    centre_tracks = []
+    for waypoint in waypoints:
+        centre_tracks.append(waypoint.get_centre_track_segments())
+    for index in range(0, len(waypoints) - 1):
+        current_gate = centre_tracks[index]
+        next_gate = centre_tracks[index + 1]
+        start_index = len(current_gate) // 2
+        finish_index = len(next_gate) // 2
+        distance = 0
+        for track_index in range(start_index, len(current_gate) - 1):
+            distance += calculate_distance_lat_lon(current_gate[track_index], current_gate[track_index + 1])
+        distance += calculate_distance_lat_lon(current_gate[-1], next_gate[0])
+        for track_index in range(0, finish_index):
+            distance += calculate_distance_lat_lon(next_gate[track_index], next_gate[track_index + 1])
+
+        waypoints[index].distance_next = distance
+        waypoints[index].bearing_next = calculate_bearing(current_gate[-1],
+                                                      next_gate[0])
+    for index in range(1, len(waypoints)):
+        current_gate = waypoints[index]
+        previous_gate = waypoints[index - 1]
+        current_gate.distance_previous = previous_gate.distance_next
+        current_gate.bearing_from_previous = previous_gate.bearing_next
 
 
 def get_distance_to_other_gates(gate: Waypoint, waypoints: List[Waypoint]) -> Dict:

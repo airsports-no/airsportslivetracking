@@ -105,6 +105,11 @@ def calculate_fractional_distance_point_lat_lon(start: Tuple[float, float], fini
     return (finalLatitude, finalLongitude)
 
 
+def get_centre_of_line_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> Tuple[
+    float, float]:
+    return calculate_fractional_distance_point_lat_lon(start, finish, 0.5)
+
+
 def normalise_latitude(latitude: np.ndarray) -> np.ndarray:
     latitude = latitude * np.pi / 180
     return np.arctan(np.sin(latitude) / np.abs(np.cos(latitude))) * 180 / np.pi
@@ -357,7 +362,7 @@ def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tu
     unit_circle = perimeter - centre
     bisection_length = len_v(unit_circle)
 
-    bisection_corridor_difference = (bisection_length-corridor_width_metres)/2
+    bisection_corridor_difference = (bisection_length - corridor_width_metres) / 2
 
     unit_circle = norm_v(unit_circle)
     turn_radius = bisection_length / 2
@@ -371,7 +376,8 @@ def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tu
     inner_edge = []
     for angle in np.arange(0, turn_degrees, turn_degrees / 10):
         rotated = norm_v(rotate_vector_angle(starting_point[0], starting_point[1], angle))
-        outer_edge.append((rotated * (turn_radius + bisection_corridor_difference + corridor_width_metres)) + new_centre)
+        outer_edge.append(
+            (rotated * (turn_radius + bisection_corridor_difference + corridor_width_metres)) + new_centre)
         inner_edge.append((rotated * (turn_radius + bisection_corridor_difference)) + new_centre)
     if left_turn:
         left_edge = np.array(inner_edge)

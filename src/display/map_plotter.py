@@ -83,6 +83,52 @@ def create_minute_lines(start: Tuple[float, float], finish: Tuple[float, float],
     return lines
 
 
+def create_minute_lines_track(track: List[Tuple[float, float]], air_speed: float, wind_speed: float,
+                              wind_direction: float, gate_start_time: datetime.datetime,
+                              route_start_time: datetime.datetime,
+                              resolution_seconds: int = 60,
+                              line_width_nm=0.5) -> List[
+    Tuple[Tuple[Tuple[float, float], Tuple[float, float]], Tuple[float, float], datetime.datetime]]:
+    """
+    Generates a track that goes through the centre of the route (or corridor if it exists)
+
+    :param track: List of positions that represents the path between two gates
+    :param air_speed:
+    :param wind_speed:
+    :param wind_direction:
+    :param gate_start_time: The time of the contestant crosses out from the gate (so remember to factor in procedure turns in that time)
+    :param route_start_time:
+    :param resolution_seconds:
+    :param line_width_nm:
+    :return:
+    """
+    gate_start_elapsed = (gate_start_time - route_start_time).total_seconds()
+    time_to_next_line = resolution_seconds - gate_start_elapsed % resolution_seconds
+    if time_to_next_line == 0:
+        time_to_next_line += resolution_seconds
+    accumulated_time = 0
+    lines = []
+    for index in range(0, len(track) - 1):
+        start = track[index]
+        finish = track[index + 1]
+        bearing = calculate_bearing(start, finish)
+        ground_speed = calculate_ground_speed_combined(bearing, air_speed, wind_speed,
+                                                       wind_direction)
+        length = calculate_distance_lat_lon(start, finish) / 1852
+        leg_time = 3600 * length / ground_speed  # seconds
+        while time_to_next_line < leg_time + accumulated_time:
+            internal_leg_time = time_to_next_line - accumulated_time
+            line_position = calculate_fractional_distance_point_lat_lon(start, finish, internal_leg_time / leg_time)
+            lines.append((create_perpendicular_line_at_end_lonlat(*reversed(start), *reversed(line_position),
+                                                                  line_width_nm * 1852), line_position,
+                          gate_start_time + datetime.timedelta(seconds=time_to_next_line)))
+            time_to_next_line += resolution_seconds
+        accumulated_time += leg_time
+    for line in lines:
+        print(line)
+    return lines
+
+
 A4 = "A4"
 A3 = "A3"
 
@@ -291,9 +337,9 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
             outer_track.append(waypoint.gate_line[1])
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
             plot_minute_marks(waypoint, contestant, route.waypoints, index, mark_offset=4,
-                              line_width_nm=contestant.navigation_task.scorecard.get_corridor_width(contestant) * 2)
+                              line_width_nm=contestant.navigation_task.scorecard.get_corridor_width(contestant))
             plot_leg_bearing(waypoint, route.waypoints[index + 1], 2, 10)
-        print(inner_track)
+        # print(inner_track)
     path = np.array(inner_track)
     ys, xs = path.T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
@@ -308,12 +354,17 @@ def plot_minute_marks(waypoint: Waypoint, contestant: Contestant, track, index, 
     gate_start_time = contestant.gate_times.get(waypoint.name)
     if waypoint.is_procedure_turn:
         gate_start_time += datetime.timedelta(minutes=1)
-    minute_lines = create_minute_lines((waypoint.latitude, waypoint.longitude),
-                                       (track[index + 1].latitude, track[index + 1].longitude),
-                                       contestant.air_speed, contestant.wind_speed,
-                                       contestant.wind_direction,
-                                       gate_start_time,
-                                       contestant.gate_times.get(track[0].name), line_width_nm=line_width_nm)
+    first_segments = waypoint.get_centre_track_segments()
+    last_segments = track[index + 1].get_centre_track_segments()
+    track_points = first_segments[len(first_segments) // 2:] + last_segments[:max(len(last_segments) // 2, 1)]
+    # print(f"track_points: {track_points}")
+    ys, xs = np.array(track_points).T
+    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=LINEWIDTH)
+    minute_lines = create_minute_lines_track(track_points,
+                                             contestant.air_speed, contestant.wind_speed,
+                                             contestant.wind_direction,
+                                             gate_start_time,
+                                             contestant.gate_times.get(track[0].name), line_width_nm=line_width_nm)
     for mark_line, line_position, timestamp in minute_lines:
         xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat
         plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
@@ -437,29 +488,29 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         y_centre = y0 + (y1 - y0) / 2
         horizontal_metres = (x1 - x0) * longitude_scale
         vertical_metres = (y1 - y0) * latitude_scale
-        print(f'horizontal_metres: {horizontal_metres}')
-        print(f'vertical_metres: {vertical_metres}')
+        # print(f'horizontal_metres: {horizontal_metres}')
+        # print(f'vertical_metres: {vertical_metres}')
         vertical_scale = vertical_metres / figure_height  # m per cm
         horizontal_scale = horizontal_metres / figure_width  # m per cm
-        print(f'horizontal_scale: {horizontal_scale}')
-        print(f'vertical_scale: {vertical_scale}')
+        # print(f'horizontal_scale: {horizontal_scale}')
+        # print(f'vertical_scale: {vertical_scale}')
 
         if vertical_scale < horizontal_scale:
             # Increase vertical scale to match
             vertical_metres = horizontal_scale * figure_height
-            print(f'new_vertical_metres: {vertical_metres}')
+            # print(f'new_vertical_metres: {vertical_metres}')
 
             vertical_offset = vertical_metres / (2 * latitude_scale)
-            print(f'vertical_offset: {vertical_offset}')
+            # print(f'vertical_offset: {vertical_offset}')
 
             y0 = y_centre - vertical_offset
             y1 = y_centre + vertical_offset
             scale = horizontal_metres / (10 * figure_width)
         else:
             horizontal_metres = vertical_scale * figure_width
-            print(f'new_horizontal_metres: {horizontal_metres}')
+            # print(f'new_horizontal_metres: {horizontal_metres}')
             horizontal_offset = horizontal_metres / (2 * longitude_scale)
-            print(f'horizontal_offset: {horizontal_offset}')
+            # print(f'horizontal_offset: {horizontal_offset}')
 
             x0 = x_centre - horizontal_offset
             x1 = x_centre + horizontal_offset
@@ -471,8 +522,8 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     else:
         centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
         centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
-        print("Figure width: {}".format(figure_width))
-        print("Figure height: {}".format(figure_height))
+        # print("Figure width: {}".format(figure_width))
+        # print("Figure height: {}".format(figure_height))
         # bbox = ax.get_tightbbox(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted())
         # bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         # width = inch2cm(bbox.width)
@@ -481,8 +532,8 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         # print("Axis height: {}".format(height))
         width_metres = (scale * 10) * figure_width
         height_metres = (scale * 10) * figure_height
-        print("Width: {} km".format(width_metres / 1000))
-        print("Height {} km".format(height_metres / 1000))
+        # print("Width: {} km".format(width_metres / 1000))
+        # print("Height {} km".format(height_metres / 1000))
         # To scale
         extent = calculate_extent(width_metres, height_metres, (centre_latitude, centre_longitude))
     print(extent)

@@ -1,4 +1,6 @@
-from display.coordinate_utilities import extend_line, get_procedure_turn_track
+from typing import List, Tuple
+
+from display.coordinate_utilities import extend_line, get_procedure_turn_track, get_centre_of_line_lat_lon
 
 
 class Waypoint:
@@ -72,3 +74,21 @@ class Waypoint:
 
     def __str__(self):
         return "{}: {}, {}, {}".format(self.name, self.latitude, self.longitude, self.elevation)
+
+
+    def get_centre_track_segments(self)->List[Tuple[float, float]]:
+        """
+        Generate track segments for each waypoint where the track goes through the centre of the corridor (if it exists)
+    
+        :param waypoint1:
+        :param waypoint2:
+        :return: Each waypoint is represented in a returned list of track segments
+        """
+        if self.right_corridor_line is None or len(self.right_corridor_line) == 0:
+            return [(self.latitude, self.longitude)]
+        else:
+            track = []
+            for index in range(len(self.right_corridor_line)):
+                track.append(get_centre_of_line_lat_lon(self.left_corridor_line[index], self.right_corridor_line[index]))
+            return track
+    
