@@ -17,7 +17,7 @@ from shapely.geometry import Polygon
 from display.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing, \
     calculate_fractional_distance_point_lat_lon, get_heading_difference, project_position_lat_lon, \
     create_perpendicular_line_at_end_lonlat
-from display.wind_utilities import calculate_ground_speed_combined
+from display.wind_utilities import calculate_ground_speed_combined, calculate_wind_correction_angle
 
 if __name__ == "__main__":
     sys.path.append("../")
@@ -258,8 +258,10 @@ def calculate_extent(width: float, height: float, centre: Tuple[float, float]):
     return [left_edge, right_edge, bottom_edge, top_edge]
 
 
-def plot_leg_bearing(current_waypoint, next_waypoint, character_offset: int = 4, fontsize: int = 14):
+def plot_leg_bearing(current_waypoint, next_waypoint, air_speed, wind_speed, wind_direction, character_offset: int = 4,
+                     fontsize: int = 14):
     bearing = current_waypoint.bearing_next
+    wind_correction_angle = calculate_wind_correction_angle(bearing, air_speed, wind_speed, wind_direction)
     bearing_difference_next = get_heading_difference(next_waypoint.bearing_from_previous,
                                                      next_waypoint.bearing_next)
     bearing_difference_previous = get_heading_difference(current_waypoint.bearing_from_previous,
@@ -268,7 +270,7 @@ def plot_leg_bearing(current_waypoint, next_waypoint, character_offset: int = 4,
                                           (next_waypoint.latitude,
                                            next_waypoint.longitude),
                                           True, 3)
-    course_text = "{:03.0f}".format(current_waypoint.bearing_next)
+    course_text = "{:03.0f}".format(current_waypoint.bearing_next - wind_correction_angle)
     # Try to keep it out of the way of the next leg
     if bearing_difference_next > 60 or bearing_difference_previous > 60:  # leftSide
         label = "" + course_text + " " * len(course_text) + " " * character_offset
@@ -338,7 +340,8 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
             plot_minute_marks(waypoint, contestant, route.waypoints, index, mark_offset=4,
                               line_width_nm=contestant.navigation_task.scorecard.get_corridor_width(contestant))
-            plot_leg_bearing(waypoint, route.waypoints[index + 1], 2, 10)
+            plot_leg_bearing(waypoint, route.waypoints[index + 1], contestant.air_speed, contestant.wind_speed,
+                             contestant.wind_direction, 2, 10)
         # print(inner_track)
     path = np.array(inner_track)
     ys, xs = path.T
@@ -402,7 +405,8 @@ def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoin
                 if contestant is not None:
                     if index < len(track) - 1:
                         if annotations:
-                            plot_leg_bearing(waypoint, track[index + 1])
+                            plot_leg_bearing(waypoint, track[index + 1], contestant.air_speed, contestant.wind_speed,
+                                             contestant.wind_direction)
                             plot_minute_marks(waypoint, contestant, track, index)
 
             if waypoint.is_procedure_turn:
