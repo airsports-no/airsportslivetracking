@@ -363,12 +363,12 @@ class NavigationTask(models.Model):
     wind_speed = models.FloatField(default=0,
                                    help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.",
                                    validators=[
-                                       MaxValueValidator(360), MinValueValidator(0)
+                                       MaxValueValidator(40), MinValueValidator(0)
                                    ])
     wind_direction = models.FloatField(default=0,
                                        help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.",
                                        validators=[
-                                           MaxValueValidator(40), MinValueValidator(0)
+                                           MaxValueValidator(360), MinValueValidator(0)
                                        ])
     minutes_to_starting_point = models.FloatField(default=5,
                                                   help_text="The number of minutes from the take-off time until the starting point")
