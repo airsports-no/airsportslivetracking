@@ -823,7 +823,7 @@ class Contestant(models.Model):
             for contestant in overlapping_trackers:
                 smallest_end = min(contestant.finished_by_time, self.finished_by_time)
                 largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
-                intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
+                intervals.append((contestant.navigation_task, largest_start.isoformat(), smallest_end.isoformat()))
             raise ValidationError(
                 "The tracker '{}' is in use by other contestants for the intervals: {}".format(self.tracker_device_id,
                                                                                                intervals))
@@ -837,7 +837,7 @@ class Contestant(models.Model):
             for contestant in overlapping1:
                 smallest_end = min(contestant.finished_by_time, self.finished_by_time)
                 largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
-                intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
+                intervals.append((contestant.navigation_task, largest_start.isoformat(), smallest_end.isoformat()))
             raise ValidationError(
                 f"The pilot '{self.team.crew.member1}' is competing as a different contestant for the intervals: {intervals}")
 
@@ -851,7 +851,7 @@ class Contestant(models.Model):
                 for contestant in overlapping2:
                     smallest_end = min(contestant.finished_by_time, self.finished_by_time)
                     largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
-                    intervals.append((largest_start.isoformat(), smallest_end.isoformat()))
+                    intervals.append((contestant.navigation_task, largest_start.isoformat(), smallest_end.isoformat()))
                 raise ValidationError(
                     f"The copilot '{self.team.crew.member2}' is competing as a different contestant for the intervals: {intervals}")
 
