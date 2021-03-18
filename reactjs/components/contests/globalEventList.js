@@ -137,7 +137,7 @@ class ConnectedGlobalEventList extends Component {
                               style={{float: "right"}}>{loginButton}{settingsButton}{logoutButton}</span>
                     </div>
                     <div className={"eventListScrolling"}>
-                        <div id={"eventMenu"} className={"collapse show"}>
+                        <div id={"eventMenu"} className={"collapse"}>
                             <div className={"list-group"} id={"ongoing"}>
                                 <TimePeriodEventList contests={ongoingEvents}/>
                             </div>
