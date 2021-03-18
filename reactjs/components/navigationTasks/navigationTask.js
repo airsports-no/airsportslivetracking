@@ -46,11 +46,17 @@ class ConnectedNavigationTask extends Component {
         this.handleMapTurningPointClick = this.handleMapTurningPointClick.bind(this)
         this.rendered = false
         this.client = null;
+        this.connectInterval = null;
+        this.weTimeOut = 1000
     }
+
+
+    check() {
+        if (!this.client || this.client.readyState === WebSocket.CLOSED) this.initiateSession(); //check if websocket instance is closed, if so call `connect` function.
+    };
 
     initiateSession() {
         let getUrl = window.location;
-        let baseUrl = getUrl.protocol + "//" + getUrl.host + "/" + getUrl.pathname.split('/')[1]
         let protocol = "wss"
         if (getUrl.host.includes("localhost")) {
             protocol = "ws"
@@ -58,12 +64,32 @@ class ConnectedNavigationTask extends Component {
         this.client = new W3CWebSocket(protocol + "://" + getUrl.host + "/ws/tracks/" + this.props.navigationTaskId + "/")
         this.client.onopen = () => {
             console.log("Client connected")
+            clearTimeout(this.connectInterval)
         };
         this.client.onmessage = (message) => {
             let data = JSON.parse(message.data);
             this.props.dispatchContestantData(data)
         };
+        this.client.onclose = (e) => {
+            console.log(
+                `Socket is closed. Reconnect will be attempted in ${Math.min(
+                    10000 / 1000,
+                    (this.timeout + this.timeout) / 1000
+                )} second.`,
+                e.reason
+            );
 
+            this.timeout = this.timeout + this.timeout; //increment retry interval
+            this.connectInterval = setTimeout(() => this.check(), Math.min(10000, this.wsTimeOut)); //call check function after timeout
+        };
+        this.client.onerror = err => {
+            console.error(
+                "Socket encountered error: ",
+                err.message,
+                "Closing socket"
+            );
+            this.client.close();
+        };
     }
 
     handleMapTurningPointClick(turningPoint) {
