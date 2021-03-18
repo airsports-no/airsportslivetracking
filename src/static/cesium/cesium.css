@@ -251,6 +251,9 @@ tr.hidden {
     .lowerThirdsSingle {
         transform: scale(0.4);
     }
+    .globalMapBackdrop {
+        transform: scale(0.85);
+    }
 }
 
 
