@@ -253,7 +253,7 @@ class ConnectedGlobalMapMap
             accessToken: token
         }).addTo(this.map);
         // this.map.setView([0, 0], 2)
-        this.map.locate({setView: true, maxZoom: 5})
+        this.map.locate({setView: true, maxZoom: 7})
         this.setState({map: this.map})
     }
 
