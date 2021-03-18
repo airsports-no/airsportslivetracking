@@ -103,7 +103,7 @@ class ConnectedContestantRankTable extends Component {
                 score: contestant.track.score,
                 projectedScore: calculateProjectedScore(contestant.track.score, progress),
                 currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
-                finished: contestant.track.current_state === "Finished",
+                finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
                 initialLoading: contestant.initialLoading,
                 lastGate: contestant.track.last_gate,
                 lastGateTimeOffset: moment.duration(contestant.track.last_gate_time_offset, "seconds").format([
