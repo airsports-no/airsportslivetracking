@@ -1,8 +1,8 @@
 import datetime
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
-from rest_framework.exceptions import ValidationError
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import NavigationTask, Contest, Route, Contestant, Aeroplane, Crew, Team, Person
@@ -115,3 +115,50 @@ class TestContestantValidation(TransactionTestCase):
                                                                            tzinfo=datetime.timezone.utc),
                                       finished_by_time=datetime.datetime(2020, 1, 2, 16,
                                                                          tzinfo=datetime.timezone.utc))
+
+    def test_finish_before_takeoff(self, patch):
+        with self.assertRaisesMessage(ValidationError,
+                                      "Takeoff time '2020-01-02 13:00:00+00:00' is after finished by time '2020-01-02 13:30:00+00:00' for contestant number 2"):
+            Contestant.objects.create(team=self.team,
+                                      navigation_task=self.navigation_task,
+                                      takeoff_time=datetime.datetime(2020, 1, 2, 13, 30,
+                                                                     tzinfo=datetime.timezone.utc),
+                                      contestant_number=2, tracker_device_id=TRACKER_NAME,
+                                      tracker_start_time=datetime.datetime(2020, 1, 2, 13,
+                                                                           tzinfo=datetime.timezone.utc),
+                                      finished_by_time=datetime.datetime(2020, 1, 2, 13, 15,
+                                                                         tzinfo=datetime.timezone.utc))
+
+    def test_calculator_started_nothing_modified(self, patch):
+        contestant = Contestant.objects.create(team=self.team,
+                                               navigation_task=self.navigation_task,
+                                               takeoff_time=datetime.datetime(2020, 1, 2, 13, 30,
+                                                                              tzinfo=datetime.timezone.utc),
+                                               contestant_number=2, tracker_device_id=TRACKER_NAME,
+                                               tracker_start_time=datetime.datetime(2020, 1, 2, 13,
+                                                                                    tzinfo=datetime.timezone.utc),
+                                               finished_by_time=datetime.datetime(2020, 1, 2, 16,
+                                                                                  tzinfo=datetime.timezone.utc))
+        contestant.calculator_started = True
+        contestant.save()
+        # Second save should detect that nothing vital has changed and not throw an exception
+        contestant.takeoff_time = contestant.takeoff_time.replace(hour=contestant.takeoff_time.hour)
+        contestant.save()
+
+    def test_calculator_started_modified_takeoff_time(self, patch):
+        with self.assertRaisesMessage(ValidationError,"Calculator has started for 2 - Mister Pilot in registration, it is not possible to change takeoff time"):
+            contestant = Contestant.objects.create(team=self.team,
+                                                   navigation_task=self.navigation_task,
+                                                   takeoff_time=datetime.datetime(2020, 1, 2, 13, 30,
+                                                                                  tzinfo=datetime.timezone.utc),
+                                                   contestant_number=2, tracker_device_id=TRACKER_NAME,
+                                                   tracker_start_time=datetime.datetime(2020, 1, 2, 13,
+                                                                                        tzinfo=datetime.timezone.utc),
+                                                   finished_by_time=datetime.datetime(2020, 1, 2, 16,
+                                                                                      tzinfo=datetime.timezone.utc))
+            contestant.calculator_started = True
+            contestant.save()
+            # Second save should detect that nothing vital has changed and not throw an exception
+            contestant.takeoff_time = contestant.takeoff_time.replace(hour=contestant.takeoff_time.hour + 1)
+            contestant.save()
+

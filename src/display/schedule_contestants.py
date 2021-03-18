@@ -121,9 +121,9 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
                 maximum_contestant = max([item.contestant_number for item in navigation_task.contestant_set.all()])
             else:
                 maximum_contestant = 0
-            contestant = Contestant.objects.create(takeoff_time=team_definition.start_time,
-                                                   finished_by_time=team_definition.start_time + datetime.timedelta(
-                                                       minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes),
+            contestant = Contestant.objects.create(takeoff_time=team_definition.start_time.replace(microsecond=0),
+                                                   finished_by_time=(team_definition.start_time + datetime.timedelta(
+                                                       minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes)).replace(microsecond=0),
                                                    air_speed=contest_team.air_speed,
                                                    wind_speed=navigation_task.wind_speed,
                                                    wind_direction=navigation_task.wind_direction,
@@ -132,7 +132,7 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
                                                    navigation_task=navigation_task,
                                                    tracking_service=contest_team.tracking_service,
                                                    tracker_device_id=contest_team.tracker_device_id,
-                                                   tracker_start_time=team_definition.start_time - datetime.timedelta(
-                                                       minutes=tracker_leadtime_minutes),
+                                                   tracker_start_time=(team_definition.start_time - datetime.timedelta(
+                                                       minutes=tracker_leadtime_minutes)).replace(microsecond=0),
                                                    contestant_number=maximum_contestant + 1)
     return True

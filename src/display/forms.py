@@ -630,17 +630,6 @@ class ClubSearchForm(forms.ModelForm):
 
 
 class ContestantForm(forms.ModelForm):
-    # pilot_first_name = forms.CharField()
-    # pilot_last_name = forms.CharField()
-    # pilot_phone = PhoneNumberField(required=False)
-    # pilot_email = forms.EmailField(required=False)
-    #
-    # copilot_first_name = forms.CharField(required=False)
-    # copilot_last_name = forms.CharField(required=False)
-    # copilot_phone = PhoneNumberField(required=False)
-    # copilot_email = forms.EmailField(required=False)
-    #
-    # aircraft_registration = forms.CharField()
     def __init__(self, *args, **kwargs):
         self.navigation_task = kwargs.pop("navigation_task")  # type: NavigationTask
 

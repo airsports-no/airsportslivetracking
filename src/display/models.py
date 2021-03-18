@@ -10,7 +10,7 @@ import eval7 as eval7
 from django import core
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 from django.db import models, IntegrityError
@@ -26,7 +26,6 @@ from django.db.models.signals import post_save, pre_save, post_delete, pre_delet
 from django.dispatch import receiver
 from django_countries.fields import CountryField
 from phonenumber_field.modelfields import PhoneNumberField
-from rest_framework.exceptions import ValidationError
 from solo.models import SingletonModel
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
@@ -99,9 +98,9 @@ class Route(models.Model):
                 raise ValidationError(
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 0.5 NM"
                 )
-            if waypoint.distance_next < 200:
+            if waypoint.distance_next < 20:
                 raise ValidationError(
-                    f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 200m if not this or the next gate our secret"
+                    f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} ({waypoint.distance_next}m) should be greater than 200m if not this or the next gate are secret"
                     )
 
     def __str__(self):
@@ -863,13 +862,16 @@ class Contestant(models.Model):
         if self.tracker_start_time > self.takeoff_time:
             raise ValidationError("Tracker start time '{}' is after takeoff time '{}' for contestant number {}".format(
                 self.tracker_start_time, self.takeoff_time, self.contestant_number))
+        if self.takeoff_time > self.finished_by_time:
+            raise ValidationError("Takeoff time '{}' is after finished by time '{}' for contestant number {}".format(
+                self.tracker_start_time, self.takeoff_time, self.contestant_number))
         # Validate no timing changes after calculator start
         if self.pk is not None:
             original = Contestant.objects.get(pk=self.pk)
             if original.calculator_started:
                 if original.takeoff_time != self.takeoff_time:
                     raise ValidationError(
-                        f"Calculator has started for {self}, it is not possible to change takeoff time")
+                        f"Calculator has started for {self}, it is not possible to change takeoff time from {original.takeoff_time} to {self.takeoff_time}")
                 if original.tracker_start_time != self.tracker_start_time:
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change tracker start time")

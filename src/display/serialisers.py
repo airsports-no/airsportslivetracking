@@ -357,7 +357,7 @@ class GpxTrackSerialiser(serializers.Serializer):
             try:
                 base64.decodebytes(bytes(value, 'utf-8'))
             except Exception as e:
-                raise serializers.ValidationError("track_file must be in a valid base64 string format.")
+                raise ValidationError("track_file must be in a valid base64 string format.")
         return value
 
 
@@ -564,7 +564,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             try:
                 base64.decodebytes(bytes(value, 'utf-8'))
             except Exception as e:
-                raise serializers.ValidationError("route_file must be in a valid base64 string format.")
+                raise ValidationError("route_file must be in a valid base64 string format.")
         return value
 
     def create(self, validated_data):

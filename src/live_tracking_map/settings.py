@@ -24,7 +24,6 @@ ADMINS = [("kolaf", "frankose@gmail.com")]
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'a()!xe(&n4@i(hrd=w*xs&v4f^t&7rw4z4(uz&8&2tuy9216j9'
 
-
 SERVER_ROOT = "https://airsports.no"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -140,7 +139,8 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
         'drf_firebase_auth.authentication.FirebaseAuthentication'
-    ]
+    ],
+    'EXCEPTION_HANDLER': 'live_tracking_map.django_exception_handler.exception_handler',
 }
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
