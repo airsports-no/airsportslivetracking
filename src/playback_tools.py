@@ -22,7 +22,8 @@ server = 'traccar:5055'
 # server = 'localhost:5055'
 
 
-def build_traccar_track(filename, today: datetime.datetime, start_index: int = 0):
+def build_traccar_track(filename, today: datetime.datetime, start_index: int = 0,
+                        time_offset: datetime.timedelta = datetime.timedelta(minutes=0)):
     with open(filename, "r") as i:
         gpx = gpxpy.parse(i)
     positions = []
@@ -31,6 +32,7 @@ def build_traccar_track(filename, today: datetime.datetime, start_index: int = 0
             for point in segment.points[start_index:]:
                 now = today.replace(hour=point.time.hour, minute=point.time.minute, second=point.time.second,
                                     microsecond=point.time.microsecond)
+                now += time_offset
                 positions.append((now, point.latitude, point.longitude))
     return positions
 
@@ -42,7 +44,7 @@ def load_data_traccar(tracks):
 
     maximum_index = max([len(item) for item in tracks.values()])
     count = 0
-    for index in range(0, maximum_index, 4):
+    for index in range(0, maximum_index, 1):
         for contestant_name, positions in tracks.items():
             if len(positions) > index:
                 count += 1
@@ -51,7 +53,7 @@ def load_data_traccar(tracks):
                 send(contestant_name, time.mktime(stamp.timetuple()), latitude, longitude, 0)
                 # print(stamp)
         print(count)
-        time.sleep(0.8)
+        # time.sleep(0.8)
 
 
 def insert_gpx_file(contestant_object: "Contestant", file, influx: InfluxFacade):

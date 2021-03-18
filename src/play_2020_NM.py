@@ -85,6 +85,7 @@ navigation_task = NavigationTask.objects.create(name="NM 2020 ", contest=contest
                                                 is_public=True)
 
 tracks = {}
+now=datetime.datetime.now(datetime.timezone.utc)
 for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     print(file)
     contestant = os.path.splitext(os.path.basename(file))[0]
@@ -114,6 +115,10 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
         start_time = start_time.astimezone()
         start_time = today.replace(hour=start_time.hour, minute=start_time.minute, second=start_time.second,
                                    tzinfo=start_time.tzinfo)
+        start_time_offset = now-start_time
+
+        start_time+=start_time_offset
+
         minutes_starting = 6
         # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
         contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team,
@@ -128,7 +133,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
         # with open(file, "r") as i:
         #     insert_gpx_file(contestant_object, i, influx)
 
-        tracks[contestant] = build_traccar_track(file, today, start_index=300)
+        tracks[contestant] = build_traccar_track(file, today, start_index=300, time_offset=start_time_offset)
 print("Sleeping for 10 seconds")
-# time.sleep(10)
+time.sleep(10)
 load_data_traccar(tracks)
