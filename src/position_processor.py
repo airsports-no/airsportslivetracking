@@ -31,7 +31,7 @@ from display.calculators.calculator_factory import calculator_factory
 logger = logging.getLogger(__name__)
 
 GLOBAL_TRANSMISSION_INTERVAL = 5
-PURGE_GLOBAL_MAP_INTERVAL = 1200
+PURGE_GLOBAL_MAP_INTERVAL = 180
 
 configuration = TraccarCredentials.objects.get()
 

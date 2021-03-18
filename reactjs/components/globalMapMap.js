@@ -121,7 +121,7 @@ class ConnectedGlobalMapMap
         this.state = {map: null}
         this.map = null;
         this.aircraft = {}  // deviceId is key
-        this.purgeInterval = 1200
+        this.purgeInterval = 180
         this.connectInterval = null;
         this.wsTimeOut = 1000
         this.purgePositions = this.purgePositions.bind(this)
