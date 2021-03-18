@@ -363,7 +363,7 @@ def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tu
     bisection_length = len_v(unit_circle)
 
     bisection_corridor_difference = (bisection_length - corridor_width_metres) / 2
-    # We override everything to set the inner portion of the turn to be just the angle. This makes the turn lineup better with the other terms.
+    # We override everything to set the inner portion of the turn to be just the angle. This makes the turn lineup better with the other terms.focus of
 
     bisection_corridor_difference = 1
     unit_circle = norm_v(unit_circle)

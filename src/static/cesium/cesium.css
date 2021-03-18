@@ -263,6 +263,9 @@ tr.hidden {
     .lowerThirdsSingle {
         transform: scale(0.4);
     }
+    .globalMapBackdrop {
+        transform: scale(0.75);
+    }
 }
 
 /* Landscape phone to portrait tablet */
@@ -274,6 +277,9 @@ tr.hidden {
     .lowerThirdsSingle {
         transform: scale(0.35);
     }
+    .globalMapBackdrop {
+        transform: scale(0.75);
+    }
 }
 
 /* Landscape phones and down */
@@ -284,6 +290,9 @@ tr.hidden {
 
     .lowerThirdsSingle {
         transform: scale(0.3);
+    }
+    .globalMapBackdrop {
+        transform: scale(0.5);
     }
 }
 
@@ -374,7 +383,7 @@ tr.hidden {
 
 #logoButtonWrapper {
     bottom: 20px;
-    right: 20px;
+    right: 10px;
     position: fixed;
     z-index: 2;
 }
@@ -444,11 +453,11 @@ tr.hidden {
 
 .logoImage {
     /*height: 80px;*/
-    width: 20vw;
+    width: 40vw;
     bottom: 18px;
     max-width: 400px;
-    min-width: 300px;
-    right: 20px;
+    min-width: 200px;
+    right: 10px;
     position: fixed;
     z-index: 2;
     color: #e01b1c;
