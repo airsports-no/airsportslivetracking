@@ -113,7 +113,7 @@ class AnrCorridorCalculator(Calculator):
             penalty_time = np.round(penalty_time)
             score = self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time
             if apply_maximum_penalty:
-                score = self.scorecard.get_corridor_outside_maximum_penalty(self.contestant)
+                score = max(self.scorecard.get_corridor_outside_maximum_penalty(self.contestant), 0)
             # If this is called when we have crossed a gate, we need to reset the outside time to Grace time before now to start counting new points
             self.update_score(last_gate,
                               score,
