@@ -30,8 +30,12 @@ class Aircraft {
         const position = this.replaceTime(initial_position)
         this.trailPositions = [position]
         this.time = position.time
-        this.navigation_task_link = initial_position.navigation_task_id ? "display/task/" + initial_position.navigation_task_id + "/map/" : null
+        this.navigation_task_link = this.getNavigationTaskLink(initial_position.navigation_task_id)
         this.createLiveEntities(position)
+    }
+
+    getNavigationTaskLink(navigation_task_id){
+        return navigation_task_id ? "display/task/" + navigation_task_id + "/map/" : null
     }
 
     replaceTime(position) {
@@ -60,6 +64,12 @@ class Aircraft {
         })
 
 
+    }
+
+    updateNavigationTask(position){
+        if (this.getNavigationTaskLink(position.navigation_task_id) !== this.navigation_task_link && this.dot){
+            this.navigation_task_link=this.getNavigationTaskLink(position.navigation_task_id)
+        }
     }
 
     createLiveEntities(position) {
@@ -117,6 +127,7 @@ class Aircraft {
         this.dot.setIcon(this.createAirplaneIcon(position.course))
         this.updateTrail(position)
         this.time = position.time
+        this.updateNavigationTask(position)
     }
 
     removeFromMap() {
