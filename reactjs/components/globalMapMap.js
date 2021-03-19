@@ -34,7 +34,7 @@ class Aircraft {
         this.createLiveEntities(position)
     }
 
-    getNavigationTaskLink(navigation_task_id){
+    getNavigationTaskLink(navigation_task_id) {
         return navigation_task_id ? "display/task/" + navigation_task_id + "/map/" : null
     }
 
@@ -66,16 +66,14 @@ class Aircraft {
 
     }
 
-    updateNavigationTask(position){
-        if (this.getNavigationTaskLink(position.navigation_task_id) !== this.navigation_task_link && this.dot){
-            this.navigation_task_link=this.getNavigationTaskLink(position.navigation_task_id)
+    updateNavigationTask(position) {
+        if (this.getNavigationTaskLink(position.navigation_task_id) !== this.navigation_task_link && this.dot) {
+            this.navigation_task_link = this.getNavigationTaskLink(position.navigation_task_id)
         }
     }
 
     createLiveEntities(position) {
-        const tooltipContents = this.navigation_task_link ? ReactDOMServer.renderToString(<div>Competing in <a
-            href={this.navigation_task_link}>navigation
-            task</a></div>) : ""
+        const tooltipContents = this.navigation_task_link ? "Competing in nnavigation task" : ""
         this.dot = L.marker([position.latitude, position.longitude], {
             icon: this.createAirplaneIcon(position.course),
             zIndexOffset: 99999
