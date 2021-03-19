@@ -73,7 +73,7 @@ class Aircraft {
     }
 
     createLiveEntities(position) {
-        const tooltipContents = this.navigation_task_link ? "Competing in nnavigation task" : ""
+        const tooltipContents = this.navigation_task_link ? "Competing in navigation task" : ""
         this.dot = L.marker([position.latitude, position.longitude], {
             icon: this.createAirplaneIcon(position.course),
             zIndexOffset: 99999
