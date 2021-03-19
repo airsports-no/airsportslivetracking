@@ -71,12 +71,20 @@ class Aircraft {
             zIndexOffset: 99999
         }).bindTooltip(tooltipContents, {
             permanent: false
+        }).on('click', (e) => {
+            if (this.navigation_task_link) {
+                window.location.href = this.navigation_task_link
+            }
         }).addTo(this.map)
         this.dotText = L.marker([position.latitude, position.longitude], {
             icon: this.createAirplaneTextIcon(),
             zIndexOffset: 99999
         }).bindTooltip(tooltipContents, {
             permanent: false
+        }).on('click', (e) => {
+            if (this.navigation_task_link) {
+                window.location.href = this.navigation_task_link
+            }
         }).addTo(this.map)
         this.trail = L.polyline([[position.latitude, position.longitude]], {
             color: this.colour,
