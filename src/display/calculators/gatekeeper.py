@@ -155,6 +155,8 @@ class Gatekeeper:
             offset_string = "{} s".format("+{}".format(int(offset)) if offset > 0 else int(offset))
         else:
             offset_string = None
+        if capped:
+            message += " (capped)"
         internal_message = {
             "gate": gate.name,
             "message": message,
