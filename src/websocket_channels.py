@@ -1,5 +1,5 @@
 import datetime
-from typing import TYPE_CHECKING, Dict, List, Tuple
+from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -82,7 +82,7 @@ class WebsocketFacade:
         )
 
     def transmit_global_position_data(self, global_tracking_name: str, position_data: Dict,
-                                      device_time: datetime.datetime) -> Dict:
+                                      device_time: datetime.datetime, navigation_task_id: Optional[int]) -> Dict:
         data = {
             "type": "tracking.data",
             "data": {
@@ -94,7 +94,8 @@ class WebsocketFacade:
                 "altitude": float(position_data["altitude"]),
                 "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
                 "speed": float(position_data["speed"]),
-                "course": float(position_data["course"])
+                "course": float(position_data["course"]),
+                "navigation_task_id":navigation_task_id
             }
         }
         async_to_sync(self.channel_layer.group_send)(

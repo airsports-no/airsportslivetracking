@@ -4,7 +4,7 @@ import logging
 import os
 import threading
 from multiprocessing import Process, Queue
-from typing import List, TYPE_CHECKING, Dict
+from typing import List, TYPE_CHECKING, Dict, Optional
 
 import dateutil
 
@@ -105,7 +105,8 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
                 continue
         cache.set(last_seen_key, device_time)
         # print(device_time)
-        contestant = Contestant.get_contestant_for_device_at_time(device_name, device_time)
+        contestant, is_simulator = Contestant.get_contestant_for_device_at_time(device_name, device_time)
+        navigation_task_id = None
         if not contestant:
             try:
                 person = Person.objects.get(app_tracking_id=device_name)
@@ -115,24 +116,25 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
                 pass
         # print(contestant)
         if contestant:
+            navigation_task_id = contestant.navigation_task_id
             global_tracking_name = contestant.team.aeroplane.registration
             data = influx.generate_position_block_for_contestant(contestant, position_data, device_time)
             try:
                 received_tracks[contestant].append(data)
             except KeyError:
                 received_tracks[contestant] = [data]
-        transmit_live_position(position_data, global_tracking_name, device_time)
+        transmit_live_position(position_data, global_tracking_name, device_time, navigation_task_id)
     return received_tracks
 
 
-def transmit_live_position(position_data: Dict, global_tracking_name: str, device_time: datetime.datetime):
+def transmit_live_position(position_data: Dict, global_tracking_name: str, device_time: datetime.datetime, navigation_task_id:Optional[int]):
     last_global, last_data = global_map.get(position_data["deviceId"],
                                             (datetime.datetime.min.replace(tzinfo=datetime.timezone.utc),
                                              {}))
     now = datetime.datetime.now(datetime.timezone.utc)
     if (now - last_global).total_seconds() > GLOBAL_TRANSMISSION_INTERVAL:
         global_map[position_data["deviceId"]] = (
-        now, websocket_facade.transmit_global_position_data(global_tracking_name, position_data, device_time))
+        now, websocket_facade.transmit_global_position_data(global_tracking_name, position_data, device_time, navigation_task_id))
         cache.set("GLOBAL_MAP_DATA", global_map)
 
 

@@ -101,7 +101,7 @@ class Route(models.Model):
             if waypoint.distance_next < 20:
                 raise ValidationError(
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} ({waypoint.distance_next}m) should be greater than 200m if not this or the next gate are secret"
-                    )
+                )
 
     def __str__(self):
         return self.name
@@ -969,7 +969,13 @@ class Contestant(models.Model):
         return ""
 
     @classmethod
-    def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime):
+    def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime) -> Tuple[
+        Optional["Contestant"], bool]:
+        """
+        Retrieves the contestant that owns the tracking device for the time stamp. Returns an extra flag "is_simulator"
+        which is true if the contestant is running the simulator tracking ID.
+        """
+        is_simulator = False
         try:
             # Device belongs to contestant from 30 minutes before takeoff
             contestant = cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
@@ -979,19 +985,21 @@ class Contestant(models.Model):
                 contestant = cls.objects.get(Q(team__crew__member1__app_tracking_id=device) | Q(
                     team__crew__member1__simulator_tracking_id=device), tracker_start_time__lte=stamp,
                                              finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
+                is_simulator = contestant.team.crew.member1.simulator_tracking_id == device
             except ObjectDoesNotExist:
                 try:
                     contestant = cls.objects.get(Q(team__crew__member2__app_tracking_id=device) | Q(
                         team__crew__member2__simulator_tracking_id=device), tracker_start_time__lte=stamp,
                                                  finished_by_time__gte=stamp,
                                                  contestanttrack__calculator_finished=False)
+                    is_simulator = contestant.team.crew.member2.simulator_tracking_id == device
                 except ObjectDoesNotExist:
-                    return None
+                    return None, is_simulator
         # Only allow contestants with validated team members compete
         if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
             if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
-                return contestant
-        return None
+                return contestant, is_simulator
+        return None, is_simulator
 
     def get_latest_position(self) -> Optional[Dict]:
         from influx_facade import InfluxFacade

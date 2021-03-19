@@ -5,6 +5,8 @@ import {w3cwebsocket as W3CWebSocket} from "websocket";
 import ContestsGlobalMap from "./contests/contestsGlobalMap";
 import {zoomFocusContest} from "../actions";
 import {SocialMediaLinks} from "./socialMediaLinks";
+import ReactDOMServer from "react-dom/server";
+import ContestPopupItem from "./contests/contestPopupItem";
 
 const L = window['L']
 const TRAIL_LENGTH = 180;
@@ -28,6 +30,7 @@ class Aircraft {
         const position = this.replaceTime(initial_position)
         this.trailPositions = [position]
         this.time = position.time
+        this.navigation_task_link = initial_position.navigation_task_id ? "display/task/" + initial_position.navigation_task_id + "/map/" : null
         this.createLiveEntities(position)
     }
 
@@ -60,16 +63,19 @@ class Aircraft {
     }
 
     createLiveEntities(position) {
+        const tooltipContents = this.navigation_task_link ? ReactDOMServer.renderToString(<div>Competing in <a
+            href={this.navigation_task_link}>navigation
+            task</a></div>) : ""
         this.dot = L.marker([position.latitude, position.longitude], {
             icon: this.createAirplaneIcon(position.course),
             zIndexOffset: 99999
-        }).bindTooltip(this.longform, {
+        }).bindTooltip(tooltipContents, {
             permanent: false
         }).addTo(this.map)
         this.dotText = L.marker([position.latitude, position.longitude], {
             icon: this.createAirplaneTextIcon(),
             zIndexOffset: 99999
-        }).bindTooltip(this.longform, {
+        }).bindTooltip(tooltipContents, {
             permanent: false
         }).addTo(this.map)
         this.trail = L.polyline([[position.latitude, position.longitude]], {
