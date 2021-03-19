@@ -386,6 +386,10 @@ class NavigationTask(models.Model):
     def tracking_link(self) -> str:
         return SERVER_ROOT + reverse("frontend_view_map", kwargs={"pk": self.pk})
 
+    @property
+    def everything_public(self):
+        return self.is_public and self.contest.is_public
+
     class Meta:
         ordering = ("start_time", "finish_time")
 

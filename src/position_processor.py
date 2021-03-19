@@ -116,7 +116,8 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
                 pass
         # print(contestant)
         if contestant:
-            navigation_task_id = contestant.navigation_task_id
+            if contestant.navigation_task.everything_public:
+                navigation_task_id = contestant.navigation_task_id
             global_tracking_name = contestant.team.aeroplane.registration
             data = influx.generate_position_block_for_contestant(contestant, position_data, device_time)
             try:
