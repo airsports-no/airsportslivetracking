@@ -141,6 +141,7 @@ class TestANRPerLeg(TransactionTestCase):
         self.assertEqual(850, contestant_track.score)
 
     def test_manually_terminate_calculator(self, p):
+        cache.clear()
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/anr_miss_multiple_finish.csv"))
         start_time, speed = datetime.datetime.now(datetime.timezone.utc), 70
@@ -161,16 +162,13 @@ class TestANRPerLeg(TransactionTestCase):
             data = influx.generate_position_block_for_contestant(self.contestant, i,
                                                                  dateutil.parser.parse(i["time"]))
             q.put(data)
-        threading.Timer(5, lambda: self.contestant.request_calculator_termination()).start()
+        threading.Timer(1, lambda: self.contestant.request_calculator_termination()).start()
         calculator.run()
-        while not q.empty():
-            q.get_nowait()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item["string"] for item in contestant_track.score_log]
         print(strings)
-        self.assertListEqual(['Takeoff: 0 points manually terminated'],
-                             strings)
-        self.assertEqual(0, contestant_track.score)
+        self.assertEqual('Waypoint 1: 0 points manually terminated', strings[-1])
+        self.assertEqual(492, contestant_track.score)
 
     def test_anr_miss_start_and_finish(self, p):
         track = load_track_points_traccar_csv(

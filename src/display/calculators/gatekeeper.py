@@ -227,14 +227,20 @@ class Gatekeeper:
             for calculator in self.calculators:
                 calculator.passed_finishpoint(self.track, self.last_gate)
 
-    @abstractmethod
     def check_termination(self):
-        raise NotImplementedError
+        if not self.track_terminated:
+            self.track_terminated = self.is_termination_commanded()
+            if self.track_terminated:
+                self.update_score(self.last_gate or self.gates[0], 0, "manually terminated",
+                                  self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
+                                  self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,
+                                  "information", "")
 
     def is_termination_commanded(self) -> bool:
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.last_termination_command_check is None or now > self.last_termination_command_check + datetime.timedelta(
-                seconds=30):
+                seconds=15):
+            logger.info("Check manual termination")
             self.last_termination_command_check = now
             termination_requested = cache.get(self.contestant.termination_request_key)
             return termination_requested is not None

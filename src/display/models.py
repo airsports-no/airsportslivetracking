@@ -778,6 +778,7 @@ class Contestant(models.Model):
         return f"termination_request_{self.pk}"
 
     def request_calculator_termination(self):
+        logger.info(f"Signalling manual termination for contestant {self}")
         cache.set(self.termination_request_key, True, timeout=3600)
 
     def save(self, **kwargs):

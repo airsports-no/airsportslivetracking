@@ -116,9 +116,9 @@ class TestContestantGatesCalculationANRRounded(TestCase):
 
     def test_calculate_and_get_relative_gate_times(self):
         times = calculate_and_get_relative_gate_times(self.navigation_task.route, 75, 8, 165)
-        expected_times = [('SP', datetime.timedelta(0)), ('Waypoint 1', datetime.timedelta(0, 125, 690)),
-                          ('Waypoint 2', datetime.timedelta(0, 346, 703724)),
-                          ('Waypoint 3', datetime.timedelta(0, 455, 35621)), ('FP', datetime.timedelta(0, 639, 912698))]
+        expected_times = [('SP', datetime.timedelta(0)), ('Waypoint 1', datetime.timedelta(0, 125, 42522)),
+                          ('Waypoint 2', datetime.timedelta(0, 345, 911749)),
+                          ('Waypoint 3', datetime.timedelta(0, 450, 780963)), ('FP', datetime.timedelta(0, 634, 65653))]
         print(times)
         for item in times:
             print(item[1].total_seconds())

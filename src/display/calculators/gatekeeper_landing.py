@@ -52,19 +52,13 @@ class GatekeeperLanding(Gatekeeper):
                     self.contestant.contestanttrack.update_gate_time(self.landing_gate.name, intersection_time)
 
     def check_termination(self):
+        super().check_termination()
         already_terminated = self.track_terminated
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.live_processing and now > self.contestant.finished_by_time:
             if not already_terminated:
                 logger.info("Live processing and past finish time, terminating")
             self.track_terminated = True
-        if not self.track_terminated:
-            self.track_terminated = self.is_termination_commanded()
-            if self.track_terminated:
-                self.update_score(self.last_gate or self.gates[0], 0, "manually terminated",
-                                  self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
-                                  self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,
-                                  "information", "")
 
     def check_gates(self):
         self.check_intersections()
