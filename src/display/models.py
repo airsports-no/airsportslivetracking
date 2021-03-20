@@ -1215,6 +1215,30 @@ class TeamTestScore(models.Model):
         unique_together = ("team", "task_test")
 
 
+# @receiver(post_save, sender=Task)
+# def populate_task_summaries(sender, instance: Task, **kwargs):
+#     teams = Team.objects.filter(contestteam__contest=instance.contest)
+#     for team in teams:
+#         TaskSummary.objects.create(team=team, task=instance, points=0)
+#
+#
+# @receiver(post_save, sender=TaskTest)
+# def populate_test_results(sender, instance: TaskTest, **kwargs):
+#     teams = Team.objects.filter(contestteam__contest=instance.task.contest)
+#     for team in teams:
+#         TeamTestScore.objects.create(team=team, task_test=instance, points=0)
+#
+#
+# @receiver(post_save, sender=ContestTeam)
+# def populate_team_results(sender, instance: ContestTeam, **kwargs):
+#     for task in Task.objects.filter(contest=instance.contest):
+#         TaskSummary.objects.create(team=instance.team, task=task, points=0)
+#     for task_test in TaskTest.objects.filter(
+#             task__contest=instance.contest):
+#         TeamTestScore.objects.create(team=instance.team, task=task_test)
+#     ContestSummary.objects.create(team=instance.team, contest=instance.contest, points=0)
+
+
 @receiver(post_save, sender=Contestant)
 def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs):
     ContestantTrack.objects.get_or_create(contestant=instance)

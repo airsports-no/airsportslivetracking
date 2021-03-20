@@ -692,27 +692,19 @@ class TeamResultsSummarySerialiser(serializers.ModelSerializer):
 class ContestSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
     class Meta:
         model = ContestSummary
-        exclude = ("contest",)
-
-    def create(self, validated_data):
-        try:
-            validated_data["contest"] = self.context["contest"]
-        except KeyError:
-            raise Http404("Contest not found")
-
-        return ContestSummary.objects.create(**validated_data)
+        fields = "__all__"
 
 
 class TaskSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
     class Meta:
         model = TaskSummary
-        exclude = ("task",)
+        fields = "__all__"
 
 
 class TeamTestScoreWithoutReferenceSerialiser(serializers.ModelSerializer):
     class Meta:
         model = TeamTestScore
-        exclude = ("task_test",)
+        fields = "__all__"
 
 
 class TaskTestWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
@@ -720,7 +712,7 @@ class TaskTestWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = TaskTest
-        exclude = ("task",)
+        fields = "__all__"
 
 
 class TaskWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
@@ -751,3 +743,15 @@ class TaskWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
                 i["task_test"] = task_test
                 TeamTestScore.objects.create(**i)
         return task
+
+
+class TaskSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = "__all__"
+
+
+class TaskTestSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = TaskTest
+        fields = "__all__"

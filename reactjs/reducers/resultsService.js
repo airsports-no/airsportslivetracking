@@ -1,14 +1,26 @@
 import {
     GET_CONTEST_RESULTS_SUCCESSFUL,
-    GET_CONTEST_LIST_SUCCESSFUL, GET_CONTEST_TEAMS_LIST,
-    GET_CONTEST_TEAMS_LIST_SUCCESSFUL, SHOW_TASK_DETAILS, HIDE_ALL_TASK_DETAILS, HIDE_TASK_DETAILS
+    GET_CONTEST_LIST_SUCCESSFUL,
+    GET_CONTEST_TEAMS_LIST,
+    GET_CONTEST_TEAMS_LIST_SUCCESSFUL,
+    SHOW_TASK_DETAILS,
+    HIDE_ALL_TASK_DETAILS,
+    HIDE_TASK_DETAILS,
+    GET_TASKS_SUCCESSFUL,
+    GET_TASK_TESTS_SUCCESSFUL,
+    CREATE_TASK_SUCCESSFUL,
+    CREATE_TASK_TEST_SUCCESSFUL,
+    DELETE_TASK_SUCCESSFUL,
+    DELETE_TASK_TEST_SUCCESSFUL
 } from "../constants/resultsServiceActionTypes";
-import {fetchContestTeams} from "../actions/resultsService";
+import {fetchContestTeams, fetchTasks} from "../actions/resultsService";
 
 const initialState = {
     contests: [],
+    tasks: {},
+    taskTests: {},
     contestResults: {},
-    teams: {},
+    teams: null,
     visibleTaskDetails: {},
 };
 
@@ -20,7 +32,6 @@ function rootReducer(state = initialState, action) {
         })
     }
     if (action.type === GET_CONTEST_RESULTS_SUCCESSFUL) {
-        fetchContestTeams(action.contestId)
         return Object.assign({}, state, {
             ...state,
             contestResults: {
@@ -32,21 +43,72 @@ function rootReducer(state = initialState, action) {
             }
         })
     }
+    if (action.type === CREATE_TASK_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            tasks: {
+                ...state.tasks,
+                [action.contestId]: state.tasks[action.contestId].concat([action.payload])
+            }
+        })
+    }
+    if (action.type === CREATE_TASK_TEST_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            taskTests: {
+                ...state.taskTests,
+                [action.contestId]: state.taskTests[action.contestId].concat([action.payload])
+            }
+        })
+    }
+    if (action.type === DELETE_TASK_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            tasks: {
+                ...state.tasks,
+                [action.contestId]: state.tasks[action.contestId].filter((task) => {
+                    return task.id !== action.payload
+                })
+            }
+        })
+    }
+    if (action.type === DELETE_TASK_TEST_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            taskTests: {
+                ...state.taskTests,
+                [action.contestId]: state.taskTests[action.contestId].filter((taskTest) => {
+                    return taskTest.id !== action.payload
+                })
+            }
+        })
+    }
+    if (action.type === GET_TASKS_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            tasks: {
+                ...state.tasks,
+                [action.contestId]: action.payload
+            }
+        })
+    }
+    if (action.type === GET_TASK_TESTS_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            taskTests: {
+                ...state.taskTests,
+                [action.contestId]: action.payload
+            }
+        })
+    }
     if (action.type === GET_CONTEST_TEAMS_LIST_SUCCESSFUL) {
-        let teamsMap = {}
+        let teamsMap = state.teams ? state.teams : {}
         action.payload.map((team) => {
             teamsMap[team.id] = team
         })
         return Object.assign({}, state, {
             ...state,
-            teams: Object.assign(state.teams, teamsMap),
-            contestResults: {
-                ...state.contestResults,
-                [action.contestId]: {
-                    ...state.contestResults[action.contestId],
-                    teams: Object.keys(teamsMap)
-                }
-            }
+            teams: teamsMap,
         })
     }
     if (action.type === SHOW_TASK_DETAILS) {

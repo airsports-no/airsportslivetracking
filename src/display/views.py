@@ -39,6 +39,7 @@ from rest_framework.exceptions import PermissionDenied, MethodNotAllowed
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK
 from rest_framework.viewsets import ModelViewSet, ViewSet, GenericViewSet
 
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx, create_precision_route_from_csv, \
@@ -60,7 +61,8 @@ from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_K
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
-    ContestPermissionsWithoutObjects
+    ContestPermissionsWithoutObjects, ChangeContestKeyPermissions, TaskContestPermissions, TaskContestPublicPermissions, \
+    TaskTestContestPublicPermissions, TaskTestContestPermissions
 from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedTeamSerialiser, \
@@ -70,7 +72,8 @@ from display.serialisers import ContestantTrackSerialiser, \
     GpxTrackSerialiser, PersonSerialiser, ExternalNavigationTaskTeamIdSerialiser, \
     ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser, \
     TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser, \
-    NavigationTasksSummarySerialiser
+    NavigationTasksSummarySerialiser, TaskSummaryWithoutReferenceSerialiser, TeamTestScoreWithoutReferenceSerialiser, \
+    TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -1420,7 +1423,10 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     serializer_classes = {
         "teams": ContestTeamNestedSerialiser,
         "task_results": TaskWithoutReferenceNestedSerialiser,
-        "contest_summary_results": ContestSummaryWithoutReferenceSerialiser
+        "contest_summary_results": ContestSummaryWithoutReferenceSerialiser,
+        "update_contest_summary": ContestSummaryWithoutReferenceSerialiser,
+        "update_task_summary": TaskSummaryWithoutReferenceSerialiser,
+        "update_test_result": TeamTestScoreWithoutReferenceSerialiser
     }
     default_serialiser_class = ContestSerialiser
     lookup_url_kwarg = "pk"
@@ -1489,6 +1495,41 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         else:
             ContestSummary.objects.filter(contest=self.get_object()).delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["put"])
+    def update_contest_summary(self, request, *args, **kwargs):
+        # I think this is required for the permissions to work
+        contest = self.get_object()
+        summary, created = ContestSummary.objects.get_or_create(team_id=request.data["team"], contest=contest,
+                                                                defaults={"points": request.data["points"]})
+        if not created:
+            summary.points = request.data["points"]
+            summary.save()
+
+        return Response(status=HTTP_200_OK)
+
+    @action(detail=True, methods=["put"])
+    def update_task_summary(self, request, *args, **kwargs):
+        # I think this is required for the permissions to work
+        contest = self.get_object()
+        summary, created = TaskSummary.objects.get_or_create(team_id=request.data["team"], task_id=request.data["task"],
+                                                             defaults={"points": request.data["points"]})
+        if not created:
+            summary.points = request.data["points"]
+            summary.save()
+        return Response(status=HTTP_200_OK)
+
+    @action(detail=True, methods=["put"])
+    def update_test_result(self, request, *args, **kwargs):
+        # I think this is required for the permissions to work
+        contest = self.get_object()
+        results, created = TeamTestScore.objects.get_or_create(team_id=request.data["team"],
+                                                               task_test_id=request.data["task_first"],
+                                                               defaults={"points": request.data["points"]})
+        if not created:
+            results.points = request.data["points"]
+            results.save()
+        return Response(status=HTTP_200_OK)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1717,8 +1758,9 @@ class ContestResultsSummaryViewSet(ModelViewSet):
     @action(detail=True, methods=["get"])
     def teams(self, request, *args, **kwargs):
         contest = self.get_object()
-        teams = Team.objects.filter(Q(tasksummary__task__contest=contest) | Q(contestsummary__contest=contest) | Q(
-            teamtestscore__task_test__task__contest=contest)).distinct()
+        teams = Team.objects.filter(contestteam__contest=contest)
+        # teams = Team.objects.filter(Q(tasksummary__task__contest=contest) | Q(contestsummary__contest=contest) | Q(
+        #     teamtestscore__task_test__task__contest=contest)).distinct()
         serialiser = TeamNestedSerialiser(teams, many=True)
         return Response(serialiser.data)
 
@@ -1726,3 +1768,65 @@ class ContestResultsSummaryViewSet(ModelViewSet):
 class TeamResultsSummaryViewSet(ModelViewSet):
     queryset = Team.objects.all()
     serializer_class = TeamResultsSummarySerialiser
+
+
+# class UpdateResultsViewSet(GenericViewSet):
+#     queryset = Contest.objects.all()
+#     permission_classes = [permissions.IsAuthenticated & ChangeContestKeyPermissions]
+#
+#     serializer_classes = {
+#         "update_contest_summary": ContestSummaryWithoutReferenceSerialiser,
+#         "update_task_summary": TaskSummaryWithoutReferenceSerialiser,
+#         "update_test_result": TeamTestScoreWithoutReferenceSerialiser
+#     }
+#     default_serialiser_class = ContestSummaryWithoutReferenceSerialiser
+#
+#     def get_serializer_class(self):
+#         return self.serializer_classes.get(self.action, self.default_serialiser_class)
+#
+#     # http_method_names = ["put"]
+#
+#     lookup_field = "id"
+#
+#     @action(detail=True, methods=["put"])
+#     def update_contest_summary(self, request, *args, **kwargs):
+#         # I think this is required for the permissions to work
+#         contest = self.get_object()
+#         ContestSummary.objects.filter(team=request.data["team"], contest=contest).update(points=request.data["points"])
+#         return Response(status=HTTP_200_OK)
+#
+#     @action(detail=True, methods=["put"])
+#     def update_task_summary(self, request, *args, **kwargs):
+#         # I think this is required for the permissions to work
+#         contest = self.get_object()
+#         TaskSummary.objects.filter(team=request.data["team"], task=request.data["task"]).update(
+#             points=request.data["points"])
+#         return Response(status=HTTP_200_OK)
+#
+#     @action(detail=True, methods=["put"])
+#     def update_test_result(self, request, *args, **kwargs):
+#         # I think this is required for the permissions to work
+#         contest = self.get_object()
+#         TeamTestScore.objects.filter(team=request.data["team"], task_test=request.data["task_first"]).update(
+#             points=request.data["points"])
+#         return Response(status=HTTP_200_OK)
+
+
+class TaskViewSet(ModelViewSet):
+    queryset = Task.objects.all()
+    permission_classes = [TaskContestPublicPermissions | permissions.IsAuthenticated & TaskContestPermissions]
+    serializer_class = TaskSerialiser
+
+    def get_queryset(self):
+        contest_id = self.kwargs.get("contest_pk")
+        return Task.objects.filter(contest_id=contest_id)
+
+
+class TaskTestViewSet(ModelViewSet):
+    queryset = Task.objects.all()
+    permission_classes = [TaskTestContestPublicPermissions | permissions.IsAuthenticated & TaskTestContestPermissions]
+    serializer_class = TaskTestSerialiser
+
+    def get_queryset(self):
+        contest_id = self.kwargs.get("contest_pk")
+        return TaskTest.objects.filter(task__contest_id=contest_id)
