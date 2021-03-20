@@ -1752,6 +1752,7 @@ class ContestResultsSummaryViewSet(ModelViewSet):
     @action(detail=True, methods=["get"])
     def details(self, request, *args, **kwargs):
         contest = self.get_object()
+        contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
         serialiser = ContestResultsDetailsSerialiser(contest)
         return Response(serialiser.data)
 

@@ -673,6 +673,7 @@ class ContestResultsDetailsSerialiser(serializers.ModelSerializer):
     contestsummary_set = ContestSummaryNestedSerialiser(many=True)
     task_set = TaskNestedSerialiser(many=True)
     time_zone = TimeZoneSerializerField(required=True)
+    permission_change_contest = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Contest

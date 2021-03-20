@@ -20,7 +20,7 @@ import {Link} from "react-router-dom";
 import ToolkitProvider, {CSVExport} from 'react-bootstrap-table2-toolkit';
 import cellEditFactory from 'react-bootstrap-table2-editor';
 import {Container, Modal, Button, Form} from "react-bootstrap";
-import {mdiClose, mdiGoKartTrack} from "@mdi/js";
+import {mdiClose, mdiGoKartTrack, mdiPencilOutline} from "@mdi/js";
 import Icon from "@mdi/react";
 
 const {ExportCSVButton} = CSVExport;
@@ -49,6 +49,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             taskId: null,
             taskTestName: null,
             task: null,
+            taskTest: null,
             displayNewTaskModal: false,
             displayNewTaskTestModal: false
         }
@@ -66,7 +67,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
     }
 
     handleTaskChange(e) {
-        this.setState({task: e.target.value})
+        this.setState({taskId: e.target.value})
     }
 
 
@@ -76,9 +77,9 @@ class ConnectedTaskSummaryResultsTable extends Component {
     }
 
     createNewTaskTest() {
-        if (this.state.task !== -1) {
+        if (this.state.taskId !== -1) {
             this.setState({displayNewTaskTestModal: false})
-            this.props.createNewTaskTest(this.props.contestId, this.state.task, this.state.taskTestName)
+            this.props.createNewTaskTest(this.props.contestId, this.state.taskId, this.state.taskTestName)
         }
     }
 
@@ -238,13 +239,15 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     columnType: "taskTest",
                     taskTest: taskTest.id,
                     headerFormatter: (column, colIndex, components) => {
-                        return <div>
-                            {taskTest.heading}
-                            <Button variant={"danger"}
-                                    onClick={(e) => this.props.deleteTaskTest(this.props.contestId, taskTest.id)}><Icon
-                                path={mdiClose} title={"Delete"} size={1}/></Button>
-                        </div>
-
+                        if (this.props.contest.permission_change_contest) {
+                            return <div>
+                                {taskTest.heading}
+                                <Button variant={"danger"}
+                                        onClick={(e) => this.props.deleteTaskTest(this.props.contestId, taskTest.id)}><Icon
+                                    path={mdiClose} title={"Delete"} size={0.8}/></Button>
+                            </div>
+                        }
+                        return <div>{taskTest.heading}</div>
                     }
                 })
             });
@@ -266,14 +269,21 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible(),
                 csvType: "number",
                 headerFormatter: (column, colIndex, components) => {
-                    return <div>
-                        {task.heading}
-                        <Button onClick={(e) => this.setState({displayNewTaskTestModal: true, task: task.id})}>New
-                            test</Button>
-                        <Button variant={"danger"}
-                                onClick={(e) => this.props.deleteTask(this.props.contestId, task.id)}><Icon
-                            path={mdiClose} title={"Delete"} size={1}/></Button>
-                    </div>
+                    if (this.props.contest.permission_change_contest) {
+                        return <div>
+                            {task.heading}
+                            <Button onClick={(e) => this.setState({displayNewTaskTestModal: true, taskId: task.id})}>New
+                                test</Button>
+                            <Button variant={"danger"}
+                                    onClick={(e) => this.props.deleteTask(this.props.contestId, task.id)}><Icon
+                                path={mdiClose} title={"Delete"} size={0.8}/></Button>
+                            <Button variant={"secondary"}
+                                    onClick={(e) => this.setState({displayNewTaskModal: true, task: task})}><Icon
+                                path={mdiPencilOutline} title={"Edit"} size={0.8}/></Button>
+
+                        </div>
+                    }
+                    return <div>{task.heading}</div>
                 }
             })
         })
@@ -290,8 +300,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
             dataField: 'summary', // if dataField is not match to any column you defined, it will be ignored.
             order: 'asc'// this.props.contest.results.summary_score_sorting_direction // desc or asc
         }];
-        console.log(c)
-        console.log(d)
         const cellEdit = cellEditFactory({
             mode: 'click',
             blurToSave: true,
@@ -311,7 +319,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
         return <div className={'row'}>
             <div className={"col-12"}>
                 <h1>{this.props.contest.results.name}</h1>
-                <Button onClick={(e) => this.setState({displayNewTaskModal: true})}>New task</Button>
+                {this.props.contest.permission_change_contest ?
+                    <Button onClick={(e) => this.setState({displayNewTaskModal: true})}>New task</Button> : null}
                 <ToolkitProvider
                     keyField="key"
                     data={d}
@@ -321,7 +330,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     {
                         props => (
                             <div>
-                                <BootstrapTable {...props.baseProps} defaultSorted={defaultSorted} cellEdit={cellEdit}
+                                <BootstrapTable {...props.baseProps} defaultSorted={defaultSorted}
+                                                cellEdit={this.props.contest.permission_change_contest ? cellEdit : {}}
                                 />
                                 <hr/>
                                 <ExportCSVButton {...props.csvProps}>Export CSV</ExportCSVButton>
