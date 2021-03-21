@@ -122,14 +122,14 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                 })
                             }} value={this.state.editTask.index}/>
                             <Form.Label>Autosum test scores</Form.Label>
-                            <Form.Control type={"boolean"} onChange={(e) => {
+                            <Form.Check type={"checkbox"} onChange={(e) => {
                                 this.setState({
                                     editTask: {
                                         ...this.state.editTask,
-                                        autosum_score: e.target.value,
+                                        autosum_scores: e.target.checked,
                                     }
                                 })
-                            }} value={this.state.editTask.autosum_score}/>
+                            }} checked={this.state.editTask.autosum_scores}/>
                             <Form.Label>Sorting direction</Form.Label>
                             <Form.Control as={"select"} onChange={(e) => {
                                 this.setState({
