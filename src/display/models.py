@@ -307,6 +307,8 @@ class Contest(models.Model):
     summary_score_sorting_direction = models.CharField(default=ASCENDING, choices=SORTING_DIRECTION,
                                                        help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
                                                        max_length=50, blank=True)
+    autosum_scores = models.BooleanField(default=True,
+                                         help_text="If true, the front end will sum all tasks into ContestSummary when any task is updated")
     name = models.CharField(max_length=100, unique=True)
     time_zone = TimeZoneField()
     latitude = models.FloatField(default=0, help_text="Approximate location of contest, used for global map display",
@@ -1152,6 +1154,8 @@ class Task(models.Model):
     index = models.IntegerField(
         help_text="The index of the task when displayed as columns in a table. Indexes are sorted in ascending order to determine column order",
         default=0)
+    autosum_scores = models.BooleanField(default=True,
+                                         help_text="If true, the front end will sum all tests into TaskSummary when any test is updated")
 
     class Meta:
         unique_together = ("name", "contest")
@@ -1227,11 +1231,30 @@ class TeamTestScore(models.Model):
 #         TaskSummary.objects.create(team=team, task=instance, points=0)
 #
 #
-# @receiver(post_save, sender=TaskTest)
-# def populate_test_results(sender, instance: TaskTest, **kwargs):
-#     teams = Team.objects.filter(contestteam__contest=instance.task.contest)
-#     for team in teams:
-#         TeamTestScore.objects.create(team=team, task_test=instance, points=0)
+@receiver(post_save, sender=TeamTestScore)
+def auto_summarise_tests(sender, instance: TeamTestScore, **kwargs):
+    if instance.task_test.task.autosum_scores:
+        task_summary, _ = TaskSummary.objects.get_or_create(task=instance.task_test.task, team=instance.team,
+                                                            defaults={"points": instance.points})
+        tests = TeamTestScore.objects.filter(team=instance.team, task_test__task=instance.task_test.task)
+        if tests.exists():
+            total = sum([test.points for test in tests])
+            task_summary.points = total
+            task_summary.save()
+
+
+@receiver(post_save, sender=TaskSummary)
+def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
+    if instance.task.contest.autosum_scores:
+        contest_summary, _ = ContestSummary.objects.get_or_create(contest=instance.task.contest, team=instance.team,
+                                                                  defaults={"points": instance.points})
+        tasks = TaskSummary.objects.filter(team=instance.team, task__contest=instance.task.contest)
+        if tasks.exists():
+            total = sum([test.points for test in tasks])
+            contest_summary.points = total
+            contest_summary.save()
+
+
 #
 #
 # @receiver(post_save, sender=ContestTeam)

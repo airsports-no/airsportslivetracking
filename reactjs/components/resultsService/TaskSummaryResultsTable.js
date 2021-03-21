@@ -61,7 +61,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
             summary_score_sorting_direction: "asc",
             name: "",
             heading: "",
-            index: 0
+            index: 0,
+            autosum_scores: true
         }
     }
 
@@ -120,6 +121,15 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                     }
                                 })
                             }} value={this.state.editTask.index}/>
+                            <Form.Label>Autosum test scores</Form.Label>
+                            <Form.Control type={"boolean"} onChange={(e) => {
+                                this.setState({
+                                    editTask: {
+                                        ...this.state.editTask,
+                                        autosum_score: e.target.value,
+                                    }
+                                })
+                            }} value={this.state.editTask.autosum_score}/>
                             <Form.Label>Sorting direction</Form.Label>
                             <Form.Control as={"select"} onChange={(e) => {
                                 this.setState({
@@ -290,6 +300,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             dataField: "contestSummary",
             text: "Overall",
             sort: true,
+            editable: !this.props.contest.results.autosum_scores,
             csvType: "number",
             sortCaret: (order, column) => {
                 if (!order) return (<span>&nbsp;&nbsp;Desc/Asc</span>);
@@ -376,6 +387,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 text: task.heading,
                 sort: true,
                 columnType: "task",
+                editable: !task.autosum_scores,
                 task: task.id,
                 sortCaret: (order, column) => {
                     if (!order) return (<span>&nbsp;&nbsp;Desc/Asc</span>);
@@ -445,7 +457,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
         columns.push(contestSummaryColumn)
         return columns
     }
-
 
     render() {
         if (!this.props.teams || !this.props.contest || !this.props.tasks || !this.props.taskTests) return null

@@ -11,9 +11,9 @@ import {
     CREATE_TASK_SUCCESSFUL,
     CREATE_TASK_TEST_SUCCESSFUL,
     DELETE_TASK_SUCCESSFUL,
-    DELETE_TASK_TEST_SUCCESSFUL
+    DELETE_TASK_TEST_SUCCESSFUL, PUT_TEST_RESULT_SUCCESSFUL
 } from "../constants/resultsServiceActionTypes";
-import {fetchContestTeams, fetchTasks} from "../actions/resultsService";
+import {fetchContestResults, fetchContestTeams, fetchTasks} from "../actions/resultsService";
 
 const initialState = {
     contests: [],
@@ -140,6 +140,10 @@ function rootReducer(state = initialState, action) {
             ...state,
             visibleTaskDetails: {}
         })
+    }
+    if (action.type===PUT_TEST_RESULT_SUCCESSFUL){
+        fetchContestResults(action.contestId)
+        return state
     }
     return state;
 }

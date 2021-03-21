@@ -9,7 +9,7 @@ import {
     GET_TASKS_SUCCESSFUL,
     GET_TASK_TESTS_SUCCESSFUL,
     CREATE_TASK_SUCCESSFUL,
-    CREATE_TASK_TEST_SUCCESSFUL, DELETE_TASK_SUCCESSFUL, DELETE_TASK_TEST_SUCCESSFUL
+    CREATE_TASK_TEST_SUCCESSFUL, DELETE_TASK_SUCCESSFUL, DELETE_TASK_TEST_SUCCESSFUL, PUT_TEST_RESULT_SUCCESSFUL
 } from "../constants/resultsServiceActionTypes";
 
 export const fetchContestList = () => (dispatch) => {
@@ -166,7 +166,7 @@ export const putTestResult = (contestId, teamId, taskTestId, points) => (dispatc
         method: "PUT",
         data: {task_test: taskTestId, team: teamId, points: points},
         cache: false,
-        success: value => console.log("Successfully saved test results"),
+        success: value => dispatch({type: GET_CONTEST_RESULTS_SUCCESSFUL, payload: value, contestId: contestId}),
         error: error => alert(JSON.stringify(error))
     });
 }

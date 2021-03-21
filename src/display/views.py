@@ -1523,13 +1523,16 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     def update_test_result(self, request, *args, **kwargs):
         # I think this is required for the permissions to work
         contest = self.get_object()
-        results, created = TeamTestScore.objects.get_or_create(team_id=request.data["team"],
-                                                               task_test_id=request.data["task_test"],
-                                                               defaults={"points": request.data["points"]})
+        results, created = TeamTestScore.objects.get_or_create(team_id=int(request.data["team"]),
+                                                               task_test_id=int(request.data["task_test"]),
+                                                               defaults={"points": int(request.data["points"])})
         if not created:
             results.points = request.data["points"]
             results.save()
-        return Response(status=HTTP_200_OK)
+        # Return the same as the initial results request so that we can refresh everything that has been updated
+        contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
+        serialiser = ContestResultsDetailsSerialiser(contest)
+        return Response(serialiser.data)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

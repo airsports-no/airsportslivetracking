@@ -430,7 +430,8 @@ class ContestForm(forms.ModelForm):
             ),
             Fieldset(
                 "Result service",
-                "summary_score_sorting_direction"
+                "summary_score_sorting_direction",
+                "autosum_scores"
             ),
             ButtonHolder(
                 Submit("submit", "Submit")
