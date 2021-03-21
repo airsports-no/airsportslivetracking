@@ -21,6 +21,26 @@ export const fetchContestList = () => (dispatch) => {
         error: error => console.log(error)
     });
 }
+export const teamsData = (data, contestId) => (dispatch) => dispatch({
+    type: GET_CONTEST_TEAMS_LIST_SUCCESSFUL,
+    payload: data,
+    contestId: contestId
+})
+export const tasksData = (data, contestId) => (dispatch) => dispatch({
+    type: GET_TASKS_SUCCESSFUL,
+    payload: data,
+    contestId: contestId
+})
+export const testsData = (data, contestId) => (dispatch) => dispatch({
+    type: GET_TASK_TESTS_SUCCESSFUL,
+    payload: data,
+    contestId: contestId
+})
+export const resultsData = (data, contestId) => (dispatch) => dispatch({
+    type: GET_CONTEST_RESULTS_SUCCESSFUL,
+    payload: data,
+    contestId: contestId
+})
 
 export const fetchContestResults = (contestId) => (dispatch) => {
     $.ajax({

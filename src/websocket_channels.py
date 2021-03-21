@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-if TYPE_CHECKING:
-    from display.models import Contestant
-from display.serialisers import ContestantTrackSerialiser
+from display.models import Contestant, ContestTeam, Task, TaskTest, MyUser, Team
+from display.serialisers import ContestantTrackSerialiser, ContestTeamNestedSerialiser, TaskSerialiser, \
+    TaskTestSerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser
 
 
 class WebsocketFacade:
@@ -95,10 +95,68 @@ class WebsocketFacade:
                 "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
                 "speed": float(position_data["speed"]),
                 "course": float(position_data["course"]),
-                "navigation_task_id":navigation_task_id
+                "navigation_task_id": navigation_task_id
             }
         }
         async_to_sync(self.channel_layer.group_send)(
             "tracking_global", data
         )
         return data
+
+    def contest_results_channel_name(self, contest: "Contest") -> str:
+        return "contestresults_{}".format(contest.pk)
+
+    def transmit_teams(self, contest: "Contest"):
+        teams = Team.objects.filter(contestteam__contest=contest)
+        serialiser = TeamNestedSerialiser(teams, many=True)
+        data = {
+            "type": "contestresults",
+            "content": {
+                "type": "contest.teams",
+                "teams": serialiser.data
+            }
+        }
+        async_to_sync(self.channel_layer.group_send)(
+            self.contest_results_channel_name(contest), data
+        )
+
+    def transmit_tasks(self, contest: "Contest"):
+        tasks = Task.objects.filter(contest=contest)
+        data = {
+            "type": "contestresults",
+            "content": {
+                "type": "contest.tasks",
+                "tasks": TaskSerialiser(tasks, many=True).data
+            }
+        }
+        async_to_sync(self.channel_layer.group_send)(
+            self.contest_results_channel_name(contest), data
+        )
+
+    def transmit_tests(self, contest: "Contest"):
+        tests = TaskTest.objects.filter(task__contest=contest)
+        data = {
+            "type": "contestresults",
+            "content": {
+                "type": "contest.tests",
+                "tests": TaskTestSerialiser(tests, many=True).data
+            }
+        }
+        async_to_sync(self.channel_layer.group_send)(
+            self.contest_results_channel_name(contest), data
+        )
+
+    def transmit_contest_results(self, user: Optional["MyUser"], contest: "Contest"):
+        contest.permission_change_contest = user.has_perm("display.change_contest", contest) if user is None else False
+        serialiser = ContestResultsDetailsSerialiser(contest)
+
+        data = {
+            "type": "contestresults",
+            "content": {
+                "type": "contest.results",
+                "results": serialiser.data
+            }
+        }
+        async_to_sync(self.channel_layer.group_send)(
+            self.contest_results_channel_name(contest), data
+        )

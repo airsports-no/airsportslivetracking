@@ -7,8 +7,9 @@ from channels.generic.websocket import WebsocketConsumer
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 
-from display.models import NavigationTask
+from display.models import NavigationTask, Contest
 from display.views import cached_generate_data
+from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,6 @@ class GlobalConsumer(WebsocketConsumer):
             except KeyError:
                 logger.exception("Did not find expected data block in {}".format(data))
 
-
     def disconnect(self, code):
         async_to_sync(self.channel_layer.group_discard)(
             self.group_name,
@@ -90,3 +90,39 @@ class GlobalConsumer(WebsocketConsumer):
         data = event["data"]
         # logger.info("Received data: {}".format(data))
         self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
+
+
+class ContestResultsConsumer(WebsocketConsumer):
+    def connect(self):
+        self.user = self.scope.get("user")
+        self.contest_pk = self.scope["url_route"]["kwargs"]["contest_pk"]
+        self.contest_results_group_name = "contestresults_{}".format(self.contest_pk)
+
+        async_to_sync(self.channel_layer.group_add)(
+            self.contest_results_group_name,
+            self.channel_name
+        )
+        try:
+            contest = Contest.objects.get(pk=self.contest_pk)
+        except ObjectDoesNotExist:
+            return
+        self.accept()
+        ws = WebsocketFacade()
+        ws.transmit_teams(contest)
+        ws.transmit_tasks(contest)
+        ws.transmit_tests(contest)
+        # Initial contest results must be retrieved through rest to get the correct user credentials
+        # ws.transmit_contest_results(self.user, contest)
+
+    def disconnect(self, code):
+        async_to_sync(self.channel_layer.group_discard)(
+            self.contest_results_group_name,
+            self.channel_name
+        )
+
+    def receive(self, text_data, **kwargs):
+        message = json.loads(text_data)
+        logger.info(message)
+
+    def contestresults(self, event):
+        self.send(text_data=json.dumps(event["content"], cls=DateTimeEncoder))

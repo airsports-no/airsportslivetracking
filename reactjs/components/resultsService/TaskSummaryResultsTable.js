@@ -1,11 +1,12 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
+import {w3cwebsocket as W3CWebSocket} from "websocket";
 import {
     createOrUpdateTask, createOrUpdateTaskTest, deleteTask, deleteTaskTest,
     fetchContestResults,
     fetchContestTeams, fetchTasks, fetchTaskTests,
-    hideTaskDetails, putContestSummary, putTaskSummary, putTestResult,
-    showTaskDetails
+    hideTaskDetails, putContestSummary, putTaskSummary, putTestResult, resultsData,
+    showTaskDetails, tasksData, teamsData, testsData
 } from "../../actions/resultsService";
 import {teamLongForm, teamLongFormText} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
@@ -23,6 +24,12 @@ import {
     mdiPencilOutline, mdiSort
 } from "@mdi/js";
 import Icon from "@mdi/react";
+import {
+    GET_CONTEST_RESULTS_SUCCESSFUL,
+    GET_CONTEST_TEAMS_LIST_SUCCESSFUL,
+    GET_TASK_TESTS_SUCCESSFUL,
+    GET_TASKS_SUCCESSFUL
+} from "../../constants/resultsServiceActionTypes";
 
 const {ExportCSVButton} = CSVExport;
 
@@ -39,12 +46,12 @@ const mapStateToProps = (state, props) => ({
 class ConnectedTaskSummaryResultsTable extends Component {
     constructor(props) {
         super(props)
-        if (!this.props.results) {
-            this.props.fetchContestResults(this.props.contestId)
-            this.props.fetchContestTeams(this.props.contestId)
-            this.props.fetchTasks(this.props.contestId)
-            this.props.fetchTaskTests(this.props.contestId)
-        }
+        // if (!this.props.results) {
+        // this.props.fetchContestResults(this.props.contestId)
+        //     this.props.fetchContestTeams(this.props.contestId)
+        //     this.props.fetchTasks(this.props.contestId)
+        //     this.props.fetchTaskTests(this.props.contestId)
+        // }
         this.state = {
             displayNewTaskModal: false,
             displayNewTaskTestModal: false,
@@ -53,7 +60,68 @@ class ConnectedTaskSummaryResultsTable extends Component {
             sortField: null,
             sortDirection: "asc"
         }
+        this.connectInterval = null;
+        this.wsTimeOut = 1000
     }
+
+    check() {
+        if (!this.client || this.client.readyState === WebSocket.CLOSED) this.initiateSession(); //check if websocket instance is closed, if so call `connect` function.
+    };
+
+    componentDidMount() {
+        this.props.fetchContestResults(this.props.contestId)
+        this.initiateSession()
+    }
+
+    initiateSession() {
+        let getUrl = window.location;
+        let protocol = "wss"
+        if (getUrl.host.includes("localhost")) {
+            protocol = "ws"
+        }
+        this.client = new W3CWebSocket(protocol + "://" + getUrl.host + "/ws/contestresults/" + this.props.contestId + "/")
+        this.client.onopen = () => {
+            console.log("Client connected")
+            clearTimeout(this.connectInterval)
+        };
+        this.client.onmessage = (message) => {
+            let data = JSON.parse(message.data);
+            if (data.type === "contest.teams") {
+                this.props.teamsData(data.teams, this.props.contestId)
+            }
+            if (data.type === "contest.tasks") {
+                this.props.tasksData(data.tasks, this.props.contestId)
+            }
+            if (data.type === "contest.tests") {
+                this.props.testsData(data.tests, this.props.contestId)
+            }
+            if (data.type === "contest.results") {
+                data.results.permission_change_contest = this.props.results.permission_change_contest
+                this.props.resultsData(data.results, this.props.contestId)
+            }
+        };
+        this.client.onclose = (e) => {
+            console.log(
+                `Socket is closed. Reconnect will be attempted in ${Math.min(
+                    10000 / 1000,
+                    (this.timeout + this.timeout) / 1000
+                )} second.`,
+                e.reason
+            );
+
+            this.timeout = this.timeout + this.timeout; //increment retry interval
+            this.connectInterval = setTimeout(() => this.check(), Math.min(10000, this.wsTimeOut)); //call check function after timeout
+        };
+        this.client.onerror = err => {
+            console.error(
+                "Socket encountered error: ",
+                err.message,
+                "Closing socket"
+            );
+            this.client.close();
+        };
+    }
+
 
     defaultTask() {
         return {
@@ -531,6 +599,10 @@ const
         deleteTaskTest,
         putContestSummary,
         putTaskSummary,
-        putTestResult
+        putTestResult,
+        teamsData,
+        tasksData,
+        testsData,
+        resultsData
     })(ConnectedTaskSummaryResultsTable);
 export default TaskSummaryResultsTable;
