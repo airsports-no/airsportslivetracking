@@ -283,14 +283,14 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 else if (order === 'desc') return (<span>&nbsp;&nbsp;<font color="red">Desc</font>/Asc</span>);
                 return null;
             },
-            columnType: "summary",
+            columnType: "contestSummary",
             headerFormatter: (column, colIndex, components) => {
                 return <div>
                     Overall&nbsp;&nbsp;
                     <Button variant={"secondary"}
                             onClick={(e) => {
                                 this.setState({
-                                    sortField: "summary",
+                                    sortField: "contestSummary",
                                     sortDirection: this.props.contest.results.summary_score_sorting_direction
                                 })
                             }}><Icon
@@ -446,7 +446,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             blurToSave: true,
             afterSaveCell: (oldValue, newValue, row, column) => {
                 const teamId = row.team.id
-                if (column.columnType === "summary") {
+                if (column.columnType === "contestSummary") {
                     this.props.putContestSummary(this.props.contestId, teamId, newValue)
                 } else if (column.columnType === "task") {
                     this.props.putTaskSummary(this.props.contestId, teamId, column.task, newValue)
