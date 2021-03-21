@@ -466,7 +466,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     this.props.putContestSummary(this.props.contestId, teamId, newValue)
                 } else if (column.columnType === "task") {
                     this.props.putTaskSummary(this.props.contestId, teamId, column.task, newValue)
-                } else if (column.columbenType === "taskTest") {
+                } else if (column.columnType === "taskTest") {
                     this.props.putTestResult(this.props.contestId, teamId, column.taskTest, newValue)
                 }
                 console.log(row)
