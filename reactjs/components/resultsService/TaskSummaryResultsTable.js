@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
-    createNewTask, createNewTaskTest, deleteTask, deleteTaskTest,
+    createOrUpdateTask, createOrUpdateTaskTest, deleteTask, deleteTaskTest,
     fetchContestList,
     fetchContestResults,
     fetchContestTeams, fetchTasks, fetchTaskTests,
@@ -45,41 +45,42 @@ class ConnectedTaskSummaryResultsTable extends Component {
             this.props.fetchTaskTests(this.props.contestId)
         }
         this.state = {
-            taskName: null,
-            taskId: null,
-            taskTestName: null,
-            task: null,
-            taskTest: null,
             displayNewTaskModal: false,
-            displayNewTaskTestModal: false
+            displayNewTaskTestModal: false,
+            editTask: this.defaultTask(),
+            editTaskTest: this.defaulTaskTest()
         }
     }
 
-    componentDidUpdate(prevProps) {
+    defaultTask() {
+        return {
+            contest: this.props.contestId,
+            summary_score_sorting_direction: "asc",
+            name: "",
+            heading: "",
+        }
     }
 
-    handleTaskNameChange(e) {
-        this.setState({taskName: e.target.value})
+    defaulTaskTest(task) {
+        return {
+            contest: this.props.contest,
+            sorting: "asc",
+            name: "",
+            heading: "",
+            index: 0,
+            task: task?task:-1
+        }
     }
-
-    handleTaskTestNameChange(e) {
-        this.setState({taskTestName: e.target.value})
-    }
-
-    handleTaskChange(e) {
-        this.setState({taskId: e.target.value})
-    }
-
 
     createNewTask() {
         this.setState({displayNewTaskModal: false})
-        this.props.createNewTask(this.props.contestId, this.state.taskName)
+        this.props.createOrUpdateTask(this.props.contestId, this.state.editTask)
     }
 
     createNewTaskTest() {
-        if (this.state.taskId !== -1) {
+        if (this.state.editTaskTest.task !== -1) {
             this.setState({displayNewTaskTestModal: false})
-            this.props.createNewTaskTest(this.props.contestId, this.state.taskId, this.state.taskTestName)
+            this.props.createOrUpdateTaskTest(this.props.contestId, this.state.editTaskTest)
         }
     }
 
@@ -97,7 +98,32 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     <Container>
                         <Form.Group>
                             <Form.Label>Task name</Form.Label>
-                            <Form.Control type={"text"} onChange={(e) => this.handleTaskNameChange(e)}/>
+                            <Form.Control type={"text"} onChange={(e) => {
+                                this.setState({
+                                    editTask: {
+                                        ...this.state.editTask,
+                                        name: e.target.value,
+                                        heading: e.target.value
+                                    }
+                                })
+                            }} value={this.state.editTask.name}/>
+                            <Form.Label>Sorting direction</Form.Label>
+                            <Form.Control as={"select"} onChange={(e) => {
+                                this.setState({
+                                    editTask: {
+                                        ...this.state.editTask,
+                                        summary_score_sorting_direction: e.target.value
+                                    }
+                                })
+                            }} value={this.state.editTask.summary_score_sorting_direction}>
+                                <option key={"asc"}
+                                        value={"asc"}>Ascending
+                                </option>
+                                <option key={"desc"}
+                                        value={"desc"}>Descending
+                                </option>
+                            </Form.Control>
+
                         </Form.Group>
                     </Container>
                 </Modal.Body>
@@ -123,14 +149,39 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     <Container>
                         <Form.Group>
                             <Form.Label>Task</Form.Label>
-                            <Form.Control as={"select"} onChange={(e) => this.handleTaskChange(e)}>
+                            <Form.Control as={"select"} onChange={(e) => {
+                                this.setState({editTaskTest: {...this.state.editTaskTest, task: e.target.value}})
+                            }} value={this.state.editTaskTest.task ? this.state.editTaskTest.task : -1}>
                                 <option key={-1} value={-1}>--</option>
                                 {this.props.tasks.map((task) => {
-                                    return <option key={task.id} value={task.id}>{task.name}</option>
+                                    return <option key={task.id}
+                                                   value={task.id}>{task.name}</option>
                                 })}
                             </Form.Control>
                             <Form.Label>Test name</Form.Label>
-                            <Form.Control type={"text"} onChange={(e) => this.handleTaskTestNameChange(e)}/>
+                            <Form.Control type={"text"} onChange={(e) => {
+                                this.setState({
+                                    editTaskTest: {
+                                        ...this.state.editTaskTest,
+                                        heading: e.target.value,
+                                        name: e.target.value
+                                    }
+                                })
+                            }}
+                                          value={this.state.editTaskTest.name}
+                            />
+                            <Form.Label>Sorting direction</Form.Label>
+                            <Form.Control as={"select"} onChange={(e) => {
+                                this.setState({editTaskTest: {...this.state.editTaskTest, sorting: e.target.value}})
+                            }} value={this.state.editTaskTest.sorting}>
+                                <option key={"asc"}
+                                        value={"asc"}>Ascending
+                                </option>
+                                <option key={"desc"}
+                                        value={"desc"}>Descending
+                                </option>
+                            </Form.Control>
+
                         </Form.Group>
                     </Container>
                 </Modal.Body>
@@ -239,12 +290,22 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     columnType: "taskTest",
                     taskTest: taskTest.id,
                     headerFormatter: (column, colIndex, components) => {
-                        if (this.props.contest.permission_change_contest) {
+                        if (this.props.contest.results.permission_change_contest) {
                             return <div>
                                 {taskTest.heading}
                                 <Button variant={"danger"}
-                                        onClick={(e) => this.props.deleteTaskTest(this.props.contestId, taskTest.id)}><Icon
+                                        onClick={(e) => {
+                                            if (window.confirm("Are you sure you want to delete the task test?")) {
+                                                this.props.deleteTaskTest(this.props.contestId, taskTest.id)
+                                            }
+                                        }}><Icon
                                     path={mdiClose} title={"Delete"} size={0.8}/></Button>
+                                <Button variant={"secondary"}
+                                        onClick={(e) => {
+                                            this.setState({displayNewTaskTestModal: true, editTaskTest: taskTest})
+                                        }}><Icon
+                                    path={mdiPencilOutline} title={"Edit"} size={0.8}/></Button>
+
                             </div>
                         }
                         return <div>{taskTest.heading}</div>
@@ -269,16 +330,27 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible(),
                 csvType: "number",
                 headerFormatter: (column, colIndex, components) => {
-                    if (this.props.contest.permission_change_contest) {
+                    if (this.props.contest.results.permission_change_contest) {
                         return <div>
                             {task.heading}
-                            <Button onClick={(e) => this.setState({displayNewTaskTestModal: true, taskId: task.id})}>New
-                                test</Button>
+                            <Button onClick={(e) => {
+                                this.setState({
+                                    displayNewTaskTestModal: true,
+                                    editTaskTest: this.defaulTaskTest(task.id)
+                                })
+                            }
+                            }>New test</Button>
                             <Button variant={"danger"}
-                                    onClick={(e) => this.props.deleteTask(this.props.contestId, task.id)}><Icon
+                                    onClick={(e) => {
+                                        if (window.confirm("You sure you want to delete the task?")) {
+                                            this.props.deleteTask(this.props.contestId, task.id)
+                                        }
+                                    }}><Icon
                                 path={mdiClose} title={"Delete"} size={0.8}/></Button>
                             <Button variant={"secondary"}
-                                    onClick={(e) => this.setState({displayNewTaskModal: true, task: task})}><Icon
+                                    onClick={(e) => {
+                                        this.setState({displayNewTaskModal: true, editTask: task})
+                                    }}><Icon
                                 path={mdiPencilOutline} title={"Edit"} size={0.8}/></Button>
 
                         </div>
@@ -319,8 +391,10 @@ class ConnectedTaskSummaryResultsTable extends Component {
         return <div className={'row'}>
             <div className={"col-12"}>
                 <h1>{this.props.contest.results.name}</h1>
-                {this.props.contest.permission_change_contest ?
-                    <Button onClick={(e) => this.setState({displayNewTaskModal: true})}>New task</Button> : null}
+                {this.props.contest.results.permission_change_contest ?
+                    <Button onClick={(e) => {
+                        this.setState({displayNewTaskModal: true, editTask: this.defaultTask()})
+                    }}>New task</Button> : null}
                 <ToolkitProvider
                     keyField="key"
                     data={d}
@@ -331,7 +405,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         props => (
                             <div>
                                 <BootstrapTable {...props.baseProps} defaultSorted={defaultSorted}
-                                                cellEdit={this.props.contest.permission_change_contest ? cellEdit : {}}
+                                                cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
                                 />
                                 <hr/>
                                 <ExportCSVButton {...props.csvProps}>Export CSV</ExportCSVButton>
@@ -355,8 +429,8 @@ const
         hideTaskDetails,
         fetchTasks,
         fetchTaskTests,
-        createNewTask,
-        createNewTaskTest,
+        createOrUpdateTask,
+        createOrUpdateTaskTest,
         deleteTask,
         deleteTaskTest,
         putContestSummary,

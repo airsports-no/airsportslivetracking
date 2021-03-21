@@ -1149,10 +1149,13 @@ class Task(models.Model):
     name = models.CharField(max_length=100)
     heading = models.CharField(max_length=100)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
-    default_sorting = models.ForeignKey("TaskTest", related_name="default_sort", null=True, on_delete=models.SET_NULL)
+    index = models.IntegerField(
+        help_text="The index of the task when displayed as columns in a table. Indexes are sorted in ascending order to determine column order",
+        default=0)
 
     class Meta:
         unique_together = ("name", "contest")
+        ordering = ("index",)
 
 
 class TaskTest(models.Model):
@@ -1173,10 +1176,12 @@ class TaskTest(models.Model):
                                help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
                                max_length=50)
     index = models.IntegerField(
-        help_text="The index of the task when displayed as columns in a table. Indexes are sorted in ascending order to determine column order")
+        help_text="The index of the task when displayed as columns in a table. Indexes are sorted in ascending order to determine column order",
+        default=0)
 
     class Meta:
         unique_together = ("name", "task")
+        ordering = ("index",)
 
 
 class TaskSummary(models.Model):

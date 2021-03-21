@@ -63,18 +63,24 @@ export const fetchTaskTests = (contestId) => (dispatch) => {
     });
 }
 
-export const createNewTask = (contestId, taskName) => (dispatch) => {
+export const createOrUpdateTask = (contestId, task) => (dispatch) => {
+    let url = "/api/v1/contests/" + contestId + "/tasks/"
+    let method = "POST"
+    if (task.id !== undefined) {
+        method = "PUT"
+        url = "/api/v1/contests/" + contestId + "/tasks/" + task.id + "/"
+    }
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/tasks/",
+        url: url,
         datatype: 'json',
-        method: "POST",
-        data: {summary_score_sorting_direction: "asc", name: taskName, heading: taskName, contest: contestId},
+        method: method,
+        data: task,
         cache: false,
         success: value => {
             console.log("Creating task success: " + value)
             dispatch({type: CREATE_TASK_SUCCESSFUL, contestId: contestId, payload: value})
         },
-        error: error => console.log(error)
+        error: error => alert(error)
     });
 }
 
@@ -88,22 +94,28 @@ export const deleteTask = (contestId, taskId) => (dispatch) => {
             console.log("Deleting task success: " + value)
             dispatch({type: DELETE_TASK_SUCCESSFUL, contestId: contestId, payload: taskId})
         },
-        error: error => console.log(error)
+        error: error => alert(error)
     });
 }
 
-export const createNewTaskTest = (contestId, taskId, taskTestName) => (dispatch) => {
+export const createOrUpdateTaskTest = (contestId, taskTest) => (dispatch) => {
+    let url = "/api/v1/contests/" + contestId + "/tasktests/"
+    let method = "POST"
+    if (taskTest.id !== undefined) {
+        method = "PUT"
+        url = "/api/v1/contests/" + contestId + "/tasktests/" + taskTest.id + "/"
+    }
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/tasktests/",
+        url: url,
         datatype: 'json',
-        method: "POST",
-        data: {index: 0, name: taskTestName, heading: taskTestName, task: taskId},
+        method: method,
+        data: taskTest,
         cache: false,
         success: value => {
             console.log("Creating task test success: " + value)
             dispatch({type: CREATE_TASK_TEST_SUCCESSFUL, contestId: contestId, payload: value})
         },
-        error: error => console.log(error)
+        error: error => alert(error)
     });
 }
 
@@ -117,7 +129,7 @@ export const deleteTaskTest = (contestId, taskTestId) => (dispatch) => {
             console.log("Deleting task test success: " + value)
             dispatch({type: DELETE_TASK_TEST_SUCCESSFUL, contestId: contestId, payload: taskTestId})
         },
-        error: error => console.log(error)
+        error: error => alert(error)
     });
 }
 

@@ -44,20 +44,26 @@ function rootReducer(state = initialState, action) {
         })
     }
     if (action.type === CREATE_TASK_SUCCESSFUL) {
+        const remaining = state.tasks[action.contestId].filter((task) => {
+            return task.id !== action.payload.id
+        })
         return Object.assign({}, state, {
             ...state,
             tasks: {
                 ...state.tasks,
-                [action.contestId]: state.tasks[action.contestId].concat([action.payload])
+                [action.contestId]: remaining.concat([action.payload])
             }
         })
     }
     if (action.type === CREATE_TASK_TEST_SUCCESSFUL) {
+        const remaining = state.taskTests[action.contestId].filter((taskTest) => {
+            return taskTest.id !== action.payload.id
+        })
         return Object.assign({}, state, {
             ...state,
             taskTests: {
                 ...state.taskTests,
-                [action.contestId]: state.taskTests[action.contestId].concat([action.payload])
+                [action.contestId]: remaining.concat([action.payload])
             }
         })
     }
