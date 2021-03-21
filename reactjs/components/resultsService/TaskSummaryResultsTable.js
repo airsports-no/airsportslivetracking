@@ -20,7 +20,13 @@ import {Link} from "react-router-dom";
 import ToolkitProvider, {CSVExport} from 'react-bootstrap-table2-toolkit';
 import cellEditFactory from 'react-bootstrap-table2-editor';
 import {Container, Modal, Button, Form} from "react-bootstrap";
-import {mdiClose, mdiGoKartTrack, mdiPencilOutline} from "@mdi/js";
+import {
+    mdiArrowCollapseHorizontal,
+    mdiArrowExpandHorizontal,
+    mdiClose,
+    mdiGoKartTrack,
+    mdiPencilOutline
+} from "@mdi/js";
 import Icon from "@mdi/react";
 
 const {ExportCSVButton} = CSVExport;
@@ -68,7 +74,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             name: "",
             heading: "",
             index: 0,
-            task: task?task:-1
+            task: task ? task : -1
         }
     }
 
@@ -290,9 +296,10 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     columnType: "taskTest",
                     taskTest: taskTest.id,
                     headerFormatter: (column, colIndex, components) => {
+                        const common = <div>{task.heading}-><br/>{taskTest.heading}</div>
                         if (this.props.contest.results.permission_change_contest) {
                             return <div>
-                                {taskTest.heading}
+                                {common}
                                 <Button variant={"danger"}
                                         onClick={(e) => {
                                             if (window.confirm("Are you sure you want to delete the task test?")) {
@@ -308,7 +315,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
 
                             </div>
                         }
-                        return <div>{taskTest.heading}</div>
+                        return common
                     }
                 })
             });
@@ -319,20 +326,28 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 columnType: "task",
                 task: task.id,
                 events: {
-                    onContextMenu: (e, column, columnIndex, row, rowIndex) => {
-                        if (!this.props.visibleTaskDetails[task.id]) {
-                            this.props.showTaskDetails(task.id.toFixed(0))
-                        } else {
-                            this.props.hideTaskDetails(task.id.toFixed(0))
-                        }
-                    }
                 },
                 hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible(),
                 csvType: "number",
                 headerFormatter: (column, colIndex, components) => {
+                    const always = <div>
+                        {task.heading}
+                        {this.props.taskTests.filter((taskTest)=>{return taskTest.task===task.id}).length>0?<Button variant={"secondary"}
+                                onClick={(e) => {
+                                    if (!this.props.visibleTaskDetails[task.id]) {
+                                        this.props.showTaskDetails(task.id)
+                                    } else {
+                                        this.props.hideTaskDetails(task.id)
+                                    }
+                                }}>
+                            {this.props.visibleTaskDetails[task.id] ? <Icon
+                                path={mdiArrowCollapseHorizontal} title={"Collapse"} size={0.8}/> : <Icon
+                                path={mdiArrowExpandHorizontal} title={"Expand"} size={0.8}/>}
+                        </Button>:null}
+                    </div>
                     if (this.props.contest.results.permission_change_contest) {
                         return <div>
-                            {task.heading}
+                            {always}
                             <Button onClick={(e) => {
                                 this.setState({
                                     displayNewTaskTestModal: true,
@@ -355,7 +370,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
 
                         </div>
                     }
-                    return <div>{task.heading}</div>
+                    return always
                 }
             })
         })
