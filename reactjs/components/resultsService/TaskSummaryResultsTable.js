@@ -2,7 +2,6 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
     createOrUpdateTask, createOrUpdateTaskTest, deleteTask, deleteTaskTest,
-    fetchContestList,
     fetchContestResults,
     fetchContestTeams, fetchTasks, fetchTaskTests,
     hideTaskDetails, putContestSummary, putTaskSummary, putTestResult,
@@ -10,11 +9,8 @@ import {
 } from "../../actions/resultsService";
 import {teamLongForm, teamLongFormText} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
-import paginationFactory from 'react-bootstrap-table2-paginator';
 import 'react-bootstrap-table2-toolkit/dist/react-bootstrap-table2-toolkit.min.css';
 import "bootstrap/dist/css/bootstrap.min.css"
-import {ProgressCircle} from "../contestantProgress";
-import {AircraftBadge, ProfileBadge, TeamBadge} from "../teamBadges";
 import {Link} from "react-router-dom";
 
 import ToolkitProvider, {CSVExport} from 'react-bootstrap-table2-toolkit';
@@ -24,7 +20,6 @@ import {
     mdiArrowCollapseHorizontal,
     mdiArrowExpandHorizontal,
     mdiClose,
-    mdiGoKartTrack,
     mdiPencilOutline, mdiSort
 } from "@mdi/js";
 import Icon from "@mdi/react";
@@ -54,7 +49,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             displayNewTaskModal: false,
             displayNewTaskTestModal: false,
             editTask: this.defaultTask(),
-            editTaskTest: this.defaulTaskTest(),
+            editTaskTest: this.defaultTaskTest(),
             sortField: null,
             sortDirection: "asc"
         }
@@ -66,10 +61,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
             summary_score_sorting_direction: "asc",
             name: "",
             heading: "",
+            index: 0
         }
     }
 
-    defaulTaskTest(task) {
+    defaultTaskTest(task) {
         return {
             contest: this.props.contest,
             sorting: "asc",
@@ -115,6 +111,15 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                     }
                                 })
                             }} value={this.state.editTask.name}/>
+                            <Form.Label>Task index</Form.Label>
+                            <Form.Control type={"number"} onChange={(e) => {
+                                this.setState({
+                                    editTask: {
+                                        ...this.state.editTask,
+                                        index: e.target.value,
+                                    }
+                                })
+                            }} value={this.state.editTask.index}/>
                             <Form.Label>Sorting direction</Form.Label>
                             <Form.Control as={"select"} onChange={(e) => {
                                 this.setState({
@@ -178,6 +183,15 @@ class ConnectedTaskSummaryResultsTable extends Component {
                             }}
                                           value={this.state.editTaskTest.name}
                             />
+                            <Form.Label>Task test index</Form.Label>
+                            <Form.Control type={"number"} onChange={(e) => {
+                                this.setState({
+                                    editTaskTest: {
+                                        ...this.state.editTaskTest,
+                                        index: e.target.value,
+                                    }
+                                })
+                            }} value={this.state.editTaskTest.index}/>
                             <Form.Label>Sorting direction</Form.Label>
                             <Form.Control as={"select"} onChange={(e) => {
                                 this.setState({editTaskTest: {...this.state.editTaskTest, sorting: e.target.value}})
@@ -295,15 +309,17 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                 })
                             }}><Icon
                         path={mdiSort} title={"Sort"} size={0.8}/></Button>
-                        {components.sortElement}
+                    {components.sortElement}
                 </div>
             }
         }
         let columns = [teamColumn]
-        this.props.tasks.map((task) => {
-            this.props.taskTests.filter((taskTest) => {
+        const tasks = this.props.tasks.sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
+        tasks.map((task) => {
+            const taskTests = this.props.taskTests.filter((taskTest) => {
                 return taskTest.task === task.id
-            }).map((taskTest) => {
+            }).sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
+            taskTests.map((taskTest) => {
                 const dataField = "test_" + taskTest.id.toFixed(0)
                 columns.push({
                     dataField: dataField,
@@ -330,7 +346,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                         })
                                     }}><Icon
                                 path={mdiSort} title={"Sort"} size={0.8}/></Button>
-                        {components.sortElement}
+                            {components.sortElement}
                         </div>
                         if (this.props.contest.results.permission_change_contest) {
                             return <div>
@@ -403,7 +419,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                             <Button onClick={(e) => {
                                 this.setState({
                                     displayNewTaskTestModal: true,
-                                    editTaskTest: this.defaulTaskTest(task.id)
+                                    editTaskTest: this.defaultTaskTest(task.id)
                                 })
                             }
                             }>New test</Button>
