@@ -428,6 +428,10 @@ class ContestForm(forms.ModelForm):
                 "header_image",
                 "logo"
             ),
+            Fieldset(
+                "Result service",
+                "summary_score_sorting_direction"
+            ),
             ButtonHolder(
                 Submit("submit", "Submit")
             )

@@ -25,7 +25,7 @@ import {
     mdiArrowExpandHorizontal,
     mdiClose,
     mdiGoKartTrack,
-    mdiPencilOutline
+    mdiPencilOutline, mdiSort
 } from "@mdi/js";
 import Icon from "@mdi/react";
 
@@ -54,7 +54,9 @@ class ConnectedTaskSummaryResultsTable extends Component {
             displayNewTaskModal: false,
             displayNewTaskTestModal: false,
             editTask: this.defaultTask(),
-            editTaskTest: this.defaulTaskTest()
+            editTaskTest: this.defaulTaskTest(),
+            sortField: null,
+            sortDirection: "asc"
         }
     }
 
@@ -210,14 +212,10 @@ class ConnectedTaskSummaryResultsTable extends Component {
             }
             this.props.tasks.map((task) => {
                 data[team]["task_" + task.id.toFixed(0)] = 0
-                if (task.tasktest_set !== undefined) {
-                    task.tasktest_set.map((test) => {
-                        data[team]["test_" + test.id.toFixed(0)] = 0
-                    })
-                }
             })
-
-
+            this.props.taskTests.map((taskTest) => {
+                data[team]["test_" + taskTest.id.toFixed(0)] = 0
+            })
         })
         this.props.contest.results.task_set.map((task) => {
             task.tasksummary_set.map((taskSummary) => {
@@ -279,24 +277,61 @@ class ConnectedTaskSummaryResultsTable extends Component {
             text: "Overall",
             sort: true,
             csvType: "number",
-            columnType: "summary"
+            sortCaret: (order, column) => {
+                if (!order) return (<span>&nbsp;&nbsp;Desc/Asc</span>);
+                else if (order === 'asc') return (<span>&nbsp;&nbsp;Desc/<font color="red">Asc</font></span>);
+                else if (order === 'desc') return (<span>&nbsp;&nbsp;<font color="red">Desc</font>/Asc</span>);
+                return null;
+            },
+            columnType: "summary",
+            headerFormatter: (column, colIndex, components) => {
+                return <div>
+                    Overall&nbsp;&nbsp;
+                    <Button variant={"secondary"}
+                            onClick={(e) => {
+                                this.setState({
+                                    sortField: "summary",
+                                    sortDirection: this.props.contest.results.summary_score_sorting_direction
+                                })
+                            }}><Icon
+                        path={mdiSort} title={"Sort"} size={0.8}/></Button>
+                        {components.sortElement}
+                </div>
+            }
         }
         let columns = [teamColumn]
         this.props.tasks.map((task) => {
             this.props.taskTests.filter((taskTest) => {
                 return taskTest.task === task.id
             }).map((taskTest) => {
+                const dataField = "test_" + taskTest.id.toFixed(0)
                 columns.push({
-                    dataField: "test_" + taskTest.id.toFixed(0),
+                    dataField: dataField,
                     text: taskTest.heading,
                     headerClasses: "text-muted",
                     sort: true,
                     hidden: !this.props.visibleTaskDetails[task.id],
                     csvType: "number",
+                    sortCaret: (order, column) => {
+                        if (!order) return (<span>&nbsp;&nbsp;Desc/Asc</span>);
+                        else if (order === 'asc') return (<span>&nbsp;&nbsp;Desc/<font color="red">Asc</font></span>);
+                        else if (order === 'desc') return (<span>&nbsp;&nbsp;<font color="red">Desc</font>/Asc</span>);
+                        return null;
+                    },
                     columnType: "taskTest",
                     taskTest: taskTest.id,
                     headerFormatter: (column, colIndex, components) => {
-                        const common = <div>{task.heading}-><br/>{taskTest.heading}</div>
+                        const common = <div>{task.heading}-><br/>{taskTest.heading}&nbsp;&nbsp;
+                            <Button variant={"secondary"}
+                                    onClick={(e) => {
+                                        this.setState({
+                                            sortField: dataField,
+                                            sortDirection: taskTest.sorting
+                                        })
+                                    }}><Icon
+                                path={mdiSort} title={"Sort"} size={0.8}/></Button>
+                        {components.sortElement}
+                        </div>
                         if (this.props.contest.results.permission_change_contest) {
                             return <div>
                                 {common}
@@ -319,35 +354,52 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     }
                 })
             });
+            const dataField = "task_" + task.id.toFixed(0)
             columns.push({
-                dataField: "task_" + task.id.toFixed(0),
+                dataField: dataField,
                 text: task.heading,
                 sort: true,
                 columnType: "task",
                 task: task.id,
-                events: {
+                sortCaret: (order, column) => {
+                    if (!order) return (<span>&nbsp;&nbsp;Desc/Asc</span>);
+                    else if (order === 'asc') return (<span>&nbsp;&nbsp;Desc/<font color="red">Asc</font></span>);
+                    else if (order === 'desc') return (<span>&nbsp;&nbsp;<font color="red">Desc</font>/Asc</span>);
+                    return null;
                 },
+                events: {},
                 hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible(),
                 csvType: "number",
                 headerFormatter: (column, colIndex, components) => {
-                    const always = <div>
-                        {task.heading}
-                        {this.props.taskTests.filter((taskTest)=>{return taskTest.task===task.id}).length>0?<Button variant={"secondary"}
-                                onClick={(e) => {
-                                    if (!this.props.visibleTaskDetails[task.id]) {
-                                        this.props.showTaskDetails(task.id)
-                                    } else {
-                                        this.props.hideTaskDetails(task.id)
-                                    }
-                                }}>
+                    const common = <div>
+                        {task.heading}&nbsp;&nbsp;
+                        {this.props.taskTests.filter((taskTest) => {
+                            return taskTest.task === task.id
+                        }).length > 0 ? <Button variant={"secondary"}
+                                                onClick={(e) => {
+                                                    if (!this.props.visibleTaskDetails[task.id]) {
+                                                        this.props.showTaskDetails(task.id)
+                                                    } else {
+                                                        this.props.hideTaskDetails(task.id)
+                                                    }
+                                                }}>
                             {this.props.visibleTaskDetails[task.id] ? <Icon
                                 path={mdiArrowCollapseHorizontal} title={"Collapse"} size={0.8}/> : <Icon
                                 path={mdiArrowExpandHorizontal} title={"Expand"} size={0.8}/>}
-                        </Button>:null}
+                        </Button> : null}
+                        <Button variant={"secondary"}
+                                onClick={(e) => {
+                                    this.setState({
+                                        sortField: dataField,
+                                        sortDirection: task.summary_score_sorting_direction
+                                    })
+                                }}><Icon
+                            path={mdiSort} title={"Sort"} size={0.8}/></Button>
+                        {components.sortElement}
                     </div>
                     if (this.props.contest.results.permission_change_contest) {
                         return <div>
-                            {always}
+                            {common}
                             <Button onClick={(e) => {
                                 this.setState({
                                     displayNewTaskTestModal: true,
@@ -370,7 +422,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
 
                         </div>
                     }
-                    return always
+                    return common
                 }
             })
         })
@@ -383,10 +435,12 @@ class ConnectedTaskSummaryResultsTable extends Component {
         if (!this.props.teams || !this.props.contest || !this.props.tasks || !this.props.taskTests) return null
         const c = this.buildColumns()
         const d = this.buildData()
-        const defaultSorted = [{
-            dataField: 'summary', // if dataField is not match to any column you defined, it will be ignored.
-            order: 'asc'// this.props.contest.results.summary_score_sorting_direction // desc or asc
-        }];
+        let sortDirection = this.state.sortField ? this.state.sortDirection : this.props.contest.results.summary_score_sorting_direction
+
+        const defaultSorted = {
+            dataField: this.state.sortField ? this.state.sortField : "contestSummary", // if dataField is not match to any column you defined, it will be ignored.
+            order: sortDirection // desc or asc
+        };
         const cellEdit = cellEditFactory({
             mode: 'click',
             blurToSave: true,
@@ -396,7 +450,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     this.props.putContestSummary(this.props.contestId, teamId, newValue)
                 } else if (column.columnType === "task") {
                     this.props.putTaskSummary(this.props.contestId, teamId, column.task, newValue)
-                } else if (column.columnType === "taskTest") {
+                } else if (column.columbenType === "taskTest") {
                     this.props.putTestResult(this.props.contestId, teamId, column.taskTest, newValue)
                 }
                 console.log(row)
@@ -419,7 +473,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     {
                         props => (
                             <div>
-                                <BootstrapTable {...props.baseProps} defaultSorted={defaultSorted}
+                                <BootstrapTable {...props.baseProps} sort={defaultSorted}
                                                 cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
                                 />
                                 <hr/>

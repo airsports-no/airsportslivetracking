@@ -1524,7 +1524,7 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         # I think this is required for the permissions to work
         contest = self.get_object()
         results, created = TeamTestScore.objects.get_or_create(team_id=request.data["team"],
-                                                               task_test_id=request.data["task_first"],
+                                                               task_test_id=request.data["task_test"],
                                                                defaults={"points": request.data["points"]})
         if not created:
             results.points = request.data["points"]
