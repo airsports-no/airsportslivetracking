@@ -147,7 +147,7 @@ class WebsocketFacade:
         )
 
     def transmit_contest_results(self, user: Optional["MyUser"], contest: "Contest"):
-        contest.permission_change_contest = user.has_perm("display.change_contest", contest) if user is None else False
+        contest.permission_change_contest = user.has_perm("display.change_contest", contest) if user is not None else False
         serialiser = ContestResultsDetailsSerialiser(contest)
 
         data = {

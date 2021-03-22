@@ -96,7 +96,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 this.props.testsData(data.tests, this.props.contestId)
             }
             if (data.type === "contest.results") {
-                data.results.permission_change_contest = this.props.results.permission_change_contest
+                data.results.permission_change_contest = this.props.contest.results.permission_change_contest
                 this.props.resultsData(data.results, this.props.contestId)
             }
         };

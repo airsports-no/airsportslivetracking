@@ -1255,6 +1255,34 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
             contest_summary.save()
 
 
+@receiver(post_save, sender=ContestTeam)
+def post_contest_team_change(sender, instance: ContestTeam, **kwargs):
+    from websocket_channels import WebsocketFacade
+    ws = WebsocketFacade()
+    ws.transmit_teams(instance.contest)
+
+
+@receiver(post_save, sender=TeamTestScore)
+def post_team_test_score_change(sender, instance: TeamTestScore, **kwargs):
+    from websocket_channels import WebsocketFacade
+    ws = WebsocketFacade()
+    ws.transmit_contest_results(None, instance.task_test.task.contest)
+
+
+@receiver(post_save, sender=TaskSummary)
+def post_task_summary_change(sender, instance: TaskSummary, **kwargs):
+    from websocket_channels import WebsocketFacade
+    ws = WebsocketFacade()
+    ws.transmit_contest_results(None, instance.task.contest)
+
+
+@receiver(post_save, sender=ContestSummary)
+def push_contest_summary_change(sender, instance: ContestSummary, **kwargs):
+    from websocket_channels import WebsocketFacade
+    ws = WebsocketFacade()
+    ws.transmit_contest_results(None, instance.contest)
+
+
 #
 #
 # @receiver(post_save, sender=ContestTeam)
