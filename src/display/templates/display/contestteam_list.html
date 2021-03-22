@@ -9,7 +9,7 @@
             <th>Team</th>
             <th>Country</th>
             <th>Airspeed</th>
-            <th>Tracking service</th>
+            <th>Tracking device</th>
             <th>Tracker id</th>
             <th>Actions</th>
         </tr>
@@ -21,9 +21,9 @@
                 <td>{{ object.team.country }}</td>
                 <td>{{ object.air_speed }}</td>
                 <td>
-                    {{ object.get_tracking_service_display }}
+                    {{ object.get_tracking_device_display }}
                 </td>
-                <td>{% if object.tracker_device_id|length > 0 %}{{ object.tracker_device_id }}{% else %}Air Sports Live Tracking app{% endif %}</td>
+                <td>{% if object.tracker_device_id|length > 0 %}{{ object.tracker_device_id }}{% else %}N/A{% endif %}</td>
                 <td>
                     <a href="{% url 'team_wizard' contest.pk object.team.pk %}">Modify team information</a> |
                     <a href="{% url 'contestteamtracking_update' contest.pk object.pk %}">Update tracking

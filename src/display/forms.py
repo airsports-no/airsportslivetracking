@@ -597,9 +597,9 @@ class TrackingDataForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(Fieldset(
-            "Team contest information", "air_speed"),
+            "Team contest information", "air_speed", "tracking_device"),
             Fieldset("Optional tracking information if not using the official Air Sports Live Tracking app",
-                     "tracker_device_id", "tracking_service"),
+                     "tracker_device_id"),
             ButtonHolder(
                 Submit("submit", "Submit")
             )
@@ -607,7 +607,7 @@ class TrackingDataForm(forms.ModelForm):
 
     class Meta:
         model = ContestTeam
-        fields = ("air_speed", "tracker_device_id", "tracking_service")
+        fields = ("air_speed", "tracker_device_id", "tracking_device")
 
 
 class ClubSearchForm(forms.ModelForm):
@@ -651,7 +651,7 @@ class ContestantForm(forms.ModelForm):
     class Meta:
         model = Contestant
         fields = (
-            "contestant_number", "team", "tracker_start_time", "tracking_service", "tracker_device_id",
+            "contestant_number", "team", "tracker_start_time", "tracking_device", "tracker_device_id",
             "takeoff_time", "adaptive_start",
             "finished_by_time",
             "minutes_to_starting_point", "air_speed", "wind_direction", "wind_speed")

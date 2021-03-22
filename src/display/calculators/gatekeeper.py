@@ -168,8 +168,6 @@ class Gatekeeper:
             "offset_string": offset_string
         }
         string = "{}: {} points {}".format(gate.name, score, message)
-        if capped:
-            string += " (capped)"
         if offset_string:
             string += " ({})".format(offset_string)
         if planned and actual:

@@ -691,18 +691,28 @@ class TeamResultsSummarySerialiser(serializers.ModelSerializer):
 
 ######################  write data #####################
 class ContestSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
+    contest = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = ContestSummary
         fields = "__all__"
 
+    def create(self, validated_data):
+        try:
+            validated_data["contest"] = self.context["contest"]
+        except KeyError:
+            raise Http404("Contest not found")
+
+        return ContestSummary.objects.create(**validated_data)
 
 class TaskSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
+    task = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = TaskSummary
         fields = "__all__"
 
 
 class TeamTestScoreWithoutReferenceSerialiser(serializers.ModelSerializer):
+    task_test = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = TeamTestScore
         fields = "__all__"
@@ -710,6 +720,7 @@ class TeamTestScoreWithoutReferenceSerialiser(serializers.ModelSerializer):
 
 class TaskTestWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
     teamtestscore_set = TeamTestScoreWithoutReferenceSerialiser(many=True)
+    task = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = TaskTest

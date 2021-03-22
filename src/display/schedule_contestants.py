@@ -50,6 +50,7 @@ def schedule_and_create_contestants_landing_task(navigation_task: NavigationTask
                                       navigation_task=navigation_task,
                                       tracking_service=contest_team.tracking_service,
                                       tracker_device_id=contest_team.tracker_device_id,
+                                      tracking_device=contest_team.tracking_device,
                                       tracker_start_time=navigation_task.start_time,
                                       contestant_number=index + 1)
     return True
@@ -123,11 +124,13 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
                 maximum_contestant = 0
             contestant = Contestant.objects.create(takeoff_time=team_definition.start_time.replace(microsecond=0),
                                                    finished_by_time=(team_definition.start_time + datetime.timedelta(
-                                                       minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes)).replace(microsecond=0),
+                                                       minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes)).replace(
+                                                       microsecond=0),
                                                    air_speed=contest_team.air_speed,
                                                    wind_speed=navigation_task.wind_speed,
                                                    wind_direction=navigation_task.wind_direction,
                                                    team=contest_team.team,
+                                                   tracking_device=contest_team.tracking_device,
                                                    minutes_to_starting_point=navigation_task.minutes_to_starting_point,
                                                    navigation_task=navigation_task,
                                                    tracking_service=contest_team.tracking_service,

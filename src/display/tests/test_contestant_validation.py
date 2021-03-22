@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import NavigationTask, Contest, Route, Contestant, Aeroplane, Crew, Team, Person
+from display.models import NavigationTask, Contest, Route, Contestant, Aeroplane, Crew, Team, Person, TRACKING_DEVICE
 from mock_utilities import TraccarMock
 
 TRACKER_NAME = "tracker"
@@ -29,7 +29,7 @@ class TestContestantValidation(TransactionTestCase):
         aeroplane = Aeroplane.objects.create(registration="registration")
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
-        self.initial_contestant = Contestant.objects.create(team=self.team,
+        self.initial_contestant = Contestant.objects.create(team=self.team, tracking_device=TRACKING_DEVICE,
                                                             navigation_task=self.navigation_task,
                                                             takeoff_time=datetime.datetime(2020, 1, 1, 10,
                                                                                            tzinfo=datetime.timezone.utc),
@@ -43,7 +43,7 @@ class TestContestantValidation(TransactionTestCase):
         with self.assertRaisesMessage(ValidationError,
                                       '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01T10:00:00+00:00>, \'2020-01-01T11:00:00+00:00\', \'2020-01-01T12:00:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
-                                      navigation_task=self.navigation_task,
+                                      navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 1, 10,
                                                                      tzinfo=datetime.timezone.utc),
                                       contestant_number=2, tracker_device_id=TRACKER_NAME,
@@ -56,7 +56,7 @@ class TestContestantValidation(TransactionTestCase):
         with self.assertRaisesMessage(ValidationError,
                                       '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01T10:00:00+00:00>, \'2020-01-01T09:30:00+00:00\', \'2020-01-01T11:00:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
-                                      navigation_task=self.navigation_task,
+                                      navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 1, 10,
                                                                      tzinfo=datetime.timezone.utc),
                                       contestant_number=2, tracker_device_id=TRACKER_NAME,
@@ -69,7 +69,7 @@ class TestContestantValidation(TransactionTestCase):
         with self.assertRaisesMessage(ValidationError,
                                       '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01T10:00:00+00:00>, \'2020-01-01T11:00:00+00:00\', \'2020-01-01T11:30:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
-                                      navigation_task=self.navigation_task,
+                                      navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 1, 11,
                                                                      tzinfo=datetime.timezone.utc),
                                       contestant_number=2, tracker_device_id=TRACKER_NAME,
@@ -82,7 +82,7 @@ class TestContestantValidation(TransactionTestCase):
         with self.assertRaisesMessage(ValidationError,
                                       '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01T10:00:00+00:00>, \'2020-01-01T09:30:00+00:00\', \'2020-01-01T12:00:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
-                                      navigation_task=self.navigation_task,
+                                      navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 1, 10,
                                                                      tzinfo=datetime.timezone.utc),
                                       contestant_number=2, tracker_device_id=TRACKER_NAME,
@@ -94,7 +94,7 @@ class TestContestantValidation(TransactionTestCase):
     def test_no_overlap(self, patch):
         try:
             Contestant.objects.create(team=self.team,
-                                      navigation_task=self.navigation_task,
+                                      navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 1, 13, 30,
                                                                      tzinfo=datetime.timezone.utc),
                                       contestant_number=2, tracker_device_id=TRACKER_NAME,
@@ -109,7 +109,7 @@ class TestContestantValidation(TransactionTestCase):
         with self.assertRaisesMessage(ValidationError,
                                       "Tracker start time '2020-01-02 14:00:00+00:00' is after takeoff time '2020-01-02 13:30:00+00:00' for contestant number 2"):
             Contestant.objects.create(team=self.team,
-                                      navigation_task=self.navigation_task,
+                                      navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 2, 13, 30,
                                                                      tzinfo=datetime.timezone.utc),
                                       contestant_number=2, tracker_device_id=TRACKER_NAME,
@@ -122,7 +122,7 @@ class TestContestantValidation(TransactionTestCase):
         with self.assertRaisesMessage(ValidationError,
                                       "Takeoff time '2020-01-02 13:00:00+00:00' is after finished by time '2020-01-02 13:30:00+00:00' for contestant number 2"):
             Contestant.objects.create(team=self.team,
-                                      navigation_task=self.navigation_task,
+                                      navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 2, 13, 30,
                                                                      tzinfo=datetime.timezone.utc),
                                       contestant_number=2, tracker_device_id=TRACKER_NAME,
@@ -133,7 +133,7 @@ class TestContestantValidation(TransactionTestCase):
 
     def test_calculator_started_nothing_modified(self, patch):
         contestant = Contestant.objects.create(team=self.team,
-                                               navigation_task=self.navigation_task,
+                                               navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                                takeoff_time=datetime.datetime(2020, 1, 2, 13, 30,
                                                                               tzinfo=datetime.timezone.utc),
                                                contestant_number=2, tracker_device_id=TRACKER_NAME,
@@ -151,7 +151,7 @@ class TestContestantValidation(TransactionTestCase):
         with self.assertRaisesMessage(ValidationError,
                                       "Calculator has started for 2 - Mister Pilot in registration, it is not possible to change takeoff time"):
             contestant = Contestant.objects.create(team=self.team,
-                                                   navigation_task=self.navigation_task,
+                                                   navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                                    takeoff_time=datetime.datetime(2020, 1, 2, 13, 30,
                                                                                   tzinfo=datetime.timezone.utc),
                                                    contestant_number=2, tracker_device_id=TRACKER_NAME,

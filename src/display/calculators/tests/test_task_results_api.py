@@ -62,6 +62,7 @@ class TestTaskResultsApi(APITestCase):
         for task, data in task_tests.items():
             task_data = {
                 "name": task,
+                "autosum_scores": False,
                 "heading": task.upper(),
                 "tasksummary_set": [],
                 "tasktest_set": []
@@ -134,10 +135,12 @@ class TestTaskResultsApi(APITestCase):
         crew, _ = Crew.objects.get_or_create(member1=pilot)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=self.aeroplane)
         Task.objects.all().delete()
-        another_task = Task.objects.create(contest=another_contest, name="another_task", heading="heading")
+        another_task = Task.objects.create(contest=another_contest, name="another_task", heading="heading",
+                                           autosum_scores=False)
         task_data = {
             "name": "navigation",
             "heading": "heading",
+            "autosum_scores": False,
             "tasksummary_set": [
                 {
                     "team": team.pk,
@@ -160,6 +163,7 @@ class TestTaskResultsApi(APITestCase):
         }
         response = self.client.put("/api/v1/contests/{}/task_results/".format(self.contest.pk), data=task_data,
                                    format="json")
+        print(response.json())
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(2, Task.objects.all().count())
         self.assertEqual(1, TeamTestScore.objects.all().count())

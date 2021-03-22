@@ -43,6 +43,14 @@ TRACCAR = "traccar"
 TRACKING_SERVICES = (
     (TRACCAR, "Traccar"),
 )
+TRACKING_DEVICE = "device"
+TRACKING_PILOT = "pilot_app"
+TRACKING_COPILOT = "copilot_app"
+TRACKING_DEVICES = (
+    (TRACKING_DEVICE, "Hardware GPS tracker"),
+    (TRACKING_PILOT, "Pilot's Air Sports Live Tracking app"),
+    (TRACKING_COPILOT, "Copilot's Air Sports Live Tracking app"),
+)
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +283,8 @@ class ContestTeam(models.Model):
     air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
+    tracking_device = models.CharField(default=TRACKING_PILOT, choices=TRACKING_DEVICES, max_length=30,
+                                       help_text="The device used for tracking the team")
     tracker_device_id = models.CharField(max_length=100,
                                          help_text="ID of physical tracking device that will be brought into the plane. Leave empty if official Air Sports Live Tracking app is used. Note that only a single tracker is to be used per plane.",
                                          blank=True)
@@ -282,16 +292,27 @@ class ContestTeam(models.Model):
     class Meta:
         unique_together = ("contest", "team")
 
+    def clean(self):
+        if self.tracking_device == TRACKING_DEVICE and (
+                self.tracker_device_id is None or len(self.tracker_device_id) == 0):
+            raise ValidationError(
+                f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied")
+        try:
+            if self.tracking_device == TRACKING_COPILOT and self.team.crew.member2 is None:
+                raise ValidationError(
+                f"Tracking device is set to {self.get_tracking_device_display()}, but there is no copilot")
+        except ObjectDoesNotExist:
+            pass
+
     def __str__(self):
         return str(self.team)
 
     def get_tracker_id(self) -> str:
-        if self.tracker_device_id is not None and len(self.tracker_device_id) > 0:
+        if self.tracking_device == TRACKING_DEVICE:
             return self.tracker_device_id
-        if self.team.crew.member1.app_tracking_id is not None and len(self.team.crew.member1.app_tracking_id) > 0:
+        if self.tracking_device == TRACKING_PILOT:
             return self.team.crew.member1.app_tracking_id
-        if self.team.crew.member2 is not None and self.team.crew.member2.app_tracking_id is not None and len(
-                self.team.crew.member2.app_tracking_id) > 0:
+        if self.tracking_device == TRACKING_COPILOT:
             return self.team.crew.member2.app_tracking_id
         logger.error(f"ContestTeam {self.team} for contest {self.contest} does not have a tracker ID")
         return ""
@@ -746,8 +767,10 @@ class Contestant(models.Model):
         help_text="A unique number for the contestant in this navigation task")
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
+    tracking_device = models.CharField(default=TRACKING_PILOT, choices=TRACKING_DEVICES, max_length=30,
+                                       help_text="The device used for tracking the team")
     tracker_device_id = models.CharField(max_length=100,
-                                         help_text="ID of physical tracking device that will be brought into the plane",
+                                         help_text="ID of physical tracking device that will be brought into the plane. If using the Air Sports Live Tracking app this should be left blank.",
                                          blank=True)
     tracker_start_time = models.DateTimeField(
         help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this.")
@@ -822,6 +845,13 @@ class Contestant(models.Model):
                                                self.wind_direction)
 
     def clean(self):
+        if self.tracking_device == TRACKING_DEVICE and (
+                self.tracker_device_id is None or len(self.tracker_device_id) == 0):
+            raise ValidationError(
+                f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied")
+        if self.tracking_device == TRACKING_COPILOT and self.team.crew.member2 is None:
+            raise ValidationError(
+                f"Tracking device is set to {self.get_tracking_device_display()}, but there is no copilot")
         # Validate single-use tracker
         overlapping_trackers = Contestant.objects.filter(tracking_service=self.tracking_service,
                                                          tracker_device_id=self.get_tracker_id(),
@@ -964,12 +994,11 @@ class Contestant(models.Model):
         return None
 
     def get_tracker_id(self) -> str:
-        if self.tracker_device_id is not None and len(self.tracker_device_id) > 0:
+        if self.tracking_device == TRACKING_DEVICE:
             return self.tracker_device_id
-        if self.team.crew.member1.app_tracking_id is not None and len(self.team.crew.member1.app_tracking_id) > 0:
+        if self.tracking_device == TRACKING_PILOT:
             return self.team.crew.member1.app_tracking_id
-        if self.team.crew.member2 is not None and self.team.crew.member2.app_tracking_id is not None and len(
-                self.team.crew.member2.app_tracking_id) > 0:
+        if self.tracking_device == TRACKING_COPILOT:
             return self.team.crew.member2.app_tracking_id
         logger.error(f"Contestant {self.team} for navigation task {self.navigation_task} does not have a tracker ID")
         return ""
@@ -985,19 +1014,22 @@ class Contestant(models.Model):
         try:
             # Device belongs to contestant from 30 minutes before takeoff
             contestant = cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
+                                         tracking_device=TRACKING_DEVICE,
                                          finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
         except ObjectDoesNotExist:
             try:
                 contestant = cls.objects.get(Q(team__crew__member1__app_tracking_id=device) | Q(
                     team__crew__member1__simulator_tracking_id=device), tracker_start_time__lte=stamp,
-                                             finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
+                                             finished_by_time__gte=stamp, contestanttrack__calculator_finished=False,
+                                             tracking_device=TRACKING_PILOT)
                 is_simulator = contestant.team.crew.member1.simulator_tracking_id == device
             except ObjectDoesNotExist:
                 try:
                     contestant = cls.objects.get(Q(team__crew__member2__app_tracking_id=device) | Q(
                         team__crew__member2__simulator_tracking_id=device), tracker_start_time__lte=stamp,
                                                  finished_by_time__gte=stamp,
-                                                 contestanttrack__calculator_finished=False)
+                                                 contestanttrack__calculator_finished=False,
+                                                 tracking_device=TRACKING_COPILOT)
                     is_simulator = contestant.team.crew.member2.simulator_tracking_id == device
                 except ObjectDoesNotExist:
                     return None, is_simulator
@@ -1318,6 +1350,11 @@ def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs
 
 @receiver(pre_save, sender=Contestant)
 def validate_contestant(sender, instance: Contestant, **kwargs):
+    instance.clean()
+
+
+@receiver(post_save, sender=ContestTeam)
+def validate_contest_team(sender, instance: ContestTeam, **kwargs):
     instance.clean()
 
 

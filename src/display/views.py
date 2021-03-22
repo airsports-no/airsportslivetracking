@@ -57,7 +57,7 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
-    TeamTestScore, TRACCAR, Scorecard, MyUser, PlayingCard
+    TeamTestScore, TRACCAR, Scorecard, MyUser, PlayingCard, TRACKING_DEVICE
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
@@ -1083,8 +1083,12 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         validate, `render_revalidation_failure` should get called.
         If everything is fine call `done`.
         """
-        print(f"All post data: {self.request.session['my_post_data']}")
-        return super().render_done(form, **kwargs)
+        try:
+            return super().render_done(form, **kwargs)
+        except ValidationError as e:
+            from django.contrib import messages
+            messages.error(self.request, str(e))
+            return self.render_revalidation_failure("tracking", self.get_form_instance("tracking"), **kwargs)
 
     def post(self, *args, **kwargs):
         if 'my_post_data' not in self.request.session:
@@ -1095,6 +1099,8 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
 
     def get_post_data_for_step(self, step):
         return self.request.session.get('my_post_data', {}).get(step, {})
+
+
 
     def done(self, form_list, **kwargs):
         print(f"All cleaned data: {self.get_all_cleaned_data()}")
@@ -1156,8 +1162,10 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         club.country = club_data["country"]
         club.save()
         team, created_team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
+        # Clear away any old association since we have updated the data
+        ContestTeam.objects.filter(contest=contest, team=team).delete()
         ct, _ = ContestTeam.objects.get_or_create(contest=contest, team=team, defaults=tracking_data)
-        if ct.tracking_service == TRACCAR and ct.tracker_device_id and len(ct.tracker_device_id) > 0:
+        if ct.tracking_service == TRACCAR and ct.tracker_device_id and len(ct.tracker_device_id) > 0 and ct.tracking_device == TRACKING_DEVICE:
             traccar = get_traccar_instance()
             traccar.get_or_create_device(ct.tracker_device_id, ct.tracker_device_id)
         if affected_contestants is not None:
