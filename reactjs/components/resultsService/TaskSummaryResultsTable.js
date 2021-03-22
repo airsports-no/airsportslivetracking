@@ -21,7 +21,7 @@ import {
     mdiArrowCollapseHorizontal,
     mdiArrowExpandHorizontal,
     mdiClose,
-    mdiPencilOutline, mdiSort
+    mdiPencilOutline, mdiPlusBox, mdiSort
 } from "@mdi/js";
 import Icon from "@mdi/react";
 import {
@@ -379,7 +379,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             columnType: "contestSummary",
             headerFormatter: (column, colIndex, components) => {
                 return <div>
-                    Overall&nbsp;&nbsp;
+                    Overall<br/>
                     <Button variant={"secondary"}
                             onClick={(e) => {
                                 this.setState({
@@ -388,7 +388,13 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                 })
                             }}><Icon
                         path={mdiSort} title={"Sort"} size={0.8}/></Button>
-                    {components.sortElement}
+                    {/*{components.sortElement}*/}
+                    {this.props.contest.results.permission_change_contest ?
+                        <div><br/><Button onClick={(e) => {
+                            this.setState({displayNewTaskModal: true, editTask: this.defaultTask()})
+                        }}><Icon
+                            path={mdiPlusBox} title={"New task"} size={0.8}/></Button></div> : null}
+
                 </div>
             }
         }
@@ -416,7 +422,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     columnType: "taskTest",
                     taskTest: taskTest.id,
                     headerFormatter: (column, colIndex, components) => {
-                        const common = <div>{task.heading}-><br/>{taskTest.heading}&nbsp;&nbsp;
+                        const common = <div>{task.heading}->{taskTest.heading}<br/>
                             <Button variant={"secondary"}
                                     onClick={(e) => {
                                         this.setState({
@@ -425,11 +431,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                         })
                                     }}><Icon
                                 path={mdiSort} title={"Sort"} size={0.8}/></Button>
-                            {components.sortElement}
+                            {/*{components.sortElement}*/}
                         </div>
                         if (this.props.contest.results.permission_change_contest) {
                             return <div>
-                                {common}
+                                {common}<br/>
                                 <Button variant={"danger"}
                                         onClick={(e) => {
                                             if (window.confirm("Are you sure you want to delete the task test?")) {
@@ -467,8 +473,13 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible(),
                 csvType: "number",
                 headerFormatter: (column, colIndex, components) => {
+                    if (this.props.taskTests.filter((taskTest) => {
+                        return taskTest.task === task.id
+                    }).length === 0 && this.props.visibleTaskDetails[task.id]) {
+                        this.props.hideTaskDetails(task.id)
+                    }
                     const common = <div>
-                        {task.heading}&nbsp;&nbsp;
+                        {task.heading}<br/>
                         {this.props.taskTests.filter((taskTest) => {
                             return taskTest.task === task.id
                         }).length > 0 ? <Button variant={"secondary"}
@@ -491,18 +502,19 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                     })
                                 }}><Icon
                             path={mdiSort} title={"Sort"} size={0.8}/></Button>
-                        {components.sortElement}
+                        {/*{components.sortElement}*/}
                     </div>
                     if (this.props.contest.results.permission_change_contest) {
                         return <div>
-                            {common}
+                            {common}<br/>
                             <Button onClick={(e) => {
                                 this.setState({
                                     displayNewTaskTestModal: true,
                                     editTaskTest: this.defaultTaskTest(task.id)
                                 })
                             }
-                            }>New test</Button>
+                            }><Icon
+                                path={mdiPlusBox} title={"New test"} size={0.8}/></Button>
                             <Button variant={"danger"}
                                     onClick={(e) => {
                                         if (window.confirm("You sure you want to delete the task?")) {
@@ -555,10 +567,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
         return <div className={'row'}>
             <div className={"col-12"}>
                 <h1>{this.props.contest.results.name}</h1>
-                {this.props.contest.results.permission_change_contest ?
-                    <Button onClick={(e) => {
-                        this.setState({displayNewTaskModal: true, editTask: this.defaultTask()})
-                    }}>New task</Button> : null}
                 <ToolkitProvider
                     keyField="key"
                     data={d}

@@ -1283,6 +1283,22 @@ def push_contest_summary_change(sender, instance: ContestSummary, **kwargs):
     ws.transmit_contest_results(None, instance.contest)
 
 
+@receiver(post_save, sender=Task)
+@receiver(post_delete, sender=Task)
+def push_task_change(sender, instance: Task, **kwargs):
+    from websocket_channels import WebsocketFacade
+    ws = WebsocketFacade()
+    ws.transmit_tasks(instance.contest)
+
+
+@receiver(post_save, sender=TaskTest)
+@receiver(post_delete, sender=TaskTest)
+def push_test_change(sender, instance: TaskTest, **kwargs):
+    from websocket_channels import WebsocketFacade
+    ws = WebsocketFacade()
+    ws.transmit_tests(instance.task.contest)
+
+
 #
 #
 # @receiver(post_save, sender=ContestTeam)

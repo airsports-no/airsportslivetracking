@@ -1825,18 +1825,6 @@ class TaskViewSet(ModelViewSet):
         contest_id = self.kwargs.get("contest_pk")
         return Task.objects.filter(contest_id=contest_id)
 
-    def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        ws = WebsocketFacade()
-        ws.transmit_tasks(Contest.objects.get(pk = self.kwargs.get("contest_pk")))
-        return response
-
-    def update(self, request, *args, **kwargs):
-        response = super().update(request, *args, **kwargs)
-        ws = WebsocketFacade()
-        ws.transmit_tasks(Contest.objects.get(pk = self.kwargs.get("contest_pk")))
-        return response
-
 
 class TaskTestViewSet(ModelViewSet):
     queryset = TaskTest.objects.all()
@@ -1846,15 +1834,3 @@ class TaskTestViewSet(ModelViewSet):
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
         return TaskTest.objects.filter(task__contest_id=contest_id)
-
-    def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        ws = WebsocketFacade()
-        ws.transmit_tests(Contest.objects.get(pk = self.kwargs.get("contest_pk")))
-        return response
-
-    def update(self, request, *args, **kwargs):
-        response = super().update(request, *args, **kwargs)
-        ws = WebsocketFacade()
-        ws.transmit_tests(Contest.objects.get(pk = self.kwargs.get("contest_pk")))
-        return response
