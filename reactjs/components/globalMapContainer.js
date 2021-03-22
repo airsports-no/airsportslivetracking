@@ -9,6 +9,7 @@ import Disclaimer, {DisclaimerLong} from "./disclaimer";
 import {SocialMediaLinks} from "./socialMediaLinks";
 import AboutLogoPopup from "./aboutLogoPopup";
 import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
+import EmailLinkValidator from "./firebaseEmailValidation";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -51,6 +52,7 @@ class ConnectedGlobalMapContainer extends Component {
                     </div>
                 </div>
                 {TrackerDisplay}
+                <EmailLinkValidator/>
             </div>
         )
     }
