@@ -14,7 +14,7 @@ import {
 } from "../actions";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import Disclaimer from "./disclaimer";
-import {mdiGoKartTrack, mdiMagnify} from "@mdi/js";
+import {mdiGoKartTrack, mdiMagnify, mdiPodium} from "@mdi/js";
 import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
 
@@ -144,6 +144,12 @@ class ConnectedTrackingContainer extends Component {
                             {/*</div>*/}
                             <div className={"trackImage"}>
                                 <Icon path={mdiGoKartTrack} title={"Logout"} size={2.5} color={"#e01b1c"} onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
+                            </div>
+
+                            <div className={"resultsServiceIcon"}>
+                                <Icon path={mdiPodium} title={"Results list"} size={2.5} color={"#e01b1c"} onClick={() => {
+                                    window.location = document.configuration.resultsServiceLink
+                                }}/>
                             </div>
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             {/*<img alt={"Logo"} className={"logoImage"}*/}

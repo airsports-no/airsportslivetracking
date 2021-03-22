@@ -451,6 +451,7 @@ tr.hidden {
     font-size: 60px;
     /*height: 80px;*/
     min-width: 60px;
+    max-width: 88px;
     width: 6vw;
 }
 
@@ -470,6 +471,13 @@ tr.hidden {
     padding: 0 5px;
 }
 
+
+.resultsServiceIcon{
+    top: 170px;
+    right: 15px;
+    position: fixed;
+    z-index: 2;
+}
 
 .trackImage {
     /*height: 80px;*/
