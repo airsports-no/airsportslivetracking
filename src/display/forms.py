@@ -597,7 +597,9 @@ class TrackingDataForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(Fieldset(
-            "Team contest information", "air_speed", "tracker_device_id", "tracking_service"),
+            "Team contest information", "air_speed"),
+            Fieldset("Optional tracking information if not using the official Air Sports Live Tracking app",
+                     "tracker_device_id", "tracking_service"),
             ButtonHolder(
                 Submit("submit", "Submit")
             )

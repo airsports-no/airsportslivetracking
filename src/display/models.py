@@ -276,7 +276,7 @@ class ContestTeam(models.Model):
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
     tracker_device_id = models.CharField(max_length=100,
-                                         help_text="ID of physical tracking device that will be brought into the plane",
+                                         help_text="ID of physical tracking device that will be brought into the plane. Leave empty if official Air Sports Live Tracking app is used. Note that only a single tracker is to be used per plane.",
                                          blank=True)
 
     class Meta:
