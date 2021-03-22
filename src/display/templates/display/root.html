@@ -14,64 +14,6 @@
 {% endblock %}
 
 {% block contentfluid %}
-    <script src="https://www.gstatic.com/firebasejs/8.3.1/firebase-app.js"></script>
-
-    <!-- TODO: Add SDKs for Firebase products that you want to use
-         https://firebase.google.com/docs/web/setup#available-libraries -->
-    <script src="https://www.gstatic.com/firebasejs/8.3.1/firebase-analytics.js"></script>
-    <!-- Add Firebase products that you want to use -->
-    <script src="https://www.gstatic.com/firebasejs/8.3.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.3.1/firebase-firestore.js"></script>
-
-    <script>
-        // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-        var firebaseConfig = {
-            apiKey: "AIzaSyCcOlh07D2-7p0W2coNK_sZ2g8-JxxbPSE",
-            authDomain: "airsports-613ce.firebaseapp.com",
-            projectId: "airsports-613ce",
-            storageBucket: "airsports-613ce.appspot.com",
-            messagingSenderId: "583405520610",
-            appId: "1:583405520610:web:6c07169205b277b96cc0bb",
-            measurementId: "G-V9SQR3ZYRB"
-        };
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        firebase.analytics();
-    </script>
-    <script>
-        // Confirm the link is a sign-in with email link.
-        if (firebase.auth().isSignInWithEmailLink(window.location.href)) {
-            // Additional state parameters can also be passed via URL.
-            // This can be used to continue the user's intended action before triggering
-            // the sign-in operation.
-            // Get the email if available. This should be available if the user completes
-            // the flow on the same device where they started it.
-            var email = window.localStorage.getItem('emailForSignIn');
-            if (!email) {
-                // User opened the link on a different device. To prevent session fixation
-                // attacks, ask the user to provide the associated email again. For example:
-                email = window.prompt('Please provide your email for confirmation');
-            }
-            // The client SDK will parse the code from the link for you.
-            firebase.auth().signInWithEmailLink(email, window.location.href)
-                .then((result) => {
-                    // Clear email from storage.
-                    window.localStorage.removeItem('emailForSignIn');
-                    // You can access the new user via result.user
-                    // Additional user info profile not available via:
-                    // result.additionalUserInfo.profile == null
-                    // You can check if the user is new or existing:
-                    // result.additionalUserInfo.isNewUser
-                    window.location = "https://airsports.no/links/success"
-                })
-                .catch((error) => {
-                    console.log(error)
-                    // Some error occurred, you can inspect the code: error.code
-                    // Common errors could be invalid email and invalid or expired OTPs.
-                });
-        }
-    </script>
     <div class="row">
         <div id="root">
             <img class="center" src="{% static 'img/loading.gif' %}" alt="loading..."/>
