@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "channels",
     'drf_firebase_auth',
     'display.apps.DisplayConfig',
+    'firebase.apps.FirebaseConfig',
     'multiselectfield'
 ]
 
