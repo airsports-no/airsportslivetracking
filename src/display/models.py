@@ -1353,7 +1353,7 @@ def validate_contestant(sender, instance: Contestant, **kwargs):
     instance.clean()
 
 
-@receiver(post_save, sender=ContestTeam)
+@receiver(pre_save, sender=ContestTeam)
 def validate_contest_team(sender, instance: ContestTeam, **kwargs):
     instance.clean()
 
