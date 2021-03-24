@@ -475,7 +475,7 @@ class TestHamar23March2021(TransactionTestCase):
             q.get_nowait()
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(204, contestant_track.score)
+        self.assertEqual(204, contestant_track.score)  # 3 points more than website
 
     def test_vjoycar(self, patch):
         track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/vjoycarhamar.csv"))
@@ -561,4 +561,4 @@ class TestHamar23March2021(TransactionTestCase):
             q.get_nowait()
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(201, contestant_track.score)
+        self.assertEqual(201, contestant_track.score)  # same ass website
