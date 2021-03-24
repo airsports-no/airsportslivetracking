@@ -14,6 +14,8 @@ def get_default_scorecard():
     scorecard.use_procedure_turns = False
     scorecard.task_type = [NavigationTask.PRECISION]
     scorecard.calculator = Scorecard.PRECISION
+    scorecard.prohibited_zone_penalty = 0
+
 
     regular_gate_score = GateScore.objects.get_or_create(name=f"{scorecard.name}_regular")[0]
     regular_gate_score.extended_gate_width = 0.3

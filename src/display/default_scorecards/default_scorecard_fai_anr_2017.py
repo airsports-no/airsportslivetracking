@@ -15,6 +15,7 @@ def get_default_scorecard():
     scorecard.corridor_grace_time = 5  # verified
     scorecard.below_minimum_altitude_penalty = 500  # verified
     scorecard.below_minimum_altitude_maximum_penalty = 500  # verified
+    scorecard.prohibited_zone_penalty = 0
 
     regular_gate_score = GateScore.objects.get_or_create(name=f"{scorecard.name}_regular")[0]
     regular_gate_score.extended_gate_width = 0
