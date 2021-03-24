@@ -31,15 +31,17 @@ class Aircraft {
         this.latestPosition = position
         this.trailPositions = [position]
         this.time = position.time
+        this.ageTimeout = 15
+        this.ageColour = "grey"
         this.navigation_task_link = this.getNavigationTaskLink(initial_position.navigation_task_id)
-        this.createLiveEntities(position)
-        this.colourTimer = setTimeout(() => this.agePlane(), 15000)
+        this.createLiveEntities(position, new Date().getTime() - this.time.getTime() > this.ageTimeout * 1000 ? this.ageColour : this.colour)
+        this.colourTimer = setTimeout(() => this.agePlane(), this.ageTimeout * 1000)
     }
 
     agePlane() {
-        this.updateIcon(this.latestPosition, "grey")
+        this.updateIcon(this.latestPosition, this.ageColour)
         this.trail.setStyle({
-            color: "grey"
+            color: this.ageColour
         })
     }
 
@@ -81,7 +83,7 @@ class Aircraft {
         }
     }
 
-    createLiveEntities(position) {
+    createLiveEntities(position, colour) {
         const tooltipContents = this.navigation_task_link ? "Competing in navigation task" : ""
         this.dot = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
@@ -102,11 +104,11 @@ class Aircraft {
             }
         }).addTo(this.map)
         this.trail = L.polyline([[position.latitude, position.longitude]], {
-            color: this.colour,
+            color: colour,
             opacity: 1,
             weight: 3
         }).addTo(this.map)
-        this.updateIcon(position)
+        this.updateIcon(position, colour)
     }
 
     updateTrail(position) {
