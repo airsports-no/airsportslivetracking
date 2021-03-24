@@ -62,7 +62,6 @@ class Gatekeeper:
         self.score = 0
         self.score_by_gate = {}
         self.has_passed_finishpoint = False
-        self.score_log = []
         self.last_gate_index = 0
         self.enroute = False
         self.process_event = threading.Event()
@@ -119,7 +118,7 @@ class Gatekeeper:
                 self.track_terminated = True
                 continue
             p = Position(data["time"], **data["fields"])
-            if len(self.track)>0 and (self.track[-1]==p or self.track[-1].time>p.time):
+            if len(self.track) > 0 and (self.track[-1] == p or self.track[-1].time > p.time):
                 # Old or duplicate position, ignoring
                 continue
             progress = self.contestant.calculate_progress(p.time)
@@ -189,8 +188,8 @@ class Gatekeeper:
             self.score_by_gate[gate.name] = self.score
         self.influx.add_annotation(self.contestant, latitude, longitude, string, annotation_type,
                                    self.track[-1].time)  # TODO: Annotations with the same time
-        self.score_log.append(internal_message)
-        self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.score_log)
+        self.contestant.contestanttrack.score_log.append(internal_message)
+        self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.contestant.contestanttrack.score_log)
 
     def create_gates(self) -> List[Gate]:
         waypoints = self.contestant.navigation_task.route.waypoints

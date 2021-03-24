@@ -57,6 +57,7 @@ def calculator_process(contestant_pk: int, position_queue: Queue):
 
 
 def add_positions_to_calculator(contestant: Contestant, positions: List):
+    global processes
     key = contestant.pk
     if key not in processes:
         q = Queue()
