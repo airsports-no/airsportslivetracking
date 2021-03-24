@@ -68,7 +68,7 @@ class Aircraft {
     createAirplaneTextIcon(altitude, speed, colour) {
         const size = 16;
         return L.divIcon({
-            html: '<div><div style="color: ' + colour + '; font-size: ' + size + 'px">' + this.displayText + '<br/>' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</div><span style="font-size: 10px;">GPS</span></div>',
+            html: '<div><div style="color: ' + colour + '; font-size: ' + size + 'px;margin-bottom: -32px;">' + this.displayText + '<br/>' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</div><span style="color: ' + colour + ';font-size: 10px;">GPS</span></div>',
             iconAnchor: [100, -11],
             iconSize: [200, size],
             className: "myAirplaneTextIcon text-center"
