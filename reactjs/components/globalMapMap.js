@@ -28,10 +28,20 @@ class Aircraft {
         this.dotText = null
         this.trail = null;
         const position = this.replaceTime(initial_position)
+        this.latestPosition = position
         this.trailPositions = [position]
         this.time = position.time
         this.navigation_task_link = this.getNavigationTaskLink(initial_position.navigation_task_id)
         this.createLiveEntities(position)
+        this.colourTimer = setTimeout(()=>this.agePlane(), 15000)
+    }
+
+    agePlane() {
+        this.updateIcon(this.latestPosition, "grey")
+        this.trail.setStyle({
+            color: "grey"
+        })
+
     }
 
     getNavigationTaskLink(navigation_task_id) {
@@ -43,10 +53,10 @@ class Aircraft {
         return position
     }
 
-    createAirplaneIcon(bearing) {
+    createAirplaneIcon(bearing, colour) {
         const size = 28;
         return L.divIcon({
-            html: '<i class="mdi mdi-airplanemode-active" style="color: ' + this.colour + '; transform: rotate(' + bearing + 'deg); font-size: ' + size + 'px"/>',
+            html: '<i class="mdi mdi-airplanemode-active" style="color: ' + colour + '; transform: rotate(' + bearing + 'deg); font-size: ' + size + 'px"/>',
             iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
         })
@@ -54,10 +64,10 @@ class Aircraft {
     }
 
 
-    createAirplaneTextIcon(altitude) {
+    createAirplaneTextIcon(altitude, colour) {
         const size = 16;
         return L.divIcon({
-            html: '<div style="color: ' + this.colour + '; font-size: ' + size + 'px">' + this.displayText + '<br/>GS: ' +speed.toFixed(0) +'kn GPSA: '+ altitude.toFixed(0) +'ft</div>',
+            html: '<div style="color: ' + colour + '; font-size: ' + size + 'px">' + this.displayText + '<br/>GS: ' + speed.toFixed(0) + 'kn GPSA: ' + altitude.toFixed(0) + 'ft</div>',
             iconAnchor: [100, -16],
             iconSize: [200, size],
             className: "myAirplaneTextIcon text-center"
@@ -75,7 +85,6 @@ class Aircraft {
     createLiveEntities(position) {
         const tooltipContents = this.navigation_task_link ? "Competing in navigation task" : ""
         this.dot = L.marker([position.latitude, position.longitude], {
-            icon: this.createAirplaneIcon(position.course),
             zIndexOffset: 99999
         }).bindTooltip(tooltipContents, {
             permanent: false
@@ -85,7 +94,6 @@ class Aircraft {
             }
         }).addTo(this.map)
         this.dotText = L.marker([position.latitude, position.longitude], {
-            icon: this.createAirplaneTextIcon(position.speed, position.altitude*3.28084),
             zIndexOffset: 99999
         }).bindTooltip(tooltipContents, {
             permanent: false
@@ -99,11 +107,14 @@ class Aircraft {
             opacity: 1,
             weight: 3
         }).addTo(this.map)
+        this.updateIcon(position)
     }
 
     updateTrail(position) {
         this.trailPositions.push(position)
-
+        this.trail.setStyle({
+            color: this.colour
+        })
         const latestTime = position.time.getTime()
         while (this.trailPositions.length > 0 && latestTime - this.trailPositions[0].time.getTime() > TRAIL_LENGTH * 1000) {
             this.trailPositions.shift()
@@ -119,13 +130,21 @@ class Aircraft {
     }
 
     updatePosition(p) {
+        clearTimeout(this.colourTimer)
+        this.colourTimer = setTimeout(()=>this.agePlane(), 15000)
         const position = this.replaceTime(p)
+        this.latestPosition = position
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
-        this.dot.setIcon(this.createAirplaneIcon(position.course))
+        this.updateIcon(position)
         this.updateTrail(position)
         this.time = position.time
         this.updateNavigationTask(position)
+    }
+
+    updateIcon(position, colour) {
+        this.dot.setIcon(this.createAirplaneIcon(position.course, colour))
+        this.dotText.setIcon(this.createAirplaneTextIcon(position.speed, position.altitude * 3.28084, colour))
     }
 
     removeFromMap() {
