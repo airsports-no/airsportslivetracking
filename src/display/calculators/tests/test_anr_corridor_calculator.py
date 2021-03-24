@@ -20,7 +20,6 @@ from influx_facade import InfluxFacade
 from mock_utilities import TraccarMock
 
 
-
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestANRPerLeg(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
@@ -486,3 +485,60 @@ class TestANRPolygon(TransactionTestCase):
         calculator.run()
         while not q.empty():
             q.get_nowait()
+
+
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+class TestANRBergenBacktracking(TransactionTestCase):
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, p):
+        with open("display/calculators/tests/Bergen_Open_Test.kml", "r") as file:
+            route = create_anr_corridor_route_from_kml("test", file, 0.5, False)
+        navigation_task_start_time = datetime.datetime(2021, 3, 24, 6, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 3, 24, 16, 0, 0, tzinfo=datetime.timezone.utc)
+        self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        from display.default_scorecards import default_scorecard_fai_anr_2017
+        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+                                                             route=route,
+                                                             scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
+                                                             contest=Contest.objects.create(name="contest",
+                                                                                            start_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc),
+                                                                                            finish_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc),
+                                                                                            time_zone="Europe/Oslo"),
+                                                             start_time=navigation_task_start_time,
+                                                             finish_time=navigation_task_finish_time)
+        self.navigation_task.track_score_override = TrackScoreOverride.objects.create(corridor_width=0.5,
+                                                                                      corridor_grace_time=5)
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
+        self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
+        self.scorecard = default_scorecard_fai_anr_2017.get_default_scorecard()
+        # Required to make the time zone save correctly
+        self.navigation_task.refresh_from_db()
+
+    def test_track(self, p):
+        track = load_track_points_traccar_csv(
+            load_traccar_track("display/calculators/tests/kurtbergen.csv"))
+        start_time, speed = datetime.datetime(2021, 3, 24, 14, 17, tzinfo=datetime.timezone.utc), 70
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    tracker_device_id="Test contestant", contestant_number=1,
+                                                    minutes_to_starting_point=7,
+                                                    adaptive_start=True,
+                                                    air_speed=speed, wind_direction=220,
+                                                    wind_speed=18)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+        self.assertEqual(51, self.contestant.contestanttrack.score)

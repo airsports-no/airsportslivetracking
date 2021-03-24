@@ -29,6 +29,7 @@ class ProhibitedZoneCalculator(Calculator):
                  update_score: Callable, type_filter: str = None):
         super().__init__(contestant, scorecard, gates, route, update_score)
         self.inside_zones = set()
+        self.gates = gates
         self.crossed_outside_time = None
         self.last_outside_penalty = None
         self.crossed_outside_position = None
@@ -62,13 +63,13 @@ class ProhibitedZoneCalculator(Calculator):
     def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
         self.check_inside_prohibited_zone(track, last_gate)
 
-    def check_inside_prohibited_zone(self, track: List["Position"], last_gate: "Gate"):
+    def check_inside_prohibited_zone(self, track: List["Position"], last_gate: Optional["Gate"]):
         position = track[-1]
         inside_this_time = set()
         for inside in self._check_inside_polygons(position.latitude, position.longitude):
             inside_this_time.add(inside)
             if inside not in self.inside_zones:
-                self.update_score(last_gate,
+                self.update_score(last_gate or self.gates[0],
                                   self.scorecard.get_prohibited_zone_penalty(self.contestant),
                                   "entered prohibited zone {}".format(inside),
                                   position.latitude, position.longitude,
