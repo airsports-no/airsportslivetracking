@@ -52,7 +52,9 @@ class GatekeeperRoute(Gatekeeper):
             self.gates.append(self.landing_gate)
         self.outstanding_gates = list(self.gates)
         # Take of gate is handled separately, so should not be part of outstanding gates
-        if self.takeoff_gate is not None:
+        if self.contestant.adaptive_start:
+            self.takeoff_gate=None
+        elif self.takeoff_gate is not None:
             self.gates.insert(0, self.takeoff_gate)
         self.in_range_of_gate = None
         self.calculators = []
@@ -158,6 +160,7 @@ class GatekeeperRoute(Gatekeeper):
                 if self.starting_line.is_passed_in_correct_direction_track_to_next(self.track):
                     # Start the clock
                     if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
+
                         self.takeoff_gate.missed = True
 
                     logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
