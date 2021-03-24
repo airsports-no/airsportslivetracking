@@ -711,7 +711,7 @@ class TrackScoreOverride(models.Model):
                                            help_text="A amount of points awarded for a bad course")
     bad_course_maximum_penalty = models.FloatField(default=None, blank=True, null=True,
                                                    help_text="A amount of points awarded for a bad course")
-    prohibited_zone_penalty = models.FloatField(default=200,
+    prohibited_zone_penalty = models.FloatField(default=None, blank=True, null=True,
                                                 help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas")
     ### ANR Corridor
     corridor_width = models.FloatField(default=None, blank=True, null=True,

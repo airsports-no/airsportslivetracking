@@ -118,7 +118,9 @@ class Gatekeeper:
                 self.track_terminated = True
                 continue
             p = Position(data["time"], **data["fields"])
-            if len(self.track) > 0 and (self.track[-1] == p or self.track[-1].time > p.time):
+            if len(self.track) > 0 and (
+                    (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude) or self.track[
+                -1].time >= p.time):
                 # Old or duplicate position, ignoring
                 continue
             progress = self.contestant.calculate_progress(p.time)
@@ -189,7 +191,8 @@ class Gatekeeper:
         self.influx.add_annotation(self.contestant, latitude, longitude, string, annotation_type,
                                    self.track[-1].time)  # TODO: Annotations with the same time
         self.contestant.contestanttrack.score_log.append(internal_message)
-        self.contestant.contestanttrack.update_score(self.score_by_gate, self.score, self.contestant.contestanttrack.score_log)
+        self.contestant.contestanttrack.update_score(self.score_by_gate, self.score,
+                                                     self.contestant.contestanttrack.score_log)
 
     def create_gates(self) -> List[Gate]:
         waypoints = self.contestant.navigation_task.route.waypoints
@@ -215,11 +218,11 @@ class Gatekeeper:
 
     def update_enroute(self):
         logger.info(f"last_gate: {self.last_gate} {self.last_gate.type}")
-        if self.last_gate is not None and self.last_gate.type in ["ldg", "ifp", "fp"]:
+        if self.enroute and self.last_gate is not None and self.last_gate.type in ["ldg", "ifp", "fp"]:
             self.enroute = False
             logger.info("Switching to not enroute")
             return
-        if self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]:
+        if not self.enroute and self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]:
             self.enroute = True
             logger.info("Switching to enroute")
 

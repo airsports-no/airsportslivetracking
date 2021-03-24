@@ -230,8 +230,7 @@ class GatekeeperRoute(Gatekeeper):
                     self.contestant, self.track[-1].time,
                     gate, time_limit))
                 gate.missed = True
-                # self.missed_gate(gate, self.track[-1])
-                self.pop_gate(0)
+                self.pop_gate(0, True)
         self.check_gate_in_range()
         if self.last_gate and self.last_gate.type == "fp":
             self.passed_finishpoint()

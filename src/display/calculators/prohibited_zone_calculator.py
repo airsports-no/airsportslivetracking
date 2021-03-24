@@ -73,7 +73,5 @@ class ProhibitedZoneCalculator(Calculator):
                                   self.scorecard.get_prohibited_zone_penalty(self.contestant),
                                   "entered prohibited zone {}".format(inside),
                                   position.latitude, position.longitude,
-                                  "anomaly", self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE,
-                                  maximum_score=self.scorecard.get_corridor_outside_maximum_penalty(
-                                      self.contestant))
+                                  "anomaly", self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE)
         self.inside_zones = inside_this_time
