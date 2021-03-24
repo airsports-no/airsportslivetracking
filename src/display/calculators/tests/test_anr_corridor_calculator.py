@@ -519,7 +519,7 @@ class TestANRBergenBacktracking(TransactionTestCase):
     def test_track(self, p):
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/kurtbergen.csv"))
-        start_time, speed = datetime.datetime(2021, 3, 24, 14, 17, tzinfo=datetime.timezone.utc), 70
+        start_time, speed = datetime.datetime(2021, 3, 24, 13, 17, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
                                                     takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
