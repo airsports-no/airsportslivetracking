@@ -117,11 +117,18 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         current_position = track[current_position_index]
         difference = 0
         previous_bearing = None
+        bearings = []
+        bearing_differences = []
+        accumulated_differences = []
         while current_position_index > 0 and current_position.time > now - self.circling_lookback and current_position.time > self.earliest_circle_check:
             current_position_index -= 1
             current_bearing = bearing_between(current_position, next_position)
+            bearings.append(current_bearing)
             if previous_bearing is not None:
-                difference += bearing_difference(previous_bearing, current_bearing)
+                current_difference = bearing_difference(previous_bearing, current_bearing)
+                bearing_differences.append(current_difference)
+                difference += current_difference
+            accumulated_differences.append(difference)
             previous_bearing = current_bearing
             next_position = current_position
             current_position = track[current_position_index]
@@ -133,6 +140,10 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         "{} {}: Detected circling more than 180° the past {} seconds".format(self.contestant,
                                                                                              now, (
                                                                                                      now - current_position.time).total_seconds()))
+                    logger.info(f"Positions: {[(item.time, item.latitude, item.longitude, item.course) for item in track[current_position_index:]]}")
+                    logger.info(f"Bearings: {bearings}")
+                    logger.info(f"Bearing differences: {bearing_differences}")
+                    logger.info(f"Accumulated bearing differences: {accumulated_differences}")
                     self.update_score(last_gate or self.gates[0],
                                       self.scorecard.get_backtracking_penalty(self.contestant),
                                       "circling start",

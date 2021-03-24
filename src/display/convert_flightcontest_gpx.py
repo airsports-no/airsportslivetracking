@@ -12,6 +12,7 @@ from shapely import geometry
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
     create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat, \
     create_rounded_corridor_corner, bearing_difference, calculate_fractional_distance_point_lat_lon
+from display.forms import STARTINGPOINT, FINISHPOINT, TURNPOINT
 from display.models import Route, is_procedure_turn, Scorecard, Prohibited
 from gpxpy.gpx import GPX
 
@@ -240,7 +241,29 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
             Prohibited.objects.create(name=zone_name, route=route, path=features[name], type=zone_type)
 
 
-def create_precision_route_from_formset(route_name, data: Dict, use_procedure_turns: bool,
+def create_precision_default_route_from_kml(input_kml) -> Route:
+    features = load_features_from_kml(input_kml)
+    positions = features.get("route", [])
+    initial = []
+    for index, position in enumerate(positions):
+        initial.append({
+            "name": f"TP {index}",
+            "type": TURNPOINT,
+            "latitude": position[0],
+            "longitude": position[1],
+            "width": 1,
+            "time_check": True,
+            "gate_check": True
+        })
+    if len(positions) > 0:
+        initial[0]["type"] = STARTINGPOINT
+        initial[0]["name"] = "SP"
+        initial[-1]["type"] = FINISHPOINT
+        initial[-1]["name"] = "FP"
+    return create_precision_route_from_formset("test", initial, True, input_kml=input_kml)
+
+
+def create_precision_route_from_formset(route_name, data: List, use_procedure_turns: bool,
                                         input_kml: Optional = None) -> Route:
     waypoint_list = []
     for item in data:
@@ -471,7 +494,7 @@ def correct_distance_and_bearing_for_rounded_corridor(waypoints: List[Waypoint])
 
         waypoints[index].distance_next = distance
         waypoints[index].bearing_next = calculate_bearing(current_gate[-1],
-                                                      next_gate[0])
+                                                          next_gate[0])
     for index in range(1, len(waypoints)):
         current_gate = waypoints[index]
         previous_gate = waypoints[index - 1]

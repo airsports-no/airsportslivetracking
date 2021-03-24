@@ -119,6 +119,9 @@ class Gatekeeper:
                 self.track_terminated = True
                 continue
             p = Position(data["time"], **data["fields"])
+            if len(self.track)>0 and (self.track[-1]==p or self.track[-1].time>p.time):
+                # Old or duplicate position, ignoring
+                continue
             progress = self.contestant.calculate_progress(p.time)
             if self.live_processing:
                 self.influx.put_position_data_for_contestant(self.contestant, [data], progress)

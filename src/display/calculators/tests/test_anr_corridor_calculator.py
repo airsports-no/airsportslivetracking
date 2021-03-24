@@ -12,21 +12,13 @@ from django.test.utils import freeze_time
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.calculator_utilities import load_track_points_traccar_csv
+from display.calculators.tests.utilities import load_traccar_track
 from display.convert_flightcontest_gpx import create_anr_corridor_route_from_kml
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Person, Team, Contestant, ContestantTrack, \
     TrackScoreOverride
 from influx_facade import InfluxFacade
 from mock_utilities import TraccarMock
 
-
-def load_traccar_track(track_file) -> List[Tuple[datetime.datetime, float, float]]:
-    positions = []
-    with open(track_file, "r") as i:
-        for line in i.readlines():
-            elements = line.split(",")
-            positions.append((dateutil.parser.parse(elements[1]).replace(tzinfo=datetime.timezone.utc),
-                              float(elements[2]), float(elements[3])))
-    return positions
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)

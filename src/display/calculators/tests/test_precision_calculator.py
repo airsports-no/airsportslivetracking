@@ -12,8 +12,11 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, TransactionTestCase
 
 from display.calculators.calculator_factory import calculator_factory
+from display.calculators.calculator_utilities import load_track_points_traccar_csv
 from display.calculators.positions_and_gates import Gate
-from display.convert_flightcontest_gpx import create_precision_route_from_gpx, calculate_extended_gate
+from display.calculators.tests.utilities import load_traccar_track
+from display.convert_flightcontest_gpx import create_precision_route_from_gpx, calculate_extended_gate, \
+    create_precision_default_route_from_kml
 from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew, \
     Contest, Person, TrackScoreOverride, GateScoreOverride
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
@@ -33,7 +36,8 @@ def load_track_points(filename):
                 positions.append(
                     {"time": point.time.isoformat(),
                      "latitude": point.latitude, "longitude": point.longitude,
-                     "altitude": point.elevation if point.elevation else 0, "speed": 0, "course": 0, "battery_level": 100})
+                     "altitude": point.elevation if point.elevation else 0, "speed": 0, "course": 0,
+                     "battery_level": 100})
     return positions
 
 
@@ -155,13 +159,13 @@ class TestFullTrack(TransactionTestCase):
         while not q.empty():
             q.get_nowait()
 
-
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(12, contestant_track.score)
 
     def test_helge_track_precision(self, patch):
         start_time, speed = datetime.datetime(2020, 8, 1, 10, 55, tzinfo=datetime.timezone.utc), 75
-        crew = Crew.objects.create(member1=Person.objects.create(first_name="Misters", last_name="Pilot", email="a@gg.com"))
+        crew = Crew.objects.create(
+            member1=Person.objects.create(first_name="Misters", last_name="Pilot", email="a@gg.com"))
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         team = Team.objects.create(crew=crew, aeroplane=aeroplane)
 
@@ -203,7 +207,6 @@ class TestFullTrack(TransactionTestCase):
         while not q.empty():
             q.get_nowait()
 
-
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1800, contestant_track.score)
 
@@ -221,7 +224,6 @@ class TestFullTrack(TransactionTestCase):
         calculator.run()
         while not q.empty():
             q.get_nowait()
-
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         print(contestant_track.score_log)
@@ -288,7 +290,6 @@ class Test2017WPFC(TransactionTestCase):
         calculator.run()
         while not q.empty():
             q.get_nowait()
-
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1352,  # Increased by 200 after new circling cacl
@@ -386,7 +387,6 @@ class TestNM2019(TransactionTestCase):
         while not q.empty():
             q.get_nowait()
 
-
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(875,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
@@ -416,7 +416,149 @@ class TestNM2019(TransactionTestCase):
         while not q.empty():
             q.get_nowait()
 
-
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1200,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
+
+
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+class TestHamar23March2021(TransactionTestCase):
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, p):
+        with open("display/calculators/tests/hamartest.kml", "r") as file:
+            route = create_precision_default_route_from_kml(file)
+        navigation_task_start_time = datetime.datetime(2021, 3, 23, 6, 0, 0).astimezone()
+        navigation_task_finish_time = datetime.datetime(2021, 3, 23, 19, 0, 0).astimezone()
+        self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+                                                             route=route,
+                                                             scorecard=self.scorecard,
+                                                             contest=Contest.objects.create(name="contest",
+                                                                                            start_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc),
+                                                                                            finish_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc),
+                                                                                            time_zone="Europe/Oslo"),
+                                                             start_time=navigation_task_start_time,
+                                                             finish_time=navigation_task_finish_time)
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
+        self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
+        # Required to make the time zone save correctly
+        self.navigation_task.refresh_from_db()
+
+    def test_kolaf(self, patch):
+        track = load_track_points(
+            "display/calculators/tests/hamar_kolaf.gpx")
+        start_time, speed = datetime.datetime(2021, 3, 23, 14, 25, tzinfo=datetime.timezone.utc), 70
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    tracker_device_id="Test contestant", contestant_number=1,
+                                                    minutes_to_starting_point=6,
+                                                    adaptive_start=True,
+                                                    air_speed=speed, wind_direction=180,
+                                                    wind_speed=4)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        self.assertEqual(204, contestant_track.score)
+
+    def test_vjoycar(self, patch):
+        track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/vjoycarhamar.csv"))
+        start_time, speed = datetime.datetime(2021, 3, 23, 14, 25, tzinfo=datetime.timezone.utc), 70
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    tracker_device_id="Test contestant", contestant_number=1,
+                                                    minutes_to_starting_point=6,
+                                                    adaptive_start=True,
+                                                    air_speed=speed, wind_direction=180,
+                                                    wind_speed=4)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        self.assertEqual(204, contestant_track.score)
+
+
+    def test_lt03(self, patch):
+        track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/lt03_hamar.csv"))
+        start_time, speed = datetime.datetime(2021, 3, 23, 14, 25, tzinfo=datetime.timezone.utc), 70
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    tracker_device_id="Test contestant", contestant_number=1,
+                                                    minutes_to_starting_point=6,
+                                                    adaptive_start=True,
+                                                    air_speed=speed, wind_direction=180,
+                                                    wind_speed=4)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        self.assertEqual(207, contestant_track.score)
+
+
+    def test_kolaf_trackar(self, patch):
+        track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/kolaf_hamar.csv"))
+        start_time, speed = datetime.datetime(2021, 3, 23, 14, 25, tzinfo=datetime.timezone.utc), 70
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    tracker_device_id="Test contestant", contestant_number=1,
+                                                    minutes_to_starting_point=6,
+                                                    adaptive_start=True,
+                                                    air_speed=speed, wind_direction=180,
+                                                    wind_speed=4)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        self.assertEqual(201, contestant_track.score)

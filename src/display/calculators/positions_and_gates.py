@@ -24,6 +24,9 @@ class Position:
     def __str__(self):
         return f"{self.time}: {self.latitude}, {self.longitude}"
 
+    def __eq__(self, other):
+        return self.time == other.time or (self.latitude == other.latitude and self.longitude == other.longitude)
+
 
 class Gate:
     def __init__(self, gate: Waypoint, expected_time,
