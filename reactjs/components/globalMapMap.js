@@ -33,7 +33,7 @@ class Aircraft {
         this.time = position.time
         this.navigation_task_link = this.getNavigationTaskLink(initial_position.navigation_task_id)
         this.createLiveEntities(position)
-        this.colourTimer = setTimeout(()=>this.agePlane(), 15000)
+        this.colourTimer = setTimeout(() => this.agePlane(), 15000)
     }
 
     agePlane() {
@@ -130,12 +130,12 @@ class Aircraft {
 
     updatePosition(p) {
         clearTimeout(this.colourTimer)
-        this.colourTimer = setTimeout(()=>this.agePlane(), 15000)
+        this.colourTimer = setTimeout(() => this.agePlane(), 15000)
         const position = this.replaceTime(p)
         this.latestPosition = position
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
-        this.updateIcon(position)
+        this.updateIcon(position, this.colour)
         this.updateTrail(position)
         this.time = position.time
         this.updateNavigationTask(position)
@@ -143,7 +143,7 @@ class Aircraft {
 
     updateIcon(position, colour) {
         this.dot.setIcon(this.createAirplaneIcon(position.course, colour))
-        this.dotText.setIcon(this.createAirplaneTextIcon(position.speed, position.altitude * 3.28084, colour))
+        this.dotText.setIcon(this.createAirplaneTextIcon(position.altitude * 3.28084, position.speed, colour))
     }
 
     removeFromMap() {
