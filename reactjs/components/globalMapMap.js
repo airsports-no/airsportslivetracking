@@ -41,7 +41,6 @@ class Aircraft {
         this.trail.setStyle({
             color: "grey"
         })
-
     }
 
     getNavigationTaskLink(navigation_task_id) {
@@ -64,7 +63,7 @@ class Aircraft {
     }
 
 
-    createAirplaneTextIcon(altitude, colour) {
+    createAirplaneTextIcon(altitude, speed, colour) {
         const size = 16;
         return L.divIcon({
             html: '<div style="color: ' + colour + '; font-size: ' + size + 'px">' + this.displayText + '<br/>GS: ' + speed.toFixed(0) + 'kn GPSA: ' + altitude.toFixed(0) + 'ft</div>',
