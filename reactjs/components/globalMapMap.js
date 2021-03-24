@@ -57,7 +57,7 @@ class Aircraft {
     createAirplaneTextIcon(altitude) {
         const size = 16;
         return L.divIcon({
-            html: '<div style="color: ' + this.colour + '; font-size: ' + size + 'px">' + this.displayText + '<br/>GPS alt: '+ altitude.toFixed(0) +'ft</div>',
+            html: '<div style="color: ' + this.colour + '; font-size: ' + size + 'px">' + this.displayText + '<br/>GS: ' +speed.toFixed(0) +'kn GPSA: '+ altitude.toFixed(0) +'ft</div>',
             iconAnchor: [100, -16],
             iconSize: [200, size],
             className: "myAirplaneTextIcon text-center"
@@ -85,7 +85,7 @@ class Aircraft {
             }
         }).addTo(this.map)
         this.dotText = L.marker([position.latitude, position.longitude], {
-            icon: this.createAirplaneTextIcon(position.altitude*3.28084),
+            icon: this.createAirplaneTextIcon(position.speed, position.altitude*3.28084),
             zIndexOffset: 99999
         }).bindTooltip(tooltipContents, {
             permanent: false
