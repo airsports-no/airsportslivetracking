@@ -73,7 +73,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser, \
     TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser, \
     NavigationTasksSummarySerialiser, TaskSummaryWithoutReferenceSerialiser, TeamTestScoreWithoutReferenceSerialiser, \
-    TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser
+    TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser, ContestantSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -1100,8 +1100,6 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     def get_post_data_for_step(self, step):
         return self.request.session.get('my_post_data', {}).get(step, {})
 
-
-
     def done(self, form_list, **kwargs):
         print(f"All cleaned data: {self.get_all_cleaned_data()}")
         form_dict = kwargs['form_dict']
@@ -1165,7 +1163,8 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         # Clear away any old association since we have updated the data
         ContestTeam.objects.filter(contest=contest, team=team).delete()
         ct, _ = ContestTeam.objects.get_or_create(contest=contest, team=team, defaults=tracking_data)
-        if ct.tracking_service == TRACCAR and ct.tracker_device_id and len(ct.tracker_device_id) > 0 and ct.tracking_device == TRACKING_DEVICE:
+        if ct.tracking_service == TRACCAR and ct.tracker_device_id and len(
+                ct.tracker_device_id) > 0 and ct.tracking_device == TRACKING_DEVICE:
             traccar = get_traccar_instance()
             traccar.get_or_create_device(ct.tracker_device_id, ct.tracker_device_id)
         if affected_contestants is not None:
@@ -1597,12 +1596,12 @@ class RouteViewSet(ModelViewSet):
 
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
-    serializer_class = ContestantNestedTeamSerialiserWithContestantTrack
     permission_classes = [
         ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)]
     serializer_classes = {
         "track": ContestantTrackWithTrackPointsSerialiser,
-        "gpx_track": GpxTrackSerialiser
+        "gpx_track": GpxTrackSerialiser,
+        "update": ContestantSerialiser
     }
     default_serialiser_class = ContestantNestedTeamSerialiserWithContestantTrack
 

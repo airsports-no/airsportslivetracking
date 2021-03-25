@@ -22,7 +22,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         position.longitude = 11.5
         gate = Mock()
         self.calculator.calculate_enroute([position], gate, gate)
-        self.update_score.assert_called_with(gate, 200, 'entered prohibited zone test', 60.5, 11.5, 'anomaly',
+        self.update_score.assert_called_with(gate, 0, 'entered prohibited zone test', 60.5, 11.5, 'anomaly',
                                              'inside_prohibited_zone', maximum_score=-1)
 
     def test_inside_outside_route(self):
@@ -31,7 +31,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         position.longitude = 11.5
         gate = Mock()
         self.calculator.calculate_outside_route([position], gate)
-        self.update_score.assert_called_with(gate, 200, 'entered prohibited zone test', 60.5, 11.5, 'anomaly',
+        self.update_score.assert_called_with(gate, 0, 'entered prohibited zone test', 60.5, 11.5, 'anomaly',
                                              'inside_prohibited_zone', maximum_score=-1)
 
     def test_outside_enroute(self):
