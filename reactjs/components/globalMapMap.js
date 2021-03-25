@@ -68,7 +68,7 @@ class Aircraft {
     createAirplaneTextIcon(altitude, speed, colour) {
         const size = 16;
         return L.divIcon({
-            html: '<div><div style="color: ' + colour + '; font-size: ' + size + 'px;margin-bottom: -35px;">' + this.displayText + '<br/>' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</div><span style="color: ' + colour + ';font-size: 10px;">GPS</span></div>',
+            html: '<div><div style="color: ' + colour + '; font-size: ' + size + 'px;margin-bottom: -35px;">' + this.displayText + '<br/></div><span style="color: ' + colour + ';font-size: 10px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</div><span style="color: ' + colour + ';font-size: 10px;">GPS Approx</span></div>',
             iconAnchor: [100, -11],
             iconSize: [200, size],
             className: "myAirplaneTextIcon text-center"
@@ -145,7 +145,8 @@ class Aircraft {
 
     updateIcon(position, colour) {
         this.dot.setIcon(this.createAirplaneIcon(position.course, colour))
-        this.dotText.setIcon(this.createAirplaneTextIcon(position.altitude * 3.28084, position.speed, colour))
+        this.dotText.setIcon(this.createAirplaneTextIcon(100 * Math.floor(position.altitude * 3.28084) / 100), position.speed, colour)
+    )
     }
 
     removeFromMap() {
