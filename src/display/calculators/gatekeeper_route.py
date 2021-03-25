@@ -117,7 +117,7 @@ class GatekeeperRoute(Gatekeeper):
 
     def miss_outstanding_gates(self):
         for item in self.outstanding_gates:
-            logger.info(f"Missing outstanding gate {item}")
+            logger.info(f"{self.contestant}: Missing outstanding gate {item}")
             item.missed = True
         self.outstanding_gates = []
 
@@ -252,7 +252,7 @@ class GatekeeperRoute(Gatekeeper):
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.live_processing and now > self.contestant.finished_by_time:
             if not already_terminated:
-                logger.info("Live processing and past finish time, terminating")
+                logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
             self.track_terminated = True
         if not already_terminated and self.track_terminated:
             self.miss_outstanding_gates()

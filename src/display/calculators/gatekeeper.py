@@ -245,7 +245,6 @@ class Gatekeeper:
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.last_termination_command_check is None or now > self.last_termination_command_check + datetime.timedelta(
                 seconds=15):
-            logger.info("Check manual termination")
             self.last_termination_command_check = now
             termination_requested = cache.get(self.contestant.termination_request_key)
             return termination_requested is not None

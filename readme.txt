@@ -1,0 +1,2 @@
+Traccar GPX export
+curl "https://traccar.airsports.no/api/positions/" "deviceid: 5423" "from: 2021-03-23T08:00:00Z" -H "to: 2021-03-23T17:00:00Z" -H "authorization: Basic myAuth" "accept: application/gpx+xml" > export.gpx

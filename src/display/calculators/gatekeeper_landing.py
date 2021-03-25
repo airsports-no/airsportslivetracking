@@ -57,7 +57,7 @@ class GatekeeperLanding(Gatekeeper):
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.live_processing and now > self.contestant.finished_by_time:
             if not already_terminated:
-                logger.info("Live processing and past finish time, terminating")
+                logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
             self.track_terminated = True
 
     def check_gates(self):
