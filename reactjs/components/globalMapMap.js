@@ -145,7 +145,7 @@ class Aircraft {
 
     updateIcon(position, colour) {
         this.dot.setIcon(this.createAirplaneIcon(position.course, colour))
-        this.dotText.setIcon(this.createAirplaneTextIcon(100 * Math.floor(position.altitude * 3.28084) / 100), position.speed, colour)
+        this.dotText.setIcon(this.createAirplaneTextIcon(100 * Math.floor(position.altitude * 3.28084) / 100, position.speed, colour)
     )
     }
 
