@@ -1601,7 +1601,7 @@ class ContestantViewSet(ModelViewSet):
     serializer_classes = {
         "track": ContestantTrackWithTrackPointsSerialiser,
         "gpx_track": GpxTrackSerialiser,
-        "update": ContestantSerialiser
+        "update_without_team": ContestantSerialiser
     }
     default_serialiser_class = ContestantNestedTeamSerialiserWithContestantTrack
 
@@ -1642,6 +1642,10 @@ class ContestantViewSet(ModelViewSet):
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["put", "patch"])
+    def update_without_team(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
 
     @action(detail=True, methods=["get"])
     def track(self, request, pk=None, **kwargs):
