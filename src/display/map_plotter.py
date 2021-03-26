@@ -1,3 +1,4 @@
+import glob
 from io import BytesIO
 
 import pytz
@@ -143,6 +144,16 @@ TILE_MAP = {
 }
 
 
+def folder_map_name(folder: str) -> str:
+    actual_map = folder.split("/")[-1]
+    elements = actual_map.split("_")
+    return " ".join([item.capitalize() for item in elements])
+
+
+MAP_FOLDERS = glob.glob("/maptiles/*")
+MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [("osm", "OSM")]
+
+
 class LocalImages(GoogleWTS):
     def __init__(self, folder: str):
         super().__init__()
@@ -150,7 +161,7 @@ class LocalImages(GoogleWTS):
 
     def _image_url(self, tile):
         x, y, z = tile
-        return "file:///maptiles/{}/{}/{}/{}.png".format(self.folder, z, x, y)
+        return "file://{}/{}/{}/{}.png".format(self.folder, z, x, y)
 
     def tileextent(self, x_y_z):
         """Return extent tuple ``(x0,x1,y0,y1)`` in Mercator coordinates."""
@@ -313,7 +324,7 @@ def plot_prohibited_zones(route: Route, target_projection, ax):
 
 
 def plot_waypoint_name(route: Route, waypoint: Waypoint, bearing: float, annotations: bool, waypoints_only: bool,
-                       contestant: Optional[Contestant], character_padding: int = 4):
+                       contestant: Optional[Contestant], line_width: float, colour: str, character_padding: int = 4):
     text = "{}".format(waypoint.name)
     if contestant is not None and annotations:
         waypoint_time = contestant.gate_times.get(waypoint.name)  # type: datetime.datetime
@@ -327,12 +338,12 @@ def plot_waypoint_name(route: Route, waypoint: Waypoint, bearing: float, annotat
         text = "\n" + " " * (len(text) + character_padding) + text  # Padding to get things aligned correctly
     if waypoints_only:
         bearing = 0
-    plt.text(waypoint.longitude, waypoint.latitude, text, verticalalignment="center", color="blue",
+    plt.text(waypoint.longitude, waypoint.latitude, text, verticalalignment="center", color=colour,
              horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8, rotation=-bearing,
              linespacing=2, family="monospace", clip_on=True)
 
 
-def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], annotations):
+def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], annotations, line_width: float, colour: str):
     inner_track = []
     outer_track = []
     for index, waypoint in enumerate(route.waypoints):
@@ -340,12 +351,12 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
         bearing = waypoint_bearing(waypoint, index)
 
         if waypoint.type in ("sp", "fp"):
-            plot_waypoint_name(route, waypoint, bearing, annotations, False, contestant, character_padding=5)
+            plot_waypoint_name(route, waypoint, bearing, annotations, False, contestant, line_width, colour, character_padding=5)
         if route.rounded_corners and waypoint.left_corridor_line is not None:
             inner_track.extend(waypoint.left_corridor_line)
             outer_track.extend(waypoint.right_corridor_line)
         else:
-            plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+            plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
             inner_track.append(waypoint.gate_line[0])
             outer_track.append(waypoint.gate_line[1])
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
@@ -356,14 +367,14 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
         # print(inner_track)
     path = np.array(inner_track)
     ys, xs = path.T
-    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
     path = np.array(outer_track)
     ys, xs = path.T
-    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
     return path
 
 
-def plot_minute_marks(waypoint: Waypoint, contestant: Contestant, track, index, mark_offset=1,
+def plot_minute_marks(waypoint: Waypoint, contestant: Contestant, track, index, line_width: float, colour: str, mark_offset=1,
                       line_width_nm: float = 0.5):
     gate_start_time = contestant.gate_times.get(waypoint.name)
     if waypoint.is_procedure_turn:
@@ -381,20 +392,20 @@ def plot_minute_marks(waypoint: Waypoint, contestant: Contestant, track, index, 
                                              contestant.gate_times.get(track[0].name), line_width_nm=line_width_nm)
     for mark_line, line_position, timestamp in minute_lines:
         xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat
-        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
         time_format = "%M"
         if timestamp.second != 0:
             time_format = "%M:%S"
         time_string = timestamp.strftime(time_format)
         text = "\n" + " " * mark_offset + " " * len(time_string) + time_string
         plt.text(line_position[1], line_position[0], text, verticalalignment="center",
-                 color="blue",
+                 color=colour,
                  horizontalalignment="center", transform=ccrs.PlateCarree(), fontsize=8,
                  rotation=-waypoint.bearing_next,
                  linespacing=2, family="monospace")
 
 
-def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoints_only: bool, annotations: bool):
+def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoints_only: bool, annotations: bool, line_width: float, colour: str):
     tracks = [[]]
     for waypoint in route.waypoints:  # type: Waypoint
         if waypoint.type == "isp":
@@ -408,17 +419,17 @@ def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoin
                 bearing = waypoint_bearing(waypoint, index)
                 ys, xs = np.array(waypoint.gate_line).T
                 if not waypoints_only:
-                    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+                    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
                 else:
-                    plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree(), color="blue",
+                    plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree(), color=colour,
                              marker="o", markersize=8, fillstyle="none")
-                plot_waypoint_name(route, waypoint, bearing, annotations, waypoints_only, contestant)
+                plot_waypoint_name(route, waypoint, bearing, annotations, waypoints_only, contestant, line_width, colour)
                 if contestant is not None:
                     if index < len(track) - 1:
                         if annotations:
                             plot_leg_bearing(waypoint, track[index + 1], contestant.air_speed, contestant.wind_speed,
                                              contestant.wind_direction)
-                            plot_minute_marks(waypoint, contestant, track, index)
+                            plot_minute_marks(waypoint, contestant, track, index, line_width, colour)
 
             if waypoint.is_procedure_turn:
                 line.extend(waypoint.procedure_turn_points)
@@ -427,20 +438,24 @@ def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoin
         path = np.array(line)
         if not waypoints_only:
             ys, xs = path.T
-            plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH)
+            plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
         return path
 
 
 def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = None, landscape: bool = True,
                contestant: Optional[Contestant] = None,
                waypoints_only: bool = False, annotations: bool = True, scale: int = 200, dpi: int = 300,
-               map_source: int = OSM):
+               map_source: str = "osm", line_width: float = 0.5, colour: str = "#0000ff"):
     route = task.route
-    tiles = TILE_MAP.get(map_source)
-    if tiles is not None:
-        imagery = LocalImages(tiles)
-    else:
+    if map_source == "osm":
         imagery = OSM()
+    else:
+        imagery = LocalImages(map_source)
+    # tiles = TILE_MAP.get(map_source)
+    # if tiles is not None:
+    #     imagery = LocalImages(tiles)
+    # else:
+    #     imagery = OSM()
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
@@ -460,9 +475,9 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     ax.add_image(imagery, zoom_level)
     ax.set_aspect("auto")
     if "precision" in task.scorecard.task_type:
-        path = plot_precision_track(route, contestant, waypoints_only, annotations)
+        path = plot_precision_track(route, contestant, waypoints_only, annotations, line_width, colour)
     elif "anr_corridor" in task.scorecard.task_type:
-        path = plot_anr_corridor_track(route, contestant, annotations)
+        path = plot_anr_corridor_track(route, contestant, annotations, line_width, colour)
     else:
         path = []
     plot_prohibited_zones(route, imagery.crs, ax)

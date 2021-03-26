@@ -13,7 +13,7 @@ from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 from timezone_field import TimeZoneFormField
 
-from display.map_plotter import A4, A3, N250_MAP, OSM_MAP, M517_BERGEN_MAP, GERMANY1
+from display.map_plotter import A4, A3, N250_MAP, OSM_MAP, M517_BERGEN_MAP, GERMANY1, MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
     ContestTeam, TrackScoreOverride, GateScoreOverride
 from display.poker_cards import PLAYING_CARDS
@@ -50,10 +50,12 @@ MAP_SIZES = (
     (A4, A4),
     (A3, A3)
 )
+SCALE_150 = 150
 SCALE_250 = 250
 SCALE_200 = 200
 SCALE_TO_FIT = 0
 SCALES = (
+    (SCALE_150, "1:150,000"),
     (SCALE_200, "1:200,000"),
     (SCALE_250, "1:250,000"),
     (SCALE_TO_FIT, "Fit page")
@@ -66,13 +68,6 @@ ORIENTATIONS = (
     (PORTRAIT, "Portrait")
 )
 
-MAP_SOURCES = (
-    (OSM_MAP, "OSM"),
-    (N250_MAP, "Norway 1:250,000"),
-    (M517_BERGEN_MAP, "Bergen M517"),
-    (GERMANY1, "Germany")
-)
-
 
 class MapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
@@ -80,8 +75,10 @@ class MapForm(forms.Form):
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE)
     include_only_waypoints = forms.BooleanField(initial=False, required=False)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_SOURCES, initial=OSM_MAP)
+    map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="osm")
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
+    line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
+    colour = forms.CharField(initial="#0000ff", max_length=7)
 
 
 class ContestantMapForm(forms.Form):
@@ -89,9 +86,11 @@ class ContestantMapForm(forms.Form):
     zoom_level = forms.IntegerField(initial=12)
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_SOURCES, initial=OSM_MAP)
+    map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="osm")
     include_annotations = forms.BooleanField(required=False, initial=True)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
+    line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
+    colour = forms.CharField(initial="#0000ff", max_length=7)
 
 
 class PrecisionScoreOverrideForm(forms.Form):

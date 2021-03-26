@@ -338,7 +338,8 @@ def get_contestant_map(request, pk):
                                    annotations=form.cleaned_data["include_annotations"],
                                    waypoints_only=False, dpi=form.cleaned_data["dpi"],
                                    scale=int(form.cleaned_data["scale"]),
-                                   map_source=int(form.cleaned_data["map_source"]))
+                                   map_source=form.cleaned_data["map_source"],
+                                   line_width = float(form.cleaned_data["line_width"]), colour = form.cleaned_data["colour"])
             response = HttpResponse(map_image, content_type='image/png')
             return response
     form = ContestantMapForm()
@@ -357,7 +358,8 @@ def get_navigation_task_map(request, pk):
                                    landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE,
                                    waypoints_only=form.cleaned_data["include_only_waypoints"],
                                    dpi=form.cleaned_data["dpi"], scale=int(form.cleaned_data["scale"]),
-                                   map_source=int(form.cleaned_data["map_source"]))
+                                   map_source=form.cleaned_data["map_source"],
+                                   line_width=float(form.cleaned_data["line_width"]), colour=form.cleaned_data["colour"])
             response = HttpResponse(map_image, content_type='image/png')
             return response
     form = MapForm()
