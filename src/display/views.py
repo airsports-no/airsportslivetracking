@@ -454,6 +454,12 @@ def terminate_contestant_calculator(request, pk):
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
 
+
+@guardian_permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
+def view_navigation_task_rules(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    return render(request, "display/navigationtask_rules.html", {"object":navigation_task})
+
 @guardian_permission_required('display.change_contest', (Contest, "navigationtask__pk", "pk"))
 def export_navigation_task_results_to_results_service(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)

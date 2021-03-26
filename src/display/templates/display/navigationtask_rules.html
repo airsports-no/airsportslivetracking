@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load tz %}
+{% load guardian_tags %}
+{% block content %}
+    {% get_obj_perms request.user for object.contest as "contest_permissions" %}
+    <H1>Navigation task {{ object.name }} in contest {{ object.contest.name }}</H1>
+    {{ object.start_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }} -
+    {{ object.finish_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }}
+    <p>
+        <a href="{% url 'contest_details' object.contest.pk %}">Back to contest</a> |
+        <a href="{% url 'navigationtask_detail' object.pk %}">Back to navigation task</a>
+
+    <h2>Overridden parameters:</h2>
+    <ul>
+        {% if object.track_score_override.bad_course_grace_time %}
+            <li>Bad course grace time: {{ object.track_score_override.bad_course_grace_time }}</li>
+        {% endif %}
+        {% if object.track_score_override.bad_course_penalty %}
+            <li>Bad course penalty: {{ object.track_score_override.bad_course_penalty }}</li>
+        {% endif %}
+        {% if object.track_score_override.bad_course_maximum_penalty %}
+            <li>Bad course maximum penalty: {{ object.track_score_override.bad_course_maximum_penalty }}</li>
+        {% endif %}
+        {% if object.track_score_override.prohibited_zone_penalty %}
+            <li>Prohibited zone penalty: {{ object.track_score_override.prohibited_zone_penalty }}</li>
+        {% endif %}
+        {% if object.track_score_override.corridor_width %}
+            <li>Corridor width: {{ object.track_score_override.corridor_width }}</li>
+        {% endif %}
+        {% if object.track_score_override.corridor_grace_time %}
+            <li>Corridor grace time: {{ object.track_score_override.corridor_grace_time }}</li>
+        {% endif %}
+        {% if object.track_score_override.corridor_outside_penalty %}
+            <li>Corridor outside penalty: {{ object.track_score_override.corridor_outside_penalty }}</li>
+        {% endif %}
+        {% if object.track_score_override.corridor_maximum_penalty %}
+            <li>Corridor maximum penalty: {{ object.track_score_override.corridor_maximum_penalty }}</li>
+        {% endif %}
+    </ul>
+    {% for override in object.gate_score_override.all %}
+        <h3>Override for gates types: {{ override.for_gate_types }}</h3>
+        <ul>
+            {% if override.checkpoint_graceperiod_before %}
+                <li>Checkpoint grace period before: {{ override.checkpoint_graceperiod_before }}</li>
+            {% endif %}
+            {% if override.checkpoint_graceperiod_after %}
+                <li>Checkpoint grace period after: {{ override.checkpoint_graceperiod_after }}</li>
+            {% endif %}
+            {% if override.checkpoint_penalty_per_second %}
+                <li>Checkpoint penalty per second: {{ override.checkpoint_penalty_per_second }}</li>
+            {% endif %}
+            {% if override.checkpoint_maximum_penalty %}
+                <li>Checkpoint checkpoint maximum penalty: {{ override.checkpoint_maximum_penalty }}</li>
+            {% endif %}
+            {% if override.checkpoint_not_found %}
+                <li>Checkpoint not found: {{ override.checkpoint_not_found }}</li>
+            {% endif %}
+            {% if override.missing_procedure_turn_penalty %}
+                <li>Missing procedure turn penalty: {{ override.missing_procedure_turn_penalty }}</li>
+            {% endif %}
+            {% if override.bad_course_penalty %}
+                <li>Checkpoint grace period before: {{ override.bad_course_penalty }}</li>
+            {% endif %}
+            {% if override.bad_crossing_extended_gate_penalty %}
+                <li>Bad crossing extended gate penalty: {{ override.bad_crossing_extended_gate_penalty }}</li>
+            {% endif %}
+        </ul>
+    {% endfor %}
+
+{% endblock %}

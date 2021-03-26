@@ -360,7 +360,7 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
             inner_track.append(waypoint.gate_line[0])
             outer_track.append(waypoint.gate_line[1])
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
-            plot_minute_marks(waypoint, contestant, route.waypoints, index, mark_offset=4,
+            plot_minute_marks(waypoint, contestant, route.waypoints, index, line_width, colour, mark_offset=4,
                               line_width_nm=contestant.navigation_task.scorecard.get_corridor_width(contestant))
             plot_leg_bearing(waypoint, route.waypoints[index + 1], contestant.air_speed, contestant.wind_speed,
                              contestant.wind_direction, 2, 10)
