@@ -6,7 +6,7 @@
 must be exactly the same as from the supported list. Currently supported maps are:
   1. m517_bergen
   2. Norway_N250
-3. The resulting folder structure should look like this:
+3. The resulting folder structure inside the mapserver folder should look like this:
 ![Map folder structure](https://github.com/kolaf/live_tracking/blob/master/map_directory_structure.png "Map folder structure")
 4. Run the project: docker-compose -f docker-compose-dev.yml up tracker_web (This will take some time and requires 
 Internet access to pull and build all the containers)
