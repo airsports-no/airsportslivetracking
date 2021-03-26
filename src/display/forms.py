@@ -15,27 +15,9 @@ from timezone_field import TimeZoneFormField
 
 from display.map_plotter import A4, A3, N250_MAP, OSM_MAP, M517_BERGEN_MAP, GERMANY1, MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam, TrackScoreOverride, GateScoreOverride
+    ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES
 from display.poker_cards import PLAYING_CARDS
 
-TURNPOINT = "tp"
-STARTINGPOINT = "sp"
-FINISHPOINT = "fp"
-SECRETPOINT = "secret"
-TAKEOFF_GATE = "to"
-LANDING_GATE = "ldg"
-INTERMEDIARY_STARTINGPOINT = "isp"
-INTERMEDIARY_FINISHPOINT = "ifp"
-GATES_TYPES = (
-    (TURNPOINT, "Turning point"),
-    (STARTINGPOINT, "Starting point"),
-    (FINISHPOINT, "Finish point"),
-    (SECRETPOINT, "Secret point"),
-    (TAKEOFF_GATE, "Takeoff gate"),
-    (LANDING_GATE, "Landing gate"),
-    (INTERMEDIARY_STARTINGPOINT, "Intermediary starting point"),
-    (INTERMEDIARY_FINISHPOINT, "Intermediary finish point")
-)
 
 FILE_TYPE_CSV = "csv"
 FILE_TYPE_FLIGHTCONTEST_GPX = "fcgpx"

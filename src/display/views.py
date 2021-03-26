@@ -51,13 +51,13 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
     Member2SearchForm, AeroplaneSearchForm, ClubSearchForm, ContestantMapForm, LANDSCAPE, \
     MapForm, \
     WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
-    PrecisionScoreOverrideForm, STARTINGPOINT, FINISHPOINT, TrackingDataForm, ContestTeamOptimisationForm, \
+    PrecisionScoreOverrideForm, TrackingDataForm, ContestTeamOptimisationForm, \
     AssignPokerCardForm, ChangeContestPermissionsForm, AddContestPermissionsForm, RouteCreationForm, \
     LandingImportRouteForm
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
-    TeamTestScore, TRACCAR, Scorecard, MyUser, PlayingCard, TRACKING_DEVICE
+    TeamTestScore, TRACCAR, Scorecard, MyUser, PlayingCard, TRACKING_DEVICE, STARTINGPOINT, FINISHPOINT
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
@@ -327,6 +327,13 @@ def deal_card_to_contestant(request, pk):
 
 
 @guardian_permission_required('display.view_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+def get_contestant_rules(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    return render(request, "display/contestant_rules.html",
+                  {"contestant": contestant, "rules": contestant.navigation_task.scorecard.scores_display(contestant)})
+
+
+@guardian_permission_required('display.view_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_map(request, pk):
     if request.method == "POST":
         form = ContestantMapForm(request.POST)
@@ -339,7 +346,8 @@ def get_contestant_map(request, pk):
                                    waypoints_only=False, dpi=form.cleaned_data["dpi"],
                                    scale=int(form.cleaned_data["scale"]),
                                    map_source=form.cleaned_data["map_source"],
-                                   line_width = float(form.cleaned_data["line_width"]), colour = form.cleaned_data["colour"])
+                                   line_width=float(form.cleaned_data["line_width"]),
+                                   colour=form.cleaned_data["colour"])
             response = HttpResponse(map_image, content_type='image/png')
             return response
     form = ContestantMapForm()
@@ -359,7 +367,8 @@ def get_navigation_task_map(request, pk):
                                    waypoints_only=form.cleaned_data["include_only_waypoints"],
                                    dpi=form.cleaned_data["dpi"], scale=int(form.cleaned_data["scale"]),
                                    map_source=form.cleaned_data["map_source"],
-                                   line_width=float(form.cleaned_data["line_width"]), colour=form.cleaned_data["colour"])
+                                   line_width=float(form.cleaned_data["line_width"]),
+                                   colour=form.cleaned_data["colour"])
             response = HttpResponse(map_image, content_type='image/png')
             return response
     form = MapForm()
@@ -454,11 +463,11 @@ def terminate_contestant_calculator(request, pk):
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
 
-
 @guardian_permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
 def view_navigation_task_rules(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    return render(request, "display/navigationtask_rules.html", {"object":navigation_task})
+    return render(request, "display/navigationtask_rules.html", {"object": navigation_task})
+
 
 @guardian_permission_required('display.change_contest', (Contest, "navigationtask__pk", "pk"))
 def export_navigation_task_results_to_results_service(request, pk):

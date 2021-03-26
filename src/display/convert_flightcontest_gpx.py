@@ -12,9 +12,7 @@ from shapely import geometry
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
     create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat, \
     create_rounded_corridor_corner, bearing_difference, calculate_fractional_distance_point_lat_lon
-from display.forms import STARTINGPOINT, FINISHPOINT, TURNPOINT
-from display.models import Route, is_procedure_turn, Scorecard, Prohibited
-from gpxpy.gpx import GPX
+from display.models import Route, is_procedure_turn, Scorecard, Prohibited, TURNPOINT, STARTINGPOINT, FINISHPOINT
 
 from display.waypoint import Waypoint
 

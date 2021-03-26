@@ -257,12 +257,12 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 if self.tracking_state == self.TRACKING:
                     # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
                     is_grace_time_after_steep_turn = last_gate.infinite_passing_time is not None and last_gate.is_steep_turn and (
-                            last_position.time - last_gate.infinite_passing_time).total_seconds() < self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds(
+                            last_position.time - last_gate.infinite_passing_time).total_seconds() < self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds_for_gate_type(
                         last_gate.type, self.contestant)
                     is_grace_distance_after_turn = calculate_distance_lat_lon(
                         (last_gate.latitude, last_gate.longitude),
                         (last_position.latitude,
-                         last_position.longitude)) / 1852 < self.scorecard.get_backtracking_after_gate_grace_period_nm(
+                         last_position.longitude)) / 1852 < self.scorecard.get_backtracking_after_gate_grace_period_nm_for_gate_type(
                         last_gate.type, self.contestant)
                     if not is_grace_time_after_steep_turn and not is_grace_distance_after_turn:
                         logger.info(
@@ -275,7 +275,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         logger.info(
                             "{} {}: Backtracking within {} NM of passing a gate, ignoring".format(self.contestant,
                                                                                                   last_position.time,
-                                                                                                  self.scorecard.get_backtracking_after_gate_grace_period_nm(
+                                                                                                  self.scorecard.get_backtracking_after_gate_grace_period_nm_for_gate_type(
                                                                                                       last_gate.type,
                                                                                                       self.contestant)))
                     elif is_grace_time_after_steep_turn:
@@ -283,7 +283,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                             "{} {}: Backtracking within {} seconds of passing a gate with steep turn, ignoring".format(
                                 self.contestant,
                                 last_position.time,
-                                self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds(
+                                self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds_for_gate_type(
                                     last_gate.type, self.contestant)))
                 if self.tracking_state == self.BACKTRACKING_TEMPORARY:
                     if (
