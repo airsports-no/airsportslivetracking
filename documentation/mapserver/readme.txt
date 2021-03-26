@@ -10,7 +10,8 @@ gdal_translate -co COMPRESS=JPEG -co TILED=YES /maps/33_N250.sid 33_N250.tif
 gdalbuildvrt mosaic.vrt 33_N250.tif
 
 # Prefer to use the stuff inside osgeo4w64android screen recording all
-'C:\Program Files\QGIS 3.16\bin\gdalbuildvrt.exe' mosaic_bergen.vrt .\Bergen_modifisert.tif
+"c:\Program Files\QGIS 3.16\bin\gdalbuildvrt.exe" mosaic.vrt map.tif
+In OSGeo4W shell
 c:\OSGeo4W64\apps\Python37\python.exe c:\OSGeo4W64\apps\Python37\Scripts\gdal2tiles.py mosaic_bergen.vrt bergen
 
 # Optional retile, but I'm not sure if this is very useful.

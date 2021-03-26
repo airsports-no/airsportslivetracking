@@ -135,10 +135,11 @@ A3 = "A3"
 OSM_MAP = 0
 N250_MAP = 1
 M517_BERGEN_MAP = 2
-
+GERMANY1 = 3
 TILE_MAP = {
     N250_MAP: "Norway_N250",
-    M517_BERGEN_MAP: "m517_bergen"
+    M517_BERGEN_MAP: "m517_bergen",
+    GERMANY1: "germany_map"
 }
 
 
@@ -435,14 +436,11 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                waypoints_only: bool = False, annotations: bool = True, scale: int = 200, dpi: int = 300,
                map_source: int = OSM):
     route = task.route
-    if map_source == OSM_MAP:
-        imagery = OSM()
-    elif map_source == N250_MAP:
-        imagery = LocalImages(TILE_MAP[N250_MAP])
-    elif map_source == M517_BERGEN_MAP:
-        imagery = LocalImages(TILE_MAP[M517_BERGEN_MAP])
+    tiles = TILE_MAP.get(map_source)
+    if tiles is not None:
+        imagery = LocalImages(tiles)
     else:
-        return
+        imagery = OSM()
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12

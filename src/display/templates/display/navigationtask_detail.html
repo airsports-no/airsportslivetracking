@@ -15,7 +15,8 @@
             <a href="{% url 'navigationtask_exportresults' object.pk %}">Export results</a> |
         {% endif %}
         <a href="{% url 'navigationtask_contestantstimeline' object.pk %}">Timeline</a> |
-        <a href="{% url 'navigationtask_qr' object.pk %}">QR</a>
+        <a href="{% url 'navigationtask_qr' object.pk %}">QR</a> |
+        <a href="{% url 'navigationtask_map' object.pk %}">Map</a>
         {% if "change_contest" in contest_permissions %}
             <br/><a href="{% url 'navigationtask_delete' object.pk %}">delete</a>
             | <a href="{% url 'navigationtask_update' object.pk %}">update</a>
@@ -59,7 +60,9 @@
                     {% endif %}
                     {% if "change_contest" in contest_permissions %}
                         <a href="{% url 'contestant_delete' contestant.pk %}">delete</a> |
-                        <a href="{% url 'contestant_stop_calculator' contestant.pk %}" onclick="return confirm('Are you sure you want to stop the calculator?')">stop calculator</a> |
+                        <a href="{% url 'contestant_stop_calculator' contestant.pk %}"
+                           onclick="return confirm('Are you sure you want to stop the calculator?')">stop calculator</a>
+                        |
                     {% endif %}
                     <a href="{% url 'contestant_map' contestant.pk %}">map</a>
                 </td>
