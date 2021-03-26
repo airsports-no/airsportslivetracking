@@ -1,5 +1,5 @@
 # Installation guide
-1. Clone the repository ("Get code" near the upper right hand corner, using  GitHub is fine)
+1. Clone the repository. Be sure to clone using unix line endings.
 2. Install docker and docker-compose on your preferred operating system (https://hub.docker.com/editions/community/docker-ce-desktop-windows/)
 2. Download raster maps from https://drive.google.com/drive/folders/1068gCZ6RhCijCU0CsAIHXznLyedD9qZZ?usp=sharing
 3. Extract the files into the relevant map folders into the subfolder "mapserver" inside the project. Note that the map for the names 
