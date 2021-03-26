@@ -1,5 +1,5 @@
 # Installation guide
-1. Clone the repository
+1. Clone the repository ("Get code" near the upper right hand corner, using  GitHub is fine)
 2. Install docker and docker-compose on your preferred operating system (https://hub.docker.com/editions/community/docker-ce-desktop-windows/)
 2. Download raster maps from https://drive.google.com/drive/folders/1068gCZ6RhCijCU0CsAIHXznLyedD9qZZ?usp=sharing
 3. Extract the files into the relevant map folders into the subfolder "mapserver" inside the project. Note that the map for the names 
@@ -8,6 +8,7 @@ must be exactly the same as from the supported list. Currently supported maps ar
   2. Norway_N250
 3. The resulting folder structure inside the mapserver folder should look like this:
 ![Map folder structure](https://github.com/kolaf/live_tracking/blob/master/map_directory_structure.png "Map folder structure")
+3. Enter the folder with the downloaded project (folder should contain the file docker-compose-dev.yml)
 4. Run the project: docker-compose -f docker-compose-dev.yml up tracker_web (This will take some time and requires 
 Internet access to pull and build all the containers)
 5. At first start a default superuser with the username "test@test.com" and the password "admin" is created. This can 
