@@ -60,10 +60,10 @@ def user_directory_path(instance, filename):
 
 
 class TraccarCredentials(SingletonModel):
-    server_name = models.CharField(max_length=100)
+    server_name = models.CharField(max_length=100, default="A name")
     protocol = models.CharField(max_length=10, default="http")
     address = models.CharField(max_length=100, default="traccar:8082")
-    token = models.CharField(max_length=100)
+    token = models.CharField(max_length=100, default="REPLACE_ME")
 
     def __str__(self):
         return "Traccar credentials: {}".format(self.address)
@@ -300,7 +300,7 @@ class ContestTeam(models.Model):
         try:
             if self.tracking_device == TRACKING_COPILOT and self.team.crew.member2 is None:
                 raise ValidationError(
-                f"Tracking device is set to {self.get_tracking_device_display()}, but there is no copilot")
+                    f"Tracking device is set to {self.get_tracking_device_display()}, but there is no copilot")
         except ObjectDoesNotExist:
             pass
 
