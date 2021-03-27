@@ -1192,7 +1192,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             traccar.get_or_create_device(ct.tracker_device_id, ct.tracker_device_id)
         if affected_contestants is not None:
             affected_contestants.update(team=team)
-        return HttpResponseRedirect(reverse("team_update", kwargs={"contest_pk": contest_pk, "pk": team.pk}))
+        return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
     def get_form_prefix(self, step=None, form=None):
         return ''
