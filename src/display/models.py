@@ -610,7 +610,7 @@ class Scorecard(models.Model):
                 {
                     "gate": item[1],
                     "rules": self.scores_for_gate(contestant, item[0])
-                } for item in GATES_TYPES
+                } for item in GATES_TYPES if item[0] in (STARTINGPOINT, FINISHPOINT)
             ]
         }
         return scores
