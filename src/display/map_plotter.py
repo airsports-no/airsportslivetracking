@@ -224,7 +224,10 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
     # Turn the specified scalebar location into coordinates in metres
     sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
     # Generate the x coordinate for the ends of the scalebar
-    bar_xs = [sbcx - length * m_per_unit / 2, sbcx + length * m_per_unit / 2]
+    ruler_scale = 100 * 1852 * length / (scale * 1000)  # cm
+    bar_length = 10 * scale * 1000 / (100 * 1852)  # NM
+    x_offset = bar_length*m_per_unit
+    bar_xs = [sbcx - x_offset / 2, sbcx + x_offset / 2]
     # buffer for scalebar
     buffer = [patheffects.withStroke(linewidth=5, foreground="w")]
     # Plot the scalebar with buffer
@@ -232,12 +235,11 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
     x1, _ = proj.transform_point(bar_xs[1], sbcy, utm)
     xc, yc = proj.transform_point(sbcx, sbcy + 200, utm)
     ax.plot([x0, x1], [y, y], transform=proj, color='k',
-            linewidth=linewidth, path_effects=buffer)
+            linewidth=linewidth, path_effects=buffer, solid_capstyle="butt")
     # buffer for text
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     # Plot the scalebar label
-    ruler_scale = 100 * 1852 * length / (scale * 1000)
-    t0 = ax.text(xc, yc, "1:{:,d} {} {} = {:.2f} cm".format(int(scale * 1000), str(length), units, ruler_scale),
+    t0 = ax.text(xc, yc, "1:{:,d} {:.2f} {} = {:.0f} cm".format(int(scale * 1000), bar_length, units, 10),
                  transform=proj,
                  horizontalalignment='center', verticalalignment='bottom',
                  path_effects=buffer, zorder=2)
@@ -249,7 +251,7 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
 
     # Plot the scalebar without buffer, in case covered by text buffer
     ax.plot([x0, x1], [y, y], transform=proj, color='k',
-            linewidth=linewidth, zorder=3)
+            linewidth=linewidth, zorder=3, solid_capstyle="butt")
 
 
 # if __name__ == '__main__':
@@ -343,7 +345,8 @@ def plot_waypoint_name(route: Route, waypoint: Waypoint, bearing: float, annotat
              linespacing=2, family="monospace", clip_on=True)
 
 
-def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], annotations, line_width: float, colour: str):
+def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], annotations, line_width: float,
+                            colour: str):
     inner_track = []
     outer_track = []
     for index, waypoint in enumerate(route.waypoints):
@@ -351,7 +354,8 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
         bearing = waypoint_bearing(waypoint, index)
 
         if waypoint.type in ("sp", "fp"):
-            plot_waypoint_name(route, waypoint, bearing, annotations, False, contestant, line_width, colour, character_padding=5)
+            plot_waypoint_name(route, waypoint, bearing, annotations, False, contestant, line_width, colour,
+                               character_padding=5)
         if route.rounded_corners and waypoint.left_corridor_line is not None:
             inner_track.extend(waypoint.left_corridor_line)
             outer_track.extend(waypoint.right_corridor_line)
@@ -374,7 +378,8 @@ def plot_anr_corridor_track(route: Route, contestant: Optional[Contestant], anno
     return path
 
 
-def plot_minute_marks(waypoint: Waypoint, contestant: Contestant, track, index, line_width: float, colour: str, mark_offset=1,
+def plot_minute_marks(waypoint: Waypoint, contestant: Contestant, track, index, line_width: float, colour: str,
+                      mark_offset=1,
                       line_width_nm: float = 0.5):
     gate_start_time = contestant.gate_times.get(waypoint.name)
     if waypoint.is_procedure_turn:
@@ -405,7 +410,8 @@ def plot_minute_marks(waypoint: Waypoint, contestant: Contestant, track, index, 
                  linespacing=2, family="monospace")
 
 
-def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoints_only: bool, annotations: bool, line_width: float, colour: str):
+def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoints_only: bool, annotations: bool,
+                         line_width: float, colour: str):
     tracks = [[]]
     for waypoint in route.waypoints:  # type: Waypoint
         if waypoint.type == "isp":
@@ -423,7 +429,8 @@ def plot_precision_track(route: Route, contestant: Optional[Contestant], waypoin
                 else:
                     plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree(), color=colour,
                              marker="o", markersize=8, fillstyle="none")
-                plot_waypoint_name(route, waypoint, bearing, annotations, waypoints_only, contestant, line_width, colour)
+                plot_waypoint_name(route, waypoint, bearing, annotations, waypoints_only, contestant, line_width,
+                                   colour)
                 if contestant is not None:
                     if index < len(track) - 1:
                         if annotations:
@@ -451,25 +458,22 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         imagery = OSM()
     else:
         imagery = LocalImages(map_source)
-    # tiles = TILE_MAP.get(map_source)
-    # if tiles is not None:
-    #     imagery = LocalImages(tiles)
-    # else:
-    #     imagery = OSM()
+    margin_centimetres = 0
+    margin_inches = margin_centimetres / 2.54
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
         if landscape:
-            plt.figure(figsize=(16.53, 11.69))
+            plt.figure(figsize=(16.53 - (2 * margin_inches), 11.69 - (2 * margin_inches)))
         else:
-            plt.figure(figsize=(11.69, 16.53))
+            plt.figure(figsize=(11.69 - (2 * margin_inches), 16.53 - (2 * margin_inches)))
     else:
         if zoom_level is None:
             zoom_level = 11
         if landscape:
-            plt.figure(figsize=(11.69, 8.27))
+            plt.figure(figsize=(11.69 - (2 * margin_inches), 8.27 - (2 * margin_inches)), frameon=False)
         else:
-            plt.figure(figsize=(8.27, 11.69))
+            plt.figure(figsize=(8.27 - (2 * margin_inches), 11.69 - (2 * margin_inches)))
 
     ax = plt.axes(projection=imagery.crs)
     ax.add_image(imagery, zoom_level)
@@ -584,11 +588,29 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                  linewidth=0.5)
         latitude += 1
     # plt.savefig("map.png", dpi=600)
+    fig.subplots_adjust(bottom=0)
+    fig.subplots_adjust(top=1)
+    fig.subplots_adjust(right=1)
+    fig.subplots_adjust(left=0)
+
+    # plot_margin = 1
+    # plot_margin = plot_margin / 2.54
+    #
+    # x0, x1, y0, y1 = plt.axis()
+    # plt.axis((x0 - plot_margin,
+    #           x1 + plot_margin,
+    #           y0 - plot_margin,
+    #           y1 + plot_margin))
+
     figdata = BytesIO()
-    plt.savefig(figdata, format='png', dpi=dpi, bbox_inches="tight", pad_inches=0)
-    plt.close()
+    plt.savefig(figdata, format='png', dpi=dpi)#, bbox_inches="tight", pad_inches=margin_inches/2)
     figdata.seek(0)
-    return figdata
+    pdfdata = BytesIO()
+    plt.savefig(pdfdata, format='pdf', dpi=dpi)#, bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.close()
+    pdfdata.seek(0)
+
+    return figdata, pdfdata
 
 
 def get_basic_track(positions: List[Tuple[float, float]]):

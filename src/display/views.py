@@ -53,7 +53,7 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
     WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
     PrecisionScoreOverrideForm, TrackingDataForm, ContestTeamOptimisationForm, \
     AssignPokerCardForm, ChangeContestPermissionsForm, AddContestPermissionsForm, RouteCreationForm, \
-    LandingImportRouteForm
+    LandingImportRouteForm, PNG
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
@@ -339,7 +339,7 @@ def get_contestant_map(request, pk):
         form = ContestantMapForm(request.POST)
         if form.is_valid():
             contestant = get_object_or_404(Contestant, pk=pk)
-            map_image = plot_route(contestant.navigation_task, form.cleaned_data["size"],
+            map_image, pdf_image = plot_route(contestant.navigation_task, form.cleaned_data["size"],
                                    zoom_level=form.cleaned_data["zoom_level"],
                                    landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE, contestant=contestant,
                                    annotations=form.cleaned_data["include_annotations"],
@@ -348,7 +348,10 @@ def get_contestant_map(request, pk):
                                    map_source=form.cleaned_data["map_source"],
                                    line_width=float(form.cleaned_data["line_width"]),
                                    colour=form.cleaned_data["colour"])
-            response = HttpResponse(map_image, content_type='image/png')
+            if int(form.cleaned_data["output_type"]) == PNG:
+                response = HttpResponse(map_image, content_type='image/png')
+            else:
+                response = HttpResponse(pdf_image, content_type='application/pdf')
             return response
     form = ContestantMapForm()
     return render(request, "display/map_form.html", {"form": form})
@@ -361,7 +364,7 @@ def get_navigation_task_map(request, pk):
         if form.is_valid():
             navigation_task = get_object_or_404(NavigationTask, pk=pk)
             print(form.cleaned_data)
-            map_image = plot_route(navigation_task, form.cleaned_data["size"],
+            map_image, pdf_image = plot_route(navigation_task, form.cleaned_data["size"],
                                    zoom_level=form.cleaned_data["zoom_level"],
                                    landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE,
                                    waypoints_only=form.cleaned_data["include_only_waypoints"],
@@ -369,7 +372,10 @@ def get_navigation_task_map(request, pk):
                                    map_source=form.cleaned_data["map_source"],
                                    line_width=float(form.cleaned_data["line_width"]),
                                    colour=form.cleaned_data["colour"])
-            response = HttpResponse(map_image, content_type='image/png')
+            if int(form.cleaned_data["output_type"]) == PNG:
+                response = HttpResponse(map_image, content_type='image/png')
+            else:
+                response = HttpResponse(pdf_image, content_type='application/pdf')
             return response
     form = MapForm()
     return render(request, "display/map_form.html", {"form": form})
