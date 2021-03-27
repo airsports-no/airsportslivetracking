@@ -550,7 +550,7 @@ class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
         return self.get_object().contest
 
     def get_success_url(self):
-        return reverse('contest_details', kwargs={'pk': self.get_object().contest.pk})
+        return reverse('navigationtask_detail', kwargs={'pk': self.get_object().pk})
 
 
 # class BasicScoreOverrideUpdateView(GuardianPermissionRequiredMixin, UpdateView):

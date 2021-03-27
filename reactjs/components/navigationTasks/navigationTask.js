@@ -134,6 +134,10 @@ class ConnectedNavigationTask extends Component {
                 this.initiateSession()
             }
         }
+        if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map) {
+            this.fixMapBackground()
+        }
+
     }
 
     initialiseMap() {
@@ -141,18 +145,23 @@ class ConnectedNavigationTask extends Component {
             zoomDelta: 0.25,
             zoomSnap: 0.25,
         }).on('contextmenu', (e) => this.resetToAllContestants(e))
-        const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
-        tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
-            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-            maxZoom: 18,
-            id: 'mapbox/streets-v11',
-            tileSize: 512,
-            zoomOffset: -1,
-            accessToken: token
-        }).addTo(this.map);
-        // const logoContainer = document.getElementById("logoContainer")
+                // const logoContainer = document.getElementById("logoContainer")
         // const mapControlContainer = document.getElementsByClassName("leaflet-control")[0]
         // mapControlContainer.appendChild(logoContainer)
+    }
+
+    fixMapBackground(){
+        const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
+        if (this.props.navigationTask.display_background_map) {
+            tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+                attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+                maxZoom: 18,
+                id: 'mapbox/streets-v11',
+                tileSize: 512,
+                zoomOffset: -1,
+                accessToken: token
+            }).addTo(this.map);
+        }
     }
 
 

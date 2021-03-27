@@ -420,6 +420,8 @@ class NavigationTask(models.Model):
                                                   help_text="The number of minutes from the take-off time until the starting point")
     minutes_to_landing = models.FloatField(default=30,
                                            help_text="The number of minutes from the finish point to the contestant should have landed")
+    display_background_map = models.BooleanField(default=True,
+                                                 help_text="If checked the online tracking map shows the mapping background. Otherwise the map will be blank.")
 
     @property
     def is_poker_run(self) -> bool:

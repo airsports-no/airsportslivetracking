@@ -18,7 +18,6 @@ from display.models import NavigationTask, Contestant, Contest, Person, Crew, Ae
     ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES
 from display.poker_cards import PLAYING_CARDS
 
-
 FILE_TYPE_CSV = "csv"
 FILE_TYPE_FLIGHTCONTEST_GPX = "fcgpx"
 FILE_TYPE_KML = "kml"
@@ -324,7 +323,8 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "is_public", "scorecard", "minutes_to_starting_point",
+        fields = ("name", "start_time", "finish_time", "is_public", "display_background_map", "scorecard",
+                  "minutes_to_starting_point",
                   "minutes_to_landing", "wind_speed", "wind_direction")
 
     def __init__(self, *args, **kwargs):
@@ -348,6 +348,10 @@ class NavigationTaskForm(forms.ModelForm):
                 "Getting to and from the track",
                 "minutes_to_starting_point",
                 "minutes_to_landing"
+            ),
+            Fieldset(
+                "Display control",
+                "display_background_map",
             ),
             ButtonHolder(
                 Submit("submit", "Submit")
