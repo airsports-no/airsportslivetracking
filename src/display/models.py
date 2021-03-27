@@ -1310,6 +1310,28 @@ class PlayingCard(models.Model):
         return 100 * score / cls.maximum_score(), hand_type
 
     @classmethod
+    def remove_contestant_card(cls, contestant: Contestant, card_pk: int):
+        card = contestant.contestanttrack.playingcard_set.filter(pk=card_pk).first()
+        if card is not None:
+            relative_score, hand_description = cls.get_relative_score(contestant)
+            score_per_gate = contestant.contestanttrack.score_per_gate
+            waypoint = contestant.navigation_task.route.waypoints[-1].name
+            score_per_gate[waypoint] = relative_score
+            internal_message = {
+                "gate": waypoint,
+                "message": "Removed card {}, current hand is {}".format(card.get_card_display(), hand_description),
+                "points": relative_score,
+                "planned": None,
+                "actual": None,
+                "offset_string": None
+            }
+            string = "{}: {}".format(waypoint, internal_message["message"])
+            internal_message["string"] = string
+            contestant.contestanttrack.update_score(score_per_gate, relative_score,
+                                                    contestant.contestanttrack.score_log + [internal_message])
+            card.delete()
+
+    @classmethod
     def add_contestant_card(cls, contestant: Contestant, card: str, waypoint: str):
         from influx_facade import InfluxFacade
         influx = InfluxFacade()

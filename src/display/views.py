@@ -290,7 +290,7 @@ def create_route_test(request, pk):
 @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 def contestant_card_remove(request, pk, card_pk):
     contestant = get_object_or_404(Contestant, pk=pk)
-    contestant.contestanttrack.playingcard_set.filter(pk=card_pk).delete()
+    PlayingCard.remove_contestant_card(contestant, card_pk)
     return redirect(reverse("contestant_cards_list", kwargs={"pk": contestant.pk}))
 
 
@@ -340,14 +340,15 @@ def get_contestant_map(request, pk):
         if form.is_valid():
             contestant = get_object_or_404(Contestant, pk=pk)
             map_image, pdf_image = plot_route(contestant.navigation_task, form.cleaned_data["size"],
-                                   zoom_level=form.cleaned_data["zoom_level"],
-                                   landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE, contestant=contestant,
-                                   annotations=form.cleaned_data["include_annotations"],
-                                   waypoints_only=False, dpi=form.cleaned_data["dpi"],
-                                   scale=int(form.cleaned_data["scale"]),
-                                   map_source=form.cleaned_data["map_source"],
-                                   line_width=float(form.cleaned_data["line_width"]),
-                                   colour=form.cleaned_data["colour"])
+                                              zoom_level=form.cleaned_data["zoom_level"],
+                                              landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE,
+                                              contestant=contestant,
+                                              annotations=form.cleaned_data["include_annotations"],
+                                              waypoints_only=False, dpi=form.cleaned_data["dpi"],
+                                              scale=int(form.cleaned_data["scale"]),
+                                              map_source=form.cleaned_data["map_source"],
+                                              line_width=float(form.cleaned_data["line_width"]),
+                                              colour=form.cleaned_data["colour"])
             if int(form.cleaned_data["output_type"]) == PNG:
                 response = HttpResponse(map_image, content_type='image/png')
             else:
@@ -365,13 +366,13 @@ def get_navigation_task_map(request, pk):
             navigation_task = get_object_or_404(NavigationTask, pk=pk)
             print(form.cleaned_data)
             map_image, pdf_image = plot_route(navigation_task, form.cleaned_data["size"],
-                                   zoom_level=form.cleaned_data["zoom_level"],
-                                   landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE,
-                                   waypoints_only=form.cleaned_data["include_only_waypoints"],
-                                   dpi=form.cleaned_data["dpi"], scale=int(form.cleaned_data["scale"]),
-                                   map_source=form.cleaned_data["map_source"],
-                                   line_width=float(form.cleaned_data["line_width"]),
-                                   colour=form.cleaned_data["colour"])
+                                              zoom_level=form.cleaned_data["zoom_level"],
+                                              landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE,
+                                              waypoints_only=form.cleaned_data["include_only_waypoints"],
+                                              dpi=form.cleaned_data["dpi"], scale=int(form.cleaned_data["scale"]),
+                                              map_source=form.cleaned_data["map_source"],
+                                              line_width=float(form.cleaned_data["line_width"]),
+                                              colour=form.cleaned_data["colour"])
             if int(form.cleaned_data["output_type"]) == PNG:
                 response = HttpResponse(map_image, content_type='image/png')
             else:
