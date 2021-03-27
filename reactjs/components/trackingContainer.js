@@ -143,11 +143,11 @@ class ConnectedTrackingContainer extends Component {
                             {/*    <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>*/}
                             {/*</div>*/}
                             <div className={"trackImage"}>
-                                <Icon path={mdiGoKartTrack} title={"Logout"} size={2.5} color={"#e01b1c"} onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
+                                <Icon path={mdiGoKartTrack} title={"Logout"} size={2} color={"#e01b1c"} onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
                             </div>
 
                             <div className={"resultsServiceIcon"}>
-                                <Icon path={mdiPodium} title={"Results list"} size={2.5} color={"#e01b1c"} onClick={() => {
+                                <Icon path={mdiPodium} title={"Results list"} size={2} color={"#e01b1c"} onClick={() => {
                                     window.location = document.configuration.resultsServiceLink
                                 }}/>
                             </div>
