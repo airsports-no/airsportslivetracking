@@ -117,7 +117,7 @@ class AnrCorridorCalculator(Calculator):
             # If this is called when we have crossed a gate, we need to reset the outside time to Grace time before now to start counting new points
             self.update_score(last_gate,
                               score,
-                              "outside corridor ({} seconds)".format(int(penalty_time)),
+                              "outside corridor ({} seconds)".format(int(outside_time)),
                               self.crossed_outside_position.latitude, self.crossed_outside_position.longitude,
                               "anomaly", f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
                               maximum_score=self.scorecard.get_corridor_maximum_penalty(self.contestant))
