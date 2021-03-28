@@ -269,6 +269,58 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
             linewidth=linewidth, zorder=3, solid_capstyle="butt")
 
 
+def scale_bar_y(ax, proj, length, location=(0.03, 0.5), linewidth=3,
+              units='km', m_per_unit=1000, scale=0):
+    """
+    http://stackoverflow.com/a/35705477/1072212
+    ax is the axes to draw the scalebar on.
+    proj is the projection the axes are in
+    location is center of the scalebar in axis coordinates ie. 0.5 is the middle of the plot
+    length is the length of the scalebar in km.
+    linewidth is the thickness of the scalebar.
+    units is the name of the unit
+    m_per_unit is the number of meters in a unit
+    """
+    print("Scale y")
+    # find lat/lon center to find best UTM zone
+    x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
+    # Projection in metres
+    utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
+    # Get the extent of the plotted area in coordinates in metres
+    x0, x1, y0, y1 = ax.get_extent(utm)
+    # Turn the specified scalebar location into coordinates in metres
+    sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
+    # Generate the x coordinate for the ends of the scalebar
+    ruler_scale = 100 * 1852 * length / (scale * 1000)  # cm
+    bar_length = 10 * scale * 1000 / (100 * 1852)  # NM (10 is cm)
+    y_offset = bar_length * m_per_unit
+    bar_ys = [sbcy - y_offset / 2, sbcy + y_offset / 2]
+    # buffer for scalebar
+    buffer = [patheffects.withStroke(linewidth=5, foreground="w")]
+    # Plot the scalebar with buffer
+    x, y0 = proj.transform_point(sbcx, bar_ys[0], utm)
+    _, y1 = proj.transform_point(sbcx, bar_ys[1], utm)
+    xc, yc = proj.transform_point(sbcx+400, sbcy, utm)
+    ax.plot([x, x], [y0, y1], transform=proj, color='k',
+            linewidth=linewidth, path_effects=buffer, solid_capstyle="butt")
+    # buffer for text
+    buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
+    # Plot the scalebar label
+    t0 = ax.text(xc, yc, "1:{:,d} {:.2f} {} = {:.0f} cm".format(int(scale * 1000), bar_length, units, 10),
+                 transform=proj,
+                 horizontalalignment='center', verticalalignment='bottom',
+                 path_effects=buffer, zorder=2, rotation=-90, ha= 'center', va= 'center')
+    # left = x0 + (x1 - x0) * 0.05
+    # Plot the N arrow
+    # t1 = ax.text(left, sbcy, u'\u25B2\nN', transform=utm,
+    #              horizontalalignment='center', verticalalignment='bottom',
+    #              path_effects=buffer, zorder=2)
+
+    # Plot the scalebar without buffer, in case covered by text buffer
+    ax.plot([x, x], [y0, y1], transform=proj, color='k',
+            linewidth=linewidth, zorder=3, solid_capstyle="butt")
+
+
 # if __name__ == '__main__':
 #     ax = plt.axes(projection=ccrs.Mercator())
 #     plt.title('Cyprus')
@@ -486,10 +538,13 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         if zoom_level is None:
             zoom_level = 11
         if landscape:
-            plt.figure(figsize=(cm2inch(A4_height), cm2inch(A4_width)))
+            figure_width=A4_height
+            figure_height = A4_width
         else:
-            plt.figure(figsize=(cm2inch(A4_width), cm2inch(A4_height)))
+            figure_width = A4_width
+            figure_height = A4_height
 
+    plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)))
     ax = plt.axes(projection=imagery.crs)
     print(f"Figure projection: {imagery.crs}")
     ax.add_image(imagery, zoom_level)
@@ -513,9 +568,6 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
 
     # plt.tight_layout()
     fig = plt.gcf()
-    figure_size = fig.get_size_inches()
-    figure_width = inch2cm(figure_size[0])
-    figure_height = inch2cm(figure_size[1])
     print(f"Figure size (cm): ({figure_width}, {figure_height})")
     minimum_latitude = np.min(path[:, 0])
     minimum_longitude = np.min(path[:, 1])
@@ -585,13 +637,15 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         centre_x, centre_y = utm.transform_point(centre_longitude, centre_latitude, proj)
         width_metres = (scale * 10) * figure_width
         height_metres = (scale * 10) * figure_height
-        lower_left = proj.transform_point(centre_x - width_metres / 2 + 2000, centre_y - height_metres / 2, utm)
-        upper_right = proj.transform_point(centre_x + width_metres / 2 - 2000, centre_y + height_metres / 2, utm)
-        lower_right = proj.transform_point(centre_x + width_metres / 2 - 2000, centre_y - height_metres / 2, utm)
+        height_offset = 0
+        width_offset = 2000
+        lower_left = proj.transform_point(centre_x - width_metres / 2 + width_offset, centre_y - height_metres / 2 + height_offset, utm)
+        upper_right = proj.transform_point(centre_x + width_metres / 2 - width_offset, centre_y + height_metres / 2-height_offset, utm)
         extent = [lower_left[0], upper_right[0], lower_left[1], upper_right[1]]
     print(extent)
     ax.set_extent(extent, crs=ccrs.PlateCarree())
-    scale_bar(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
+    # scale_bar(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
+    scale_bar_y(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
     ax.autoscale(False)
     fig.patch.set_visible(False)
     # lat lon lines
@@ -657,8 +711,3 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     plt.close()
     figdata.seek(0)
     return figdata
-
-# if __name__ == "__main__":
-#     task = NavigationTask.objects.get(pk=76)
-#     contestant = Contestant.objects.get(pk=1803)
-#     plot_route(task, contestant=contestant)
