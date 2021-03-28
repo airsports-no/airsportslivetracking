@@ -1,6 +1,6 @@
 import glob
 from io import BytesIO
-
+import utm
 import pytz
 import datetime
 import os
@@ -200,7 +200,22 @@ def utm_from_lon(lon):
     :return: UTM zone number
     :rtype: int
     """
+
     return np.floor((lon + 180) / 6) + 1
+
+
+def utm_from_lat_lon(lat, lon) -> ccrs.CRS:
+    """
+    utm_from_lon - UTM zone for a longitude
+    Not right for some polar regions (Norway, Svalbard, Antartica)
+    :param float lon: longitude
+    :return: UTM zone number
+    :rtype: int
+    """
+    _, _, zone, letter = utm.from_latlon(lat, lon)
+    print(zone)
+    print(letter)
+    return ccrs.UTM(zone, southern_hemisphere=lat < 0)
 
 
 def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
@@ -218,15 +233,15 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
     # find lat/lon center to find best UTM zone
     x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
     # Projection in metres
-    utm = ccrs.UTM(utm_from_lon((x0 + x1) / 2))
+    utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
     # Get the extent of the plotted area in coordinates in metres
     x0, x1, y0, y1 = ax.get_extent(utm)
     # Turn the specified scalebar location into coordinates in metres
     sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
     # Generate the x coordinate for the ends of the scalebar
     ruler_scale = 100 * 1852 * length / (scale * 1000)  # cm
-    bar_length = 10 * scale * 1000 / (100 * 1852)  # NM
-    x_offset = bar_length*m_per_unit
+    bar_length = 10 * scale * 1000 / (100 * 1852)  # NM (10 is cm)
+    x_offset = bar_length * m_per_unit
     bar_xs = [sbcx - x_offset / 2, sbcx + x_offset / 2]
     # buffer for scalebar
     buffer = [patheffects.withStroke(linewidth=5, foreground="w")]
@@ -454,28 +469,29 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
                waypoints_only: bool = False, annotations: bool = True, scale: int = 200, dpi: int = 300,
                map_source: str = "osm", line_width: float = 0.5, colour: str = "#0000ff"):
     route = task.route
+    A4_width = 21.0
+    A4_height = 29.7
     if map_source == "osm":
         imagery = OSM()
     else:
         imagery = LocalImages(map_source)
-    margin_centimetres = 0
-    margin_inches = margin_centimetres / 2.54
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
         if landscape:
-            plt.figure(figsize=(16.53 - (2 * margin_inches), 11.69 - (2 * margin_inches)))
+            plt.figure(figsize=(16.53, 11.69))
         else:
-            plt.figure(figsize=(11.69 - (2 * margin_inches), 16.53 - (2 * margin_inches)))
+            plt.figure(figsize=(11.69, 16.53))
     else:
         if zoom_level is None:
             zoom_level = 11
         if landscape:
-            plt.figure(figsize=(11.69 - (2 * margin_inches), 8.27 - (2 * margin_inches)), frameon=False)
+            plt.figure(figsize=(cm2inch(A4_height), cm2inch(A4_width)))
         else:
-            plt.figure(figsize=(8.27 - (2 * margin_inches), 11.69 - (2 * margin_inches)))
+            plt.figure(figsize=(cm2inch(A4_width), cm2inch(A4_height)))
 
     ax = plt.axes(projection=imagery.crs)
+    print(f"Figure projection: {imagery.crs}")
     ax.add_image(imagery, zoom_level)
     ax.set_aspect("auto")
     if "precision" in task.scorecard.task_type:
@@ -500,80 +516,82 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     figure_size = fig.get_size_inches()
     figure_width = inch2cm(figure_size[0])
     figure_height = inch2cm(figure_size[1])
-
+    print(f"Figure size (cm): ({figure_width}, {figure_height})")
     minimum_latitude = np.min(path[:, 0])
     minimum_longitude = np.min(path[:, 1])
     maximum_latitude = np.max(path[:, 0])
     maximum_longitude = np.max(path[:, 1])
+    print(f"minimum: {minimum_latitude}, {minimum_longitude}")
+    print(f"maximum: {maximum_latitude}, {maximum_longitude}")
     if scale == 0:
         # Zoom to fit
         map_margin = 6000  # metres
-        longitude_scale = calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
-                                                     (minimum_latitude, minimum_longitude + 1))
-        latitude_scale = calculate_distance_lat_lon((minimum_latitude, minimum_longitude),
-                                                    (minimum_latitude + 1, minimum_longitude))
 
-        x0 = minimum_longitude - map_margin / longitude_scale
-        x1 = maximum_longitude + map_margin / longitude_scale
-        x_centre = x0 + (x1 - x0) / 2
-        y0 = minimum_latitude - map_margin / latitude_scale
-        y1 = maximum_latitude + map_margin / latitude_scale
-        y_centre = y0 + (y1 - y0) / 2
-        horizontal_metres = (x1 - x0) * longitude_scale
-        vertical_metres = (y1 - y0) * latitude_scale
-        # print(f'horizontal_metres: {horizontal_metres}')
-        # print(f'vertical_metres: {vertical_metres}')
+        proj = ccrs.PlateCarree()
+        x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
+        print(f"x0: {x0}, y0: {y0}")
+        print(f"x1: {x1}, y1: {y1}")
+
+        # Projection in metres
+        utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
+        bottom_left = utm.transform_point(minimum_longitude, minimum_latitude, proj)
+        top_left = utm.transform_point(minimum_longitude, maximum_latitude, proj)
+        bottom_right = utm.transform_point(maximum_longitude, minimum_latitude, proj)
+        top_right = utm.transform_point(maximum_longitude, maximum_latitude, proj)
+
+        print(f"bottom_left: {bottom_left}")
+        print(f"top_right: {top_right}")
+        x0 = bottom_left[0] - map_margin
+        y0 = bottom_left[1] - map_margin
+        x1 = top_right[0] + map_margin
+        y1 = top_right[1] + map_margin
+        print(f"Width at top: {top_right[0] - top_left[0]}")
+        print(f"Width at bottom: {bottom_right[0] - bottom_left[0]}")
+        horizontal_metres = x1 - x0
+        vertical_metres = y1 - y0
+        x_centre = (x0 + x1) / 2
+        y_centre = (y0 + y1) / 2
         vertical_scale = vertical_metres / figure_height  # m per cm
         horizontal_scale = horizontal_metres / figure_width  # m per cm
-        # print(f'horizontal_scale: {horizontal_scale}')
-        # print(f'vertical_scale: {vertical_scale}')
 
         if vertical_scale < horizontal_scale:
             # Increase vertical scale to match
             vertical_metres = horizontal_scale * figure_height
-            # print(f'new_vertical_metres: {vertical_metres}')
-
-            vertical_offset = vertical_metres / (2 * latitude_scale)
-            # print(f'vertical_offset: {vertical_offset}')
-
-            y0 = y_centre - vertical_offset
-            y1 = y_centre + vertical_offset
+            y0 = y_centre - vertical_metres / 2
+            y1 = y_centre + vertical_metres / 2
+            x0 += 2000
+            x1 -= 2000
             scale = horizontal_metres / (10 * figure_width)
         else:
+            # Do not scale in the horizontal direction, just make sure that we do not step over the bounds
             horizontal_metres = vertical_scale * figure_width
-            # print(f'new_horizontal_metres: {horizontal_metres}')
-            horizontal_offset = horizontal_metres / (2 * longitude_scale)
-            # print(f'horizontal_offset: {horizontal_offset}')
-
-            x0 = x_centre - horizontal_offset
-            x1 = x_centre + horizontal_offset
+            # x0 = x_centre - horizontal_metres / 2
+            # x1 = x_centre + horizontal_metres / 2
             scale = vertical_metres / (10 * figure_height)
+        print(f"x0: {x0}, y0: {y0}")
+        print(f"x1: {x1}, y1: {y1}")
+        x0, y0 = proj.transform_point(x0, y0, utm)
+        x1, y1 = proj.transform_point(x1, y1, utm)
+        print(f"x0: {x0}, y0: {y0}")
+        print(f"x1: {x1}, y1: {y1}")
         extent = [x0, x1, y0, y1]
-
-
-
     else:
+        proj = ccrs.PlateCarree()
+        x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
+        # Projection in metres
+        utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
         centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
         centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
-        # print("Figure width: {}".format(figure_width))
-        # print("Figure height: {}".format(figure_height))
-        # bbox = ax.get_tightbbox(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted())
-        # bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-        # width = inch2cm(bbox.width)
-        # height = inch2cm(bbox.height)
-        # print("Axis width: {}".format(width))
-        # print("Axis height: {}".format(height))
+        centre_x, centre_y = utm.transform_point(centre_longitude, centre_latitude, proj)
         width_metres = (scale * 10) * figure_width
         height_metres = (scale * 10) * figure_height
-        # print("Width: {} km".format(width_metres / 1000))
-        # print("Height {} km".format(height_metres / 1000))
-        # To scale
-        extent = calculate_extent(width_metres, height_metres, (centre_latitude, centre_longitude))
+        lower_left = proj.transform_point(centre_x - width_metres / 2 + 2000, centre_y - height_metres / 2, utm)
+        upper_right = proj.transform_point(centre_x + width_metres / 2 - 2000, centre_y + height_metres / 2, utm)
+        lower_right = proj.transform_point(centre_x + width_metres / 2 - 2000, centre_y - height_metres / 2, utm)
+        extent = [lower_left[0], upper_right[0], lower_left[1], upper_right[1]]
     print(extent)
-    ax.set_extent(extent)
-    # plt.tight_layout()
-    scale_bar(ax, ccrs.Mercator(), 5, units="NM", m_per_unit=1852, scale=scale)
-    # plt.tight_layout()
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    scale_bar(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
     ax.autoscale(False)
     fig.patch.set_visible(False)
     # lat lon lines
@@ -603,10 +621,10 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     #           y1 + plot_margin))
 
     figdata = BytesIO()
-    plt.savefig(figdata, format='png', dpi=dpi)#, bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.savefig(figdata, format='png', dpi=dpi)  # , bbox_inches="tight", pad_inches=margin_inches/2)
     figdata.seek(0)
     pdfdata = BytesIO()
-    plt.savefig(pdfdata, format='pdf', dpi=dpi)#, bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.savefig(pdfdata, format='pdf', dpi=dpi)  # , bbox_inches="tight", pad_inches=margin_inches/2)
     plt.close()
     pdfdata.seek(0)
 

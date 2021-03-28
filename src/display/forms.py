@@ -60,7 +60,7 @@ OUTPUT_TYPES = (
 class MapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
     zoom_level = forms.IntegerField(initial=12)
-    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE)
+    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE, help_text = "WARNING: scale printing is currently only correct for landscape orientation")
     include_only_waypoints = forms.BooleanField(initial=False, required=False)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="osm")
@@ -73,7 +73,7 @@ class MapForm(forms.Form):
 class ContestantMapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
     zoom_level = forms.IntegerField(initial=12)
-    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE)
+    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE, help_text = "WARNING: scale printing is currently only correct for landscape orientation")
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="osm")
     include_annotations = forms.BooleanField(required=False, initial=True)
