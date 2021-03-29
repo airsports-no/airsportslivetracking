@@ -8,7 +8,6 @@ from typing import List, TYPE_CHECKING, Dict, Optional
 
 import dateutil
 
-from display.serialisers import PersonSerialiser
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -22,6 +21,7 @@ from traccar_facade import Traccar
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import connections
+from display.serialisers import PersonSerialiser
 
 from websocket_channels import WebsocketFacade
 

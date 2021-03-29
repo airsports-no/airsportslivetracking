@@ -69,9 +69,6 @@ class Aircraft {
 
     createAirplaneTextIcon(name, person_name, altitude, speed, colour, opacity) {
         const size = 14;
-        if (!person_name) {
-            person_name = ""
-        }
         return L.divIcon({
             html: '<div style="opacity: ' + opacity + '"><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top: 0px;">' + name + '</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -10px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -18px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
             iconAnchor: [100, -11],
