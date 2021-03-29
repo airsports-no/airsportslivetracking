@@ -1,14 +1,82 @@
 {% load static %}
+<style>
+    #toc_container {
+        background: #f9f9f9 none repeat scroll 0 0;
+        border: 1px solid #aaa;
+        display: table;
+        float:left;
+
+        font-size: 95%;
+        margin-bottom: 1em;
+        margin-right: 1em;
+        padding: 10px;
+        width: auto;
+    }
+
+    .toc_title {
+        font-weight: 700;
+        text-align: center;
+    }
+
+    #toc_container li, #toc_container ul, #toc_container ul li {
+        {#list-style: outside none none !important;#}
+    }
+</style>
 <img style="text-align: center;width: 60%;display:block;margin-left: auto;margin-right: auto;"
      src="{% static '/img/AirSportsLiveTracking.png' %}"/>
 <h1 id="english_disclaimer">Privacy Policies, SLA & Disclaimer - Air Sports Praktisk Flyging</h1>
-<a href="#norsk_disclaimer">Norsk versjon under</a>
-<h2>Terms and conditions</h2>
+<div id="toc_container">
+    <p class="toc_title">Contents</p>
+    <ol class="toc_list">
+        <li><a href="#english_disclaimer">English terms and conditions</a>
+            <ol>
+                <li><a href="#terms_and_conditions">Terms and conditions</a></li>
+                <li><a href="#website_and_cookies">Website and cookies</a></li>
+                <li><a href="#sla">SLA</a></li>
+                <li><a href="#live_tracking">Live tracking</a></li>
+                <li><a href="#gps_tracking">GPS tracking</a></li>
+                <li><a href="#apps">ASPF Live Tracking Mobile Application (app)</a></li>
+                <li><a href="#position_manipulation">Approval of GPS position and manipulation</a></li>
+                <li><a href="#privacy">Registration and privacy for USER</a></li>
+                <li><a href="#membership_and_payment">Membership and payment</a></li>
+                <li><a href="#guidelines_for_children">Guidelines for children</a></li>
+                <li><a href="#storage_and_data">Storage and data</a></li>
+                <li><a href="#rights">Rights</a></li>
+                <li><a href="#security">Security</a></li>
+                <li><a href="#external_suppliers">External third-party suppliers</a></li>
+                <li><a href="#updates">Updates</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ol>
+        </li>
+        <li><a href="#english_disclaimer">Norske brukervilkår</a>
+            <ol>
+                <li><a href="#terms_and_conditions_norwegian">Betingelser - omfang og bruk</a></li>
+                <li><a href="#website_and_cookies_norwegian">Webside og informasjonskapsler</a></li>
+                <li><a href="#sla_norwegian">SLA</a></li>
+                <li><a href="#live_tracking_norwegian">Live Tracking</a></li>
+                <li><a href="#gps_norwegian">GPS-tracking</a></li>
+                <li><a href="#apps_norwegian">ASPF Live Tracking mobilapplikasjon (app)</a></li>
+                <li><a href="#position_and_manipulation_norwegian">Godkjenning av GPS-posisjon og manipulasjon</a></li>
+                <li><a href="#registration_norwegian">Registrering og personvern til BRUKER</a></li>
+                <li><a href="#membership_norwegian">Medlemskap og betaling</a></li>
+                <li><a href="#children_norwegian">Retningslinjer for barn</a></li>
+                <li><a href="#storage_and_data_norwegian">Lagring og data</a></li>
+                <li><a href="#rights_norwegian">Rettigheter</a></li>
+                <li><a href="#security_norwegian">Sikkerhet</a></li>
+                <li><a href="#external_norwegian">Eksterne tredjepartsleverandører</a></li>
+                <li><a href="#updates_norwegian">Oppdatering</a></li>
+                <li><a href="#contact_norwegian">Kontakt oss</a></li>
+            </ol>
+        </li>
+    </ol>
+</div>
+<h2 id="terms_and_conditions">Terms and conditions</h2>
 
 <p>Air Sports Praktisk Flyging ("ASPF") is a Norwegian independent association that focuses on networking between pilots
     and the development of systems for competitive flying for small aircraft and general aviation. ASPF is a
     non-commercial volunteer association based in Norway, and subject to Norwegian law. This is an unofficial
-    translation of the Norwegian original Terms and conditions and the Norwegian original takes precedence in case of conflicting
+    translation of the Norwegian original Terms and conditions and the Norwegian original takes precedence in case of
+    conflicting
     information in this translation. Only the Norwegian version is legally correct and binding.</p>
 
 <p>The Terms of Service here also cover airsports.no, with associated mobile applications and all subpages related to
@@ -20,7 +88,7 @@
     position tracking. Live Tracking is an ongoing GPS position indication on airsports.no, during competition or out of
     competition.</p>
 
-<h2>Website and cookies</h2>
+<h2 id="website_and_cookies">Website and cookies</h2>
 
 <p>ASPF may use cookies on our websites. Cookies are small text files that are stored on your computer. Most browsers,
     such as Safari, Chrome and Firefox, automatically accept cookies. This means that you must change settings in your
@@ -38,7 +106,7 @@
     unofficial use and for entertainment purposes only. ASPF does not guarantee that there will be no errors on the site
     or in source codes, models, errors in external systems or errors related to third-party vendors.</p>
 
-<h2>SLA</h2>
+<h2 id="sla">SLA</h2>
 
 <p>Live Tracking is a hobby project and is largely based on volunteer work. The solution is intended to help the
     aviation community promote the sport to spectators and participants. Although ASPF employs professional and
@@ -67,7 +135,7 @@
     ASPF has the capacity and finances for maintenance and operation if the service is to remain for public use. ASPF
     will also use payment services for additional applications to ensure operations for USER.</p>
 
-<h2>Live Tracking</h2>
+<h2 id="live_tracking">Live Tracking</h2>
 
 <p>Live Tracking is intended as an audience-friendly solution for competitive flying. It provides an estimated result
     list and position. It is also intended for training or for more informal competition use.</p>
@@ -86,7 +154,7 @@
     intended as a security tool for air traffic monitoring of airspace. Live Tracking should not be used as a security
     measure.</p>
 
-<h2>GPS tracking</h2>
+<h2 id="gps_tracking">GPS tracking</h2>
 
 <p>Live Tracking depends on a GPS receiver that sends the aircraft’s/USER's position. To obtain the position, ASPF uses
     a platform from TRACCAR. Traccar is an open solution for mobile GPS tracking, and you can read more at
@@ -99,7 +167,7 @@
     these. ASPF does not provide any personal information about USER to external tracking devices, and these only use
     position and ID verification.</p>
 
-<h2>ASPF Live Tracking Mobile Application (app)</h2>
+<h2 id="apps">ASPF Live Tracking Mobile Application (app)</h2>
 
 <p>ASPF's mobile application is based on Traccar's open solution. ASPF takes no responsibility for any third-party
     solution related to Traccar's systems. The application is a simplification to avoid errors related to the Live
@@ -126,7 +194,7 @@
 
 <p>The USER of the mobile application accepts these terms.</p>
 
-<h2>Approval of GPS position and manipulation</h2>
+<h2 id="position_manipulation">Approval of GPS position and manipulation</h2>
 
 <p>Use of external third-party GPS or mobile applications to share the USER's position is the USER's responsibility.
     Users accept that data are shared on airsports.no and accept that the USER is responsible for all third-party
@@ -136,7 +204,7 @@
     cheating/manipulation in a competition. Again, it is recommended that Live Tracking be used only for entertainment
     and backup purposes.</p>
 
-<h2>Registration and privacy for USER</h2>
+<h2 id="privacy">Registration and privacy for USER</h2>
 
 <p>USERS who are to use Live Tracking for competition or training must register their profile on airsports.no or via
     ASPF's mobile phone application. This profile will be linked to a tracking device and is a prerequisite for the
@@ -159,7 +227,7 @@
     only guarantee that ASPF will not sell or share personal information for direct commercial or financial
     purposes.</p>
 
-<h2>Membership and payment</h2>
+<h2 id="membership_and_payment">Membership and payment</h2>
 
 <p>The services will to varying degrees require paid membership. Memberships have different durations. ASPF will offer
     the service as long as there are active subscribers. For payment services, ASPF uses a qualified third party. This
@@ -167,14 +235,14 @@
     familiarizing themselves with the respective guidelines and must make a separate assessment of these, even if ASPF
     considers them to be qualified and safe.</p>
 
-<h2>Guidelines for children</h2>
+<h2 id="guidelines_for_children">Guidelines for children</h2>
 
 <p>ASFP is not a service designed for children under 18 years of age. If anyone under the age of 18 wishes to use the
     service as a member, they must have the written consent of a guardian or parent. If it is discovered that someone
     under the age of 18 has registered without consent, ASPF can delete the USER and all data. If anyone under the age
     of 18 or their parents have any questions about the ASPF service or information, please contact Support.</p>
 
-<h2>Storage and data</h2>
+<h2 id="storage_and_data">Storage and data</h2>
 
 <p>ASPF will store the information of the USER for as long as the USER so desires. USER can request having their profile
     deleted. USER's profile will then be deleted from ASPF, but first name, last name, email, flight, aviation club and
@@ -189,7 +257,7 @@
     Tracking. For mobile applications or trackers, location data can also be stored locally, and it is USER's
     responsibility to delete the data. This is done on the device used.</p>
 
-<h2>Rights</h2>
+<h2 id="rights">Rights</h2>
 
 <p>USER has the right to receive information about which personal data is processed in ASPF's database. If USER wants to
     know what personal information ASPF processes about themselves, this USER can send a request to the Board of
@@ -200,7 +268,7 @@
     right to complain to ASFP or to the Norwegian Data Protection Authority. If the information is used by an organizer
     or a third-party solution, the complaint must be directed to the organizer or relevant third-party supplier.</p>
 
-<h2>Security</h2>
+<h2 id="security">Security</h2>
 
 <p>Security is important to us, but the entire Live Tracking system is available on the Internet via our server, which
     means that you can never be 100 % safe from attacks or misuse. ASPF will always do what we can to keep security as
@@ -209,7 +277,7 @@
     controlling the information and not providing more details than necessary. In the event of a data attack, ASPF
     cannot guarantee uptime or availability.</p>
 
-<h2>External third-party suppliers</h2>
+<h2 id="external_suppliers">External third-party suppliers</h2>
 
 <p>External partners and third-party solutions that ASPF uses in its systems are not ASPF's responsibility. These are
     providers we trust, used to provide USER with the necessary functionality, but ASPF takes no responsibility for the
@@ -229,18 +297,19 @@
     <li>Local organizers and competition administrators</li>
 </ul>
 </p>
-<h2>Updates</h2>
+<h2 id="updates">Updates</h2>
 
-<p>These terms and conditions may be amended and updated regularly. USER must therefore make sure to keep up to date with ASPS’s
+<p>These terms and conditions may be amended and updated regularly. USER must therefore make sure to keep up to date
+    with ASPS’s
     current terms. The latest version is 1.1.</p>
 
-<h2>Contact</h2>
+<h2 id="contact">Contact</h2>
 
 <p>For any questions related to our terms and conditions, please contact us at support[at]airsports.no.</p>
 <hr/>
 <h1 id="norsk_disclaimer">Betingelser</h1>
 <a href="#english_disclaimer">English version above</a>
-<h2>Betingelser - omfang og bruk</h2>
+<h2 id="terms_and_conditions_norwegian">Betingelser - omfang og bruk</h2>
 <p>Air Sports Praktisk Flyging ("ASPF") er en norsk uavhengig forening som fokuserer på nettverksbygging mellom piloter
     og utvikling av systemer for konkurranseflyging for småfly og «general aviation». ASPF er en ikke-kommersiell
     forening som baseres på frivillighet med utgangspunkt i Norge, og som er underlagt norsk lov. De juridiske vilkårene
@@ -252,7 +321,7 @@
     heretter den juridiske personen som bruker ASPF som arrangør av konkurranse, pilot/utøver i konkurranse, besøkende
     eller bruker av hjemmesiden, eller person som bruker ASPF til egen trening eller posisjonsangivelse.
     Live Tracking er løpende GPS-posisjonsangivelse på airsports.no, under konkurranse eller utenom konkurranse.</p>
-<h2>Webside og informasjonskapsler</h2>
+<h2 id="website_and_cookies_norwegian">Webside og informasjonskapsler</h2>
 <p>ASPF kan bruke informasjonskapsler (cookies) på våre websider. Cookies er små tekstfiler som lagres på datamaskinen
     din. De fleste nettlesere, som for eksempel Safari, Chrome eller Firefox, har en automatisk aksept av cookies. Dette
     innebærer at du må endre innstillingene i nettleseren dersom du ikke ønsker at tekstfilene skal lagres på din enhet
@@ -266,7 +335,7 @@
     benyttes andre tilleggssystemer for å kontrollere at poenggivning blir korrekt, i tillegg til ASPF. Live Tracking er
     i hovedsak ment til uoffisiell bruk og kun til underholdning. ASPF tar forbehold om feil på siden, i kildekoder og
     modeller, feil i eksterne systemer eller feil knyttet til tredjepartsleverandører.</p>
-<h2>SLA</h2>
+<h2 id="sla_norwegian">SLA</h2>
 <p>Live Tracking er et hobbyprosjekt og bygger i stor grad på dugnad fra frivillige. Løsningen er ment for å hjelpe
     flymiljøet til å fremme sporten for tilskuere og deltagere. Selv om ASPF benytter profesjonelle og anerkjente
     underleverandører, kan ASPF ikke garantere for oppetid eller garantere mot feil på siden. ASPF vil dog gjøre sitt
@@ -290,7 +359,7 @@
     begrensninger eller stopp av tjenesten. Live Tracking er slik den fremstår i dag «as is», og det er en forutsetning
     at ASPF har kapasitet og økonomi til vedlikehold og drift om tjenesten skal forbli til allmenn bruk. ASPF vil også
     benytte betalingstjenester for tilleggsapplikasjoner for å sikre drift ovenfor BRUKER.</p>
-<h2>Live Tracking</h2>
+<h2 id="live_tracking_norwegian">Live Tracking</h2>
 <p>Live Tracking er ment som en publikumsvennlig løsning for konkurranseflyging. Denne gir en direkte estimert
     resultatliste og posisjon. Den er også ment for trening eller til mer uformelt konkurransebruk.</p>
 <p>Live Tracking benytter algoritmer til å innhente posisjon og beregne poengsum basert på gitte regler innen
@@ -305,7 +374,7 @@
     underholdning. Selv om det globale kartet kan gi et godt bilde av bevegelsene i luftrommet, er dette under ingen
     omstendighet ment som et sikkerhetsverktøy for flytrafikkovervåking av luftrommet. Live Tracking skal derfor ikke
     brukes i regi av sikkerhetshensyn.</p>
-<h2>GPS-tracking</h2>
+<h2 id="gps_norwegian">GPS-tracking</h2>
 
 <p>Live Tracking er avhengig av en GPS-mottaker som sender flyene/BRUKER sin posisjon. For å innhente posisjonen, bruker
     ASPF en plattform fra TRACCAR. Traccar er en åpen løsning for mobil GPS-sporing og du kan lese mer på
@@ -316,7 +385,7 @@
     Lokal mobildekning og plassering av mottakeren kan også påvirke dataene og resultatene, og er BRUKERS ansvar. For
     BRUKERE som ønsker å benytte ekstern GPS-enhet, se egen brukerveiledning iht. tilkobling. ASPF avgir ingen personlig
     informasjon om BRUKER til eksterne sporingsenheter; disse benytter kun posisjon og id-verifisering.</p>
-<h2>ASPF Live Tracking mobilapplikasjon (app)</h2>
+<h2 id="apps_norwegian">ASPF Live Tracking mobilapplikasjon (app)</h2>
 
 <p>Mobilapplikasjonen til ASPF er bygget på Traccar sin åpne løsning. ASPF tar intet ansvar for tredjeparts løsning
     knyttet til Traccar sine systemer. Applikasjonen er en forenkling for å unngå feil i tilknytning til Live
@@ -338,7 +407,7 @@
     enhver tid er gjeldende. Betalingen for applikasjonen brukes av ASPF til dekning av kostnader til utvikling samt
     vedlikehold og drift.</p>
 <p>BRUKER av mobilapplikasjonen godkjenner disse vilkår.</p>
-<h2>Godkjenning av GPS-posisjon og manipulasjon</h2>
+<h2 id="position_and_manipulation_norwegian">Godkjenning av GPS-posisjon og manipulasjon</h2>
 
 <p>Bruk av ekstern tredjeparts GPS- eller mobilapplikasjoner for å dele BRUKER sin posisjon er BRUKERENS ansvar.
     Brukerne godtar at dataene blir delt på airsports.no, og aksepterer også at BRUKEREN selv er ansvarlig for alle
@@ -346,7 +415,7 @@
     det BRUKER sitt ansvar å sette seg inn i vilkårene til traccar.org eller utsteder av tredjepartsløsninger. BRUKER er
     også kjent med at GPS-posisjon kan manipuleres, og ASPF tar ikke ansvar for at det kan forekomme juks/manipulasjon i
     en konkurranse. Igjen anbefales det at Live Tracking kun brukes til underholdning og backup.</p>
-<h2>Registrering og personvern til BRUKER</h2>
+<h2 id="registration_norwegian">Registrering og personvern til BRUKER</h2>
 <p>BRUKER som skal benytte Live Tracking til konkurranse eller trening, må registrere sin profil på airsports.no eller
     via ASPF sin mobiltelefonapplikasjon. Denne profilen vil knyttes opp mot en trackingenhet og er en forutsetning for
     funksjonaliteten til systemet.</p>
@@ -365,18 +434,18 @@
     informasjonen kan uoppfordret brukes overfor tredjepart og ASPF tar intet ansvar for hvordan tredjepart bruker
     informasjonen. ASPF kan kun garantere at ASPF ikke vil selge eller del personopplysninger med direkte kommersielle
     eller økonomiske hensikter.</p>
-<h2>Medlemskap og betaling</h2>
+<h2 id="membership_norwegian">Medlemskap og betaling</h2>
 <p>Tjenestene vil i ulik grad kreve betalt medlemskap. Medlemskapet har ulik løpetid. ASPF vil tilby tjenesten så lenge
     det er aktive abonnenter. For betalingsformidling benytter ASPF en kvalifisert tredjepart. Dette kan være via
     operativsystemer til mobile applikasjonsleverandører eller andre betalingstjenester. BRUKER er selv ansvarlig for å
     sette seg inn i den respektives retningslinjer og må ta en egen vurdering av disse, selv om ASPF vurderer dem som
     kvalifiserte og trygge.</p>
-<h2>Retningslinjer for barn</h2>
+<h2 id="children_norwegian">Retningslinjer for barn</h2>
 <p>ASFP er ikke en tjeneste tilrettelagt for barn under 18 år. Om noen under 18 år ønsker å benytte tjenesten som
     medlem, må de ha skriftlig samtykke fra verge eller foreldre. Oppdages det at noen under 18 år har registrert seg
     uten samtykke, kan ASPF slette brukeren og alle data. Om noen under 18 år eller foreldre lurer på noe knyttet til
     tjenesten eller informasjonen i ASPF, ta kontakt med support.</p>
-<h2>Lagring og data</h2>
+<h2 id="storage_and_data_norwegian">Lagring og data</h2>
 <p>ASPF vil lagre opplysningene til BRUKER så lenge BRUKER ønsker dette. BRUKER kan be om å få sin profil slettet.
     BRUKER sin profil vil da bli slettet fra ASPF, men fornavn, etternavn, e-post, fly, klubb og sporingslogger vil bli
     lagret i resultatservice. BRUKER kan imidlertid be om at sin profil blir anonymisert og da slettes navnet og e-post,
@@ -389,7 +458,7 @@
     hvordan eksterne tredjepart bruker informasjonen eller bevarer dataene fra Live Tracking. For mobile applikasjoner
     eller trackere kan også posisjonsdata lagres lokalt, og der er det BRUKER sitt ansvar å slette dataene. Dette gjøres
     i selve enheten.</p>
-<h2>Rettigheter</h2>
+<h2 id="rights_norwegian">Rettigheter</h2>
 <p>BRUKER har rett til å få informasjon om hvilke personopplysninger som behandles i ASPF sin database. Hvis BRUKER vil
     vite hvilke personopplysninger ASPF behandler om en BRUKER, kan BRUKER sende en anmodning til styret i ASPF. Hvis
     BRUKER mener at en opplysning om BRUKER er feilaktig eller misvisende, bør BRUKER ta kontakt med ASPFs styre.
@@ -397,14 +466,14 @@
 <p>Dersom du mener at ASPF ikke har overholdt dine rettigheter i henhold til personopplysningsloven, har du rett til å
     klage til ASFP eller til Datatilsynet. Dersom informasjonen brukes av en arrangør eller tredjepartsløsning, må
     klagen rettes til arrangøren eller aktuell tredjepartsleverandør.</p>
-<h2>Sikkerhet</h2>
+<h2 id="security_norwegian">Sikkerhet</h2>
 <p>Sikkerhet er viktig for oss, men hele Live Tracking-systemet er tilgjengelig på internett via vår server, noe som
     gjør at man kan aldri være 100 % sikret mot angrep eller misbruk. ASPF vil til enhver tid gjøre det vi kan for å
     holde sikkerheten høyest mulig, men det oppfordres til å ikke legge igjen informasjon som er av sensitiv art, eller
     benytte et svakt eller gjentagende brukernavn/passord. Det anbefales også at BRUKER skifter passord regelmessig og
     beskytter sin profil ved å kontrollere opplysningene og ikke oppgi mer enn nødvendig. Ved et data-angrep kan ikke
     ASPF garantere oppetid eller tilgjengelighet.</p>
-<h2>Eksterne tredjepartsleverandører</h2>
+<h2 id="external_norwegian">Eksterne tredjepartsleverandører</h2>
 <p>Eksterne partnere og tredjepartsløsninger som ASPF benytter i sine systemer, er ikke ASPF sitt ansvar. Dette er
     leverandører vi har tiltro til, som brukes for å gi BRUKER den nødvendige funksjonalitet, men ASPF tar intet ansvar
     for tredjepartsleverandørs funksjonalitet, korrekthet eller behandling av dataene eller opplysninger gitt eller
@@ -421,8 +490,8 @@
     <li>Lokale arrangører og administratorer av konkurranser</li>
 </ul>
 </p>
-<h2>Oppdatering</h2>
+<h2 id="updates_norwegian">Oppdatering</h2>
 <p>Disse betingelsene kan endres og oppdateres regelmessig. BRUKER må derfor sørge for å holde seg oppdatert på de til
     enhver tid gjeldende bestemmelser fra ASPF. Siste versjon er 1.1.</p>
-<h2>Kontakt oss</h2>
+<h2 id="contact_norwegian">Kontakt oss</h2>
 <p>Har du spørsmål knyttet til våre betingelser, vennligst kontakt oss på support[at]airsports.no</p>
