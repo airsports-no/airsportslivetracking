@@ -32,6 +32,7 @@ class Aircraft {
         this.trailPositions = [position]
         this.time = position.time
         this.ageTimeout = 15
+        this.speedLimit = 50
         this.ageColour = "grey"
         this.navigation_task_link = this.getNavigationTaskLink(initial_position.navigation_task_id)
         this.createLiveEntities(position, new Date().getTime() - this.time.getTime() > this.ageTimeout * 1000 ? this.ageColour : this.colour)
@@ -88,6 +89,7 @@ class Aircraft {
     }
 
     createLiveEntities(position, colour) {
+        const opacity = this.calculateOpacity(position.speed)
         const tooltipContents = this.navigation_task_link ? "Competing in navigation task" : ""
         this.dot = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
@@ -109,10 +111,10 @@ class Aircraft {
         }).addTo(this.map)
         this.trail = L.polyline([[position.latitude, position.longitude]], {
             color: colour,
-            opacity: 1,
+            opacity: opacity,
             weight: 3
         }).addTo(this.map)
-        this.updateIcon(position, colour)
+        this.updateIcon(position, colour, opacity)
     }
 
     updateTrail(position, colour, opacity) {
@@ -134,15 +136,16 @@ class Aircraft {
 
     }
 
+    calculateOpacity(speed) {
+        return position.speed < this.speedLimit ? 0.4 : 1
+    }
+
     updatePosition(p) {
         clearTimeout(this.colourTimer)
         this.colourTimer = setTimeout(() => this.agePlane(), 15000)
         const position = this.replaceTime(p)
+        const opacity = this.calculateOpacity(position.speed)
         this.latestPosition = position
-        let opacity = 1
-        if(position.speed< 50){
-            opacity = 0.4
-        }
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
         this.updateIcon(position, this.colour, opacity)
