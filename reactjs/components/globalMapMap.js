@@ -87,9 +87,14 @@ class Aircraft {
 
     createLiveEntities(position, colour) {
         const opacity = this.calculateOpacity(position.speed)
-        let tooltipContents = <div>
-            {this.navigation_task_link ? <a href={this.navigation_task_link}>Competing in navigation task</a> : ""}
-        </div>
+        let tooltipContents = null
+        if (this.navigation_task_link) {
+            tooltipContents = <div>
+                {this.navigation_task_link ?
+                    <a href={this.navigation_task_link}>Competing in navigation task</a> : ""}
+            </div>
+            tooltipContents = ReactDOMServer.renderToString(tooltipContents)
+        }
         if (position.person) {
             tooltipContents = <div style={{width: "200px"}}>
                 <img src={position.person.picture} style={{float: "left", width: "75px"}}/>
@@ -99,8 +104,8 @@ class Aircraft {
                 {this.navigation_task_link ?
                     <a href={this.navigation_task_link}>Flying in competition</a> : ""}
             </div>
+            tooltipContents = ReactDOMServer.renderToString(tooltipContents)
         }
-        tooltipContents = ReactDOMServer.renderToString(tooltipContents)
         this.navigation_task_link ? "Competing in navigation task" : null
         this.dot = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
