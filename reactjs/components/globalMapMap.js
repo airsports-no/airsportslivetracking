@@ -90,11 +90,9 @@ class Aircraft {
 
     createLiveEntities(position, colour) {
         const opacity = this.calculateOpacity(position.speed)
-        const tooltipContents = this.navigation_task_link ? "Competing in navigation task" : ""
+        const tooltipContents = this.navigation_task_link ? "Competing in navigation task" : null
         this.dot = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
-        }).bindTooltip(tooltipContents, {
-            permanent: false
         }).on('click', (e) => {
             if (this.navigation_task_link) {
                 window.location.href = this.navigation_task_link
@@ -102,13 +100,19 @@ class Aircraft {
         }).addTo(this.map)
         this.dotText = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
-        }).bindTooltip(tooltipContents, {
-            permanent: false
         }).on('click', (e) => {
             if (this.navigation_task_link) {
                 window.location.href = this.navigation_task_link
             }
         }).addTo(this.map)
+        if (tooltipContents) {
+            this.dot.bindTooltip(tooltipContents, {
+                permanent: false
+            })
+            this.dotText.bindTooltip(tooltipContents, {
+                permanent: false
+            })
+        }
         this.trail = L.polyline([[position.latitude, position.longitude]], {
             color: colour,
             opacity: opacity,
