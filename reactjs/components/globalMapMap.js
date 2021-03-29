@@ -31,7 +31,7 @@ class Aircraft {
         this.latestPosition = position
         this.trailPositions = [position]
         this.time = position.time
-        this.ageTimeout = 15
+        this.ageTimeout = 20
         this.speedLimit = 50
         this.ageColour = "grey"
         this.navigation_task_link = this.getNavigationTaskLink(initial_position.navigation_task_id)
