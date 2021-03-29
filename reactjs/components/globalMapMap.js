@@ -73,7 +73,7 @@ class Aircraft {
             person_name = ""
         }
         return L.divIcon({
-            html: '<div style="opacity: ' + opacity + '"><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top:-40px">' + person_name + '</span><br><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top: -22px;">' + name + '</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -30px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -38px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
+            html: '<div style="opacity: ' + opacity + '"><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top: 0px;">' + name + '</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -10px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -18px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
             iconAnchor: [100, -11],
             iconSize: [200, size],
             className: "myAirplaneTextIcon text-center"
@@ -90,20 +90,34 @@ class Aircraft {
 
     createLiveEntities(position, colour) {
         const opacity = this.calculateOpacity(position.speed)
-        const tooltipContents = this.navigation_task_link ? "Competing in navigation task" : null
+        let tooltipContents = <div>
+            {this.navigation_task_link ? <a href={this.navigation_task_link}>Competing in navigation task</a> : ""}
+        </div>
+        if (position.person) {
+            tooltipContents = <div style={{width: "200px"}}>
+                <img src={position.person.picture} style={{float: "left", width: "75px"}}/>
+                <h6>{position.person.first_name}</h6>
+                <h6>{position.person.last_name}</h6>
+                <h4>{position.name}</h4>
+                {this.navigation_task_link ?
+                    <a href={this.navigation_task_link}>Flying in competition</a> : ""}
+            </div>
+        }
+        tooltipContents = ReactDOMServer.renderToString(tooltipContents)
+        this.navigation_task_link ? "Competing in navigation task" : null
         this.dot = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
-        }).on('click', (e) => {
-            if (this.navigation_task_link) {
-                window.location.href = this.navigation_task_link
-            }
+            // }).on('click', (e) => {
+            //     if (this.navigation_task_link) {
+            //         window.location.href = this.navigation_task_link
+            //     }
         }).addTo(this.map)
         this.dotText = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
-        }).on('click', (e) => {
-            if (this.navigation_task_link) {
-                window.location.href = this.navigation_task_link
-            }
+            // }).on('click', (e) => {
+            //     if (this.navigation_task_link) {
+            //         window.location.href = this.navigation_task_link
+            //     }
         }).addTo(this.map)
         if (tooltipContents) {
             this.dot.bindTooltip(tooltipContents, {
