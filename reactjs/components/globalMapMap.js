@@ -137,7 +137,7 @@ class Aircraft {
     }
 
     calculateOpacity(speed) {
-        return position.speed < this.speedLimit ? 0.4 : 1
+        return speed < this.speedLimit ? 0.4 : 1
     }
 
     updatePosition(p) {
