@@ -39,8 +39,9 @@ class Aircraft {
     }
 
     agePlane() {
-        this.updateIcon(this.latestPosition, this.ageColour)
+        this.updateIcon(this.latestPosition, this.ageColour, 0.4)
         this.trail.setStyle({
+            opacity: 0.4,
             color: this.ageColour
         })
     }
@@ -54,10 +55,10 @@ class Aircraft {
         return position
     }
 
-    createAirplaneIcon(bearing, colour) {
+    createAirplaneIcon(bearing, colour, opacity) {
         const size = 28;
         return L.divIcon({
-            html: '<i class="mdi mdi-airplanemode-active" style="color: ' + colour + '; transform: rotate(' + bearing + 'deg); font-size: ' + size + 'px"/>',
+            html: '<i class="mdi mdi-airplanemode-active" style="color: ' + colour + ';opacity: ' + opacity + '; transform: rotate(' + bearing + 'deg); font-size: ' + size + 'px"/>',
             iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
         })
@@ -65,13 +66,13 @@ class Aircraft {
     }
 
 
-    createAirplaneTextIcon(name, person_name, altitude, speed, colour) {
+    createAirplaneTextIcon(name, person_name, altitude, speed, colour, opacity) {
         const size = 14;
         if (!person_name) {
             person_name = ""
         }
         return L.divIcon({
-            html: '<div><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top:-40px">' + person_name + '</span><br><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top: -22px;">' + name + '</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -30px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -38px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
+            html: '<div style="opacity: ' + opacity + '"><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top:-40px">' + person_name + '</span><br><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top: -22px;">' + name + '</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -30px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -38px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
             iconAnchor: [100, -11],
             iconSize: [200, size],
             className: "myAirplaneTextIcon text-center"
@@ -114,10 +115,10 @@ class Aircraft {
         this.updateIcon(position, colour)
     }
 
-    updateTrail(position) {
+    updateTrail(position, colour, opacity) {
         this.trailPositions.push(position)
         this.trail.setStyle({
-            color: this.colour
+            color: colour, opacity: opacity
         })
         const latestTime = position.time.getTime()
         while (this.trailPositions.length > 0 && latestTime - this.trailPositions[0].time.getTime() > TRAIL_LENGTH * 1000) {
@@ -138,17 +139,21 @@ class Aircraft {
         this.colourTimer = setTimeout(() => this.agePlane(), 15000)
         const position = this.replaceTime(p)
         this.latestPosition = position
+        let opacity = 1
+        if(position.speed< 50){
+            opacity = 0.4
+        }
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
-        this.updateIcon(position, this.colour)
-        this.updateTrail(position)
+        this.updateIcon(position, this.colour, opacity)
+        this.updateTrail(position, this.colour, opacity)
         this.time = position.time
         this.updateNavigationTask(position)
     }
 
-    updateIcon(position, colour) {
-        this.dot.setIcon(this.createAirplaneIcon(position.course, colour))
-        this.dotText.setIcon(this.createAirplaneTextIcon(position.name, position.person_name, 100 * (Math.floor(position.altitude * 3.28084 / 100)), position.speed, colour)
+    updateIcon(position, colour, opacity) {
+        this.dot.setIcon(this.createAirplaneIcon(position.course, colour, opacity))
+        this.dotText.setIcon(this.createAirplaneTextIcon(position.name, position.person_name, 100 * (Math.floor(position.altitude * 3.28084 / 100)), position.speed, colour, opacity)
         )
     }
 
