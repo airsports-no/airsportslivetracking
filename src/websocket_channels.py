@@ -81,13 +81,14 @@ class WebsocketFacade:
             {"type": "tracking.data", "data": channel_data}
         )
 
-    def transmit_global_position_data(self, global_tracking_name: str, position_data: Dict,
+    def transmit_global_position_data(self, global_tracking_name: str, person_name: Optional[str], position_data: Dict,
                                       device_time: datetime.datetime, navigation_task_id: Optional[int]) -> Dict:
         data = {
             "type": "tracking.data",
             "data": {
                 "name": global_tracking_name,
                 "time": device_time.isoformat(),
+                "person_name": person_name,
                 "deviceId": position_data["deviceId"],
                 "latitude": float(position_data["latitude"]),
                 "longitude": float(position_data["longitude"]),
@@ -147,7 +148,8 @@ class WebsocketFacade:
         )
 
     def transmit_contest_results(self, user: Optional["MyUser"], contest: "Contest"):
-        contest.permission_change_contest = user.has_perm("display.change_contest", contest) if user is not None else False
+        contest.permission_change_contest = user.has_perm("display.change_contest",
+                                                          contest) if user is not None else False
         serialiser = ContestResultsDetailsSerialiser(contest)
 
         data = {

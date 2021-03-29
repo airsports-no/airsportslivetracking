@@ -196,6 +196,7 @@ class Person(models.Model):
     picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
+    is_public = models.BooleanField(default = False, help_text = "If true, the person's name will be displayed together with the callsign on the global map")
 
     @property
     def phone_country_prefix(self):

@@ -65,10 +65,10 @@ class Aircraft {
     }
 
 
-    createAirplaneTextIcon(name, altitude, speed, colour) {
+    createAirplaneTextIcon(name, person_name, altitude, speed, colour) {
         const size = 14;
         return L.divIcon({
-            html: '<div><span style="color: ' + colour + '; font-size: ' + size + 'px">' + name + '</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -10px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -19px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
+            html: '<div><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top:-40">' + person_name + '</span><span style="color: ' + colour + '; font-size: ' + size + 'px">' + name + '</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -10px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -19px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
             iconAnchor: [100, -11],
             iconSize: [200, size],
             className: "myAirplaneTextIcon text-center"
@@ -145,8 +145,8 @@ class Aircraft {
 
     updateIcon(position, colour) {
         this.dot.setIcon(this.createAirplaneIcon(position.course, colour))
-        this.dotText.setIcon(this.createAirplaneTextIcon(position.name, 100 * (Math.floor(position.altitude * 3.28084 / 100)), position.speed, colour)
-    )
+        this.dotText.setIcon(this.createAirplaneTextIcon(position.name, position.person_name, 100 * (Math.floor(position.altitude * 3.28084 / 100)), position.speed, colour)
+        )
     }
 
     removeFromMap() {
