@@ -41,6 +41,7 @@ class ScoreAccumulator:
 
 
 LOOP_TIME = 60
+CONTESTANT_REFRESH_INTERVAL = datetime.timedelta(seconds=30)
 
 
 class Gatekeeper:
@@ -55,6 +56,7 @@ class Gatekeeper:
         self.contestant = contestant
         self.contestant.calculator_started = True
         self.contestant.save()
+        self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.position_queue = position_queue
         self.last_termination_command_check = None
         self.influx = InfluxFacade()
@@ -107,6 +109,10 @@ class Gatekeeper:
         logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
         while not self.track_terminated:
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
+                self.contestant.refresh_from_db()
+                self.last_contestant_refresh = now
             try:
                 data = self.position_queue.get(timeout=30)
             except Empty:
