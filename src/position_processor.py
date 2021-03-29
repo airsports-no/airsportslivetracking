@@ -111,13 +111,13 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
         contestant, is_simulator = Contestant.get_contestant_for_device_at_time(device_name, device_time)
         navigation_task_id = None
         global_tracking_name = None
-        person = None
+        person_data = None
         if not contestant:
             try:
                 person = Person.objects.get(app_tracking_id=device_name)
                 global_tracking_name = person.app_aircraft_registration
                 if person.is_public:
-                    person = PersonSerialiser(person).data
+                    person_data = PersonSerialiser(person).data
             except ObjectDoesNotExist:
                 # logger.info("Found no person for tracking ID {}".format(device_name))
                 pass
@@ -132,7 +132,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
             except KeyError:
                 received_tracks[contestant] = [data]
         if global_tracking_name is not None:
-            transmit_live_position(position_data, global_tracking_name, person, device_time, navigation_task_id)
+            transmit_live_position(position_data, global_tracking_name, person_data, device_time, navigation_task_id)
     return received_tracks
 
 
