@@ -818,7 +818,7 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     LIMIT = None
     TIME_INTERVAL = 10
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
-    default_start_time = contestant.navigation_task.start_time - timedelta(minutes=30)
+    default_start_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
     if from_time is None:
         from_time = default_start_time.isoformat()
     from_time_datetime = dateutil.parser.parse(from_time)
