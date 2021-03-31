@@ -7,9 +7,9 @@ if __name__ == "__main__":
     import django
     django.setup()
 
-from display.models import Contest, Crew, Team, Person
+from display.models import Contest, Crew, Team, Person, Aeroplane
 
-Contest.objects.all().delete()
-Team.objects.all().delete()
-Crew.objects.all().delete()
-Person.objects.all().delete()
+aeroplane = Aeroplane.objects.create(registration = "test")
+aeroplane.delete()
+aeroplane.refresh_from_db()
+print(aeroplane.pk)

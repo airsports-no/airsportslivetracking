@@ -8,6 +8,7 @@ from typing import List, TYPE_CHECKING, Optional, Callable, Tuple
 
 import pytz
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 
 from display.calculators.calculator_utilities import round_time, distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
@@ -112,7 +113,12 @@ class Gatekeeper:
         while not self.track_terminated:
             now = datetime.datetime.now(datetime.timezone.utc)
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
-                self.contestant.refresh_from_db()
+                try:
+                    self.contestant.refresh_from_db()
+                except ObjectDoesNotExist:
+                    # Contestants has been deleted, terminate the calculator
+                    self.track_terminated = True
+                    break
                 self.last_contestant_refresh = now
             try:
                 data = self.position_queue.get(timeout=30)
