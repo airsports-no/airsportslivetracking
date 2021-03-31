@@ -270,7 +270,7 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
 
 
 def scale_bar_y(ax, proj, length, location=(0.03, 0.5), linewidth=3,
-              units='km', m_per_unit=1000, scale=0):
+                units='km', m_per_unit=1000, scale=0):
     """
     http://stackoverflow.com/a/35705477/1072212
     ax is the axes to draw the scalebar on.
@@ -300,7 +300,7 @@ def scale_bar_y(ax, proj, length, location=(0.03, 0.5), linewidth=3,
     # Plot the scalebar with buffer
     x, y0 = proj.transform_point(sbcx, bar_ys[0], utm)
     _, y1 = proj.transform_point(sbcx, bar_ys[1], utm)
-    xc, yc = proj.transform_point(sbcx+400, sbcy, utm)
+    xc, yc = proj.transform_point(sbcx + 400, sbcy, utm)
     ax.plot([x, x], [y0, y1], transform=proj, color='k',
             linewidth=linewidth, path_effects=buffer, solid_capstyle="butt")
     # buffer for text
@@ -309,7 +309,7 @@ def scale_bar_y(ax, proj, length, location=(0.03, 0.5), linewidth=3,
     t0 = ax.text(xc, yc, "1:{:,d} {:.2f} {} = {:.0f} cm".format(int(scale * 1000), bar_length, units, 10),
                  transform=proj,
                  horizontalalignment='center', verticalalignment='bottom',
-                 path_effects=buffer, zorder=2, rotation=-90, ha= 'center', va= 'center')
+                 path_effects=buffer, zorder=2, rotation=-90, ha='center', va='center')
     # left = x0 + (x1 - x0) * 0.05
     # Plot the N arrow
     # t1 = ax.text(left, sbcy, u'\u25B2\nN', transform=utm,
@@ -523,6 +523,8 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     route = task.route
     A4_width = 21.0
     A4_height = 29.7
+    A3_height = 42
+    A3_width = 29.7
     if map_source == "osm":
         imagery = OSM()
     else:
@@ -531,14 +533,16 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         if zoom_level is None:
             zoom_level = 12
         if landscape:
-            plt.figure(figsize=(16.53, 11.69))
+            figure_width = A3_height
+            figure_height = A3_width
         else:
-            plt.figure(figsize=(11.69, 16.53))
+            figure_width = A3_width
+            figure_height = A3_height
     else:
         if zoom_level is None:
             zoom_level = 11
         if landscape:
-            figure_width=A4_height
+            figure_width = A4_height
             figure_height = A4_width
         else:
             figure_width = A4_width
@@ -639,8 +643,10 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         height_metres = (scale * 10) * figure_height
         height_offset = 0
         width_offset = 2000
-        lower_left = proj.transform_point(centre_x - width_metres / 2 + width_offset, centre_y - height_metres / 2 + height_offset, utm)
-        upper_right = proj.transform_point(centre_x + width_metres / 2 - width_offset, centre_y + height_metres / 2-height_offset, utm)
+        lower_left = proj.transform_point(centre_x - width_metres / 2 + width_offset,
+                                          centre_y - height_metres / 2 + height_offset, utm)
+        upper_right = proj.transform_point(centre_x + width_metres / 2 - width_offset,
+                                           centre_y + height_metres / 2 - height_offset, utm)
         extent = [lower_left[0], upper_right[0], lower_left[1], upper_right[1]]
     print(extent)
     ax.set_extent(extent, crs=ccrs.PlateCarree())
