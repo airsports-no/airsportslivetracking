@@ -75,11 +75,12 @@ class GatekeeperRoute(Gatekeeper):
             item.expected_time = gate_times[item.name]
         if self.landing_gate is not None:
             self.landing_gate.expected_time = gate_times[self.landing_gate.name]
+        self.contestant.save()
         try:
             self.contestant.finished_by_time += time_difference
+            self.contestant.save()
         except:
             logger.exception("Failed updating finished by time for contestant {}".format(self.contestant))
-        self.contestant.save()
 
     def check_gate_in_range(self):
         if len(self.outstanding_gates) == 0 or len(self.track) == 0:
