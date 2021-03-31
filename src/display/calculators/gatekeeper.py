@@ -70,6 +70,7 @@ class Gatekeeper:
         _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
         self.scorecard = self.contestant.navigation_task.scorecard
         self.gates = self.create_gates()
+        self.outstanding_gates = list(self.gates)
         self.position_update_lock = threading.Lock()
         self.last_gate = None  # type: Optional[Gate]
         self.previous_last_gate = None  # type: Optional[Gate]

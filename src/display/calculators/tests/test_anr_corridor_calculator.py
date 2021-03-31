@@ -80,12 +80,12 @@ class TestANRPerLeg(TransactionTestCase):
         print(strings)
         self.assertListEqual(['Takeoff: 0.0 points missing gate\n(planned: 20:30:00 +0100, actual: --)',
                               'SP: 200.0 points missing gate\n(planned: 20:37:00 +0100, actual: --)',
-                              'SP: 50.0 points outside corridor (77 seconds) (capped)',
+                              'SP: 50.0 points outside corridor (82 seconds) (capped)',
                               'Waypoint 1: 200.0 points backtracking',
-                              'Waypoint 1: 50.0 points outside corridor (152 seconds) (capped)',
+                              'Waypoint 1: 50.0 points outside corridor (157 seconds) (capped)',
                               'Waypoint 1: 0 points entering corridor',
-                              'Waypoint 2: 50.0 points outside corridor (170 seconds) (capped)',
-                              'Waypoint 3: 50.0 points outside corridor (170 seconds) (capped)',
+                              'Waypoint 2: 50.0 points outside corridor (175 seconds) (capped)',
+                              'Waypoint 3: 50.0 points outside corridor (175 seconds) (capped)',
                               'FP: 200.0 points passing gate (-778 s)\n(planned: 20:48:09 +0100, actual: 20:35:11 +0100)'],
                              strings)
         self.assertEqual(800, contestant_track.score)
@@ -119,10 +119,10 @@ class TestANRPerLeg(TransactionTestCase):
         fixed_strings[1] = fixed_strings[1][:10]
         self.assertListEqual(['Takeoff: 0.0 points missing gate',
                               'SP: 200.0 ',
-                              'SP: 50.0 points outside corridor (48 seconds) (capped)',
-                              'Waypoint 1: 42.0 points outside corridor (14 seconds)',
+                              'SP: 50.0 points outside corridor (53 seconds) (capped)',
+                              'Waypoint 1: 42.0 points outside corridor (19 seconds)',
                               'Waypoint 1: 0 points entering corridor', 'Waypoint 1: 200.0 points backtracking',
-                              'Waypoint 1: 8.0 points outside corridor (226 seconds) (capped)',
+                              'Waypoint 1: 8.0 points outside corridor (231 seconds) (capped)',
                               'Waypoint 2: 50.0 points outside corridor (0 seconds) (capped)',
                               'Waypoint 3: 50.0 points outside corridor (0 seconds) (capped)',
                               'FP: 200.0 points missing gate',
@@ -188,12 +188,12 @@ class TestANRPerLeg(TransactionTestCase):
         strings = [item["string"] for item in contestant_track.score_log]
         print(strings)
         expected = ['SP: 200.0 points missing gate\n(planned: 14:17:00 +0100, actual: --)',
-                    'SP: 3.0 points outside corridor (1 seconds)', 'SP: 0 points entering corridor',
+                    'SP: 3.0 points outside corridor (6 seconds)', 'SP: 0 points entering corridor',
                     'Waypoint 1: 0 points passing gate (no time check) (-56 s)\n(planned: 14:18:59 +0100, actual: 14:18:03 +0100)',
                     'Waypoint 2: 0 points passing gate (no time check) (-167 s)\n(planned: 14:22:33 +0100, actual: 14:19:46 +0100)',
-                    'Waypoint 2: 24.0 points outside corridor (8 seconds)', 'Waypoint 2: 0 points entering corridor',
+                    'Waypoint 2: 24.0 points outside corridor (13 seconds)', 'Waypoint 2: 0 points entering corridor',
                     'Waypoint 3: 0 points passing gate (no time check) (-220 s)\n(planned: 14:24:31 +0100, actual: 14:20:51 +0100)',
-                    'Waypoint 3: 21.0 points outside corridor (7 seconds)',
+                    'Waypoint 3: 21.0 points outside corridor (12 seconds)',
                     'FP: 200.0 points missing gate\n(planned: 14:28:09 +0100, actual: --)']
         self.assertListEqual(expected, strings)
         self.assertEqual(448, contestant_track.score)
@@ -386,7 +386,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position], gate, gate)
         self.calculator.calculate_enroute([position2], gate, gate)
         self.calculator.calculate_enroute([position3], gate, gate)
-        self.update_score.assert_has_calls([call(gate, 48.0, 'outside corridor (16 seconds)', 60.5, 11, 'anomaly',
+        self.update_score.assert_has_calls([call(gate, 48.0, 'outside corridor (21 seconds)', 60.5, 11, 'anomaly',
                                                  f'outside_corridor_{gate.name}', maximum_score=-1)])
 
     def test_outside_20_seconds_until_finish(self):
@@ -407,7 +407,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position], gate, gate)
         self.calculator.calculate_enroute([position2], gate, gate)
         self.calculator.passed_finishpoint([position3], gate)
-        self.update_score.assert_called_with(gate, 48, 'outside corridor (16 seconds)', 60.5, 11, 'anomaly',
+        self.update_score.assert_called_with(gate, 48, 'outside corridor (21 seconds)', 60.5, 11, 'anomaly',
                                              f'outside_corridor_{gate.name}', maximum_score=-1)
 
     def test_outside_20_seconds_outside_route(self):
@@ -528,6 +528,63 @@ class TestANRBergenBacktracking(TransactionTestCase):
                                                     adaptive_start=True,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=18)
+        q = Queue()
+        influx = InfluxFacade()
+        calculator = calculator_factory(self.contestant, q, live_processing=False)
+        for i in track:
+            i["deviceId"] = ""
+            i["attributes"] = {}
+            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            q.put(data)
+        q.put(None)
+        calculator.run()
+        while not q.empty():
+            q.get_nowait()
+        self.assertEqual(51, self.contestant.contestanttrack.score)
+
+
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+class TestANRBergenBacktrackingTommy(TransactionTestCase):
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, p):
+        with open("display/calculators/tests/tommy_test.kml", "r") as file:
+            route = create_anr_corridor_route_from_kml("test", file, 0.5, False)
+        navigation_task_start_time = datetime.datetime(2021, 3, 31, 14, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 3, 31, 16, 0, 0, tzinfo=datetime.timezone.utc)
+        self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        from display.default_scorecards import default_scorecard_fai_anr_2017
+        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+                                                             route=route,
+                                                             scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
+                                                             contest=Contest.objects.create(name="contest",
+                                                                                            start_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc),
+                                                                                            finish_time=datetime.datetime.now(
+                                                                                                datetime.timezone.utc),
+                                                                                            time_zone="Europe/Oslo"),
+                                                             start_time=navigation_task_start_time,
+                                                             finish_time=navigation_task_finish_time)
+        self.navigation_task.track_score_override = TrackScoreOverride.objects.create(corridor_width=0.5,
+                                                                                      corridor_grace_time=5)
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
+        self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
+        self.scorecard = default_scorecard_fai_anr_2017.get_default_scorecard()
+        # Required to make the time zone save correctly
+        self.navigation_task.refresh_from_db()
+
+    def test_track(self, p):
+        track = load_track_points_traccar_csv(
+            load_traccar_track("display/calculators/tests/tommy_missing_circling_penalty.csv"))
+        start_time, speed = datetime.datetime(2021, 3, 31, 14, 35, tzinfo=datetime.timezone.utc), 70
+        self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
+                                                    takeoff_time=start_time,
+                                                    finished_by_time=start_time + datetime.timedelta(hours=2),
+                                                    tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                    tracker_device_id="Test contestant", contestant_number=1,
+                                                    minutes_to_starting_point=7,
+                                                    adaptive_start=True,
+                                                    air_speed=speed, wind_direction=340,
+                                                    wind_speed=15)
         q = Queue()
         influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)

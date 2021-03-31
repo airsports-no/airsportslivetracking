@@ -57,11 +57,6 @@ class GatekeeperRoute(Gatekeeper):
         elif self.takeoff_gate is not None:
             self.gates.insert(0, self.takeoff_gate)
         self.in_range_of_gate = None
-        self.calculators = []
-        for calculator in calculators:
-            self.calculators.append(
-                calculator(self.contestant, self.scorecard, self.gates, self.contestant.navigation_task.route,
-                           self.update_score))
 
     def recalculate_gates_times_from_start_time(self, start_time: datetime.datetime):
         if len(self.outstanding_gates) > 0:
