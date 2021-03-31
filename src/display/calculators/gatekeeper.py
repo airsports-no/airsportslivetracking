@@ -213,6 +213,7 @@ class Gatekeeper:
         gate = self.outstanding_gates.pop(index)
         if update_last:
             self.previous_last_gate = self.last_gate
+            logger.info(f"Updating last gate to {gate}")
             self.last_gate = gate
         self.update_enroute()
 

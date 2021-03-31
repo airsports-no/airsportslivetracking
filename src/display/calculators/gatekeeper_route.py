@@ -289,10 +289,9 @@ class GatekeeperRoute(Gatekeeper):
                     #                   current_position.latitude, current_position.longitude, "anomaly")
             elif gate.passing_time is not None:
                 index += 1
+                time_difference = (gate.passing_time - gate.expected_time).total_seconds()
+                self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
                 if gate.time_check:
-                    time_difference = (gate.passing_time - gate.expected_time).total_seconds()
-                    # logger.info("Time difference at gate {}: {}".format(gate.name, time_difference))
-                    self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
                     gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
                                                                                     gate.expected_time,
                                                                                     gate.passing_time)
