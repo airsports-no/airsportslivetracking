@@ -118,7 +118,7 @@ export function contestantRankingTable(contestant) {
 }
 
 export function contestantLongForm(contestant) {
-    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + (contestant.team.crew && contestant.team.crew.member1 ? contestant.team.crew.member1.first_name + " " + contestant.team.crew.member1.last_name : "Unknown") + "<br/>Navigator: " + (contestant.team.crew && contestant.team.crew.member2 ? contestant.team.crew.member2.first_name + " " + contestant.team.crew.member2.last_name : "") + "<br/>Aeroplane: " + contestant.team.aeroplane.registration
+    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + (contestant.team.crew && contestant.team.crew.member1 ? contestant.team.crew.member1.first_name + " " + contestant.team.crew.member1.last_name : "Unknown") + "<br/>Navigator: " + (contestant.team.crew && contestant.team.crew.member2 ? contestant.team.crew.member2.first_name + " " + contestant.team.crew.member2.last_name : "") + "<br/>Airplane: " + contestant.team.aeroplane.registration
 }
 
 export function teamLongForm(team) {

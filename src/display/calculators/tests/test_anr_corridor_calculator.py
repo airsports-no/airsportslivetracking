@@ -126,7 +126,7 @@ class TestANRPerLeg(TransactionTestCase):
                               'Waypoint 2: 50.0 points outside corridor (0 seconds) (capped)',
                               'Waypoint 3: 50.0 points outside corridor (0 seconds) (capped)',
                               'FP: 200.0 points missing gate',
-                              'FP: 50.0 points outside corridor (0 seconds) (capped)',
+                              'FP: 50.0 points outside corridor (5 seconds) (capped)',
                               'Landing: 0.0 points missing gate'],
                              fixed_strings)
         self.assertEqual(850, contestant_track.score)
