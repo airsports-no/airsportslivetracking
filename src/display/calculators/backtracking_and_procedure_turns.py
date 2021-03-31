@@ -152,6 +152,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                                       self.scorecard.get_maximum_backtracking_penalty(self.contestant))
 
                 break
+        # logger.info(f"{now}: {difference}")
         if not found_circling:
             # No longer circling, market reset if we were circling
             self.mark_circling_finished_if_ongoing(last_gate, now, track[-1])

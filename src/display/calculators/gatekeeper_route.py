@@ -158,7 +158,7 @@ class GatekeeperRoute(Gatekeeper):
                     if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
 
                         self.takeoff_gate.missed = True
-
+                    self.in_range_of_gate = self.gates[0]
                     logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
                     self.starting_line.infinite_passing_time = intersection_time
                     # Starting point and starting line are the same place, so if we have not passed the starting point

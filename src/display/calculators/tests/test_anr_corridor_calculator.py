@@ -575,7 +575,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
     def test_track(self, p):
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/tommy_missing_circling_penalty.csv"))
-        start_time, speed = datetime.datetime(2021, 3, 31, 14, 35, tzinfo=datetime.timezone.utc), 70
+        start_time, speed = datetime.datetime(2021, 3, 31, 12, 35, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
                                                     takeoff_time=start_time,
                                                     finished_by_time=start_time + datetime.timedelta(hours=2),
@@ -597,4 +597,9 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         calculator.run()
         while not q.empty():
             q.get_nowait()
-        self.assertEqual(51, self.contestant.contestanttrack.score)
+        self.assertEqual(368, self.contestant.contestanttrack.score)
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        strings = [item["string"] for item in contestant_track.score_log]
+        self.assertTrue(
+            "SP: 200.0 points circling start" in strings)
+
