@@ -20,6 +20,7 @@ services:
     volumes:
       - ./swag/config:/config
       - ./assets:/assets/
+      - ./src/media:/media
       - ./static:/static
     ports:
       - 443:443
