@@ -24,6 +24,8 @@ services:
       - ./data:/data/
       - ./weblog:/logs/
       - ./mapserver:/maptiles
+    environment:
+      - MODE=dev
     ports:
       - "8002:8002"
     depends_on:
