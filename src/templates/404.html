@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% load bootstrap4 %}
+{% load static %}
 {% block content %}
     <h2>Sorry</h2>
     The page you are looking for either does not exist or you do not have permission to view it.<br>
+    Feel free to proceed to the map page at <a href="/">airsports.no</a><br/>
+    <img src="{% static '/img/AirSportsLiveTracking.png' %}" alt="Logo">
+    <p>
     <pre>404: Not found</pre>
+    </p>
 {% endblock %}
