@@ -9,6 +9,10 @@ body {
     /*top: 100px;*/
 }
 
+.about-logo {
+    width: 200px;
+}
+
 .outerBackdrop {
     transform-origin: top left;
     left: 60px;

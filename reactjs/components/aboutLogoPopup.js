@@ -20,7 +20,7 @@ function AboutLogoModal(props) {
         <Modal {...other} aria-labelledby="contained-modal-title-vcenter">
             <Modal.Header closeButton>
                 <Modal.Title id="contained-modal-title-vcenter">
-                    About Air Sports Live Tracking
+                    <b>About Air Sports Live Tracking</b>
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
@@ -29,13 +29,14 @@ function AboutLogoModal(props) {
                         Air Sports Live Tracking is an online tracking platform for use in competition flying and social
                         flying events.
                     </div>
+                    <hr/>
                     <div>
                         {aboutText}
                     </div>
-                    {/*<div dangerouslySetInnerHTML={{__html: aboutText}}/>*/}
                 </Container>
             </Modal.Body>
             <Modal.Footer>
+                <img src={"/static/img/AirSportsLiveTracking.png"} alt={"Logo"} className={"mr-auto p-2 about-logo"}/>
                 <SocialMediaLinks/>
             </Modal.Footer>
 
