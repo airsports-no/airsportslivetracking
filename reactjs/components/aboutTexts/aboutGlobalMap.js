@@ -15,7 +15,7 @@ const aboutGlobalMap = <div>
     <p/>
     Take part in tracking your flights or competing in contests by downloading the Air Sports Live Tracking app
     from Google Play or Apple App Store.
-    <div className={"d-flex justify-content-between"}>
+    <div className={"d-flex justify-content-around"}>
         <div className={"p-2"}>
         <a
            href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
