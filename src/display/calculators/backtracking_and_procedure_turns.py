@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import TYPE_CHECKING, List, Callable, Optional
+from typing import TYPE_CHECKING, List, Callable, Optional, Tuple
 
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import bearing_between
@@ -67,6 +67,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.between_tracks = False
         self.calculate_track = False
         self.circling = False
+        self.previous_last_gate = None
+        self.current_last_gate = None
+        self.gate_bearings = []  # type: List[Tuple[int,float]]
         # Put into separate parameter so that we can change this when finalising in order to terminate any ongoing
         # backtracking
         self.backtracking_limit = self.scorecard.backtracking_bearing_difference
@@ -96,6 +99,12 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
 
     TIME_FORMAT = "%H:%M:%S"
 
+    def get_bearing_for_index(self, index: int) -> Optional[float]:
+        for bearing_index, bearing in reversed(self.gate_bearings):
+            if bearing_index <= index:
+                return bearing
+        return None
+
     def detect_circling(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: Optional["Gate"]):
         """
         Only detect circling inside range of gates, otherwise we deal with backtracking
@@ -105,6 +114,10 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         :param in_range_of_gate:
         :return:
         """
+        if last_gate != self.current_last_gate:
+            self.previous_last_gate = self.current_last_gate
+            self.current_last_gate = last_gate
+            self.gate_bearings.append((len(track) - 1, last_gate.bearing))
         next_position = track[-1]
         now = next_position.time
         if self.earliest_circle_check is None or last_gate is None or self.tracking_state in (
@@ -116,23 +129,38 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         current_position_index = len(track) - 2
         current_position = track[current_position_index]
         difference = 0
-        previous_bearing = None
+        next_bearing = None
         bearings = []
         bearing_differences = []
         accumulated_differences = []
+        next_track_bearing = self.get_bearing_for_index(len(track) - 1)
+
+        track_turn = 0
         while current_position_index > 0 and current_position.time > now - self.circling_lookback and current_position.time > self.earliest_circle_check:
             current_position_index -= 1
             current_bearing = bearing_between(current_position, next_position)
             bearings.append(current_bearing)
-            if previous_bearing is not None:
-                current_difference = bearing_difference(previous_bearing, current_bearing)
+            if next_bearing is not None:
+                current_difference = bearing_difference(current_bearing, next_bearing)
                 bearing_differences.append(current_difference)
                 difference += current_difference
             accumulated_differences.append(difference)
-            previous_bearing = current_bearing
+            next_bearing = current_bearing
             next_position = current_position
             current_position = track[current_position_index]
-            if abs(difference) > 180:
+            current_track_bearing = self.get_bearing_for_index(current_position_index)
+            if current_track_bearing != next_track_bearing and current_track_bearing is not None and next_track_bearing is not None:
+                track_turn += bearing_difference(current_track_bearing, next_track_bearing)
+            next_track_bearing = current_track_bearing
+
+            if track_turn > 0 and difference > 0 or track_turn < 0 and difference < 0:
+                # If we are turning in the same direction of the turn, add the size of the turn to the turn limit
+                turn_limit = 180 + abs(track_turn)
+            else:
+                # Otherwise we set the limit to 180 in order to catch procedure turns where they should not be
+                turn_limit = 180
+
+            if abs(difference) > turn_limit:
                 found_circling = True
                 if not self.circling:
                     self.circling = True
@@ -140,7 +168,8 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         "{} {}: Detected circling more than 180° the past {} seconds".format(self.contestant,
                                                                                              now, (
                                                                                                      now - current_position.time).total_seconds()))
-                    logger.info(f"Positions: {[(item.time, item.latitude, item.longitude, item.course) for item in track[current_position_index:]]}")
+                    logger.info(
+                        f"Positions: {[(item.time, item.latitude, item.longitude, item.course) for item in track[current_position_index:]]}")
                     logger.info(f"Bearings: {bearings}")
                     logger.info(f"Bearing differences: {bearing_differences}")
                     logger.info(f"Accumulated bearing differences: {accumulated_differences}")
@@ -160,6 +189,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
     def mark_circling_finished_if_ongoing(self, last_gate, now, current_position):
         if self.circling:
             self.earliest_circle_check = now
+            self.previous_gate_bearing = None
             self.update_score(last_gate or self.gates[0],
                               0,
                               "circling finished",
@@ -208,7 +238,6 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             # A.2.2.15
             self.update_tracking_state(self.PROCEDURE_TURN)
             self.current_procedure_turn_slices = []
-            self.current_procedure_turn_directions = []
             self.current_procedure_turn_gate = last_gate
             self.current_procedure_turn_bearing_difference = get_heading_difference(
                 last_gate.bearing_from_previous,

@@ -292,7 +292,7 @@ class Test2017WPFC(TransactionTestCase):
             q.get_nowait()
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1352,  # Increased by 200 after new circling cacl
+        self.assertEqual(1152,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
