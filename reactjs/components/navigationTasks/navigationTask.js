@@ -59,16 +59,35 @@ class ConnectedNavigationTask extends Component {
     storePlaybackData(data) {
         data.logLength = 0
         this.tracklist.push(data)
+        this.trimPlaybackStart()
+    }
+
+    trimPlaybackStart() {
+        let minimumLead = 9999999
+        for (const track of this.tracklist) {
+            if (track.annotations.length > 0) {
+                const firstAnnotationTime = new Date(track.annotations[0].time)
+                const leadPositions = track.positions.filter((position) => {
+                    return new Date(position.time) < firstAnnotationTime
+                })
+                track.leadPositions = leadPositions.length
+                minimumLead = Math.min(minimumLead, leadPositions.length)
+            }
+        }
+        if (minimumLead < 9999999) {
+            for (const track of this.tracklist) {
+                track.positions = track.positions.slice(track.leadPositions - minimumLead)
+            }
+        }
     }
 
     playBackData() {
-        console.log("Playing back data")
         for (const track of this.tracklist) {
             if (track.positions.length > 0) {
                 let positions = []
                 while (track.positions.length > 0) {
                     positions.push(track.positions.shift())
-                    if (positions.length > 0) {
+                    if (positions.length > this.tracklist.length / 2) {
                         break
                     }
                 }
@@ -103,7 +122,7 @@ class ConnectedNavigationTask extends Component {
                         score: score,
                         calculator_finished: false,
                         score_per_gate: {},
-                        current_state: track.logLength===0?"Waiting...":"Tracking",
+                        current_state: track.logLength === 0 ? "Waiting..." : "Tracking",
                         last_gate: lastGate,
                         current_leg: lastGate,
                         contestant: track.contestant_track.contestant
@@ -112,7 +131,7 @@ class ConnectedNavigationTask extends Component {
                 this.props.dispatchContestantData(data)
             }
         }
-        setTimeout(() => this.playBackData(), 100)
+        setTimeout(() => this.playBackData(), 200)
     }
 
     initiateSession() {
