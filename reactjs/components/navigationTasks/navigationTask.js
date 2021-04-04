@@ -60,7 +60,7 @@ class ConnectedNavigationTask extends Component {
     storePlaybackData(data) {
         data.logLength = 0
         data.startTime = new Date(this.props.navigationTask.contestant_set.find((contestant) => {
-            return contestant.id = data.contestant_id
+            return contestant.id === data.contestant_id
         }).gate_times[this.props.navigationTask.route.waypoints[0].name])
         this.tracklist.push(data)
     }
