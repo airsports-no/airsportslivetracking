@@ -67,7 +67,7 @@ const aboutPrecisionFlying = (actualRules, waypoints) => {
         <h3>Track rules</h3>
         Backtracking during the route (defined as more
         than {getTrackValue(actualRules.track, "backtracking bearing difference")} degrees of track for more
-        than {getTrackValue(actualRules.track, "backtracking grace time seconds")} seconds gives a penalty
+        than {getTrackValue(actualRules.track, "backtracking grace time seconds")} seconds) gives a penalty
         of {getTrackValue(actualRules.track, "backtracking penalty")} points per
         occurrence{getTrackValue(actualRules.track, "backtracking maximum penalty") >= 0 ?
         <span> (with a maximum of {getTrackValue(actualRules.track, "backtracking maximum penalty")} points)</span> : null}.
