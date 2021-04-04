@@ -48,6 +48,7 @@ class ConnectedNavigationTask extends Component {
         this.client = null;
         this.connectInterval = null;
         this.weTimeOut = 1000
+        this.tracklist = []
     }
 
 
@@ -55,11 +56,73 @@ class ConnectedNavigationTask extends Component {
         if (!this.client || this.client.readyState === WebSocket.CLOSED) this.initiateSession(); //check if websocket instance is closed, if so call `connect` function.
     };
 
+    storePlaybackData(data) {
+        data.logLength = 0
+        this.tracklist.push(data)
+    }
+
+    playBackData() {
+        console.log("Playing back data")
+        for (const track of this.tracklist) {
+            if (track.positions.length > 0) {
+                let positions = []
+                while (track.positions.length > 0) {
+                    positions.push(track.positions.shift())
+                    if (positions.length > 15) {
+                        break
+                    }
+                }
+                const position = positions[0]
+                let annotations = []
+                while (track.annotations.length > 0) {
+                    if (new Date(track.annotations[0].time) < new Date(position.time)) {
+                        annotations.push(track.annotations.shift())
+                    } else {
+                        break
+                    }
+                }
+                // let scoreLog = track.contestant_track.score_log.filter((log) => {
+                //     return new Date(log.time) < new Date(position.time)
+                // })
+                track.logLength += annotations.length
+                const scoreLog = track.contestant_track.score_log.slice(0, track.logLength)
+                let score = 0
+                scoreLog.map((log) => {
+                    score += log.points
+                })
+                const lastGate = scoreLog.length > 0 ? scoreLog.slice(-1).last_gate : ""
+                const data = {
+                    positions: positions,
+                    more_data: false,
+                    contestant_id: track.contestant_track.contestant,
+                    annotations: annotations,
+                    latest_time: position.time,
+                    progress: position.progress,
+                    contestant_track: {
+                        score_log: scoreLog,
+                        score: score,
+                        calculator_finished: false,
+                        score_per_gate: {},
+                        current_state: track.logLength===0?"Waiting...":"Tracking",
+                        last_gate: lastGate,
+                        current_leg: lastGate,
+                        contestant: track.contestant_track.contestant
+                    }
+                }
+                this.props.dispatchContestantData(data)
+            }
+        }
+        setTimeout(() => this.playBackData(), 100)
+    }
+
     initiateSession() {
         let getUrl = window.location;
         let protocol = "wss"
         if (getUrl.host.includes("localhost")) {
             protocol = "ws"
+        }
+        if (this.props.playback) {
+            setTimeout(() => this.playBackData(), 1000)
         }
         this.client = new W3CWebSocket(protocol + "://" + getUrl.host + "/ws/tracks/" + this.props.navigationTaskId + "/")
         this.client.onopen = () => {
@@ -68,7 +131,11 @@ class ConnectedNavigationTask extends Component {
         };
         this.client.onmessage = (message) => {
             let data = JSON.parse(message.data);
-            this.props.dispatchContestantData(data)
+            if (this.props.playback) {
+                this.storePlaybackData(data)
+            } else {
+                this.props.dispatchContestantData(data)
+            }
         };
         this.client.onclose = (e) => {
             console.log(
@@ -132,6 +199,7 @@ class ConnectedNavigationTask extends Component {
             if (this.props.displayMap && !this.rendered) {
                 this.rendered = true;
                 this.initiateSession()
+
             }
         }
         if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map) {
@@ -145,12 +213,12 @@ class ConnectedNavigationTask extends Component {
             zoomDelta: 0.25,
             zoomSnap: 0.25,
         }).on('contextmenu', (e) => this.resetToAllContestants(e))
-                // const logoContainer = document.getElementById("logoContainer")
+        // const logoContainer = document.getElementById("logoContainer")
         // const mapControlContainer = document.getElementsByClassName("leaflet-control")[0]
         // mapControlContainer.appendChild(logoContainer)
     }
 
-    fixMapBackground(){
+    fixMapBackground() {
         const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
         if (this.props.navigationTask.display_background_map) {
             tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {

@@ -175,6 +175,8 @@ class Gatekeeper:
         if capped:
             message += " (capped)"
         internal_message = {
+            "timestamp": self.track[-1].time.isoformat() if len(
+                self.track) > 0 else self.contestant.navigation_task.start_time.isoformat(),
             "gate": gate.name,
             "message": message,
             "points": score,

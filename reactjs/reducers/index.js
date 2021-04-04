@@ -72,12 +72,18 @@ function rootReducer(state = initialState, action) {
         action.payload.contestant_set.map((contestant) => {
 
             contestantData[contestant.id] = {
-                latest_time: state.contestantData[contestant.id] ? state.contestantData[contestant.id].latest_time : "1970-01-01T00:00:00Z",
+                // latest_time: state.contestantData[contestant.id] ? state.contestantData[contestant.id].latest_time : "1970-01-01T00:00:00Z",
+                latest_time: "1970-01-01T00:00:00Z",
                 positions: [],
                 annotations: [],
                 more_data: true,
                 progress: state.contestantData[contestant.id] ? state.contestantData[contestant.id].progress : 0,
-                contestant_track: contestant.contestanttrack
+                // contestant_track: contestant.contestanttrack
+                contestant_track:{
+                    current_state: "Waiting...",
+                    score_log: [],
+                    score: 0
+                }
             }
             contestants[contestant.id] = contestant
             // initialLoading[contestant.id] = true
@@ -272,22 +278,22 @@ function rootReducer(state = initialState, action) {
             zoomContest: action.payload
         })
     }
-    if (action.type===DISPLAY_PAST_EVENTS_MODAL){
+    if (action.type === DISPLAY_PAST_EVENTS_MODAL) {
         return Object.assign({}, state, {
             displayPastEventsModal: action.payload
         })
     }
-    if (action.type===DISPLAY_DISCLAIMER_MODAL){
+    if (action.type === DISPLAY_DISCLAIMER_MODAL) {
         return Object.assign({}, state, {
             displayDisclaimerModal: action.payload
         })
     }
-    if (action.type===DISPLAY_ABOUT_MODAL){
+    if (action.type === DISPLAY_ABOUT_MODAL) {
         return Object.assign({}, state, {
             displayAboutModal: action.payload
         })
     }
-    if (action.type===FETCH_DISCLAIMER_SUCCESSFUL){
+    if (action.type === FETCH_DISCLAIMER_SUCCESSFUL) {
         return Object.assign({}, state, {
             disclaimer: action.payload
         })

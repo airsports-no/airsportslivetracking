@@ -39,6 +39,7 @@ class ConnectedTrackingContainer extends Component {
         this.contestId = document.configuration.contest_id;
         this.displayMap = document.configuration.displayMap;
         this.displayTable = document.configuration.displayTable;
+        this.playback = document.configuration.playback;
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
     }
 
@@ -70,7 +71,7 @@ class ConnectedTrackingContainer extends Component {
         let TrackerDisplay = <NavigationTask map={this.map} contestId={this.contestId}
                                              navigationTaskId={this.navigationTaskId}
                                              fetchInterval={2000}
-                                             displayMap={this.displayMap} displayTable={true}/>
+                                             displayMap={this.displayMap} displayTable={true} playback={this.playback}/>
         if (this.displayTable && this.displayMap) {
             return (
                 <div id="map-holder">

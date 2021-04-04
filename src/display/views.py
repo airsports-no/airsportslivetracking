@@ -117,7 +117,20 @@ def frontend_view_map(request, pk):
         raise Http404
     return render(request, "display/root.html",
                   {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
-                   "display_map": "true", "display_table": "false", "skip_nav": True})
+                   "display_map": "true", "display_table": "false", "skip_nav": True, "playback": "false"})
+
+
+def frontend_playback_map(request, pk):
+    my_contests = get_objects_for_user(request.user, "display.view_contest", accept_global_perms=False)
+    public_contests = Contest.objects.filter(is_public=True)
+    try:
+        navigation_task = NavigationTask.objects.get(
+            Q(contest__in=my_contests) | Q(contest__in=public_contests, is_public=True), pk=pk)
+    except ObjectDoesNotExist:
+        raise Http404
+    return render(request, "display/root.html",
+                  {"contest_id": navigation_task.contest.pk, "navigation_task_id": pk, "live_mode": "true",
+                   "display_map": "true", "display_table": "false", "skip_nav": True, "playback": "true"})
 
 
 def global_map(request):
@@ -838,11 +851,15 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
 
     more_data = len(position_data) == LIMIT and len(position_data) > 0
     reduced_data = []
-    for item in position_data:
+    progress = 0
+    for index, item in enumerate(position_data):
+        if index % 30 == 0:
+            progress = contestant.calculate_progress(dateutil.parser.parse(item["time"]))
         reduced_data.append({
             "latitude": item["latitude"],
             "longitude": item["longitude"],
             "time": item["time"],
+            "progress": progress
         })
     route_progress = contestant.calculate_progress(global_latest_time)
     positions = reduced_data

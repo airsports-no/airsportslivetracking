@@ -14,10 +14,11 @@ from display.views import frontend_view_map, \
     deal_card_to_contestant, list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test, \
     export_navigation_task_results_to_results_service, clear_results_service, delete_score_item, \
-    terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules
+    terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules, frontend_playback_map
 
 urlpatterns = [
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
+    path('task/<int:pk>/playbackmap/', frontend_playback_map, name="frontend_playback_map"),
     path('token/renew', renew_token, name="renewtoken"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
     path('contest/<int:pk>/', ContestDetailView.as_view(), name="contest_details"),
