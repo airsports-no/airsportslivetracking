@@ -78,7 +78,7 @@ class ConnectedNavigationTask extends Component {
                     positions.push(position)
                     track.positions.shift()
                 }
-                const position = positions.slice(-1)[0]
+                const position = positions[positions.length-1]
                 let annotations = []
                 while (track.annotations.length > 0) {
                     if (new Date(track.annotations[0].time).getTime() < new Date(position.time).getTime()) {
@@ -96,7 +96,7 @@ class ConnectedNavigationTask extends Component {
                 scoreLog.map((log) => {
                     score += log.points
                 })
-                const lastGate = scoreLog.length > 0 ? scoreLog.slice(-1).last_gate : ""
+                const lastGate = scoreLog.length > 0 ? scoreLog.slice(-1)[0].last_gate : ""
                 const data = {
                     positions: positions,
                     more_data: false,
