@@ -81,7 +81,7 @@ class ConnectedNavigationTask extends Component {
                 const position = positions[positions.length-1]
                 let annotations = []
                 while (track.annotations.length > 0) {
-                    if (new Date(track.annotations[0].time).getTime() < new Date(position.time).getTime()) {
+                    if ((new Date(track.annotations[0].time)).getTime() < (new Date(position.time)).getTime()) {
                         annotations.push(track.annotations.shift())
                     } else {
                         break
