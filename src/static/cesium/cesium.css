@@ -176,7 +176,7 @@ tr.hidden {
 }
 
 .gateTimesText {
-    font-size: small;
+    font-size: clamp(0.25rem, -0.0372rem + 1.2766vw, 1rem);
 }
 
 
