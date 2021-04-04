@@ -500,7 +500,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-
+    actual_rules=serializers.JSONField(read_only=True)
     route = RouteSerialiser()
 
     def get_scorecard_data(self, navigation_task):

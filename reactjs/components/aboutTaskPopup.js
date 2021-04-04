@@ -10,11 +10,11 @@ export default class AboutTaskPopup extends Component {
         if (this.props.navigationTask.contestant_set !== undefined) {
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard_data.task_type.includes("precision")) {
-                    text = aboutPrecisionFlying
+                    text = aboutPrecisionFlying(this.props.navigationTask.actual_rules)
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
                     text = aboutPilotPokerRun
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
-                    text = aboutANR(this.props.navigationTask.track_score_override, this.props.navigationTask.gate_score_override)
+                    text = aboutANR(this.props.navigationTask.actual_rules)
                 }
             }
         }

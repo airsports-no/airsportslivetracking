@@ -5,6 +5,7 @@ from plistlib import Dict
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
 from typing import List, Optional, Tuple
+from unittest.mock import Mock
 
 import eval7 as eval7
 from django import core
@@ -435,6 +436,13 @@ class NavigationTask(models.Model):
     @property
     def everything_public(self):
         return self.is_public and self.contest.is_public
+
+    @property
+    def actual_rules(self):
+        mock_contestant = Mock(Contestant)
+        mock_contestant.get_track_score_override.return_value = None
+        mock_contestant.get_gate_score_override.return_value = None
+        return self.scorecard.scores_display(mock_contestant)
 
     class Meta:
         ordering = ("start_time", "finish_time")
