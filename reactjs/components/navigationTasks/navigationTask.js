@@ -68,7 +68,7 @@ class ConnectedNavigationTask extends Component {
                 let positions = []
                 while (track.positions.length > 0) {
                     positions.push(track.positions.shift())
-                    if (positions.length > 15) {
+                    if (positions.length > 0) {
                         break
                     }
                 }
