@@ -49,6 +49,7 @@ class ConnectedNavigationTask extends Component {
         this.connectInterval = null;
         this.weTimeOut = 1000
         this.tracklist = []
+        this.playbackSecond = -90
     }
 
 
@@ -63,20 +64,9 @@ class ConnectedNavigationTask extends Component {
     }
 
     trimPlaybackStart() {
-        let minimumLead = 9999999
         for (const track of this.tracklist) {
             if (track.annotations.length > 0) {
-                const firstAnnotationTime = new Date(track.annotations[0].time)
-                const leadPositions = track.positions.filter((position) => {
-                    return new Date(position.time) < firstAnnotationTime
-                })
-                track.leadPositions = leadPositions.length
-                minimumLead = Math.min(minimumLead, leadPositions.length)
-            }
-        }
-        if (minimumLead < 9999999) {
-            for (const track of this.tracklist) {
-                track.positions = track.positions.slice(track.leadPositions - minimumLead)
+                track.startTime = new Date(track.annotations[0].time)
             }
         }
     }
@@ -86,8 +76,9 @@ class ConnectedNavigationTask extends Component {
             if (track.positions.length > 0) {
                 let positions = []
                 while (track.positions.length > 0) {
-                    positions.push(track.positions.shift())
-                    if (positions.length > this.tracklist.length / 2) {
+                    const position = track.positions.shift()
+                    positions.push(position)
+                    if(new Date(position.time).getTime()-track.startTime.getTime()>this.playbackSecond*1000){
                         break
                     }
                 }
@@ -131,6 +122,7 @@ class ConnectedNavigationTask extends Component {
                 this.props.dispatchContestantData(data)
             }
         }
+        this.playbackSecond += this.tracklist.length/2
         setTimeout(() => this.playBackData(), 200)
     }
 
