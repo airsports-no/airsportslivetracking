@@ -70,12 +70,12 @@ class ConnectedNavigationTask extends Component {
             if (track.positions.length > 0) {
                 let positions = []
                 while (track.positions.length > 0) {
-                    const position = track.positions[0]
-                    const currentTime = new Date(position.time)
+                    const p = track.positions[0]
+                    const currentTime = new Date(p.time)
                     if (currentTime.getTime() > track.startTime.getTime() + this.playbackSecond * 1000) {
                         break
                     }
-                    positions.push(position)
+                    positions.push(p)
                     track.positions.shift()
                 }
                 const position = positions[positions.length-1]
