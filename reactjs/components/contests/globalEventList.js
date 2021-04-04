@@ -9,6 +9,7 @@ import Icon from "@mdi/react";
 import {mdiCog, mdiLogin, mdiLogout} from '@mdi/js'
 import {Modal, Container, Row, Button, Col} from "react-bootstrap";
 import ContestPopupItem from "./contestPopupItem";
+import ContestItem from "./contestItem";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -38,29 +39,47 @@ function sortContestTimes(a, b) {
     return 0;
 }
 
-function PastEvents(props) {
-    let contestBoxes = props.contests.map((contest) => {
-        return <div key={contest.id + "past_event_div"} style={{paddingTop: "2px", paddingBottom: "4px", width: "300px"}}>
-            <li key={contest.id + "past_event"} className={"card"}><ContestPopupItem contest={contest}/></li>
-        </div>
-    })
-    contestBoxes.reverse()
-    return (
-        <Modal {...props} aria-labelledby="contained-modal-title-vcenter">
-            <Modal.Header closeButton>
-                <Modal.Title id="contained-modal-title-vcenter">
-                    Past events
-                </Modal.Title>
-            </Modal.Header>
-            <Modal.Body className="show-grid">
-                <Container>
-                    <ul className={"d-flex flex-wrap justify-content-around"} style={{paddingLeft: "0px"}}>
-                        {contestBoxes}
-                    </ul>
-                </Container>
-            </Modal.Body>
-        </Modal>
-    );
+class PastEvents extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {contest: null}
+    }
+
+    // let contestBoxes = props.contests.map((contest) => {
+    //     return <div key={contest.id + "past_event_div"} style={{paddingTop: "2px", paddingBottom: "4px", width: "300px"}}>
+    //         <li key={contest.id + "past_event"} className={"card"}><ContestPopupItem contest={contest}/></li>
+    //     </div>
+    // })
+    render() {
+        let contestBoxes = this.props.contests.map((contest) => {
+            return <span key={contest.id+"past_event_span"} style={{width: "350px"}} onClick={() => this.setState({contest: contest})}><ContestItem
+                key={"contest" + contest.pk} contest={contest}
+                disableClick={true}/></span>
+        })
+
+        contestBoxes.reverse()
+        return (
+            <Modal {...this.props} aria-labelledby="contained-modal-title-vcenter">
+                <Modal.Header closeButton>
+                    <Modal.Title id="contained-modal-title-vcenter">
+                        Past events
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="show-grid">
+                    <Container>
+                        {this.state.contest ?
+                            <span onClick={() => this.setState({contest: null})} className={'past-event-detail'}>
+                            <ContestPopupItem contest={this.state.contest}/>
+                            </span> :
+                            <ul className={"d-flex flex-wrap justify-content-around"} style={{paddingLeft: "0px"}}>
+                                {contestBoxes}
+                            </ul>
+                        }
+                    </Container>
+                </Modal.Body>
+            </Modal>
+        );
+    }
 }
 
 class ConnectedGlobalEventList extends Component {

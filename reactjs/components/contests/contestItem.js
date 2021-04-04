@@ -35,7 +35,9 @@ function sortTaskTimes(a, b) {
 
 class ConnectedContestItem extends Component {
     handleClick() {
-        this.props.zoomFocusContest(this.props.contest.id)
+        if (!this.props.disableClick) {
+            this.props.zoomFocusContest(this.props.contest.id)
+        }
     }
 
     render() {

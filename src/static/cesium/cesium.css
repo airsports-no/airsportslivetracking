@@ -342,6 +342,11 @@ tr.hidden {
     max-height: 400px;
 }
 
+.past-event-detail  {
+	display: flex;
+	justify-content: center;
+}
+
 .taskTitle {
     /*font-size: clamp(1rem, 0.1667rem + 3.33333vw, 2rem);*/
     /*font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);;*/
