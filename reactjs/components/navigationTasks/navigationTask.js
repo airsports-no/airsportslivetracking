@@ -59,16 +59,10 @@ class ConnectedNavigationTask extends Component {
 
     storePlaybackData(data) {
         data.logLength = 0
+        data.startTime = new Date(this.props.navigationTask.contestant_set.find((contestant) => {
+            return contestant.id = data.contestant_id
+        }).gate_times[this.props.navigationTask.route.waypoints[0].name])
         this.tracklist.push(data)
-        this.trimPlaybackStart()
-    }
-
-    trimPlaybackStart() {
-        for (const track of this.tracklist) {
-            if (track.annotations.length > 0) {
-                track.startTime = new Date(track.annotations[0].time)
-            }
-        }
     }
 
     playBackData() {
@@ -78,11 +72,11 @@ class ConnectedNavigationTask extends Component {
                 while (track.positions.length > 0) {
                     const position = track.positions.shift()
                     positions.push(position)
-                    if(new Date(position.time).getTime()-track.startTime.getTime()>this.playbackSecond*1000){
+                    if ((new Date(position.time)).getTime() - track.startTime.getTime() > this.playbackSecond * 1000) {
                         break
                     }
                 }
-                const position = positions[0]
+                const position = positions.slice(-1)
                 let annotations = []
                 while (track.annotations.length > 0) {
                     if (new Date(track.annotations[0].time) < new Date(position.time)) {
@@ -122,7 +116,7 @@ class ConnectedNavigationTask extends Component {
                 this.props.dispatchContestantData(data)
             }
         }
-        this.playbackSecond += this.tracklist.length/2
+        this.playbackSecond += this.tracklist.length / 2
         setTimeout(() => this.playBackData(), 200)
     }
 
