@@ -59,7 +59,6 @@ class ConnectedNavigationTask extends Component {
 
     storePlaybackData(data) {
         data.logLength = 0
-        console.log(this.props.navigationTask.route.waypoints[0].name)
         data.startTime = new Date(this.props.navigationTask.contestant_set.find((contestant) => {
             return contestant.id === data.contestant_id
         }).gate_times[this.props.navigationTask.route.waypoints[0].name])
@@ -82,7 +81,7 @@ class ConnectedNavigationTask extends Component {
                 const position = positions.slice(-1)[0]
                 let annotations = []
                 while (track.annotations.length > 0) {
-                    if (new Date(track.annotations[0].time) < new Date(position.time)) {
+                    if (new Date(track.annotations[0].time).getTime() < new Date(position.time).getTime()) {
                         annotations.push(track.annotations.shift())
                     } else {
                         break
