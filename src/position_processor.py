@@ -126,6 +126,9 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
             if contestant.navigation_task.everything_public:
                 navigation_task_id = contestant.navigation_task_id
             global_tracking_name = contestant.team.aeroplane.registration
+            person = contestant.team.crew.member1
+            if person.is_public:
+                person_data = PersonSerialiser(person).data
             data = influx.generate_position_block_for_contestant(contestant, position_data, device_time)
             try:
                 received_tracks[contestant].append(data)
