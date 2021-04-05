@@ -854,7 +854,7 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     progress = 0
     for index, item in enumerate(position_data):
         if index % 30 == 0:
-            progress = contestant.calculate_progress(dateutil.parser.parse(item["time"]))
+            progress = contestant.calculate_progress(dateutil.parser.parse(item["time"]), ignore_finished=True)
         reduced_data.append({
             "latitude": item["latitude"],
             "longitude": item["longitude"],
@@ -871,11 +871,8 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
     else:
         contestant_track = None
     logger.info("Completed generating data {}".format(contestant.pk))
-    # if len(positions) == 0:
-    #     return {}
     data = {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
             "annotations": annotations, "more_data": more_data, "progress": route_progress}
-    # if len(positions) > 0:
     data["contestant_track"] = contestant_track
     return data
 

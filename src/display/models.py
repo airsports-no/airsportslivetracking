@@ -1004,14 +1004,14 @@ class Contestant(models.Model):
         # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.navigation_task.name, self.takeoff_time,
         #                                       self.finished_by_time)
 
-    def calculate_progress(self, latest_time: datetime) -> float:
+    def calculate_progress(self, latest_time: datetime, ignore_finished:bool = False) -> float:
         if NavigationTask.POKER in self.navigation_task.scorecard.task_type:
             return 100 * self.contestanttrack.playingcard_set.all().count() / 5
         if NavigationTask.LANDING in self.navigation_task.scorecard.task_type:
             # A progress of zero will also leave estimated score blank
             return 0
         route_progress = 100
-        if len(self.navigation_task.route.waypoints) > 0 and not self.contestanttrack.calculator_finished:
+        if len(self.navigation_task.route.waypoints) > 0 and (not self.contestanttrack.calculator_finished or ignore_finished):
             first_gate = self.navigation_task.route.waypoints[0]
             last_gate = self.navigation_task.route.waypoints[-1]
 
