@@ -170,7 +170,7 @@ class Aircraft {
         this.colourTimer = setTimeout(() => this.agePlane(), 15000)
         const position = this.replaceTime(p)
         const opacity = this.calculateOpacity(position.speed)
-        if ((p.person && !position.person) || (!p.person && position.person)) {
+        if ((p.person && !this.latestPosition.person) || (!p.person && this.latestPosition.person)) {
             this.updateTooltip(p)
         }
         this.latestPosition = position
