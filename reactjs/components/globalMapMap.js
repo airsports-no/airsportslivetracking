@@ -86,6 +86,8 @@ class Aircraft {
     }
 
     updateTooltip(position) {
+        this.dotText.unbindTooltip()
+        this.dot.unbindTooltip()
         let tooltipContents = null
         if (this.navigation_task_link) {
             tooltipContents = <div>
