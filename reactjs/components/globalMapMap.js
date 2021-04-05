@@ -1,6 +1,8 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {tileLayer} from "leaflet";
+import 'leaflet/dist/leaflet.css';
+
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import ContestsGlobalMap from "./contests/contestsGlobalMap";
 import {zoomFocusContest} from "../actions";
