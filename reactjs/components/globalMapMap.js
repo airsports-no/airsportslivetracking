@@ -1,16 +1,28 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {tileLayer} from "leaflet";
-import 'leaflet/dist/leaflet.css';
 
 import {w3cwebsocket as W3CWebSocket} from "websocket";
-import ContestsGlobalMap from "./contests/contestsGlobalMap";
 import {zoomFocusContest} from "../actions";
 import {SocialMediaLinks} from "./socialMediaLinks";
 import ReactDOMServer from "react-dom/server";
 import ContestPopupItem from "./contests/contestPopupItem";
+import L from 'leaflet';
+// const L = window['L']
+// import 'leaflet/dist/leaflet.css';
+import marker from 'leaflet/dist/images/marker-icon.png';
+import marker2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import {tileLayer} from "leaflet";
 
-const L = window['L']
+// delete L.Icon.Default.prototype._getIconUrl;
+//
+// L.Icon.Default.mergeOptions({
+//     iconRetinaUrl: marker2x,
+//     iconUrl: marker,
+//     shadowUrl: markerShadow
+// });
+import ContestsGlobalMap from "./contests/contestsGlobalMap";
+
 const TRAIL_LENGTH = 180;
 export const mapStateToProps = (state, props) => ({
     zoomContest: state.zoomContest,

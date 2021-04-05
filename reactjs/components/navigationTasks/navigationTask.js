@@ -9,7 +9,7 @@ import {
 } from "../../actions";
 import {connect} from "react-redux";
 import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
-import 'leaflet/dist/leaflet.css';
+// import 'leaflet/dist/leaflet.css';
 import ContestantTrack from "../contestantTrack";
 import distinctColors from "distinct-colors";
 import {compareContestantNumber} from "../../utilities";
