@@ -78,44 +78,46 @@ class ConnectedNavigationTask extends Component {
                     positions.push(p)
                     track.positions.shift()
                 }
-                const position = positions[positions.length-1]
-                let annotations = []
-                while (track.annotations.length > 0) {
-                    if ((new Date(track.annotations[0].time)).getTime() < (new Date(position.time)).getTime()) {
-                        annotations.push(track.annotations.shift())
-                    } else {
-                        break
+                if (positions.length > 0) {
+                    const position = positions[positions.length - 1]
+                    let annotations = []
+                    while (track.annotations.length > 0) {
+                        if ((new Date(track.annotations[0].time)).getTime() < (new Date(position.time)).getTime()) {
+                            annotations.push(track.annotations.shift())
+                        } else {
+                            break
+                        }
                     }
-                }
-                // let scoreLog = track.contestant_track.score_log.filter((log) => {
-                //     return new Date(log.time) < new Date(position.time)
-                // })
-                track.logLength += annotations.length
-                const scoreLog = track.contestant_track.score_log.slice(0, track.logLength)
-                let score = 0
-                scoreLog.map((log) => {
-                    score += log.points
-                })
-                const lastGate = scoreLog.length > 0 ? scoreLog.slice(-1)[0].last_gate : ""
-                const data = {
-                    positions: positions,
-                    more_data: false,
-                    contestant_id: track.contestant_track.contestant,
-                    annotations: annotations,
-                    latest_time: position.time,
-                    progress: position.progress,
-                    contestant_track: {
-                        score_log: scoreLog,
-                        score: score,
-                        calculator_finished: false,
-                        score_per_gate: {},
-                        current_state: track.logLength === 0 ? "Waiting..." : "Tracking",
-                        last_gate: lastGate,
-                        current_leg: lastGate,
-                        contestant: track.contestant_track.contestant
+                    // let scoreLog = track.contestant_track.score_log.filter((log) => {
+                    //     return new Date(log.time) < new Date(position.time)
+                    // })
+                    track.logLength += annotations.length
+                    const scoreLog = track.contestant_track.score_log.slice(0, track.logLength)
+                    let score = 0
+                    scoreLog.map((log) => {
+                        score += log.points
+                    })
+                    const lastGate = scoreLog.length > 0 ? scoreLog.slice(-1)[0].last_gate : ""
+                    const data = {
+                        positions: positions,
+                        more_data: false,
+                        contestant_id: track.contestant_track.contestant,
+                        annotations: annotations,
+                        latest_time: position.time,
+                        progress: position.progress,
+                        contestant_track: {
+                            score_log: scoreLog,
+                            score: score,
+                            calculator_finished: false,
+                            score_per_gate: {},
+                            current_state: track.logLength === 0 ? "Waiting..." : "Tracking",
+                            last_gate: lastGate,
+                            current_leg: lastGate,
+                            contestant: track.contestant_track.contestant
+                        }
                     }
+                    this.props.dispatchContestantData(data)
                 }
-                this.props.dispatchContestantData(data)
             }
         }
         this.playbackSecond += this.tracklist.length / 2
