@@ -352,7 +352,7 @@ class Contest(models.Model):
                                                        help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
                                                        max_length=50, blank=True)
     autosum_scores = models.BooleanField(default=True,
-                                         help_text="If true, the front end will sum all tasks into ContestSummary when any task is updated")
+                                         help_text="If true, contest summary points for a team will be updated with the new sum when any task is updated")
     name = models.CharField(max_length=100, unique=True)
     time_zone = TimeZoneField()
     latitude = models.FloatField(default=0, help_text="Approximate location of contest, used for global map display",
