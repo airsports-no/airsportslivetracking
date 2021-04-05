@@ -85,8 +85,7 @@ class Aircraft {
         }
     }
 
-    createLiveEntities(position, colour) {
-        const opacity = this.calculateOpacity(position.speed)
+    updateTooltip(position) {
         let tooltipContents = null
         if (this.navigation_task_link) {
             tooltipContents = <div>
@@ -105,7 +104,20 @@ class Aircraft {
                     <a href={this.navigation_task_link}>Flying in competition</a> : ""}
             </div>
             tooltipContents = ReactDOMServer.renderToString(tooltipContents)
+            if (tooltipContents) {
+                this.dot.bindTooltip(tooltipContents, {
+                    permanent: false
+                })
+                this.dotText.bindTooltip(tooltipContents, {
+                    permanent: false
+                })
+            }
+
         }
+    }
+
+    createLiveEntities(position, colour) {
+        const opacity = this.calculateOpacity(position.speed)
         this.navigation_task_link ? "Competing in navigation task" : null
         this.dot = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
@@ -121,19 +133,12 @@ class Aircraft {
             //         window.location.href = this.navigation_task_link
             //     }
         }).addTo(this.map)
-        if (tooltipContents) {
-            this.dot.bindTooltip(tooltipContents, {
-                permanent: false
-            })
-            this.dotText.bindTooltip(tooltipContents, {
-                permanent: false
-            })
-        }
         this.trail = L.polyline([[position.latitude, position.longitude]], {
             color: colour,
             opacity: opacity,
             weight: 3
         }).addTo(this.map)
+        this.updateTooltip(position)
         this.updateIcon(position, colour, opacity)
     }
 
@@ -165,6 +170,9 @@ class Aircraft {
         this.colourTimer = setTimeout(() => this.agePlane(), 15000)
         const position = this.replaceTime(p)
         const opacity = this.calculateOpacity(position.speed)
+        if ((p.person && !position.person) || (!p.person && position.person)) {
+            this.updateTooltip(p)
+        }
         this.latestPosition = position
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])

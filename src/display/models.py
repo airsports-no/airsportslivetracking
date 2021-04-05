@@ -197,7 +197,8 @@ class Person(models.Model):
     picture = models.ImageField(upload_to='images/people/', null=True, blank=True)
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
-    is_public = models.BooleanField(default = False, help_text = "If true, the person's name will be displayed together with the callsign on the global map")
+    is_public = models.BooleanField(default=False,
+                                    help_text="If true, the person's name will be displayed together with the callsign on the global map")
 
     @property
     def phone_country_prefix(self):
@@ -1004,14 +1005,15 @@ class Contestant(models.Model):
         # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.navigation_task.name, self.takeoff_time,
         #                                       self.finished_by_time)
 
-    def calculate_progress(self, latest_time: datetime, ignore_finished:bool = False) -> float:
+    def calculate_progress(self, latest_time: datetime, ignore_finished: bool = False) -> float:
         if NavigationTask.POKER in self.navigation_task.scorecard.task_type:
             return 100 * self.contestanttrack.playingcard_set.all().count() / 5
         if NavigationTask.LANDING in self.navigation_task.scorecard.task_type:
             # A progress of zero will also leave estimated score blank
             return 0
         route_progress = 100
-        if len(self.navigation_task.route.waypoints) > 0 and (not self.contestanttrack.calculator_finished or ignore_finished):
+        if len(self.navigation_task.route.waypoints) > 0 and (
+                not self.contestanttrack.calculator_finished or ignore_finished):
             first_gate = self.navigation_task.route.waypoints[0]
             last_gate = self.navigation_task.route.waypoints[-1]
 
