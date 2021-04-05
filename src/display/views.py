@@ -1420,8 +1420,8 @@ class UserPersonViewSet(GenericViewSet):
     @action(detail=False, methods=["get"])
     def get_current_sim_navigation_task(self, request, *args, **kwargs):
         person = self.get_object()
-        contestant = Contestant.get_contestant_for_device_at_time(person.simulator_tracking_id,
-                                                                  datetime.datetime.now(datetime.timezone.utc))
+        contestant, _ = Contestant.get_contestant_for_device_at_time(person.simulator_tracking_id,
+                                                                     datetime.datetime.now(datetime.timezone.utc))
         if not contestant:
             raise Http404
         return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
@@ -1429,8 +1429,8 @@ class UserPersonViewSet(GenericViewSet):
     @action(detail=False, methods=["get"])
     def get_current_app_navigation_task(self, request, *args, **kwargs):
         person = self.get_object()
-        contestant = Contestant.get_contestant_for_device_at_time(person.simulator_tracking_id,
-                                                                  datetime.datetime.now(datetime.timezone.utc))
+        contestant, _ = Contestant.get_contestant_for_device_at_time(person.simulator_tracking_id,
+                                                                     datetime.datetime.now(datetime.timezone.utc))
         if not contestant:
             raise Http404
         return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
