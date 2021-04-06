@@ -74,10 +74,10 @@ CONTESTANT_DATA = {
 class TestCreateNavigationTask(APITestCase):
     def setUp(self):
         create_scorecards()
-        self.user_owner = get_user_model().objects.create(email="withpermissions")
+        self.user_owner = get_user_model().objects.create_and_push(email="withpermissions")
         permission = Permission.objects.get(codename="add_contest")
         self.user_owner.user_permissions.add(permission)
-        self.user_without_permissions = get_user_model().objects.create(email="withoutpermissions")
+        self.user_without_permissions = get_user_model().objects.create_and_push(email="withoutpermissions")
         self.client.force_login(user=self.user_owner)
         result = self.client.post(reverse("contests-list"), data={"name": "TestContest", "is_public": False,
                                                                   "start_time": datetime.datetime.now(
@@ -125,14 +125,14 @@ class TestAccessNavigationTask(APITestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, patch):
         create_scorecards()
-        self.user_owner = get_user_model().objects.create(email="withpermissions")
+        self.user_owner = get_user_model().objects.create_and_push(email="withpermissions")
         self.user_owner.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
             Permission.objects.get(codename="view_contest"),
             Permission.objects.get(codename="change_contest"),
             Permission.objects.get(codename="delete_contest")
         )
-        self.user_someone_else = get_user_model().objects.create(email="withoutpermissions")
+        self.user_someone_else = get_user_model().objects.create_and_push(email="withoutpermissions")
         self.user_someone_else.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
             Permission.objects.get(codename="view_contest"),
@@ -159,7 +159,7 @@ class TestAccessNavigationTask(APITestCase):
                                   data=CONTESTANT_DATA, format="json")
         print("Contestant result: {}".format(result.content))
         self.contestant = Contestant.objects.get(pk=result.json()["id"])
-        self.different_user_with_object_permissions = get_user_model().objects.create(email="objectpermissions")
+        self.different_user_with_object_permissions = get_user_model().objects.create_and_push(email="objectpermissions")
         self.different_user_with_object_permissions.user_permissions.add(
             Permission.objects.get(codename="add_contest"),
             Permission.objects.get(codename="change_contest"),

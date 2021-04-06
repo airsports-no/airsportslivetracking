@@ -15,7 +15,7 @@ from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
     calculate_fractional_distance_point_lat_lon
-from display.models import ContestantTrack, Contestant
+from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry
 from display.waypoint import Waypoint
 
 from influx_facade import InfluxFacade
@@ -63,7 +63,6 @@ class Gatekeeper:
         self.influx = InfluxFacade()
         self.track = []  # type: List[Position]
         self.score = 0
-        self.score_by_gate = {}
         self.has_passed_finishpoint = False
         self.last_gate_index = 0
         self.enroute = False
@@ -136,9 +135,8 @@ class Gatekeeper:
                 -1].time >= p.time):
                 # Old or duplicate position, ignoring
                 continue
-            progress = self.contestant.calculate_progress(p.time)
             if self.live_processing:
-                self.influx.put_position_data_for_contestant(self.contestant, [data], progress)
+                self.influx.put_position_data_for_contestant(self.contestant, [data])
             for position in self.interpolate_track(p):
                 self.track.append(position)
                 if len(self.track) > 1:
@@ -174,40 +172,30 @@ class Gatekeeper:
             offset_string = None
         if capped:
             message += " (capped)"
-        internal_message = {
-            "timestamp": self.track[-1].time.isoformat() if len(
-                self.track) > 0 else self.contestant.navigation_task.start_time.isoformat(),
-            "gate": gate.name,
-            "message": message,
-            "points": score,
-            "planned": planned.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
-                "%H:%M:%S %z") if planned else None,
-            "actual": actual.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
-                "%H:%M:%S %z") if actual else None,
-            "offset_string": offset_string
-        }
+        planned_time = planned.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
+            "%H:%M:%S %z") if planned else None
+        actual_time = actual.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
+            "%H:%M:%S %z") if actual else None
         string = "{}: {} points {}".format(gate.name, score, message)
         if offset_string:
             string += " ({})".format(offset_string)
         if planned and actual:
-            string += "\n(planned: {}, actual: {})".format(internal_message["planned"], internal_message["actual"])
+            string += "\n(planned: {}, actual: {})".format(planned_time, actual_time)
         elif planned:
-            string += "\n(planned: {}, actual: --)".format(internal_message["planned"])
-        internal_message["string"] = string
+            string += "\n(planned: {}, actual: --)".format(planned_time)
         logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))
         # Take into account that external events may have changed the score
         self.contestant.contestanttrack.refresh_from_db()
+        self.contestant.record_score_by_gate(gate.name, score)
         self.score = self.contestant.contestanttrack.score
         self.score += score
-        try:
-            self.score_by_gate[gate.name] += score
-        except KeyError:
-            self.score_by_gate[gate.name] = self.score
-        self.influx.add_annotation(self.contestant, latitude, longitude, string, annotation_type,
-                                   self.track[-1].time)  # TODO: Annotations with the same time
-        self.contestant.contestanttrack.score_log.append(internal_message)
-        self.contestant.contestanttrack.update_score(self.score_by_gate, self.score,
-                                                     self.contestant.contestanttrack.score_log)
+        entry = ScoreLogEntry.create_and_push(contestant=self.contestant, time=self.track[-1] if len(
+            self.track) > 0 else self.contestant.navigation_task.start_time, gate=gate.name,
+                                      message=message, points=score, planned=planned_time, actual=actual_time,
+                                      offset_string=offset_string, string=string)
+        TrackAnnotation.create_and_push(contestant=self.contestant, latitude=latitude, longitude=longitude,
+                                        message=string, annotation_type=annotation_type, time=self.track[-1].time, score_log_entry = entry)
+        self.contestant.contestanttrack.update_score(self.score)
 
     def create_gates(self) -> List[Gate]:
         waypoints = self.contestant.navigation_task.route.waypoints

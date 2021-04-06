@@ -42,7 +42,7 @@ class TrackingConsumer(WebsocketConsumer):
             return
         self.accept()
         for contestant in navigation_task.contestant_set.all():
-            self.send(json.dumps(cached_generate_data(contestant.pk, None), cls=DateTimeEncoder))
+            self.send(json.dumps(cached_generate_data(contestant.pk), cls=DateTimeEncoder))
 
     def disconnect(self, code):
         async_to_sync(self.channel_layer.group_discard)(

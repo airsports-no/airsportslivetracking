@@ -1158,9 +1158,9 @@ class Contestant(models.Model):
                 planned = self.takeoff_time
             elif gate_name == self.navigation_task.route.landing_gate.name:
                 planned = self.finished_by_time
-        actual = self.contestanttrack.gate_actual_times.get(gate_name)
+        actual = self.actualgatetime_set.filter(gate=gate_name).first()
         if planned and actual:
-            return (actual - planned).total_seconds()
+            return (actual.time - planned).total_seconds()
         return None
 
     def get_track_score_override(self) -> Optional[TrackScoreOverride]:
@@ -1233,14 +1233,88 @@ class Contestant(models.Model):
         except IndexError:
             return None
 
+    def record_actual_gate_time(self, gate_name: str, passing_time: datetime.datetime):
+        try:
+            ActualGateTime.objects.create(gate=gate_name, time=passing_time, contestant=self)
+        except IntegrityError:
+            logger.exception(f"Contestant has already passed gate {gate_name}")
 
-CONTESTANT_CACHE_KEY = "contestant"
+    def record_score_by_gate(self, gate_name: str, score: float):
+        gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self)
+        gate_score.points += score
+        gate_score.save()
+
+
+class ScoreLogEntry(models.Model):
+    time = models.DateTimeField()
+    contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
+    gate = models.CharField(max_length=30, default="")
+    message = models.TextField(default="")
+    string = models.TextField(default="")
+    points = models.FloatField()
+    planned = models.DateTimeField(blank=True, null=True)
+    actual = models.DateTimeField(blank=True, null=True)
+    offset_string = models.CharField(max_length=200, blank=True, null=True)
+
+    class Meta:
+        ordering = ("time",)
+
+    @classmethod
+    def create_and_push(cls, **kwargs):
+        entry = cls.objects.create(**kwargs)
+        from websocket_channels import WebsocketFacade
+        ws = WebsocketFacade()
+        ws.transmit_score_log_entry(entry.contestant)
+        return entry
+
+
+class TrackAnnotation(models.Model):
+    ANOMALY = "anomaly"
+    INFORMATION = "information"
+    TYPES = [
+        (ANOMALY, "Anomaly"),
+        (INFORMATION, "Information")
+    ]
+    time = models.DateTimeField()
+    contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
+    score_log_entry = models.ForeignKey(ScoreLogEntry, on_delete=models.CASCADE)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    message = models.TextField()
+    type = models.CharField(max_length=30, choices=TYPES)
+
+    class Meta:
+        ordering = ("time",)
+
+    @classmethod
+    def create_and_push(cls, **kwargs):
+        annotation = cls.objects.create(**kwargs)
+        from websocket_channels import WebsocketFacade
+        ws = WebsocketFacade()
+        ws.transmit_annotations(annotation.contestant)
+        return annotation
+
+
+class GateCumulativeScore(models.Model):
+    contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
+    gate = models.CharField(max_length=30)
+    points = models.FloatField(default=0)
+
+    class Meta:
+        unique_together = ("contestant", "gate")
+
+
+class ActualGateTime(models.Model):
+    contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
+    gate = models.CharField(max_length=30)
+    time = models.DateTimeField()
+
+    class Meta:
+        unique_together = ("contestant", "gate")
 
 
 class ContestantTrack(models.Model):
     contestant = models.OneToOneField(Contestant, on_delete=models.CASCADE)
-    score_log = MyPickledObjectField(default=list)
-    score_per_gate = MyPickledObjectField(default=dict)
     score = models.FloatField(default=0)
     current_state = models.CharField(max_length=200, default="Waiting...")
     current_leg = models.CharField(max_length=100, default="")
@@ -1249,7 +1323,6 @@ class ContestantTrack(models.Model):
     past_starting_gate = models.BooleanField(default=False)
     past_finish_gate = models.BooleanField(default=False)
     calculator_finished = models.BooleanField(default=False)
-    gate_actual_times = MyPickledObjectField(default=dict)
 
     def update_last_gate(self, gate_name, time_difference):
         self.refresh_from_db()
@@ -1257,11 +1330,9 @@ class ContestantTrack(models.Model):
         self.last_gate_time_offset = time_difference
         self.save()
 
-    def update_score(self, score_per_gate, score, score_log):
+    def update_score(self, score):
         self.refresh_from_db()
         self.score = score
-        self.score_per_gate = score_per_gate
-        self.score_log = score_log
         self.save()
 
     def updates_current_state(self, state: str):
@@ -1281,27 +1352,27 @@ class ContestantTrack(models.Model):
         self.calculator_finished = True
         self.save()
 
-    def update_gate_time(self, gate_name: str, passing_time: datetime.datetime):
-        self.refresh_from_db()
-        self.gate_actual_times[gate_name] = passing_time
-        self.save()
+    def __push_change(self):
+        from websocket_channels import WebsocketFacade
+        ws = WebsocketFacade()
+        ws.transmit_playing_cards(self)
 
 
 ########### POKER
 class PlayingCard(models.Model):
-    contestant_track = models.ForeignKey(ContestantTrack, on_delete=models.CASCADE)
+    contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
     card = models.CharField(max_length=2, choices=PLAYING_CARDS)
 
     @classmethod
     def get_random_unique_card(cls, contestant: Contestant) -> str:
         cards = [item[0] for item in PLAYING_CARDS]
-        existing_cards = contestant.contestanttrack.playingcard_set.all().values_list("card", flat=True)
+        existing_cards = contestant.playingcard_set.all().values_list("card", flat=True)
         available_cards = set(cards) - set(existing_cards)
         if len(available_cards) == 0:
             raise ValueError(
                 f"There are no available cards to choose for the contestant, he/she already has {len(existing_cards)}.")
         random_card = random.choice(list(available_cards))
-        while contestant.contestanttrack.playingcard_set.filter(card=random_card).exists():
+        while contestant.playingcard_set.filter(card=random_card).exists():
             random_card = random.choice([item[0] for item in PLAYING_CARDS])
         return random_card
 
@@ -1322,54 +1393,48 @@ class PlayingCard(models.Model):
 
     @classmethod
     def remove_contestant_card(cls, contestant: Contestant, card_pk: int):
-        card = contestant.contestanttrack.playingcard_set.filter(pk=card_pk).first()
+        card = contestant.playingcard_set.filter(pk=card_pk).first()
         if card is not None:
             relative_score, hand_description = cls.get_relative_score(contestant)
-            score_per_gate = contestant.contestanttrack.score_per_gate
             waypoint = contestant.navigation_task.route.waypoints[-1].name
-            score_per_gate[waypoint] = relative_score
-            internal_message = {
-                "gate": waypoint,
-                "message": "Removed card {}, current hand is {}".format(card.get_card_display(), hand_description),
-                "points": relative_score,
-                "planned": None,
-                "actual": None,
-                "offset_string": None
-            }
-            string = "{}: {}".format(waypoint, internal_message["message"])
-            internal_message["string"] = string
-            contestant.contestanttrack.update_score(score_per_gate, relative_score,
-                                                    contestant.contestanttrack.score_log + [internal_message])
+            message = "Removed card {}, current hand is {}".format(card.get_card_display(), hand_description)
+            ScoreLogEntry.create_and_push(contestant=contestant, time=datetime.datetime.now(datetime.timezone.utc),
+                                          gate=waypoint,
+                                          message=message,
+                                          points=relative_score,
+                                          string="{}: {}".format(waypoint, message))
+
+            contestant.contestanttrack.update_score(relative_score)
             card.delete()
+            from websocket_channels import WebsocketFacade
+            ws = WebsocketFacade()
+            ws.transmit_playing_cards(contestant)
 
     @classmethod
     def add_contestant_card(cls, contestant: Contestant, card: str, waypoint: str):
-        from influx_facade import InfluxFacade
-        influx = InfluxFacade()
         poker_card = cls.objects.create(contestant_track=contestant.contestanttrack, card=card)
         relative_score, hand_description = cls.get_relative_score(contestant)
-        score_per_gate = contestant.contestanttrack.score_per_gate
-        score_per_gate[waypoint] = relative_score
-        internal_message = {
-            "gate": waypoint,
-            "message": "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description),
-            "points": relative_score,
-            "planned": None,
-            "actual": None,
-            "offset_string": None
-        }
-        string = "{}: {}".format(waypoint, internal_message["message"])
-        internal_message["string"] = string
-        contestant.contestanttrack.update_score(score_per_gate, relative_score,
-                                                contestant.contestanttrack.score_log + [internal_message])
+        message = "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description)
+        entry = ScoreLogEntry.create_and_push(contestant=contestant, time=datetime.datetime.now(datetime.timezone.utc),
+                                              gate=waypoint,
+                                              message=message,
+                                              points=relative_score,
+                                              string="{}: {}".format(waypoint, message))
+
+        contestant.contestanttrack.update_score(relative_score)
         pos = contestant.get_latest_position()
         longitude = 0
         latitude = 0
         if pos:
             latitude = pos["latitude"]
             longitude = pos["longitude"]
-        influx.add_annotation(contestant, latitude, longitude, string, "information",
-                              datetime.datetime.now(datetime.timezone.utc))
+        TrackAnnotation.create_and_push(contestant=contestant, latitude=latitude, longitude=longitude,
+                                        message=entry.string,
+                                        type=TrackAnnotation.INFORMATION,
+                                        time=datetime.datetime.now(datetime.timezone.utc), score_log_entry=entry)
+        from websocket_channels import WebsocketFacade
+        ws = WebsocketFacade()
+        ws.transmit_playing_cards(contestant)
 
 
 ########## Scoring portal models ##########

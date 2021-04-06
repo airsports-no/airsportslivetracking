@@ -19,7 +19,8 @@ from timezone_field.rest_framework import TimeZoneSerializerField
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx
 from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
     Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR, \
-    GateScoreOverride, TrackScoreOverride, GateScore, Prohibited, PlayingCard
+    GateScoreOverride, TrackScoreOverride, GateScore, Prohibited, PlayingCard, TrackAnnotation, ScoreLogEntry, \
+    GateCumulativeScore
 from display.waypoint import Waypoint
 
 
@@ -384,10 +385,6 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
     """
-    score_log = serializers.JSONField()
-    score_per_gate = serializers.JSONField()
-    playingcard_set = PlayingCardSerialiser(many=True)
-
     class Meta:
         model = ContestantTrack
         fields = "__all__"
@@ -500,7 +497,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
-    actual_rules=serializers.JSONField(read_only=True)
+    actual_rules = serializers.JSONField(read_only=True)
     route = RouteSerialiser()
 
     def get_scorecard_data(self, navigation_task):
@@ -616,6 +613,24 @@ class ExternalNavigationTaskTeamIdSerialiser(ExternalNavigationTaskNestedTeamSer
         exclude = ("route", "contest")
 
 
+class TrackAnnotationSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = TrackAnnotation
+        fields = "__all__"
+
+
+class ScoreLogEntrySerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = ScoreLogEntry
+        fields = "__all__"
+
+
+class GateCumulativeScoreSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = GateCumulativeScore
+        fields = "__all__"
+
+
 ########## Results service ##########
 ########## Write data ##########
 
@@ -692,6 +707,7 @@ class TeamResultsSummarySerialiser(serializers.ModelSerializer):
 ######################  write data #####################
 class ContestSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
     contest = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = ContestSummary
         fields = "__all__"
@@ -704,8 +720,10 @@ class ContestSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
 
         return ContestSummary.objects.create(**validated_data)
 
+
 class TaskSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
     task = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = TaskSummary
         fields = "__all__"
@@ -713,6 +731,7 @@ class TaskSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
 
 class TeamTestScoreWithoutReferenceSerialiser(serializers.ModelSerializer):
     task_test = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = TeamTestScore
         fields = "__all__"

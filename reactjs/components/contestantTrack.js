@@ -3,7 +3,7 @@ import {connect} from "react-redux";
 // import {renderToString} from 'react-dom/server';
 import {
     displayOnlyContestantTrack,
-    fetchContestantData, highlightContestantTable, highlightContestantTrack, initialLoading,
+    highlightContestantTable, highlightContestantTrack, initialLoading,
     initialLoadingComplete, removeHighlightContestantTable, removeHighlightContestantTrack, setDisplay, showLowerThirds
 } from "../actions";
 import 'leaflet'
@@ -405,7 +405,7 @@ class ConnectedContestantTrack extends Component {
 }
 
 const ContestantTrack = connect(mapStateToProps, {
-    fetchContestantData,
+
     initialLoading,
     initialLoadingComplete,
     setDisplay,

@@ -121,22 +121,6 @@ export const dispatchContestantData = (data) => (dispatch) => {
 }
 
 
-export const fetchContestantData = (contestId, navigationTaskId, contestantId, fromTime) => (dispatch) => {
-    dispatch({type: GET_CONTESTANT_DATA_REQUEST, id: contestantId})
-    let url = "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/contestants/" + contestantId + "/track_frontend/"
-    if (fromTime !== undefined) {
-        url += "?from_time=" + fromTime.toISOString()
-    }
-    $.ajax({
-        url: url,
-        datatype: 'json',
-        cache: false,
-        success: value => dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: value}),
-        error: error => dispatch({type: GET_CONTESTANT_DATA_FAILED, id: contestantId}),
-        timeout: 60000
-    });
-}
-
 
 // Global map
 export const dispatchTraccarData = (data) => (dispatch) => {

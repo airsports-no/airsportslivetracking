@@ -17,7 +17,7 @@ from mock_utilities import TraccarMock
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestTaskResultsApi(APITestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create(email="test")
+        self.user = get_user_model().objects.create_and_push(email="test")
         permission = Permission.objects.get(codename="change_contest")
         self.user.user_permissions.add(permission)
         self.client.force_login(user=self.user)

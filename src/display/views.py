@@ -55,9 +55,9 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
     AssignPokerCardForm, ChangeContestPermissionsForm, AddContestPermissionsForm, RouteCreationForm, \
     LandingImportRouteForm, PNG
 from display.map_plotter import plot_route, get_basic_track
-from display.models import NavigationTask, Route, Contestant, CONTESTANT_CACHE_KEY, Contest, Team, ContestantTrack, \
+from display.models import NavigationTask, Route, Contestant, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
-    TeamTestScore, TRACCAR, Scorecard, MyUser, PlayingCard, TRACKING_DEVICE, STARTINGPOINT, FINISHPOINT
+    TeamTestScore, TRACCAR, Scorecard, MyUser, PlayingCard, TRACKING_DEVICE, STARTINGPOINT, FINISHPOINT, ScoreLogEntry
 from display.permissions import ContestPermissions, NavigationTaskContestPermissions, \
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
@@ -73,7 +73,8 @@ from display.serialisers import ContestantTrackSerialiser, \
     ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser, \
     TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser, \
     NavigationTasksSummarySerialiser, TaskSummaryWithoutReferenceSerialiser, TeamTestScoreWithoutReferenceSerialiser, \
-    TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser, ContestantSerialiser
+    TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser, ContestantSerialiser, \
+    TrackAnnotationSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -600,20 +601,19 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return reverse('contest_details', kwargs={'pk': self.get_object().contest.pk})
 
 
-@guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
-def delete_score_item(request, pk, index):
-    contestant = get_object_or_404(Contestant, pk=pk)
-    try:
-        log_line = contestant.contestanttrack.score_log.pop(index)
-        points = log_line["points"]
-        contestant.contestanttrack.score -= points
-        contestant.contestanttrack.save()
-        # Push the updated data so that it is reflected on the contest track
-        wf = WebsocketFacade()
-        wf.transmit_basic_information(contestant)
-    except IndexError:
-        messages.error(request, "Could not find score log to remove")
-    return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": pk}))
+@guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__scorelogentry__pk", "pk"))
+def delete_score_item(request, pk):
+    entry = get_object_or_404(ScoreLogEntry, pk=pk)
+    contestant = entry.contestant
+    contestant.contestanttrack.score-=entry.points
+    contestant.contestanttrack.save()
+    entry.delete()
+    # Push the updated data so that it is reflected on the contest track
+    wf = WebsocketFacade()
+    wf.transmit_score_log_entry(contestant)
+    wf.transmit_annotations(contestant)
+    wf.transmit_basic_information(contestant)
+    return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
 
 
 class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
@@ -626,15 +626,17 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        if hasattr(self.object, "contestanttrack"):
-            contestant_track = self.object.contestanttrack
-            log = {}
-            for index, item in enumerate(contestant_track.score_log):
-                if item["gate"] not in log:
-                    log[item["gate"]] = []
-                log[item["gate"]].append(
-                    {"text": "{} points {}".format(item["points"], item["message"]), "index": index})
-            context["log"] = log
+        log = {}
+        for item in self.object.scorelogentry_set.all():  # type: ScoreLogEntry
+            if item.gate not in log:
+                log[item.gate] = []
+            log[item.gate].append(
+                    {"text": "{} points {}".format(item.points, item.message), "pk": item.pk})
+        context["log"] = log
+        actual_times = {}
+        for item in self.object.actualgatetime_set.all():
+            actual_times[item.gate] = item.time
+        context["actual_times"] = actual_times
         return context
 
 
@@ -789,67 +791,25 @@ def add_contest_teams_to_navigation_task(request, pk):
 connection = Redis("redis")
 
 
-class GetDataFromTimeForContestant(RetrieveAPIView):
-    permission_classes = [
-        ContestantPublicPermissions | permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions]
-    lookup_url_kwarg = "contestant_pk"
-
-    def get_queryset(self):
-        contests = get_objects_for_user(self.request.user, "display.change_contest",
-                                        klass=Contest, accept_global_perms=False)
-        return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
-                                                                                      navigation_task__contest__is_public=True))
-
-    def get(self, request, *args, **kwargs):
-        contestant = self.get_object()  # type: Contestant
-        from_time = request.GET.get("from_time")
-        response = cached_generate_data(contestant.pk, from_time)
-        return Response(response)
-
-
-def cached_generate_data(contestant_pk, from_time: Optional[datetime.datetime]) -> Dict:
-    key = "{}.{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk, from_time)
-    # response = cache.get(key)
-    response = None
-    if response is None:
-        logger.info("Cache miss {}".format(contestant_pk))
-        with redis_lock.Lock(connection, "{}.{}".format(CONTESTANT_CACHE_KEY, contestant_pk), expire=30,
-                             auto_renewal=True):
-            # response = cache.get(key)
-            logger.info("Cache miss second time {}".format(contestant_pk))
-            if response is None:
-                response = _generate_data(contestant_pk, from_time)
-                cache.set(key, response)
-                logger.info("Completed updating cash {}".format(contestant_pk))
-    return response
+def cached_generate_data(contestant_pk) -> Dict:
+    return _generate_data(contestant_pk)
 
 
 influx = InfluxFacade()
 
 
-def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
+def _generate_data(contestant_pk):
     LIMIT = None
-    TIME_INTERVAL = 10
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
-    default_start_time = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
-    if from_time is None:
-        from_time = default_start_time.isoformat()
-    from_time_datetime = dateutil.parser.parse(from_time)
-    # This is to differentiate the first request from later requests. The first request will with from time epoch 0
-    if from_time_datetime < default_start_time:
-        from_time_datetime = default_start_time
-    logger.info("Fetching data from time {} {}".format(from_time, contestant.pk))
-    result_set = influx.get_positions_for_contestant(contestant_pk, from_time, limit=LIMIT)
+    from_time_datetime = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
+    result_set = influx.get_positions_for_contestant(contestant_pk, from_time_datetime, limit=LIMIT)
     logger.info("Completed fetching positions for {}".format(contestant.pk))
     position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
     if len(position_data) > 0:
         global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
     else:
         global_latest_time = from_time_datetime
-    annotation_results = influx.get_annotations_for_contestant(contestant_pk, from_time, global_latest_time)
-    annotations = []
-
-    more_data = len(position_data) == LIMIT and len(position_data) > 0
+    annotations = TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data
     reduced_data = []
     progress = 0
     for index, item in enumerate(position_data):
@@ -863,16 +823,13 @@ def _generate_data(contestant_pk, from_time: Optional[datetime.datetime]):
         })
     route_progress = contestant.calculate_progress(global_latest_time)
     positions = reduced_data
-    annotation_data = list(annotation_results.get_points(tags={"contestant": str(contestant.pk)}))
-    if len(annotation_data):
-        annotations = annotation_data
     if hasattr(contestant, "contestanttrack"):
         contestant_track = ContestantTrackSerialiser(contestant.contestanttrack).data
     else:
         contestant_track = None
     logger.info("Completed generating data {}".format(contestant.pk))
     data = {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
-            "annotations": annotations, "more_data": more_data, "progress": route_progress}
+            "annotations": annotations, "progress": route_progress}
     data["contestant_track"] = contestant_track
     return data
 
@@ -1714,20 +1671,6 @@ class ContestantViewSet(ModelViewSet):
             raise ValidationError("Missing track_file")
         import_gpx_track.apply_async((contestant.pk, track_file))
         return Response({}, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=["get"])
-    def track_frontend(self, request, *args, **kwargs):
-        """
-        For internal use only. Provides data in the format that the frontend requires
-        :param request:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        contestant = self.get_object()  # This is important, this is where the object permissions are checked
-        from_time = request.GET.get("from_time")
-        response = cached_generate_data(contestant.pk, from_time)
-        return Response(response)
 
 
 class ImportFCNavigationTask(ModelViewSet):

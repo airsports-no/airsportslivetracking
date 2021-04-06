@@ -19,6 +19,7 @@ import Icon from "@mdi/react";
 
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
+    logEntries: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].log_entries : null,
     initialLoading: state.initialLoadingContestantData[props.contestantId],
     progress: state.contestantData[props.contestantId].progress,
     contestant: state.contestants[props.contestantId],
@@ -67,12 +68,6 @@ class ConnectedContestantDetailsDisplay extends Component {
     }
 
     componentDidUpdate(prevProps) {
-        // if (this.props.contestantData === undefined || prevProps.contestantData === undefined) {
-        //     return
-        // }
-        // if (this.props.contestantData.score_log.length !== prevProps.contestantData.score_log.length) {
-        //     this.scrollToBottom()
-        // }
     }
 
     scrollToBottom() {
@@ -97,7 +92,9 @@ class ConnectedContestantDetailsDisplay extends Component {
                 text: "",
                 headerFormatter: (column, colIndex, components) => {
                     return <div>
-                        {ordinal_suffix_of(this.calculateRank())}<br/><Icon path={mdiPagePreviousOutline} title={"Logout"} size={1.1} color={"white"}/></div>
+                        {ordinal_suffix_of(this.calculateRank())}<br/><Icon path={mdiPagePreviousOutline}
+                                                                            title={"Logout"} size={1.1}
+                                                                            color={"white"}/></div>
 
                 },
                 headerClasses: "text-center",
@@ -142,7 +139,7 @@ class ConnectedContestantDetailsDisplay extends Component {
         if (!this.props.contestantData) {
             return <div/>
         }
-        let events = this.props.contestantData.score_log.map((line, index) => {
+        let events = this.props.logEntries.map((line, index) => {
             return {
                 key: this.props.contestantData.contestant_id + "details" + index,
                 message: line,

@@ -33,6 +33,7 @@ const mapStateToProps = (state, props) => ({
     contestants: Object.keys(state.contestantData).map((key, index) => {
         return {
             track: state.contestantData[key].contestant_track,
+            contestantData: state.contestantData[key],
             progress: state.contestantData[key].progress,
             initialLoading: state.initialLoadingContestantData[key],
             contestant: state.contestants[key]
@@ -111,7 +112,7 @@ class ConnectedContestantRankTable extends Component {
                     moment.duration(1, "minute"),
                     moment.duration(1, "hour")
                 ], "d [days] hh:mm:ss"),
-                latestStatus: contestant.track.score_log.length > 0 ? contestant.track.score_log[contestant.track.score_log.length - 1] : ""
+                latestStatus: contestant.contestantData.log_entries.length > 0 ? contestant.entries[contestant.contestantData.log_entries.length - 1] : ""
             }
         })
     }

@@ -83,7 +83,3 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx: InfluxFacade)
     while not q.empty():
         q.get_nowait()
 
-    from display.models import CONTESTANT_CACHE_KEY
-    key = "{}.{}.*".format(CONTESTANT_CACHE_KEY, contestant_object.pk)
-    # logger.info("Clearing cache for {}".format(contestant))
-    cache.delete_pattern(key)

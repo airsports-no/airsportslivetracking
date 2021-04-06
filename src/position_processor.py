@@ -27,7 +27,7 @@ from websocket_channels import WebsocketFacade
 
 import websocket
 from influx_facade import InfluxFacade
-from display.models import Contestant, TraccarCredentials, ContestantTrack, CONTESTANT_CACHE_KEY, Person
+from display.models import Contestant, TraccarCredentials,  Person
 from display.calculators.calculator_factory import calculator_factory
 
 logger = logging.getLogger(__name__)

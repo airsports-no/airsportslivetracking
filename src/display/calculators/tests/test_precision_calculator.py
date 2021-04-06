@@ -311,7 +311,7 @@ class TestScoreverride(TransactionTestCase):
                                          finish_time=datetime.datetime.now(
                                              datetime.timezone.utc),
                                          time_zone="Europe/Oslo")
-        user = get_user_model().objects.create(email="user")
+        user = get_user_model().objects.create_and_push(email="user")
         request = Mock()
         request.user = user
         serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=task_data, context={"contest": contest,

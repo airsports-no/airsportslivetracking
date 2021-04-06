@@ -126,7 +126,7 @@ class GatekeeperRoute(Gatekeeper):
                 self.takeoff_gate.passing_time = intersection_time
                 self.takeoff_gate.extended_passing_time = intersection_time
                 self.takeoff_gate.infinite_passing_time = intersection_time
-                self.contestant.contestanttrack.update_gate_time(self.takeoff_gate.name, intersection_time)
+                self.contestant.record_actual_gate_time(self.takeoff_gate.name, intersection_time)
                 logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
 
         if not self.starting_line.has_infinite_been_passed():
@@ -177,7 +177,7 @@ class GatekeeperRoute(Gatekeeper):
             intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
             if intersection_time:
                 logger.info("{} {}: Crossed gate {}".format(self.contestant, intersection_time, gate))
-                self.contestant.contestanttrack.update_gate_time(gate.name, intersection_time)
+                self.contestant.record_actual_gate_time(gate.name, intersection_time)
                 gate.passing_time = intersection_time
                 gate.extended_passing_time = intersection_time
                 gate.infinite_passing_time = intersection_time

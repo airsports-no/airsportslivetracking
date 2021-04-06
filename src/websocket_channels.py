@@ -1,40 +1,69 @@
 import datetime
 from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
 
+import dateutil
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
 from display.models import Contestant, ContestTeam, Task, TaskTest, MyUser, Team
 from display.serialisers import ContestantTrackSerialiser, ContestTeamNestedSerialiser, TaskSerialiser, \
-    TaskTestSerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser
+    TaskTestSerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, TrackAnnotationSerialiser, \
+    ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser
+
+
+def generate_contestant_data_block(contestant: "Contestant", positions: List = None, annotations: List = None,
+                                   log_entries: List = None, latest_time: datetime.datetime = None,
+                                   gate_scores: List = None, playing_cards: List = None,
+                                   include_contestant_track: bool = False):
+    data = {
+        "contestant_id": contestant.id,
+        "positions": positions or [],
+        "annotations": annotations or [],
+        "score_log_entries": log_entries,
+        "gate_scores": gate_scores,
+        "playing_cards": playing_cards,
+        "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+    if latest_time:
+        data["progress"] = contestant.calculate_progress(latest_time)
+    return data
 
 
 class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
 
-    def transmit_annotations(self, contestant: "Contestant", timestamp: datetime.datetime, latitude: float,
-                             longitude: float,
-                             message: str, annotation_type: str):
+    def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        annotation = {
-            "contestant": contestant.pk,
-            "navigation_task": contestant.navigation_task_id,
-            "annotation_number": contestant.annotation_index,
-            "time": timestamp.isoformat(),
-            "latitude": latitude,
-            "longitude": longitude,
-            "message": message,
-            "type": annotation_type
-        }
-        channel_data = {
-            "contestant_id": contestant.pk,
-            "positions": [],
-            "annotations": [annotation],
-            "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
+        annotation_data = TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many = True).data
+        channel_data = generate_contestant_data_block(contestant, annotations=[annotation_data])
+        async_to_sync(self.channel_layer.group_send)(
+            group_key,
+            {"type": "tracking.data", "data": channel_data}
+        )
 
-        }
+    def transmit_score_log_entry(self, contestant: "Contestant"):
+        group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        log_entries = ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data
+        channel_data = generate_contestant_data_block(contestant, log_entries=log_entries)
+        async_to_sync(self.channel_layer.group_send)(
+            group_key,
+            {"type": "tracking.data", "data": channel_data}
+        )
+
+    def transmit_gate_score_entry(self, contestant: "Contestant"):
+        group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        gate_scores = GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data
+        channel_data = generate_contestant_data_block(contestant, gate_scores=gate_scores)
+        async_to_sync(self.channel_layer.group_send)(
+            group_key,
+            {"type": "tracking.data", "data": channel_data}
+        )
+
+    def transmit_playing_cards(self, contestant: "Contestant"):
+        group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        playing_cards = PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data
+        channel_data = generate_contestant_data_block(contestant, playing_cards=playing_cards)
         async_to_sync(self.channel_layer.group_send)(
             group_key,
             {"type": "tracking.data", "data": channel_data}
@@ -42,20 +71,15 @@ class WebsocketFacade:
 
     def transmit_basic_information(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        channel_data = {
-            "contestant_id": contestant.pk,
-            "positions": [],
-            "annotations": [],
-            "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
-
-        }
+        channel_data = generate_contestant_data_block(contestant, include_contestant_track=True)
         async_to_sync(self.channel_layer.group_send)(
             group_key,
             {"type": "tracking.data", "data": channel_data}
         )
 
-    def transmit_navigation_task_position_data(self, contestant: "Contestant", data: List[Dict], route_progress: float):
+    def transmit_navigation_task_position_data(self, contestant: "Contestant", data: List[Dict]):
+        if len(data) == 0:
+            return
         position_data = []
         for item in data:
             position_data.append({
@@ -66,15 +90,8 @@ class WebsocketFacade:
                 "altitude": item["fields"]["altitude"],
                 "time": item["time"]
             })
-        channel_data = {
-            "contestant_id": contestant.pk,
-            "positions": position_data,
-            "annotations": [],
-            "progress": route_progress,
-            "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
-
-        }
+        channel_data = generate_contestant_data_block(contestant, positions=position_data,
+                                                      latest_time=dateutil.parser.parse(position_data[-1]["time"]))
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         async_to_sync(self.channel_layer.group_send)(
             group_key,

@@ -20,15 +20,15 @@
                     <td>{{ object.navigation_task.route.takeoff_gate.name }}</td>
                     <td>{{ gate_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}</td>
                     <td>
-                        {% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name %}
-                            {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}{% else %}
+                        {% if actual_times|dict_key:object.navigation_task.route.takeoff_gate.name %}
+                            {{ actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}{% else %}
                             --{% endif %}</td>
                     <td>{{ object|gate_time_offset:object.navigation_task.route.takeoff_gate.name }}</td>
                     <td>
                         {% with gate_log=log|dict_key:object.navigation_task.route.takeoff_gate.name %}
                             {% for item in gate_log %}
                                 {{ item.text }} {% if "change_contest" in contest_permissions %}
-                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}"
+                                <a href="{% url 'contestant_remove_score_item' item.pk %}"
                                    onclick="return confirm('Are you sure you want to remove the penalty?')">Remove
                                     penalty</a>{% endif %}<br/>
                             {% endfor %}
@@ -40,15 +40,15 @@
                 <tr>
                     <td>{{ gate.name }}</td>
                     <td>{{ gate_times|dict_key:gate.name|date:"H:i:s e" }}</td>
-                    <td>{% if object.contestanttrack.gate_actual_times|dict_key:gate.name %}
-                        {{ object.contestanttrack.gate_actual_times|dict_key:gate.name|date:"H:i:s e" }}{% else %}
+                    <td>{% if actual_times|dict_key:gate.name %}
+                        {{ actual_times|dict_key:gate.name|date:"H:i:s e" }}{% else %}
                         --{% endif %}</td>
                     <td>{{ object|gate_time_offset:gate.name }}</td>
                     <td>
                         {% with gate_log=log|dict_key:gate.name %}
                             {% for item in gate_log %}
                                 {{ item.text }} {% if "change_contest" in contest_permissions %}
-                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}"
+                                <a href="{% url 'contestant_remove_score_item' item.pk %}"
                                    onclick="return confirm('Are you sure you want to remove the penalty?')">Remove
                                     penalty</a>{% endif %}<br/>
                             {% endfor %}
@@ -61,15 +61,15 @@
                     <td>{{ object.navigation_task.route.landing_gate.name }}</td>
                     <td>{{ gate_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}</td>
                     <td>
-                        {% if object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name %}
-                            {{ object.contestanttrack.gate_actual_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}{% else %}
+                        {% if actual_times|dict_key:object.navigation_task.route.landing_gate.name %}
+                            {{ actual_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}{% else %}
                             --{% endif %}</td>
                     <td>{{ object|gate_time_offset:object.navigation_task.route.landing_gate.name }}</td>
                     <td>
                         {% with gate_log=log|dict_key:object.navigation_task.route.landing_gate.name %}
                             {% for item in gate_log %}
                                 {{ item.text }} {% if "change_contest" in contest_permissions %}
-                                <a href="{% url 'contestant_remove_score_item' object.pk item.index %}"
+                                <a href="{% url 'contestant_remove_score_item' item.pk %}"
                                    onclick="return confirm('Are you sure you want to remove the penalty?')">Remove
                                     penalty</a>{% endif %}<br/>
                             {% endfor %}

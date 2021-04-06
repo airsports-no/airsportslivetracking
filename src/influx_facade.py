@@ -24,28 +24,6 @@ class InfluxFacade:
         self.client = InfluxDBClient(host, port, user, password, dbname)
         self.websocket_facade = WebsocketFacade()
 
-    def add_annotation(self, contestant: "Contestant", latitude: float, longitude: float, message: str,
-                       annotation_type: str, stamp: datetime.datetime):
-        contestant.annotation_index += 1
-        Contestant.objects.bulk_update([contestant], ["annotation_index"])
-        data = {
-            "measurement": "annotation",
-            "tags": {
-                "contestant": contestant.pk,
-                "navigation_task": contestant.navigation_task_id,
-                "annotation_number": contestant.annotation_index
-            },
-            "time": stamp.isoformat(),
-            "fields": {
-                "latitude": float(latitude),
-                "longitude": float(longitude),
-                "message": message,
-                "type": annotation_type
-            }
-        }
-        self.client.write_points([data])
-        self.websocket_facade.transmit_annotations(contestant, stamp, latitude, longitude, message, annotation_type)
-
     def generate_position_block_for_contestant(self, contestant: Contestant, position_data: Dict,
                                                device_time: datetime.datetime) -> Dict:
         return {
@@ -73,8 +51,8 @@ class InfluxFacade:
             data.append(self.generate_position_block_for_contestant(contestant, position_data, device_time))
         return data
 
-    def put_position_data_for_contestant(self, contestant: "Contestant", data: List, route_progress):
-        self.websocket_facade.transmit_navigation_task_position_data(contestant, data, route_progress)
+    def put_position_data_for_contestant(self, contestant: "Contestant", data: List):
+        self.websocket_facade.transmit_navigation_task_position_data(contestant, data)
         self.client.write_points(data)
 
     def clear_data_for_contestant(self, contestant_id: int):

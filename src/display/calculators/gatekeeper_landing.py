@@ -49,7 +49,6 @@ class GatekeeperLanding(Gatekeeper):
                     self.last_intersection = intersection_time
                     self.update_score(self.landing_gate, 1, "passed landing line", self.track[-1].latitude,
                                       self.track[-1].longitude, "information", "landing_line")
-                    self.contestant.contestanttrack.update_gate_time(self.landing_gate.name, intersection_time)
 
     def check_termination(self):
         super().check_termination()

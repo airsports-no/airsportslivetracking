@@ -2,7 +2,7 @@ from django.urls import path
 from django.views.generic import TemplateView
 
 from display.views import frontend_view_map, \
-    GetDataFromTimeForContestant, renew_token, results_service, NewNavigationTaskWizard, NavigationTaskDetailView, \
+    renew_token, results_service, NewNavigationTaskWizard, NavigationTaskDetailView, \
     ContestantUpdateView, ContestantCreateView, ContestantGateTimesView, ContestCreateView, ContestUpdateView, \
     ContestantDeleteView, ContestDeleteView, NavigationTaskDeleteView, auto_complete_person_phone, \
     auto_complete_person_email, auto_complete_person_first_name, auto_complete_person_last_name, \
@@ -58,7 +58,7 @@ urlpatterns = [
     path('contestant/<int:pk>/remove_card/<int:card_pk>/', contestant_card_remove, name="contestant_card_remove"),
     path('contestant/<int:pk>/update/', ContestantUpdateView.as_view(), name="contestant_update"),
     path('contestant/<int:pk>/delete/', ContestantDeleteView.as_view(), name="contestant_delete"),
-    path('contestant/<int:pk>/gates/remove_score_item/<int:index>/', delete_score_item, name="contestant_remove_score_item"),
+    path('contestant/remove_score_item/<int:pk>/', delete_score_item, name="contestant_remove_score_item"),
     path('contestant/<int:pk>/gates/', ContestantGateTimesView.as_view(), name="contestant_gate_times"),
     path('contest/<int:contest_pk>/team/<int:team_pk>/wizardupdate/', RegisterTeamWizard.as_view(), name="team_wizard"),
     path('contest/<int:contest_pk>/team/<int:team_pk>/remove/', remove_team_from_contest, name="remove_team"),
