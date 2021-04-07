@@ -18,7 +18,7 @@ def generate_contestant_data_block(contestant: "Contestant", positions: List = N
     data = {
         "contestant_id": contestant.id,
         "positions": positions or [],
-        "annotations": annotations or [],
+        "annotations": annotations,
         "score_log_entries": log_entries,
         "gate_scores": gate_scores,
         "playing_cards": playing_cards,

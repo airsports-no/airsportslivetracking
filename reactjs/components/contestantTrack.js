@@ -160,7 +160,7 @@ class ConnectedContestantTrack extends Component {
                         })
                         this.renderPositions(positions)
                     }
-                    if (this.props.contestantData.annotations.length > 0) {
+                    if (this.props.contestantData.annotations) {
                         this.renderAnnotations(this.props.contestantData.annotations)
                     }
                 }
