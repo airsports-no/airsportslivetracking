@@ -73,16 +73,16 @@ function rootReducer(state = initialState, action) {
 
             contestantData[contestant.id] = {
                 // latest_time: state.contestantData[contestant.id] ? state.contestantData[contestant.id].latest_time : "1970-01-01T00:00:00Z",
-                latest_time: "1970-01-01T00:00:00Z",
+                latest_time: state.contestantData[contestant.id] ? state.contestantData[contestant.id].latest_time : "1970-01-01T00:00:00Z",
                 positions: [],
-                annotations: [],
-                log_entries: [],
-                playing_cards: [],
-                gate_scores: [],
+                annotations: state.contestantData[contestant.id] ? state.contestantData[contestant.id].annotations : [],
+                log_entries: state.contestantData[contestant.id] ? state.contestantData[contestant.id].log_entries : [],
+                playing_cards: state.contestantData[contestant.id] ? state.contestantData[contestant.id].playing_cards : [],
+                gate_scores: state.contestantData[contestant.id] ? state.contestantData[contestant.id].gate_scores : [],
                 more_data: true,
                 progress: state.contestantData[contestant.id] ? state.contestantData[contestant.id].progress : 0,
                 // contestant_track: contestant.contestanttrack
-                contestant_track: {
+                contestant_track: state.contestantData[contestant.id] ? state.contestantData[contestant.id].contestant_track : {
                     current_state: "Waiting...",
                     score: 0
                 }
