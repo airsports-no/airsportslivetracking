@@ -139,7 +139,7 @@ function ScoreAndNames(props) {
 
 
 function PlayingCards(props) {
-    const cards = props.playingCards.map((card) => {
+    const cards = props.contestantData.playing_cards.map((card) => {
         return card.card.toLowerCase()
     })
     return <Hand hide={false} layout={"fan"} cards={cards} cardSize={200}/>

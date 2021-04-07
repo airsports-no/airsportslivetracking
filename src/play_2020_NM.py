@@ -18,7 +18,7 @@ from playback_tools import build_traccar_track, load_data_traccar, insert_gpx_fi
 from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
-    TraccarCredentials, Person, ContestTeam, TRACCAR, Club
+    TraccarCredentials, Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE
 from influx_facade import InfluxFacade
 
 influx = InfluxFacade()
@@ -102,8 +102,10 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
             if not person:
                 person = Person.objects.create(first_name=contestant, last_name="Pilot",
                                                email=f"bogus{index}@domain.com")
-            crew, _ = Crew.objects.get_or_create(
-                member1=person)
+            crew = Crew.objects.filter(
+                member1=person).first()
+            if not crew:
+                crew = Crew.objects.create(member1=person)
 
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane,
                                              club=Club.objects.get_or_create(name="Kjeller Sportsflyklubb")[0])
@@ -127,7 +129,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
                                                       tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                       tracker_device_id=contestant, contestant_number=index,
                                                       minutes_to_starting_point=minutes_starting,
-                                                      air_speed=speed,
+                                                      air_speed=speed,tracking_device=TRACKING_DEVICE,
                                                       wind_direction=165, wind_speed=8)
         print(f"{contestant_object} {start_time}")
         # with open(file, "r") as i:

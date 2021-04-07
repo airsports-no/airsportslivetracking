@@ -1007,7 +1007,7 @@ class Contestant(models.Model):
 
     def calculate_progress(self, latest_time: datetime, ignore_finished: bool = False) -> float:
         if NavigationTask.POKER in self.navigation_task.scorecard.task_type:
-            return 100 * self.contestanttrack.playingcard_set.all().count() / 5
+            return 100 * self.playingcard_set.all().count() / 5
         if NavigationTask.LANDING in self.navigation_task.scorecard.task_type:
             # A progress of zero will also leave estimated score blank
             return 0
@@ -1383,7 +1383,7 @@ class PlayingCard(models.Model):
 
     @classmethod
     def evaluate_hand(cls, contestant: Contestant) -> Tuple[int, str]:
-        hand = [eval7.Card(s.card) for s in cls.objects.filter(contestant_track=contestant.contestanttrack)]
+        hand = [eval7.Card(s.card) for s in cls.objects.filter(contestant=contestant)]
         score = eval7.evaluate(hand)
         return score, eval7.handtype(score)
 
@@ -1400,6 +1400,7 @@ class PlayingCard(models.Model):
     def remove_contestant_card(cls, contestant: Contestant, card_pk: int):
         card = contestant.playingcard_set.filter(pk=card_pk).first()
         if card is not None:
+            card.delete()
             relative_score, hand_description = cls.get_relative_score(contestant)
             waypoint = contestant.navigation_task.route.waypoints[-1].name
             message = "Removed card {}, current hand is {}".format(card.get_card_display(), hand_description)
@@ -1410,14 +1411,13 @@ class PlayingCard(models.Model):
                                           string="{}: {}".format(waypoint, message))
 
             contestant.contestanttrack.update_score(relative_score)
-            card.delete()
             from websocket_channels import WebsocketFacade
             ws = WebsocketFacade()
             ws.transmit_playing_cards(contestant)
 
     @classmethod
     def add_contestant_card(cls, contestant: Contestant, card: str, waypoint: str):
-        poker_card = cls.objects.create(contestant_track=contestant.contestanttrack, card=card)
+        poker_card = cls.objects.create(contestant=contestant, card=card)
         relative_score, hand_description = cls.get_relative_score(contestant)
         message = "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description)
         entry = ScoreLogEntry.create_and_push(contestant=contestant, time=datetime.datetime.now(datetime.timezone.utc),
@@ -1437,6 +1437,7 @@ class PlayingCard(models.Model):
                                         message=entry.string,
                                         type=TrackAnnotation.INFORMATION,
                                         time=datetime.datetime.now(datetime.timezone.utc), score_log_entry=entry)
+        contestant.contestanttrack.update_score(relative_score)
         from websocket_channels import WebsocketFacade
         ws = WebsocketFacade()
         ws.transmit_playing_cards(contestant)

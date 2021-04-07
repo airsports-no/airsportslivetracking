@@ -288,7 +288,14 @@ class ConnectedContestantTrack extends Component {
         )
     }
 
+    clearAnnotations(){
+        this.markers.eachLayer((l)=>{
+            this.markers.removeLayer(l)
+        })
+    }
+
     renderAnnotations(annotations) {
+        this.clearAnnotations()
         annotations.map((annotation) => {
             this.addAnnotation(annotation.latitude, annotation.longitude, annotation.message, this.iconMap[annotation.type])
         })

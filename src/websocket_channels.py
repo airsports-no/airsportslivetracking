@@ -22,7 +22,9 @@ def generate_contestant_data_block(contestant: "Contestant", positions: List = N
         "score_log_entries": log_entries,
         "gate_scores": gate_scores,
         "playing_cards": playing_cards,
-        "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "contestant_track": ContestantTrackSerialiser(
+            contestant.contestanttrack).data if include_contestant_track else None
     }
     if latest_time:
         data["progress"] = contestant.calculate_progress(latest_time)
@@ -35,8 +37,8 @@ class WebsocketFacade:
 
     def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        annotation_data = TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many = True).data
-        channel_data = generate_contestant_data_block(contestant, annotations=[annotation_data])
+        annotation_data = TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data
+        channel_data = generate_contestant_data_block(contestant, annotations=annotation_data)
         async_to_sync(self.channel_layer.group_send)(
             group_key,
             {"type": "tracking.data", "data": channel_data}

@@ -74,7 +74,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser, \
     NavigationTasksSummarySerialiser, TaskSummaryWithoutReferenceSerialiser, TeamTestScoreWithoutReferenceSerialiser, \
     TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser, ContestantSerialiser, \
-    TrackAnnotationSerialiser, ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser
+    TrackAnnotationSerialiser, ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -311,7 +311,7 @@ def contestant_card_remove(request, pk, card_pk):
 @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 def contestant_cards_list(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
-    cards = contestant.contestanttrack.playingcard_set.all().order_by('card')
+    cards = contestant.playingcard_set.all().order_by('card')
     return render(request, "display/contestant_cards_list.html", {"cards": cards, "contestant": contestant})
 
 
@@ -832,9 +832,9 @@ def _generate_data(contestant_pk):
     data = {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
             "annotations": annotations, "progress": route_progress,
             "score_log_entries": ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data,
-            "gate_scores": GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data
-            }
-    data["contestant_track"] = contestant_track
+            "gate_scores": GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
+            "playing_cards": PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
+            "contestant_track": contestant_track}
     return data
 
 
