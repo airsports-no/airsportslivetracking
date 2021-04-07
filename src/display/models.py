@@ -1254,7 +1254,8 @@ class ScoreLogEntry(models.Model):
     points = models.FloatField()
     planned = models.DateTimeField(blank=True, null=True)
     actual = models.DateTimeField(blank=True, null=True)
-    offset_string = models.CharField(max_length=200, blank=True, null=True)
+    offset_string = models.CharField(max_length=200, default = "")
+    times_string = models.CharField(max_length=200, default = "")
 
     class Meta:
         ordering = ("time",)

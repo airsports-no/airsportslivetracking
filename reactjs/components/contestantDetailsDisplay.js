@@ -33,17 +33,12 @@ const mapStateToProps = (state, props) => ({
 
 function FormatMessage(props) {
     const message = props.message
-    let string = message.points.toFixed(2) + " points for " + message.message;
     let offset_string = null
     if (message.offset_string != null) {
         offset_string = " (" + message.offset_string + ")"
     }
-    let times = null
-    if (message.planned != null && message.actual != null) {
-        times = "\n(planned: " + message.planned + ", actual: " + message.actual + ")"
-    }
     return <div className={"preWrap"}>{message.points.toFixed(2)} points {message.message} {offset_string}<span
-        className={"gateTimesText"}>{times}</span></div>
+        className={"gateTimesText"}>{message.times_string.length > 0 ? "\n" + message.times_string : null}</span></div>
 }
 
 class ConnectedContestantDetailsDisplay extends Component {

@@ -179,10 +179,12 @@ class Gatekeeper:
         string = "{}: {} points {}".format(gate.name, score, message)
         if offset_string:
             string += " ({})".format(offset_string)
+        times_string = ""
         if planned and actual:
-            string += "\n(planned: {}, actual: {})".format(planned_time, actual_time)
+            times_string = "planned: {}, actual: {}".format(planned_time, actual_time)
         elif planned:
-            string += "\n(planned: {}, actual: --)".format(planned_time)
+            times_string = "planned: {}, actual: --".format(planned_time)
+        string += f"\n{times_string}"
         logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))
         # Take into account that external events may have changed the score
         self.contestant.contestanttrack.refresh_from_db()
@@ -192,7 +194,7 @@ class Gatekeeper:
         entry = ScoreLogEntry.create_and_push(contestant=self.contestant, time=self.track[-1].time if len(
             self.track) > 0 else self.contestant.navigation_task.start_time, gate=gate.name,
                                               message=message, points=score, planned=planned, actual=actual,
-                                              offset_string=offset_string, string=string)
+                                              offset_string=offset_string, string=string, times_string=times_string)
         TrackAnnotation.create_and_push(contestant=self.contestant, latitude=latitude, longitude=longitude,
                                         message=string, type=annotation_type,
                                         time=self.track[-1].time if len(
