@@ -124,7 +124,7 @@ module.exports = {
             },
             {
                 test: /\.(png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/,
-                use: {"file-loader"}
+                use: ["file-loader"]
             },
             {
                 test: /\.module\.s[ac]ss$/i,

@@ -18,6 +18,7 @@ import {ProgressCircle, ProjectedScore} from "./contestantProgress";
 import 'react-circular-progressbar/dist/styles.css';
 import {mdiLogout, mdiMagnify} from "@mdi/js";
 import Icon from "@mdi/react";
+import throttle from 'react-throttle-render'
 
 var moment = require("moment");
 var momentDurationFormatSetup = require("moment-duration-format");
@@ -281,5 +282,5 @@ const
         showLowerThirds,
         highlightContestantTrack,
         removeHighlightContestantTrack
-    })(ConnectedContestantRankTable)
+    })(throttle(1000)(ConnectedContestantRankTable))
 export default ContestantRankTable
