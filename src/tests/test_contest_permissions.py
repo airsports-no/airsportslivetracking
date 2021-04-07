@@ -16,10 +16,10 @@ from mock_utilities import TraccarMock
 
 class TestCreateContest(APITestCase):
     def setUp(self):
-        self.user_with_permissions = get_user_model().objects.create_and_push(email="withpermissions")
+        self.user_with_permissions = get_user_model().objects.create(email="withpermissions")
         permission = Permission.objects.get(codename="add_contest")
         self.user_with_permissions.user_permissions.add(permission)
-        self.user_without_permissions = get_user_model().objects.create_and_push(email="withoutpermissions")
+        self.user_without_permissions = get_user_model().objects.create(email="withoutpermissions")
         self.base_url = reverse("contests-list")
 
     def test_create_contest_without_login(self):
@@ -51,13 +51,13 @@ class TestCreateContest(APITestCase):
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestAccessContest(APITestCase):
     def setUp(self):
-        self.user_owner = get_user_model().objects.create_and_push(email="withpermissions")
+        self.user_owner = get_user_model().objects.create(email="withpermissions")
         self.user_owner.user_permissions.add(Permission.objects.get(codename="add_contest"),
                                              Permission.objects.get(codename="view_contest"),
                                              Permission.objects.get(codename="change_contest"),
                                              Permission.objects.get(codename="delete_contest"))
         self.user_owner.refresh_from_db()
-        self.user_someone_else = get_user_model().objects.create_and_push(email="withoutpermissions")
+        self.user_someone_else = get_user_model().objects.create(email="withoutpermissions")
         self.user_someone_else.user_permissions.add(Permission.objects.get(codename="add_contest"),
                                                     Permission.objects.get(codename="change_contest"),
                                                     Permission.objects.get(codename="view_contest"),
@@ -71,7 +71,7 @@ class TestAccessContest(APITestCase):
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
-        self.different_user_with_object_permissions = get_user_model().objects.create_and_push(email="objectpermissions")
+        self.different_user_with_object_permissions = get_user_model().objects.create(email="objectpermissions")
         self.different_user_with_object_permissions.user_permissions.add(Permission.objects.get(codename="add_contest"),
                                                                          Permission.objects.get(
                                                                              codename="change_contest"),
@@ -304,7 +304,7 @@ class TestAccessContest(APITestCase):
 class TestTokenAuthentication(APITestCase):
 
     def setUp(self):
-        self.user = get_user_model().objects.create_and_push(email="user")
+        self.user = get_user_model().objects.create(email="user")
         self.user.user_permissions.add(Permission.objects.get(codename="add_contest"),
                                        Permission.objects.get(codename="change_contest"))
         self.token = Token.objects.create(user=self.user)

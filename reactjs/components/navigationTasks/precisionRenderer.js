@@ -52,7 +52,7 @@ export default class PrecisionRenderer extends Component {
                     className: "myGateIcon"
                 })
             }).on('click', () => {
-                this.handleMapTurningPointClick(waypoint.name)
+                this.props.handleMapTurningPointClick(waypoint.name)
             }).addTo(this.props.map)
         });
         // this.props.navigationTask.route.waypoints.filter((waypoint) => {

@@ -1329,33 +1329,38 @@ class ContestantTrack(models.Model):
         self.last_gate = gate_name
         self.last_gate_time_offset = time_difference
         self.save()
+        self.__push_change()
 
     def update_score(self, score):
         self.refresh_from_db()
         self.score = score
         self.save()
+        self.__push_change()
 
     def updates_current_state(self, state: str):
         self.refresh_from_db()
         if self.current_state != state:
             self.current_state = state
             self.save()
+            self.__push_change()
 
     def update_current_leg(self, current_leg: str):
         self.refresh_from_db()
         if self.current_leg != current_leg:
             self.current_leg = current_leg
             self.save()
+            self.__push_change()
 
     def set_calculator_finished(self):
         self.refresh_from_db()
         self.calculator_finished = True
         self.save()
+        self.__push_change()
 
     def __push_change(self):
         from websocket_channels import WebsocketFacade
         ws = WebsocketFacade()
-        ws.transmit_playing_cards(self)
+        ws.transmit_basic_information(self.contestant)
 
 
 ########### POKER

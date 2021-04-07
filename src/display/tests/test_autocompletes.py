@@ -15,8 +15,8 @@ AJAX_HEADER = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
 class TestAutoCompleteAeroplane(APITestCase):
     def setUp(self):
         Aeroplane.objects.create(registration="registration")
-        self.user_without_permissions = get_user_model().objects.create_and_push(email="test_without_permissions")
-        self.user = get_user_model().objects.create_and_push(email="test")
+        self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
@@ -60,8 +60,8 @@ class TestAutoCompleteAeroplane(APITestCase):
 class TestAutoCompleteClub(APITestCase):
     def setUp(self):
         Club.objects.create(name="name")
-        self.user_without_permissions = get_user_model().objects.create_and_push(email="test_without_permissions")
-        self.user = get_user_model().objects.create_and_push(email="test")
+        self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
@@ -110,8 +110,8 @@ class TestAutoCompletePersonFirstName(APITestCase):
     def setUp(self, p):
         Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
-        self.user_without_permissions = get_user_model().objects.create_and_push(email="test_without_permissions")
-        self.user = get_user_model().objects.create_and_push(email="test")
+        self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
@@ -168,8 +168,8 @@ class TestAutoCompletePersonLastname(APITestCase):
     def setUp(self, p):
         Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
-        self.user_without_permissions = get_user_model().objects.create_and_push(email="test_without_permissions")
-        self.user = get_user_model().objects.create_and_push(email="test")
+        self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
@@ -226,8 +226,8 @@ class TestAutoCompletePersonPhone(APITestCase):
     def setUp(self, p):
         Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
-        self.user_without_permissions = get_user_model().objects.create_and_push(email="test_without_permissions")
-        self.user = get_user_model().objects.create_and_push(email="test")
+        self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
@@ -284,8 +284,8 @@ class TestAutoCompletePersonEmail(APITestCase):
     def setUp(self, p):
         Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
-        self.user_without_permissions = get_user_model().objects.create_and_push(email="test_without_permissions")
-        self.user = get_user_model().objects.create_and_push(email="test")
+        self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
@@ -342,8 +342,8 @@ class TestAutoCompletePersonId(APITestCase):
     def setUp(self, p):
         self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
-        self.user_without_permissions = get_user_model().objects.create_and_push(email="test_without_permissions")
-        self.user = get_user_model().objects.create_and_push(email="test")
+        self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 

@@ -73,7 +73,7 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx: InfluxFacade)
                     "deviceTime": point.time.isoformat()
                 })
     generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
-    influx.put_position_data_for_contestant(contestant_object, generated_positions, 100)
+    influx.put_position_data_for_contestant(contestant_object, generated_positions)
     q = Queue()
     for i in generated_positions:
         q.put(i)

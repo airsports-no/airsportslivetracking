@@ -189,12 +189,15 @@ class Gatekeeper:
         self.contestant.record_score_by_gate(gate.name, score)
         self.score = self.contestant.contestanttrack.score
         self.score += score
-        entry = ScoreLogEntry.create_and_push(contestant=self.contestant, time=self.track[-1] if len(
+        entry = ScoreLogEntry.create_and_push(contestant=self.contestant, time=self.track[-1].time if len(
             self.track) > 0 else self.contestant.navigation_task.start_time, gate=gate.name,
-                                      message=message, points=score, planned=planned_time, actual=actual_time,
-                                      offset_string=offset_string, string=string)
+                                              message=message, points=score, planned=planned, actual=actual,
+                                              offset_string=offset_string, string=string)
         TrackAnnotation.create_and_push(contestant=self.contestant, latitude=latitude, longitude=longitude,
-                                        message=string, annotation_type=annotation_type, time=self.track[-1].time, score_log_entry = entry)
+                                        message=string, type=annotation_type,
+                                        time=self.track[-1].time if len(
+                                            self.track) > 0 else self.contestant.navigation_task.start_time,
+                                        score_log_entry=entry)
         self.contestant.contestanttrack.update_score(self.score)
 
     def create_gates(self) -> List[Gate]:

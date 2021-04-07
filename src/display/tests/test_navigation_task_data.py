@@ -571,7 +571,7 @@ data["route_file"] = route_string
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestImportSerialiser(TransactionTestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_and_push(email="test")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_navigationtask")
         self.user.user_permissions.add(permission)
         self.contest = Contest.objects.create(name="test", start_time=datetime.utcnow(),
@@ -598,7 +598,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
         create_scorecards()
         with open("display/tests/importnavigationtaskfcteamid.json", "r") as i:
             self.data = json.load(i)
-        self.user = get_user_model().objects.create_and_push(email="test2")
+        self.user = get_user_model().objects.create(email="test2")
         permission = Permission.objects.get(codename="change_contest")
         self.user.user_permissions.add(permission)
         self.client.force_login(user=self.user)
@@ -629,7 +629,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
     def setUp(self):
         create_scorecards()
         self.data = deepcopy(data)
-        self.user = get_user_model().objects.create_and_push(email="test")
+        self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="change_contest")
         self.user.user_permissions.add(permission)
         self.client.force_login(user=self.user)

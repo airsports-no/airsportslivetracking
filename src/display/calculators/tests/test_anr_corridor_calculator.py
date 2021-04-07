@@ -76,7 +76,7 @@ class TestANRPerLeg(TransactionTestCase):
         while not q.empty():
             q.get_nowait()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        strings = [item["string"] for item in contestant_track.score_log]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
         self.assertListEqual(['Takeoff: 0.0 points missing gate\n(planned: 20:30:00 +0100, actual: --)',
                               'SP: 200.0 points missing gate\n(planned: 20:37:00 +0100, actual: --)',
@@ -113,7 +113,7 @@ class TestANRPerLeg(TransactionTestCase):
             q.put(data)
         calculator.run()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        strings = [item["string"] for item in contestant_track.score_log]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
         fixed_strings = [item.split("\n")[0] for item in strings]
         fixed_strings[1] = fixed_strings[1][:10]
@@ -156,7 +156,8 @@ class TestANRPerLeg(TransactionTestCase):
         threading.Timer(1, lambda: self.contestant.request_calculator_termination()).start()
         calculator.run()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        strings = [item["string"] for item in contestant_track.score_log]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+
         print(strings)
         self.assertEqual('Waypoint 1: 0 points manually terminated', strings[-1])
         self.assertEqual(492, contestant_track.score)
@@ -185,7 +186,7 @@ class TestANRPerLeg(TransactionTestCase):
         q.put(None)
         calculator.run()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        strings = [item["string"] for item in contestant_track.score_log]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
         expected = ['SP: 200.0 points missing gate\n(planned: 14:17:00 +0100, actual: --)',
                     'SP: 3.0 points outside corridor (6 seconds)', 'SP: 0 points entering corridor',
@@ -255,7 +256,7 @@ class TestANR(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(971,  # 593,  # 2368,
                          contestant_track.score)
-        strings = [item["string"] for item in contestant_track.score_log]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         self.assertTrue(
             "SP: 96.0 points passing gate (+33 s)\n(planned: 07:52:00 +0100, actual: 07:52:33 +0100)" in strings)
 
@@ -288,7 +289,7 @@ class TestANR(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(953,  # 575,  # 2350,
                          contestant_track.score)
-        strings = [item["string"] for item in contestant_track.score_log]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         self.assertTrue(
             "SP: 78.0 points passing gate (-27 s)\n(planned: 07:53:00 +0100, actual: 07:52:33 +0100)" in strings)
 
@@ -599,7 +600,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
             q.get_nowait()
         self.assertEqual(368, self.contestant.contestanttrack.score)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        strings = [item["string"] for item in contestant_track.score_log]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         self.assertTrue(
             "SP: 200.0 points circling start" in strings)
 

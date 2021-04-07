@@ -74,7 +74,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser, \
     NavigationTasksSummarySerialiser, TaskSummaryWithoutReferenceSerialiser, TeamTestScoreWithoutReferenceSerialiser, \
     TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser, ContestantSerialiser, \
-    TrackAnnotationSerialiser
+    TrackAnnotationSerialiser, ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -601,11 +601,12 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return reverse('contest_details', kwargs={'pk': self.get_object().contest.pk})
 
 
-@guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__scorelogentry__pk", "pk"))
+@guardian_permission_required('display.change_contest',
+                              (Contest, "navigationtask__contestant__scorelogentry__pk", "pk"))
 def delete_score_item(request, pk):
     entry = get_object_or_404(ScoreLogEntry, pk=pk)
     contestant = entry.contestant
-    contestant.contestanttrack.score-=entry.points
+    contestant.contestanttrack.score -= entry.points
     contestant.contestanttrack.save()
     entry.delete()
     # Push the updated data so that it is reflected on the contest track
@@ -631,7 +632,7 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
             if item.gate not in log:
                 log[item.gate] = []
             log[item.gate].append(
-                    {"text": "{} points {}".format(item.points, item.message), "pk": item.pk})
+                {"text": "{} points {}".format(item.points, item.message), "pk": item.pk})
         context["log"] = log
         actual_times = {}
         for item in self.object.actualgatetime_set.all():
@@ -829,7 +830,10 @@ def _generate_data(contestant_pk):
         contestant_track = None
     logger.info("Completed generating data {}".format(contestant.pk))
     data = {"contestant_id": contestant.pk, "latest_time": global_latest_time, "positions": positions,
-            "annotations": annotations, "progress": route_progress}
+            "annotations": annotations, "progress": route_progress,
+            "score_log_entries": ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data,
+            "gate_scores": GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data
+            }
     data["contestant_track"] = contestant_track
     return data
 

@@ -112,7 +112,7 @@ class ConnectedContestantRankTable extends Component {
                     moment.duration(1, "minute"),
                     moment.duration(1, "hour")
                 ], "d [days] hh:mm:ss"),
-                latestStatus: contestant.contestantData.log_entries.length > 0 ? contestant.entries[contestant.contestantData.log_entries.length - 1] : ""
+                latestStatus: contestant.contestantData.log_entries.length > 0 ? contestant.contestantData.log_entries[contestant.contestantData.log_entries.length - 1] : ""
             }
         })
     }

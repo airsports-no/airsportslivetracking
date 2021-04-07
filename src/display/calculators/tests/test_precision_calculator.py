@@ -225,9 +225,7 @@ class TestFullTrack(TransactionTestCase):
         while not q.empty():
             q.get_nowait()
 
-        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        print(contestant_track.score_log)
-        strings = [item["string"] for item in contestant_track.score_log]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
 
         self.assertTrue("TP1: 200.0 points incorrect procedure turn" in strings)
         self.assertTrue("TP4: 200.0 points incorrect procedure turn" in strings)
@@ -311,7 +309,7 @@ class TestScoreverride(TransactionTestCase):
                                          finish_time=datetime.datetime.now(
                                              datetime.timezone.utc),
                                          time_zone="Europe/Oslo")
-        user = get_user_model().objects.create_and_push(email="user")
+        user = get_user_model().objects.create(email="user")
         request = Mock()
         request.user = user
         serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=task_data, context={"contest": contest,
@@ -330,8 +328,8 @@ class TestScoreverride(TransactionTestCase):
         insert_gpx_file(contestant, base64.decodebytes(track_data["track_file"].encode("utf-8")), influx)
 
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
-        print(contestant_track.score_per_gate)
-        self.assertEqual(8, contestant_track.score_per_gate['SP'])
+
+        self.assertEqual(8, contestant.gatecumulativescore_set.get(gate="SP").points)
         self.assertEqual(23, contestant_track.score)
 
 
@@ -505,7 +503,6 @@ class TestHamar23March2021(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(204, contestant_track.score)
 
-
     def test_lt03(self, patch):
         track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/lt03_hamar.csv"))
         start_time, speed = datetime.datetime(2021, 3, 23, 14, 25, tzinfo=datetime.timezone.utc), 70
@@ -533,7 +530,6 @@ class TestHamar23March2021(TransactionTestCase):
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(207, contestant_track.score)
-
 
     def test_kolaf_trackar(self, patch):
         track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/kolaf_hamar.csv"))
