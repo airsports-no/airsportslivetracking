@@ -169,7 +169,7 @@ class Gatekeeper:
             offset = (actual - planned).total_seconds()
             offset_string = "{} s".format("+{}".format(int(offset)) if offset > 0 else int(offset))
         else:
-            offset_string = None
+            offset_string = ""
         if capped:
             message += " (capped)"
         planned_time = planned.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
