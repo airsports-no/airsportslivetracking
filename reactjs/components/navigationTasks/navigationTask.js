@@ -246,8 +246,15 @@ class ConnectedNavigationTask extends Component {
             subdomains: 'abcd',
             maxZoom: 19
         });
+        const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
+            attribution: '<a href="http://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            minZoom: 0,
+            maxZoom: 22,
+            subdomains: 'abcd',
+            accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
+        });
         if (this.props.navigationTask.display_background_map) {
-            CartoDB_Positron.addTo(this.map);
+            Jawg_Sunny.addTo(this.map);
         }
     }
 

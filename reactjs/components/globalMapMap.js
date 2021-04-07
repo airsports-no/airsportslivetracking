@@ -364,7 +364,15 @@ class ConnectedGlobalMapMap
             subdomains: 'abcd',
             maxZoom: 19
         });
-        CartoDB_Positron.addTo(this.map);
+        const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
+            attribution: '<a href="http://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            minZoom: 0,
+            maxZoom: 22,
+            subdomains: 'abcd',
+            accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
+        });
+
+        Jawg_Sunny.addTo(this.map);
         // this.map.setView([0, 0], 2)
         this.map.locate({setView: true, maxZoom: 7})
         this.setState({map: this.map})
