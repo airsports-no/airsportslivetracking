@@ -35,11 +35,15 @@ class ConnectedContestantTrack extends Component {
         this.markers = L.markerClusterGroup()
         this.partialTrack = null;
         this.fullTrack = null;
-        this.allPoints = []
+        // this.allPoints = []
+        this.partialPoints = []
         this.dot = null;
         this.dotText = null;
         this.previousLastTime = null;
         this.lastNewData = null;
+        this.shortTrackDisplayed = false
+        this.fullTrackDisplayed = false
+
         this.annotationLayer = L.layerGroup()
         this.iconMap = {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
@@ -124,37 +128,27 @@ class ConnectedContestantTrack extends Component {
                 this.updateStyle()
             }
         }
-        // if (this.props.contestantData !== undefined) {
-        //     if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
-        //         this.lastNewData = new Date();
-        //     }
-        // }
-        let finishedInitialLoading = true;
         const displayTracks = this.props.displayTracks;
         if (this.props.contestantData !== undefined) {
             if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
-                // if (this.props.contestantData.more_data) {
-                // clearTimeout(this.timeout)
-                // this.fetchNextData(false)
-                // finishedInitialLoading = false;
-                // } else if (this.props.initialLoading) {
-                // clearTimeout(this.timeout)
-                // this.timeout = setTimeout(() => this.fetchNextData(true), this.props.fetchInterval)
-                this.props.initialLoadingComplete(this.contestant.id);
-                // }
+                if (this.props.initialLoading) {
+                    this.props.initialLoadingComplete(this.contestant.id);
+                }
             }
         }
         if (this.props.displayMap) {
             if (this.props.contestantData !== undefined) {
                 if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
                     if (this.props.contestantData.positions.length > 0) {
-                        this.allPoints.push(...this.props.contestantData.positions.map((position) => {
+                        const p = this.props.contestantData.positions.map((position) => {
                             return {
                                 latitude: position.latitude,
                                 longitude: position.longitude,
                                 time: new Date(position.time)
                             }
-                        }))
+                        })
+                        // this.allPoints.push(...p)
+                        this.partialPoints.push(...p)
                         const positions = this.props.contestantData.positions.map((position) => {
                             return [position.latitude, position.longitude]
                         })
@@ -164,24 +158,22 @@ class ConnectedContestantTrack extends Component {
                         this.renderAnnotations(this.props.contestantData.annotations)
                     }
                 }
-                if (finishedInitialLoading) {
-                    if (!displayTracks) {
-                        if (this.props.highlight) {
-                            this.showFullTrack()
-                        } else {
-                            this.showTrack()
-                        }
-                        this.hideAnnotations()
+                if (!displayTracks) {
+                    if (this.props.highlight) {
+                        this.showFullTrack()
                     } else {
-                        if (displayTracks.includes(this.contestant.id)) {
-                            this.showFullTrack()
-                            if (displayTracks.length === 1) {
-                                this.showAnnotations()
-                            }
-                        } else {
-                            this.hideTrack()
-                            this.hideAnnotations()
+                        this.showTrack()
+                    }
+                    this.hideAnnotations()
+                } else {
+                    if (displayTracks.includes(this.contestant.id)) {
+                        this.showFullTrack()
+                        if (displayTracks.length === 1) {
+                            this.showAnnotations()
                         }
+                    } else {
+                        this.hideTrack()
+                        this.hideAnnotations()
                     }
                 }
             }
@@ -259,7 +251,7 @@ class ConnectedContestantTrack extends Component {
                 this.props.removeHighlightContestantTable(this.contestant.id)
                 this.props.removeHighlightContestantTrack(this.contestant.id)
             }
-        ).addTo(this.map)
+        )
         this.dot = L.marker(newest_position, {icon: this.createAirplaneIcon()}).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
         }).on('click', (e) =>
@@ -288,8 +280,8 @@ class ConnectedContestantTrack extends Component {
         )
     }
 
-    clearAnnotations(){
-        this.markers.eachLayer((l)=>{
+    clearAnnotations() {
+        this.markers.eachLayer((l) => {
             this.markers.removeLayer(l)
         })
     }
@@ -323,45 +315,42 @@ class ConnectedContestantTrack extends Component {
     }
 
     showFullTrack() {
-        if (this.dot) {
+        if (this.dot && (!this.fullTrackDisplayed || this.shortTrackDisplayed)) {
             this.fullTrack.addTo(this.map)
             this.partialTrack.removeFrom(this.map)
             this.dot.addTo(this.map)
             this.dotText.addTo(this.map)
-            this.displayed = true
+            this.fullTrackDisplayed = true
+            this.shortTrackDisplayed = false
         }
     }
 
     showTrack() {
-        if (this.dot) {
+        if (this.dot && (!this.shortTrackDisplayed || this.fullTrackDisplayed)) {
             this.fullTrack.removeFrom(this.map)
             this.partialTrack.addTo(this.map)
             this.dot.addTo(this.map)
             this.dotText.addTo(this.map)
-            this.displayed = true
+            this.shortTrackDisplayed = true
+            this.fullTrackDisplayed = false
         }
     }
 
     hideTrack() {
-        if (this.dot) {
+        if (this.dot && (this.shortTrackDisplayed || this.fullTrackDisplayed)) {
             this.fullTrack.removeFrom(this.map)
             this.partialTrack.removeFrom(this.map)
             this.dot.removeFrom(this.map)
             this.dotText.removeFrom(this.map)
-            this.displayed = false
+            this.shortTrackDisplayed = false
+            this.fullTrackDisplayed = false
         }
-    }
-
-    createPolyline(positions) {
-        positions.map((position) => {
-            this.fullTrack.addLatLng(position)
-        })
     }
 
 
     updateBearing() {
-        if (this.fullTrack) {
-            const positions = this.fullTrack.getLatLngs()
+        if (this.partialTrack) {
+            const positions = this.partialTrack.getLatLngs()
             if (positions.length > 1) {
                 const slice = positions.slice(-2)
                 this.bearing = getBearing(slice[0].lat, slice[0].lng, slice[1].lat, slice[1].lng)
@@ -373,15 +362,16 @@ class ConnectedContestantTrack extends Component {
 
     trimPartialTrack() {
         if (this.partialTrack) {
-            const latestTime = this.allPoints[this.allPoints.length - 1].time.getTime()
-            const partial = this.allPoints.filter((position) => {
+            const latestTime = this.partialPoints[this.partialPoints.length - 1].time.getTime()
+            this.partialPoints = this.partialPoints.filter((position) => {
                 return latestTime - position.time.getTime() < this.trailLength * 1000
-            }).map((position) => {
+            })
+            const partial = this.partialPoints.map((position) => {
                 return [position.latitude, position.longitude]
             })
             if (partial.length > 0) {
                 this.partialTrack.setLatLngs(partial)
-                this.partialTrack.redraw()
+                // this.partialTrack.redraw()
             }
         }
     }

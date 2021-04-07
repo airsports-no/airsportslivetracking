@@ -59,7 +59,8 @@ class ConnectedNavigationTask extends Component {
     };
 
     storePlaybackData(data) {
-        data.logLength = 0
+        data.lastAnnotationLength = 0
+        data.lastScoreLength = 0
         data.startTime = new Date(this.props.navigationTask.contestant_set.find((contestant) => {
             return contestant.id === data.contestant_id
         }).gate_times[this.props.navigationTask.route.waypoints[0].name])
@@ -81,19 +82,12 @@ class ConnectedNavigationTask extends Component {
                 }
                 if (positions.length > 0) {
                     const position = positions[positions.length - 1]
-                    let annotations = []
-                    while (track.annotations.length > 0) {
-                        if ((new Date(track.annotations[0].time)).getTime() < (new Date(position.time)).getTime()) {
-                            annotations.push(track.annotations.shift())
-                        } else {
-                            break
-                        }
-                    }
-                    // let scoreLog = track.contestant_track.score_log.filter((log) => {
-                    //     return new Date(log.time) < new Date(position.time)
-                    // })
-                    track.logLength += annotations.length
-                    const scoreLog = track.contestant_track.score_log.slice(0, track.logLength)
+                    const annotations = track.annotations.filter((annotation) => {
+                        return (new Date(annotation.time)).getTime() < (new Date(position.time)).getTime()
+                    })
+                    const scoreLog = track.score_log_entries.filter((log) => {
+                        return (new Date(log.time)).getTime() < (new Date(position.time)).getTime()
+                    })
                     let score = 0
                     scoreLog.map((log) => {
                         score += log.points
@@ -103,20 +97,21 @@ class ConnectedNavigationTask extends Component {
                         positions: positions,
                         more_data: false,
                         contestant_id: track.contestant_track.contestant,
-                        annotations: annotations,
+                        annotations: annotations.length > track.lastAnnotationLength ? annotations : null,
                         latest_time: position.time,
                         progress: position.progress,
+                        score_log_entries: scoreLog.length > track.lastScoreLength ? scoreLog : null,
                         contestant_track: {
-                            score_log: scoreLog,
                             score: score,
                             calculator_finished: false,
-                            score_per_gate: {},
-                            current_state: track.logLength === 0 ? "Waiting..." : "Tracking",
+                            current_state: scoreLog.length === 0 ? "Waiting..." : "Tracking",
                             last_gate: lastGate,
                             current_leg: lastGate,
                             contestant: track.contestant_track.contestant
                         }
                     }
+                    track.lastAnnotationLength = annotations.length
+                    track.lastScoreLength = scoreLog.length
                     this.props.dispatchContestantData(data)
                 }
             }
@@ -249,7 +244,8 @@ class ConnectedNavigationTask extends Component {
             let prohibitedRender = null;
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard_data.task_type.includes("precision") || this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
-                    routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask} handleMapTurningPointClick={(turningpoint)=>this.handleMapTurningPointClick(turningpoint)}/>
+                    routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
+                                                       handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}/>
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}/>
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("landing")) {

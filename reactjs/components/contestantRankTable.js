@@ -33,7 +33,7 @@ const mapStateToProps = (state, props) => ({
     contestants: Object.keys(state.contestantData).map((key, index) => {
         return {
             track: state.contestantData[key].contestant_track,
-            contestantData: state.contestantData[key],
+            logEntries: state.contestantData[key].log_entries,
             progress: state.contestantData[key].progress,
             initialLoading: state.initialLoadingContestantData[key],
             contestant: state.contestants[key]
@@ -55,82 +55,7 @@ class ConnectedContestantRankTable extends Component {
         this.setHighlightedRef = element => {
             this.selectedLine = element;
         }
-
-    }
-
-
-    handleContestantLinkClick(contestantId) {
-        this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
-        this.props.displayOnlyContestantTrack(contestantId)
-        this.props.showLowerThirds(contestantId)
-        this.props.removeHighlightContestantTrack(contestantId)
-    }
-
-
-    numberStyle(cell, row, rowIndex, colIndex) {
-        return {backgroundColor: this.props.colourMap[row.contestantNumber]}
-    }
-
-    rowStyle(row, rowIndex) {
-        return {backgroundColor: this.props.colourMap[row.contestantNumber]}
-    }
-
-    componentDidUpdate(prevProps, prevState, snapshot) {
-        if (this.props.highlight.length === 1 && this.selectedLine) {
-            // this.selectedLine.scrollIntoView({block: "center"})
-        }
-    }
-
-    buildData() {
-        const contestants = this.props.contestants.filter((contestant) => {
-            return contestant != null && contestant.contestant !== undefined
-        })
-        // compareScore should be replaced depending on scorecard ascending or descending configuration
-        // Initially simply reversed the list depending on ascending or descending in the scorecard
-        // May be later support more complex scoring descriptions
-        contestants.sort(compareScore)
-
-        return contestants.map((contestant, index) => {
-            const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
-            return {
-                key: contestant.contestant.id + "rack" + index,
-                colour: "",
-                contestantNumber: contestant.contestant.contestant_number,
-                contestantId: contestant.contestant.id,
-                rank: index + 1,
-                dummy: null,
-                progress: progress,
-                name: contestantRankingTable(contestant.contestant),
-                score: contestant.track.score,
-                projectedScore: calculateProjectedScore(contestant.track.score, progress),
-                currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
-                finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
-                initialLoading: contestant.initialLoading,
-                lastGate: contestant.track.last_gate,
-                lastGateTimeOffset: moment.duration(contestant.track.last_gate_time_offset, "seconds").format([
-                    moment.duration(1, "second"),
-                    moment.duration(1, "minute"),
-                    moment.duration(1, "hour")
-                ], "d [days] hh:mm:ss"),
-                latestStatus: contestant.contestantData.log_entries.length > 0 ? contestant.contestantData.log_entries[contestant.contestantData.log_entries.length - 1] : ""
-            }
-        })
-    }
-
-    getStateFormat(cell, row) {
-        if (row.initialLoading) {
-            return <Loading/>
-        }
-        return <div>{cell}</div>
-    }
-
-
-    getTrackProgressFormat(cell, row) {
-
-    }
-
-    render() {
-        const columns = [
+        this.columns = [
             {
                 dataField: "colour",
                 text: "  ",
@@ -247,8 +172,7 @@ class ConnectedContestantRankTable extends Component {
                 hidden: !this.props.displayExpandedTrackingTable
             }
         ]
-
-        const rowEvents = {
+        this.rowEvents = {
             onClick: (e, row, rowIndex) => {
                 this.handleContestantLinkClick(row.contestantId)
             },
@@ -260,24 +184,93 @@ class ConnectedContestantRankTable extends Component {
             }
         }
 
-        const paginationOptions = {
-            sizePerPage: 15,
-            hideSizePerPage: true,
-            hidePageListOnlyOnePage: true
-        };
+    }
+
+
+    handleContestantLinkClick(contestantId) {
+        this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
+        this.props.displayOnlyContestantTrack(contestantId)
+        this.props.showLowerThirds(contestantId)
+        this.props.removeHighlightContestantTrack(contestantId)
+    }
+
+
+    numberStyle(cell, row, rowIndex, colIndex) {
+        return {backgroundColor: this.props.colourMap[row.contestantNumber]}
+    }
+
+    rowStyle(row, rowIndex) {
+        return {backgroundColor: this.props.colourMap[row.contestantNumber]}
+    }
+
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        if (this.props.highlight.length === 1 && this.selectedLine) {
+            // this.selectedLine.scrollIntoView({block: "center"})
+        }
+    }
+
+    buildData() {
+        const contestants = this.props.contestants.filter((contestant) => {
+            return contestant != null && contestant.contestant !== undefined
+        })
+        // compareScore should be replaced depending on scorecard ascending or descending configuration
+        // Initially simply reversed the list depending on ascending or descending in the scorecard
+        // May be later support more complex scoring descriptions
+        contestants.sort(compareScore)
+
+        return contestants.map((contestant, index) => {
+            const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
+            return {
+                key: contestant.contestant.id + "rack" + index,
+                colour: "",
+                contestantNumber: contestant.contestant.contestant_number,
+                contestantId: contestant.contestant.id,
+                rank: index + 1,
+                dummy: null,
+                progress: progress,
+                name: contestantRankingTable(contestant.contestant),
+                score: contestant.track.score,
+                projectedScore: calculateProjectedScore(contestant.track.score, progress),
+                currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
+                finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
+                initialLoading: contestant.initialLoading,
+                lastGate: contestant.track.last_gate,
+                lastGateTimeOffset: moment.duration(contestant.track.last_gate_time_offset, "seconds").format([
+                    moment.duration(1, "second"),
+                    moment.duration(1, "minute"),
+                    moment.duration(1, "hour")
+                ], "d [days] hh:mm:ss"),
+                latestStatus: contestant.logEntries.length > 0 ? contestant.logEntries[contestant.logEntries.length - 1] : ""
+            }
+        })
+    }
+
+    getStateFormat(cell, row) {
+        if (row.initialLoading) {
+            return <Loading/>
+        }
+        return <div>{cell}</div>
+    }
+
+
+    getTrackProgressFormat(cell, row) {
+
+    }
+
+    render() {
         const rowClasses = (row, rowIndex) => {
             if (this.props.highlight.includes(row.contestantId)) {
                 return "selectedContestantRow"
             }
         }
 
-        return <BootstrapTable keyField={"key"} data={this.buildData()} columns={columns}
+        return <BootstrapTable keyField={"key"} data={this.buildData()} columns={this.columns}
                                rowClasses={rowClasses}
                                defaultSorted={[{dataField: "rank", order: "asc"}]}
                                classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
                                bootstrap4 striped hover condensed
                                bordered={false}//pagination={paginationFactory(paginationOptions)}
-                               rowEvents={rowEvents}/>
+                               rowEvents={this.rowEvents}/>
     }
 }
 
