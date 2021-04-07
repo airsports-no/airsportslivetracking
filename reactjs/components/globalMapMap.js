@@ -381,7 +381,7 @@ class ConnectedGlobalMapMap
             subdomains: '12'
         });
         Jawg_Sunny.addTo(this.map);
-        OpenAIP.addTo(this.map);
+        // OpenAIP.addTo(this.map);
         // this.map.setView([0, 0], 2)
         this.map.locate({setView: true, maxZoom: 7})
         this.setState({map: this.map})
