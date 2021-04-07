@@ -371,8 +371,17 @@ class ConnectedGlobalMapMap
             subdomains: 'abcd',
             accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
         });
-
+        const OpenAIP = L.tileLayer('http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}', {
+            attribution: '<a href="https://www.openaip.net/">openAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
+            ext: 'png',
+            minZoom: 4,
+            maxZoom: 14,
+            tms: true,
+            detectRetina: true,
+            subdomains: '12'
+        });
         Jawg_Sunny.addTo(this.map);
+        OpenAIP.addTo(this.map);
         // this.map.setView([0, 0], 2)
         this.map.locate({setView: true, maxZoom: 7})
         this.setState({map: this.map})
