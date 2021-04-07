@@ -24,7 +24,7 @@ const aboutGlobalMap = <div>
         </div>
         <div className={"p-2"}>
         <a
-           href="https://apps.apple.com/us/app/pinpong-1-2-players/id1015819050?itsct=apps_box&amp;itscg=30200"><img style={{height: "60px", padding:"8px"}}
+           href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img style={{height: "60px", padding:"8px"}}
                                                                                             src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
                                                                                             alt="Download on the App Store"/></a>
         </div>
