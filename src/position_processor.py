@@ -134,7 +134,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
                 received_tracks[contestant].append(data)
             except KeyError:
                 received_tracks[contestant] = [data]
-        if global_tracking_name is not None:
+        if global_tracking_name is not None and not is_simulator:
             transmit_live_position(position_data, global_tracking_name, person_data, device_time, navigation_task_id)
     return received_tracks
 
