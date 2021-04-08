@@ -35,7 +35,7 @@ const aboutGlobalMap = <div>
         </div>
     </div>
     <div className="video-container">
-        <iframe src="https://www.youtube.com/embed/6fpddR6Yv4Q"
+        <iframe src="https://www.youtube.com/embed/UBiX8IQjIHw"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 frameBorder="0" allowFullScreen className="video"/>
     </div>

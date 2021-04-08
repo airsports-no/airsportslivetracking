@@ -64,14 +64,17 @@
 
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav mr-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'global_map' %}">Global map</a>
-                    </li>
+{#                    <li class="nav-item">#}
+{#                        <a class="nav-link" href="{% url 'global_map' %}">Global map</a>#}
+{#                    </li>#}
                     {% if perms.display.add_contest %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'contest_list' %}">Contests</a>
                         </li>
                     {% endif %}
+                    <li class="nav-item">
+                        <a target="_blank" class="nav-link" href="https://youtu.be/4ZPlDVjXabs">Tutorial</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'resultsservice' %}">Results service</a>
                     </li>
