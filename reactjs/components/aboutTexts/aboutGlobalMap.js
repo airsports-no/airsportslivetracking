@@ -34,6 +34,11 @@ const aboutGlobalMap = <div>
                 alt="Download on the App Store"/></a>
         </div>
     </div>
+    <div className="container">
+        <iframe src="https://www.youtube.com/embed/4ZPlDVjXabs"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                frameBorder="0" allowFullScreen className="video"/>
+    </div>
 </div>
 
 export default aboutGlobalMap
