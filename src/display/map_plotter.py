@@ -154,6 +154,14 @@ MAP_FOLDERS = glob.glob("/maptiles/*")
 MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [("osm", "OSM")]
 
 
+class OpenAIP(GoogleWTS):
+    def _image_url(self, tile):
+        x, y, z = tile
+        s = '1'
+        ext = 'png'
+        return f"http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}"
+
+
 class LocalImages(GoogleWTS):
     def __init__(self, folder: str):
         super().__init__()
@@ -551,7 +559,8 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)))
     ax = plt.axes(projection=imagery.crs)
     print(f"Figure projection: {imagery.crs}")
-    ax.add_image(imagery, zoom_level)
+    ax.add_image(imagery, zoom_level)#, interpolation='spline36', zorder=10)
+    # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
     ax.set_aspect("auto")
     if "precision" in task.scorecard.task_type:
         path = plot_precision_track(route, contestant, waypoints_only, annotations, line_width, colour)

@@ -738,6 +738,12 @@ html, body {
 }
 
 
+.modal-60w {
+    width: 60vw;
+    max-width: 800px;
+}
+
+
 .video-container {
     position: relative;
     width: 100%;

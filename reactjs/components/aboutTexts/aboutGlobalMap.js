@@ -12,6 +12,11 @@ const aboutGlobalMap = <div>
         The map is for entertainment use only, but we strive to keep the positions up-to-date for all the users who are
         actively tracking their aircraft position.
     </p>
+    <p>
+        <i className="mdi mdi-airplanemode-active" style={{color: "blue",  fontSSize: "28px"}}/> Active aircraft<br/>
+        <i className="mdi mdi-airplanemode-active" style={{color: "blue",  fontSSize: "28px", opacity: 0.4}}/> &lt; 40 knots<br/>
+        <i className="mdi mdi-airplanemode-active" style={{color: "grey",  fontSSize: "28px", opacity: 0.4}}/> &gt; 20 sec old
+    </p>
     <p/>
     Take part in tracking your flights or competing in contests by downloading the Air Sports Live Tracking app
     from <a target={"_blank"}

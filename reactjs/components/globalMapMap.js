@@ -378,7 +378,7 @@ class ConnectedGlobalMapMap
             maxZoom: 14,
             tms: true,
             detectRetina: true,
-            subdomains: '12'
+            subdomains: 'abcd'
         });
         Jawg_Sunny.addTo(this.map);
         // OpenAIP.addTo(this.map);
