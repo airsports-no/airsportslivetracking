@@ -1,7 +1,6 @@
 numpy
 scipy
 pyepsg
-Cartopy==0.17.0
 matplotlib
 iso8601
 django
