@@ -134,10 +134,13 @@ class ConnectedTrackingContainer extends Component {
                                 </div>
 
                             </div>
-                            <a className={"btn"} id="returnLink" href={"/"}>
-                                {/*<i className={"mdi mdi-home"} id={"returnLinkImage"}/>*/}
-                                <img src={"/static/img/airsports_no_text.png"} id={"returnLinkImage"} alt={"Hub"}/>
-                            </a>
+                        <a className={"btn"} id="returnLink" href={"/"}>
+                            <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
+                        </a>
+                            {/*<a className={"btn"} id="returnLink" href={"/"}>*/}
+                            {/*    /!*<i className={"mdi mdi-home"} id={"returnLinkImage"}/>*!/*/}
+                            {/*    <img src={"/static/img/airsports_no_text.png"} id={"returnLinkImage"} alt={"Hub"}/>*/}
+                            {/*</a>*/}
                             <Disclaimer/>
 
                             {/*<div id={"sponsor"}>*/}
@@ -147,11 +150,11 @@ class ConnectedTrackingContainer extends Component {
                                 <Icon path={mdiGoKartTrack} title={"Logout"} size={2} color={"#e01b1c"} onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
                             </div>
 
-                            <div className={"resultsServiceIcon"}>
-                                <Icon path={mdiPodium} title={"Results list"} size={2} color={"#e01b1c"} onClick={() => {
-                                    window.location = document.configuration.resultsServiceLink
-                                }}/>
-                            </div>
+                            {/*<div className={"resultsServiceIcon"}>*/}
+                            {/*    <Icon path={mdiPodium} title={"Results list"} size={2} color={"#e01b1c"} onClick={() => {*/}
+                            {/*        window.location = document.configuration.resultsServiceLink*/}
+                            {/*    }}/>*/}
+                            {/*</div>*/}
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             {/*<img alt={"Logo"} className={"logoImage"}*/}
                             {/*     id={"logoImage"}*/}

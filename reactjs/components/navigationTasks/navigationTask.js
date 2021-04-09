@@ -217,6 +217,7 @@ class ConnectedNavigationTask extends Component {
         this.map = L.map('cesiumContainer', {
             zoomDelta: 0.25,
             zoomSnap: 0.25,
+            zoomControl: false,
         }).on('contextmenu', (e) => this.resetToAllContestants(e))
         // const logoContainer = document.getElementById("logoContainer")
         // const mapControlContainer = document.getElementsByClassName("leaflet-control")[0]

@@ -40,14 +40,14 @@ class ConnectedGlobalMapContainer extends Component {
                 <div id='main_div' className={"fill"}>
                     <div className={"fill"}>
                         <a className={"btn"} id="returnLink" href={"/"}>
-                            <img src={"/static/img/airsports_no_text.png"} id={"returnLinkImage"} alt={"Hub"}/>
+                            <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
                         </a>
                         <GlobalEventList/>
                         <Disclaimer/>
 
                         {/*<SocialMediaLinks/>*/}
                         {/*{settingsButton}*/}
-                        <AboutLogoPopup aboutText={aboutGlobalMap}/>
+                        <AboutLogoPopup aboutText={aboutGlobalMap} size={2}/>
                         <div id="cesiumContainer"/>
                     </div>
                 </div>

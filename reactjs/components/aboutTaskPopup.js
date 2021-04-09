@@ -18,6 +18,6 @@ export default class AboutTaskPopup extends Component {
                 }
             }
         }
-        return <AboutLogoPopup aboutText={text}/>
+        return <AboutLogoPopup aboutText={text} colour={"#e01b1c"} size={2}/>
     }
 }

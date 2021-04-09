@@ -336,12 +336,37 @@ class ConnectedGlobalMapMap
         this.initiateSession()
     }
 
+// Create additional Control placeholders
+//     addControlPlaceholders(map) {
+//         var corners = map._controlCorners,
+//             l = 'leaflet-',
+//             container = map._controlContainer;
+//
+//         function createCorner(vSide, hSide) {
+//             var className = l + vSide + ' ' + l + hSide;
+//
+//             corners[vSide + hSide] = L.DomUtil.create('div', className, container);
+//         }
+//
+//         createCorner('almostbottom', 'left');
+//         createCorner('almostbottom', 'right');
+//     }
 
     initialiseMap() {
         this.map = L.map('cesiumContainer', {
             zoomDelta: 0.25,
             zoomSnap: 0.25,
+            zoomControl: false,
         })
+
+        // this.addControlPlaceholders(this.map);
+
+        // Change the position of the Zoom Control to a newly created placeholder.
+//         this.map.zoomControl.setPosition('almostbottomleft');
+
+// You can also put other controls in the same placeholder.
+        //         L.control.scale({position: 'almostbottomleft'}).addTo(this.map);
+
         // const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
         // const Stadia_AlidadeSmooth = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=d818a148-b158-4268-b073-ee9b34f6a23b', {
         //     maxZoom: 20,

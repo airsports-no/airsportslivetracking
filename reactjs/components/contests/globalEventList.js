@@ -1,6 +1,7 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
+    displayAboutModal,
     displayPastEventsModal,
     hidePastEventsModal
 } from "../../actions";
@@ -16,7 +17,7 @@ export const mapStateToProps = (state, props) => ({
     pastEventsModalShow: state.displayPastEventsModal
 })
 export const mapDispatchToProps = {
-    displayPastEventsModal, hidePastEventsModal
+    displayPastEventsModal, hidePastEventsModal, displayAboutModal
 }
 
 function sortContestTimes(a, b) {
@@ -52,7 +53,8 @@ class PastEvents extends Component {
     // })
     render() {
         let contestBoxes = this.props.contests.map((contest) => {
-            return <span key={contest.id+"past_event_span"} style={{width: "350px"}} onClick={() => this.setState({contest: contest})}><ContestItem
+            return <span key={contest.id + "past_event_span"} style={{width: "350px"}}
+                         onClick={() => this.setState({contest: contest})}><ContestItem
                 key={"contest" + contest.pk} contest={contest}
                 disableClick={true}/></span>
         })
@@ -164,7 +166,7 @@ class ConnectedGlobalEventList extends Component {
                                 <a href={"#upcoming"}
                                    className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
                                    data-toggle={"collapse"}>
-                                    <span><i className={"mdi mdi-keyboard-arrow-right"}/>Upcoming events</span>
+                                    <span>Upcoming events</span>
                                     <span style={{"paddingTop": "0.5em"}}
                                           className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
                                 </a>
@@ -183,6 +185,30 @@ class ConnectedGlobalEventList extends Component {
                                 {/*<div className={"list-group collapse"} id={"past"}>*/}
                                 {/*    <TimePeriodEventList contests={earlierEvents}/>*/}
                                 {/*</div>*/}
+                                <a
+                                    className={"list-group-item list-group-item-action list-group-item-secondary align-items-centre"} onClick={this.props.displayAboutModal}>About live tracking
+                                        {/*<img className={"img-fluid"} style={{width: "50%"}}*/}
+                                        {/*     src={"/static/img/about_live_tracking_shadow.png"}/>*/}
+
+                                </a>
+                                <div
+                                    className={"d-flex justify-content-around list-group-item list-group-item-action list-group-item-secondary align-items-centre"}
+                                    style={{paddingBottom: 0, paddingTop: 0}}>
+                                    {/*<div className={"p-2"}>*/}
+                                    <a target={"_blank"}
+                                       href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
+                                        alt='Get it on Google Play' style={{height: "45px"}}
+                                        src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a>
+                                    {/*</div>*/}
+                                    {/*<div className={"p-2"}>*/}
+                                    <a target={"_blank"}
+                                       href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
+                                        style={{height: "45px", padding: "8px"}}
+                                        src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
+                                        alt="Download on the App Store"/></a>
+                                    {/*</div>*/}
+                                </div>
+
                             </div>
                         </div>
                     </div>

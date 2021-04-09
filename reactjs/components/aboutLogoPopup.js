@@ -5,7 +5,7 @@ import {
     displayAboutModal,
     hideAboutModal,
 } from "../actions";
-import {mdiMagnify} from "@mdi/js";
+import {mdiInformation, mdiLogin, mdiMagnify} from "@mdi/js";
 import Icon from "@mdi/react";
 import {SocialMediaLinks} from "./socialMediaLinks";
 
@@ -52,10 +52,11 @@ class ConnectedAboutLogoPopup extends Component {
 
     render() {
         return <div>
-            <div className={"logoImage"} onClick={this.props.displayAboutModal}>
-                <img className={"img-fluid"}
-                     src={"/static/img/about_live_tracking_shadow.png"}/>
-            </div>
+            <a href={"#"} className={"logoImage"} onClick={this.props.displayAboutModal}>
+                <Icon path={mdiInformation} title={"About"} size={this.props.size} color={this.props.colour?this.props.colour:"#666666"}/>
+                {/*<img className={"img-fluid"}*/}
+                {/*     src={"/static/img/about_live_tracking_shadow.png"}/>*/}
+            </a>
             <AboutLogoModal aboutText={this.props.aboutText} show={this.props.aboutModalShow}
                             dialogClassName="modal-60w" onHide={() => this.props.hideAboutModal()}/>
         </div>
