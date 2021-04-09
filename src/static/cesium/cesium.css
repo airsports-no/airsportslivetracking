@@ -70,7 +70,9 @@ body {
 
 
 .outerBackdropNarrow {
-    width: 40%;
+    /*width: 40%;*/
+    width: 500px;
+
 }
 
 
@@ -104,7 +106,8 @@ body {
     /*border: 1px solid #444;*/
     /*padding: 5px 10px;*/
     /*border-radius: 0 0 25px 25px;*/
-    font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);
+    /*font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);*/
+    font-size: 1.3rem;
     overflow-y: auto;
     position: relative;
     -ms-overflow-style: none; /* IE and Edge */
@@ -115,6 +118,10 @@ body {
     /*right: 0;*/
     /*margin: 44px auto;*/
     /*max-height: 500px;*/
+}
+
+.crew-name{
+    font-size:1rem;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -176,7 +183,8 @@ tr.hidden {
 }
 
 .gateTimesText {
-    font-size: clamp(0.25rem, -0.0372rem + 1.2766vw, 1rem);
+    /*font-size: clamp(0.25rem, -0.0372rem + 1.2766vw, 1rem);*/
+    font-size: 0.7rem
 }
 
 
@@ -245,6 +253,10 @@ tr.hidden {
     .lowerThirdsSingle {
         transform: scale(0.75);
     }
+
+    .outerBackdrop {
+        transform: scale(0.75);
+    }
 }
 
 @media (min-width: 900px) and (max-width: 1024px) {
@@ -255,9 +267,15 @@ tr.hidden {
     .lowerThirdsSingle {
         transform: scale(0.4);
     }
+
     .globalMapBackdrop {
         transform: scale(0.85);
     }
+
+    .outerBackdrop {
+        transform: scale(0.6);
+    }
+
 }
 
 
@@ -270,9 +288,15 @@ tr.hidden {
     .lowerThirdsSingle {
         transform: scale(0.4);
     }
+
     .globalMapBackdrop {
         transform: scale(0.75);
     }
+
+    .outerBackdrop {
+        transform: scale(0.5);
+    }
+
 }
 
 /* Landscape phone to portrait tablet */
@@ -284,9 +308,15 @@ tr.hidden {
     .lowerThirdsSingle {
         transform: scale(0.35);
     }
+
     .globalMapBackdrop {
         transform: scale(0.75);
     }
+
+    .outerBackdrop {
+        transform: scale(0.45);
+    }
+
 }
 
 /* Landscape phones and down */
@@ -298,9 +328,15 @@ tr.hidden {
     .lowerThirdsSingle {
         transform: scale(0.3);
     }
+
     .globalMapBackdrop {
         transform: scale(0.5);
     }
+
+    .outerBackdrop {
+        transform: scale(0.4);
+    }
+
 }
 
 .lowerThirdsProfileImage {
@@ -326,7 +362,7 @@ tr.hidden {
 }
 
 .progressWheel {
-    height: 3vw;
+    height: 35px;
 }
 
 .widthLink {
@@ -343,20 +379,21 @@ tr.hidden {
 }
 
 .centered {
-  position: fixed; /* or absolute */
-  top: 50%;
-  left: 50%;
+    position: fixed; /* or absolute */
+    top: 50%;
+    left: 50%;
 }
 
-.past-event-detail  {
-	display: flex;
-	justify-content: center;
+.past-event-detail {
+    display: flex;
+    justify-content: center;
 }
 
 .taskTitle {
     /*font-size: clamp(1rem, 0.1667rem + 3.33333vw, 2rem);*/
     /*font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);;*/
-    font-size: clamp(0.5rem, -0.1429rem + 2.8571vw, 2rem);
+    /*font-size: clamp(0.5rem, -0.1429rem + 2.8571vw, 2rem);*/
+    font-size: 2rem;
     vertical-align: middle;
     color: aliceblue;
 }
@@ -376,11 +413,14 @@ tr.hidden {
 }
 
 .contestant-details-header {
-    font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);;
+    /*font-size: clamp(0.5rem, 0.1667rem + 1.1111vw, 1.5rem);;*/
+    font-size: 2rem;
+
 }
 
 .details-progress-circle {
-    width: 3vw;
+    /*width: 3vw;*/
+    width: 60px;
     float: right;
 }
 
@@ -470,7 +510,6 @@ tr.hidden {
 }
 
 
-
 .logoImage {
     /*height: 80px;*/
     /*width: 40vw;*/
@@ -488,7 +527,7 @@ tr.hidden {
 }
 
 
-.resultsServiceIcon{
+.resultsServiceIcon {
     top: 110px;
     right: 15px;
     position: fixed;
@@ -752,6 +791,7 @@ html, body {
     padding-bottom: 56.25%;
     display: inline-block;
 }
+
 .video {
     position: absolute;
     top: 0;
@@ -759,7 +799,6 @@ html, body {
     width: 100%;
     height: 100%;
 }
-
 
 
 .leaflet-almostbottom {

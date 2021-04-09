@@ -91,7 +91,7 @@ class ConnectedContestantRankTable extends Component {
             {
                 dataField: "name",
                 text: "CREW",
-                classes: "align-middle",
+                classes: "align-middle crew-name",
             },
             {
                 dataField: "score",
