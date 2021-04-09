@@ -496,7 +496,7 @@ tr.hidden {
 
 #returnLink {
     bottom: 10px;
-    right: 10px;
+    right: 0px;
     position: fixed;
     z-index: 2;
 }
