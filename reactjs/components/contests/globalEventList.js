@@ -11,6 +11,10 @@ import {mdiCog, mdiLogin, mdiLogout} from '@mdi/js'
 import {Modal, Container, Row, Button, Col} from "react-bootstrap";
 import ContestPopupItem from "./contestPopupItem";
 import ContestItem from "./contestItem";
+import {
+    isAndroid,
+    isIOS
+} from "react-device-detect";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -186,26 +190,29 @@ class ConnectedGlobalEventList extends Component {
                                 {/*    <TimePeriodEventList contests={earlierEvents}/>*/}
                                 {/*</div>*/}
                                 <a
-                                    className={"list-group-item list-group-item-action list-group-item-secondary align-items-centre"} onClick={this.props.displayAboutModal}>About live tracking
-                                        {/*<img className={"img-fluid"} style={{width: "50%"}}*/}
-                                        {/*     src={"/static/img/about_live_tracking_shadow.png"}/>*/}
+                                    className={"list-group-item list-group-item-action list-group-item-secondary align-items-centre"}
+                                    onClick={this.props.displayAboutModal}>About live tracking
+                                    {/*<img className={"img-fluid"} style={{width: "50%"}}*/}
+                                    {/*     src={"/static/img/about_live_tracking_shadow.png"}/>*/}
 
                                 </a>
                                 <div
                                     className={"d-flex justify-content-around list-group-item list-group-item-action list-group-item-secondary align-items-centre"}
                                     style={{paddingBottom: 0, paddingTop: 0}}>
                                     {/*<div className={"p-2"}>*/}
-                                    <a target={"_blank"}
-                                       href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
-                                        alt='Get it on Google Play' style={{height: "45px"}}
-                                        src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a>
+                                    {!isIOS ?
+                                        <a target={"_blank"}
+                                           href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
+                                            alt='Get it on Google Play' style={{height: "45px"}}
+                                            src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a> : null}
                                     {/*</div>*/}
                                     {/*<div className={"p-2"}>*/}
-                                    <a target={"_blank"}
-                                       href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
-                                        style={{height: "45px", padding: "8px"}}
-                                        src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
-                                        alt="Download on the App Store"/></a>
+                                    {!isAndroid ?
+                                        <a target={"_blank"}
+                                           href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
+                                            style={{height: "45px", padding: "8px"}}
+                                            src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
+                                            alt="Download on the App Store"/></a> : null}
                                     {/*</div>*/}
                                 </div>
 

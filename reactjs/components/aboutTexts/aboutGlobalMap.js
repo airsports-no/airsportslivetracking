@@ -1,4 +1,8 @@
 import React, {Component} from "react";
+import {
+  isAndroid,
+  isIOS
+} from "react-device-detect";
 
 const aboutGlobalMap = <div>
     <img src={"/static/img/airsports_no_text.png"} style={{float: "right", width: "50px"}} alt={"Global logo"}/>
@@ -25,19 +29,21 @@ const aboutGlobalMap = <div>
                    href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200">Apple
     App Store</a>.
     <div className={"d-flex justify-content-around"}>
+        {!isIOS?
         <div className={"p-2"}>
             <a target={"_blank"}
                href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
                 alt='Get it on Google Play' style={{height: "60px"}}
                 src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a>
-        </div>
+        </div>:null}
+        {!isAndroid?
         <div className={"p-2"}>
             <a target={"_blank"}
                href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
                 style={{height: "60px", padding: "8px"}}
                 src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
                 alt="Download on the App Store"/></a>
-        </div>
+        </div>:null}
     </div>
     <div className="video-container">
         <iframe src="https://www.youtube.com/embed/UBiX8IQjIHw"
