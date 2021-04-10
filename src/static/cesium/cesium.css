@@ -49,6 +49,7 @@ body {
     left:15px;
     top:65px;
     z-index: 2;
+    line-height: 0;
 }
 
 .flexWrapper {
@@ -84,7 +85,7 @@ body {
 
 
 .outerBackdropWide {
-    right: 60px;
+    right: 10px;
 }
 
 .outerBackdropFull {
