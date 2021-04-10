@@ -11,7 +11,7 @@ const mapStateToProps = (state, props) => ({
 
 function DisclaimerLong(props) {
     return (
-        <Modal {...props} aria-labelledby="contained-modal-title-vcenter">
+        <Modal {...props} aria-labelledby="contained-modal-title-vcenter"  size={"lg"}>
             <Modal.Header closeButton>
                 <Modal.Title id="contained-modal-title-vcenter">
                     Terms and conditions
@@ -47,7 +47,7 @@ class ConnectedDisclaimer extends Component {
                 {/*PLEASE CLICK FOR THE FULL DISCLAIMER.*/}
             </a>
             <DisclaimerLong disclaimer={this.props.disclaimer} show={this.props.disclaimerModalShow}
-                            dialogClassName="modal-90w" onHide={() => this.props.hideDisclaimerModal()}/>
+                            onHide={() => this.props.hideDisclaimerModal()}/>
         </div>
     }
 }

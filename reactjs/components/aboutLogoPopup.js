@@ -17,7 +17,7 @@ const mapStateToProps = (state, props) => ({
 function AboutLogoModal(props) {
     const {aboutText, ...other} = props
     return (
-        <Modal {...other} aria-labelledby="contained-modal-title-vcenter">
+        <Modal {...other} aria-labelledby="contained-modal-title-vcenter" size={"lg"}>
             <Modal.Header closeButton>
                 <Modal.Title id="contained-modal-title-vcenter">
                     <b>About Air Sports Live Tracking</b>
@@ -58,7 +58,7 @@ class ConnectedAboutLogoPopup extends Component {
                 {/*     src={"/static/img/about_live_tracking_shadow.png"}/>*/}
             </a>
             <AboutLogoModal aboutText={this.props.aboutText} show={this.props.aboutModalShow}
-                            dialogClassName="modal-60w" onHide={() => this.props.hideAboutModal()}/>
+                            onHide={() => this.props.hideAboutModal()}/>
         </div>
     }
 }
