@@ -5,6 +5,16 @@ import os
 import threading
 from multiprocessing import Process, Queue
 from typing import List, TYPE_CHECKING, Dict, Optional
+import sentry_sdk
+
+sentry_sdk.init(
+    "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production.
+    traces_sample_rate=1.0
+)
 
 import dateutil
 

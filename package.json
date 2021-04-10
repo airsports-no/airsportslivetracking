@@ -48,6 +48,8 @@
   },
   "dependencies": {
     "@rjsf/core": "^2.2.0",
+    "@sentry/react": "^6.2.5",
+    "@sentry/tracing": "^6.2.5",
     "ajv": "^6.10.2",
     "axios": "^0.20.0",
     "bootstrap": "^4.5.2",

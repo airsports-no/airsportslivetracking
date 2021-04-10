@@ -56,3 +56,4 @@ django-use-email-as-username
 SimConnect
 eval7
 utm
+sentry-sdk
