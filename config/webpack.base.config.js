@@ -2,6 +2,8 @@ const path = require("path");
 const fs = require("fs");
 const webpack = require('webpack');
 const BundleTracker = require('webpack-bundle-tracker');
+const BrotliPlugin = require('brotli-webpack-plugin');
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 // const CopyWebpackPlugin = require('copy-webpack-plugin');
 // const HtmlWebpackPlugin = require('html-webpack-plugin');
 // var CompressionPlugin = require("compression-webpack-plugin");
@@ -46,6 +48,15 @@ module.exports = {
         }
     },
     plugins: [
+        new UglifyJsPlugin(),
+        new BrotliPlugin({
+            asset: '[path].br[query]',
+            test: /\.(js|css|html|svg)$/,
+            threshold: 10240,
+            minRatio: 0.8
+        }),
+        // new webpack.optimize.OccurenceOrderPlugin(true),
+        // new webpack.optimize.DedupePlugin(),
         // new HtmlWebpackPlugin({
         //     template: 'src/index.html'
         // }),
@@ -106,15 +117,15 @@ module.exports = {
                 test: /\.module\.css$/i,
                 use: [
                     'style-loader',
-                     {
-                         loader: 'css-loader',
-                         options: {
-                             modules: {
-                                 mode: 'local',
-                                 localIdentName: '[path][name]__[local]--[hash:base64:5]',
-                             },
-                         },
-                     },
+                    {
+                        loader: 'css-loader',
+                        options: {
+                            modules: {
+                                mode: 'local',
+                                localIdentName: '[path][name]__[local]--[hash:base64:5]',
+                            },
+                        },
+                    },
                 ],
             },
             {
@@ -131,15 +142,15 @@ module.exports = {
                 use: [
                     'style-loader',
                     {
-                         loader: 'css-loader',
-                         options: {
-                             importLoaders: 1,
-                             modules: {
-                                 mode: 'local',
-                                 localIdentName: '[path][name]__[local]--[hash:base64:5]',
-                             },
-                         },
-                     },
+                        loader: 'css-loader',
+                        options: {
+                            importLoaders: 1,
+                            modules: {
+                                mode: 'local',
+                                localIdentName: '[path][name]__[local]--[hash:base64:5]',
+                            },
+                        },
+                    },
                     'sass-loader',
                 ],
             },

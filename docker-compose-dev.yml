@@ -20,6 +20,7 @@ services:
       - ./static:/static
       - ./assets:/assets/
       - ./src:/src/
+      - ./config:/config
       - ./reactjs:/reactjs/
       - ./data:/data/
       - ./weblog:/logs/

@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "webpack-local": "webpack --config config/webpack.local.config.js",
-    "webpack": "webpack --config config/webpack.production.config.js"
+    "webpack": "webpack --config config/webpack.production.config.js",
+    "analyse": "webpack --config config/webpack.production.config.js --profile --json"
   },
   "author": "",
   "license": "ISC",
@@ -17,6 +18,7 @@
     "@mdi/js": "^5.9.55",
     "@mdi/react": "^1.4.0",
     "babel-loader": "^8.0.6",
+    "brotli-webpack-plugin": "^1.1.0",
     "cesium": "^1.62.0",
     "compression-webpack-plugin": "^3.0.0",
     "copy-webpack-plugin": "^5.0.4",
@@ -39,6 +41,7 @@
     "redux-thunk": "^2.3.0",
     "style-loader": "^1.0.0",
     "tls": "0.0.1",
+    "uglifyjs-webpack-plugin": "^2.2.0",
     "url-loader": "^2.2.0",
     "webpack": "^4.41.2",
     "webpack-bundle-analyzer": "^3.6.0",
