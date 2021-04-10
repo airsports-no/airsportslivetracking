@@ -8,7 +8,6 @@ from typing import List, TYPE_CHECKING, Dict, Optional
 
 import dateutil
 
-
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
@@ -27,7 +26,7 @@ from websocket_channels import WebsocketFacade
 
 import websocket
 from influx_facade import InfluxFacade
-from display.models import Contestant, TraccarCredentials,  Person
+from display.models import Contestant, TraccarCredentials, Person
 from display.calculators.calculator_factory import calculator_factory
 
 logger = logging.getLogger(__name__)
@@ -134,19 +133,23 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
                 received_tracks[contestant].append(data)
             except KeyError:
                 received_tracks[contestant] = [data]
-        if global_tracking_name is not None and not is_simulator:
+        if global_tracking_name is not None and not is_simulator and now < device_time + datetime.timedelta(
+                seconds=PURGE_GLOBAL_MAP_INTERVAL):
             transmit_live_position(position_data, global_tracking_name, person_data, device_time, navigation_task_id)
     return received_tracks
 
 
-def transmit_live_position(position_data: Dict, global_tracking_name: str, person: Optional[Dict], device_time: datetime.datetime, navigation_task_id:Optional[int]):
+def transmit_live_position(position_data: Dict, global_tracking_name: str, person: Optional[Dict],
+                           device_time: datetime.datetime, navigation_task_id: Optional[int]):
     last_global, last_data = global_map.get(position_data["deviceId"],
                                             (datetime.datetime.min.replace(tzinfo=datetime.timezone.utc),
                                              {}))
     now = datetime.datetime.now(datetime.timezone.utc)
     if (now - last_global).total_seconds() > GLOBAL_TRANSMISSION_INTERVAL:
         global_map[position_data["deviceId"]] = (
-        now, websocket_facade.transmit_global_position_data(global_tracking_name, person, position_data, device_time, navigation_task_id))
+            now,
+            websocket_facade.transmit_global_position_data(global_tracking_name, person, position_data, device_time,
+                                                           navigation_task_id))
         cache.set("GLOBAL_MAP_DATA", global_map)
 
 
