@@ -44,6 +44,13 @@ body {
     font-size: 1rem;
 }
 
+.aircraft-legend-global {
+    position:absolute;
+    left:15px;
+    top:65px;
+    z-index: 2;
+}
+
 .flexWrapper {
     display: flex;
     overflow: hidden;
@@ -813,3 +820,4 @@ html, body {
 .leaflet-almostbottom .leaflet-control {
     margin-bottom: 10px;
 }
+

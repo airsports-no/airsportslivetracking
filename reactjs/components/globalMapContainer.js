@@ -43,6 +43,12 @@ class ConnectedGlobalMapContainer extends Component {
                             <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
                         </a>
                         <GlobalEventList/>
+                            <div className={"aircraft-legend-global"}>
+        <i className="mdi mdi-airplanemode-active" style={{color: "blue",  fontSSize: "28px"}}/> Active aircraft<br/>
+        <i className="mdi mdi-airplanemode-active" style={{color: "blue",  fontSSize: "28px", opacity: 0.4}}/> &lt; 40 knots<br/>
+        <i className="mdi mdi-airplanemode-active" style={{color: "grey",  fontSSize: "28px", opacity: 0.4}}/> &gt; 20 sec old
+    </div>
+
                         <Disclaimer/>
 
                         {/*<SocialMediaLinks/>*/}
