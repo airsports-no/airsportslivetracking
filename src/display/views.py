@@ -134,9 +134,12 @@ def frontend_playback_map(request, pk):
                    "display_map": "true", "display_table": "false", "skip_nav": True, "playback": "true"})
 
 
+
 def global_map(request):
+    visited = request.session.get('visited', False)
+    request.session['visited'] = True
     return render(request, "display/globalmap.html",
-                  {"skip_nav": True})
+                  {"skip_nav": True, "first_visit": not visited})
 
 
 def results_service(request):

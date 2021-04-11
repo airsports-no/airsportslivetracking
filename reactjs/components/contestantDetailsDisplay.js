@@ -34,7 +34,7 @@ const mapStateToProps = (state, props) => ({
 function FormatMessage(props) {
     const message = props.message
     let offset_string = null
-    if (message.offset_string != null) {
+    if (message.offset_string != null && message.offset_string.length > 0) {
         offset_string = " (" + message.offset_string + ")"
     }
     return <div className={"preWrap"}>{message.points.toFixed(2)} points {message.message} {offset_string}<span

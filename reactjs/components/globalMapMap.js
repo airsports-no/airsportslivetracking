@@ -62,7 +62,7 @@ class Aircraft {
     }
 
     getNavigationTaskLink(navigation_task_id) {
-        return navigation_task_id ? "display/task/" + navigation_task_id + "/map/" : null
+        return navigation_task_id ? "/display/task/" + navigation_task_id + "/map/" : null
     }
 
     replaceTime(position) {
@@ -106,7 +106,7 @@ class Aircraft {
         if (this.navigation_task_link) {
             tooltipContents = <div>
                 {this.navigation_task_link ?
-                    <a href={this.navigation_task_link}>Competing in navigation task</a> : ""}
+                    <a href={this.navigation_task_link}>Flying in competition</a> : null}
             </div>
             tooltipContents = ReactDOMServer.renderToString(tooltipContents)
         }
@@ -117,7 +117,7 @@ class Aircraft {
                 <h6>{position.person.last_name}</h6>
                 <h4>{position.name}</h4>
                 {this.navigation_task_link ?
-                    <a href={this.navigation_task_link}>Flying in competition</a> : ""}
+                    <a href={this.navigation_task_link}>Flying in competition</a> : null}
             </div>
             tooltipContents = ReactDOMServer.renderToString(tooltipContents)
             if (tooltipContents) {
@@ -134,7 +134,6 @@ class Aircraft {
 
     createLiveEntities(position, colour) {
         const opacity = this.calculateOpacity(position.speed)
-        this.navigation_task_link ? "Competing in navigation task" : null
         this.dot = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
             // }).on('click', (e) => {

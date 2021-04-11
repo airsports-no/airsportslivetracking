@@ -45,9 +45,9 @@ body {
 }
 
 .aircraft-legend-global {
-    position:absolute;
-    left:15px;
-    top:65px;
+    position: absolute;
+    left: 15px;
+    top: 65px;
     z-index: 2;
     line-height: 0;
 }
@@ -128,8 +128,8 @@ body {
     /*max-height: 500px;*/
 }
 
-.crew-name{
-    font-size:1rem;
+.crew-name {
+    font-size: 1rem;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -822,3 +822,13 @@ html, body {
     margin-bottom: 10px;
 }
 
+.about-title {
+    text-shadow: 1px 1px #000000;
+    color: #e01b1c;
+}
+
+
+.borderless tr, .borderless td, .borderless th {
+    border: none !important;
+    padding: 0
+}

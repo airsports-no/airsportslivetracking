@@ -1,55 +1,66 @@
 import React, {Component} from "react";
 import {
-  isAndroid,
-  isIOS
+    isAndroid,
+    isIOS
 } from "react-device-detect";
+import Icon from "@mdi/react";
+import {mdiGoKartTrack} from "@mdi/js";
 
 const aboutGlobalMap = <div>
-    <img src={"/static/img/airsports_no_text.png"} style={{float: "right", width: "50px"}} alt={"Global logo"}/>
-    <h2>Global map</h2><br/>
+    <img src={"/static/img/airsports_no_text.png"} style={{float: "right", width: "40px"}} alt={"Global logo"}/>
+    <h4>Global map - tracking and events</h4>
+    <ul>
+        <li>Use Live Tracking to sharing your position!</li>
+        <li>Help yourself and other and be visible on the global map.</li>
+        <li>Get an overview of ongoing and upcoming events.</li>
+        <li>Clicking on the event, and jump to the event details.</li>
+    </ul>
     <p>
-        The global map shows an overview of ongoing and upcoming events, as well as all traffic currently using the
-        tracking platform. By clicking on individual events the user can jump to the event details on the map and also
-        to the competition tracking pages if they exist.
+        Map Aircraft Symbolization
+        <table className={"table borderless"}>
+            <tbody>
+            <tr>
+                <td><i className="mdi mdi-airplanemode-active" style={{color: "blue"}}/> Active aircraft</td>
+                <td>Speed: GPS speed in KTS.</td>
+            </tr>
+            <tr>
+                <td><i className="mdi mdi-airplanemode-active" style={{color: "blue", opacity: 0.4}}/> &lt; 40 knots
+                </td>
+                <td>Altitude: GPS altitude nearest 100 feet</td>
+            </tr>
+            <tr>
+                <td><i className="mdi mdi-airplanemode-active" style={{color: "grey", opacity: 0.4}}/> &gt; 20 sec old
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        Live Tracking is for entertainment use only! The app requires gps and mobile coverage to work. For more
+        information about Air Sports Live Tracking, please see <a href={"https://airsports.no/terms_and_conditions/"}>Terms
+        And Conditions</a>.
+    </p>
+    <hr/>
+    <p>
+        <Icon path={mdiGoKartTrack} title={"Tracking"} size={1.5} color={"#e01b1c"}
+              style={{float: "right", width: "50px"}}/>
+        <h4>Competition Flying - with real-time scoring</h4>
+        With airsports.no you can create competitions like Precision Flying, Rally Flying or Air Navigation Racing.
+        Organizers can use this feature for free, but it requires access. Contact us for more information at
+        support[at]airsports.no. The contestants only need to use the app for tracking in competition mode.
     </p>
     <p>
-        The map is for entertainment use only, but we strive to keep the positions up-to-date for all the users who are
-        actively tracking their aircraft position.
+        <a href={"https://youtu.be/4ZPlDVjXabs"}>Here you can watch a tutorial on how to make a competition!</a><br/>
+        Please visit and subscribe to our YouTube Channel for more videos.
     </p>
+    <hr/>
     <p>
-        <i className="mdi mdi-airplanemode-active" style={{color: "blue",  fontSSize: "28px"}}/> Active aircraft<br/>
-        <i className="mdi mdi-airplanemode-active" style={{color: "blue",  fontSSize: "28px", opacity: 0.4}}/> &lt; 40 knots<br/>
-        <i className="mdi mdi-airplanemode-active" style={{color: "grey",  fontSSize: "28px", opacity: 0.4}}/> &gt; 20 sec old
+        <img src={"/static/img/airsports_help.png"} style={{float: "right", width: "40px", marginTop: "-10px"}} alt={"Global logo"}/>
+        <b>Live Tracking tutorial</b>
+        <div className="video-container">
+            <iframe src="https://www.youtube.com/embed/UBiX8IQjIHw"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    frameBorder="0" allowFullScreen className="video"/>
+        </div>
     </p>
-    <p/>
-    Take part in tracking your flights or competing in contests by downloading the Air Sports Live Tracking app
-    from <a target={"_blank"}
-            href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'>Google
-    Play</a> or <a target={"_blank"}
-                   href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200">Apple
-    App Store</a>.
-    <div className={"d-flex justify-content-around"}>
-        {!isIOS?
-        <div className={"p-2"}>
-            <a target={"_blank"}
-               href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
-                alt='Get it on Google Play' style={{height: "60px"}}
-                src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a>
-        </div>:null}
-        {!isAndroid?
-        <div className={"p-2"}>
-            <a target={"_blank"}
-               href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
-                style={{height: "60px", padding: "8px"}}
-                src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
-                alt="Download on the App Store"/></a>
-        </div>:null}
-    </div>
-    <div className="video-container">
-        <iframe src="https://www.youtube.com/embed/UBiX8IQjIHw"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                frameBorder="0" allowFullScreen className="video"/>
-    </div>
 </div>
 
 export default aboutGlobalMap

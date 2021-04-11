@@ -16,6 +16,7 @@
                 loginLink: "{% url 'login' %}",
                 logoutLink: null,
             {% endif %}
+            firstVisit: {% if first_visit %}true{% else %}false{% endif %},
             navigationTaskMap: navigationTaskId => "{% url 'frontend_view_map' 0 %}".replace("0", navigationTaskId)
         }
     </script>
