@@ -46,8 +46,9 @@ body {
 
 .aircraft-legend-global {
     position: absolute;
-    left: 15px;
-    top: 65px;
+    font-size: 0.7rem;
+    left: 5px;
+    bottom: 35px;
     z-index: 2;
     line-height: 0;
 }
