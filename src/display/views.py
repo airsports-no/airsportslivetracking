@@ -134,7 +134,6 @@ def frontend_playback_map(request, pk):
                    "display_map": "true", "display_table": "false", "skip_nav": True, "playback": "true"})
 
 
-
 def global_map(request):
     visited = request.session.get('visited', False)
     request.session['visited'] = True
@@ -1448,14 +1447,15 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     def get_queryset(self):
         return get_objects_for_user(self.request.user, "display.view_contest",
                                     klass=self.queryset, accept_global_perms=False) | self.queryset.filter(
-            is_public=True)
+            is_public=True, is_featured=True)
 
     @action(["GET"], detail=True)
     def navigation_task_summaries(self, request, pk=None, **kwargs):
         contests = get_objects_for_user(self.request.user, "display.view_contest",
                                         klass=Contest, accept_global_perms=False)
         navigation_tasks = NavigationTask.objects.filter(
-            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)).filter(contest_id=pk)
+            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)).filter(
+            contest_id=pk)
         return Response(NavigationTasksSummarySerialiser(navigation_tasks, many=True).data)
 
     @action(["GET"], detail=True)

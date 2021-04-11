@@ -364,7 +364,10 @@ class Contest(models.Model):
     finish_time = models.DateTimeField(
         help_text="The finish time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval.")
     contest_teams = models.ManyToManyField(Team, blank=True, through=ContestTeam)
-    is_public = models.BooleanField(default=False)
+    is_public = models.BooleanField(default=False,
+                                    help_text="A public contest is visible to people who are not logged and does not require special privileges")
+    is_featured = models.BooleanField(default=True,
+                                      help_text="A featured contest is visible on the global map and in the event list. If it is not featured, a direct link is requiredto access it.")
     contest_website = models.CharField(help_text="URL to contest website", blank=True, default="", max_length=300)
     header_image = models.ImageField(upload_to='images/contests/', null=True, blank=True,
                                      help_text="Nice image that is shown on top of the event information on the map.")
@@ -382,7 +385,6 @@ class Contest(models.Model):
             self.latitude = latitude
             self.longitude = longitude
             self.save()
-
 
 class NavigationTask(models.Model):
     PRECISION = 'precision'
@@ -409,6 +411,9 @@ class NavigationTask(models.Model):
         help_text="The finish time of the navigation test. Not really important, but nice to have")
     is_public = models.BooleanField(default=False,
                                     help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
+    is_featured = models.BooleanField(default=True,
+                                      help_text="A featured navigation task is visible in the contest details of a featured contest. Contestants on the global map are also tagged as part of the navigation task")
+
     wind_speed = models.FloatField(default=0,
                                    help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.",
                                    validators=[
@@ -436,7 +441,7 @@ class NavigationTask(models.Model):
 
     @property
     def everything_public(self):
-        return self.is_public and self.contest.is_public
+        return self.is_public and self.contest.is_public and self.is_featured
 
     @property
     def actual_rules(self):

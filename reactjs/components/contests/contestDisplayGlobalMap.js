@@ -31,7 +31,7 @@ class ConnectedContestDisplayGlobalMap extends Component {
             className: "contest-popup",
             maxWidth: 350,
             // maxWidth: 500,
-            maxHeight: 300,
+            // maxHeight: 300,
             // minWidth: 100,
             permanent: false,
             direction: "center"

@@ -336,7 +336,7 @@ class NavigationTaskForm(forms.ModelForm):
         model = NavigationTask
         fields = ("name", "start_time", "finish_time", "is_public", "display_background_map", "scorecard",
                   "minutes_to_starting_point",
-                  "minutes_to_landing", "wind_speed", "wind_direction")
+                  "minutes_to_landing", "wind_speed", "wind_direction", "is_featured")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -348,6 +348,7 @@ class NavigationTaskForm(forms.ModelForm):
                 "start_time",
                 "finish_time",
                 "is_public",
+                "is_featured",
                 "scorecard"
             ),
             Fieldset(
@@ -421,6 +422,7 @@ class ContestForm(forms.ModelForm):
             ),
             Fieldset(
                 "Publicity",
+                "is_featured",
                 "contest_website",
                 "header_image",
                 "logo"

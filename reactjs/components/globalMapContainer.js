@@ -26,13 +26,6 @@ class ConnectedGlobalMapContainer extends Component {
 
 
     render() {
-        let settingsButton = null
-        if (document.configuration.managementLink) {
-            settingsButton = <a className={"btn"} id="settingsLink" href={document.configuration.managementLink}>
-                <i className={"taskTitle mdi mdi-settings"} id={'menuButton'}/>
-            </a>
-        }
-
         let TrackerDisplay = <GlobalMapMap/>
         return (
             <div id="map-holder">
@@ -50,11 +43,7 @@ class ConnectedGlobalMapContainer extends Component {
                             <i className="mdi mdi-airplanemode-active"
                                style={{color: "grey", opacity: 0.4}}/> &gt;20sec
                         </div>
-
                         <Disclaimer/>
-
-                        {/*<SocialMediaLinks/>*/}
-                        {/*{settingsButton}*/}
                         <AboutLogoPopup aboutText={aboutGlobalMap} size={2}/>
                         <div id="cesiumContainer"/>
                     </div>

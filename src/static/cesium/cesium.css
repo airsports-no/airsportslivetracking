@@ -833,3 +833,7 @@ html, body {
     border: none !important;
     padding: 0
 }
+
+.flex-even {
+  flex: 1;
+}

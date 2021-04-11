@@ -4,13 +4,14 @@ import dateutil
 import phonenumbers
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction, IntegrityError
+from django.db.models import Q
 from django.http import Http404
 from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
-from guardian.shortcuts import assign_perm
+from guardian.shortcuts import assign_perm, get_objects_for_user
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework import serializers
-from rest_framework.fields import MultipleChoiceField
+from rest_framework.fields import MultipleChoiceField, SerializerMethodField
 from rest_framework.exceptions import ValidationError
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
@@ -32,7 +33,7 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
 
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(required=True)
-    navigationtask_set = NavigationTasksSummarySerialiser(many=True, read_only=True)
+    navigationtask_set = SerializerMethodField("get_visiblenavigationtasks")
 
     class Meta:
         model = Contest
@@ -45,6 +46,15 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSeria
             "delete_contest": [user],
             "view_contest": [user]
         }
+
+    def get_visiblenavigationtasks(self, contest):
+        contests = get_objects_for_user(self.context["request"].user, "display.view_contest",
+                                        klass=Contest, accept_global_perms=False)
+        items = NavigationTask.objects.filter(
+            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)).filter(
+            contest_id=contest.pk)
+        serialiser = NavigationTasksSummarySerialiser(items, many=True, read_only=True)
+        return serialiser.data
 
 
 class WaypointSerialiser(serializers.Serializer):
@@ -385,6 +395,7 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
     """
+
     class Meta:
         model = ContestantTrack
         fields = "__all__"

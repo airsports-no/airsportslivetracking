@@ -9,7 +9,7 @@ export default class TaskItem extends Component {
 
     render() {
         return <a href={document.configuration.navigationTaskMap(this.props.navigationTask.pk)}
-                  type={"button"} className={"btn btn-primary"}
+                  type={"button"} className={"btn btn-primary flex-even"}
                   style={{color: "white"}}
                   onClick={() => this.handleClick()}>{this.props.navigationTask.name}</a>
     }

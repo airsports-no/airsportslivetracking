@@ -6,7 +6,7 @@ export default class TimePeriodEventList extends Component {
     render() {
         return <span className={"first-in-between"}>
             {this.props.contests.map((contest) => {
-                return <ContestItem key={"contest" + contest.pk} contest={contest}/>
+                return <ContestItem key={"contest" + contest.id} contest={contest}/>
             })}
         </span>
 
