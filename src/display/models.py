@@ -366,13 +366,22 @@ class Contest(models.Model):
     contest_teams = models.ManyToManyField(Team, blank=True, through=ContestTeam)
     is_public = models.BooleanField(default=False,
                                     help_text="A public contest is visible to people who are not logged and does not require special privileges")
-    is_featured = models.BooleanField(default=True,
+    is_featured = models.BooleanField(default=False,
                                       help_text="A featured contest is visible to all (if it is public). If it is not featured, a direct link is required to access it.")
     contest_website = models.CharField(help_text="URL to contest website", blank=True, default="", max_length=300)
     header_image = models.ImageField(upload_to='images/contests/', null=True, blank=True,
                                      help_text="Nice image that is shown on top of the event information on the map.")
     logo = models.ImageField(upload_to='images/contestlogos/', null=True, blank=True,
                              help_text="Quadratic logo that is shown next to the event in the event list")
+
+    @property
+    def share_string(self):
+        if self.is_public and self.is_featured:
+            return "Public"
+        elif self.is_public and not self.is_featured:
+            return "Unlisted"
+        else:
+            return "Private"
 
     def __str__(self):
         return self.name
@@ -385,6 +394,7 @@ class Contest(models.Model):
             self.latitude = latitude
             self.longitude = longitude
             self.save()
+
 
 class NavigationTask(models.Model):
     PRECISION = 'precision'
@@ -411,7 +421,7 @@ class NavigationTask(models.Model):
         help_text="The finish time of the navigation test. Not really important, but nice to have")
     is_public = models.BooleanField(default=False,
                                     help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
-    is_featured = models.BooleanField(default=True,
+    is_featured = models.BooleanField(default=False,
                                       help_text="A featured navigation is visible to all (if public). Otherwise a direct link is required to access it")
 
     wind_speed = models.FloatField(default=0,
@@ -449,6 +459,15 @@ class NavigationTask(models.Model):
         mock_contestant.get_track_score_override.return_value = None
         mock_contestant.get_gate_score_override.return_value = None
         return self.scorecard.scores_display(mock_contestant)
+
+    @property
+    def share_string(self):
+        if self.is_public and self.is_featured:
+            return "Public"
+        elif self.is_public and not self.is_featured:
+            return "Unlisted"
+        else:
+            return "Private"
 
     class Meta:
         ordering = ("start_time", "finish_time")

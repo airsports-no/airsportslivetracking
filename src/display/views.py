@@ -53,7 +53,7 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
     WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
     PrecisionScoreOverrideForm, TrackingDataForm, ContestTeamOptimisationForm, \
     AssignPokerCardForm, ChangeContestPermissionsForm, AddContestPermissionsForm, RouteCreationForm, \
-    LandingImportRouteForm, PNG
+    LandingImportRouteForm, PNG, ShareForm
 from display.map_plotter import plot_route, get_basic_track
 from display.models import NavigationTask, Route, Contestant, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
@@ -315,6 +315,66 @@ def contestant_cards_list(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     cards = contestant.playingcard_set.all().order_by('card')
     return render(request, "display/contestant_cards_list.html", {"cards": cards, "contestant": contestant})
+
+
+@guardian_permission_required('display.change_contest', (Contest, "pk", "pk"))
+def share_contest(request, pk):
+    contest = get_object_or_404(Contest, pk=pk)
+    if request.method == "POST":
+        form = ShareForm(request.POST)
+        if form.is_valid():
+            if form.cleaned_data["publicity"] == ShareForm.PUBLIC:
+                contest.is_public = True
+                contest.is_featured = True
+            elif form.cleaned_data["publicity"] == ShareForm.UNLISTED:
+                contest.is_public = True
+                contest.is_featured = False
+                contest.navigationtask_set.all().update(is_featured=False)
+            elif form.cleaned_data["publicity"] == ShareForm.PRIVATE:
+                contest.is_public = False
+                contest.is_featured = False
+                contest.navigationtask_set.all().update(is_featured=False, is_public=False)
+            contest.save()
+            return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": contest.pk}))
+    if contest.is_public and contest.is_featured:
+        initial = ShareForm.PUBLIC
+    elif contest.is_public and not contest.is_featured:
+        initial = ShareForm.UNLISTED
+    else:
+        initial = ShareForm.PRIVATE
+    form = ShareForm(initial={"publicity": initial})
+    return render(request, "display/share_contest_form.html", {"form": form, "contest": contest})
+
+
+@guardian_permission_required('display.change_contest', (Contest, "navigationtask__pk", "pk"))
+def share_navigation_task(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    if request.method == "POST":
+        form = ShareForm(request.POST)
+        if form.is_valid():
+            if form.cleaned_data["publicity"] == ShareForm.PUBLIC:
+                navigation_task.is_public = True
+                navigation_task.is_featured = True
+                navigation_task.contest.is_public = True
+                navigation_task.contest.is_featured = True
+            elif form.cleaned_data["publicity"] == ShareForm.UNLISTED:
+                navigation_task.is_public = True
+                navigation_task.is_featured = False
+                navigation_task.contest.is_public = True
+            elif form.cleaned_data["publicity"] == ShareForm.PRIVATE:
+                navigation_task.is_public = False
+                navigation_task.is_featured = False
+            navigation_task.contest.save()
+            navigation_task.save()
+            return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
+    if navigation_task.is_public and navigation_task.is_featured:
+        initial = ShareForm.PUBLIC
+    elif navigation_task.is_public and not navigation_task.is_featured:
+        initial = ShareForm.UNLISTED
+    else:
+        initial = ShareForm.PRIVATE
+    form = ShareForm(initial={"publicity": initial})
+    return render(request, "display/share_navigationtask_form.html", {"form": form, "navigation_task": navigation_task})
 
 
 @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))

@@ -3,10 +3,11 @@
 {% load guardian_tags %}
 {% block content %}
     {% get_obj_perms request.user for object.contest as "contest_permissions" %}
-    <H1>Navigation task {{ object.name }} in contest {{ object.contest.name }}</H1>
+    <H1>Navigation task {{ object.name }} in contest {{ object.contest.name }} ({{ object.share_string }})</H1>
     {{ object.start_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }} -
     {{ object.finish_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }}
     <p>
+        <a href="{% url 'navigationtask_share' object.pk %}">Share</a> |
         <a href="{% url 'contest_details' object.contest.pk %}">Back to contest</a> |
         <a href="{% url 'frontend_view_map' object.pk %}">Track</a> |
         <a href="{% url 'navigationtask_rules' object.pk %}">Rules</a> |

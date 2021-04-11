@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load bootstrap4 %}
+
+
+{% block content %}
+    <h2>Share contest {{ contest }}</h2>
+    <b>Note:</b> changing the status to unlisted or private will also change the navigation tasks to at most that sharing level. E.g. if the contest is made private, all the navigation tasks are also changed to private.
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Share</button>
+        {% endbuttons %}
+    </form>{% endblock %}

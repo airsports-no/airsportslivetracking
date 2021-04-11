@@ -59,10 +59,23 @@ OUTPUT_TYPES = (
 )
 
 
+class ShareForm(forms.Form):
+    PUBLIC = "public"
+    UNLISTED = "unlisted"
+    PRIVATE = "private"
+    PUBLICITY = (
+        (PUBLIC, "Public, visible by all"),
+        (UNLISTED, "Unlisted, requires direct link"),
+        (PRIVATE, "Private, visible to users with permission")
+    )
+    publicity = forms.ChoiceField(widget=forms.RadioSelect, choices=PUBLICITY)
+
+
 class MapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
     zoom_level = forms.IntegerField(initial=12)
-    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE, help_text = "WARNING: scale printing is currently only correct for landscape orientation")
+    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE,
+                                    help_text="WARNING: scale printing is currently only correct for landscape orientation")
     include_only_waypoints = forms.BooleanField(initial=False, required=False)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="osm")
@@ -75,7 +88,8 @@ class MapForm(forms.Form):
 class ContestantMapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
     zoom_level = forms.IntegerField(initial=12)
-    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE, help_text = "WARNING: scale printing is currently only correct for landscape orientation")
+    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE,
+                                    help_text="WARNING: scale printing is currently only correct for landscape orientation")
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="osm")
     include_annotations = forms.BooleanField(required=False, initial=True)
@@ -334,9 +348,9 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "is_public", "display_background_map", "scorecard",
+        fields = ("name", "start_time", "finish_time", "display_background_map", "scorecard",
                   "minutes_to_starting_point",
-                  "minutes_to_landing", "wind_speed", "wind_direction", "is_featured")
+                  "minutes_to_landing", "wind_speed", "wind_direction")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -347,8 +361,6 @@ class NavigationTaskForm(forms.ModelForm):
                 "name",
                 "start_time",
                 "finish_time",
-                "is_public",
-                "is_featured",
                 "scorecard"
             ),
             Fieldset(
@@ -411,7 +423,6 @@ class ContestForm(forms.ModelForm):
                 "time_zone",
                 "start_time",
                 "finish_time",
-                "is_public"
             ),
             Fieldset(
                 "Contest location (optional)",
@@ -422,7 +433,6 @@ class ContestForm(forms.ModelForm):
             ),
             Fieldset(
                 "Publicity",
-                "is_featured",
                 "contest_website",
                 "header_image",
                 "logo"

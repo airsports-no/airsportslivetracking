@@ -14,7 +14,8 @@ from display.views import frontend_view_map, \
     deal_card_to_contestant, list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test, \
     export_navigation_task_results_to_results_service, clear_results_service, delete_score_item, \
-    terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules, frontend_playback_map
+    terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules, frontend_playback_map, \
+    share_contest, share_navigation_task
 
 urlpatterns = [
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
@@ -32,6 +33,7 @@ urlpatterns = [
     path('contest/<int:pk>/create_route/', create_route_test, name="create_route"),
     path('contest/<int:pk>/delete/', ContestDeleteView.as_view(), name="contest_delete"),
     path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),
+    path('contest/<int:pk>/share/', share_contest, name="contest_share"),
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
     path('navigationtask/<int:pk>/qr/', tracking_qr_code_view, name="navigationtask_qr"),
     path('navigationtask/<int:pk>/map/', get_navigation_task_map, name="navigationtask_map"),
@@ -39,6 +41,7 @@ urlpatterns = [
     path('navigationtask/<int:pk>/rules/', view_navigation_task_rules, name="navigationtask_rules"),
     path('navigationtask/<int:pk>/update/', NavigationTaskUpdateView.as_view(), name="navigationtask_update"),
     path('navigationtask/<int:pk>/delete/', NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),
+    path('navigationtask/<int:pk>/share/', share_navigation_task, name="navigationtask_share"),
     path('navigationtask/<int:pk>/add_contestants/', add_contest_teams_to_navigation_task,
          name="navigationtask_addcontestants"),
     path('navigationtask/<int:pk>/remove_contestants/', clear_future_contestants,
