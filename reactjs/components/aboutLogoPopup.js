@@ -80,8 +80,10 @@ class ConnectedAboutLogoPopup extends Component
         {
             return <div>
                 <a href={"#"} className={"logoImage"} onClick={this.props.displayAboutModal}>
-                    <Icon path={mdiInformation} title={"About"} size={this.props.size}
-                          color={this.props.colour ? this.props.colour : "#666666"}/>
+                            <img src={"/static/img/airsports_info.png"} style={{width: "50px"}} alt={"About"}/>
+
+                    {/*<Icon path={mdiInformation} title={"About"} size={this.props.size}*/}
+                    {/*      color={this.props.colour ? this.props.colour : "#666666"}/>*/}
                     {/*<img className={"img-fluid"}*/}
                     {/*     src={"/static/img/about_live_tracking_shadow.png"}/>*/}
                 </a>
