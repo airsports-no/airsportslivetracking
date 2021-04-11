@@ -367,7 +367,7 @@ class Contest(models.Model):
     is_public = models.BooleanField(default=False,
                                     help_text="A public contest is visible to people who are not logged and does not require special privileges")
     is_featured = models.BooleanField(default=True,
-                                      help_text="A featured contest is visible on the global map and in the event list. If it is not featured, a direct link is requiredto access it.")
+                                      help_text="A featured contest is visible to all (if it is public). If it is not featured, a direct link is required to access it.")
     contest_website = models.CharField(help_text="URL to contest website", blank=True, default="", max_length=300)
     header_image = models.ImageField(upload_to='images/contests/', null=True, blank=True,
                                      help_text="Nice image that is shown on top of the event information on the map.")
@@ -412,7 +412,7 @@ class NavigationTask(models.Model):
     is_public = models.BooleanField(default=False,
                                     help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True")
     is_featured = models.BooleanField(default=True,
-                                      help_text="A featured navigation task is visible in the contest details of a featured contest. Contestants on the global map are also tagged as part of the navigation task")
+                                      help_text="A featured navigation is visible to all (if public). Otherwise a direct link is required to access it")
 
     wind_speed = models.FloatField(default=0,
                                    help_text="The navigation test wind speed. This is used to calculate gate times if these are not predefined.",
