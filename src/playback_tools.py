@@ -23,37 +23,51 @@ server = 'traccar:5055'
 
 
 def build_traccar_track(filename, today: datetime.datetime, start_index: int = 0,
+                        starting_time: datetime.datetime = None, leadtime_seconds: int = 0,
                         time_offset: datetime.timedelta = datetime.timedelta(minutes=0)):
     with open(filename, "r") as i:
         gpx = gpxpy.parse(i)
     positions = []
+    lead = datetime.timedelta(seconds=leadtime_seconds)
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points[start_index:]:
                 now = today.replace(hour=point.time.hour, minute=point.time.minute, second=point.time.second,
                                     microsecond=point.time.microsecond)
                 now += time_offset
-                positions.append((now, point.latitude, point.longitude))
+                if starting_time is None or now > starting_time - lead:
+                    positions.append((now.astimezone(), point.latitude, point.longitude))
     return positions
 
 
-def load_data_traccar(tracks):
+def load_data_traccar(tracks, offset=30, leadtime = 0):
     def send(id, time, lat, lon, speed):
         params = (('id', id), ('timestamp', int(time)), ('lat', lat), ('lon', lon), ('speed', speed))
         requests.post("http://" + server + '/?' + urlencode(params))
 
-    maximum_index = max([len(item) for item in tracks.values()])
+    next_times = {}
+    index = 0
+    for contestant_name, (positions, start_time) in tracks.items():
+        next_times[contestant_name] = start_time - datetime.timedelta(seconds=index * offset + leadtime)
+        index += 1
     count = 0
-    for index in range(0, maximum_index, 1):
-        for contestant_name, positions in tracks.items():
-            if len(positions) > index:
+    time_step = 2
+    first_round = True
+    while True:
+        remaining = False
+        for contestant_name, (positions, start_time) in tracks.items():
+            next_times[contestant_name] += datetime.timedelta(seconds=time_step)
+            while len(positions) > 0 and positions[0][0] < next_times[contestant_name]:
                 count += 1
-                stamp, latitude, longitude = positions[index]
-                stamp = stamp.astimezone()
-                send(contestant_name, time.mktime(stamp.timetuple()), latitude, longitude, 0)
-                # print(stamp)
+                stamp, latitude, longitude = positions.pop(0)
+                if not first_round:
+                    send(contestant_name, time.mktime(stamp.timetuple()), latitude, longitude, 0)
+            remaining = remaining or len(positions) > 0
         print(count)
-        time.sleep(0.1)
+        first_round = False
+        time.sleep(0.2)
+        if not remaining:
+            break
 
 
 def insert_gpx_file(contestant_object: "Contestant", file, influx: InfluxFacade):
@@ -82,4 +96,3 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx: InfluxFacade)
     calculator.run()
     while not q.empty():
         q.get_nowait()
-

@@ -2,6 +2,7 @@ import datetime
 import glob
 import os
 import time
+from collections import OrderedDict
 from urllib.parse import urlencode
 
 import gpxpy
@@ -27,24 +28,24 @@ maximum_index = 0
 tracks = {}
 
 contestants = {
+    "Hans-Inge": (datetime.datetime(2020, 8, 1, 9, 50), 85, 2),
+    # "Steinar": (datetime.datetime(2020, 8, 1, 9, 55), 80, 2),
     "Anders": (datetime.datetime(2020, 8, 1, 10, 0), 75, 6),
+    "Frank-Olaf": (datetime.datetime(2020, 8, 1, 10, 5), 75, 6),
+    "Jørgen": (datetime.datetime(2020, 8, 1, 10, 55), 75, 1),
+    "Niklas": (datetime.datetime(2020, 8, 1, 9, 0), 75, 1),
+    "Helge": (datetime.datetime(2020, 8, 1, 12, 55), 75, 1),
     # "Arild": (datetime.datetime(2020, 8, 1, 10, 10), 70, 6),
     "Bjørn": (datetime.datetime(2020, 8, 1, 9, 15), 70, 6),
     # "Espen": (datetime.datetime(2020, 8, 1, 11, 10), 70, 6),
-    "Frank-Olaf": (datetime.datetime(2020, 8, 1, 10, 5), 75, 6),
     "Håkon": (datetime.datetime(2020, 8, 1, 11, 15), 70, 1),
-    "Hans-Inge": (datetime.datetime(2020, 8, 1, 9, 50), 85, 2),
     "Hedvig": (datetime.datetime(2020, 8, 1, 13, 5), 70, 2),
-    "Helge": (datetime.datetime(2020, 8, 1, 12, 55), 75, 1),
     "Jorge": (datetime.datetime(2020, 8, 1, 9, 10), 70, 1),
-    "Jørgen": (datetime.datetime(2020, 8, 1, 10, 55), 75, 1),
     "Kenneth": (datetime.datetime(2020, 8, 1, 9, 5), 70, 1),
     "Magnus": (datetime.datetime(2020, 8, 1, 11, 5), 70, 2),
-    "Niklas": (datetime.datetime(2020, 8, 1, 9, 0), 75, 1),
     "Odin": (datetime.datetime(2020, 8, 1, 9, 20), 70, 1),
     "Ola": (datetime.datetime(2020, 8, 1, 13, 0), 70, 1),
     "Ole": (datetime.datetime(2020, 8, 1, 10, 25), 70, 1),
-    "Steinar": (datetime.datetime(2020, 8, 1, 9, 55), 80, 2),
     "Stian": (datetime.datetime(2020, 8, 1, 13, 10), 70, 2),
     "Tim": (datetime.datetime(2020, 8, 1, 11, 0), 70, 2),
     "Tommy": (datetime.datetime(2020, 8, 1, 13, 15), 70, 1),
@@ -84,8 +85,8 @@ navigation_task = NavigationTask.objects.create(name="NM 2020 ", contest=contest
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
                                                 is_public=True)
 
-tracks = {}
-now=datetime.datetime.now(datetime.timezone.utc)
+tracks = OrderedDict()
+now = datetime.datetime.now(datetime.timezone.utc)
 for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     print(file)
     contestant = os.path.splitext(os.path.basename(file))[0]
@@ -117,9 +118,9 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
         start_time = start_time.astimezone()
         start_time = today.replace(hour=start_time.hour, minute=start_time.minute, second=start_time.second,
                                    tzinfo=start_time.tzinfo)
-        start_time_offset = now-start_time
+        start_time_offset = now - start_time
 
-        start_time+=start_time_offset
+        start_time += start_time_offset
 
         minutes_starting = 6
         # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
@@ -129,13 +130,14 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
                                                       tracker_start_time=start_time - datetime.timedelta(minutes=30),
                                                       tracker_device_id=contestant, contestant_number=index,
                                                       minutes_to_starting_point=minutes_starting,
-                                                      air_speed=speed,tracking_device=TRACKING_DEVICE,
+                                                      air_speed=speed, tracking_device=TRACKING_DEVICE,
                                                       wind_direction=165, wind_speed=8)
         print(f"{contestant_object} {start_time}")
         # with open(file, "r") as i:
         #     insert_gpx_file(contestant_object, i, influx)
 
-        tracks[contestant] = build_traccar_track(file, today, start_index=300, time_offset=start_time_offset)
+        tracks[contestant] = (build_traccar_track(file, today, start_index=0, time_offset=start_time_offset), contestant_object.gate_times.get("SP"))
+tracks = OrderedDict(sorted(tracks.items(), key=lambda item: contestants[item[0]][1], reverse=True))
 print("Sleeping for 10 seconds")
 time.sleep(10)
-load_data_traccar(tracks)
+load_data_traccar(tracks, offset=60, leadtime = 90)
