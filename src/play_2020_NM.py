@@ -61,9 +61,9 @@ deleted = traccar.update_and_get_devices()
 for item in deleted:
     traccar.delete_device(item["id"])
     traccar.create_device(item["name"], item["uniqueId"])
-
+name = "Demo contest"
 scorecard = get_default_scorecard()
-original_contest = Contest.objects.filter(name="NM 2020").first()
+original_contest = Contest.objects.filter(name=name).first()
 if original_contest:
     for contestant in Contestant.objects.filter(navigation_task__contest=original_contest):
         influx.clear_data_for_contestant(contestant.pk)
@@ -74,12 +74,12 @@ today = datetime.datetime.now(datetime.timezone.utc)
 tomorrow = today + datetime.timedelta(days=1)
 contest_start_time = today.replace(hour=0).astimezone()
 contest_finish_time = tomorrow.astimezone()
-contest = Contest.objects.create(name="NM 2020", is_public=True, start_time=contest_start_time,
+contest = Contest.objects.create(name=name, is_public=True, start_time=contest_start_time,
                                  finish_time=contest_finish_time, time_zone="Europe/Oslo")
 with open("/data/NM.csv", "r") as file:
     route = create_precision_route_from_csv("NM 2020", file.readlines()[1:], True)
 
-navigation_task = NavigationTask.objects.create(name="NM 2020 ", contest=contest,
+navigation_task = NavigationTask.objects.create(name=name, contest=contest,
                                                 route=route,
                                                 scorecard=scorecard,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
@@ -136,8 +136,9 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
         # with open(file, "r") as i:
         #     insert_gpx_file(contestant_object, i, influx)
 
-        tracks[contestant] = (build_traccar_track(file, today, start_index=0, time_offset=start_time_offset), contestant_object.gate_times.get("SP"))
+        tracks[contestant] = (build_traccar_track(file, today, start_index=0, time_offset=start_time_offset),
+                              contestant_object.gate_times.get("SP"))
 tracks = OrderedDict(sorted(tracks.items(), key=lambda item: contestants[item[0]][1], reverse=True))
 print("Sleeping for 10 seconds")
 time.sleep(10)
-load_data_traccar(tracks, offset=60, leadtime = 90)
+load_data_traccar(tracks, offset=60, leadtime=90)
