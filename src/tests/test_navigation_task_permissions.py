@@ -321,8 +321,10 @@ class TestAccessNavigationTask(APITestCase):
 
     def test_view_public_navigation_task_without_login(self):
         self.contest.is_public = True
+        self.contest.is_featured = True
         self.contest.save()
         self.navigation_task.is_public = True
+        self.navigation_task.is_featured = True
         self.navigation_task.save()
         self.client.logout()
         result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),
@@ -332,8 +334,10 @@ class TestAccessNavigationTask(APITestCase):
 
     def test_view_public_navigation_task_as_someone_else(self):
         self.contest.is_public = True
+        self.contest.is_featured = True
         self.contest.save()
         self.navigation_task.is_public = True
+        self.navigation_task.is_featured = True
         self.navigation_task.save()
         self.client.logout()
         self.client.force_login(user=self.user_someone_else)

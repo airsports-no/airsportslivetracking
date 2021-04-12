@@ -244,6 +244,7 @@ class TestAccessContest(APITestCase):
 
     def test_view_public_contest_without_login(self, patch):
         self.contest.is_public = True
+        self.contest.is_featured = True
         self.contest.save()
         self.client.logout()
         result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),
@@ -253,6 +254,7 @@ class TestAccessContest(APITestCase):
 
     def test_view_public_contest_as_someone_else(self, patch):
         self.contest.is_public = True
+        self.contest.is_featured = True
         self.contest.save()
         self.client.force_login(user=self.user_someone_else)
         result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),

@@ -1,7 +1,6 @@
 import datetime
 import logging
-from plistlib import Dict
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict
 
 import dateutil
 from influxdb import InfluxDBClient

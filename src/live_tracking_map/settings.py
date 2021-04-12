@@ -42,8 +42,6 @@ SECRET_KEY = 'a()!xe(&n4@i(hrd=w*xs&v4f^t&7rw4z4(uz&8&2tuy9216j9'
 SERVER_ROOT = "https://airsports.no"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('MODE') == "dev"
-print(f"MODE: {os.environ.get('MODE')}")
-print(f"Debug: {DEBUG}")
 ALLOWED_HOSTS = ['*']
 
 # Application definition

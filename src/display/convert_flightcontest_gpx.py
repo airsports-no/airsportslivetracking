@@ -1,7 +1,6 @@
 # from lxml import etree
 import logging
-from plistlib import Dict
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from zipfile import ZipFile
 
 import gpxpy

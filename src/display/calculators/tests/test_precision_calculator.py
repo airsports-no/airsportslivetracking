@@ -94,7 +94,7 @@ class TestFullTrack(TransactionTestCase):
             q.get_nowait()
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(153, contestant_track.score)
+        self.assertEqual(150.0, contestant_track.score)
 
     def test_secret_score_no_override(self, patch):
         expected_time = datetime.datetime(2017, 1, 1, tzinfo=datetime.timezone.utc)

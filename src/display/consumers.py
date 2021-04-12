@@ -31,7 +31,7 @@ class TrackingConsumer(WebsocketConsumer):
     def connect(self):
         self.navigation_task_pk = self.scope["url_route"]["kwargs"]["navigation_task"]
         self.navigation_task_group_name = "tracking_{}".format(self.navigation_task_pk)
-
+        logger.info(f"Current user {self.scope.get('user')}")
         async_to_sync(self.channel_layer.group_add)(
             self.navigation_task_group_name,
             self.channel_name
@@ -63,7 +63,7 @@ class TrackingConsumer(WebsocketConsumer):
 class GlobalConsumer(WebsocketConsumer):
     def connect(self):
         self.group_name = "tracking_global"
-
+        logger.info(f"Current user {self.scope.get('user')}")
         async_to_sync(self.channel_layer.group_add)(
             self.group_name,
             self.channel_name

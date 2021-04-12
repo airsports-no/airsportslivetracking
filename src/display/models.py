@@ -1,10 +1,9 @@
 import datetime
 import logging
 import random
-from plistlib import Dict
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from unittest.mock import Mock
 
 import eval7 as eval7
@@ -20,6 +19,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django_use_email_as_username.models import BaseUser, BaseUserManager
 from guardian.mixins import GuardianUserMixin
+from guardian.shortcuts import get_objects_for_user
 from multiselectfield import MultiSelectField
 from six import text_type
 from timezone_field import TimeZoneField
@@ -394,6 +394,8 @@ class Contest(models.Model):
             self.latitude = latitude
             self.longitude = longitude
             self.save()
+
+
 
 
 class NavigationTask(models.Model):

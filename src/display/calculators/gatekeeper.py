@@ -184,7 +184,8 @@ class Gatekeeper:
             times_string = "planned: {}, actual: {}".format(planned_time, actual_time)
         elif planned:
             times_string = "planned: {}, actual: --".format(planned_time)
-        string += f"\n{times_string}"
+        if len(times_string)>0:
+            string += f"\n{times_string}"
         logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))
         # Take into account that external events may have changed the score
         self.contestant.contestanttrack.refresh_from_db()

@@ -78,15 +78,15 @@ class TestANRPerLeg(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
-        self.assertListEqual(['Takeoff: 0.0 points missing gate\n(planned: 20:30:00 +0100, actual: --)',
-                              'SP: 200.0 points missing gate\n(planned: 20:37:00 +0100, actual: --)',
+        self.assertListEqual(['Takeoff: 0.0 points missing gate\nplanned: 20:30:00 +0100, actual: --',
+                              'SP: 200.0 points missing gate\nplanned: 20:37:00 +0100, actual: --',
                               'SP: 50.0 points outside corridor (82 seconds) (capped)',
                               'Waypoint 1: 200.0 points backtracking',
                               'Waypoint 1: 50.0 points outside corridor (157 seconds) (capped)',
                               'Waypoint 1: 0 points entering corridor',
                               'Waypoint 2: 50.0 points outside corridor (175 seconds) (capped)',
                               'Waypoint 3: 50.0 points outside corridor (175 seconds) (capped)',
-                              'FP: 200.0 points passing gate (-778 s)\n(planned: 20:48:09 +0100, actual: 20:35:11 +0100)'],
+                              'FP: 200.0 points passing gate (-778 s)\nplanned: 20:48:09 +0100, actual: 20:35:11 +0100'],
                              strings)
         self.assertEqual(800, contestant_track.score)
 
@@ -188,14 +188,14 @@ class TestANRPerLeg(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
-        expected = ['SP: 200.0 points missing gate\n(planned: 14:17:00 +0100, actual: --)',
+        expected = ['SP: 200.0 points missing gate\nplanned: 14:17:00 +0100, actual: --',
                     'SP: 3.0 points outside corridor (6 seconds)', 'SP: 0 points entering corridor',
-                    'Waypoint 1: 0 points passing gate (no time check) (-56 s)\n(planned: 14:18:59 +0100, actual: 14:18:03 +0100)',
-                    'Waypoint 2: 0 points passing gate (no time check) (-167 s)\n(planned: 14:22:33 +0100, actual: 14:19:46 +0100)',
+                    'Waypoint 1: 0 points passing gate (no time check) (-56 s)\nplanned: 14:18:59 +0100, actual: 14:18:03 +0100',
+                    'Waypoint 2: 0 points passing gate (no time check) (-167 s)\nplanned: 14:22:33 +0100, actual: 14:19:46 +0100',
                     'Waypoint 2: 24.0 points outside corridor (13 seconds)', 'Waypoint 2: 0 points entering corridor',
-                    'Waypoint 3: 0 points passing gate (no time check) (-220 s)\n(planned: 14:24:31 +0100, actual: 14:20:51 +0100)',
+                    'Waypoint 3: 0 points passing gate (no time check) (-220 s)\nplanned: 14:24:31 +0100, actual: 14:20:51 +0100',
                     'Waypoint 3: 21.0 points outside corridor (12 seconds)',
-                    'FP: 200.0 points missing gate\n(planned: 14:28:09 +0100, actual: --)']
+                    'FP: 200.0 points missing gate\nplanned: 14:28:09 +0100, actual: --']
         self.assertListEqual(expected, strings)
         self.assertEqual(448, contestant_track.score)
 
@@ -258,7 +258,7 @@ class TestANR(TransactionTestCase):
                          contestant_track.score)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         self.assertTrue(
-            "SP: 96.0 points passing gate (+33 s)\n(planned: 07:52:00 +0100, actual: 07:52:33 +0100)" in strings)
+            "SP: 96.0 points passing gate (+33 s)\nplanned: 07:52:00 +0100, actual: 07:52:33 +0100" in strings)
 
     def test_track_adaptive_start(self, p):
         track = load_track_points_traccar_csv(
@@ -290,8 +290,9 @@ class TestANR(TransactionTestCase):
         self.assertEqual(953,  # 575,  # 2350,
                          contestant_track.score)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+        print(strings)
         self.assertTrue(
-            "SP: 78.0 points passing gate (-27 s)\n(planned: 07:53:00 +0100, actual: 07:52:33 +0100)" in strings)
+            "SP: 78.0 points passing gate (-27 s)\nplanned: 07:53:00 +0100, actual: 07:52:33 +0100" in strings)
 
 
 class TestAnrCorridorCalculator(TransactionTestCase):
@@ -601,6 +602,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         self.assertEqual(368, self.contestant.contestanttrack.score)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+        print(strings)
         self.assertTrue(
             "SP: 200.0 points circling start" in strings)
 
