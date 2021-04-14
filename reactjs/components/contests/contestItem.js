@@ -9,34 +9,14 @@ export const mapStateToProps = (state, props) => ({
     zoomContest: state.zoomContest
 })
 export const mapDispatchToProps = {
-    zoomFocusContest
 }
 
 
-function sortTaskTimes(a, b) {
-    const startTimeA = new Date(a.start_time)
-    const finishTimeA = new Date(a.finish_time)
-    const startTimeB = new Date(b.start_time)
-    const finishTimeB = new Date(b.finish_time)
-    if (startTimeA < startTimeB) {
-        return -1;
-    }
-    if (startTimeA > startTimeB) {
-        return 1;
-    }
-    if (finishTimeA < finishTimeB) {
-        return -1;
-    }
-    if (finishTimeA > finishTimeB) {
-        return 1;
-    }
-    return 0;
-}
 
 class ConnectedContestItem extends Component {
     handleClick() {
-        if (!this.props.disableClick) {
-            this.props.zoomFocusContest(this.props.contest.id)
+        if (this.props.onClick) {
+            this.props.onClick(this.props.contest)
         }
     }
 

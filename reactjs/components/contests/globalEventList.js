@@ -3,7 +3,7 @@ import {connect} from "react-redux";
 import {
     displayAboutModal,
     displayPastEventsModal,
-    hidePastEventsModal
+    hidePastEventsModal, zoomFocusContest
 } from "../../actions";
 import TimePeriodEventList from "./timePeriodEventList";
 import Icon from "@mdi/react";
@@ -21,7 +21,7 @@ export const mapStateToProps = (state, props) => ({
     pastEventsModalShow: state.displayPastEventsModal
 })
 export const mapDispatchToProps = {
-    displayPastEventsModal, hidePastEventsModal, displayAboutModal
+    displayPastEventsModal, hidePastEventsModal, displayAboutModal, zoomFocusContest
 }
 
 function sortContestTimes(a, b) {
@@ -59,8 +59,7 @@ class PastEvents extends Component {
         let contestBoxes = this.props.contests.map((contest) => {
             return <span key={contest.id + "past_event_span"} style={{width: "350px"}}
                          onClick={() => this.setState({contest: contest})}><ContestItem
-                key={"contest" + contest.pk} contest={contest}
-                disableClick={true}/></span>
+                key={"contest" + contest.pk} contest={contest}/></span>
         })
 
         contestBoxes.reverse()
@@ -164,7 +163,7 @@ class ConnectedGlobalEventList extends Component {
                     <div className={"eventListScrolling"}>
                         <div id={"eventMenu"} className={"collapse"}>
                             <div className={"list-group"} id={"ongoing"}>
-                                <TimePeriodEventList contests={ongoingEvents}/>
+                                <TimePeriodEventList contests={ongoingEvents} onClick={this.props.zoomFocusContest}/>
                             </div>
                             <div className={"list-group list-group-root"}>
                                 <a href={"#upcoming"}
@@ -175,7 +174,7 @@ class ConnectedGlobalEventList extends Component {
                                           className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
                                 </a>
                                 <div className={"list-group collapse"} id={"upcoming"}>
-                                    <TimePeriodEventList contests={upcomingEvents}/>
+                                    <TimePeriodEventList contests={upcomingEvents}  onClick={this.props.zoomFocusContest}/>
                                 </div>
                                 <a href={"#past"}
                                    className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}

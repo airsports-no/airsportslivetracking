@@ -27,7 +27,13 @@ import {
     GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL,
     GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
     DISPLAY_PAST_EVENTS_MODAL,
-    DISPLAY_DISCLAIMER_MODAL, FETCH_DISCLAIMER_SUCCESSFUL, DISPLAY_ABOUT_MODAL
+    DISPLAY_DISCLAIMER_MODAL,
+    FETCH_DISCLAIMER_SUCCESSFUL,
+    DISPLAY_ABOUT_MODAL,
+    FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
+    REGISTER_FOR_CONTEST,
+    UPDATE_CONTEST_REGISTRATION,
+    CANCEL_CONTEST_REGISTRATION
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -121,7 +127,6 @@ export const dispatchContestantData = (data) => (dispatch) => {
 }
 
 
-
 // Global map
 export const dispatchTraccarData = (data) => (dispatch) => {
     dispatch({type: TRACCAR_DATA_RECEIVED, payload: data})
@@ -168,3 +173,25 @@ export const fetchContests = () => (dispatch) => {
     });
 }
 
+export const fetchMyParticipatingContests = () => (dispatch) => {
+    $.ajax({
+        url: "/api/v1/userprofile/my_participating_contests/",
+        datatype: 'json',
+        cache: false,
+        success: value => dispatch({type: FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL, payload: value}),
+        error: error => console.log(error)
+    });
+}
+
+export const registerForContest = (contest) => (dispatch) => {
+    dispatch({type: REGISTER_FOR_CONTEST, payload: contest})
+}
+
+
+export const updateContestRegistration = (participation) => (dispatch) => {
+    dispatch({type: UPDATE_CONTEST_REGISTRATION, payload: participation})
+}
+
+export const contestRegistrationFormReturn = () => (dispatch) => {
+    dispatch({type: CANCEL_CONTEST_REGISTRATION, payload: null})
+}

@@ -50,7 +50,7 @@ urlpatterns = [
     path('docs/', docs.with_ui()),
     re_path('djga/', include('google_analytics.urls')),
     url(r"^api/v1/", include(api.urlpatters)),
-    url(r'^resultsservice/.?', results_service, name="resultsservice"),
+    url(r'^web/.?', results_service, name="resultsservice"),
 ]
 
 if settings.DEBUG:

@@ -70,7 +70,8 @@ from display.serialisers import ContestantTrackSerialiser, \
     TaskWithoutReferenceNestedSerialiser, ContestSummaryWithoutReferenceSerialiser, ContestTeamSerialiser, \
     NavigationTasksSummarySerialiser, TaskSummaryWithoutReferenceSerialiser, TeamTestScoreWithoutReferenceSerialiser, \
     TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser, ContestantSerialiser, \
-    TrackAnnotationSerialiser, ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser
+    TrackAnnotationSerialiser, ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser, \
+    ContestTeamManagementSerialiser, SignupSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -1336,7 +1337,8 @@ class UserPersonViewSet(GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_classes = {
         "get_current_app_navigation_task": NavigationTasksSummarySerialiser,
-        "get_current_sim_navigation_task": NavigationTasksSummarySerialiser
+        "get_current_sim_navigation_task": NavigationTasksSummarySerialiser,
+        "my_contests": ContestTeamManagementSerialiser
     }
     default_serialiser_class = PersonSerialiser
 
@@ -1371,6 +1373,16 @@ class UserPersonViewSet(GenericViewSet):
 
     def perform_update(self, serializer):
         serializer.save()
+
+    @action(detail=False, methods=["get"])
+    def my_participating_contests(self, request, *args, **kwargs):
+        available_contests = Contest.visible_contests_for_user(request.user)
+        print(available_contests)
+        print(self.get_object())
+        contest_teams = ContestTeam.objects.filter(
+            Q(team__crew__member1=self.get_object()) | Q(team__crew__member2=self.get_object()),
+            contest__in=available_contests).distinct()
+        return Response(ContestTeamManagementSerialiser(contest_teams, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
@@ -1437,6 +1449,7 @@ class ContestViewSet(ModelViewSet):
         "update_task_summary": TaskSummaryWithoutReferenceSerialiser,
         "update_test_result": TeamTestScoreWithoutReferenceSerialiser,
         "results_details": ContestResultsDetailsSerialiser,
+        "signup": SignupSerialiser
     }
     default_serialiser_class = ContestSerialiser
     lookup_url_kwarg = "pk"
@@ -1517,10 +1530,25 @@ class ContestViewSet(ModelViewSet):
         # serialiser = ContestResultsDetailsSerialiser(contest)
         # return Response(serialiser.data)
 
+    @action(detail=True, methods=["post"])
+    def signup(self, request, *args, **kwargs):
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(True)
+        serialiser.save()
+        return Response(serialiser.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["delete"])
+    def withdraw(self, request, *args, **kwargs):
+        contest = self.get_object()
+        teams = ContestTeam.objects.filter(Q(team__crew__member1__email=self.request.user.email) | Q(
+            team__crew__member2__email=self.request.user.email), contest=contest)
+        teams.delete()
+        return Response({}, status=status.HTTP_204_NO_CONTENT)
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         try:
-            context.update({"contest": self.get_object()})
+            context.update({"contest": self.get_object(), "request": self.request})
         except AssertionError:
             # This is when we are creating a new contest
             pass
@@ -1568,6 +1596,20 @@ class RouteViewSet(ModelViewSet):
     permission_classes = [permissions.IsAuthenticated & RoutePermissions]
 
     http_method_names = ['get', 'post', 'delete', 'put']
+
+
+class AircraftViewSet(ModelViewSet):
+    queryset = Aeroplane.objects.all()
+    serializer_class = AeroplaneSerialiser
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get']
+
+
+class ClubViewSet(ModelViewSet):
+    queryset = Club.objects.all()
+    serializer_class = ClubSerialiser
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get']
 
 
 class ContestantViewSet(ModelViewSet):

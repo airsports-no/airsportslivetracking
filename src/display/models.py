@@ -299,6 +299,22 @@ class Team(models.Model):
             return self.country.flag
         return None
 
+    @classmethod
+    def get_or_create_from_signup(cls, user: MyUser, copilot_email: str, aircraft_registration: str,
+                                  club_name: str) -> "Team":
+        my_person = Person.objects.get(email=user.email)
+        copilot = None
+        if copilot_email is not None and len(copilot_email) > 0:
+            try:
+                copilot = Person.objects.get(email__iexact=copilot_email)
+            except ObjectDoesNotExist as e:
+                raise ValidationError(f"Person with email address {copilot_email} does not exist")
+        crew, _ = Crew.objects.get_or_create(member1=my_person, member2=copilot)
+        aircraft, _ = Aeroplane.objects.get_or_create(registration=aircraft_registration)
+        club, _ = Club.objects.get_or_create(name=club_name)
+        team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aircraft, club=club)
+        return team
+
 
 class ContestTeam(models.Model):
     contest = models.ForeignKey("Contest", on_delete=models.CASCADE)
@@ -394,6 +410,12 @@ class Contest(models.Model):
             self.latitude = latitude
             self.longitude = longitude
             self.save()
+
+    @classmethod
+    def visible_contests_for_user(cls, user: MyUser):
+        return get_objects_for_user(user, "display.view_contest",
+                                    klass=Contest, accept_global_perms=False) | Contest.objects.filter(
+            is_public=True)
 
 
 class NavigationTask(models.Model):

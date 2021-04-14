@@ -303,6 +303,46 @@ class ContestTeamSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class SignupSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        raise NotImplementedError
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_email"],
+                                              validated_data["aircraft_registration"], validated_data["club_name"])
+        contest = self.context["contest"]
+        if ContestTeam.objects.filter(contest=contest, team=team).exists():
+            raise ValidationError(f"Team {team} is already registered for contest {contest}")
+        teams = ContestTeam.objects.filter(Q(team__crew__member1__email=request.user.email) | Q(
+            team__crew__member2__email=request.user.email), contest=contest)
+        if teams.exist():
+            raise ValidationError(
+                f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
+        if validated_data["copilot_email"] and len(validated_data["copilot_email"]) > 0:
+            teams = ContestTeam.objects.filter(Q(team__crew__member1__email=validated_data["copilot_email"]) | Q(
+                team__crew__member2__email=validated_data["copilot_email"]), contest=contest)
+            if teams.exist():
+                raise ValidationError(
+                    f"The co-pilot {validated_data['copilot_email']} is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
+        contest_team = ContestTeam.objects.create(team=team, contest=contest, air_speed=validated_data["airspeed"])
+        return contest_team
+
+    aircraft_registration = serializers.CharField()
+    club_name = serializers.CharField()
+    copilot_email = serializers.EmailField(required=False)
+    airspeed = serializers.FloatField()
+
+
+class ContestTeamManagementSerialiser(serializers.ModelSerializer):
+    contest = ContestSerialiser(read_only=True)
+    team = TeamNestedSerialiser(read_only=True)
+
+    class Meta:
+        model = ContestTeam
+        fields = "__all__"
+
+
 class ContestTeamNestedSerialiser(serializers.ModelSerializer):
     team = TeamNestedSerialiser()
 

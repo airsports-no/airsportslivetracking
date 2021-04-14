@@ -30,7 +30,11 @@ import {
     DISPLAY_PAST_EVENTS_MODAL,
     DISPLAY_DISCLAIMER_MODAL,
     FETCH_DISCLAIMER,
-    FETCH_DISCLAIMER_SUCCESSFUL, DISPLAY_ABOUT_MODAL
+    FETCH_DISCLAIMER_SUCCESSFUL,
+    DISPLAY_ABOUT_MODAL,
+    FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
+    REGISTER_FOR_CONTEST,
+    UPDATE_CONTEST_REGISTRATION, CANCEL_CONTEST_REGISTRATION
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -71,6 +75,9 @@ const initialState = {
     contestResults: {},
     teams: null,
     visibleTaskDetails: {},
+    disclaimer: "",
+    myParticipatingContests: [],
+    currentContestRegistration: null
 };
 
 function rootReducer(state = initialState, action) {
@@ -438,6 +445,156 @@ function rootReducer(state = initialState, action) {
         fetchContestResults(action.contestId)
         return state
     }
+    if (action.type === GET_CONTEST_LIST_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            contests: action.payload
+        })
+    }
+    if (action.type === GET_CONTEST_RESULTS_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            contestResults: {
+                ...state.contestResults,
+                [action.contestId]: {
+                    ...state.contestResults[action.contestId],
+                    results: action.payload
+                }
+            }
+        })
+    }
+    if (action.type === CREATE_TASK_SUCCESSFUL) {
+        const remaining = state.tasks[action.contestId].filter((task) => {
+            return task.id !== action.payload.id
+        })
+        return Object.assign({}, state, {
+            ...state,
+            tasks: {
+                ...state.tasks,
+                [action.contestId]: remaining.concat([action.payload])
+            }
+        })
+    }
+    if (action.type === CREATE_TASK_TEST_SUCCESSFUL) {
+        const remaining = state.taskTests[action.contestId].filter((taskTest) => {
+            return taskTest.id !== action.payload.id
+        })
+        return Object.assign({}, state, {
+            ...state,
+            taskTests: {
+                ...state.taskTests,
+                [action.contestId]: remaining.concat([action.payload])
+            }
+        })
+    }
+    if (action.type === DELETE_TASK_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            tasks: {
+                ...state.tasks,
+                [action.contestId]: state.tasks[action.contestId].filter((task) => {
+                    return task.id !== action.payload
+                })
+            }
+        })
+    }
+    if (action.type === DELETE_TASK_TEST_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            taskTests: {
+                ...state.taskTests,
+                [action.contestId]: state.taskTests[action.contestId].filter((taskTest) => {
+                    return taskTest.id !== action.payload
+                })
+            }
+        })
+    }
+    if (action.type === GET_TASKS_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            tasks: {
+                ...state.tasks,
+                [action.contestId]: action.payload
+            }
+        })
+    }
+    if (action.type === GET_TASK_TESTS_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            taskTests: {
+                ...state.taskTests,
+                [action.contestId]: action.payload
+            }
+        })
+    }
+    if (action.type === GET_CONTEST_TEAMS_LIST_SUCCESSFUL) {
+        let teamsMap = state.teams ? state.teams : {}
+        action.payload.map((team) => {
+            teamsMap[team.id] = team
+        })
+        return Object.assign({}, state, {
+            ...state,
+            teams: teamsMap,
+        })
+    }
+    if (action.type === SHOW_TASK_DETAILS) {
+        return Object.assign({}, state, {
+            ...state,
+            visibleTaskDetails: {
+                ...state.visibleTaskDetails,
+                [action.taskId]: true
+            }
+        })
+    }
+    if (action.type === HIDE_TASK_DETAILS) {
+        return Object.assign({}, state, {
+            ...state,
+            visibleTaskDetails: {
+                ...state.visibleTaskDetails,
+                [action.taskId]: false
+            }
+        })
+    }
+    if (action.type === HIDE_ALL_TASK_DETAILS) {
+        return Object.assign({}, state, {
+            ...state,
+            visibleTaskDetails: {}
+        })
+    }
+    if (action.type === PUT_TEST_RESULT_SUCCESSFUL) {
+        fetchContestResults(action.contestId)
+        return state
+    }
+    if (action.type === FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            myParticipatingContests: action.payload
+        })
+    }
+    if (action.type === REGISTER_FOR_CONTEST) {
+        return Object.assign({}, state, {
+            ...state,
+            currentContestRegistration: action.payload
+        })
+
+    }
+
+    if (action.type === UPDATE_CONTEST_REGISTRATION) {
+        return Object.assign({}, state, {
+            ...state,
+            currentContestParticipation: action.payload
+        })
+
+    }
+    if (action.type === CANCEL_CONTEST_REGISTRATION) {
+        return Object.assign({}, state, {
+            ...state,
+            currentContestParticipation: null,
+            currentContestRegistration: null
+        })
+
+    }
+
     return state;
 }
 
