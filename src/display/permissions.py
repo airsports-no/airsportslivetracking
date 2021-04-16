@@ -49,6 +49,14 @@ class ContestPublicPermissions(permissions.BasePermission):
         return False
 
 
+class ContestPublicModificationPermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        return obj.is_public or request.user.has_perm('display.change_contest', obj)
+
+
 class TaskTestContestPublicPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.method in SAFE_METHODS

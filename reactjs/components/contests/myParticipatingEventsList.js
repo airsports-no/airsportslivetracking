@@ -7,6 +7,8 @@ import TimePeriodEventList from "./timePeriodEventList";
 import {Button, Container, Modal} from "react-bootstrap";
 import ContestPopupItem from "./contestPopupItem";
 import axios from "axios";
+axios.defaults.xsrfCookieName = 'csrftoken'
+axios.defaults.xsrfHeaderName = 'X-CSRFToken'
 
 export const mapStateToProps = (state, props) => ({
     myParticipatingContests: state.myParticipatingContests,
@@ -36,7 +38,7 @@ class ConnectedMyParticipatingEventsList extends Component {
     }
 
     handleWithdrawClick() {
-        axios.post("/api/v1/contest/" + this.props.contestId + "/withdraw/").then((res) => {
+        axios.delete("/api/v1/contests/" + this.state.currentParticipation.contest.id + "/withdraw/").then((res) => {
             this.props.fetchMyParticipatingContests()
             this.setState({displayManagementModal: false})
         }).catch((e) => {

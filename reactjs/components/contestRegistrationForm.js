@@ -7,7 +7,8 @@ import {connect} from "react-redux";
 import * as yup from 'yup';
 import {Loading} from "./basicComponents";
 import {contestRegistrationFormReturn} from "../actions";
-
+axios.defaults.xsrfCookieName = 'csrftoken'
+axios.defaults.xsrfHeaderName = 'X-CSRFToken'
 const _ = require('lodash');
 const mapStateToProps = (state, props) => ({})
 
@@ -19,9 +20,9 @@ class ConnectedContestRegistrationForm extends Component {
             clubOptions: null,
         }
         this.schema = yup.object().shape({
-            copilot: yup.string(),
-            aircraft: yup.string().required(),
-            club: yup.string().required(),
+            copilot_email: yup.string(),
+            aircraft_registration: yup.string().required(),
+            club_name: yup.string().required(),
             airspeed: yup.number().required(),
         });
     }
@@ -53,13 +54,6 @@ class ConnectedContestRegistrationForm extends Component {
         })
     }
 
-    handleSubmit(values, setSubmitting) {
-        console.log("submitting")
-        console.log(values)
-        setSubmitting(false)
-        // const res = await axios.post("", {})
-    }
-
     render() {
         if (!this.state.aircraftOptions || !this.state.clubOptions) {
             return <Loading/>
@@ -67,15 +61,15 @@ class ConnectedContestRegistrationForm extends Component {
         let initialValues = {
             aircraftOptions: this.state.aircraftOptions,
             clubOptions: this.state.clubOptions,
-            copilot: "",
-            aircraft: "",
-            club: "",
+            copilot_email: "",
+            aircraft_registration: "",
+            club_name: "",
             airspeed: ""
         }
         if (this.props.participation) {
-            initialValues.copilot = this.props.participation.team.crew.member2 ? this.props.participation.team.crew.member2.email : ""
-            initialValues.aircraft = this.props.participation.team.aeroplane.registration
-            initialValues.club = this.props.participation.team.club.name
+            initialValues.copilot_email = this.props.participation.team.crew.member2 ? this.props.participation.team.crew.member2.email : ""
+            initialValues.aircraft_registration = this.props.participation.team.aeroplane.registration
+            initialValues.club_name = this.props.participation.team.club.name
             initialValues.airspeed = this.props.participation.air_speed
         }
 
@@ -85,7 +79,7 @@ class ConnectedContestRegistrationForm extends Component {
             onSubmit: (formValues, {setSubmitting, setStatus, setErrors}) => {
                 console.log("submit", formValues);
                 setSubmitting(true);
-                axios.post("/api/v1/contest/" + this.props.contestId + "/signup/").then((res) => {
+                axios.post("/api/v1/contests/" + this.props.contest.id + "/signup/", formValues).then((res) => {
                     setStatus("Registration successful")
                     this.props.contestRegistrationFormReturn()
                 }).catch((e) => {
@@ -106,19 +100,19 @@ class ConnectedContestRegistrationForm extends Component {
                         <Form onSubmit={props.handleSubmit}>
                             <Form.Group>
                                 <Form.Label>Co-pilot (optional)</Form.Label>
-                                <Form.Control type={"email"} name={"copilot"} onChange={props.handleChange}
-                                              value={props.values.copilot}
-                                              isValid={props.touched.copilot && !props.errors.copilot}/>
+                                <Form.Control type={"email"} name={"copilot_email"} onChange={props.handleChange}
+                                              value={props.values.copilot_email}
+                                              isValid={props.touched.copilot_email && !props.errors.copilot_email}/>
                             </Form.Group>
                             <Form.Group>
                                 <Form.Label>Aircraft</Form.Label>
-                                <Typeahead id={"aircraft"} allowNew newSelectionPrefix={"Add new aircraft: "}
-                                           name={"aircraft"}
+                                <Typeahead id={"aircraft_registration"} allowNew newSelectionPrefix={"Add new aircraft: "}
+                                           name={"aircraft_registration"}
                                            options={props.values.aircraftOptions}
-                                           isInvalid={!!props.errors.aircraft}
-                                           defaultSelected={[{label: props.initialValues.aircraft}]}
-                                           onChange={e => props.setFieldValue("aircraft", e.length > 0 ? e[0].label : null)}/>
-                                <ErrorMessage name={"aircraft"} component={"div"}/>
+                                           isInvalid={!!props.errors.aircraft_registration}
+                                           defaultSelected={[{label: props.initialValues.aircraft_registration}]}
+                                           onChange={e => props.setFieldValue("aircraft_registration", e.length > 0 ? e[0].label : null)}/>
+                                <ErrorMessage name={"aircraft_registration"} component={"div"}/>
                             </Form.Group>
                             <Form.Group>
                                 <Form.Label>Airspeed</Form.Label>
@@ -130,16 +124,16 @@ class ConnectedContestRegistrationForm extends Component {
                             </Form.Group>
                             <Form.Group>
                                 <Form.Label>Club</Form.Label>
-                                <Typeahead id={"club"} allowNew
+                                <Typeahead id={"club_name"} allowNew
                                            options={props.values.clubOptions}
-                                           name={"club"}
-                                           isInvalid={!!props.errors.club}
+                                           name={"club_name"}
+                                           isInvalid={!!props.errors.club_name}
                                            defaultSelected={[{
-                                               id: props.initialValues.club,
-                                               label: props.initialValues.club
+                                               id: props.initialValues.club_name,
+                                               label: props.initialValues.club_name
                                            }]}
-                                           onChange={e => props.setFieldValue("club", e.length > 0 ? e[0].customOption ? e[0].label : e[0].id : null)}/>
-                                <ErrorMessage name={"club"} component={"div"}/>
+                                           onChange={e => props.setFieldValue("club_name", e.length > 0 ? e[0].customOption ? e[0].label : e[0].id : null)}/>
+                                <ErrorMessage name={"club_name"} component={"div"}/>
                             </Form.Group>
                             <Form.Group>
                                 <Button variant="primary" type="submit" disabled={props.isSubmitting}>

@@ -58,7 +58,7 @@ from display.permissions import ContestPermissions, NavigationTaskContestPermiss
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
     ContestPermissionsWithoutObjects, ChangeContestKeyPermissions, TaskContestPermissions, TaskContestPublicPermissions, \
-    TaskTestContestPublicPermissions, TaskTestContestPermissions
+    TaskTestContestPublicPermissions, TaskTestContestPermissions, ContestPublicModificationPermissions
 from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedTeamSerialiser, \
@@ -1530,14 +1530,16 @@ class ContestViewSet(ModelViewSet):
         # serialiser = ContestResultsDetailsSerialiser(contest)
         # return Response(serialiser.data)
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["POST"],
+            permission_classes=[permissions.IsAuthenticated & ContestPublicModificationPermissions])
     def signup(self, request, *args, **kwargs):
         serialiser = self.get_serializer(data=request.data)
         serialiser.is_valid(True)
         serialiser.save()
         return Response(serialiser.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=["delete"])
+    @action(detail=True, methods=["DELETE"],
+            permission_classes=[permissions.IsAuthenticated & ContestPublicModificationPermissions])
     def withdraw(self, request, *args, **kwargs):
         contest = self.get_object()
         teams = ContestTeam.objects.filter(Q(team__crew__member1__email=self.request.user.email) | Q(
