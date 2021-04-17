@@ -19,7 +19,7 @@ import cellEditFactory from 'react-bootstrap-table2-editor';
 import {Container, Modal, Button, Form} from "react-bootstrap";
 import {
     mdiArrowCollapseHorizontal,
-    mdiArrowExpandHorizontal,
+    mdiArrowExpandHorizontal, mdiChevronLeft, mdiChevronRight, mdiChevronUp,
     mdiClose,
     mdiPencilOutline, mdiPlusBox, mdiSort
 } from "@mdi/js";
@@ -292,6 +292,33 @@ class ConnectedTaskSummaryResultsTable extends Component {
         );
     }
 
+    moveTaskRight(taskId) {
+        const task = this.props.tasks.find((t) => {
+            return t.id === taskId
+        })
+        const switchingWith = this.props.tasks.find((t) => {
+            return t.index === task.index + 1
+        })
+        task.index += 1
+        switchingWith.index -= 1
+        this.props.createOrUpdateTask(this.props.contestId, task)
+        this.props.createOrUpdateTask(this.props.contestId, switchingWith)
+    }
+
+
+    moveTaskLeft(taskId) {
+        const task = this.props.tasks.find((t) => {
+            return t.id === taskId
+        })
+        const switchingWith = this.props.tasks.find((t) => {
+            return t.index === task.index - 1
+        })
+        task.index -= 1
+        switchingWith.index += 1
+        this.props.createOrUpdateTask(this.props.contestId, task)
+        this.props.createOrUpdateTask(this.props.contestId, switchingWith)
+    }
+
 
     buildData() {
         let data = {}
@@ -400,7 +427,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
         }
         let columns = [teamColumn]
         const tasks = this.props.tasks.sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
-        tasks.map((task) => {
+        tasks.map((task, taskIndex) => {
             const taskTests = this.props.taskTests.filter((taskTest) => {
                 return taskTest.task === task.id
             }).sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
@@ -479,7 +506,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         this.props.hideTaskDetails(task.id)
                     }
                     const common = <div>
-                        {task.heading}<br/>
+                        {task.heading + " - " + task.index}<br/>
                         {this.props.taskTests.filter((taskTest) => {
                             return taskTest.task === task.id
                         }).length > 0 ? <Button variant={"secondary"}
@@ -527,6 +554,12 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                         this.setState({displayNewTaskModal: true, editTask: task})
                                     }}><Icon
                                 path={mdiPencilOutline} title={"Edit"} size={0.8}/></Button>
+                            {taskIndex > 0 ?
+                                <Button variant={"secondary"} onClick={(e) => this.moveTaskLeft(task.id)}><Icon
+                                    path={mdiChevronLeft} size={0.8}/></Button> : null}
+                            {taskIndex < this.props.tasks.length - 1 ?
+                                <Button variant={"secondary"} onClick={(e) => this.moveTaskRight(task.id)}><Icon
+                                    path={mdiChevronRight} size={0.8}/></Button> : null}
 
                         </div>
                     }

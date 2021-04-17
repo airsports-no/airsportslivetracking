@@ -109,7 +109,7 @@ class ConnectedTrackingContainer extends Component {
                             numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
                         <div className={"fill"}>
                             <div
-                                className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow") + " " + (this.props.displayExpandedTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
+                                className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow scalable") + " " + (this.props.displayExpandedTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
                                 <div
                                     className={"titleWrapper"}>
                                     <a data-toggle={"collapse"} data-target={"#insetMenu"}
@@ -137,35 +137,16 @@ class ConnectedTrackingContainer extends Component {
                         <a className={"btn"} id="returnLink" href={"/"}>
                             <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
                         </a>
-                            {/*<a className={"btn"} id="returnLink" href={"/"}>*/}
-                            {/*    /!*<i className={"mdi mdi-home"} id={"returnLinkImage"}/>*!/*/}
-                            {/*    <img src={"/static/img/airsports_no_text.png"} id={"returnLinkImage"} alt={"Hub"}/>*/}
-                            {/*</a>*/}
                             <Disclaimer/>
-
-                            {/*<div id={"sponsor"}>*/}
-                            {/*    <img src={"/static/img/IG.png"} className={"logo img-fluid"}/>*/}
-                            {/*</div>*/}
                             <div className={"trackImage"}>
                                 <Icon path={mdiGoKartTrack} title={"Logout"} size={2} color={"#e01b1c"} onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
                             </div>
-
-                            {/*<div className={"resultsServiceIcon"}>*/}
-                            {/*    <Icon path={mdiPodium} title={"Results list"} size={2} color={"#e01b1c"} onClick={() => {*/}
-                            {/*        window.location = document.configuration.resultsServiceLink*/}
-                            {/*    }}/>*/}
-                            {/*</div>*/}
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
-                            {/*<img alt={"Logo"} className={"logoImage"}*/}
-                            {/*     id={"logoImage"}*/}
-                            {/*     src={"/static/img/airsports.png"}/>*/}
                             <div id="cesiumContainer"/>
                             {this.props.displayLowerThirds !== null ?
                                 <LowerThirdTeam scorecard_data={this.props.navigationTask.scorecard_data}
                                                 contestant={this.props.contestants[this.props.displayLowerThirds]}/> : null}
 
-                            {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
-                            {/*</div>*/}
                         </div>
                     </div>
                 </div>

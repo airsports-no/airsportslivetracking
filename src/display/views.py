@@ -668,8 +668,7 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
 def delete_score_item(request, pk):
     entry = get_object_or_404(ScoreLogEntry, pk=pk)
     contestant = entry.contestant
-    contestant.contestanttrack.score -= entry.points
-    contestant.contestanttrack.save()
+    contestant.contestanttrack.update_score(contestant.contestanttrack.score-entry.points)
     entry.delete()
     # Push the updated data so that it is reflected on the contest track
     wf = WebsocketFacade()

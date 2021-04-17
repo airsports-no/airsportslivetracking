@@ -22,6 +22,7 @@ import PrecisionRenderer from "./precisionRenderer";
 import AnrCorridorRenderer from "./anrCorridorRenderer";
 import ProhibitedRenderer from "./prohibitedRenderer";
 import LandingRenderer from "./landingRenderer";
+import ContestRankTable from "../contestRankTable";
 
 const L = window['L']
 
@@ -279,8 +280,13 @@ class ConnectedNavigationTask extends Component {
             const colourMap = this.buildColourMap()
             let display = <div/>
             if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
-                display = <ContestantRankTable colourMap={colourMap}
+                if(this.props.displayExpandedTrackingTable){
+                    display = <ContestRankTable colourMap={colourMap} contestId={this.props.contestId} navigationTaskId={this.props.navigationTaskId}
                                                numberOfContestants={this.props.navigationTask.contestant_set.length}/>
+                }else {
+                    display = <ContestantRankTable colourMap={colourMap}
+                                                   numberOfContestants={this.props.navigationTask.contestant_set.length}/>
+                }
             } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                 display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}/>
                 this.props.shrinkTrackingTable();

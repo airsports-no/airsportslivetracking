@@ -1,6 +1,13 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {calculateProjectedScore, compareScore, contestantRankingTable, contestantShortForm, pz} from "../utilities";
+import {
+    calculateProjectedScore,
+    compareScore,
+    contestantRankingTable,
+    contestantShortForm,
+    pz,
+    teamRankingTable
+} from "../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -229,7 +236,7 @@ class ConnectedContestantRankTable extends Component {
                 rank: index + 1,
                 dummy: null,
                 progress: progress,
-                name: contestantRankingTable(contestant.contestant),
+                name: teamRankingTable(contestant.contestant.team),
                 score: contestant.track.score,
                 projectedScore: calculateProjectedScore(contestant.track.score, progress),
                 currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,

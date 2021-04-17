@@ -396,8 +396,6 @@ class Contest(models.Model):
             self.save()
 
 
-
-
 class NavigationTask(models.Model):
     PRECISION = 'precision'
     ANR_CORRIDOR = 'anr_corridor'
@@ -477,31 +475,37 @@ class NavigationTask(models.Model):
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.isoformat())
 
-    def export_to_results_service(self):
+    def create_results_service_test(self):
         task, _ = Task.objects.get_or_create(contest=self.contest, name=f"Navigation task {self.name}", defaults={
             "summary_score_sorting_direction": Task.ASCENDING,
             "heading": self.name})
-        TaskTest.objects.filter(task=task, name="Navigation", heading="Navigation").delete()
+        TaskTest.objects.filter(task=task, name="Navigation").delete()
         test = TaskTest.objects.create(task=task, name="Navigation", heading="Navigation", sorting=TaskTest.ASCENDING,
-                                       index=0)
+                                       index=0, navigation_task=self)
+        return test
+
+    def export_to_results_service(self):
+        self.create_results_service_test()
+        test = self.tasktest
+        task = test.task
         for contestant in self.contestant_set.all().order_by("contestanttrack__score"):
             try:
                 TeamTestScore.objects.create(team=contestant.team, task_test=test,
                                              points=contestant.contestanttrack.score)
-                try:
-                    existing_task_summary = TaskSummary.objects.get(team=contestant.team, task=task)
-                    existing_task_summary.points += contestant.contestanttrack.score
-                    existing_task_summary.save()
-                except ObjectDoesNotExist:
-                    TaskSummary.objects.create(team=contestant.team, task=task, points=contestant.contestanttrack.score)
-
-                try:
-                    existing_contest_summary = ContestSummary.objects.get(team=contestant.team, contest=self.contest)
-                    existing_contest_summary.points += contestant.contestanttrack.score
-                    existing_contest_summary.save()
-                except ObjectDoesNotExist:
-                    ContestSummary.objects.create(team=contestant.team, contest=self.contest,
-                                                  points=contestant.contestanttrack.score)
+                # try:
+                #     existing_task_summary = TaskSummary.objects.get(team=contestant.team, task=task)
+                #     existing_task_summary.points += contestant.contestanttrack.score
+                #     existing_task_summary.save()
+                # except ObjectDoesNotExist:
+                #     TaskSummary.objects.create(team=contestant.team, task=task, points=contestant.contestanttrack.score)
+                #
+                # try:
+                #     existing_contest_summary = ContestSummary.objects.get(team=contestant.team, contest=self.contest)
+                #     existing_contest_summary.points += contestant.contestanttrack.score
+                #     existing_contest_summary.save()
+                # except ObjectDoesNotExist:
+                #     ContestSummary.objects.create(team=contestant.team, contest=self.contest,
+                #                                   points=contestant.contestanttrack.score)
             except IntegrityError:
                 # Caused if there are multiple contestants for the same team. We ignore all but the first one so we only include the lowest score
                 pass
@@ -1361,6 +1365,12 @@ class ContestantTrack(models.Model):
     def update_score(self, score):
         self.refresh_from_db()
         self.score = score
+        # Update task test score if it exists
+        task_test = TaskTest.objects.get(navigation_task=self.contestant.navigation_task)
+        entry, _ = TeamTestScore.objects.get_or_create(team=self.contestant.team, task_test=task_test,
+                                                       defaults={"points": 0})
+        entry.points = score
+        entry.save()
         self.save()
         self.__push_change()
 
@@ -1510,6 +1520,7 @@ class TaskTest(models.Model):
         (ASCENDING, "Ascending")
     )
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE, blank=True, null=True)
     name = models.CharField(max_length=100)
     heading = models.CharField(max_length=100)
     sorting = models.CharField(default=ASCENDING, choices=SORTING_DIRECTION,
@@ -1627,6 +1638,24 @@ def push_task_change(sender, instance: Task, **kwargs):
     ws.transmit_tasks(instance.contest)
 
 
+@receiver(post_save, sender=Task)
+def update_task_index(sender, instance: Task, created, **kwargs):
+    if created:
+        if instance.contest.task_set.all().count() > 0:
+            highest_index = max([item.index for item in instance.contest.task_set.all()])
+            instance.index = highest_index + 1
+            instance.save()
+
+
+@receiver(post_save, sender=TaskTest)
+def update_task_test_index(sender, instance: TaskTest, created, **kwargs):
+    if created:
+        if instance.task.tasktest_set.all().count() > 0:
+            highest_index = max([item.index for item in instance.task.tasktest_set.all()])
+            instance.index = highest_index + 1
+            instance.save()
+
+
 @receiver(post_save, sender=TaskTest)
 @receiver(post_delete, sender=TaskTest)
 def push_test_change(sender, instance: TaskTest, **kwargs):
@@ -1680,6 +1709,12 @@ def validate_route(sender, instance: Route, **kwargs):
 @receiver(post_delete, sender=NavigationTask)
 def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, **kwargs):
     instance.route.delete()
+
+
+@receiver(post_save, sender=NavigationTask)
+def create_results_service_test(sender, instance: NavigationTask, created, **kwargs):
+    if created:
+        instance.create_results_service_test()
 
 
 @receiver(post_delete, sender=Contestant)

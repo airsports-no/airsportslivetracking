@@ -106,12 +106,12 @@ export function contestantTwoLines(contestant) {
 
 }
 
-export function contestantRankingTable(contestant) {
+export function teamRankingTable(team) {
     let string = ""
-    if (contestant.team.crew) {
-        string = contestant.team.crew.member1.first_name + " " + contestant.team.crew.member1.last_name
-        if (contestant.team.crew.member2) {
-            string += "\n" + contestant.team.crew.member2.first_name + " " + contestant.team.crew.member2.last_name
+    if (team.crew) {
+        string = team.crew.member1.first_name + " " + team.crew.member1.last_name
+        if (team.crew.member2) {
+            string += "\n" + team.crew.member2.first_name + " " + team.crew.member2.last_name
         }
     }
     return <div className={"preWrap"}>{string}</div>
