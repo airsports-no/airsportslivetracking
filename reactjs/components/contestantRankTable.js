@@ -106,7 +106,7 @@ class ConnectedContestantRankTable extends Component {
                 classes: "align-middle",
                 sort: true,
                 formatter: (cell, row) => {
-                    return cell.toFixed(2)
+                    return cell.toFixed(this.props.scoreDecimals)
                 }
             },
             {
@@ -146,14 +146,14 @@ class ConnectedContestantRankTable extends Component {
                 },
                 classes: "align-middle"
             },
-            {
-                dataField: "dummy",
-                text: "",
-                formatter: (cell, row) => {
-                    return <Icon path={mdiMagnify} title={"Logout"} size={1.1} color={"white"}/>
-                },
-                classes: "align-middle"
-            },
+            // {
+            //     dataField: "dummy",
+            //     text: "",
+            //     formatter: (cell, row) => {
+            //         return <Icon path={mdiMagnify} title={"Logout"} size={1.1} color={"white"}/>
+            //     },
+            //     classes: "align-middle"
+            // },
             {
                 dataField: "currentState",
                 text: "STATE",

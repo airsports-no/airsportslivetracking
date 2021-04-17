@@ -119,7 +119,7 @@ class ConnectedTrackingContainer extends Component {
                                     </a>
                                     <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
                                        data-target={"#insetMenu"}>{this.props.navigationTask.name ? this.props.navigationTask.name.toUpperCase() : null}</a>
-                                    {ExpandedTableLink}
+                                    {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ? ExpandedTableLink : null}
                                     {/*{TableHeightLink}*/}
                                 </div>
                                 <div id={"insetMenu"}
@@ -134,12 +134,13 @@ class ConnectedTrackingContainer extends Component {
                                 </div>
 
                             </div>
-                        <a className={"btn"} id="returnLink" href={"/"}>
-                            <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
-                        </a>
+                            <a className={"btn"} id="returnLink" href={"/"}>
+                                <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
+                            </a>
                             <Disclaimer/>
                             <div className={"trackImage"}>
-                                <Icon path={mdiGoKartTrack} title={"Logout"} size={2} color={"#e01b1c"} onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
+                                <Icon path={mdiGoKartTrack} title={"Logout"} size={2} color={"#e01b1c"}
+                                      onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
                             </div>
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             <div id="cesiumContainer"/>

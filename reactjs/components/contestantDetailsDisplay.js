@@ -37,8 +37,9 @@ function FormatMessage(props) {
     if (message.offset_string != null && message.offset_string.length > 0) {
         offset_string = " (" + message.offset_string + ")"
     }
-    return <div className={"preWrap"}>{message.points.toFixed(2)} points {message.message} {offset_string}<span
-        className={"gateTimesText"}>{message.times_string.length > 0 ? "\n" + message.times_string : null}</span></div>
+    return <div className={"preWrap"}>{message.points.toFixed(2)} points {message.message} {offset_string}</div>
+    // return <div className={"preWrap"}>{message.points.toFixed(2)} points {message.message} {offset_string}<span
+    //     className={"gateTimesText"}>{message.times_string.length > 0 ? "\n" + message.times_string : null}</span></div>
 }
 
 class ConnectedContestantDetailsDisplay extends Component {
@@ -111,7 +112,8 @@ class ConnectedContestantDetailsDisplay extends Component {
                         <div className={"row"}>
                             <div className={"col-6"}>{contestantTwoLines(this.props.contestant)}</div>
                             <div className={"col-2 text-center"}
-                                 style={{color: "#e01b1c"}}>SCORE<br/>{this.props.contestantData.score.toFixed(2)}</div>
+                                 style={{color: "#e01b1c"}}>SCORE<br/>{this.props.contestantData.score.toFixed(this.props.scoreDecimals)}
+                            </div>
                             <div className={"col-2 text-center"} style={{color: "orange"}}>EST<br/>{projectedScore}
                             </div>
                             <div className={"col-2 details-progress-circle"} style={{paddingTop: "5px"}}><ProgressCircle
