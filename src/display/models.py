@@ -1366,11 +1366,14 @@ class ContestantTrack(models.Model):
         self.refresh_from_db()
         self.score = score
         # Update task test score if it exists
-        task_test = TaskTest.objects.get(navigation_task=self.contestant.navigation_task)
-        entry, _ = TeamTestScore.objects.get_or_create(team=self.contestant.team, task_test=task_test,
-                                                       defaults={"points": 0})
-        entry.points = score
-        entry.save()
+        try:
+            task_test = TaskTest.objects.get(navigation_task=self.contestant.navigation_task)
+            entry, _ = TeamTestScore.objects.get_or_create(team=self.contestant.team, task_test=task_test,
+                                                           defaults={"points": 0})
+            entry.points = score
+            entry.save()
+        except ObjectDoesNotExist:
+            pass
         self.save()
         self.__push_change()
 
