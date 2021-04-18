@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {fetchContestList} from "../../actions/resultsService";
-import {teamLongForm} from "../../utilities";
+import {teamLongForm, teamRankingTable} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -47,7 +47,8 @@ class ConnectedContestSummaryResultsTable extends Component {
                 dataField: "first",
                 text: "Champion",
                 formatter: (cell, row) => {
-                    return <TeamBadge team={cell}/>
+                    return cell?<div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div>:null
+                    // return <TeamBadge team={cell}/>
                 }
 
             }
@@ -63,6 +64,9 @@ class ConnectedContestSummaryResultsTable extends Component {
             <div className={'row fill'}>
                 <div className={"col-12"}>
                     <BootstrapTable keyField={"contestId"} columns={columns} data={this.buildData()}
+                                    classes={"table-dark"}
+                                    wrapperClasses={"text-dark bg-dark"}
+                                    bootstrap4 striped condensed
                                     rowEvents={rowEvents}/>
                 </div>
             </div>
