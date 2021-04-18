@@ -146,15 +146,18 @@ class ConnectedContestRankTable extends Component {
             })
         })
         this.props.contest.results.task_set.map((task) => {
+
             task.tasksummary_set.map((taskSummary) => {
-                Object.assign(data[taskSummary.team], {
-                    ["task_" + taskSummary.task.toFixed(0)]: taskSummary.points,
-                })
+                if (data[taskSummary.team] !== undefined) {
+                    Object.assign(data[taskSummary.team], {
+                        ["task_" + taskSummary.task.toFixed(0)]: taskSummary.points,
+                    })
+                }
             })
         })
         this.props.contest.results.contestsummary_set.map((summary) => {
-            if (data[summary.team.id] === undefined) {
-                data[summary.team.id] = {}
+            if (!summary.team || data[summary.team.id] === undefined) {
+                return
             }
             Object.assign(data[summary.team.id], {
                 contestSummary: summary.points,

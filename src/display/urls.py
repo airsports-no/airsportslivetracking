@@ -13,7 +13,7 @@ from display.views import frontend_view_map, \
     clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map, ContestDetailView, \
     deal_card_to_contestant, list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test, \
-    export_navigation_task_results_to_results_service, clear_results_service, delete_score_item, \
+    clear_results_service, delete_score_item, \
     terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules, frontend_playback_map, \
     share_contest, share_navigation_task
 
@@ -37,7 +37,6 @@ urlpatterns = [
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
     path('navigationtask/<int:pk>/qr/', tracking_qr_code_view, name="navigationtask_qr"),
     path('navigationtask/<int:pk>/map/', get_navigation_task_map, name="navigationtask_map"),
-    path('navigationtask/<int:pk>/export_results/', export_navigation_task_results_to_results_service, name="navigationtask_exportresults"),
     path('navigationtask/<int:pk>/rules/', view_navigation_task_rules, name="navigationtask_rules"),
     path('navigationtask/<int:pk>/update/', NavigationTaskUpdateView.as_view(), name="navigationtask_update"),
     path('navigationtask/<int:pk>/delete/', NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),

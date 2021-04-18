@@ -333,17 +333,16 @@ class ConnectedTaskSummaryResultsTable extends Component {
         })
         this.props.contest.results.task_set.map((task) => {
             task.tasksummary_set.map((taskSummary) => {
-                // if (data[taskSummary.team] === undefined) {
-                //     data[taskSummary.team] = {}
-                // }
-                Object.assign(data[taskSummary.team], {
-                    ["task_" + taskSummary.task.toFixed(0)]: taskSummary.points,
-                })
+                if (data[taskSummary.team] !== undefined) {
+                    Object.assign(data[taskSummary.team], {
+                        ["task_" + taskSummary.task.toFixed(0)]: taskSummary.points,
+                    })
+                }
             })
             task.tasktest_set.map((taskTest) => {
                 taskTest.teamtestscore_set.map((testScore) => {
                     if (data[testScore.team] === undefined) {
-                        data[testScore.team] = {}
+                        return
                     }
                     Object.assign(data[testScore.team], {
                         ["test_" + taskTest.id.toFixed(0)]: testScore.points
@@ -352,6 +351,10 @@ class ConnectedTaskSummaryResultsTable extends Component {
             })
         })
         this.props.contest.results.contestsummary_set.map((summary) => {
+            if (!summary.team || data[summary.team.id] === undefined) {
+                return
+            }
+
             if (data[summary.team.id] === undefined) {
                 data[summary.team.id] = {}
             }

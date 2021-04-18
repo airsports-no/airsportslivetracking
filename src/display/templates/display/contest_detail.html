@@ -14,7 +14,7 @@
             <a href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a> | <a
                 href="{% url 'contest_update' object.pk %}">Update</a> |
             <a href= {% url 'contest_permissions_list' object.pk %}>Permissions</a> |
-            <a href="{% url 'contest_clear_results' object.pk %}">Clear results</a>
+                        <a href="{% url 'resultsservice' %}{{ object.pk }}/taskresults/">Contest results</a> |
             {% if "delete_contest" in contest_permissions %}
                 | <a href="{% url 'contest_delete' object.pk %}">delete</a>
             {% endif %}{% endif %}
