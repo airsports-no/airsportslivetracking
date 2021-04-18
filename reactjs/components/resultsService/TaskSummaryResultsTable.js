@@ -8,7 +8,7 @@ import {
     hideTaskDetails, putContestSummary, putTaskSummary, putTestResult, resultsData,
     showTaskDetails, tasksData, teamsData, testsData
 } from "../../actions/resultsService";
-import {teamLongForm, teamLongFormText} from "../../utilities";
+import {teamLongForm, teamLongFormText, teamRankingTable} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import 'react-bootstrap-table2-toolkit/dist/react-bootstrap-table2-toolkit.min.css';
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -19,8 +19,8 @@ import cellEditFactory from 'react-bootstrap-table2-editor';
 import {Container, Modal, Button, Form} from "react-bootstrap";
 import {
     mdiArrowCollapseHorizontal,
-    mdiArrowExpandHorizontal, mdiChevronLeft, mdiChevronRight, mdiChevronUp,
-    mdiClose,
+    mdiArrowExpandHorizontal, mdiChevronDown, mdiChevronLeft, mdiChevronRight, mdiChevronUp,
+    mdiClose, mdiMagnifyMinus, mdiMagnifyPlus,
     mdiPencilOutline, mdiPlusBox, mdiSort
 } from "@mdi/js";
 import Icon from "@mdi/react";
@@ -57,6 +57,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             displayNewTaskTestModal: false,
             editTask: this.defaultTask(),
             editTaskTest: this.defaultTaskTest(),
+            zoomedTask: null,
             sortField: null,
             sortDirection: "asc"
         }
@@ -145,6 +146,16 @@ class ConnectedTaskSummaryResultsTable extends Component {
         }
     }
 
+    expandTask(task) {
+        this.setState({zoomedTask: task})
+        this.props.showTaskDetails(task.id)
+    }
+
+    collapseTask(task) {
+        this.setState({zoomedTask: null})
+        this.props.hideTaskDetails(task.id)
+    }
+
     createNewTask() {
         this.setState({displayNewTaskModal: false})
         this.props.createOrUpdateTask(this.props.contestId, this.state.editTask)
@@ -164,7 +175,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                    aria-labelledby="contained-modal-title-vcenter">
                 <Modal.Header closeButton>
                     <Modal.Title id="contained-modal-title-vcenter">
-                        Add new task
+                        {this.state.editMode === "new" ? <span>Add new task</span> : <span>Edit task</span>}
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
@@ -180,15 +191,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                     }
                                 })
                             }} value={this.state.editTask.name}/>
-                            <Form.Label>Task index</Form.Label>
-                            <Form.Control type={"number"} onChange={(e) => {
-                                this.setState({
-                                    editTask: {
-                                        ...this.state.editTask,
-                                        index: e.target.value,
-                                    }
-                                })
-                            }} value={this.state.editTask.index}/>
                             <Form.Label>Autosum test scores</Form.Label>
                             <Form.Check type={"checkbox"} onChange={(e) => {
                                 this.setState({
@@ -198,7 +200,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                     }
                                 })
                             }} checked={this.state.editTask.autosum_scores}/>
-                            <Form.Label>Sorting direction</Form.Label>
+                            <Form.Label>Score sorting direction</Form.Label>
                             <Form.Control as={"select"} onChange={(e) => {
                                 this.setState({
                                     editTask: {
@@ -233,7 +235,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                    aria-labelledby="contained-modal-title-vcenter">
                 <Modal.Header closeButton>
                     <Modal.Title id="contained-modal-title-vcenter">
-                        Add new task
+                        {this.state.editMode === "new" ? <span>Add new test</span> : <span>Edit test</span>}
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
@@ -261,16 +263,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                             }}
                                           value={this.state.editTaskTest.name}
                             />
-                            <Form.Label>Task test index</Form.Label>
-                            <Form.Control type={"number"} onChange={(e) => {
-                                this.setState({
-                                    editTaskTest: {
-                                        ...this.state.editTaskTest,
-                                        index: e.target.value,
-                                    }
-                                })
-                            }} value={this.state.editTaskTest.index}/>
-                            <Form.Label>Sorting direction</Form.Label>
+                            <Form.Label>Score sorting direction</Form.Label>
                             <Form.Control as={"select"} onChange={(e) => {
                                 this.setState({editTaskTest: {...this.state.editTaskTest, sorting: e.target.value}})
                             }} value={this.state.editTaskTest.sorting}>
@@ -292,7 +285,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
         );
     }
 
-    moveTaskRight(taskId) {
+    moveTaskRight(e, taskId) {
+        e.stopPropagation()
         const task = this.props.tasks.find((t) => {
             return t.id === taskId
         })
@@ -306,7 +300,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
     }
 
 
-    moveTaskLeft(taskId) {
+    moveTaskLeft(e, taskId) {
+        e.stopPropagation()
         const task = this.props.tasks.find((t) => {
             return t.id === taskId
         })
@@ -383,7 +378,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             dataField: "team",
             text: "Team",
             formatter: (cell, row) => {
-                return teamLongForm(cell)
+                return <div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div>
             },
             csvFormatter: (cell, row) => {
                 return teamLongFormText(cell)
@@ -391,41 +386,36 @@ class ConnectedTaskSummaryResultsTable extends Component {
             editable: false
 
         }
+        const up = <Icon path={mdiChevronUp} title={"Ascending"} size={1}/>
+        const down = <Icon path={mdiChevronDown} title={"Descending"} size={1}/>
+
         const contestSummaryColumn = {
             dataField: "contestSummary",
-            text: "Overall",
+            text: "Σ",
             sort: true,
             editable: !this.props.contest.results.autosum_scores,
+            classes: !this.props.contest.results.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : "",
             csvType: "number",
+            onSort: (field, order) => {
+                this.setState({
+                    sortField: "contestSummary",
+                    sortDirection: this.props.contest.results.summary_score_sorting_direction
+                })
+            },
             sortCaret: (order, column) => {
-                if (!order) return (<span>&nbsp;&nbsp;Desc/Asc</span>);
-                else if (order === 'asc') return (<span>&nbsp;&nbsp;Desc/<font color="red">Asc</font></span>);
-                else if (order === 'desc') return (<span>&nbsp;&nbsp;<font color="red">Desc</font>/Asc</span>);
+                if (!order) return null;
+                else if (order === 'asc') return up;
+                else if (order === 'desc') return down;
                 return null;
             },
             columnType: "contestSummary",
             headerFormatter: (column, colIndex, components) => {
-                return <div>
-                    Overall<br/>
-                    <Button variant={"secondary"}
-                            onClick={(e) => {
-                                this.setState({
-                                    sortField: "contestSummary",
-                                    sortDirection: this.props.contest.results.summary_score_sorting_direction
-                                })
-                            }}><Icon
-                        path={mdiSort} title={"Sort"} size={0.8}/></Button>
-                    {/*{components.sortElement}*/}
-                    {this.props.contest.results.permission_change_contest ?
-                        <div><br/><Button onClick={(e) => {
-                            this.setState({displayNewTaskModal: true, editTask: this.defaultTask()})
-                        }}><Icon
-                            path={mdiPlusBox} title={"New task"} size={0.8}/></Button></div> : null}
-
-                </div>
+                return <span>
+                    {components.sortElement} Σ
+                </span>
             }
         }
-        let columns = [teamColumn]
+        let columns = [teamColumn, contestSummaryColumn]
         const tasks = this.props.tasks.sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
         tasks.map((task, taskIndex) => {
             const taskTests = this.props.taskTests.filter((taskTest) => {
@@ -439,42 +429,48 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     headerClasses: "text-muted",
                     sort: true,
                     hidden: !this.props.visibleTaskDetails[task.id],
+                    classes: this.props.contest.results.permission_change_contest ? "editableCell" : "",
                     csvType: "number",
+                    onSort: (field, order) => {
+                        this.setState({
+                            sortField: dataField,
+                            sortDirection: taskTest.sorting
+                        })
+                    },
                     sortCaret: (order, column) => {
-                        if (!order) return (<span>&nbsp;&nbsp;Desc/Asc</span>);
-                        else if (order === 'asc') return (<span>&nbsp;&nbsp;Desc/<font color="red">Asc</font></span>);
-                        else if (order === 'desc') return (<span>&nbsp;&nbsp;<font color="red">Desc</font>/Asc</span>);
+                        if (!order) return null;
+                        else if (order === 'asc') return up;
+                        else if (order === 'desc') return down;
                         return null;
                     },
                     columnType: "taskTest",
                     taskTest: taskTest.id,
                     headerFormatter: (column, colIndex, components) => {
-                        const common = <div>{task.heading}->{taskTest.heading}<br/>
-                            <Button variant={"secondary"}
-                                    onClick={(e) => {
-                                        this.setState({
-                                            sortField: dataField,
-                                            sortDirection: taskTest.sorting
-                                        })
-                                    }}><Icon
-                                path={mdiSort} title={"Sort"} size={0.8}/></Button>
-                            {/*{components.sortElement}*/}
-                        </div>
                         if (this.props.contest.results.permission_change_contest) {
                             return <div>
-                                {common}<br/>
-                                <Button variant={"danger"}
-                                        onClick={(e) => {
-                                            if (window.confirm("Are you sure you want to delete the task test?")) {
-                                                this.props.deleteTaskTest(this.props.contestId, taskTest.id)
-                                            }
-                                        }}><Icon
-                                    path={mdiClose} title={"Delete"} size={0.8}/></Button>
-                                <Button variant={"secondary"}
-                                        onClick={(e) => {
-                                            this.setState({displayNewTaskTestModal: true, editTaskTest: taskTest})
-                                        }}><Icon
-                                    path={mdiPencilOutline} title={"Edit"} size={0.8}/></Button>
+                                {components.sortElement} {task.heading}->{taskTest.heading}
+                                <span>
+                                <a href={"#"}
+                                   onClick={(e) => {
+                                       e.stopPropagation()
+
+                                       this.setState({
+                                           displayNewTaskTestModal: true,
+                                           editTaskTest: taskTest,
+                                           editMode: "edit"
+                                       })
+                                   }}><Icon
+                                    path={mdiPencilOutline} title={"Edit"} size={0.7}/></a>
+                                <a href={"#"}
+                                   onClick={(e) => {
+                                       e.stopPropagation()
+
+                                       if (window.confirm("Are you sure you want to delete the task test?")) {
+                                           this.props.deleteTaskTest(this.props.contestId, taskTest.id)
+                                       }
+                                   }}><Icon
+                                    path={mdiClose} title={"Delete"} size={0.7}/></a>
+                                    </span>
 
                             </div>
                         }
@@ -489,77 +485,81 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 sort: true,
                 columnType: "task",
                 editable: !task.autosum_scores,
+                classes: !task.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : "",
                 task: task.id,
+                onSort: (field, order) => {
+                    this.setState({
+                        sortField: dataField,
+                        sortDirection: task.summary_score_sorting_direction
+                    })
+                },
                 sortCaret: (order, column) => {
-                    if (!order) return (<span>&nbsp;&nbsp;Desc/Asc</span>);
-                    else if (order === 'asc') return (<span>&nbsp;&nbsp;Desc/<font color="red">Asc</font></span>);
-                    else if (order === 'desc') return (<span>&nbsp;&nbsp;<font color="red">Desc</font>/Asc</span>);
+                    if (!order) return null;
+                    else if (order === 'asc') return up;
+                    else if (order === 'desc') return down;
                     return null;
                 },
                 events: {},
                 hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible(),
                 csvType: "number",
+                // formatter: (cell, row) => {
+                //     <span>{cell}<Icon
+                //         path={mdiPencilOutline} title={"Edit"} size={0.7}
+                //         style={{verticalAlign: "top", textAlign: "right"}}/></span>
+                // },
                 headerFormatter: (column, colIndex, components) => {
                     if (this.props.taskTests.filter((taskTest) => {
                         return taskTest.task === task.id
                     }).length === 0 && this.props.visibleTaskDetails[task.id]) {
                         this.props.hideTaskDetails(task.id)
                     }
-                    const common = <div>
-                        {task.heading + " - " + task.index}<br/>
-                        {this.props.taskTests.filter((taskTest) => {
-                            return taskTest.task === task.id
-                        }).length > 0 ? <Button variant={"secondary"}
-                                                onClick={(e) => {
-                                                    if (!this.props.visibleTaskDetails[task.id]) {
-                                                        this.props.showTaskDetails(task.id)
-                                                    } else {
-                                                        this.props.hideTaskDetails(task.id)
-                                                    }
-                                                }}>
-                            {this.props.visibleTaskDetails[task.id] ? <Icon
-                                path={mdiArrowCollapseHorizontal} title={"Collapse"} size={0.8}/> : <Icon
-                                path={mdiArrowExpandHorizontal} title={"Expand"} size={0.8}/>}
-                        </Button> : null}
-                        <Button variant={"secondary"}
-                                onClick={(e) => {
-                                    this.setState({
-                                        sortField: dataField,
-                                        sortDirection: task.summary_score_sorting_direction
-                                    })
-                                }}><Icon
-                            path={mdiSort} title={"Sort"} size={0.8}/></Button>
-                        {/*{components.sortElement}*/}
-                    </div>
+                    const common = <span>
+                        {components.sortElement} {task.heading}
+                    </span>
                     if (this.props.contest.results.permission_change_contest) {
                         return <div>
-                            {common}<br/>
-                            <Button onClick={(e) => {
-                                this.setState({
-                                    displayNewTaskTestModal: true,
-                                    editTaskTest: this.defaultTaskTest(task.id)
-                                })
-                            }
-                            }><Icon
-                                path={mdiPlusBox} title={"New test"} size={0.8}/></Button>
-                            <Button variant={"danger"}
-                                    onClick={(e) => {
-                                        if (window.confirm("You sure you want to delete the task?")) {
-                                            this.props.deleteTask(this.props.contestId, task.id)
-                                        }
-                                    }}><Icon
-                                path={mdiClose} title={"Delete"} size={0.8}/></Button>
-                            <Button variant={"secondary"}
-                                    onClick={(e) => {
-                                        this.setState({displayNewTaskModal: true, editTask: task})
-                                    }}><Icon
-                                path={mdiPencilOutline} title={"Edit"} size={0.8}/></Button>
-                            {taskIndex > 0 ?
-                                <Button variant={"secondary"} onClick={(e) => this.moveTaskLeft(task.id)}><Icon
-                                    path={mdiChevronLeft} size={0.8}/></Button> : null}
-                            {taskIndex < this.props.tasks.length - 1 ?
-                                <Button variant={"secondary"} onClick={(e) => this.moveTaskRight(task.id)}><Icon
-                                    path={mdiChevronRight} size={0.8}/></Button> : null}
+                            {common}
+
+                            <a href={"#"}
+                               onClick={(e) => {
+                                   e.stopPropagation()
+
+                                   this.setState({displayNewTaskModal: true, editTask: task, editMode: "edit"})
+                               }}><Icon
+                                path={mdiPencilOutline} title={"Edit"} size={0.7}/></a>
+                            <a href={"#"}
+                               onClick={(e) => {
+                                   e.stopPropagation()
+
+                                   if (window.confirm("You sure you want to delete the task?")) {
+                                       this.props.deleteTask(this.props.contestId, task.id)
+                                   }
+                               }}><Icon
+                                path={mdiClose} title={"Delete"} size={0.7}/></a>
+                            {this.props.taskTests.filter((taskTest) => {
+                                return taskTest.task === task.id
+                            }).length > 0 ? this.props.visibleTaskDetails[task.id] ? <a href={"#"}
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation()
+                                                                                            this.collapseTask(task)
+                                                                                        }}
+                                ><Icon path={mdiMagnifyMinus} size={0.7}/></a> :
+                                <a href={"#"}
+                                   onClick={(e) => {
+                                       e.stopPropagation()
+                                       this.expandTask(task)
+                                   }}
+                                ><Icon path={mdiMagnifyPlus} size={0.7}/></a>
+                                : null}
+                            {!this.state.zoomedTask ?
+                                <div style={{verticalAlign: "baseline", textAlign: "right"}}>
+                                    {taskIndex > 0 ?
+                                        <a href={"#"} onClick={(e) => this.moveTaskLeft(e, task.id)}><Icon
+                                            path={mdiChevronLeft} size={0.7}/></a> : null}
+                                    {taskIndex < this.props.tasks.length - 1 ?
+                                        <a href={"#"} onClick={(e) => this.moveTaskRight(e, task.id)}><Icon
+                                            path={mdiChevronRight} size={0.7}/></a> : null}
+                                </div> : null}
 
                         </div>
                     }
@@ -567,7 +567,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 }
             })
         })
-        columns.push(contestSummaryColumn)
         return columns
     }
 
@@ -597,29 +596,57 @@ class ConnectedTaskSummaryResultsTable extends Component {
             }
         });
 
-        return <div className={'row'}>
-            <div className={"col-12"}>
-                <h1>{this.props.contest.results.name}</h1>
-                <ToolkitProvider
-                    keyField="key"
-                    data={d}
-                    columns={c}
-                    exportCSV
-                >
-                    {
-                        props => (
-                            <div>
-                                <BootstrapTable {...props.baseProps} sort={defaultSorted}
-                                                cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
-                                />
-                                <hr/>
-                                <ExportCSVButton {...props.csvProps}>Export CSV</ExportCSVButton>
-                            </div>
-                        )
-                    }
-                </ToolkitProvider>
+        return <div>
+            <div className={"row"}>
+                <div className={"col-12"}>
+                    {this.props.contest.results.permission_change_contest ?
+                        this.state.zoomedTask ?
+                            <div><h2><a href={"#"}
+                                        onClick={() => this.collapseTask(this.state.zoomedTask)}>{this.props.contest.results.name}</a> ->
+                                Tests
+                                for {this.state.zoomedTask.name}
+                                <Button onClick={(e) => {
+                                    this.setState({
+                                        displayNewTaskTestModal: true,
+                                        editTaskTest: this.defaultTaskTest(this.state.zoomedTask.id),
+                                        editMode: "new"
+                                    })
+                                }
+                                } style={{float: "right"}}>New test</Button></h2></div> :
+                            <div><h2>{this.props.contest.results.name}
+                                <Button style={{float: "right"}} onClick={(e) => {
+                                    this.setState({
+                                        displayNewTaskModal: true,
+                                        editTask: this.defaultTask(),
+                                        editMode: "new"
+                                    })
+                                }}>New task</Button></h2></div> : null}
+                </div>
             </div>
-            <Link to={"../../"}>Contest overview</Link>
+            <div className={"row"}>
+                <div className={"col-12"}>
+                    <ToolkitProvider
+                        keyField="key"
+                        data={d}
+                        columns={c}
+                        exportCSV
+                    >
+                        {
+                            props => (
+                                <div>
+                                    <BootstrapTable {...props.baseProps} sort={defaultSorted} classes={"table-dark"}
+                                                    wrapperClasses={"text-dark bg-dark"}
+                                                    bootstrap4 striped condensed
+                                                    cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
+                                    />
+                                    <hr/>
+                                    <ExportCSVButton {...props.csvProps}>Export CSV</ExportCSVButton>
+                                </div>
+                            )
+                        }
+                    </ToolkitProvider>
+                </div>
+            </div>
             {this.newTaskModal()}
             {this.newTaskTestModal()}
         </div>
@@ -627,23 +654,25 @@ class ConnectedTaskSummaryResultsTable extends Component {
 }
 
 const
-    TaskSummaryResultsTable = connect(mapStateToProps, {
-        fetchContestResults,
-        fetchContestTeams,
-        showTaskDetails,
-        hideTaskDetails,
-        fetchTasks,
-        fetchTaskTests,
-        createOrUpdateTask,
-        createOrUpdateTaskTest,
-        deleteTask,
-        deleteTaskTest,
-        putContestSummary,
-        putTaskSummary,
-        putTestResult,
-        teamsData,
-        tasksData,
-        testsData,
-        resultsData
-    })(ConnectedTaskSummaryResultsTable);
+    TaskSummaryResultsTable = connect(mapStateToProps,
+        {
+            fetchContestResults,
+            fetchContestTeams,
+            showTaskDetails,
+            hideTaskDetails,
+            fetchTasks,
+            fetchTaskTests,
+            createOrUpdateTask,
+            createOrUpdateTaskTest,
+            deleteTask,
+            deleteTaskTest,
+            putContestSummary,
+            putTaskSummary,
+            putTestResult,
+            teamsData,
+            tasksData,
+            testsData,
+            resultsData
+        }
+    )(ConnectedTaskSummaryResultsTable);
 export default TaskSummaryResultsTable;

@@ -87,6 +87,10 @@ body {
 }
 
 
+.editableCell {
+    color: deepskyblue;
+}
+
 .outerBackdropWide {
     right: 10px;
 }

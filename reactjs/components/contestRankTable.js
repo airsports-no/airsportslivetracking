@@ -166,36 +166,11 @@ class ConnectedContestRankTable extends Component {
 
     buildColumns() {
         const taskToHighlight = this.getTaskToHighlight()
-        const teamColumn = [
-            // {
-            //     dataField: "colour",
-            //     text: "  ",
-            //     style: this.numberStyle
-            //
-            // },
-            {
-                dataField: "rank",
-                text: " #",
-                classes: "align-middle",
-                sort: true,
-                formatter: (cell, row) => {
-                    return <span> {cell}</span>
-                }
-
-            },
-            {
-                dataField: "team",
-                text: "CREW",
-                formatter: (cell, row) => {
-                    return <div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div>
-                }
-            }
-        ]
         const up = <Icon path={mdiChevronUp} title={"Ascending"} size={1}/>
         const down = <Icon path={mdiChevronDown} title={"Descending"} size={1}/>
         const contestSummaryColumn = {
             dataField: "contestSummary",
-            text: "Overall",
+            text: "Σ",
             sort: true,
             editable: false,
             csvType: "number",
@@ -221,6 +196,32 @@ class ConnectedContestRankTable extends Component {
             },
             columnType: "contestSummary",
         }
+        const teamColumn = [
+            // {
+            //     dataField: "colour",
+            //     text: "  ",
+            //     style: this.numberStyle
+            //
+            // },
+            {
+                dataField: "rank",
+                text: " #",
+                classes: "align-middle",
+                sort: true,
+                formatter: (cell, row) => {
+                    return <span> {cell}</span>
+                }
+
+            },
+            {
+                dataField: "team",
+                text: "CREW",
+                formatter: (cell, row) => {
+                    return <div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div>
+                }
+            },
+            contestSummaryColumn
+        ]
         let columns = teamColumn
         const tasks = this.props.tasks.sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
         tasks.map((task) => {
@@ -256,7 +257,6 @@ class ConnectedContestRankTable extends Component {
                 events: {},
             })
         })
-        columns.push(contestSummaryColumn)
         return columns
     }
 
