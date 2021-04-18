@@ -1579,6 +1579,7 @@ class TeamTestScore(models.Model):
 #
 #
 @receiver(post_save, sender=TeamTestScore)
+@receiver(post_delete, sender=TeamTestScore)
 def auto_summarise_tests(sender, instance: TeamTestScore, **kwargs):
     if instance.task_test.task.autosum_scores:
         task_summary, _ = TaskSummary.objects.get_or_create(task=instance.task_test.task, team=instance.team,
@@ -1591,6 +1592,7 @@ def auto_summarise_tests(sender, instance: TeamTestScore, **kwargs):
 
 
 @receiver(post_save, sender=TaskSummary)
+@receiver(post_delete, sender=TaskSummary)
 def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
     if instance.task.contest.autosum_scores:
         contest_summary, _ = ContestSummary.objects.get_or_create(contest=instance.task.contest, team=instance.team,
@@ -1603,6 +1605,7 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
 
 
 @receiver(post_save, sender=ContestTeam)
+@receiver(post_delete, sender=ContestTeam)
 def post_contest_team_change(sender, instance: ContestTeam, **kwargs):
     from websocket_channels import WebsocketFacade
     ws = WebsocketFacade()
@@ -1610,6 +1613,7 @@ def post_contest_team_change(sender, instance: ContestTeam, **kwargs):
 
 
 @receiver(post_save, sender=TeamTestScore)
+@receiver(post_delete, sender=TeamTestScore)
 def post_team_test_score_change(sender, instance: TeamTestScore, **kwargs):
     from websocket_channels import WebsocketFacade
     ws = WebsocketFacade()
@@ -1617,6 +1621,7 @@ def post_team_test_score_change(sender, instance: TeamTestScore, **kwargs):
 
 
 @receiver(post_save, sender=TaskSummary)
+@receiver(post_delete, sender=TaskSummary)
 def post_task_summary_change(sender, instance: TaskSummary, **kwargs):
     from websocket_channels import WebsocketFacade
     ws = WebsocketFacade()
@@ -1624,6 +1629,7 @@ def post_task_summary_change(sender, instance: TaskSummary, **kwargs):
 
 
 @receiver(post_save, sender=ContestSummary)
+@receiver(post_delete, sender=ContestSummary)
 def push_contest_summary_change(sender, instance: ContestSummary, **kwargs):
     from websocket_channels import WebsocketFacade
     ws = WebsocketFacade()
@@ -1715,6 +1721,21 @@ def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, 
 def create_results_service_test(sender, instance: NavigationTask, created, **kwargs):
     if created:
         instance.create_results_service_test()
+
+
+@receiver(post_delete, sender=NavigationTask)
+def clear_navigation_task_results_service_test(sender, instance: NavigationTask, **kwargs):
+    if hasattr(instance, "tasktest"):
+        task = instance.tasktest.task
+        for test in instance.tasktest.teamtestscore_set.all():
+            # Must be explicitly called for the signal to recalculate summary to be called.
+            test.delete()
+        instance.tasktest.delete()
+        if task.tasktest_set.all().count() == 0:
+            for task_summary in task.tasksummary_set.all():
+                # Must be explicitly called for the signal to recalculate summary to be called.
+                task_summary.delete()
+            task.delete()
 
 
 @receiver(post_delete, sender=Contestant)
