@@ -134,12 +134,17 @@ export function teamLongFormText(team) {
     return 'Pilot:' + (team.crew ? team.crew.member1.last_name + ', ' + team.crew.member1.first_name : "Unknown") + (team.crew && team.crew.member2 ? ' ;Navigator: ' + team.crew.member2.last_name + ', ' + team.crew.member2.first_name : "") + ' ;Aeroplane: ' + team.aeroplane.registration
 }
 
-export function calculateProjectedScore(score, progress) {
+export function calculateProjectedScore(score, progress, summary) {
     if (progress <= 0) {
         return 99999
     }
     if (progress < 5) {
         return 99999
     }
-    return (100 * score / progress)
+    const estimate = (100 * score / progress)
+    const difference = estimate - score
+    if (summary != null) {
+        return summary + difference
+    }
+    return estimate
 }

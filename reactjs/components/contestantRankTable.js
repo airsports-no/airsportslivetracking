@@ -107,8 +107,25 @@ class ConnectedContestantRankTable extends Component {
                 classes: "align-middle",
                 sort: true,
                 formatter: (cell, row) => {
+                    if (!row.hasStarted){
+                        return "--"
+                    }
                     return cell.toFixed(this.props.scoreDecimals)
                 }
+            },
+            {
+                dataField: "contest_summary",
+                text: "Σ",
+                classes: "align-middle",
+                sort: true,
+                hidden: !this.props.navigationTask.display_contestant_rank_summary,
+                formatter: (cell, row) => {
+                    if (cell != null) {
+                        return cell.toFixed(this.props.scoreDecimals)
+                    } else {
+                        return "--"
+                    }
+                },
             },
             {
                 dataField: "projectedScore",
@@ -134,20 +151,6 @@ class ConnectedContestantRankTable extends Component {
                     }
                     return a - b; // desc
                 }
-            },
-            {
-                dataField: "contest_summary",
-                text: "Σ",
-                classes: "align-middle",
-                sort: true,
-                hidden: !this.props.navigationTask.display_contestant_rank_summary,
-                formatter: (cell, row) => {
-                    if(cell!=null) {
-                        return cell.toFixed(this.props.scoreDecimals)
-                    }else{
-                        return "-"
-                    }
-                },
             },
             {
                 dataField: "progress",
@@ -251,10 +254,11 @@ class ConnectedContestantRankTable extends Component {
                 rank: index + 1,
                 dummy: null,
                 progress: progress,
+                hasStarted: contestant.track.current_state !== "Waiting...",
                 name: teamRankingTable(contestant.contestant.team),
                 score: contestant.track.score,
                 contest_summary: contestant.track.contest_summary,
-                projectedScore: calculateProjectedScore(contestant.track.score, progress),
+                projectedScore: calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary),
                 currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
                 finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
                 initialLoading: contestant.initialLoading,
