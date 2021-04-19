@@ -735,7 +735,7 @@ class ContestSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
 
 
 class TaskSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
-    task = serializers.PrimaryKeyRelatedField(read_only=True)
+    task = serializers.PrimaryKeyRelatedField(queryset=Task.objects.all())
 
     class Meta:
         model = TaskSummary
@@ -743,16 +743,17 @@ class TaskSummaryWithoutReferenceSerialiser(serializers.ModelSerializer):
 
 
 class TeamTestScoreWithoutReferenceSerialiser(serializers.ModelSerializer):
-    task_test = serializers.PrimaryKeyRelatedField(read_only=True)
+    task_test = serializers.PrimaryKeyRelatedField(queryset=TaskTest.objects.all(), required=True)
 
     class Meta:
         model = TeamTestScore
         fields = "__all__"
 
 
+# TODO: Not used?
 class TaskTestWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
     teamtestscore_set = TeamTestScoreWithoutReferenceSerialiser(many=True)
-    task = serializers.PrimaryKeyRelatedField(read_only=True)
+    task = serializers.PrimaryKeyRelatedField(queryset=Task.objects.all())
 
     class Meta:
         model = TaskTest

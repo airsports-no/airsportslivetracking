@@ -186,7 +186,8 @@ export const putTestResult = (contestId, teamId, taskTestId, points) => (dispatc
         method: "PUT",
         data: {task_test: taskTestId, team: teamId, points: points},
         cache: false,
-        success: value => dispatch({type: GET_CONTEST_RESULTS_SUCCESSFUL, payload: value, contestId: contestId}),
+        success: value => console.log("Successfully saved task summary"),
+        // success: value => dispatch({type: GET_CONTEST_RESULTS_SUCCESSFUL, payload: value, contestId: contestId}),
         error: error => alert(JSON.stringify(error))
     });
 }

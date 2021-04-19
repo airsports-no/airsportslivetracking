@@ -17,6 +17,7 @@ navigation_task_router.register(r'navigationtasks', NavigationTaskViewSet, basen
 navigation_task_router.register(r'tasks', TaskViewSet, basename="tasks")
 navigation_task_router.register(r'tasktests', TaskTestViewSet, basename="tasktests")
 
+# Used by results service
 router.register(r'contestresults', ContestResultsSummaryViewSet, basename="contestresults")
 
 contestant_router = routers.NestedSimpleRouter(navigation_task_router, r'navigationtasks', "navigationtasks",
