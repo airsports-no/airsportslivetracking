@@ -395,6 +395,7 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
     """
+    contest_summary = serializers.FloatField(read_only=True, required=False)
 
     class Meta:
         model = ContestantTrack
@@ -509,6 +510,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
                                  help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
                                      lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
     actual_rules = serializers.JSONField(read_only=True)
+    display_contestant_rank_summary = serializers.BooleanField(read_only=True)
     route = RouteSerialiser()
 
     def get_scorecard_data(self, navigation_task):

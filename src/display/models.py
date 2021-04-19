@@ -294,6 +294,11 @@ class Team(models.Model):
         return "{} in {}".format(self.crew, self.aeroplane)
 
     @property
+    def active_contestants(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return self.contestant_set.filter(tracker_start_time__lte=now, finished_by_time__gte=now)
+
+    @property
     def country_flag_url(self):
         if self.country:
             return self.country.flag
@@ -468,6 +473,10 @@ class NavigationTask(models.Model):
             return "Unlisted"
         else:
             return "Private"
+
+    @property
+    def display_contestant_rank_summary(self):
+        return TaskTest.objects.filter(task__contest=self.contest).count() > 1
 
     class Meta:
         ordering = ("start_time", "finish_time")
@@ -1355,6 +1364,14 @@ class ContestantTrack(models.Model):
     past_finish_gate = models.BooleanField(default=False)
     calculator_finished = models.BooleanField(default=False)
 
+    @property
+    def contest_summary(self):
+        try:
+            return ContestSummary.objects.get(team=self.contestant.team,
+                                              contest=self.contestant.navigation_task.contest).points
+        except ObjectDoesNotExist:
+            return None
+
     def update_last_gate(self, gate_name, time_difference):
         self.refresh_from_db()
         self.last_gate = gate_name
@@ -1605,6 +1622,11 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
             total = sum([test.points for test in tasks])
             contest_summary.points = total
             contest_summary.save()
+            # Update contestants
+            from websocket_channels import WebsocketFacade
+            ws = WebsocketFacade()
+            for c in instance.team.active_contestants:
+                ws.transmit_basic_information(c)
 
 
 @receiver(post_save, sender=ContestTeam)

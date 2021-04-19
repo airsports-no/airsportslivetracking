@@ -30,6 +30,7 @@ import {
     GET_TASK_TESTS_SUCCESSFUL,
     GET_TASKS_SUCCESSFUL
 } from "../../constants/resultsServiceActionTypes";
+import {sortCaret, sortFunc} from "../resultsTableUtilities";
 
 const {ExportCSVButton} = CSVExport;
 
@@ -320,15 +321,15 @@ class ConnectedTaskSummaryResultsTable extends Component {
         // Make sure that each team has a row even if it is and think
         this.props.contest.results.contest_teams.map((team) => {
             data[team] = {
-                contestSummary: 0,
+                contestSummary: "-",
                 team: this.props.teams[team],
                 key: team + "_" + this.props.contestId,
             }
             this.props.tasks.map((task) => {
-                data[team]["task_" + task.id.toFixed(0)] = 0
+                data[team]["task_" + task.id.toFixed(0)] = "-"
             })
             this.props.taskTests.map((taskTest) => {
-                data[team]["test_" + taskTest.id.toFixed(0)] = 0
+                data[team]["test_" + taskTest.id.toFixed(0)] = "-"
             })
         })
         this.props.contest.results.task_set.map((task) => {
@@ -353,10 +354,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
         this.props.contest.results.contestsummary_set.map((summary) => {
             if (!summary.team || data[summary.team.id] === undefined) {
                 return
-            }
-
-            if (data[summary.team.id] === undefined) {
-                data[summary.team.id] = {}
             }
             Object.assign(data[summary.team.id], {
                 contestSummary: summary.points,
@@ -389,8 +386,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
             editable: false
 
         }
-        const up = <Icon path={mdiChevronUp} title={"Ascending"} size={1}/>
-        const down = <Icon path={mdiChevronDown} title={"Descending"} size={1}/>
 
         const contestSummaryColumn = {
             dataField: "contestSummary",
@@ -405,12 +400,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     sortDirection: this.props.contest.results.summary_score_sorting_direction
                 })
             },
-            sortCaret: (order, column) => {
-                if (!order) return null;
-                else if (order === 'asc') return up;
-                else if (order === 'desc') return down;
-                return null;
-            },
+            sortFunc: sortFunc,
+            sortCaret: sortCaret,
             columnType: "contestSummary",
             headerFormatter: (column, colIndex, components) => {
                 return <span>
@@ -419,13 +410,16 @@ class ConnectedTaskSummaryResultsTable extends Component {
             }
         }
         let columns = [teamColumn, contestSummaryColumn]
+
         const tasks = this.props.tasks.sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
         tasks.map((task, taskIndex) => {
             const taskTests = this.props.taskTests.filter((taskTest) => {
                 return taskTest.task === task.id
             }).sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
+            let hasNavTask = false
             taskTests.map((taskTest) => {
                 const dataField = "test_" + taskTest.id.toFixed(0)
+                hasNavTask |= taskTest.navigation_task !== null
                 columns.push({
                     dataField: dataField,
                     text: taskTest.heading,
@@ -440,12 +434,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                             sortDirection: taskTest.sorting
                         })
                     },
-                    sortCaret: (order, column) => {
-                        if (!order) return null;
-                        else if (order === 'asc') return up;
-                        else if (order === 'desc') return down;
-                        return null;
-                    },
+                    sortFunc: sortFunc,
+                    sortCaret: sortCaret,
                     columnType: "taskTest",
                     taskTest: taskTest.id,
                     headerFormatter: (column, colIndex, components) => {
@@ -464,15 +454,16 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                        })
                                    }}><Icon
                                     path={mdiPencilOutline} title={"Edit"} size={0.7}/></a>
-                                <a href={"#"}
-                                   onClick={(e) => {
-                                       e.stopPropagation()
+                                    {!taskTest.navigation_task ?
+                                        <a href={"#"}
+                                           onClick={(e) => {
+                                               e.stopPropagation()
 
-                                       if (window.confirm("Are you sure you want to delete the task test?")) {
-                                           this.props.deleteTaskTest(this.props.contestId, taskTest.id)
-                                       }
-                                   }}><Icon
-                                    path={mdiClose} title={"Delete"} size={0.7}/></a>
+                                               if (window.confirm("Are you sure you want to delete the task test?")) {
+                                                   this.props.deleteTaskTest(this.props.contestId, taskTest.id)
+                                               }
+                                           }}><Icon
+                                            path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
                                     </span>
 
                             </div>
@@ -496,12 +487,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         sortDirection: task.summary_score_sorting_direction
                     })
                 },
-                sortCaret: (order, column) => {
-                    if (!order) return null;
-                    else if (order === 'asc') return up;
-                    else if (order === 'desc') return down;
-                    return null;
-                },
+                sortFunc: sortFunc,
+                sortCaret: sortCaret,
                 events: {},
                 hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible(),
                 csvType: "number",
@@ -511,11 +498,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 //         style={{verticalAlign: "top", textAlign: "right"}}/></span>
                 // },
                 headerFormatter: (column, colIndex, components) => {
-                    if (this.props.taskTests.filter((taskTest) => {
-                        return taskTest.task === task.id
-                    }).length === 0 && this.props.visibleTaskDetails[task.id]) {
-                        this.props.hideTaskDetails(task.id)
-                    }
+                    // if (this.props.taskTests.filter((taskTest) => {
+                    //     return taskTest.task === task.id
+                    // }).length === 0 && this.props.visibleTaskDetails[task.id]) {
+                    //     this.props.hideTaskDetails(task.id)
+                    // }
                     const common = <span>
                         {components.sortElement} {task.heading}
                     </span>
@@ -530,30 +517,28 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                    this.setState({displayNewTaskModal: true, editTask: task, editMode: "edit"})
                                }}><Icon
                                 path={mdiPencilOutline} title={"Edit"} size={0.7}/></a>
-                            <a href={"#"}
-                               onClick={(e) => {
-                                   e.stopPropagation()
+                            {!hasNavTask ?
+                                <a href={"#"}
+                                   onClick={(e) => {
+                                       e.stopPropagation()
 
-                                   if (window.confirm("You sure you want to delete the task?")) {
-                                       this.props.deleteTask(this.props.contestId, task.id)
-                                   }
-                               }}><Icon
-                                path={mdiClose} title={"Delete"} size={0.7}/></a>
-                            {this.props.taskTests.filter((taskTest) => {
-                                return taskTest.task === task.id
-                            }).length > 0 ? this.props.visibleTaskDetails[task.id] ? <a href={"#"}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation()
-                                                                                            this.collapseTask(task)
-                                                                                        }}
+                                       if (window.confirm("You sure you want to delete the task?")) {
+                                           this.props.deleteTask(this.props.contestId, task.id)
+                                       }
+                                   }}><Icon
+                                    path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
+                            {this.props.visibleTaskDetails[task.id] ? <a href={"#"}
+                                                                         onClick={(e) => {
+                                                                             e.stopPropagation()
+                                                                             this.collapseTask(task)
+                                                                         }}
                                 ><Icon path={mdiMagnifyMinus} size={0.7}/></a> :
                                 <a href={"#"}
                                    onClick={(e) => {
                                        e.stopPropagation()
                                        this.expandTask(task)
                                    }}
-                                ><Icon path={mdiMagnifyPlus} size={0.7}/></a>
-                                : null}
+                                ><Icon path={mdiMagnifyPlus} size={0.7}/></a>}
                             {!this.state.zoomedTask ?
                                 <div style={{verticalAlign: "baseline", textAlign: "right"}}>
                                     {taskIndex > 0 ?

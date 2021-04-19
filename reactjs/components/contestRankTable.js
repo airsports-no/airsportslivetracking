@@ -14,6 +14,7 @@ import "bootstrap/dist/css/bootstrap.min.css"
 import {mdiChevronDown, mdiChevronUp, mdiGoKartTrack, mdiSort} from "@mdi/js";
 import Icon from "@mdi/react";
 import {Button} from "react-bootstrap";
+import {sortCaret, sortFunc} from "./resultsTableUtilities";
 
 const mapStateToProps = (state, props) => ({
     contest: state.contestResults[props.contestId],
@@ -183,20 +184,8 @@ class ConnectedContestRankTable extends Component {
                     sortDirection: this.props.contest.results.summary_score_sorting_direction
                 })
             },
-            sortFunc: (a, b, order, dataField, rowA, rowB) => {
-                if (b === '-') return -1
-                if (a === '-') return 1
-                if (order === 'asc') {
-                    return a - b;
-                }
-                return b - a; // desc
-            },
-            sortCaret: (order, column) => {
-                if (!order) return null;
-                else if (order === 'asc') return up;
-                else if (order === 'desc') return down;
-                return null;
-            },
+            sortFunc: sortFunc,
+            sortCaret: sortCaret,
             columnType: "contestSummary",
         }
         const teamColumn = [
@@ -243,20 +232,8 @@ class ConnectedContestRankTable extends Component {
                         sortDirection: task.summary_score_sorting_direction
                     })
                 },
-                sortFunc: (a, b, order, dataField, rowA, rowB) => {
-                    if (b === '-') return -1
-                    if (a === '-') return 1
-                    if (order === 'asc') {
-                        return a - b;
-                    }
-                    return b - a; // desc
-                },
-                sortCaret: (order, column) => {
-                    if (!order) return null;
-                    else if (order === 'asc') return up;
-                    else if (order === 'desc') return down;
-                    return null;
-                },
+                sortFunc: sortFunc,
+                sortCaret: sortCaret,
                 events: {},
             })
         })

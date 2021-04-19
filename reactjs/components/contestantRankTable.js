@@ -48,7 +48,8 @@ const mapStateToProps = (state, props) => ({
         }
     }),
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
-    highlight: state.highlightContestantTable
+    highlight: state.highlightContestantTable,
+    navigationTask: state.navigationTask,
 })
 
 
@@ -133,6 +134,20 @@ class ConnectedContestantRankTable extends Component {
                     }
                     return a - b; // desc
                 }
+            },
+            {
+                dataField: "contest_summary",
+                text: "Σ",
+                classes: "align-middle",
+                sort: true,
+                hidden: !this.props.navigationTask.display_contestant_rank_summary,
+                formatter: (cell, row) => {
+                    if(cell!=null) {
+                        return cell.toFixed(this.props.scoreDecimals)
+                    }else{
+                        return "-"
+                    }
+                },
             },
             {
                 dataField: "progress",
@@ -238,6 +253,7 @@ class ConnectedContestantRankTable extends Component {
                 progress: progress,
                 name: teamRankingTable(contestant.contestant.team),
                 score: contestant.track.score,
+                contest_summary: contestant.track.contest_summary,
                 projectedScore: calculateProjectedScore(contestant.track.score, progress),
                 currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
                 finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
