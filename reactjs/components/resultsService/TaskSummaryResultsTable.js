@@ -468,11 +468,19 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     columnType: "taskTest",
                     taskTest: taskTest.id,
                     headerFormatter: (column, colIndex, components) => {
-                        const header = <div>{components.sortElement} {task.heading}->{taskTest.heading}</div>
+                        const header = <span>{components.sortElement} {taskTest.heading}</span>
                         let privileged = null
+                        let move = null
                         if (this.props.contest.results.permission_change_contest) {
-                            privileged = <div>
-                                <span>
+                            move = <div style={{verticalAlign: "baseline", textAlign: "right"}}>
+                                {taskTestIndex > 0 ?
+                                    <a href={"#"} onClick={(e) => this.moveTestLeft(e, taskTest.id)}><Icon
+                                        path={mdiChevronLeft} size={0.7}/></a> : null}
+                                {taskTestIndex < taskTests.length - 1 ?
+                                    <a href={"#"} onClick={(e) => this.moveTestRight(e, taskTest.id)}><Icon
+                                        path={mdiChevronRight} size={0.7}/></a> : null}
+                            </div>
+                            privileged = <span>
                                 <a href={"#"}
                                    onClick={(e) => {
                                        e.stopPropagation()
@@ -484,28 +492,19 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                        })
                                    }}><Icon
                                     path={mdiPencilOutline} title={"Edit"} size={0.7}/></a>
-                                    {!taskTest.navigation_task ?
-                                        <a href={"#"}
-                                           onClick={(e) => {
-                                               e.stopPropagation()
+                                {!taskTest.navigation_task ?
+                                    <a href={"#"}
+                                       onClick={(e) => {
+                                           e.stopPropagation()
 
-                                               if (window.confirm("Are you sure you want to delete the task test?")) {
-                                                   this.props.deleteTaskTest(this.props.contestId, taskTest.id)
-                                               }
-                                           }}><Icon
-                                            path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
+                                           if (window.confirm("Are you sure you want to delete the task test?")) {
+                                               this.props.deleteTaskTest(this.props.contestId, taskTest.id)
+                                           }
+                                       }}><Icon
+                                        path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
                                     </span>
-                                <div style={{verticalAlign: "baseline", textAlign: "right"}}>
-                                    {taskTestIndex > 0 ?
-                                        <a href={"#"} onClick={(e) => this.moveTestLeft(e, taskTest.id)}><Icon
-                                            path={mdiChevronLeft} size={0.7}/></a> : null}
-                                    {taskTestIndex < taskTests.length - 1 ?
-                                        <a href={"#"} onClick={(e) => this.moveTestRight(e, taskTest.id)}><Icon
-                                            path={mdiChevronRight} size={0.7}/></a> : null}
-                                </div>
-                            </div>
                         }
-                        return <div>{header}{privileged}</div>
+                        return <div>{header}{privileged}{move}</div>
                     }
                 })
             });
@@ -544,8 +543,19 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         {components.sortElement} {task.heading}
                     </span>
                         let privileged = null
+                        let move = null
                         if (this.props.contest.results.permission_change_contest) {
-                            privileged = <div>
+                            if (!this.state.zoomedTask) {
+                                move = <div style={{verticalAlign: "baseline", textAlign: "right"}}>
+                                    {taskIndex > 0 ?
+                                        <a href={"#"} onClick={(e) => this.moveTaskLeft(e, task.id)}><Icon
+                                            path={mdiChevronLeft} size={0.7}/></a> : null}
+                                    {taskIndex < this.props.tasks.length - 1 ?
+                                        <a href={"#"} onClick={(e) => this.moveTaskRight(e, task.id)}><Icon
+                                            path={mdiChevronRight} size={0.7}/></a> : null}
+                                </div>
+                            }
+                            privileged = <span>
                                 <a href={"#"}
                                    onClick={(e) => {
                                        e.stopPropagation()
@@ -563,17 +573,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                            }
                                        }}><Icon
                                         path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
-                                {!this.state.zoomedTask ?
-                                    <div style={{verticalAlign: "baseline", textAlign: "right"}}>
-                                        {taskIndex > 0 ?
-                                            <a href={"#"} onClick={(e) => this.moveTaskLeft(e, task.id)}><Icon
-                                                path={mdiChevronLeft} size={0.7}/></a> : null}
-                                        {taskIndex < this.props.tasks.length - 1 ?
-                                            <a href={"#"} onClick={(e) => this.moveTaskRight(e, task.id)}><Icon
-                                                path={mdiChevronRight} size={0.7}/></a> : null}
-                                    </div> : null}
-
-                            </div>
+                            </span>
                         }
                         return <div>{common}{privileged}
                             {this.props.visibleTaskDetails[task.id] ? <a href={"#"}
@@ -588,6 +588,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                        this.expandTask(task)
                                    }}
                                 ><Icon path={mdiMagnifyPlus} size={0.7}/></a>}
+                            {move}
                         </div>
                     }
                 }
