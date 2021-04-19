@@ -315,6 +315,35 @@ class ConnectedTaskSummaryResultsTable extends Component {
         this.props.createOrUpdateTask(this.props.contestId, switchingWith)
     }
 
+    moveTestRight(e, testId) {
+        e.stopPropagation()
+        const test = this.props.taskTests.find((t) => {
+            return t.id === testId
+        })
+        const switchingWith = this.props.taskTests.find((t) => {
+            return t.index === test.index + 1&&t.task===test.task
+        })
+        test.index += 1
+        switchingWith.index -= 1
+        this.props.createOrUpdateTaskTest(this.props.contestId, test)
+        this.props.createOrUpdateTaskTest(this.props.contestId, switchingWith)
+    }
+
+
+    moveTestLeft(e, testId) {
+        e.stopPropagation()
+        const test = this.props.taskTests.find((t) => {
+            return t.id === testId
+        })
+        const switchingWith = this.props.taskTests.find((t) => {
+            return t.index === test.index - 1 && t.task===test.task
+        })
+        test.index -= 1
+        switchingWith.index += 1
+        this.props.createOrUpdateTaskTest(this.props.contestId, test)
+        this.props.createOrUpdateTaskTest(this.props.contestId, switchingWith)
+    }
+
 
     buildData() {
         let data = {}
@@ -417,7 +446,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 return taskTest.task === task.id
             }).sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
             let hasNavTask = false
-            taskTests.map((taskTest) => {
+            taskTests.map((taskTest, taskTestIndex) => {
                 const dataField = "test_" + taskTest.id.toFixed(0)
                 hasNavTask |= taskTest.navigation_task !== null
                 columns.push({
@@ -465,7 +494,14 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                            }}><Icon
                                             path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
                                     </span>
-
+                                <div style={{verticalAlign: "baseline", textAlign: "right"}}>
+                                    {taskTestIndex > 0 ?
+                                        <a href={"#"} onClick={(e) => this.moveTestLeft(e, taskTest.id)}><Icon
+                                            path={mdiChevronLeft} size={0.7}/></a> : null}
+                                    {taskTestIndex < taskTests.length - 1 ?
+                                        <a href={"#"} onClick={(e) => this.moveTestRight(e, taskTest.id)}><Icon
+                                            path={mdiChevronRight} size={0.7}/></a> : null}
+                                </div>
                             </div>
                         }
                         return common
