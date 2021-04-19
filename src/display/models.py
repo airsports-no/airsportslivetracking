@@ -294,11 +294,6 @@ class Team(models.Model):
         return "{} in {}".format(self.crew, self.aeroplane)
 
     @property
-    def active_contestants(self):
-        now = datetime.datetime.now(datetime.timezone.utc)
-        return self.contestant_set.filter(tracker_start_time__lte=now, finished_by_time__gte=now)
-
-    @property
     def country_flag_url(self):
         if self.country:
             return self.country.flag
@@ -1625,7 +1620,7 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
             # Update contestants
             from websocket_channels import WebsocketFacade
             ws = WebsocketFacade()
-            for c in instance.team.active_contestants:
+            for c in instance.team.contestant_set.filter(navigation_task__contest=instance.task.contest):
                 ws.transmit_basic_information(c)
 
 
