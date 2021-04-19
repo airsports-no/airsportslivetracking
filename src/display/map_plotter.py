@@ -151,7 +151,14 @@ def folder_map_name(folder: str) -> str:
 
 
 MAP_FOLDERS = glob.glob("/maptiles/*")
-MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [("osm", "OSM")]
+MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [("osm", "OSM"), ("fc", "Flight Contest")]
+
+
+class FlightContest(GoogleWTS):
+    def _image_url(self, tile):
+        x, y, z = tile
+        y = (2 ** z) - y - 1
+        return f"https://tiles.flightcontest.de/{z}/{x}/{y}.png"
 
 
 class OpenAIP(GoogleWTS):
@@ -535,6 +542,8 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     A3_width = 29.7
     if map_source == "osm":
         imagery = OSM()
+    elif map_source == "fc":
+        imagery = FlightContest()
     else:
         imagery = LocalImages(map_source)
     if map_size == A3:
@@ -559,7 +568,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)))
     ax = plt.axes(projection=imagery.crs)
     print(f"Figure projection: {imagery.crs}")
-    ax.add_image(imagery, zoom_level)#, interpolation='spline36', zorder=10)
+    ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
     # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
     ax.set_aspect("auto")
     if "precision" in task.scorecard.task_type:
