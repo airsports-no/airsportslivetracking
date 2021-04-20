@@ -284,7 +284,7 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
             linewidth=linewidth, zorder=3, solid_capstyle="butt")
 
 
-def scale_bar_y(ax, proj, length, location=(0.08, 0.5), linewidth=3,
+def scale_bar_y(ax, proj, length, location=(0.05, 0.5), linewidth=3,
                 units='km', m_per_unit=1000, scale=0):
     """
     http://stackoverflow.com/a/35705477/1072212
@@ -566,7 +566,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
             figure_width = A4_width
             figure_height = A4_height
 
-    plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)))
+    plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)), facecolor="white")
     ax = plt.axes(projection=imagery.crs)
     print(f"Figure projection: {imagery.crs}")
     ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
