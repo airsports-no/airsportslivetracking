@@ -1516,7 +1516,7 @@ class Task(models.Model):
         help_text="The index of the task when displayed as columns in a table. Indexes are sorted in ascending order to determine column order",
         default=0)
     autosum_scores = models.BooleanField(default=True,
-                                         help_text="If true, the front end will sum all tests into TaskSummary when any test is updated")
+                                         help_text="If true, the server sum all tests into TaskSummary when any test is updated")
 
     class Meta:
         unique_together = ("name", "contest")

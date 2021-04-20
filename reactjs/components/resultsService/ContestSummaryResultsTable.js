@@ -1,13 +1,10 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {fetchContestList} from "../../actions/resultsService";
 import {teamLongForm, teamRankingTable} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
-import paginationFactory from 'react-bootstrap-table2-paginator';
 import "bootstrap/dist/css/bootstrap.min.css"
-import {ProgressCircle} from "../contestantProgress";
-import {AircraftBadge, ProfileBadge, TeamBadge} from "../teamBadges";
 import {Redirect, Link} from "react-router-dom";
+import {fetchContests} from "../../actions";
 
 const mapStateToProps = (state, props) => ({
     contests: state.contests
@@ -16,7 +13,7 @@ const mapStateToProps = (state, props) => ({
 class ConnectedContestSummaryResultsTable extends Component {
     constructor(props) {
         super(props)
-        this.props.fetchContestList()
+        this.props.fetchContests()
     }
 
     buildData() {
@@ -47,7 +44,7 @@ class ConnectedContestSummaryResultsTable extends Component {
                 dataField: "first",
                 text: "Champion",
                 formatter: (cell, row) => {
-                    return cell?<div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div>:null
+                    return cell ? <div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div> : null
                     // return <TeamBadge team={cell}/>
                 }
 
@@ -76,6 +73,6 @@ class ConnectedContestSummaryResultsTable extends Component {
 
 const
     ContestSummaryResultsTable = connect(mapStateToProps, {
-        fetchContestList,
+        fetchContests,
     })(ConnectedContestSummaryResultsTable);
 export default ContestSummaryResultsTable;

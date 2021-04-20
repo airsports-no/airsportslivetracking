@@ -1,7 +1,7 @@
 import React from "react";
 import {render} from "react-dom";
 import {BrowserRouter, Route, Redirect, withRouter} from 'react-router-dom'
-import store from '../store/resultsService'
+import store from '../store/index'
 import {Provider} from 'react-redux';
 import Router from "../config/Router";
 

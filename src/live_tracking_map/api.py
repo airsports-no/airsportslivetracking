@@ -1,7 +1,7 @@
 from rest_framework_nested import routers
 
 from display.views import ContestViewSet, ImportFCNavigationTask, NavigationTaskViewSet, ContestantViewSet, \
-    ContestResultsSummaryViewSet, ImportFCNavigationTaskTeamId, UserPersonViewSet, TaskViewSet, \
+    ImportFCNavigationTaskTeamId, UserPersonViewSet, TaskViewSet, \
     TaskTestViewSet
 from django.urls import path, include
 
@@ -12,13 +12,11 @@ router.register(r'contests', ContestViewSet, basename="contests")
 
 navigation_task_router = routers.NestedSimpleRouter(router, r'contests', lookup="contest")
 navigation_task_router.register(r'importnavigationtask', ImportFCNavigationTask, basename="importnavigationtask")
-navigation_task_router.register(r'importnavigationtaskteamid', ImportFCNavigationTaskTeamId, basename="importnavigationtaskteamid")
+navigation_task_router.register(r'importnavigationtaskteamid', ImportFCNavigationTaskTeamId,
+                                basename="importnavigationtaskteamid")
 navigation_task_router.register(r'navigationtasks', NavigationTaskViewSet, basename="navigationtasks")
 navigation_task_router.register(r'tasks', TaskViewSet, basename="tasks")
 navigation_task_router.register(r'tasktests', TaskTestViewSet, basename="tasktests")
-
-# Used by results service
-router.register(r'contestresults', ContestResultsSummaryViewSet, basename="contestresults")
 
 contestant_router = routers.NestedSimpleRouter(navigation_task_router, r'navigationtasks', "navigationtasks",
                                                lookup="navigationtask")

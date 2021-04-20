@@ -12,15 +12,6 @@ import {
     CREATE_TASK_TEST_SUCCESSFUL, DELETE_TASK_SUCCESSFUL, DELETE_TASK_TEST_SUCCESSFUL, PUT_TEST_RESULT_SUCCESSFUL
 } from "../constants/resultsServiceActionTypes";
 
-export const fetchContestList = () => (dispatch) => {
-    $.ajax({
-        url: "/api/v1/contestresults/",
-        datatype: 'json',
-        cache: false,
-        success: value => dispatch({type: GET_CONTEST_LIST_SUCCESSFUL, payload: value}),
-        error: error => console.log(error)
-    });
-}
 export const teamsData = (data, contestId) => (dispatch) => dispatch({
     type: GET_CONTEST_TEAMS_LIST_SUCCESSFUL,
     payload: data,
@@ -44,7 +35,7 @@ export const resultsData = (data, contestId) => (dispatch) => dispatch({
 
 export const fetchContestResults = (contestId) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contestresults/" + contestId + "/details/",
+        url: "/api/v1/contests/" + contestId + "/results_details/",
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_CONTEST_RESULTS_SUCCESSFUL, payload: value, contestId: contestId}),
@@ -54,7 +45,7 @@ export const fetchContestResults = (contestId) => (dispatch) => {
 
 export const fetchContestTeams = (contestId) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contestresults/" + contestId + "/teams/",
+        url: "/api/v1/contests/" + contestId + "/teams/",
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_CONTEST_TEAMS_LIST_SUCCESSFUL, payload: value, contestId: contestId}),

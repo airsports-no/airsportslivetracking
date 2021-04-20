@@ -22,7 +22,6 @@ class ConnectedContestDisplayGlobalMap extends Component {
         if (new Date(this.props.contest.start_time).getTime() < now.getTime() && new Date(this.props.contest.finish_time).getTime() > now.getTime()) {
             colour = "red"
         }
-        // this.props.fetchContestsNavigationTaskSummaries(this.props.contest.id)
         this.circle = L.marker([this.props.contest.latitude, this.props.contest.longitude], {
             title: this.props.contest.name,
 

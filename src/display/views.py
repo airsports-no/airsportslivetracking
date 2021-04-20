@@ -1,13 +1,9 @@
 import base64
 import datetime
 import os
-from datetime import timedelta
 from typing import Optional, Dict
 
-import redis_lock
 import dateutil
-import rest_framework
-from django import core
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required, login_required
 from django.contrib.auth.mixins import PermissionRequiredMixin, LoginRequiredMixin, UserPassesTestMixin
@@ -67,7 +63,7 @@ from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedTeamSerialiser, \
     ContestSerialiser, NavigationTaskNestedTeamRouteSerialiser, RouteSerialiser, \
-    ContestantTrackWithTrackPointsSerialiser, ContestResultsHighLevelSerialiser, \
+    ContestantTrackWithTrackPointsSerialiser, \
     TeamResultsSummarySerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, \
     GpxTrackSerialiser, PersonSerialiser, ExternalNavigationTaskTeamIdSerialiser, \
     ContestantNestedTeamSerialiserWithContestantTrack, AeroplaneSerialiser, ClubSerialiser, ContestTeamNestedSerialiser, \
@@ -1482,11 +1478,10 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
     queryset = Contest.objects.all()
     serializer_classes = {
         "teams": ContestTeamNestedSerialiser,
-        "task_results": TaskWithoutReferenceNestedSerialiser,
-        "contest_summary_results": ContestSummaryWithoutReferenceSerialiser,
         "update_contest_summary": ContestSummaryWithoutReferenceSerialiser,
         "update_task_summary": TaskSummaryWithoutReferenceSerialiser,
-        "update_test_result": TeamTestScoreWithoutReferenceSerialiser
+        "update_test_result": TeamTestScoreWithoutReferenceSerialiser,
+        "results_details": ContestResultsDetailsSerialiser,
     }
     default_serialiser_class = ContestSerialiser
     lookup_url_kwarg = "pk"
@@ -1501,14 +1496,15 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
                                     klass=self.queryset, accept_global_perms=False) | self.queryset.filter(
             is_public=True, is_featured=True)
 
-    @action(["GET"], detail=True)
-    def navigation_task_summaries(self, request, pk=None, **kwargs):
-        contests = get_objects_for_user(self.request.user, "display.view_contest",
-                                        klass=Contest, accept_global_perms=False)
-        navigation_tasks = NavigationTask.objects.filter(
-            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)).filter(
-            contest_id=pk)
-        return Response(NavigationTasksSummarySerialiser(navigation_tasks, many=True).data)
+    @action(detail=True, methods=["get"])
+    def results_details(self, request, *args, **kwargs):
+        """
+        Retrieve the full list of contest summaries, tasks summaries, and individual test results for the contest
+        """
+        contest = self.get_object()
+        contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
+        serialiser = ContestResultsDetailsSerialiser(contest)
+        return Response(serialiser.data)
 
     @action(["GET"], detail=True)
     def teams(self, request, pk=None, **kwargs):
@@ -1517,49 +1513,6 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         """
         contest_teams = ContestTeam.objects.filter(contest=pk)
         return Response(ContestTeamNestedSerialiser(contest_teams, many=True).data)
-
-    # TODO: I am not sure this is used anywhere
-    @action(["PUT"], detail=True, permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions])
-    def task_results(self, request, pk=None, **kwargs):
-        """
-        Post the results for a task (for individual tests and a task summary). This will overwrite any previously
-        stored task results for the task (referenced by the task name). Tasks are unique inside a contest, and tests
-        are unique inside a task. A team can only have a single TaskSummary and a single TeamTestScore for each test.
-        Violating this will result in a validation error and an exception.
-        """
-        Task.objects.filter(contest=self.get_object(), name=request.data["name"]).delete()
-        serialiser = self.get_serializer(data=request.data)
-        serialiser.is_valid(True)
-        serialiser.save()
-        return Response(serialiser.data, status=status.HTTP_201_CREATED)
-
-    @action(["DELETE"], detail=True, permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions])
-    def all_task_results(self, request, pk=None, **kwargs):
-        """
-        Delete all task results for the contest.
-        """
-        Task.objects.filter(contest=self.get_object()).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    # TODO: I think this is only used in tests. Can it be removed?
-    @action(["POST", "DELETE"], detail=True,
-            permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions])
-    def contest_summary_results(self, request, pk=None, **kwargs):
-        """
-        NOT_USED!
-
-        Post the combined summary results for the contest. Expects either a list of ContestSummaryWithoutReferenceSerialiser
-        where each object represents the total score of the contest for a team, or a single instance of
-        ContestSummaryWithoutReferenceSerialiser. DELETE requires no specific input.
-        """
-        if self.request.method == "POST":
-            serialiser = self.get_serializer(data=request.data, many=isinstance(request.data, list))
-            serialiser.is_valid(True)
-            serialiser.save()
-            return Response(serialiser.data, status=status.HTTP_201_CREATED)
-        else:
-            ContestSummary.objects.filter(contest=self.get_object()).delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["put"])
     def update_contest_summary(self, request, *args, **kwargs):
@@ -1812,78 +1765,6 @@ def view_token(request):
 
 
 ########## Results service ##########
-class ContestResultsSummaryViewSet(ModelViewSet):
-    queryset = Contest.objects.all()
-    default_serializer_class = ContestResultsHighLevelSerialiser
-    permission_classes = [ContestPublicPermissions | permissions.IsAuthenticated & ContestPermissions]
-
-    serializer_classes = {
-        "teams": TeamNestedSerialiser,
-        "details": ContestResultsDetailsSerialiser,
-    }
-
-    def get_serializer_class(self):
-        return self.serializer_classes.get(self.action, self.default_serializer_class)
-
-    @action(detail=True, methods=["get"])
-    def details(self, request, *args, **kwargs):
-        contest = self.get_object()
-        contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
-        serialiser = ContestResultsDetailsSerialiser(contest)
-        return Response(serialiser.data)
-
-    @action(detail=True, methods=["get"])
-    def teams(self, request, *args, **kwargs):
-        contest = self.get_object()
-        teams = Team.objects.filter(contestteam__contest=contest)
-        # teams = Team.objects.filter(Q(tasksummary__task__contest=contest) | Q(contestsummary__contest=contest) | Q(
-        #     teamtestscore__task_test__task__contest=contest)).distinct()
-        serialiser = TeamNestedSerialiser(teams, many=True)
-        return Response(serialiser.data)
-
-
-# class UpdateResultsViewSet(GenericViewSet):
-#     queryset = Contest.objects.all()
-#     permission_classes = [permissions.IsAuthenticated & ChangeContestKeyPermissions]
-#
-#     serializer_classes = {
-#         "update_contest_summary": ContestSummaryWithoutReferenceSerialiser,
-#         "update_task_summary": TaskSummaryWithoutReferenceSerialiser,
-#         "update_test_result": TeamTestScoreWithoutReferenceSerialiser
-#     }
-#     default_serialiser_class = ContestSummaryWithoutReferenceSerialiser
-#
-#     def get_serializer_class(self):
-#         return self.serializer_classes.get(self.action, self.default_serialiser_class)
-#
-#     # http_method_names = ["put"]
-#
-#     lookup_field = "id"
-#
-#     @action(detail=True, methods=["put"])
-#     def update_contest_summary(self, request, *args, **kwargs):
-#         # I think this is required for the permissions to work
-#         contest = self.get_object()
-#         ContestSummary.objects.filter(team=request.data["team"], contest=contest).update(points=request.data["points"])
-#         return Response(status=HTTP_200_OK)
-#
-#     @action(detail=True, methods=["put"])
-#     def update_task_summary(self, request, *args, **kwargs):
-#         # I think this is required for the permissions to work
-#         contest = self.get_object()
-#         TaskSummary.objects.filter(team=request.data["team"], task=request.data["task"]).update(
-#             points=request.data["points"])
-#         return Response(status=HTTP_200_OK)
-#
-#     @action(detail=True, methods=["put"])
-#     def update_test_result(self, request, *args, **kwargs):
-#         # I think this is required for the permissions to work
-#         contest = self.get_object()
-#         TeamTestScore.objects.filter(team=request.data["team"], task_test=request.data["task_first"]).update(
-#             points=request.data["points"])
-#         return Response(status=HTTP_200_OK)
-
-
 class TaskViewSet(ModelViewSet):
     queryset = Task.objects.all()
     permission_classes = [TaskContestPublicPermissions | permissions.IsAuthenticated & TaskContestPermissions]

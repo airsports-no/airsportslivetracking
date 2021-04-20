@@ -25,7 +25,7 @@ import {
     HALF_HEIGHT_TABLE,
     EXPLICITLY_DISPLAY_ALL_TRACKS,
     TRACCAR_DATA_RECEIVED,
-    GET_CONTEST_SUCCESSFUL,
+    GET_CONTESTS_SUCCESSFUL,
     GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
     DISPLAY_PAST_EVENTS_MODAL,
     DISPLAY_DISCLAIMER_MODAL,
@@ -292,7 +292,7 @@ function rootReducer(state = initialState, action) {
             traccarPositions: positions
         });
     }
-    if (action.type === GET_CONTEST_SUCCESSFUL) {
+    if (action.type === GET_CONTESTS_SUCCESSFUL) {
         return Object.assign({}, state, {
             contests: action.payload
         })
@@ -323,12 +323,6 @@ function rootReducer(state = initialState, action) {
             disclaimer: action.payload
         })
 
-    }
-        if (action.type === GET_CONTEST_LIST_SUCCESSFUL) {
-        return Object.assign({}, state, {
-            ...state,
-            contests: action.payload
-        })
     }
     if (action.type === GET_CONTEST_RESULTS_SUCCESSFUL) {
         return Object.assign({}, state, {

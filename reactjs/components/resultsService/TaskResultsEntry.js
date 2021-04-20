@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {fetchContestList, fetchContestResults, hideTaskDetails, showTaskDetails} from "../../actions/resultsService";
+import {fetchContestResults, hideTaskDetails, showTaskDetails} from "../../actions/resultsService";
 import {teamLongForm, teamLongFormText} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';

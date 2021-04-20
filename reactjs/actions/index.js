@@ -23,7 +23,7 @@ import {
     HALF_HEIGHT_TABLE,
     EXPLICITLY_DISPLAY_ALL_TRACKS,
     TRACCAR_DATA_RECEIVED,
-    GET_CONTEST_SUCCESSFUL,
+    GET_CONTESTS_SUCCESSFUL,
     GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL,
     GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
     DISPLAY_PAST_EVENTS_MODAL,
@@ -163,17 +163,8 @@ export const fetchContests = () => (dispatch) => {
         url: "/api/v1/contests/",
         datatype: 'json',
         cache: false,
-        success: value => dispatch({type: GET_CONTEST_SUCCESSFUL, payload: value}),
+        success: value => dispatch({type: GET_CONTESTS_SUCCESSFUL, payload: value}),
         error: error => console.log(error)
     });
 }
 
-export const fetchContestsNavigationTaskSummaries = (contestId) => (dispatch) => {
-    $.ajax({
-        url: "/api/v1/contests/" + contestId + "/navigation_task_summaries/",
-        datatype: 'json',
-        cache: false,
-        success: value => dispatch({type: GET_CONTEST_NAVIGATION_TASKS_SUCCESSFUL, payload: value}),
-        error: error => console.log(error)
-    });
-}

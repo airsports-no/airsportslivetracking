@@ -3,13 +3,12 @@ import base64
 import dateutil
 import phonenumbers
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction, IntegrityError
+from django.db import transaction
 from django.db.models import Q
 from django.http import Http404
 from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm, get_objects_for_user
-from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework import serializers
 from rest_framework.fields import MultipleChoiceField, SerializerMethodField
 from rest_framework.exceptions import ValidationError
@@ -25,6 +24,137 @@ from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, C
 from display.waypoint import Waypoint
 
 
+class AeroplaneSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = Aeroplane
+        fields = "__all__"
+
+
+class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
+    country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
+    country = CountryField(required=False)
+    # phone = PhoneNumberField(required=False)
+    phone_country_prefix = serializers.CharField(max_length=5, required=False,
+                                                 help_text="International prefix for a phone number, e.g. +47")
+    phone_national_number = serializers.CharField(max_length=30, required=False,
+                                                  help_text="Actual phone number without international prefix")
+
+    def create(self, validated_data):
+        country_prefix = validated_data.pop("phone_country_prefix", None)
+        phone_national_number = validated_data.pop("phone_national_number", None)
+        instance = super().create(validated_data)
+        if country_prefix is not None and phone_national_number is not None:
+            instance.phone = country_prefix + phone_national_number
+            self.validate_phone(instance.phone)
+            instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        country_prefix = validated_data.pop("phone_country_prefix", None)
+        phone_national_number = validated_data.pop("phone_national_number", None)
+        instance = super().update(instance, validated_data)
+        if country_prefix is not None and phone_national_number is not None:
+            instance.phone = country_prefix + phone_national_number
+            self.validate_phone(instance.phone)
+            instance.save()
+        return instance
+
+    def validate_phone(self, phone):
+        if not phonenumbers.is_possible_number(phone):
+            raise ValidationError(f"Phone number {phone} is not a possible number")
+        if not phonenumbers.is_valid_number(phone):
+            raise ValidationError(f"Phone number {phone} is not a valid number")
+
+    class Meta:
+        model = Person
+        # fields = "__all__"
+        exclude = ("phone",)
+
+
+class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
+    country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
+    country = CountryField(required=False)
+
+    class Meta:
+        model = Club
+        fields = "__all__"
+
+
+class CrewSerialiser(serializers.ModelSerializer):
+    member1 = PersonSerialiser()
+    member2 = PersonSerialiser(required=False)
+
+    class Meta:
+        model = Crew
+        fields = "__all__"
+
+    def create(self, validated_data):
+        member1 = validated_data.pop("member1")
+        member1_object = Person.get_or_create(member1["first_name"], member1["last_name"], member1.get("phone"),
+                                              member1.get("email"))
+        member2 = validated_data.pop("member2", None)
+        member2_object = None
+        if member2:
+            member2_object = Person.get_or_create(member2["first_name"], member2["last_name"], member2.get("phone"),
+                                                  member2.get("email"))
+        crew, _ = Crew.objects.get_or_create(member1=member1_object, member2=member2_object)
+        return crew
+
+    def update(self, instance, validated_data):
+        return self.create(validated_data)
+
+
+class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
+    country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
+    aeroplane = AeroplaneSerialiser()
+    country = CountryField(required=False)
+    crew = CrewSerialiser()
+    club = ClubSerialiser(required=False)
+
+    class Meta:
+        model = Team
+        fields = "__all__"
+
+    def create(self, validated_data):
+        aeroplane, crew, club = self.nested_update(validated_data)
+        team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club, defaults=validated_data)
+        return team
+
+    def update(self, instance: Team, validated_data):
+        instance.aeroplane, instance.crew, instance.club = self.nested_update(validated_data)
+        instance.save()
+        return instance
+
+    @staticmethod
+    def nested_update(validated_data):
+        aeroplane_data = validated_data.pop("aeroplane")
+        aeroplane_instance = Aeroplane.objects.filter(registration=aeroplane_data.get("registration")).first()
+        aeroplane_serialiser = AeroplaneSerialiser(instance=aeroplane_instance, data=aeroplane_data)
+        aeroplane_serialiser.is_valid(True)
+        aeroplane = aeroplane_serialiser.save()
+        crew_data = validated_data.pop("crew")
+        crew_instance = Crew.objects.filter(pk=crew_data.get("id")).first()
+        crew_serialiser = CrewSerialiser(instance=crew_instance, data=crew_data)
+        crew_serialiser.is_valid(True)
+        crew = crew_serialiser.save()
+        club = None
+        club_data = validated_data.pop("club", None)
+        if club_data:
+            club_instance = Club.objects.filter(name=club_data.get("name")).first()
+            club_serialiser = ClubSerialiser(instance=club_instance, data=club_data)
+            club_serialiser.is_valid(True)
+            club = club_serialiser.save()
+        return aeroplane, crew, club
+
+
+class ContestSummaryNestedSerialiser(serializers.ModelSerializer):
+    team = TeamNestedSerialiser()
+
+    class Meta:
+        model = ContestSummary
+        fields = "__all__"
+
+
 class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
     class Meta:
         model = NavigationTask
@@ -34,6 +164,7 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(required=True)
     navigationtask_set = SerializerMethodField("get_visiblenavigationtasks")
+    contestsummary_set = ContestSummaryNestedSerialiser(many=True, read_only=True)
 
     class Meta:
         model = Contest
@@ -166,133 +297,10 @@ class TrackScoreOverrideSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class AeroplaneSerialiser(serializers.ModelSerializer):
-    class Meta:
-        model = Aeroplane
-        fields = "__all__"
-
-
-class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
-    country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
-    country = CountryField(required=False)
-    # phone = PhoneNumberField(required=False)
-    phone_country_prefix = serializers.CharField(max_length=5, required=False,
-                                                 help_text="International prefix for a phone number, e.g. +47")
-    phone_national_number = serializers.CharField(max_length=30, required=False,
-                                                  help_text="Actual phone number without international prefix")
-
-    def create(self, validated_data):
-        country_prefix = validated_data.pop("phone_country_prefix", None)
-        phone_national_number = validated_data.pop("phone_national_number", None)
-        instance = super().create(validated_data)
-        if country_prefix is not None and phone_national_number is not None:
-            instance.phone = country_prefix + phone_national_number
-            self.validate_phone(instance.phone)
-            instance.save()
-        return instance
-
-    def update(self, instance, validated_data):
-        country_prefix = validated_data.pop("phone_country_prefix", None)
-        phone_national_number = validated_data.pop("phone_national_number", None)
-        instance = super().update(instance, validated_data)
-        if country_prefix is not None and phone_national_number is not None:
-            instance.phone = country_prefix + phone_national_number
-            self.validate_phone(instance.phone)
-            instance.save()
-        return instance
-
-    def validate_phone(self, phone):
-        if not phonenumbers.is_possible_number(phone):
-            raise ValidationError(f"Phone number {phone} is not a possible number")
-        if not phonenumbers.is_valid_number(phone):
-            raise ValidationError(f"Phone number {phone} is not a valid number")
-
-    class Meta:
-        model = Person
-        # fields = "__all__"
-        exclude = ("phone",)
-
-
-class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
-    country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
-    country = CountryField(required=False)
-
-    class Meta:
-        model = Club
-        fields = "__all__"
-
-
-class CrewSerialiser(serializers.ModelSerializer):
-    member1 = PersonSerialiser()
-    member2 = PersonSerialiser(required=False)
-
-    class Meta:
-        model = Crew
-        fields = "__all__"
-
-    def create(self, validated_data):
-        member1 = validated_data.pop("member1")
-        member1_object = Person.get_or_create(member1["first_name"], member1["last_name"], member1.get("phone"),
-                                              member1.get("email"))
-        member2 = validated_data.pop("member2", None)
-        member2_object = None
-        if member2:
-            member2_object = Person.get_or_create(member2["first_name"], member2["last_name"], member2.get("phone"),
-                                                  member2.get("email"))
-        crew, _ = Crew.objects.get_or_create(member1=member1_object, member2=member2_object)
-        return crew
-
-    def update(self, instance, validated_data):
-        return self.create(validated_data)
-
-
 class ContestTeamSerialiser(serializers.ModelSerializer):
     class Meta:
         model = ContestTeam
         fields = "__all__"
-
-
-class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
-    country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
-    aeroplane = AeroplaneSerialiser()
-    country = CountryField(required=False)
-    crew = CrewSerialiser()
-    club = ClubSerialiser(required=False)
-
-    class Meta:
-        model = Team
-        fields = "__all__"
-
-    def create(self, validated_data):
-        aeroplane, crew, club = self.nested_update(validated_data)
-        team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club, defaults=validated_data)
-        return team
-
-    def update(self, instance: Team, validated_data):
-        instance.aeroplane, instance.crew, instance.club = self.nested_update(validated_data)
-        instance.save()
-        return instance
-
-    @staticmethod
-    def nested_update(validated_data):
-        aeroplane_data = validated_data.pop("aeroplane")
-        aeroplane_instance = Aeroplane.objects.filter(registration=aeroplane_data.get("registration")).first()
-        aeroplane_serialiser = AeroplaneSerialiser(instance=aeroplane_instance, data=aeroplane_data)
-        aeroplane_serialiser.is_valid(True)
-        aeroplane = aeroplane_serialiser.save()
-        crew_data = validated_data.pop("crew")
-        crew_instance = Crew.objects.filter(pk=crew_data.get("id")).first()
-        crew_serialiser = CrewSerialiser(instance=crew_instance, data=crew_data)
-        crew_serialiser.is_valid(True)
-        crew = crew_serialiser.save()
-        club = None
-        club_data = validated_data.pop("club", None)
-        if club_data:
-            club_instance = Club.objects.filter(name=club_data.get("name")).first()
-            club_serialiser = ClubSerialiser(instance=club_instance, data=club_data)
-            club_serialiser.is_valid(True)
-            club = club_serialiser.save()
-        return aeroplane, crew, club
 
 
 class ContestTeamNestedSerialiser(serializers.ModelSerializer):
@@ -655,14 +663,6 @@ class TeamTestScoreSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class ContestSummaryNestedSerialiser(serializers.ModelSerializer):
-    team = TeamNestedSerialiser()
-
-    class Meta:
-        model = ContestSummary
-        fields = "__all__"
-
-
 class TaskSummarySerialiser(serializers.ModelSerializer):
     class Meta:
         model = TaskSummary
@@ -683,16 +683,6 @@ class TaskNestedSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = "__all__"
-
-
-# High level entry
-class ContestResultsHighLevelSerialiser(serializers.ModelSerializer):
-    contestsummary_set = ContestSummaryNestedSerialiser(many=True)
-    time_zone = TimeZoneSerializerField(required=True)
-
-    class Meta:
-        model = Contest
         fields = "__all__"
 
 
