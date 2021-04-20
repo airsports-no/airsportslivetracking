@@ -544,7 +544,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     if map_source == "osm":
         imagery = OSM()
     elif map_source == "fc":
-        imagery = FlightContest()
+        imagery = FlightContest(desired_tile_form='RGBA')
     else:
         imagery = LocalImages(map_source)
     if map_size == A3:
