@@ -566,7 +566,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
             figure_width = A4_width
             figure_height = A4_height
 
-    plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)), facecolor="white")
+    plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)), facecolor=(250 / 255, 250 / 255, 250 / 255))
     ax = plt.axes(projection=imagery.crs)
     # ax.background_patch.set_fill(False)
     ax.background_patch.set_facecolor((250 / 255, 250 / 255, 250 / 255))
@@ -702,10 +702,10 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     #           y1 + plot_margin))
 
     figdata = BytesIO()
-    plt.savefig(figdata, format='png', dpi=dpi, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.savefig(figdata, format='png', dpi=dpi, transparent=True, facecolor=(250 / 255, 250 / 255, 250 / 255))  # , bbox_inches="tight", pad_inches=margin_inches/2)
     figdata.seek(0)
     pdfdata = BytesIO()
-    plt.savefig(pdfdata, format='pdf', dpi=dpi, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.savefig(pdfdata, format='pdf', dpi=dpi, transparent=True, facecolor=(250 / 255, 250 / 255, 250 / 255))  # , bbox_inches="tight", pad_inches=margin_inches/2)
     plt.close()
     pdfdata.seek(0)
 
