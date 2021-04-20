@@ -1331,51 +1331,6 @@ def remove_team_from_contest(request, contest_pk, team_pk):
     return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
 
-class IsPublicMixin:
-    def check_publish_permissions(self, user: User):
-        instance = self.get_object()
-        if isinstance(instance, Contest):
-            if user.has_perm("display.change_contest", instance):
-                return True
-        if isinstance(instance, NavigationTask):
-            if user.has_perm("display.change_contest", instance.contest):
-                return True
-        raise PermissionDenied("User does not have permission to publish {}".format(instance))
-
-    @action(detail=True, methods=["put"])
-    def publish(self, request, **kwargs):
-        """
-        Makes the object publicly visible to anonymous users. If a contest is  hidden, all associated tasks will also
-        be hidden. If a contest is visible,
-        then task visibility is controlled by the individual tasks.
-
-        :param request:
-        :param kwargs:
-        :return:
-        """
-        self.check_publish_permissions(request.user)
-        instance = self.get_object()
-        instance.is_public = True
-        instance.save()
-        return Response({'is_public': instance.is_public})
-
-    @action(detail=True, methods=["put"])
-    def hide(self, request, **kwargs):
-        """
-        Makes the object invisible to anonymous users. It will only be visible to users who have specific rights to
-        view that object. If a contest is  hidden, all associated tasks will also be hidden. If a contest is visible,
-        then task visibility is controlled by the individual tasks.
-
-        :param request:
-        :param kwargs:
-        :return:
-        """
-        self.check_publish_permissions(request.user)
-        instance = self.get_object()
-        instance.is_public = False
-        instance.save()
-        return Response({'is_public': instance.is_public})
-
 
 class UserPersonViewSet(GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -1469,7 +1424,7 @@ class UserPersonViewSet(GenericViewSet):
         return Response(serializer.data)
 
 
-class ContestViewSet(IsPublicMixin, ModelViewSet):
+class ContestViewSet(ModelViewSet):
     """
     A contest is a high level wrapper for multiple tasks. Currently it mostly consists of a name and a is_public
     flag which controls its visibility for anonymous users.GET Returns a list of contests either owned by the user
@@ -1572,7 +1527,7 @@ class ContestViewSet(IsPublicMixin, ModelViewSet):
         return context
 
 
-class NavigationTaskViewSet(IsPublicMixin, ModelViewSet):
+class NavigationTaskViewSet(ModelViewSet):
     queryset = NavigationTask.objects.all()
     serializer_class = NavigationTaskNestedTeamRouteSerialiser
     permission_classes = [
