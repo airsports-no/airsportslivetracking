@@ -126,8 +126,8 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
         # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
         contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team,
                                                       takeoff_time=start_time,
-                                                      finished_by_time=start_time + datetime.timedelta(hours=30),
-                                                      tracker_start_time=start_time - datetime.timedelta(minutes=30),
+                                                      finished_by_time=start_time + datetime.timedelta(hours=3),
+                                                      tracker_start_time=start_time - datetime.timedelta(minutes=3),
                                                       tracker_device_id=contestant, contestant_number=index,
                                                       minutes_to_starting_point=minutes_starting,
                                                       air_speed=speed, tracking_device=TRACKING_DEVICE,
