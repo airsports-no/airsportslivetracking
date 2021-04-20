@@ -284,7 +284,7 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
             linewidth=linewidth, zorder=3, solid_capstyle="butt")
 
 
-def scale_bar_y(ax, proj, length, location=(0.03, 0.5), linewidth=3,
+def scale_bar_y(ax, proj, length, location=(0.08, 0.5), linewidth=3,
                 units='km', m_per_unit=1000, scale=0):
     """
     http://stackoverflow.com/a/35705477/1072212
@@ -295,6 +295,7 @@ def scale_bar_y(ax, proj, length, location=(0.03, 0.5), linewidth=3,
     linewidth is the thickness of the scalebar.
     units is the name of the unit
     m_per_unit is the number of meters in a unit
+
     """
     print("Scale y")
     # find lat/lon center to find best UTM zone
@@ -699,10 +700,10 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     #           y1 + plot_margin))
 
     figdata = BytesIO()
-    plt.savefig(figdata, format='png', dpi=dpi)  # , bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.savefig(figdata, format='png', dpi=dpi, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)
     figdata.seek(0)
     pdfdata = BytesIO()
-    plt.savefig(pdfdata, format='pdf', dpi=dpi)  # , bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.savefig(pdfdata, format='pdf', dpi=dpi, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)
     plt.close()
     pdfdata.seek(0)
 
