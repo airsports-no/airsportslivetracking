@@ -1,5 +1,7 @@
 import glob
 from io import BytesIO
+
+import six
 import utm
 import pytz
 import datetime
@@ -7,6 +9,7 @@ import os
 import sys
 from typing import Optional, Tuple, List
 
+from PIL import Image
 from cartopy.io.img_tiles import OSM, GoogleWTS
 import matplotlib.pyplot as plt
 import numpy as np
@@ -160,6 +163,27 @@ class FlightContest(GoogleWTS):
         y = (2 ** z) - y - 1
         return f"https://tiles.flightcontest.de/{z}/{x}/{y}.png"
 
+    def get_image(self, tile):
+        if six.PY3:
+            from urllib.request import urlopen, Request, HTTPError, URLError
+        else:
+            from urllib2 import urlopen, Request, HTTPError, URLError
+
+        url = self._image_url(tile)
+        try:
+            request = Request(url, headers={"User-Agent": self.user_agent})
+            fh = urlopen(request)
+            im_data = six.BytesIO(fh.read())
+            fh.close()
+            img = Image.open(im_data)
+
+        except (HTTPError, URLError) as err:
+            print(err)
+            img = Image.fromarray(np.full((256, 256, 3), (255, 255, 255),
+                                          dtype=np.uint8))
+
+        img = img.convert(self.desired_tile_form)
+        return img, self.tileextent(tile), 'lower'
 
 class OpenAIP(GoogleWTS):
     def _image_url(self, tile):
@@ -566,10 +590,10 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
             figure_width = A4_width
             figure_height = A4_height
 
-    plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)), facecolor=(250 / 255, 250 / 255, 250 / 255))
+    plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)))
     ax = plt.axes(projection=imagery.crs)
     # ax.background_patch.set_fill(False)
-    ax.background_patch.set_facecolor((250 / 255, 250 / 255, 250 / 255))
+    # ax.background_patch.set_facecolor((250 / 255, 250 / 255, 250 / 255))
     print(f"Figure projection: {imagery.crs}")
     ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
     # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
@@ -702,10 +726,10 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     #           y1 + plot_margin))
 
     figdata = BytesIO()
-    plt.savefig(figdata, format='png', dpi=dpi, transparent=True, facecolor=(250 / 255, 250 / 255, 250 / 255))  # , bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.savefig(figdata, format='png', dpi=dpi, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)
     figdata.seek(0)
     pdfdata = BytesIO()
-    plt.savefig(pdfdata, format='pdf', dpi=dpi, transparent=True, facecolor=(250 / 255, 250 / 255, 250 / 255))  # , bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.savefig(pdfdata, format='pdf', dpi=dpi, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)
     plt.close()
     pdfdata.seek(0)
 
