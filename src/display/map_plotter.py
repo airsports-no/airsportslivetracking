@@ -569,11 +569,7 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
     plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)), facecolor="white")
     ax = plt.axes(projection=imagery.crs)
     ax.background_patch.set_fill(False)
-    ax.imshow(np.tile(np.array([[[200, 200, 255]]],
-                               dtype=np.uint8), [2, 2, 1]),
-              origin='upper',
-              transform=ccrs.PlateCarree(),
-              extent=[-180, 180, -90, 90])
+    ax.background_patch.set_facecolor((255,255,255))
     print(f"Figure projection: {imagery.crs}")
     ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
     # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
