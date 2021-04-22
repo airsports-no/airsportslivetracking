@@ -1,6 +1,7 @@
 from string import Template
 from typing import Dict
 
+import datetime
 from crispy_forms.bootstrap import StrictButton
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Div, ButtonHolder, Submit, Button, Fieldset, Field, HTML
@@ -446,6 +447,10 @@ class ContestForm(forms.ModelForm):
                 Submit("submit", "Submit")
             )
         )
+
+    def clean_finish_time(self):
+        finish_time = self.cleaned_data.get("finish_time")
+        return finish_time + datetime.timedelta(days=1)
 
 
 class PictureWidget(forms.widgets.Widget):
