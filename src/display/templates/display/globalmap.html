@@ -12,9 +12,11 @@
             {% if user.is_authenticated %}
                 loginLink: null,
                 logoutLink: "{% url 'logout' %}",
+                authenticatedUser: true,
             {% else %}
                 loginLink: "{% url 'login' %}",
                 logoutLink: null,
+                authenticatedUser: false,
             {% endif %}
             firstVisit: {% if first_visit %}true{% else %}false{% endif %},
             navigationTaskMap: navigationTaskId => "{% url 'frontend_view_map' 0 %}".replace("0", navigationTaskId)

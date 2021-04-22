@@ -7,6 +7,7 @@ import {connect} from "react-redux";
 import * as yup from 'yup';
 import {Loading} from "./basicComponents";
 import {contestRegistrationFormReturn} from "../actions";
+import {withRouter} from "react-router-dom";
 
 axios.defaults.xsrfCookieName = 'csrftoken'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
@@ -82,7 +83,8 @@ class ConnectedContestRegistrationForm extends Component {
                 setSubmitting(true);
                 axios.post("/api/v1/contests/" + this.props.contest.id + "/signup/", formValues).then((res) => {
                     setStatus("Registration successful")
-                    this.props.contestRegistrationFormReturn()
+                    // this.props.contestRegistrationFormReturn()
+                    this.props.history.push("/web/participation/")
                 }).catch((e) => {
                     console.error(e);
                     setErrors({api: _.get(e, ["message"])})
@@ -158,9 +160,9 @@ class ConnectedContestRegistrationForm extends Component {
 
 }
 
-const ContestRegistrationForm = connect(mapStateToProps,
+const ContestRegistrationForm = withRouter(connect(mapStateToProps,
     {
         contestRegistrationFormReturn
     }
-)(ConnectedContestRegistrationForm)
+)(ConnectedContestRegistrationForm))
 export default ContestRegistrationForm

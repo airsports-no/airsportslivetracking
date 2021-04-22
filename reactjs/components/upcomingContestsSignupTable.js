@@ -10,7 +10,7 @@ import {mdiCheck} from "@mdi/js";
 
 const mapStateToProps = (state, props) => ({
     upcomingContests: state.contests.filter((contest) => {
-        return new Date(contest.finish_time).getTime() >= new Date().getTime()
+        return new Date(contest.finish_time).getTime() > new Date().getTime()
     }),
     myParticipatingContests: state.myParticipatingContests,
 })

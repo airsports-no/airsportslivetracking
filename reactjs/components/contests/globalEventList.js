@@ -15,6 +15,7 @@ import {
     isAndroid,
     isIOS
 } from "react-device-detect";
+import {popup} from "leaflet/dist/leaflet-src.esm";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -47,7 +48,7 @@ function sortContestTimes(a, b) {
 class PastEvents extends Component {
     constructor(props) {
         super(props)
-        this.state = {contest: null}
+        this.state = {contest: this.props.contest}
     }
 
     // let contestBoxes = props.contests.map((contest) => {
@@ -87,9 +88,37 @@ class PastEvents extends Component {
     }
 }
 
+function ContestPopupModal(props) {
+    if (!props.contest) {
+        return null
+    }
+    return <Modal {...props} aria-labelledby="contained-modal-title-vcenter">
+        <Modal.Header closeButton>
+            <Modal.Title id="contained-modal-title-vcenter">
+                <h2>{props.contest.name}</h2>
+            </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="show-grid">
+            <Container>
+                <ContestPopupItem contest={props.contest}/>
+            </Container>
+        </Modal.Body>
+    </Modal>
+}
+
+
 class ConnectedGlobalEventList extends Component {
     constructor(props) {
         super(props)
+        this.state = {displayPopupContest: false, popupContest: null}
+    }
+
+    handleContestClick(contest) {
+        if (contest.latitude !== 0 && contest.longitude !== 0) {
+            this.props.zoomFocusContest(contest.id)
+        } else {
+            this.setState({popupContest: contest, displayPopupContest: true})
+        }
     }
 
     handleManagementClick() {
@@ -163,7 +192,8 @@ class ConnectedGlobalEventList extends Component {
                     <div className={"eventListScrolling"}>
                         <div id={"eventMenu"} className={"collapse"}>
                             <div className={"list-group"} id={"ongoing"}>
-                                <TimePeriodEventList contests={ongoingEvents} onClick={this.props.zoomFocusContest}/>
+                                <TimePeriodEventList contests={ongoingEvents}
+                                                     onClick={(contest) => this.handleContestClick(contest)}/>
                             </div>
                             <div className={"list-group list-group-root"}>
                                 <a href={"#upcoming"}
@@ -174,11 +204,15 @@ class ConnectedGlobalEventList extends Component {
                                           className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
                                 </a>
                                 <div className={"list-group collapse"} id={"upcoming"}>
-                                    <TimePeriodEventList contests={upcomingEvents}  onClick={this.props.zoomFocusContest}/>
+                                    <TimePeriodEventList contests={upcomingEvents}
+                                                         onClick={(contest) => this.handleContestClick(contest)}/>
                                 </div>
                                 <a href={"#past"}
                                    className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
-                                   onClick={() => this.props.displayPastEventsModal()}>
+                                   onClick={() => {
+                                       this.props.displayPastEventsModal()
+                                   }
+                                   }>
                             <span>
                             Past events
                                 </span>
@@ -223,8 +257,10 @@ class ConnectedGlobalEventList extends Component {
                     {/*</div>*/}
                 </div>
             </div>
-            <PastEvents contests={earlierEvents} show={this.props.pastEventsModalShow}
+            <PastEvents contests={earlierEvents} show={this.props.pastEventsModalShow} contest={this.state.popupContest}
                         dialogClassName="modal-90w" onHide={() => this.props.hidePastEventsModal()}/>
+            <ContestPopupModal contest={this.state.popupContest} show={this.state.displayPopupContest}
+                               onHide={() => this.setState({displayPopupContest: false, popupContest: null})}/>
         </div>
     }
 }
