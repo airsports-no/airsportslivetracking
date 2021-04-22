@@ -7,11 +7,14 @@ import TimePeriodEventList from "./timePeriodEventList";
 import {Button, Container, Modal} from "react-bootstrap";
 import ContestPopupItem from "./contestPopupItem";
 import axios from "axios";
+
 axios.defaults.xsrfCookieName = 'csrftoken'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
 
 export const mapStateToProps = (state, props) => ({
-    myParticipatingContests: state.myParticipatingContests,
+    myParticipatingContests: state.myParticipatingContests.filter((contestTeam) => {
+        return new Date(contestTeam.contest.start_time) >= new Date()
+    }),
 })
 export const mapDispatchToProps = {
     fetchMyParticipatingContests,
@@ -53,7 +56,8 @@ class ConnectedMyParticipatingEventsList extends Component {
                       aria-labelledby="contained-modal-title-vcenter">
             <Modal.Header closeButton>
                 <Modal.Title id="contained-modal-title-vcenter">
-                    Manage your participation in {this.state.currentParticipation ? this.state.currentParticipation.contest.name : "error"}
+                    Manage your participation
+                    in {this.state.currentParticipation ? this.state.currentParticipation.contest.name : "error"}
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body className="show-grid">
@@ -68,7 +72,9 @@ class ConnectedMyParticipatingEventsList extends Component {
     render() {
         return <div className={"eventListScrolling"}>
             <div className={"list-group"} id={"ongoing"}>
-                <TimePeriodEventList contests={this.props.myParticipatingContests.map((participation)=>{return participation.contest})} onClick={(contest) => this.setState({
+                <TimePeriodEventList contests={this.props.myParticipatingContests.map((participation) => {
+                    return participation.contest
+                })} onClick={(contest) => this.setState({
                     currentParticipation: this.props.myParticipatingContests.find((participation) => {
                         return participation.contest.id === contest.id
                     }),

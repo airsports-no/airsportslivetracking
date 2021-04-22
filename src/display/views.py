@@ -1536,7 +1536,7 @@ class ContestViewSet(ModelViewSet):
         serialiser = self.get_serializer(data=request.data)
         serialiser.is_valid(True)
         serialiser.save()
-        return Response(serialiser.data, status=status.HTTP_201_CREATED)
+        return Response(request.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["DELETE"],
             permission_classes=[permissions.IsAuthenticated & ContestPublicModificationPermissions])

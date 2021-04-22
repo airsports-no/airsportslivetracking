@@ -316,7 +316,7 @@ class SignupSerialiser(serializers.Serializer):
             raise ValidationError(f"Team {team} is already registered for contest {contest}")
         teams = ContestTeam.objects.filter(Q(team__crew__member1__email=request.user.email) | Q(
             team__crew__member2__email=request.user.email), contest=contest)
-        if teams.exist():
+        if teams.exists():
             raise ValidationError(
                 f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
         if validated_data["copilot_email"] and len(validated_data["copilot_email"]) > 0:
@@ -330,7 +330,7 @@ class SignupSerialiser(serializers.Serializer):
 
     aircraft_registration = serializers.CharField()
     club_name = serializers.CharField()
-    copilot_email = serializers.EmailField(required=False)
+    copilot_email = serializers.EmailField(required=False,allow_blank=True)
     airspeed = serializers.FloatField()
 
 

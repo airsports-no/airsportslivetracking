@@ -4,16 +4,20 @@ import {contestRegistrationFormReturn, fetchContests, registerForContest} from "
 import {Loading} from "./basicComponents";
 import BootstrapTable from "react-bootstrap-table-next";
 import 'react-bootstrap-table2-filter/dist/react-bootstrap-table2-filter.min.css';
-import filterFactory, {textFilter, dateFilter} from 'react-bootstrap-table2-filter';
+import filterFactory, {textFilter, dateFilter, selectFilter} from 'react-bootstrap-table2-filter';
 import Icon from "@mdi/react";
 import {mdiCheck} from "@mdi/js";
 
 const mapStateToProps = (state, props) => ({
     upcomingContests: state.contests.filter((contest) => {
-        return new Date(contest.finish_time).getTime() > new Date().getTime()
+        return new Date(contest.finish_time).getTime() >= new Date().getTime()
     }),
     myParticipatingContests: state.myParticipatingContests,
 })
+
+function add_months(dt, n) {
+    return new Date(dt.setMonth(dt.getMonth() + n));
+}
 
 class ConnectedUpcomingContestsSignupTable extends Component {
     componentDidMount() {
@@ -24,7 +28,32 @@ class ConnectedUpcomingContestsSignupTable extends Component {
         this.props.registerForContest(contest)
     }
 
+    filteredByPeriod(filterVal, data) {
+        let start = new Date()
+        if (filterVal === "0") {
+            start = add_months(start, 1)
+        } else if (filterVal === "1") {
+            start = add_months(start, 3)
+        } else if (filterVal === "2") {
+            start = add_months(start, 6)
+        } else if (filterVal === "3") {
+            start = add_months(start, 12)
+        }
+        if (filterVal) {
+            return data.filter(cell => new Date(cell.contest.start_time) > start);
+        }
+        return data;
+    }
+
     render() {
+        const timePeriods = {
+            0: "After a month",
+            1: "After three months",
+            2: "After six months",
+            3: "After a year"
+        }
+
+
         const columns = [
             {
                 text: "",
@@ -46,25 +75,16 @@ class ConnectedUpcomingContestsSignupTable extends Component {
                     return new Date(cell).toDateString()
                 },
                 sort: true,
-                filter: dateFilter(),
+                filter: selectFilter({
+                    onFilter: this.filteredByPeriod,
+                    options: timePeriods
+                }),
             },
             {
-                text: "Finish date",
-                dataField: "contest.finish_time",
+                text: "Registered",
+                dataField: "registered",
                 formatter: (cell, row) => {
-                    return new Date(cell).toDateString()
-                },
-                filter: dateFilter(),
-                sort: true
-            },
-            {
-                text: "Registered", 
-                dataField: "contest", 
-                formatter: (cell, row) => {
-                    const matchingContest = this.props.myParticipatingContests.find((contest)=>{
-                        return contest.id === cell.id
-                    })
-                    if(matchingContest){
+                    if (cell) {
                         return <Icon path={mdiCheck} size={2} color={"green"}/>
                     }
                     return null
@@ -76,13 +96,21 @@ class ConnectedUpcomingContestsSignupTable extends Component {
             // }
         ]
         const data = this.props.upcomingContests.map((contest) => {
+            const matchingContest = this.props.myParticipatingContests.find((contestTeam) => {
+                return contestTeam.contest.id === contest.id
+            })
             return {
-                contest: contest
+                contest: contest,
+                registered: matchingContest != null
             }
         })
         const rowEvents = {
             onClick: (e, row, rowIndex) => {
-                this.showRegistrationForm(row.contest)
+                if (!row.registered) {
+                    this.showRegistrationForm(row.contest)
+                } else {
+
+                }
             }
         }
         const loading = this.props.initialLoading ? <Loading/> : <div/>

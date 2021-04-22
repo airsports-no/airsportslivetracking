@@ -7,6 +7,7 @@ import {connect} from "react-redux";
 import * as yup from 'yup';
 import {Loading} from "./basicComponents";
 import {contestRegistrationFormReturn} from "../actions";
+
 axios.defaults.xsrfCookieName = 'csrftoken'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
 const _ = require('lodash');
@@ -94,7 +95,10 @@ class ConnectedContestRegistrationForm extends Component {
 
         return (
             <div>
-                <h2>Register for contest {this.props.contest.name}</h2>
+                {!this.props.participation ?
+                    <h2>Register for {this.props.contest.name}</h2> :
+                    <h2>Manage participation in {this.props.contest.name}</h2>}
+
                 <Formik {...formikProps}>
                     {props => (
                         <Form onSubmit={props.handleSubmit}>
@@ -106,7 +110,8 @@ class ConnectedContestRegistrationForm extends Component {
                             </Form.Group>
                             <Form.Group>
                                 <Form.Label>Aircraft</Form.Label>
-                                <Typeahead id={"aircraft_registration"} allowNew newSelectionPrefix={"Add new aircraft: "}
+                                <Typeahead id={"aircraft_registration"} allowNew
+                                           newSelectionPrefix={"Add new aircraft: "}
                                            name={"aircraft_registration"}
                                            options={props.values.aircraftOptions}
                                            isInvalid={!!props.errors.aircraft_registration}

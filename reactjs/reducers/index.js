@@ -42,7 +42,6 @@ import {
     CREATE_TASK_TEST_SUCCESSFUL,
     DELETE_TASK_SUCCESSFUL,
     DELETE_TASK_TEST_SUCCESSFUL,
-    GET_CONTEST_LIST_SUCCESSFUL,
     GET_CONTEST_RESULTS_SUCCESSFUL,
     GET_CONTEST_TEAMS_LIST_SUCCESSFUL,
     GET_TASK_TESTS_SUCCESSFUL,
@@ -69,7 +68,6 @@ const initialState = {
     zoomContest: null,
     displayPastEventsModal: false,
     displayAboutModal: false,
-    disclaimer: "",
     tasks: {},
     taskTests: {},
     contestResults: {},
@@ -444,12 +442,6 @@ function rootReducer(state = initialState, action) {
     if (action.type===PUT_TEST_RESULT_SUCCESSFUL){
         fetchContestResults(action.contestId)
         return state
-    }
-    if (action.type === GET_CONTEST_LIST_SUCCESSFUL) {
-        return Object.assign({}, state, {
-            ...state,
-            contests: action.payload
-        })
     }
     if (action.type === GET_CONTEST_RESULTS_SUCCESSFUL) {
         return Object.assign({}, state, {
