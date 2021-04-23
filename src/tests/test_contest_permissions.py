@@ -138,14 +138,6 @@ class TestAccessContest(APITestCase):
         result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
-    def test_publish_contest_as_other_user_with_permissions(self, patch):
-        self.client.force_login(user=self.different_user_with_object_permissions)
-        result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
-        print(result)
-        print(result.content)
-        self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.assertTrue(result.json()["is_public"])
-
     def test_modify_contest_without_login(self, patch):
         self.client.logout()
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
@@ -178,27 +170,6 @@ class TestAccessContest(APITestCase):
         result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_publish_contest_as_someone_else(self, patch):
-        self.client.force_login(user=self.user_someone_else)
-        result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
-        print(result)
-        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_publish_contest_as_creator(self, patch):
-        self.client.force_login(user=self.user_owner)
-        result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
-        print(result)
-        print(result.content)
-        self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.assertTrue(result.json()["is_public"])
-
-    def test_view_contest_without_login(self, patch):
-        self.client.logout()
-        result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),
-                                 data={"name": "TestContest2"})
-        print(result)
-        self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_view_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)

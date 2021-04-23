@@ -159,15 +159,6 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
-    def test_publish_navigation_task_as_other_user_with_permissions(self):
-        self.client.force_login(user=self.different_user_with_object_permissions)
-        result = self.client.put(
-            reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
-        print(result)
-        print(result.content)
-        self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.assertTrue(result.json()["is_public"])
-
     def test_put_navigation_task_without_login(self):
         self.client.logout()
         data = dict(self.NAVIGATION_TASK_DATA)
@@ -229,29 +220,6 @@ class TestAccessNavigationTask(APITestCase):
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    def test_publish_navigation_task_without_login(self):
-        self.client.logout()
-        result = self.client.put(
-            reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
-        print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_publish_navigation_task_as_someone_else(self):
-        self.client.force_login(user=self.user_someone_else)
-        result = self.client.put(
-            reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
-        print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_publish_navigation_task_as_creator(self):
-        self.client.force_login(user=self.user_owner)
-        result = self.client.put(
-            reverse("navigationtasks-publish", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
-        print(result)
-        print(result.content)
-        self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.assertTrue(result.json()["is_public"])
 
     def test_view_navigation_task_without_login(self):
         self.client.logout()
