@@ -1380,7 +1380,7 @@ class UserPersonViewSet(GenericViewSet):
         print(self.get_object())
         contest_teams = ContestTeam.objects.filter(
             Q(team__crew__member1=self.get_object()) | Q(team__crew__member2=self.get_object()),
-            contest__in=available_contests).distinct()
+            contest__in=available_contests).order_by('contest__start_time').distinct()
         return Response(ContestTeamManagementSerialiser(contest_teams, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["patch"])
