@@ -42,8 +42,8 @@ export default class ContestPopupItem extends Component {
                     </div>
                     {new Date(this.props.contest.start_time).toLocaleDateString()} - {new Date(this.props.contest.finish_time).toLocaleDateString()}
                 </h6>
-                {new Date(this.props.contest.finish_time) > new Date() && document.configuration.authenticatedUser?
-                    <a href={"/web/participation/" + this.props.contest.id + "/register/"}>Register</a> : null}
+                {new Date(this.props.contest.finish_time) > new Date() && document.configuration.authenticatedUser ?
+                    this.props.link?<Link to={"/participation/" + this.props.contest.id + "/register/"}>Register</Link>:<a href={"/participation/" + this.props.contest.id + "/register/"}>Register</a> : null}
                 {/*<p className={"card-text"}>*/}
                 <ul className={"d-flex flex-wrap justify-content-around"}
                     style={{paddingLeft: "0px", columnGap: "5px", rowGap: "5px"}}>

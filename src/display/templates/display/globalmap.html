@@ -24,12 +24,9 @@
     </script>
 {% endblock %}
 
-{% block contentfluid %}
-    <div class="row">
-        <div id="root">
-            <img class="centered" src="{% static 'img/loading.gif' %}" alt="loading..."/>
-        </div>
-    </div>
+{% block content %}
+    <div id="root">
+        <img class="centered" src="{% static 'img/loading.gif' %}" alt="loading..."/>
     </div>
     {% render_bundle 'vendors' %}
     {% render_bundle 'GlobalMap' %}

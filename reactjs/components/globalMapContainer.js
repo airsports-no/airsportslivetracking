@@ -1,17 +1,12 @@
 import 'regenerator-runtime/runtime'
 import {connect} from "react-redux";
 import React, {Component} from "react";
-import TrackLoadingIndicator from "./trackLoadingIndicator";
 import GlobalMapMap from "./globalMapMap";
 import {displayDisclaimerModal, fetchContests, hideDisclaimerModal} from "../actions";
 import GlobalEventList from "./contests/globalEventList";
 import Disclaimer, {DisclaimerLong} from "./disclaimer";
-import {SocialMediaLinks} from "./socialMediaLinks";
 import AboutLogoPopup from "./aboutLogoPopup";
 import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
-// import EmailLinkValidator from "./firebaseEmailValidation";
-
-// import "leaflet/dist/leaflet.css"
 
 const mapStateToProps = (state, props) => ({})
 
@@ -49,7 +44,6 @@ class ConnectedGlobalMapContainer extends Component {
                     </div>
                 </div>
                 {TrackerDisplay}
-                {/*<EmailLinkValidator/>*/}
             </div>
         )
     }

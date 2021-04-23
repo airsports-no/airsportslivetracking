@@ -305,7 +305,29 @@ class ContestTeamSerialiser(serializers.ModelSerializer):
 
 class SignupSerialiser(serializers.Serializer):
     def update(self, instance, validated_data):
-        raise NotImplementedError
+        request = self.context["request"]
+        contest = self.context["contest"]
+
+        contest_team = validated_data["contest_team"]
+        teams = ContestTeam.objects.filter(Q(team__crew__member1__email=request.user.email) | Q(
+            team__crew__member2__email=request.user.email), contest=contest).exclude(pk=contest_team.pk)
+        if teams.exists():
+            raise ValidationError(
+                f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
+        if validated_data["copilot_email"] and len(validated_data["copilot_email"]) > 0:
+            teams = ContestTeam.objects.filter(Q(team__crew__member1__email=validated_data["copilot_email"]) | Q(
+                team__crew__member2__email=validated_data["copilot_email"]), contest=contest).exclude(
+                pk=contest_team.pk)
+            if teams.exist():
+                raise ValidationError(
+                    f"The co-pilot {validated_data['copilot_email']} is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
+
+        team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_email"],
+                                              validated_data["aircraft_registration"], validated_data["club_name"])
+        contest_team.team = team
+        contest_team.air_speed = validated_data["airspeed"]
+        contest_team.save()
+        return contest_team
 
     def create(self, validated_data):
         request = self.context["request"]
@@ -330,8 +352,9 @@ class SignupSerialiser(serializers.Serializer):
 
     aircraft_registration = serializers.CharField()
     club_name = serializers.CharField()
-    copilot_email = serializers.EmailField(required=False,allow_blank=True)
+    copilot_email = serializers.EmailField(required=False, allow_blank=True)
     airspeed = serializers.FloatField()
+    contest_team = serializers.PrimaryKeyRelatedField(queryset=ContestTeam.objects.all(), required=False)
 
 
 class ContestTeamManagementSerialiser(serializers.ModelSerializer):

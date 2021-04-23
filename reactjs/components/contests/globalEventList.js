@@ -7,7 +7,7 @@ import {
 } from "../../actions";
 import TimePeriodEventList from "./timePeriodEventList";
 import Icon from "@mdi/react";
-import {mdiCog, mdiLogin, mdiLogout} from '@mdi/js'
+import {mdiAccountDetails, mdiCog, mdiLogin, mdiLogout} from '@mdi/js'
 import {Modal, Container, Row, Button, Col} from "react-bootstrap";
 import ContestPopupItem from "./contestPopupItem";
 import ContestItem from "./contestItem";
@@ -16,6 +16,7 @@ import {
     isIOS
 } from "react-device-detect";
 import {popup} from "leaflet/dist/leaflet-src.esm";
+import {Link} from "react-router-dom";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -66,6 +67,7 @@ class PastEvents extends Component {
         contestBoxes.reverse()
         return (
             <Modal {...this.props} aria-labelledby="contained-modal-title-vcenter">
+
                 <Modal.Header closeButton>
                     <Modal.Title id="contained-modal-title-vcenter">
                         Past events
@@ -75,7 +77,7 @@ class PastEvents extends Component {
                     <Container>
                         {this.state.contest ?
                             <span onClick={() => this.setState({contest: null})} className={'past-event-detail'}>
-                            <ContestPopupItem contest={this.state.contest}/>
+                            <ContestPopupItem contest={this.state.contest} link={true}/>
                             </span> :
                             <ul className={"d-flex flex-wrap justify-content-around"} style={{paddingLeft: "0px"}}>
                                 {contestBoxes}
@@ -100,7 +102,7 @@ function ContestPopupModal(props) {
         </Modal.Header>
         <Modal.Body className="show-grid">
             <Container>
-                <ContestPopupItem contest={props.contest}/>
+                <ContestPopupItem contest={props.contest} link={true}/>
             </Container>
         </Modal.Body>
     </Modal>
@@ -116,6 +118,7 @@ class ConnectedGlobalEventList extends Component {
     handleContestClick(contest) {
         if (contest.latitude !== 0 && contest.longitude !== 0) {
             this.props.zoomFocusContest(contest.id)
+            this.setState({popupContest: contest, displayPopupContest: true})
         } else {
             this.setState({popupContest: contest, displayPopupContest: true})
         }
@@ -133,13 +136,18 @@ class ConnectedGlobalEventList extends Component {
                 <Icon path={mdiCog} title={"Settings"} size={1.1} color={"white"}/>
             </a>
         }
-
+        let participationButton = null
+        if (document.configuration.authenticatedUser) {
+            participationButton =
+                <Link to={"/participation/"}> <Icon path={mdiAccountDetails} title={"Participation"} size={1.1}
+                                                    color={"white"}/>
+                </Link>
+        }
 
         let loginButton = null
         if (document.configuration.loginLink) {
             loginButton = <a className={"btn"} href={document.configuration.loginLink}>
                 <Icon path={mdiLogin} title={"Login"} size={1.1} color={"white"}/>
-                {/*<i className={"taskTitle mdi mdi-login"}/>*/}
             </a>
         }
 
@@ -148,7 +156,6 @@ class ConnectedGlobalEventList extends Component {
         if (document.configuration.logoutLink) {
             logoutButton = <a className={"btn"} href={document.configuration.logoutLink}>
                 <Icon path={mdiLogout} title={"Logout"} size={1.1} color={"white"}/>
-                {/*<i className={"taskTitle mdi mdi-logout"}/>*/}
             </a>
         }
 
@@ -187,7 +194,7 @@ class ConnectedGlobalEventList extends Component {
                            data-target={"#eventMenu"}>Events</a>
 
                         <span className={"eventTitle"}
-                              style={{float: "right"}}>{loginButton}{settingsButton}{logoutButton}</span>
+                              style={{float: "right"}}>{participationButton}{loginButton}{settingsButton}{logoutButton}</span>
                     </div>
                     <div className={"eventListScrolling"}>
                         <div id={"eventMenu"} className={"collapse"}>
@@ -257,6 +264,7 @@ class ConnectedGlobalEventList extends Component {
                     {/*</div>*/}
                 </div>
             </div>
+
             <PastEvents contests={earlierEvents} show={this.props.pastEventsModalShow} contest={this.state.popupContest}
                         dialogClassName="modal-90w" onHide={() => this.props.hidePastEventsModal()}/>
             <ContestPopupModal contest={this.state.popupContest} show={this.state.displayPopupContest}

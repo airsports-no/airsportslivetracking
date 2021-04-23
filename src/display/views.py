@@ -135,7 +135,7 @@ def global_map(request):
     visited = request.session.get('visited', False)
     request.session['visited'] = True
     return render(request, "display/globalmap.html",
-                  {"skip_nav": True, "first_visit": not visited})
+                  {"skip_nav": False, "first_visit": not visited})
 
 
 def results_service(request):
@@ -1530,10 +1530,11 @@ class ContestViewSet(ModelViewSet):
         # serialiser = ContestResultsDetailsSerialiser(contest)
         # return Response(serialiser.data)
 
-    @action(detail=True, methods=["POST"],
+    @action(detail=True, methods=["POST", "PUT"],
             permission_classes=[permissions.IsAuthenticated & ContestPublicModificationPermissions])
     def signup(self, request, *args, **kwargs):
-        serialiser = self.get_serializer(data=request.data)
+        contest = self.get_object()
+        serialiser = self.get_serializer(instance=contest, data=request.data)
         serialiser.is_valid(True)
         serialiser.save()
         return Response(request.data, status=status.HTTP_201_CREATED)

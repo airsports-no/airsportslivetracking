@@ -5,8 +5,8 @@ import {
 } from "../../actions";
 import TimePeriodEventList from "./timePeriodEventList";
 import {Button, Container, Modal} from "react-bootstrap";
-import ContestPopupItem from "./contestPopupItem";
 import axios from "axios";
+import {teamRankingTable} from "../../utilities";
 
 axios.defaults.xsrfCookieName = 'csrftoken'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
@@ -62,8 +62,19 @@ class ConnectedMyParticipatingEventsList extends Component {
             </Modal.Header>
             <Modal.Body className="show-grid">
                 <Container>
-                    <Button variant={"primary"} onClick={() => this.handleChangeClick()}>Change details</Button>
-                    <Button variant={"danger"} onClick={() => this.handleWithdrawClick()}>Withdraw</Button>
+                    {this.state.currentParticipation ? <div>
+                        Team: {teamRankingTable(this.state.currentParticipation.team)}
+                        <p>
+                            Aircraft: {this.state.currentParticipation.team.aeroplane.registration}
+                        </p>
+                        <p>
+                            Airspeed: {this.state.currentParticipation.air_speed}
+                        </p>
+                        <p>
+                            <Button variant={"primary"} onClick={() => this.handleChangeClick()}>Change details</Button>
+                            <Button variant={"danger"} onClick={() => this.handleWithdrawClick()}>Withdraw</Button>
+                        </p>
+                    </div> : null}
                 </Container>
             </Modal.Body>
         </Modal>

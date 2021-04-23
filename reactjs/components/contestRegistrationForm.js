@@ -6,7 +6,7 @@ import {ErrorMessage, Formik} from 'formik';
 import {connect} from "react-redux";
 import * as yup from 'yup';
 import {Loading} from "./basicComponents";
-import {contestRegistrationFormReturn} from "../actions";
+import {contestRegistrationFormReturn, fetchMyParticipatingContests} from "../actions";
 import {withRouter} from "react-router-dom";
 
 axios.defaults.xsrfCookieName = 'csrftoken'
@@ -27,6 +27,11 @@ class ConnectedContestRegistrationForm extends Component {
             club_name: yup.string().required(),
             airspeed: yup.number().required(),
         });
+    }
+
+    handleSuccess(){
+        this.props.fetchMyParticipatingContests()
+        this.props.contestRegistrationFormReturn()
     }
 
     componentDidMount() {
@@ -81,17 +86,37 @@ class ConnectedContestRegistrationForm extends Component {
             onSubmit: (formValues, {setSubmitting, setStatus, setErrors}) => {
                 console.log("submit", formValues);
                 setSubmitting(true);
+                if (this.props.participation) {
+                    formValues.contest_team = this.props.participation.id
+                    axios.put("/api/v1/contests/" + this.props.contest.id + "/signup/", formValues).then((res) => {
+                        setStatus("Registration successful")
+                        if (!this.props.external) {
+                            this.handleSuccess()
+                        } else {
+                            this.props.history.push("/participation/")
+                        }
+                    }).catch((e) => {
+                        console.error(e);
+                        setErrors({api: _.get(e, ["message"])})
+                    }).finally(() => {
+                        setSubmitting(false);
+                    })
+
+                } else {
                 axios.post("/api/v1/contests/" + this.props.contest.id + "/signup/", formValues).then((res) => {
                     setStatus("Registration successful")
-                    // this.props.contestRegistrationFormReturn()
-                    this.props.history.push("/web/participation/")
+                    if (!this.props.external) {
+                        this.handleSuccess()
+                    } else {
+                        this.props.history.push("/participation/")
+                    }
                 }).catch((e) => {
                     console.error(e);
                     setErrors({api: _.get(e, ["message"])})
                 }).finally(() => {
                     setSubmitting(false);
                 })
-
+            }
             }
         }
 
@@ -103,7 +128,7 @@ class ConnectedContestRegistrationForm extends Component {
 
                 <Formik {...formikProps}>
                     {props => (
-                        <Form onSubmit={props.handleSubmit}>
+                        <Form onSubmit={props.handleSubmit} onAbort={() => this.props.history.push("/participation/")}>
                             <Form.Group>
                                 <Form.Label>Co-pilot (optional)</Form.Label>
                                 <Form.Control type={"email"} name={"copilot_email"} onChange={props.handleChange}
@@ -162,7 +187,8 @@ class ConnectedContestRegistrationForm extends Component {
 
 const ContestRegistrationForm = withRouter(connect(mapStateToProps,
     {
-        contestRegistrationFormReturn
+        contestRegistrationFormReturn,
+        fetchMyParticipatingContests
     }
 )(ConnectedContestRegistrationForm))
 export default ContestRegistrationForm

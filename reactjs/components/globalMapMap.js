@@ -3,9 +3,7 @@ import {connect} from "react-redux";
 
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import {zoomFocusContest} from "../actions";
-import {SocialMediaLinks} from "./socialMediaLinks";
 import ReactDOMServer from "react-dom/server";
-import ContestPopupItem from "./contests/contestPopupItem";
 import L from 'leaflet';
 // const L = window['L']
 // import 'leaflet/dist/leaflet.css';

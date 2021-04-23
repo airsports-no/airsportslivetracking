@@ -38,7 +38,7 @@ docs = get_schema_view(
 
 urlpatterns = [
     path('contests/', ContestList.as_view(), name="contest_list"),
-    path('', global_map, name="global_map"),
+    # path('', global_map, name="global_map"),
     path('terms_and_conditions/', TemplateView.as_view(template_name='display/terms_and_conditions.html'),
          name="terms_and_conditions"),
     path('admin/', admin.site.urls),
@@ -50,7 +50,7 @@ urlpatterns = [
     path('docs/', docs.with_ui()),
     re_path('djga/', include('google_analytics.urls')),
     url(r"^api/v1/", include(api.urlpatters)),
-    url(r'^web/.?', results_service, name="resultsservice"),
+    url(r'^.?', global_map, name="globalmap"),
 ]
 
 if settings.DEBUG:
