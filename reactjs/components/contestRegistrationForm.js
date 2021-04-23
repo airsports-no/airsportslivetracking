@@ -172,7 +172,7 @@ class ConnectedContestRegistrationForm extends Component {
                                     Register
                                 </Button>
                                 <Button variant={"danger"} type={"button"}
-                                        onClick={() => this.props.contestRegistrationFormReturn()}>Cancel</Button>
+                                        onClick={() => this.props.history.push("/participation/")}>Cancel</Button>
                                 {props.errors && _.has(props.errors, ["api"]) &&
                                 <div className="text-danger">{_.get(props.errors, ["api"])}</div>}
                                 {props.status && <div className="text-success">{props.status}</div>}
