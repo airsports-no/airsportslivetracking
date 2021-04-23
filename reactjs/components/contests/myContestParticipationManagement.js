@@ -63,11 +63,11 @@ class ConnectedMyContestParticipationManagement extends Component {
         }
         return <div>
             <div className={"row"}>
-                <div className={"col-3"}>
+                <div className={"col-4"}>
                     <h2>My upcoming contests</h2>
                     <MyParticipatingEventsList/>
                 </div>
-                <div className={"col-9"}>
+                <div className={"col-8"}>
                     {alreadyRegistered ? <h3>You are already registered for that contest</h3> : null}
                     {contest ?
                         <ContestRegistrationForm
