@@ -1332,7 +1332,6 @@ def remove_team_from_contest(request, contest_pk, team_pk):
     return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
 
-
 class UserPersonViewSet(GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_classes = {
@@ -1534,6 +1533,8 @@ class ContestViewSet(ModelViewSet):
             permission_classes=[permissions.IsAuthenticated & ContestPublicModificationPermissions])
     def signup(self, request, *args, **kwargs):
         contest = self.get_object()
+        if request.method == "POST":
+            contest = None
         serialiser = self.get_serializer(instance=contest, data=request.data)
         serialiser.is_valid(True)
         serialiser.save()
