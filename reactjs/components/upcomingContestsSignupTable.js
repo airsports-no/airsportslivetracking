@@ -13,7 +13,7 @@ const mapStateToProps = (state, props) => ({
         return new Date(contest.finish_time).getTime() > new Date().getTime()
     }),
     myParticipatingContests: state.myParticipatingContests,
-        loadingContests: state.loadingContests
+    loadingContests: state.loadingContests
 })
 
 function add_months(dt, n) {
@@ -115,10 +115,15 @@ class ConnectedUpcomingContestsSignupTable extends Component {
             }
         }
         const loading = this.props.loadingContests ? <Loading/> : null
+        const defaultSorted = {
+            dataField: "contest.start_time", // if dataField is not match to any column you defined, it will be ignored.
+            order: "asc" // desc or asc
+        };
+
         return <div>
             {loading}
             <BootstrapTable keyField={"contest.id"} data={data} columns={columns}
-                            classes={"table"} filter={filterFactory()}
+                            classes={"table"} filter={filterFactory()} sort={defaultSorted}
                             bootstrap4 striped hover condensed rowEvents={rowEvents}
                             bordered={false}//pagination={paginationFactory(paginationOptions)}
             />
