@@ -33,7 +33,7 @@ import {
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
     REGISTER_FOR_CONTEST,
     UPDATE_CONTEST_REGISTRATION,
-    CANCEL_CONTEST_REGISTRATION
+    CANCEL_CONTEST_REGISTRATION, GET_CONTESTS, FETCH_MY_PARTICIPATING_CONTESTS
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -164,6 +164,7 @@ export const hideAboutModal = () => (dispatch) => {
 
 
 export const fetchContests = () => (dispatch) => {
+    dispatch({type: GET_CONTESTS})
     $.ajax({
         url: "/api/v1/contests/",
         datatype: 'json',
@@ -174,6 +175,7 @@ export const fetchContests = () => (dispatch) => {
 }
 
 export const fetchMyParticipatingContests = () => (dispatch) => {
+    dispatch({type: FETCH_MY_PARTICIPATING_CONTESTS})
     $.ajax({
         url: "/api/v1/userprofile/my_participating_contests/",
         datatype: 'json',

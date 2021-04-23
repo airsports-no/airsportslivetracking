@@ -10,7 +10,7 @@ export const mapStateToProps = (state, props) => ({
     currentContestRegistration: state.currentContestRegistration,
     currentContestParticipation: state.currentContestParticipation,
     contests: state.contests,
-    myParticipatingContests: state.myParticipatingContests
+    myParticipatingContests: state.myParticipatingContests,
 })
 export const mapDispatchToProps = {
     fetchMyParticipatingContests
@@ -63,11 +63,11 @@ class ConnectedMyContestParticipationManagement extends Component {
         }
         return <div>
             <div className={"row"}>
-                <div className={"col-4"}>
+                <div className={"col-lg-4"}>
                     <h2>My upcoming contests</h2>
                     <MyParticipatingEventsList/>
                 </div>
-                <div className={"col-8"}>
+                <div className={"col-lg-8"}>
                     {alreadyRegistered ? <h3>You are already registered for that contest</h3> : null}
                     {contest ?
                         <ContestRegistrationForm

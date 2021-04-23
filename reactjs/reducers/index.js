@@ -34,7 +34,7 @@ import {
     DISPLAY_ABOUT_MODAL,
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
     REGISTER_FOR_CONTEST,
-    UPDATE_CONTEST_REGISTRATION, CANCEL_CONTEST_REGISTRATION
+    UPDATE_CONTEST_REGISTRATION, CANCEL_CONTEST_REGISTRATION, GET_CONTESTS, FETCH_MY_PARTICIPATING_CONTESTS
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -75,7 +75,9 @@ const initialState = {
     visibleTaskDetails: {},
     disclaimer: "",
     myParticipatingContests: [],
-    currentContestRegistration: null
+    currentContestRegistration: null,
+    loadingMyParticipation: false,
+    loadingContests: false
 };
 
 function rootReducer(state = initialState, action) {
@@ -297,9 +299,15 @@ function rootReducer(state = initialState, action) {
             traccarPositions: positions
         });
     }
+    if (action.type === GET_CONTESTS) {
+        return Object.assign({}, state, {
+            loadingContests: true
+        });
+    }
     if (action.type === GET_CONTESTS_SUCCESSFUL) {
         return Object.assign({}, state, {
-            contests: action.payload
+            contests: action.payload,
+            loadingContests: false
         })
     }
     if (action.type === GLOBAL_MAP_ZOOM_FOCUS_CONTEST) {
@@ -557,10 +565,16 @@ function rootReducer(state = initialState, action) {
         fetchContestResults(action.contestId)
         return state
     }
+    if (action.type === FETCH_MY_PARTICIPATING_CONTESTS) {
+        return Object.assign({}, state, {
+            loadingMyParticipation: true
+        });
+    }
     if (action.type === FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL) {
         return Object.assign({}, state, {
             ...state,
-            myParticipatingContests: action.payload
+            myParticipatingContests: action.payload,
+            loadingMyParticipation: false
         })
     }
     if (action.type === REGISTER_FOR_CONTEST) {

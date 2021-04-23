@@ -13,6 +13,7 @@ const mapStateToProps = (state, props) => ({
         return new Date(contest.finish_time).getTime() > new Date().getTime()
     }),
     myParticipatingContests: state.myParticipatingContests,
+        loadingContests: state.loadingContests
 })
 
 function add_months(dt, n) {
@@ -113,7 +114,7 @@ class ConnectedUpcomingContestsSignupTable extends Component {
                 }
             }
         }
-        const loading = this.props.initialLoading ? <Loading/> : <div/>
+        const loading = this.props.loadingContests ? <Loading/> : null
         return <div>
             {loading}
             <BootstrapTable keyField={"contest.id"} data={data} columns={columns}

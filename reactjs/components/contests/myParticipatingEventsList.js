@@ -7,6 +7,7 @@ import TimePeriodEventList from "./timePeriodEventList";
 import {Button, Container, Modal} from "react-bootstrap";
 import axios from "axios";
 import {teamRankingTable} from "../../utilities";
+import {Loading} from "../basicComponents";
 
 axios.defaults.xsrfCookieName = 'csrftoken'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
@@ -15,6 +16,7 @@ export const mapStateToProps = (state, props) => ({
     myParticipatingContests: state.myParticipatingContests.filter((contestTeam) => {
         return new Date(contestTeam.contest.start_time) >= new Date()
     }),
+    loadingMyParticipation: state.loadingMyParticipation,
 })
 export const mapDispatchToProps = {
     fetchMyParticipatingContests,
@@ -81,6 +83,9 @@ class ConnectedMyParticipatingEventsList extends Component {
     }
 
     render() {
+        if (this.props.loadingMyParticipation){
+            return <Loading/>
+        }
         return <div className={"eventListScrolling"}>
             <div className={"list-group"} id={"ongoing"}>
                 <TimePeriodEventList contests={this.props.myParticipatingContests.map((participation) => {

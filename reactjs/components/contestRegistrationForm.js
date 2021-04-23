@@ -29,7 +29,7 @@ class ConnectedContestRegistrationForm extends Component {
         });
     }
 
-    handleSuccess(){
+    handleSuccess() {
         this.props.fetchMyParticipatingContests()
         this.props.contestRegistrationFormReturn()
     }
@@ -103,20 +103,20 @@ class ConnectedContestRegistrationForm extends Component {
                     })
 
                 } else {
-                axios.post("/api/v1/contests/" + this.props.contest.id + "/signup/", formValues).then((res) => {
-                    setStatus("Registration successful")
-                    if (!this.props.external) {
-                        this.handleSuccess()
-                    } else {
-                        this.props.history.push("/participation/")
-                    }
-                }).catch((e) => {
-                    console.error(e);
-                    setErrors({api: _.get(e, ["message"])})
-                }).finally(() => {
-                    setSubmitting(false);
-                })
-            }
+                    axios.post("/api/v1/contests/" + this.props.contest.id + "/signup/", formValues).then((res) => {
+                        setStatus("Registration successful")
+                        if (!this.props.external) {
+                            this.handleSuccess()
+                        } else {
+                            this.props.history.push("/participation/")
+                        }
+                    }).catch((e) => {
+                        console.error(e);
+                        setErrors({api: _.get(e, ["message"])})
+                    }).finally(() => {
+                        setSubmitting(false);
+                    })
+                }
             }
         }
 
@@ -172,7 +172,13 @@ class ConnectedContestRegistrationForm extends Component {
                                     Register
                                 </Button>
                                 <Button variant={"danger"} type={"button"}
-                                        onClick={() => this.props.history.push("/participation/")}>Cancel</Button>
+                                        onClick={() => {
+                                            if (!this.props.external) {
+                                                this.props.contestRegistrationFormReturn()
+                                            } else {
+                                                this.props.history.push("/participation/")
+                                            }
+                                        }}>Cancel</Button>
                                 {props.errors && _.has(props.errors, ["api"]) &&
                                 <div className="text-danger">{_.get(props.errors, ["api"])}</div>}
                                 {props.status && <div className="text-success">{props.status}</div>}
