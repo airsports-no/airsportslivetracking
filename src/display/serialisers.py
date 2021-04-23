@@ -165,6 +165,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSeria
     time_zone = TimeZoneSerializerField(required=True)
     navigationtask_set = SerializerMethodField("get_visiblenavigationtasks")
     contestsummary_set = ContestSummaryNestedSerialiser(many=True, read_only=True)
+    contest_team_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Contest

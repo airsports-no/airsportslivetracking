@@ -417,6 +417,9 @@ class Contest(models.Model):
                                     klass=Contest, accept_global_perms=False) | Contest.objects.filter(
             is_public=True)
 
+    @property
+    def contest_team_count(self):
+        return self.contest_teams.all().count()
 
 class NavigationTask(models.Model):
     PRECISION = 'precision'
