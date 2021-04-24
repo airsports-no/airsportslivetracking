@@ -341,7 +341,7 @@ class SignupSerialiser(serializers.Serializer):
                 raise ValidationError(
                     f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
 
-        team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_email"],
+        team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_id"],
                                               validated_data["aircraft_registration"], validated_data["club_name"])
         contest_team.team = team
         contest_team.air_speed = validated_data["airspeed"]
@@ -350,8 +350,10 @@ class SignupSerialiser(serializers.Serializer):
 
     def create(self, validated_data):
         request = self.context["request"]
+        print(validated_data["copilot_id"])
         team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_id"],
                                               validated_data["aircraft_registration"], validated_data["club_name"])
+        print(team)
         contest = self.context["contest"]
         if ContestTeam.objects.filter(contest=contest, team=team).exists():
             raise ValidationError(f"Team {team} is already registered for contest {contest}")
@@ -380,7 +382,7 @@ class SignupSerialiser(serializers.Serializer):
         my_person = Person.objects.get(email=request.user.email)
         if my_person == value:
             raise ValidationError("You cannot choose yourself as co-pilot")
-
+        return value
 
 class ContestTeamManagementSerialiser(serializers.ModelSerializer):
     contest = ContestSerialiser(read_only=True)

@@ -92,7 +92,7 @@ class ConnectedContestRegistrationForm extends Component {
             airspeed: ""
         }
         if (this.props.participation) {
-            initialValues.copilot_id = this.props.participation.team.crew.member2 ? this.props.participation.team.crew.member2.id : ""
+            initialValues.copilot_id = this.props.participation.team.crew.member2 ? this.props.participation.team.crew.member2.id : null
             initialValues.aircraft_registration = this.props.participation.team.aeroplane.registration
             initialValues.club_name = this.props.participation.team.club.name
             initialValues.airspeed = this.props.participation.air_speed
@@ -138,9 +138,9 @@ class ConnectedContestRegistrationForm extends Component {
                         console.error(e);
                         console.log(e);
                         const errors = _.get(e, ["response", "data"])
-                        if (Array.isArray(errors)){
+                        if (Array.isArray(errors)) {
                             setErrors({api: errors})
-                        }else{
+                        } else {
                             setErrors(errors)
                         }
                     }).finally(() => {
@@ -166,7 +166,10 @@ class ConnectedContestRegistrationForm extends Component {
                                            name={"copilot_id"}
                                            options={props.values.personOptions}
                                            isInvalid={!!props.errors.copilot_id}
-                                           defaultSelected={props.initialValues.copilot_id?[{label: props.initialValues.copilot_id}]:[]}
+                                           defaultSelected={props.initialValues.copilot_id ? [{
+                                               id: this.props.participation.team.crew.member2.id,
+                                               label: this.props.participation.team.crew.member2.first_name + " " + this.props.participation.team.crew.member2.last_name + " (" + this.props.participation.team.crew.member2.email + ")"
+                                           }] : []}
                                            onChange={e => props.setFieldValue("copilot_id", e.length > 0 ? e[0].id : null)}/>
                                 <ErrorMessage name={"copilot_id"} component={"div"}/>
                             </Form.Group>

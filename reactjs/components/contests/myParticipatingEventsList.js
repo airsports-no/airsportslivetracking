@@ -65,17 +65,28 @@ class ConnectedMyParticipatingEventsList extends Component {
             <Modal.Body className="show-grid">
                 <Container>
                     {this.state.currentParticipation ? <div>
-                        Team: {teamRankingTable(this.state.currentParticipation.team)}
-                        <p>
-                            Aircraft: {this.state.currentParticipation.team.aeroplane.registration}
-                        </p>
-                        <p>
-                            Airspeed: {this.state.currentParticipation.air_speed}
-                        </p>
-                        <p>
-                            <Button variant={"primary"} onClick={() => this.handleChangeClick()}>Change details</Button>
-                            <Button variant={"danger"} onClick={() => this.handleWithdrawClick()}>Withdraw</Button>
-                        </p>
+                        <table className={"table"}>
+                            <tbody>
+                            <tr>
+                                <td>Team</td>
+                                <td>{teamRankingTable(this.state.currentParticipation.team)}</td>
+                            </tr>
+                            <tr>
+                                <td>Aircraft</td>
+                                <td>{this.state.currentParticipation.team.aeroplane.registration}</td>
+                            </tr>
+                            <tr>
+                                <td>Airspeed</td>
+                                <td>{this.state.currentParticipation.air_speed} knots</td>
+                            </tr>
+                            <tr>
+                                <td>Club</td>
+                                <td>{this.state.currentParticipation.team.club.name}</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        <Button variant={"primary"} onClick={() => this.handleChangeClick()}>Change details</Button>
+                        <Button variant={"danger"} onClick={() => this.handleWithdrawClick()}>Withdraw</Button>
                     </div> : null}
                 </Container>
             </Modal.Body>
@@ -83,7 +94,7 @@ class ConnectedMyParticipatingEventsList extends Component {
     }
 
     render() {
-        if (this.props.loadingMyParticipation){
+        if (this.props.loadingMyParticipation) {
             return <Loading/>
         }
         return <div className={"eventListScrolling"}>
