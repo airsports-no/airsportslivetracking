@@ -17,7 +17,7 @@ const aboutGlobalMap = <div>
     </ul>
     <p>
         Map aircraft symbols
-        <table className={"table borderless"}>
+        <table className={"table-compact borderless"}>
             <tbody>
             <tr>
                 <td style={{width: "160px"}}><i className="mdi mdi-airplanemode-active" style={{color: "blue"}}/> Active aircraft</td>
@@ -33,6 +33,7 @@ const aboutGlobalMap = <div>
             </tr>
             </tbody>
         </table>
+        <p/>
         Live Tracking is for entertainment use only! The app requires gps and mobile coverage to work. For more
         information about Air Sports Live Tracking, please see <a href={"https://airsports.no/terms_and_conditions/"}>Terms
         And Conditions</a>.
