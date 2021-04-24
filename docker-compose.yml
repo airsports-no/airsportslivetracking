@@ -27,7 +27,7 @@ services:
       - 80:80 # Required for certificate validation
     restart: unless-stopped
 
-  tracker_web:
+  tracker_web1:
     #    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && python3 manage.py runserver 0.0.0.0:8000" ]
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "influx:8086", "--",
@@ -63,7 +63,44 @@ services:
       - redis
       - traccar
 
-  tracker_daphne:
+
+  tracker_web2:
+    #    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && python3 manage.py runserver 0.0.0.0:8000" ]
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "/wait-for-it.sh", "influx:8086", "--",
+                "bash", "-c", "python3 manage.py migrate && cd / && npm run webpack && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
+
+    container_name: tracker_web
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+      - MODE=production
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./secret:/secret
+      - ./django-rest-authemail:/django-rest-authemail
+      - ./static:/static
+      - ./assets:/assets/
+      - ./src:/src/
+      - ./reactjs:/reactjs/
+      - ./data:/data/
+      - ./weblog:/logs/
+      - ./mapserver:/maptiles
+    ports:
+      - "8022:8000"
+    depends_on:
+      - mysql
+      - influx
+      - redis
+      - traccar
+
+  tracker_daphne1:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "influx:8086", "--",
                "bash", "-c", "/daphne.sh" ]
@@ -88,6 +125,41 @@ services:
       - ./reactjs:/reactjs/
       - ./data:/data/
       - ./daphnelog:/logs/
+    ports:
+      - "8003:8003"
+    depends_on:
+      - mysql
+      - influx
+      - redis
+
+
+  tracker_daphne2:
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "/wait-for-it.sh", "influx:8086", "--",
+               "bash", "-c", "/daphne.sh" ]
+
+    container_name: tracker_daphne
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./secret:/secret
+      - ./django-rest-authemail:/django-rest-authemail
+      - ./static:/static
+      - ./assets:/assets/
+      - ./src:/src/
+      - ./reactjs:/reactjs/
+      - ./data:/data/
+      - ./daphnelog:/logs/
+    ports:
+      - "8023:8003"
     depends_on:
       - mysql
       - influx
