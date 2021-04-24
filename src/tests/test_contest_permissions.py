@@ -165,12 +165,6 @@ class TestAccessContest(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertEqual("TestContest2", result.json()["name"])
 
-    def test_publish_contest_without_login(self, patch):
-        self.client.logout()
-        result = self.client.put(reverse("contests-publish", kwargs={'pk': self.contest_id}))
-        print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
-
     def test_view_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
         result = self.client.get(reverse("contests-detail", kwargs={'pk': self.contest_id}),

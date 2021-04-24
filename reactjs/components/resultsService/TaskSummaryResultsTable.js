@@ -4,7 +4,7 @@ import {w3cwebsocket as W3CWebSocket} from "websocket";
 import {
     createOrUpdateTask, createOrUpdateTaskTest, deleteTask, deleteTaskTest,
     fetchContestResults,
-    fetchContestTeams, fetchTasks, fetchTaskTests,
+    fetchContestTeams, fetchTasks, fetchTaskTests, hideAllTaskDetails,
     hideTaskDetails, putContestSummary, putTaskSummary, putTestResult, resultsData,
     showTaskDetails, tasksData, teamsData, testsData
 } from "../../actions/resultsService";
@@ -73,6 +73,15 @@ class ConnectedTaskSummaryResultsTable extends Component {
     componentDidMount() {
         this.props.fetchContestResults(this.props.contestId)
         this.initiateSession()
+    }
+
+    componentWillReceiveProps(nextProps) {
+        if (nextProps.match.params.task && !this.props.tasks && nextProps.tasks) {
+            const task = nextProps.tasks.find((task) => {
+                return task.id === parseInt(nextProps.match.params.task)
+            })
+            this.expandTask(task)
+        }
     }
 
     initiateSession() {
@@ -154,7 +163,10 @@ class ConnectedTaskSummaryResultsTable extends Component {
 
     collapseTask(task) {
         this.setState({zoomedTask: null})
-        this.props.hideTaskDetails(task.id)
+        this.props.hideAllTaskDetails()
+        if (this.props.match.params.task) {
+            this.props.history.push("/resultsservice/" + this.props.contestId + "/taskresults/")
+        }
     }
 
     createNewTask() {
@@ -703,7 +715,8 @@ const
             teamsData,
             tasksData,
             testsData,
-            resultsData
+            resultsData,
+            hideAllTaskDetails
         }
     )(ConnectedTaskSummaryResultsTable);
 export default TaskSummaryResultsTable;

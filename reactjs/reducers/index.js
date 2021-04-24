@@ -537,30 +537,6 @@ function rootReducer(state = initialState, action) {
             teams: teamsMap,
         })
     }
-    if (action.type === SHOW_TASK_DETAILS) {
-        return Object.assign({}, state, {
-            ...state,
-            visibleTaskDetails: {
-                ...state.visibleTaskDetails,
-                [action.taskId]: true
-            }
-        })
-    }
-    if (action.type === HIDE_TASK_DETAILS) {
-        return Object.assign({}, state, {
-            ...state,
-            visibleTaskDetails: {
-                ...state.visibleTaskDetails,
-                [action.taskId]: false
-            }
-        })
-    }
-    if (action.type === HIDE_ALL_TASK_DETAILS) {
-        return Object.assign({}, state, {
-            ...state,
-            visibleTaskDetails: {}
-        })
-    }
     if (action.type === PUT_TEST_RESULT_SUCCESSFUL) {
         fetchContestResults(action.contestId)
         return state
