@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+    <h1>Log into Air Sports Live Tracking</h1>
     {% if next %}
         {% if user.is_authenticated %}
             <p>Your account doesn't have access to this page. To proceed,
@@ -27,5 +28,7 @@
     </form>
 
     {# Assumes you setup the password_reset view in your URLconf #}
-    <p><a href="{% url 'password_reset' %}">Lost password?</a></p>
+    <p>If this is the first time you visit the page (and have registered in the app), please <a
+            href="{% url 'password_reset' %}">click here</a> to generate a password for the site.</p>
+    <p><a href="{% url 'password_reset' %}">Forgotten password?</a></p>
 {% endblock %}
