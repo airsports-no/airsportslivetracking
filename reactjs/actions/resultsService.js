@@ -131,7 +131,7 @@ export const createOrUpdateTaskTest = (contestId, taskTest) => (dispatch) => {
 
 export const deleteTaskTest = (contestId, taskTestId) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/tasktests/" + taskTestId,
+        url: "/api/v1/contests/" + contestId + "/tasktests/" + taskTestId + "/",
         datatype: 'json',
         method: "DELETE",
         cache: false,
