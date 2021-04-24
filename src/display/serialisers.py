@@ -384,9 +384,11 @@ class SignupSerialiser(serializers.Serializer):
             raise ValidationError("You cannot choose yourself as co-pilot")
         return value
 
+
 class ContestTeamManagementSerialiser(serializers.ModelSerializer):
     contest = ContestSerialiser(read_only=True)
     team = TeamNestedSerialiser(read_only=True)
+    can_edit=serializers.BooleanField(read_only=True)
 
     class Meta:
         model = ContestTeam

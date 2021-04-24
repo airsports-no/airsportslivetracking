@@ -1387,7 +1387,11 @@ class UserPersonViewSet(GenericViewSet):
         contest_teams = ContestTeam.objects.filter(
             Q(team__crew__member1=self.get_object()) | Q(team__crew__member2=self.get_object()),
             contest__in=available_contests).order_by('contest__start_time').distinct()
-        return Response(ContestTeamManagementSerialiser(contest_teams, many=True, context={"request": request}).data)
+        teams = []
+        for team in contest_teams:
+            team.can_edit = team.team.crew.member1==self.get_object()
+            teams.append(team)
+        return Response(ContestTeamManagementSerialiser(teams, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):

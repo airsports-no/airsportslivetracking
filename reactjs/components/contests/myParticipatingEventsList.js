@@ -85,8 +85,10 @@ class ConnectedMyParticipatingEventsList extends Component {
                             </tr>
                             </tbody>
                         </table>
-                        <Button variant={"primary"} onClick={() => this.handleChangeClick()}>Change details</Button>
-                        <Button variant={"danger"} onClick={() => this.handleWithdrawClick()}>Withdraw</Button>
+                        {this.state.currentParticipation.can_edit ? <div>
+                            <Button variant={"primary"} onClick={() => this.handleChangeClick()}>Change details</Button>
+                            <Button variant={"danger"} onClick={() => this.handleWithdrawClick()}>Withdraw</Button>
+                        </div> : <b>Only pilots can edit contest participation</b>}
                     </div> : null}
                 </Container>
             </Modal.Body>
