@@ -24,10 +24,28 @@ from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, C
 from display.waypoint import Waypoint
 
 
+class MangledEmailField(serializers.Field):
+    def to_representation(self, value):
+        """
+        Serialize the value's class name.
+        """
+        name, domain = value.split("@")
+        levels = domain.split(".")
+        return f"{name}@*****.{'.'.join(levels[1:])}"
+
+
 class AeroplaneSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Aeroplane
         fields = "__all__"
+
+
+class PersonSignUpSerialiser(serializers.ModelSerializer):
+    email = MangledEmailField(read_only=True)
+
+    class Meta:
+        model = Person
+        fields = ("id", "first_name", "last_name", "email")
 
 
 class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
@@ -310,18 +328,18 @@ class SignupSerialiser(serializers.Serializer):
         contest = self.context["contest"]
 
         contest_team = validated_data["contest_team"]
-        teams = ContestTeam.objects.filter(Q(team__crew__member1__email=request.user.email) | Q(
-            team__crew__member2__email=request.user.email), contest=contest).exclude(pk=contest_team.pk)
+        teams = ContestTeam.objects.filter(Q(team__crew__member1=request.user.pk) | Q(
+            team__crew__member2=request.user.pk), contest=contest).exclude(pk=contest_team.pk)
         if teams.exists():
             raise ValidationError(
                 f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
-        if validated_data["copilot_email"] and len(validated_data["copilot_email"]) > 0:
-            teams = ContestTeam.objects.filter(Q(team__crew__member1__email=validated_data["copilot_email"]) | Q(
-                team__crew__member2__email=validated_data["copilot_email"]), contest=contest).exclude(
+        if validated_data["copilot_id"]:
+            teams = ContestTeam.objects.filter(Q(team__crew__member1=validated_data["copilot_id"]) | Q(
+                team__crew__member2=validated_data["copilot_id"]), contest=contest).exclude(
                 pk=contest_team.pk)
             if teams.exists():
                 raise ValidationError(
-                    f"The co-pilot {validated_data['copilot_email']} is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
+                    f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
 
         team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_email"],
                                               validated_data["aircraft_registration"], validated_data["club_name"])
@@ -332,30 +350,36 @@ class SignupSerialiser(serializers.Serializer):
 
     def create(self, validated_data):
         request = self.context["request"]
-        team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_email"],
+        team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_id"],
                                               validated_data["aircraft_registration"], validated_data["club_name"])
         contest = self.context["contest"]
         if ContestTeam.objects.filter(contest=contest, team=team).exists():
             raise ValidationError(f"Team {team} is already registered for contest {contest}")
-        teams = ContestTeam.objects.filter(Q(team__crew__member1__email=request.user.email) | Q(
-            team__crew__member2__email=request.user.email), contest=contest)
+        teams = ContestTeam.objects.filter(Q(team__crew__member1_id=request.user.pk) | Q(
+            team__crew__member2_id=request.user.pk), contest=contest)
         if teams.exists():
             raise ValidationError(
                 f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
-        if validated_data["copilot_email"] and len(validated_data["copilot_email"]) > 0:
-            teams = ContestTeam.objects.filter(Q(team__crew__member1__email=validated_data["copilot_email"]) | Q(
-                team__crew__member2__email=validated_data["copilot_email"]), contest=contest)
+        if validated_data["copilot_id"]:
+            teams = ContestTeam.objects.filter(Q(team__crew__member1=validated_data["copilot_id"]) | Q(
+                team__crew__member2=validated_data["copilot_id"]), contest=contest)
             if teams.exists():
                 raise ValidationError(
-                    f"The co-pilot {validated_data['copilot_email']} is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
+                    f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
         contest_team = ContestTeam.objects.create(team=team, contest=contest, air_speed=validated_data["airspeed"])
         return contest_team
 
     aircraft_registration = serializers.CharField()
     club_name = serializers.CharField()
-    copilot_email = serializers.EmailField(required=False, allow_blank=True)
+    copilot_id = serializers.PrimaryKeyRelatedField(queryset=Person.objects.all(), required=False, allow_null=True)
     airspeed = serializers.FloatField()
     contest_team = serializers.PrimaryKeyRelatedField(queryset=ContestTeam.objects.all(), required=False)
+
+    def validate_copilot_id(self, value):
+        request = self.context["request"]
+        my_person = Person.objects.get(email=request.user.email)
+        if my_person == value:
+            raise ValidationError("You cannot choose yourself as co-pilot")
 
 
 class ContestTeamManagementSerialiser(serializers.ModelSerializer):

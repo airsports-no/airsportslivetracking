@@ -20,9 +20,10 @@ class ConnectedContestRegistrationForm extends Component {
         this.state = {
             aircraftOptions: null,
             clubOptions: null,
+            personOptions: null
         }
         this.schema = yup.object().shape({
-            copilot_email: yup.string(),
+            copilot_id: yup.number().nullable(true),
             aircraft_registration: yup.string().required(),
             club_name: yup.string().required(),
             airspeed: yup.number().required(),
@@ -37,7 +38,23 @@ class ConnectedContestRegistrationForm extends Component {
     componentDidMount() {
         this.getClubOptions()
         this.getAircraftOptions()
+        this.getPersonOptions()
     }
+
+    getPersonOptions(part) {
+        axios.get('/display/person/signuplist/').then((res) => {
+            console.log(res)
+            this.setState({
+                personOptions: res.data.map((person) => {
+                    return {
+                        id: person.id,
+                        label: person.first_name + " " + person.last_name + " (" + person.email + ")"
+                    }
+                })
+            })
+        })
+    }
+
 
     getAircraftOptions(part) {
         axios.get('/api/v1/aircraft/').then((res) => {
@@ -62,19 +79,20 @@ class ConnectedContestRegistrationForm extends Component {
     }
 
     render() {
-        if (!this.state.aircraftOptions || !this.state.clubOptions) {
+        if (!this.state.aircraftOptions || !this.state.clubOptions || !this.state.personOptions) {
             return <Loading/>
         }
         let initialValues = {
             aircraftOptions: this.state.aircraftOptions,
             clubOptions: this.state.clubOptions,
-            copilot_email: "",
+            personOptions: this.state.personOptions,
+            copilot_id: null,
             aircraft_registration: "",
             club_name: "",
             airspeed: ""
         }
         if (this.props.participation) {
-            initialValues.copilot_email = this.props.participation.team.crew.member2 ? this.props.participation.team.crew.member2.email : ""
+            initialValues.copilot_id = this.props.participation.team.crew.member2 ? this.props.participation.team.crew.member2.id : ""
             initialValues.aircraft_registration = this.props.participation.team.aeroplane.registration
             initialValues.club_name = this.props.participation.team.club.name
             initialValues.airspeed = this.props.participation.air_speed
@@ -84,11 +102,17 @@ class ConnectedContestRegistrationForm extends Component {
             initialValues: initialValues,
             validationSchema: this.schema,
             onSubmit: (formValues, {setSubmitting, setStatus, setErrors}) => {
-                console.log("submit", formValues);
+                let data = {
+                    club_name: formValues.club_name,
+                    aircraft_registration: formValues.aircraft_registration,
+                    airspeed: formValues.airspeed,
+                    copilot_id: formValues.copilot_id,
+                }
+                console.log("submit", data);
                 setSubmitting(true);
                 if (this.props.participation) {
-                    formValues.contest_team = this.props.participation.id
-                    axios.put("/api/v1/contests/" + this.props.contest.id + "/signup/", formValues).then((res) => {
+                    data.contest_team = this.props.participation.id
+                    axios.put("/api/v1/contests/" + this.props.contest.id + "/signup/", data).then((res) => {
                         setStatus("Registration successful")
                         if (!this.props.external) {
                             this.handleSuccess()
@@ -97,13 +121,13 @@ class ConnectedContestRegistrationForm extends Component {
                         }
                     }).catch((e) => {
                         console.error(e);
-                        setErrors({api: _.get(e, ["message"])})
+                        setErrors({api: _.get(e, ["response", "data"])})
                     }).finally(() => {
                         setSubmitting(false);
                     })
 
                 } else {
-                    axios.post("/api/v1/contests/" + this.props.contest.id + "/signup/", formValues).then((res) => {
+                    axios.post("/api/v1/contests/" + this.props.contest.id + "/signup/", data).then((res) => {
                         setStatus("Registration successful")
                         if (!this.props.external) {
                             this.handleSuccess()
@@ -112,7 +136,13 @@ class ConnectedContestRegistrationForm extends Component {
                         }
                     }).catch((e) => {
                         console.error(e);
-                        setErrors({api: _.get(e, ["message"])})
+                        console.log(e);
+                        const errors = _.get(e, ["response", "data"])
+                        if (Array.isArray(errors)){
+                            setErrors({api: errors})
+                        }else{
+                            setErrors(errors)
+                        }
                     }).finally(() => {
                         setSubmitting(false);
                     })
@@ -130,10 +160,15 @@ class ConnectedContestRegistrationForm extends Component {
                     {props => (
                         <Form onSubmit={props.handleSubmit} onAbort={() => this.props.history.push("/participation/")}>
                             <Form.Group>
-                                <Form.Label>Co-pilot (optional)</Form.Label>
-                                <Form.Control type={"email"} name={"copilot_email"} onChange={props.handleChange}
-                                              value={props.values.copilot_email}
-                                              isValid={props.touched.copilot_email && !props.errors.copilot_email}/>
+                                <Form.Label>Copilot (optional)</Form.Label>
+                                <Typeahead id={"copilot_id"}
+                                           newSelectionPrefix={"Select co-pilot: "}
+                                           name={"copilot_id"}
+                                           options={props.values.personOptions}
+                                           isInvalid={!!props.errors.copilot_id}
+                                           defaultSelected={props.initialValues.copilot_id?[{label: props.initialValues.copilot_id}]:[]}
+                                           onChange={e => props.setFieldValue("copilot_id", e.length > 0 ? e[0].id : null)}/>
+                                <ErrorMessage name={"copilot_id"} component={"div"}/>
                             </Form.Group>
                             <Form.Group>
                                 <Form.Label>Aircraft</Form.Label>

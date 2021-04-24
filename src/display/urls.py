@@ -15,7 +15,7 @@ from display.views import frontend_view_map, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test, \
     clear_results_service, delete_score_item, \
     terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules, frontend_playback_map, \
-    share_contest, share_navigation_task
+    share_contest, share_navigation_task, get_persons_for_signup
 
 urlpatterns = [
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
@@ -78,6 +78,7 @@ urlpatterns = [
     path('club/autocomplete/name/', auto_complete_club, name="autocomplete_club"),
     path('navigationtaskwizard/<int:contest_pk>/', NewNavigationTaskWizard.as_view(), name="navigationtaskwizard"),
     path('person/<int:pk>/update/', PersonUpdateView.as_view(), name="person_update"),
+    path('person/signuplist/', get_persons_for_signup, name="get_persons_for_signup"),
     path('person/', PersonList.as_view(), name="person_list"),
     path('manifest/', manifest, name="tracking_manifest")
 ]

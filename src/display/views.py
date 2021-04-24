@@ -71,7 +71,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     NavigationTasksSummarySerialiser, TaskSummaryWithoutReferenceSerialiser, TeamTestScoreWithoutReferenceSerialiser, \
     TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser, ContestantSerialiser, \
     TrackAnnotationSerialiser, ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser, \
-    ContestTeamManagementSerialiser, SignupSerialiser
+    ContestTeamManagementSerialiser, SignupSerialiser, PersonSignUpSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -286,6 +286,12 @@ def auto_complete_person_email(request):
             serialiser = PersonSerialiser(search_qs, many=True)
             return Response(serialiser.data)
     raise MethodNotAllowed
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_persons_for_signup(request):
+    return Response(PersonSignUpSerialiser(Person.objects.exclude(email=request.user.email), many=True).data)
 
 
 def tracking_qr_code_view(request, pk):

@@ -300,15 +300,9 @@ class Team(models.Model):
         return None
 
     @classmethod
-    def get_or_create_from_signup(cls, user: MyUser, copilot_email: str, aircraft_registration: str,
+    def get_or_create_from_signup(cls, user: MyUser, copilot: Person, aircraft_registration: str,
                                   club_name: str) -> "Team":
         my_person = Person.objects.get(email=user.email)
-        copilot = None
-        if copilot_email is not None and len(copilot_email) > 0:
-            try:
-                copilot = Person.objects.get(email__iexact=copilot_email)
-            except ObjectDoesNotExist as e:
-                raise ValidationError(f"Person with email address {copilot_email} does not exist")
         crew, _ = Crew.objects.get_or_create(member1=my_person, member2=copilot)
         aircraft, _ = Aeroplane.objects.get_or_create(registration=aircraft_registration)
         club, _ = Club.objects.get_or_create(name=club_name)
@@ -420,6 +414,7 @@ class Contest(models.Model):
     @property
     def contest_team_count(self):
         return self.contest_teams.all().count()
+
 
 class NavigationTask(models.Model):
     PRECISION = 'precision'
