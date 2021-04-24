@@ -58,7 +58,8 @@ from display.permissions import ContestPermissions, NavigationTaskContestPermiss
     ContestantPublicPermissions, NavigationTaskPublicPermissions, ContestPublicPermissions, \
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
     ContestPermissionsWithoutObjects, ChangeContestKeyPermissions, TaskContestPermissions, TaskContestPublicPermissions, \
-    TaskTestContestPublicPermissions, TaskTestContestPermissions, ContestPublicModificationPermissions
+    TaskTestContestPublicPermissions, TaskTestContestPermissions, ContestPublicModificationPermissions, \
+    OrganiserPermission, ContestTeamContestPermissions
 from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedTeamSerialiser, \
@@ -1389,7 +1390,7 @@ class UserPersonViewSet(GenericViewSet):
             contest__in=available_contests).order_by('contest__start_time').distinct()
         teams = []
         for team in contest_teams:
-            team.can_edit = team.team.crew.member1==self.get_object()
+            team.can_edit = team.team.crew.member1 == self.get_object()
             teams.append(team)
         return Response(ContestTeamManagementSerialiser(teams, many=True, context={"request": request}).data)
 
@@ -1567,6 +1568,39 @@ class ContestViewSet(ModelViewSet):
             # This is when we are creating a new contest
             pass
         return context
+
+
+class TeamViewSet(ModelViewSet):
+    queryset = Team.objects.all()
+    serializer_class = TeamNestedSerialiser
+    permission_classes = [permissions.IsAuthenticated & OrganiserPermission]
+
+    http_method_names = ["post", "put", "get"]
+
+
+class ContestTeamViewSet(ModelViewSet):
+    queryset = ContestTeam.objects.all()
+    serializer_class = ContestTeamSerialiser
+    permission_classes = [permissions.IsAuthenticated & ContestTeamContestPermissions]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        try:
+            context.update({"contest": get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))})
+        except Http404:
+            # This has to be handled where we retrieve the context
+            pass
+        return context
+
+    def get_queryset(self):
+        contest_id = self.kwargs.get("contest_pk")
+        contests = get_objects_for_user(self.request.user, "display.view_contest",
+                                        klass=Contest, accept_global_perms=False)
+        try:
+            contest = contests.get(pk=contest_id)
+        except ObjectDoesNotExist:
+            raise Http404("Contest does not exist")
+        return ContestTeam.objects.filter(contest=contest)
 
 
 class NavigationTaskViewSet(ModelViewSet):

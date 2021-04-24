@@ -227,19 +227,17 @@ class Person(models.Model):
             possible_person = Person.objects.filter(phone=phone)
         if (not possible_person or possible_person.count() == 0) and email is not None and len(email) > 0:
             possible_person = Person.objects.filter(email__iexact=email)
-        if not possible_person or possible_person.count() == 0:
+        elif not possible_person or possible_person.count() == 0:
             if first_name is not None and len(first_name) > 0 and last_name is not None and len(last_name) > 0:
                 possible_person = Person.objects.filter(first_name__iexact=first_name,
                                                         last_name__iexact=last_name).first()
-                if possible_person is None:
-                    return Person.objects.create(
-                        phone=phone,
-                        email=email,
-                        first_name=first_name,
-                        last_name=last_name
-                    )
-                return possible_person
-            return None
+        if possible_person is None or possible_person.count() == 0:
+            return Person.objects.create(
+                phone=phone,
+                email=email,
+                first_name=first_name,
+                last_name=last_name
+            )
         return possible_person.first()
 
     def validate(self):

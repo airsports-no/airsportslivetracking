@@ -31,6 +31,11 @@ class ContestPermissions(ContestPermissionsWithoutObjects):
         return False
 
 
+class OrganiserPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.has_perm("display.add_contest")
+
+
 class ContestModificationPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         return True
@@ -177,6 +182,26 @@ class TaskTestContestPermissions(permissions.BasePermission):
             return request.user.has_perm('change_contest', obj.task.contest)
         if request.method in ['DELETE']:
             return request.user.has_perm('delete_contest', obj.task.contest)
+        return False
+
+
+class ContestTeamContestPermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        pk = view.kwargs.get("contest_pk")
+        if not pk:
+            return True
+        contest = get_object_or_404(Contest, pk=pk)
+        return request.user.has_perm("display.change_contest", contest)
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in ['GET']:
+            return request.user.has_perm('view_contest', obj.contest)
+        if request.method in ['POST']:
+            return request.user.has_perm('add_contest', obj.contest)
+        if request.method in ['PUT', 'PATCH']:
+            return request.user.has_perm('change_contest', obj.contest)
+        if request.method in ['DELETE']:
+            return request.user.has_perm('delete_contest', obj.contest)
         return False
 
 
