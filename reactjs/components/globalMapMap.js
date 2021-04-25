@@ -31,7 +31,7 @@ export const mapDispatchToProps = {
 }
 
 class Aircraft {
-    constructor(name, colour, initial_position, map) {
+    constructor(name, colour, initial_position, map, ageTimeout) {
         this.map = map
         this.displayText = name
         this.colour = colour
@@ -43,7 +43,7 @@ class Aircraft {
         this.latestPosition = position
         this.trailPositions = [position]
         this.time = position.time
-        this.ageTimeout = 22
+        this.ageTimeout = ageTimeout
         this.speedLimit = 50
         this.ageColour = "grey"
         this.navigation_task_link = this.getNavigationTaskLink(initial_position.navigation_task_id)
@@ -308,11 +308,13 @@ class ConnectedGlobalMapMap
                 if (this.aircraft[position.deviceId] === undefined) {
                     let group = this.internalPositions
                     let colour = "#2471a3"
+                    let ageTimeout = 20
                     if (position.traffic_source === "opensky") {
                         group = this.openskyPositions
                         colour = "#7d3c98"
+                        ageTimeout = 60
                     }
-                    this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group)
+                    this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group, ageTimeout)
                 } else {
                     this.aircraft[position.deviceId].updatePosition(position)
                 }
