@@ -33,7 +33,7 @@ services:
                "/wait-for-it.sh", "influx:8086", "--",
                 "bash", "-c", "python3 manage.py migrate && cd / && npm run webpack && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
 
-    container_name: tracker_web1
+    container_name: tracker_web
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
       - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
@@ -70,7 +70,7 @@ services:
                "/wait-for-it.sh", "influx:8086", "--",
                 "bash", "-c", "python3 manage.py migrate && cd / && npm run webpack && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
 
-    container_name: tracker_web2
+    container_name: tracker_web
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
       - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
@@ -105,7 +105,7 @@ services:
                "/wait-for-it.sh", "influx:8086", "--",
                "bash", "-c", "/daphne.sh" ]
 
-    container_name: tracker_daphne1
+    container_name: tracker_daphne
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
       - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
@@ -138,7 +138,7 @@ services:
                "/wait-for-it.sh", "influx:8086", "--",
                "bash", "-c", "/daphne.sh" ]
 
-    container_name: tracker_daphne2
+    container_name: tracker_daphne
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
       - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
