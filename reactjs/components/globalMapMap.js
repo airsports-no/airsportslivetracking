@@ -364,6 +364,7 @@ class ConnectedGlobalMapMap
             zoomDelta: 0.25,
             zoomSnap: 0.25,
             zoomControl: false,
+            preferCanvas: true
         })
 
         this.internalPositions = L.layerGroup().addTo(this.map)
