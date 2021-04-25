@@ -155,6 +155,30 @@ services:
       - mysql
       - redis
 
+
+  opensky_consumer:
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "/wait-for-it.sh", "traccar:8082", "--",
+               "/wait-for-it.sh", "influx:8086", "--",
+               "bash", "-c", "python3 opensky_consumer.py" ]
+    container_name: opensky_consumer
+    restart: unless-stopped
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./secret:/secret
+      - ./openskyconsumerlogs:/logs/
+    depends_on:
+      - redis
+
   influx:
     image: influxdb
     restart: always

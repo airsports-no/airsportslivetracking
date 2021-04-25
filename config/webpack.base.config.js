@@ -48,13 +48,13 @@ module.exports = {
         }
     },
     plugins: [
-        new UglifyJsPlugin(),
-        new BrotliPlugin({
-            asset: '[path].br[query]',
-            test: /\.(js|css|html|svg)$/,
-            threshold: 10240,
-            minRatio: 0.8
-        }),
+        // new UglifyJsPlugin(),
+        // new BrotliPlugin({
+        //     asset: '[path].br[query]',
+        //     test: /\.(js|css|html|svg)$/,
+        //     threshold: 10240,
+        //     minRatio: 0.8
+        // }),
         // new webpack.optimize.OccurenceOrderPlugin(true),
         // new webpack.optimize.DedupePlugin(),
         // new HtmlWebpackPlugin({
@@ -91,8 +91,8 @@ module.exports = {
         //         comments: false
         //     }
         // }),
-        new webpack.HashedModuleIdsPlugin(),
-        new webpack.optimize.AggressiveMergingPlugin()//Merge chunks
+        // new webpack.HashedModuleIdsPlugin(),
+        // new webpack.optimize.AggressiveMergingPlugin()//Merge chunks
     ], // add all common plugins here
 
     module: {
