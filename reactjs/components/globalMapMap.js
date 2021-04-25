@@ -43,7 +43,7 @@ class Aircraft {
         this.latestPosition = position
         this.trailPositions = [position]
         this.time = position.time
-        this.ageTimeout = 20
+        this.ageTimeout = 22
         this.speedLimit = 50
         this.ageColour = "grey"
         this.navigation_task_link = this.getNavigationTaskLink(initial_position.navigation_task_id)
@@ -53,10 +53,10 @@ class Aircraft {
 
     agePlane() {
         this.updateIcon(this.latestPosition, this.ageColour, 0.4)
-        this.trail.setStyle({
-            opacity: 0.4,
-            color: this.ageColour
-        })
+        // this.trail.setStyle({
+        //     opacity: 0.4,
+        //     color: this.ageColour
+        // })
     }
 
     getNavigationTaskLink(navigation_task_id) {
@@ -146,11 +146,11 @@ class Aircraft {
             //         window.location.href = this.navigation_task_link
             //     }
         }).addTo(this.map)
-        this.trail = L.polyline([[position.latitude, position.longitude]], {
-            color: colour,
-            opacity: opacity,
-            weight: 3
-        }).addTo(this.map)
+        // this.trail = L.polyline([[position.latitude, position.longitude]], {
+        //     color: colour,
+        //     opacity: opacity,
+        //     weight: 3
+        // }).addTo(this.map)
         this.updateTooltip(position)
         this.updateIcon(position, colour, opacity)
     }
@@ -180,7 +180,7 @@ class Aircraft {
 
     updatePosition(p) {
         clearTimeout(this.colourTimer)
-        this.colourTimer = setTimeout(() => this.agePlane(), 15000)
+        this.colourTimer = setTimeout(() => this.agePlane(), this.ageTimeout * 1000)
         const position = this.replaceTime(p)
         const opacity = this.calculateOpacity(position.speed)
         if ((p.person && !this.latestPosition.person) || (!p.person && this.latestPosition.person)) {
@@ -190,7 +190,7 @@ class Aircraft {
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
         this.updateIcon(position, this.colour, opacity)
-        this.updateTrail(position, this.colour, opacity)
+        // this.updateTrail(position, this.colour, opacity)
         this.time = position.time
         this.updateNavigationTask(position)
     }
@@ -204,7 +204,7 @@ class Aircraft {
     removeFromMap() {
         if (this.dot) {
             this.dot.removeFrom(this.map)
-            this.trail.removeFrom(this.map)
+            // this.trail.removeFrom(this.map)
             this.dotText.removeFrom(this.map)
         }
     }
@@ -216,6 +216,8 @@ class ConnectedGlobalMapMap
         super(props);
         this.state = {map: null}
         this.map = null;
+        this.internalPositions = null
+        this.openskyPositions = null
         this.aircraft = {}  // deviceId is key
         this.purgeInterval = 180
         this.connectInterval = null;
@@ -304,7 +306,13 @@ class ConnectedGlobalMapMap
             const deviceTime = new Date(position.deviceTime)
             if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
                 if (this.aircraft[position.deviceId] === undefined) {
-                    this.aircraft[position.deviceId] = new Aircraft(position.name, "blue", position, this.map)
+                    let group = this.internalPositions
+                    let colour = "#2471a3"
+                    if (position.traffic_source === "opensky") {
+                        group = this.openskyPositions
+                        colour = "#7d3c98"
+                    }
+                    this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group)
                 } else {
                     this.aircraft[position.deviceId].updatePosition(position)
                 }
@@ -356,6 +364,15 @@ class ConnectedGlobalMapMap
             zoomControl: false,
         })
 
+        this.internalPositions = L.layerGroup().addTo(this.map)
+        this.openskyPositions = L.layerGroup().addTo(this.map)
+        this.map.on("zoomend", (e) => {
+            if (this.map.getZoom() < 7) {
+                this.openskyPositions.removeFrom(this.map)
+            } else {
+                this.openskyPositions.addTo(this.map)
+            }
+        })
         // this.addControlPlaceholders(this.map);
 
         // Change the position of the Zoom Control to a newly created placeholder.

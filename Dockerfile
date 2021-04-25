@@ -6,7 +6,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 RUN curl -sL https://deb.nodesource.com/setup_10.x -o nodesource_setup.sh && bash nodesource_setup.sh && apt-get update && apt-get install -y nodejs && rm nodesource_setup.sh
 
 RUN pip3 install -U pip
-
+COPY opensky-api /opensky-api
+RUN pip3 install -e /opensky-api/python
 ###### INSTALL PYTHON PACKAGES ######
 ENV LC_CTYPE C.UTF-8
 ENV LC_ALL C.UTF-8

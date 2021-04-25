@@ -115,7 +115,32 @@ class WebsocketFacade:
                 "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
                 "speed": float(position_data["speed"]),
                 "course": float(position_data["course"]),
-                "navigation_task_id": navigation_task_id
+                "navigation_task_id": navigation_task_id,
+                "traffic_source": "internal"
+            }
+        }
+        async_to_sync(self.channel_layer.group_send)(
+            "tracking_global", data
+        )
+        return data
+
+    def transmit_external_global_position_data(self, device_id: str, name: str, time_stamp: datetime, latitude,
+                                               longitude, altitude, speed, course):
+        data = {
+            "type": "tracking.data",
+            "data": {
+                "name": name,
+                "time": time_stamp.isoformat(),
+                "person": None,
+                "deviceId": device_id,
+                "latitude": latitude,
+                "longitude": longitude,
+                "altitude": altitude,
+                "battery_level": -1,
+                "speed": speed,
+                "course": course,
+                "navigation_task_id": None,
+                "traffic_source": "opensky"
             }
         }
         async_to_sync(self.channel_layer.group_send)(

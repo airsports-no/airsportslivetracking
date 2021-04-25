@@ -64,16 +64,17 @@ class ConnectedMyContestParticipationManagement extends Component {
         return <div>
             <div className={"row"}>
                 <div className={"col-lg-4"}>
-                    <h2>My upcoming contests</h2>
+                    <h2>My participation</h2>
                     <MyParticipatingEventsList/>
                 </div>
                 <div className={"col-lg-8"}>
                     {alreadyRegistered ? <h3>You are already registered for that contest</h3> : null}
-                    {contest ?
-                        <ContestRegistrationForm
-                            contest={contest} external={external}
-                            participation={this.props.currentContestParticipation}/> :
-                        <UpcomingContestsSignupTable/>}
+                    {contest ? <div>
+
+                            <ContestRegistrationForm
+                                contest={contest} external={external}
+                                participation={this.props.currentContestParticipation}/></div> :
+                        <div><h3>Upcoming contests</h3><UpcomingContestsSignupTable/></div>}
                 </div>
             </div>
         </div>

@@ -15,16 +15,19 @@ const aboutGlobalMap = <div>
         <li>Get an overview of ongoing and upcoming events.</li>
         <li>Clicking on the event, and jump to the event details.</li>
     </ul>
-    <p>
+    <p/>
         Map aircraft symbols
         <table className={"table-compact borderless"}>
             <tbody>
             <tr>
-                <td style={{width: "160px"}}><i className="mdi mdi-airplanemode-active" style={{color: "blue"}}/> Active aircraft</td>
-                <td rowSpan={3}>Speed: GPS in KTS.<br/>Altitude: GPS nearest 100 feet</td>
+                <td style={{width: "200px"}}><i className="mdi mdi-airplanemode-active" style={{color: "#2471a3"}}/> Active aircraft (AirSports)</td>
+                <td rowSpan={4} style={{verticalAlign: "top"}}>Speed: GPS in KTS.<br/>Altitude: GPS nearest 100 feet</td>
             </tr>
             <tr>
-                <td><i className="mdi mdi-airplanemode-active" style={{color: "blue", opacity: 0.4}}/> &lt; 40 knots
+                <td style={{width: "200px"}}><i className="mdi mdi-airplanemode-active" style={{color: "#7d3c98"}}/> Active aircraft (OpenSky)</td>
+            </tr>
+            <tr>
+                <td><i className="mdi mdi-airplanemode-active" style={{color: "#2471a3", opacity: 0.4}}/> &lt; 40 knots
                 </td>
             </tr>
             <tr>
@@ -37,22 +40,20 @@ const aboutGlobalMap = <div>
         Live Tracking is for entertainment use only! The app requires gps and mobile coverage to work. For more
         information about Air Sports Live Tracking, please see <a href={"https://airsports.no/terms_and_conditions/"}>Terms
         And Conditions</a>.
-    </p>
     <hr/>
-    <p>
+    <p/>
         <Icon path={mdiGoKartTrack} title={"Tracking"} size={1.5} color={"#e01b1c"}
               style={{float: "right", width: "50px"}}/>
         <h4>Competition Flying - with real-time scoring</h4>
         With airsports.no you can create competitions like Precision Flying, Rally Flying, or Air Navigation Racing.
         Organizers can use this feature for free, so contact us at
         support[at]airsports.no to become an organizer. The contestants only need the app to compete in the contest, no hardware tracker required.
-    </p>
     <p>
         Take a look at our <a href={"https://youtu.be/4ZPlDVjXabs"}>competition creation tutorial</a>, and
         please visit and subscribe to our YouTube Channel for more videos.
     </p>
     <hr/>
-    <p>
+    <p/>
         <img src={"/static/img/airsports_help.png"} style={{float: "right", width: "40px", marginTop: "-10px"}} alt={"Global logo"}/>
         <b>Live Tracking tutorial</b>
         <div className="video-container">
@@ -60,7 +61,6 @@ const aboutGlobalMap = <div>
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     frameBorder="0" allowFullScreen className="video"/>
         </div>
-    </p>
 </div>
 
 export default aboutGlobalMap
