@@ -222,6 +222,7 @@ class ConnectedGlobalMapMap
         this.purgeInterval = 180
         this.connectInterval = null;
         this.wsTimeOut = 1000
+        this.bounds = null
         this.purgePositions = this.purgePositions.bind(this)
         setInterval(this.purgePositions, this.purgeInterval * 1000)
     }
@@ -304,21 +305,23 @@ class ConnectedGlobalMapMap
         positions.map((position) => {
             const now = new Date()
             const deviceTime = new Date(position.deviceTime)
-            if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
-                if (this.aircraft[position.deviceId] === undefined) {
-                    let group = this.internalPositions
-                    let colour = "#2471a3"
-                    let ageTimeout = 20
-                    if (position.traffic_source === "opensky") {
-                        group = this.openskyPositions
-                        colour = "#7d3c98"
-                        ageTimeout = 60
+            if (this.bounds && this.bounds.contains([position.latitude, position.longitude])) {
+                if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
+                    if (this.aircraft[position.deviceId] === undefined) {
+                        let group = this.internalPositions
+                        let colour = "#2471a3"
+                        let ageTimeout = 20
+                        if (position.traffic_source === "opensky") {
+                            group = this.openskyPositions
+                            colour = "#7d3c98"
+                            ageTimeout = 60
+                        }
+                        this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group, ageTimeout)
+                    } else {
+                        this.aircraft[position.deviceId].updatePosition(position)
                     }
-                    this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group, ageTimeout)
-                } else {
-                    this.aircraft[position.deviceId].updatePosition(position)
-                }
 
+                }
             }
         })
 
@@ -370,7 +373,7 @@ class ConnectedGlobalMapMap
         this.internalPositions = L.layerGroup().addTo(this.map)
         this.openskyPositions = L.layerGroup().addTo(this.map)
         this.map.on("zoomend", (e) => {
-            if (this.map.getZoom() < 7) {
+            if (this.map.getZoom() < 6) {
                 this.openskyPositions.removeFrom(this.map)
             } else {
                 this.openskyPositions.addTo(this.map)
@@ -426,7 +429,12 @@ class ConnectedGlobalMapMap
         // OpenAIP.addTo(this.map);
         // this.map.setView([0, 0], 2)
         this.map.locate({setView: true, maxZoom: 7})
+        this.map.whenReady(()=>this.bounds = this.map.getBounds())
+
         this.setState({map: this.map})
+        this.map.on("moveend", (e) => {
+            this.bounds = this.map.getBounds()
+        })
     }
 
 
