@@ -124,7 +124,7 @@ class WebsocketFacade:
         )
         return data
 
-    def transmit_external_global_position_data(self, device_id: str, name: str, time_stamp: datetime, latitude,
+    async def transmit_external_global_position_data(self, device_id: str, name: str, time_stamp: datetime, latitude,
                                                longitude, altitude, speed, course):
         data = {
             "type": "tracking.data",
@@ -143,7 +143,7 @@ class WebsocketFacade:
                 "traffic_source": "opensky"
             }
         }
-        async_to_sync(self.channel_layer.group_send)(
+        await self.channel_layer.group_send(
             "tracking_global", data
         )
         return data
