@@ -1,4 +1,5 @@
 import datetime
+import sys
 import time
 import logging
 import os
@@ -26,7 +27,7 @@ if __name__ == "__main__":
 from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
-FETCH_INTERVAL = datetime.timedelta(seconds=11)
+FETCH_INTERVAL = datetime.timedelta(seconds=5)
 
 
 async def transmit_states(states):
@@ -43,8 +44,9 @@ async def transmit_states(states):
 
 
 if __name__ == "__main__":
+    username, password = sys.argv[1:]
     websocket_facade = WebsocketFacade()
-    api = OpenSkyApi()
+    api = OpenSkyApi(username, password)
     while True:
         try:
             response = api.get_states()

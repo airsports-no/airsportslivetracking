@@ -31,11 +31,12 @@ export const mapDispatchToProps = {
 }
 
 class Aircraft {
-    constructor(name, colour, initial_position, map, ageTimeout) {
+    constructor(name, colour, initial_position, map, ageTimeout, trafficSource) {
         this.map = map
         this.displayText = name
         this.colour = colour
         this.longform = ""
+        this.trafficSource = trafficSource
         this.dot = null
         this.dotText = null
         this.trail = null;
@@ -49,6 +50,7 @@ class Aircraft {
         this.navigation_task_link = this.getNavigationTaskLink(initial_position.navigation_task_id)
         this.createLiveEntities(position, new Date().getTime() - this.time.getTime() > this.ageTimeout * 1000 ? this.ageColour : this.colour)
         this.colourTimer = setTimeout(() => this.agePlane(), this.ageTimeout * 1000)
+        this.tooltipContents = null
     }
 
     agePlane() {
@@ -98,16 +100,7 @@ class Aircraft {
     }
 
     updateTooltip(position) {
-        this.dotText.unbindTooltip()
-        this.dot.unbindTooltip()
         let tooltipContents = null
-        if (this.navigation_task_link) {
-            tooltipContents = <div>
-                {this.navigation_task_link ?
-                    <a href={this.navigation_task_link}>Flying in competition</a> : null}
-            </div>
-            tooltipContents = ReactDOMServer.renderToString(tooltipContents)
-        }
         if (position.person) {
             tooltipContents = <div style={{width: "200px"}}>
                 <img src={position.person.picture} style={{float: "left", width: "75px"}}/>
@@ -117,16 +110,27 @@ class Aircraft {
                 {this.navigation_task_link ?
                     <a href={this.navigation_task_link}>Flying in competition</a> : null}
             </div>
+        } else if (this.navigation_task_link) {
+            tooltipContents = <div>
+                {this.navigation_task_link ?
+                    <a href={this.navigation_task_link}>Flying in competition</a> : null}
+            </div>
+        }
+        if (this.tooltipContents === tooltipContents) {
+            tooltipContents = null
+        } else {
+            this.tooltipContents = tooltipContents
             tooltipContents = ReactDOMServer.renderToString(tooltipContents)
-            if (tooltipContents) {
-                this.dot.bindTooltip(tooltipContents, {
-                    permanent: false
-                })
-                this.dotText.bindTooltip(tooltipContents, {
-                    permanent: false
-                })
-            }
-
+        }
+        if (tooltipContents) {
+            this.dotText.unbindTooltip()
+            this.dot.unbindTooltip()
+            this.dot.bindTooltip(tooltipContents, {
+                permanent: false
+            })
+            this.dotText.bindTooltip(tooltipContents, {
+                permanent: false
+            })
         }
     }
 
@@ -151,7 +155,9 @@ class Aircraft {
         //     opacity: opacity,
         //     weight: 3
         // }).addTo(this.map)
-        this.updateTooltip(position)
+        if (this.trafficSource === "internal") {
+            this.updateTooltip(position)
+        }
         this.updateIcon(position, colour, opacity)
     }
 
@@ -305,23 +311,21 @@ class ConnectedGlobalMapMap
         positions.map((position) => {
             const now = new Date()
             const deviceTime = new Date(position.deviceTime)
-            if (this.bounds && this.bounds.contains([position.latitude, position.longitude])) {
-                if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
-                    if (this.aircraft[position.deviceId] === undefined) {
-                        let group = this.internalPositions
-                        let colour = "#2471a3"
-                        let ageTimeout = 20
-                        if (position.traffic_source === "opensky") {
-                            group = this.openskyPositions
-                            colour = "#7d3c98"
-                            ageTimeout = 60
-                        }
-                        this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group, ageTimeout)
-                    } else {
-                        this.aircraft[position.deviceId].updatePosition(position)
+            if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
+                if (this.aircraft[position.deviceId] === undefined) {
+                    let group = this.internalPositions
+                    let colour = "#2471a3"
+                    let ageTimeout = 20
+                    if (position.traffic_source === "opensky") {
+                        group = this.openskyPositions
+                        colour = "#7d3c98"
+                        ageTimeout = 60
                     }
-
+                    this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group, ageTimeout, position.traffic_source)
+                } else {
+                    this.aircraft[position.deviceId].updatePosition(position)
                 }
+
             }
         })
 
@@ -372,13 +376,13 @@ class ConnectedGlobalMapMap
 
         this.internalPositions = L.layerGroup().addTo(this.map)
         this.openskyPositions = L.layerGroup().addTo(this.map)
-        this.map.on("zoomend", (e) => {
-            if (this.map.getZoom() < 6) {
-                this.openskyPositions.removeFrom(this.map)
-            } else {
-                this.openskyPositions.addTo(this.map)
-            }
-        })
+        // this.map.on("zoomend", (e) => {
+        //     if (this.map.getZoom() < 6) {
+        //         this.openskyPositions.removeFrom(this.map)
+        //     } else {
+        //         this.openskyPositions.addTo(this.map)
+        //     }
+        // })
         // this.addControlPlaceholders(this.map);
 
         // Change the position of the Zoom Control to a newly created placeholder.
@@ -429,7 +433,7 @@ class ConnectedGlobalMapMap
         // OpenAIP.addTo(this.map);
         // this.map.setView([0, 0], 2)
         this.map.locate({setView: true, maxZoom: 7})
-        this.map.whenReady(()=>this.bounds = this.map.getBounds())
+        this.map.whenReady(() => this.bounds = this.map.getBounds())
 
         this.setState({map: this.map})
         this.map.on("moveend", (e) => {

@@ -160,7 +160,7 @@ services:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "traccar:8082", "--",
                "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "python3 opensky_consumer.py" ]
+               "bash", "-c", "python3 opensky_consumer.py ${OPEN_SKY_USERNAME} ${OPEN_SKY_PASSWORD}" ]
     container_name: opensky_consumer
     restart: unless-stopped
     environment:
@@ -170,6 +170,8 @@ services:
       - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
       - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
       - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+      - OPEN_SKY_USERNAME=IF
+      - OPEN_SKY_PASSWORD=IF
     build:
       context: .
       dockerfile: Dockerfile
