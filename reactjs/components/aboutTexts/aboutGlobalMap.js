@@ -27,7 +27,7 @@ const aboutGlobalMap = <div>
                 <td style={{width: "200px"}}><i className="mdi mdi-airplanemode-active" style={{color: "#7d3c98"}}/> Active aircraft (OpenSky)</td>
             </tr>
             <tr>
-                <td><i className="mdi mdi-airplanemode-active" style={{color: "#2471a3", opacity: 0.4}}/> &lt; 40 knots
+                <td><i className="mdi mdi-airplanemode-active" style={{color: "#C70039", opacity: 0.4}}/> &lt; 40 knots
                 </td>
             </tr>
             <tr>
