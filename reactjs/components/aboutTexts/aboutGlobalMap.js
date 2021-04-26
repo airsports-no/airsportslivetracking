@@ -20,7 +20,7 @@ const aboutGlobalMap = <div>
         <table className={"table-compact borderless"}>
             <tbody>
             <tr>
-                <td style={{width: "200px"}}><i className="mdi mdi-airplanemode-active" style={{color: "#2471a3"}}/> Active aircraft (AirSports)</td>
+                <td style={{width: "200px"}}><i className="mdi mdi-airplanemode-active" style={{color: "#C70039"}}/> Active aircraft (AirSports)</td>
                 <td rowSpan={4} style={{verticalAlign: "top"}}>Speed: GPS in KTS.<br/>Altitude: GPS nearest 100 feet</td>
             </tr>
             <tr>

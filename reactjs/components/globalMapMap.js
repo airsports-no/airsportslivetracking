@@ -314,7 +314,7 @@ class ConnectedGlobalMapMap
             if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
                 if (this.aircraft[position.deviceId] === undefined) {
                     let group = this.internalPositions
-                    let colour = "#2471a3"
+                    let colour = "#C70039"
                     let ageTimeout = 20
                     if (position.traffic_source === "opensky") {
                         group = this.openskyPositions

@@ -32,11 +32,11 @@ class ConnectedGlobalMapContainer extends Component {
                         <GlobalEventList/>
                         <div className={"aircraft-legend-global"}>
                             <i className="mdi mdi-airplanemode-active"
-                               style={{color: "#2471a3"}}/> AirSports<br/>
+                               style={{color: "#C70039"}}/> AirSports<br/>
                             <i className="mdi mdi-airplanemode-active"
                                style={{color: "#7d3c98"}}/> OpenSky<br/>
                             <i className="mdi mdi-airplanemode-active"
-                               style={{color: "#2471a3", opacity: 0.4}}/> &lt;40kts<br/>
+                               style={{color: "#C70039", opacity: 0.4}}/> &lt;40kts<br/>
                             <i className="mdi mdi-airplanemode-active"
                                style={{color: "grey", opacity: 0.4}}/> &gt;20sec
                         </div>
