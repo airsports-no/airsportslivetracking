@@ -52,7 +52,8 @@ if __name__ == "__main__":
         try:
             response = api.get_states()
         except ReadTimeout:
-            time.sleep(3)
+            logger.warning("Timeout")
+            time.sleep(1)
             continue
         last_fetch = datetime.datetime.now()
         if response:
