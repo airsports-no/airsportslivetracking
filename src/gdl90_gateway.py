@@ -4,6 +4,8 @@ import threading
 import time
 import logging
 import os
+import requests
+requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = "TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:ECDHE:!COMPLEMENTOFDEFAULT"
 
 from opensky_api import OpenSkyApi
 from requests import ReadTimeout
@@ -15,7 +17,7 @@ logger = logging.getLogger(__name__)
 FETCH_INTERVAL = datetime.timedelta(seconds=5)
 import socket
 
-UDP_IP = "192.168.1.255"
+UDP_IP = "127.0.0.255"
 UDP_PORT = 4000
 
 print("UDP target IP: %s" % UDP_IP)
@@ -92,7 +94,7 @@ def test_messages():
         print(print_bytes(buf))
 
 
-def transmit_ship_reports(s):
+def transmit_ownship_reports(s):
     global total_packets
     buf = encoder.msgHeartbeat()
     s.sendto(buf, (UDP_IP, UDP_PORT))
@@ -107,7 +109,7 @@ def transmit_ship_reports(s):
     message = encoder.msgGpsTime(count=total_packets)
     s.sendto(message, (UDP_IP, UDP_PORT))
     total_packets += 1
-    threading.Timer(1,transmit_ship_reports, (s, )).start()
+    threading.Timer(1, transmit_ownship_reports, (s,)).start()
 
 if __name__ == "__main__":
     # test_messages()
@@ -119,9 +121,10 @@ if __name__ == "__main__":
                       socket.SOCK_DGRAM)  # UDP
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    username, password = sys.argv[1:]
+    # username, password = sys.argv[1:]
+    username, password = "kolaf", "fypRL64DRuNGKyG"
     api = OpenSkyApi(username, password)
-    transmit_ship_reports(s)
+    transmit_ownship_reports(s)
     while True:
         # for t in traffic:
         #     (tlat, tlong, talt, tspeed, tvspeed, thdg, tcall, taddr) = t

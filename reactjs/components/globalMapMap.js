@@ -21,6 +21,29 @@ import {tileLayer} from "leaflet";
 // });
 import ContestsGlobalMap from "./contests/contestsGlobalMap";
 
+const ZOOM_LEVELS = {
+    20: 1128.497220,
+    19: 2256.994440,
+    18: 4513.988880,
+    17: 9027.977761,
+    16: 18055.955520,
+    15: 36111.911040,
+    14: 72223.822090,
+    13: 144447.644200,
+    12: 288895.288400,
+    11: 577790.576700,
+    10: 1155581.153000,
+    9: 2311162.307000,
+    8: 4622324.614000,
+    7: 9244649.227000,
+    6: 18489298.450000,
+    5: 36978596.910000,
+    4: 73957193.820000,
+    3: 147914387.600000,
+    2: 295828775.300000,
+    1: 591657550.500000,
+}
+
 const TRAIL_LENGTH = 180;
 export const mapStateToProps = (state, props) => ({
     zoomContest: state.zoomContest,
@@ -247,6 +270,7 @@ class ConnectedGlobalMapMap
         this.client.onopen = () => {
             console.log("Client connected")
             clearTimeout(this.connectInterval)
+            this.sendUpdatedPosition()
         };
         this.client.onmessage = (message) => {
             let data = JSON.parse(message.data);
@@ -319,10 +343,13 @@ class ConnectedGlobalMapMap
                     if (position.traffic_source === "opensky") {
                         group = this.openskyPositions
                         colour = "#7d3c98"
-                        ageTimeout = 60
+                        ageTimeout = 30
                     }
                     this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group, ageTimeout, position.traffic_source)
                 } else {
+                    if (this.aircraft[position.deviceId].displayText === "" && position.name.length > 0) {
+                        this.aircraft[position.deviceId].displayText = position.name
+                    }
                     this.aircraft[position.deviceId].updatePosition(position)
                 }
 
@@ -366,6 +393,22 @@ class ConnectedGlobalMapMap
 //         createCorner('almostbottom', 'right');
 //     }
 
+    sendUpdatedPosition() {
+        if (this.client && this.client.readyState === WebSocket.OPEN) {
+            const position = this.map.getCenter()
+            const extent = this.map.getBounds()
+            const diagonalLength = extent.getNorthEast().distanceTo(extent.getSouthWest())
+            const radius_km = diagonalLength / 2000
+            const data = {
+                type: "location",
+                latitude: position.lat,
+                longitude: position.lng,
+                range: radius_km
+            }
+            this.client.send(JSON.stringify(data))
+        }
+    }
+
     initialiseMap() {
         this.map = L.map('cesiumContainer', {
             zoomDelta: 0.25,
@@ -376,13 +419,6 @@ class ConnectedGlobalMapMap
 
         this.internalPositions = L.layerGroup().addTo(this.map)
         this.openskyPositions = L.layerGroup().addTo(this.map)
-        // this.map.on("zoomend", (e) => {
-        //     if (this.map.getZoom() < 6) {
-        //         this.openskyPositions.removeFrom(this.map)
-        //     } else {
-        //         this.openskyPositions.addTo(this.map)
-        //     }
-        // })
         // this.addControlPlaceholders(this.map);
 
         // Change the position of the Zoom Control to a newly created placeholder.
@@ -433,11 +469,18 @@ class ConnectedGlobalMapMap
         // OpenAIP.addTo(this.map);
         // this.map.setView([0, 0], 2)
         this.map.locate({setView: true, maxZoom: 7})
-        this.map.whenReady(() => this.bounds = this.map.getBounds())
+        this.map.whenReady(() => {
+            this.bounds = this.map.getBounds()
+            this.sendUpdatedPosition()
+        })
 
         this.setState({map: this.map})
+        this.map.on("zoomend", (e) => {
+            this.sendUpdatedPosition()
+        })
         this.map.on("moveend", (e) => {
             this.bounds = this.map.getBounds()
+            this.sendUpdatedPosition()
         })
     }
 

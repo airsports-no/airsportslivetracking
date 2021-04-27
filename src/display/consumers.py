@@ -7,6 +7,7 @@ from channels.generic.websocket import WebsocketConsumer
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 
+from display.coordinate_utilities import calculate_distance_lat_lon, calculate_bounding_box
 from display.models import NavigationTask, Contest
 from display.views import cached_generate_data
 from websocket_channels import WebsocketFacade
@@ -61,6 +62,13 @@ class TrackingConsumer(WebsocketConsumer):
 
 
 class GlobalConsumer(WebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.location = None
+        self.range = 0
+        self.safe_sky_timer = None
+        self.bounding_box = None
+
     def connect(self):
         self.group_name = "tracking_global"
         logger.info(f"Current user {self.scope.get('user')}")
@@ -81,13 +89,32 @@ class GlobalConsumer(WebsocketConsumer):
             self.group_name,
             self.channel_name
         )
+        if self.safe_sky_timer:
+            self.safe_sky_timer.cancel()
 
     def receive(self, text_data, **kwargs):
+        logger.info(text_data)
         message = json.loads(text_data)
-        logger.info(message)
+        message_type = message.get("type")
+        if message_type == "location":
+            if type(message.get("latitude")) in (float, int) and type(message.get("longitude")) in (
+            float, int) and type(
+                    message.get("range")) in (float, int):
+                self.location = (message.get("latitude"), message.get("longitude"))
+                self.range = message.get("range") * 1000
+                logger.info(f"Setting position to {self.location} with range {self.range}")
+                self.bounding_box = calculate_bounding_box(self.location, self.range)
+            else:
+                self.location = None
+                self.range = None
 
     def tracking_data(self, event):
         data = event["data"]
+        if self.location and self.range:
+            position = (data["latitude"], data["longitude"])
+            if calculate_distance_lat_lon(position, self.location) > self.range:
+                logger.debug("Outside range, discarding")
+                return
         # logger.info("Received data: {}".format(data))
         self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
 

@@ -112,6 +112,7 @@ class WebsocketFacade:
                 "latitude": float(position_data["latitude"]),
                 "longitude": float(position_data["longitude"]),
                 "altitude": float(position_data["altitude"]),
+                "bare_altitude": float(position_data["altitude"]),
                 "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
                 "speed": float(position_data["speed"]),
                 "course": float(position_data["course"]),
@@ -125,7 +126,7 @@ class WebsocketFacade:
         return data
 
     async def transmit_external_global_position_data(self, device_id: str, name: str, time_stamp: datetime, latitude,
-                                               longitude, altitude, speed, course):
+                                                     longitude, altitude, baro_altitude, speed, course):
         data = {
             "type": "tracking.data",
             "data": {
@@ -136,6 +137,7 @@ class WebsocketFacade:
                 "latitude": latitude,
                 "longitude": longitude,
                 "altitude": altitude,
+                "baro_altitude": baro_altitude,
                 "battery_level": -1,
                 "speed": speed,
                 "course": course,

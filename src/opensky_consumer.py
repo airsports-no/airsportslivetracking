@@ -36,9 +36,10 @@ async def transmit_states(states):
             altitude_feet = state.geo_altitude * 3.281
             if altitude_feet < 10000:
                 timestamp = datetime.datetime.fromtimestamp(state.time_position, datetime.timezone.utc)
-                await websocket_facade.transmit_external_global_position_data(state.icao24, state.callsign, timestamp,
+                await websocket_facade.transmit_external_global_position_data(state.icao24, state.callsign or "", timestamp,
                                                                               state.latitude, state.longitude,
                                                                               state.geo_altitude,
+                                                                              state.baro_altitude,
                                                                               state.velocity * 1.944,
                                                                               state.heading)
 

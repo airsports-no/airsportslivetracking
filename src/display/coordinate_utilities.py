@@ -525,3 +525,15 @@ def create_perpendicular_line_at_end_xy(x1, y1, x2, y2, length):
     x1, y1 = x2 + b[0], y2 + b[1]
     x2, y2 = x2 - b[0], y2 - b[1]
     return [[x1, y1], [x2, y2]]
+
+
+def calculate_bounding_box(centre: Tuple[float, float], radius: float) -> Tuple[float, float, float, float]:
+    """
+
+    :param centre: degrees
+    :param radius: metres
+    :return: most_south, most_west, most_north, most_east
+    """
+    dy = 360 * radius / R
+    dx = dy * np.cos(to_rad(centre[0]))
+    return centre[0] - dy, centre[1] - dx, centre[0] + dy, centre[1] + dx
