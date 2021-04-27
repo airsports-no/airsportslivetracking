@@ -110,10 +110,10 @@ class GlobalConsumer(WebsocketConsumer):
 
     def tracking_data(self, event):
         data = event["data"]
-        # if self.location and self.range:
-        #     position = (data["latitude"], data["longitude"])
-        #     if calculate_distance_lat_lon(position, self.location) > self.range:
-        #         return
+        if self.location and self.range:
+            position = (data["latitude"], data["longitude"])
+            if calculate_distance_lat_lon(position, self.location) > self.range:
+                return
         # logger.info("Received data: {}".format(data))
         self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
 
