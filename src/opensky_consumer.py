@@ -49,6 +49,7 @@ if __name__ == "__main__":
     websocket_facade = WebsocketFacade()
     api = OpenSkyApi(username, password)
     while True:
+        logger.info("Fetching states")
         try:
             response = api.get_states()
         except ReadTimeout:
@@ -61,9 +62,10 @@ if __name__ == "__main__":
             asyncio.run(transmit_states(response.states))
             logger.info("Done")
             elapsed = datetime.datetime.now() - last_fetch
-            sleep_interval = max(2, (FETCH_INTERVAL - elapsed).total_seconds())
+            sleep_interval = (FETCH_INTERVAL - elapsed).total_seconds()
             logger.info(f"Elapsed {elapsed.total_seconds()}, sleeping {sleep_interval}")
-            time.sleep(sleep_interval)
+            if sleep_interval>0:
+                time.sleep(sleep_interval)
         else:
             logger.warning("Failed fetching")
             time.sleep(1)
