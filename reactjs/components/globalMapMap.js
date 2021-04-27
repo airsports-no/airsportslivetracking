@@ -343,7 +343,7 @@ class ConnectedGlobalMapMap
                     if (position.traffic_source === "opensky") {
                         group = this.openskyPositions
                         colour = "#7d3c98"
-                        ageTimeout = 30
+                        ageTimeout = 60
                     }
                     this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group, ageTimeout, position.traffic_source)
                 } else {
