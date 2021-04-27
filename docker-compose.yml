@@ -160,7 +160,7 @@ services:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "traccar:8082", "--",
                "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "python3 opensky_consumer.py", "${OPEN_SKY_USERNAME}",  "${OPEN_SKY_PASSWORD}" ]
+               "bash", "-c", "python3 opensky_consumer.py $OPEN_SKY_USERNAME $OPEN_SKY_PASSWORD" ]
     container_name: opensky_consumer
     restart: unless-stopped
     environment:
