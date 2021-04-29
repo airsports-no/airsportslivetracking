@@ -1579,6 +1579,16 @@ class TaskSummary(models.Model):
     class Meta:
         unique_together = ("team", "task")
 
+    def update_sum(self):
+        if self.task.autosum_scores:
+            tests = TeamTestScore.objects.filter(team=self.team, task_test__task=self.task)
+            if tests.exists():
+                total = sum([test.points for test in tests])
+                self.points = total
+            else:
+                self.points = 0
+            self.save()
+
 
 class ContestSummary(models.Model):
     """
@@ -1590,6 +1600,16 @@ class ContestSummary(models.Model):
 
     class Meta:
         unique_together = ("team", "contest")
+
+    def update_sum(self):
+        if self.contest.autosum_scores:
+            tasks = TaskSummary.objects.filter(team=self.team, task__contest=self.contest)
+            if tasks.exists():
+                total = sum([task.points for task in tasks])
+                self.points = total
+            else:
+                self.points = 0
+            self.save()
 
 
 class TeamTestScore(models.Model):
@@ -1617,11 +1637,7 @@ def auto_summarise_tests(sender, instance: TeamTestScore, **kwargs):
     if instance.task_test.task.autosum_scores:
         task_summary, _ = TaskSummary.objects.get_or_create(task=instance.task_test.task, team=instance.team,
                                                             defaults={"points": instance.points})
-        tests = TeamTestScore.objects.filter(team=instance.team, task_test__task=instance.task_test.task)
-        if tests.exists():
-            total = sum([test.points for test in tests])
-            task_summary.points = total
-            task_summary.save()
+        task_summary.update_sum()
 
 
 @receiver(post_save, sender=TaskSummary)
@@ -1630,16 +1646,25 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
     if instance.task.contest.autosum_scores:
         contest_summary, _ = ContestSummary.objects.get_or_create(contest=instance.task.contest, team=instance.team,
                                                                   defaults={"points": instance.points})
-        tasks = TaskSummary.objects.filter(team=instance.team, task__contest=instance.task.contest)
-        if tasks.exists():
-            total = sum([test.points for test in tasks])
-            contest_summary.points = total
-            contest_summary.save()
-            # Update contestants
-            from websocket_channels import WebsocketFacade
-            ws = WebsocketFacade()
-            for c in instance.team.contestant_set.filter(navigation_task__contest=instance.task.contest):
-                ws.transmit_basic_information(c)
+        contest_summary.update_sum()
+        # Update contestants
+        from websocket_channels import WebsocketFacade
+        ws = WebsocketFacade()
+        for c in instance.team.contestant_set.filter(navigation_task__contest=instance.task.contest):
+            ws.transmit_basic_information(c)
+
+
+@receiver(post_delete, sender=Task)
+def update_contest_summary_on_task_delete(sender, instance: Task, **kwargs):
+    for contest_summary in ContestSummary.objects.filter(contest=instance.contest):
+        contest_summary.update_sum()
+
+
+@receiver(post_delete, sender=TaskTest)
+def update_task_summary_on_task_test_delete(sender, instance: TaskTest, **kwargs):
+    for task_summary in TaskSummary.objects.filter(task=instance.task):
+        task_summary.update_sum()
+
 
 
 @receiver(post_save, sender=ContestTeam)
