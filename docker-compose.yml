@@ -164,12 +164,6 @@ services:
     container_name: opensky_consumer
     restart: unless-stopped
     environment:
-      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
-      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
-      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
-      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
-      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
-      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
       - OPEN_SKY_USERNAME=${OPEN_SKY_USERNAME}
       - OPEN_SKY_PASSWORD=${OPEN_SKY_PASSWORD}
     build:
@@ -179,6 +173,23 @@ services:
       - ./secret:/secret
       - ./src:/src/
       - ./openskyconsumerlogs:/logs/
+    depends_on:
+      - redis
+
+  ogn_consumer:
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "/wait-for-it.sh", "traccar:8082", "--",
+               "/wait-for-it.sh", "influx:8086", "--",
+               "bash", "-c", "python3 ogn_consumer.py" ]
+    container_name: ogn_consumer
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./secret:/secret
+      - ./src:/src/
+      - ./ognconsumerlogs:/logs/
     depends_on:
       - redis
 

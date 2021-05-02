@@ -247,6 +247,7 @@ class ConnectedGlobalMapMap
         this.map = null;
         this.internalPositions = null
         this.openskyPositions = null
+        this.ognPositions = null
         this.aircraft = {}  // deviceId is key
         this.purgeInterval = 180
         this.connectInterval = null;
@@ -344,7 +345,13 @@ class ConnectedGlobalMapMap
                         group = this.openskyPositions
                         colour = "#7d3c98"
                         ageTimeout = 60
+                    } else if (position.traffic_source === "ogn") {
+                        group = this.ognPositions
+                        colour = "#FFC300"
+                        ageTimeout = 60
                     }
+
+
                     this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group, ageTimeout, position.traffic_source)
                 } else {
                     if (this.aircraft[position.deviceId].displayText === "" && position.name.length > 0) {
@@ -419,6 +426,7 @@ class ConnectedGlobalMapMap
 
         this.internalPositions = L.layerGroup().addTo(this.map)
         this.openskyPositions = L.layerGroup().addTo(this.map)
+        this.ognPositions = L.layerGroup().addTo(this.map)
         // this.addControlPlaceholders(this.map);
 
         // Change the position of the Zoom Control to a newly created placeholder.

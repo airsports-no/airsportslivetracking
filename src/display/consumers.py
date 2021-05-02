@@ -2,14 +2,17 @@ import datetime
 import json
 import logging
 
+import dateutil.parser
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+from redis import StrictRedis
 
 from display.coordinate_utilities import calculate_distance_lat_lon, calculate_bounding_box
 from display.models import NavigationTask, Contest
 from display.views import cached_generate_data
+from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY
 from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
@@ -61,6 +64,9 @@ class TrackingConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
 
 
+GLOBAL_TRAFFIC_MAXIMUM_AGE = datetime.timedelta(seconds=20)
+
+
 class GlobalConsumer(WebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -68,6 +74,7 @@ class GlobalConsumer(WebsocketConsumer):
         self.range = 0
         self.safe_sky_timer = None
         self.bounding_box = None
+        self.redis = StrictRedis("redis")
 
     def connect(self):
         self.group_name = "tracking_global"
@@ -83,6 +90,19 @@ class GlobalConsumer(WebsocketConsumer):
                 self.send(json.dumps(data['data']))
             except KeyError:
                 logger.exception("Did not find expected data block in {}".format(data))
+        cached = self.redis.hgetall(REDIS_GLOBAL_POSITIONS_KEY)
+        now = datetime.datetime.now(datetime.timezone.utc)
+        for key, value in cached.items():
+            data = json.loads(value)
+            stamp = dateutil.parser.parse(data["time"])
+            if now - stamp > GLOBAL_TRAFFIC_MAXIMUM_AGE:
+                self.redis.hdel(REDIS_GLOBAL_POSITIONS_KEY, key)
+                continue
+            if self.location and self.range:
+                position = (data["latitude"], data["longitude"])
+                if calculate_distance_lat_lon(position, self.location) > self.range:
+                    return
+            self.send(bytes_data=value)
 
     def disconnect(self, code):
         async_to_sync(self.channel_layer.group_discard)(
@@ -98,8 +118,8 @@ class GlobalConsumer(WebsocketConsumer):
         message_type = message.get("type")
         if message_type == "location":
             if type(message.get("latitude")) in (float, int) and type(message.get("longitude")) in (
-            float, int) and type(
-                    message.get("range")) in (float, int):
+                    float, int) and type(
+                message.get("range")) in (float, int):
                 self.location = (message.get("latitude"), message.get("longitude"))
                 self.range = message.get("range") * 1000
                 logger.info(f"Setting position to {self.location} with range {self.range}")

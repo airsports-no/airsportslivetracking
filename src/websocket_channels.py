@@ -1,14 +1,17 @@
 import datetime
+import json
 from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
 
 import dateutil
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from redis import StrictRedis
 
 from display.models import Contestant, ContestTeam, Task, TaskTest, MyUser, Team
 from display.serialisers import ContestantTrackSerialiser, ContestTeamNestedSerialiser, TaskSerialiser, \
     TaskTestSerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, TrackAnnotationSerialiser, \
     ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser
+from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY
 
 
 def generate_contestant_data_block(contestant: "Contestant", positions: List = None, annotations: List = None,
@@ -34,6 +37,7 @@ def generate_contestant_data_block(contestant: "Contestant", positions: List = N
 class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
+        self.redis = StrictRedis("redis")
 
     def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
@@ -126,7 +130,8 @@ class WebsocketFacade:
         return data
 
     async def transmit_external_global_position_data(self, device_id: str, name: str, time_stamp: datetime, latitude,
-                                                     longitude, altitude, baro_altitude, speed, course):
+                                                     longitude, altitude, baro_altitude, speed, course,
+                                                     traffic_source: str):
         data = {
             "type": "tracking.data",
             "data": {
@@ -142,9 +147,10 @@ class WebsocketFacade:
                 "speed": speed,
                 "course": course,
                 "navigation_task_id": None,
-                "traffic_source": "opensky"
+                "traffic_source": traffic_source
             }
         }
+        self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=json.dumps(data["data"]))
         await self.channel_layer.group_send(
             "tracking_global", data
         )
