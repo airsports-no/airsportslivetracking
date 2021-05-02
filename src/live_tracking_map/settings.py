@@ -44,6 +44,8 @@ SERVER_ROOT = "https://airsports.no"
 DEBUG = os.environ.get('MODE') == "dev"
 ALLOWED_HOSTS = ['*']
 
+
+REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
 # Application definition
 
 INSTALLED_APPS = [

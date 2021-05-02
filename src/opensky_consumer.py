@@ -5,6 +5,8 @@ import logging
 import os
 
 import asyncio
+
+import redis
 import sentry_sdk
 from opensky_api import OpenSkyApi
 from requests import ReadTimeout
@@ -41,7 +43,7 @@ async def transmit_states(states):
                                                                               state.geo_altitude,
                                                                               state.baro_altitude,
                                                                               state.velocity * 1.944,
-                                                                              state.heading)
+                                                                              state.heading, "opensky")
 
 
 if __name__ == "__main__":
