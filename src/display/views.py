@@ -977,7 +977,10 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 data = [item.decode(encoding="UTF-8") for item in initial_step_data['file'].readlines()]
                 route = create_precision_route_from_csv("route", data[1:], use_procedure_turns)
             elif initial_step_data["file_type"] == FILE_TYPE_FLIGHTCONTEST_GPX:
-                route = create_precision_route_from_gpx(initial_step_data["file"].read(), use_procedure_turns)
+                try:
+                    route = create_precision_route_from_gpx(initial_step_data["file"].read(), use_procedure_turns)
+                except Exception as e:
+                    raise ValidationError("Failed building route from provided GPX: {}".format(e))
             else:
                 second_step_data = self.get_cleaned_data_for_step("waypoint_definition")
                 if initial_step_data["file_type"] == FILE_TYPE_KML:
