@@ -48,6 +48,12 @@ class PersonSignUpSerialiser(serializers.ModelSerializer):
         fields = ("id", "first_name", "last_name", "email")
 
 
+class PersonLtdSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = Person
+        fields = ("first_name", "last_name", "picture")
+
+
 class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
@@ -388,7 +394,7 @@ class SignupSerialiser(serializers.Serializer):
 class ContestTeamManagementSerialiser(serializers.ModelSerializer):
     contest = ContestSerialiser(read_only=True)
     team = TeamNestedSerialiser(read_only=True)
-    can_edit=serializers.BooleanField(read_only=True)
+    can_edit = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = ContestTeam

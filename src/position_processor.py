@@ -30,7 +30,7 @@ from traccar_facade import Traccar
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import connections
-from display.serialisers import PersonSerialiser
+from display.serialisers import PersonSerialiser, PersonLtdSerialiser
 
 from websocket_channels import WebsocketFacade
 
@@ -126,7 +126,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
                 person = Person.objects.get(app_tracking_id=device_name)
                 global_tracking_name = person.app_aircraft_registration
                 if person.is_public:
-                    person_data = PersonSerialiser(person).data
+                    person_data = PersonLtdSerialiser(person).data
             except ObjectDoesNotExist:
                 # logger.info("Found no person for tracking ID {}".format(device_name))
                 pass
@@ -137,7 +137,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
             global_tracking_name = contestant.team.aeroplane.registration
             person = contestant.team.crew.member1
             if person.is_public:
-                person_data = PersonSerialiser(person).data
+                person_data = PersonLtdSerialiser(person).data
             data = influx.generate_position_block_for_contestant(contestant, position_data, device_time)
             try:
                 received_tracks[contestant].append(data)
