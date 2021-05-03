@@ -7,6 +7,7 @@ import GlobalEventList from "./contests/globalEventList";
 import Disclaimer, {DisclaimerLong} from "./disclaimer";
 import AboutLogoPopup from "./aboutLogoPopup";
 import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
+import {internalColour, ognColour, openSkyColour} from "./aircraft/aircraft";
 
 const mapStateToProps = (state, props) => ({})
 
@@ -32,9 +33,11 @@ class ConnectedGlobalMapContainer extends Component {
                         <GlobalEventList/>
                         <div className={"aircraft-legend-global"}>
                             <i className="mdi mdi-airplanemode-active"
-                               style={{color: "#C70039"}}/> AirSports<br/>
+                               style={{color: internalColour}}/> AirSports<br/>
                             <i className="mdi mdi-airplanemode-active"
-                               style={{color: "#7d3c98"}}/> OpenSky<br/>
+                               style={{color: openSkyColour}}/> OpenSky<br/>
+                            <i className="mdi mdi-airplanemode-active"
+                               style={{color: ognColour}}/> OGN<br/>
                             <i className="mdi mdi-airplanemode-active"
                                style={{color: "#C70039", opacity: 0.4}}/> &lt;40kts<br/>
                             <i className="mdi mdi-airplanemode-active"

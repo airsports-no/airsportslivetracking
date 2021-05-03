@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import pickle
 
 import dateutil.parser
 from asgiref.sync import async_to_sync
@@ -93,16 +94,16 @@ class GlobalConsumer(WebsocketConsumer):
         cached = self.redis.hgetall(REDIS_GLOBAL_POSITIONS_KEY)
         now = datetime.datetime.now(datetime.timezone.utc)
         for key, value in cached.items():
-            data = json.loads(value)
-            stamp = dateutil.parser.parse(data["time"])
+            data = pickle.loads(value)
+            stamp = data["time"]
             if now - stamp > GLOBAL_TRAFFIC_MAXIMUM_AGE:
                 self.redis.hdel(REDIS_GLOBAL_POSITIONS_KEY, key)
                 continue
             if self.location and self.range:
                 position = (data["latitude"], data["longitude"])
                 if calculate_distance_lat_lon(position, self.location) > self.range:
-                    return
-            self.send(bytes_data=value)
+                    continue
+            self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
 
     def disconnect(self, code):
         async_to_sync(self.channel_layer.group_discard)(
@@ -129,13 +130,13 @@ class GlobalConsumer(WebsocketConsumer):
                 self.range = None
 
     def tracking_data(self, event):
-        data = event["data"]
+        data = json.loads(event["data"])
         if self.location and self.range:
             position = (data["latitude"], data["longitude"])
             if calculate_distance_lat_lon(position, self.location) > self.range:
                 return
         # logger.info("Received data: {}".format(data))
-        self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
+        self.send(text_data=event["data"])
 
 
 class ContestResultsConsumer(WebsocketConsumer):

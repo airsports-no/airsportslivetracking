@@ -3,6 +3,7 @@ import json
 from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
 
 import dateutil
+import pickle
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from redis import StrictRedis
@@ -12,6 +13,19 @@ from display.serialisers import ContestantTrackSerialiser, ContestTeamNestedSeri
     TaskTestSerialiser, ContestResultsDetailsSerialiser, TeamNestedSerialiser, TrackAnnotationSerialiser, \
     ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser
 from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """
+    Helper class to correctly encode datetime objects to json.
+    """
+
+    def default(self, obj):
+        if isinstance(obj, datetime.datetime):
+            encoded_object = obj.isoformat()
+        else:
+            encoded_object = json.JSONEncoder.default(self, obj)
+        return encoded_object
 
 
 def generate_contestant_data_block(contestant: "Contestant", positions: List = None, annotations: List = None,
@@ -131,30 +145,40 @@ class WebsocketFacade:
 
     async def transmit_external_global_position_data(self, device_id: str, name: str, time_stamp: datetime, latitude,
                                                      longitude, altitude, baro_altitude, speed, course,
-                                                     traffic_source: str):
+                                                     traffic_source: str, raw_data: Optional[Dict] = None,
+                                                     aircraft_type: int = 9):
         data = {
-            "type": "tracking.data",
-            "data": {
-                "name": name,
-                "time": time_stamp.isoformat(),
-                "person": None,
-                "deviceId": device_id,
-                "latitude": latitude,
-                "longitude": longitude,
-                "altitude": altitude,
-                "baro_altitude": baro_altitude,
-                "battery_level": -1,
-                "speed": speed,
-                "course": course,
-                "navigation_task_id": None,
-                "traffic_source": traffic_source
-            }
+            "name": name,
+            "time": time_stamp,
+            "person": None,
+            "deviceId": device_id,
+            "latitude": latitude,
+            "longitude": longitude,
+            "altitude": altitude,
+            "baro_altitude": baro_altitude,
+            "battery_level": -1,
+            "speed": speed,
+            "course": course,
+            "navigation_task_id": None,
+            "traffic_source": traffic_source,
+            "raw_data": raw_data,
+            "aircraft_type": aircraft_type
         }
-        self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=json.dumps(data["data"]))
+        s = json.dumps(data, cls=DateTimeEncoder)
+        container = {
+            "type": "tracking.data",
+            "data": s
+
+        }
+        existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
+        if existing:
+            existing = pickle.loads(existing)
+            if existing["time"] >= data["time"]:
+                return
+        self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
         await self.channel_layer.group_send(
-            "tracking_global", data
+            "tracking_global", container
         )
-        return data
 
     def contest_results_channel_name(self, contest: "Contest") -> str:
         return "contestresults_{}".format(contest.pk)

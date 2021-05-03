@@ -5,6 +5,7 @@ import {
 } from "react-device-detect";
 import Icon from "@mdi/react";
 import {mdiGoKartTrack} from "@mdi/js";
+import {internalColour, ognColour, openSkyColour} from "../aircraft/aircraft";
 
 const aboutGlobalMap = <div>
     <img src={"/static/img/airsports_no_text.png"} style={{float: "right", width: "40px"}} alt={"Global logo"}/>
@@ -20,14 +21,17 @@ const aboutGlobalMap = <div>
         <table className={"table-compact borderless"}>
             <tbody>
             <tr>
-                <td style={{width: "200px"}}><i className="mdi mdi-airplanemode-active" style={{color: "#C70039"}}/> Active aircraft (AirSports)</td>
+                <td style={{width: "300px"}}><i className="mdi mdi-airplanemode-active" style={{color: internalColour}}/> Active aircraft (AirSports)</td>
                 <td rowSpan={4} style={{verticalAlign: "top"}}>Speed: GPS in KTS.<br/>Altitude: GPS nearest 100 feet</td>
             </tr>
             <tr>
-                <td style={{width: "200px"}}><i className="mdi mdi-airplanemode-active" style={{color: "#7d3c98"}}/> Active aircraft (OpenSky)</td>
+                <td style={{width: "300px"}}><i className="mdi mdi-airplanemode-active" style={{color: openSkyColour}}/> Active aircraft (OpenSky)</td>
             </tr>
             <tr>
-                <td><i className="mdi mdi-airplanemode-active" style={{color: "#C70039", opacity: 0.4}}/> &lt; 40 knots
+                <td style={{width: "300px"}}><i className="mdi mdi-airplanemode-active" style={{color: ognColour}}/> Active aircraft (OGN)</td>
+            </tr>
+            <tr>
+                <td><i className="mdi mdi-airplanemode-active" style={{color: internalColour, opacity: 0.4}}/> &lt; 40 knots
                 </td>
             </tr>
             <tr>

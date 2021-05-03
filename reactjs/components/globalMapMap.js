@@ -5,8 +5,20 @@ import {w3cwebsocket as W3CWebSocket} from "websocket";
 import {zoomFocusContest} from "../actions";
 import ReactDOMServer from "react-dom/server";
 import L from 'leaflet';
-// const L = window['L']
-// import 'leaflet/dist/leaflet.css';
+import {
+    balloon,
+    blimp,
+    drone,
+    glider,
+    helicopter, internalColour,
+    jet,
+    ognColour, openSkyColour,
+    paraglider,
+    piston,
+    skydiver,
+    tower
+} from "./aircraft/aircraft";
+
 import marker from 'leaflet/dist/images/marker-icon.png';
 import marker2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -20,6 +32,45 @@ import {tileLayer} from "leaflet";
 //     shadowUrl: markerShadow
 // });
 import ContestsGlobalMap from "./contests/contestsGlobalMap";
+
+const ognAircraftTypeMap = {
+    0: jet,
+    1: glider,
+    2: piston,
+    3: helicopter,
+    4: skydiver,
+    5: piston,
+    6: paraglider,
+    7: paraglider,
+    8: piston,
+    9: jet,
+    10: jet,
+    11: balloon,
+    12: blimp,
+    13: drone,
+    14: jet,
+    15: tower
+}
+
+
+function syntaxHighlight(json) {
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        let cls = 'number';
+        if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+                cls = 'key';
+            } else {
+                cls = 'string';
+            }
+        } else if (/true|false/.test(match)) {
+            cls = 'boolean';
+        } else if (/null/.test(match)) {
+            cls = 'null';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+    });
+}
 
 const ZOOM_LEVELS = {
     20: 1128.497220,
@@ -53,9 +104,12 @@ export const mapDispatchToProps = {
     zoomFocusContest
 }
 
+
 class Aircraft {
-    constructor(name, colour, initial_position, map, ageTimeout, trafficSource) {
+    constructor(name, colour, initial_position, map, iconLayer, textLayer, ageTimeout, trafficSource) {
         this.map = map
+        this.iconLayer = iconLayer
+        this.textLayer = textLayer
         this.displayText = name
         this.colour = colour
         this.longform = ""
@@ -77,7 +131,7 @@ class Aircraft {
     }
 
     agePlane() {
-        this.updateIcon(this.latestPosition, this.ageColour, 0.4)
+        this.updateIcon(this.latestPosition, this.ageColour, 0.4, this.map.getZoom())
         // this.trail.setStyle({
         //     opacity: 0.4,
         //     color: this.ageColour
@@ -93,10 +147,19 @@ class Aircraft {
         return position
     }
 
-    createAirplaneIcon(bearing, colour, opacity) {
-        const size = 28;
+    getAircraftSize(zoomLevel) {
+        return 20 + 30 * zoomLevel / 20;
+    }
+
+    getTextSize(zoomLevel) {
+        return 7 + 4 * zoomLevel / 20;
+    }
+
+    createAirplaneIcon(bearing, colour, opacity, zoomLevel) {
+        const size = this.getAircraftSize(zoomLevel)
+        let html = '<div style="color: ' + colour + ';opacity: ' + opacity + '; transform: rotate(' + bearing + 'deg); width: ' + size + 'px">' + jet(colour) + '</div>'
         return L.divIcon({
-            html: '<i class="mdi mdi-airplanemode-active" style="color: ' + colour + ';opacity: ' + opacity + '; transform: rotate(' + bearing + 'deg); font-size: ' + size + 'px"/>',
+            html: html,
             iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
         })
@@ -104,8 +167,14 @@ class Aircraft {
     }
 
 
-    createAirplaneTextIcon(name, person_name, altitude, speed, colour, opacity) {
-        const size = 14;
+    createAirplaneTextIcon(name, person_name, altitude, speed, colour, opacity, zoomLevel) {
+        const size = this.getTextSize(zoomLevel);
+        if (!speed) {
+            speed = 0
+        }
+        if (!altitude) {
+            altitude = 0
+        }
         return L.divIcon({
             html: '<div style="opacity: ' + opacity + '"><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top: 0px;">' + name + '</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -10px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -18px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
             iconAnchor: [100, -11],
@@ -138,22 +207,26 @@ class Aircraft {
                 {this.navigation_task_link ?
                     <a href={this.navigation_task_link}>Flying in competition</a> : null}
             </div>
+        } else if (position.raw_data) {
+            tooltipContents = '<pre>' + JSON.stringify(position.raw_data, null, 2) + '</pre>'
         }
         if (this.tooltipContents === tooltipContents) {
             tooltipContents = null
         } else {
             this.tooltipContents = tooltipContents
-            tooltipContents = ReactDOMServer.renderToString(tooltipContents)
+            if (typeof tooltipContents !== "string") {
+                tooltipContents = ReactDOMServer.renderToString(tooltipContents)
+            }
         }
         if (tooltipContents) {
-            this.dotText.unbindTooltip()
+            // this.dotText.unbindTooltip()
             this.dot.unbindTooltip()
             this.dot.bindTooltip(tooltipContents, {
                 permanent: false
             })
-            this.dotText.bindTooltip(tooltipContents, {
-                permanent: false
-            })
+            // this.dotText.bindTooltip(tooltipContents, {
+            //     permanent: false
+            // })
         }
     }
 
@@ -165,23 +238,23 @@ class Aircraft {
             //     if (this.navigation_task_link) {
             //         window.location.href = this.navigation_task_link
             //     }
-        }).addTo(this.map)
+        }).addTo(this.iconLayer)
         this.dotText = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
             // }).on('click', (e) => {
             //     if (this.navigation_task_link) {
             //         window.location.href = this.navigation_task_link
             //     }
-        }).addTo(this.map)
+        }).addTo(this.textLayer)
         // this.trail = L.polyline([[position.latitude, position.longitude]], {
         //     color: colour,
         //     opacity: opacity,
         //     weight: 3
         // }).addTo(this.map)
-        if (this.trafficSource === "internal") {
+        if (this.trafficSource === "internal" || this.trafficSource === "ogn") {
             this.updateTooltip(position)
         }
-        this.updateIcon(position, colour, opacity)
+        this.updateIcon(position, colour, opacity, this.map.getZoom())
     }
 
     updateTrail(position, colour, opacity) {
@@ -207,35 +280,68 @@ class Aircraft {
         return speed < this.speedLimit ? 0.4 : 1
     }
 
+    redraw() {
+        this.renderPosition(this.latestPosition)
+    }
+
     updatePosition(p) {
         clearTimeout(this.colourTimer)
-        this.colourTimer = setTimeout(() => this.agePlane(), this.ageTimeout * 1000)
         const position = this.replaceTime(p)
+        this.renderPosition(position)
+    }
+
+    renderPosition(position) {
+        this.colourTimer = setTimeout(() => this.agePlane(), this.ageTimeout * 1000)
         const opacity = this.calculateOpacity(position.speed)
-        if ((p.person && !this.latestPosition.person) || (!p.person && this.latestPosition.person)) {
-            this.updateTooltip(p)
+        if ((position.person && !this.latestPosition.person) || (!position.person && this.latestPosition.person)) {
+            this.updateTooltip(position)
         }
         this.latestPosition = position
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
-        this.updateIcon(position, this.colour, opacity)
+        this.updateIcon(position, this.colour, opacity, this.map.getZoom())
         // this.updateTrail(position, this.colour, opacity)
         this.time = position.time
         this.updateNavigationTask(position)
     }
 
-    updateIcon(position, colour, opacity) {
-        this.dot.setIcon(this.createAirplaneIcon(position.course, colour, opacity))
-        this.dotText.setIcon(this.createAirplaneTextIcon(position.name, position.person_name, 100 * (Math.floor(position.altitude * 3.28084 / 100)), position.speed, colour, opacity)
+    updateIcon(position, colour, opacity, zoomLevel) {
+        this.dot.setIcon(this.createAirplaneIcon(position.course, colour, opacity, zoomLevel))
+        this.dotText.setIcon(this.createAirplaneTextIcon(position.name, position.person_name, 100 * (Math.floor(position.altitude * 3.28084 / 100)), position.speed, colour, opacity, zoomLevel)
         )
     }
 
     removeFromMap() {
         if (this.dot) {
-            this.dot.removeFrom(this.map)
+            this.dot.removeFrom(this.iconLayer)
             // this.trail.removeFrom(this.map)
-            this.dotText.removeFrom(this.map)
+            this.dotText.removeFrom(this.textLayer)
         }
+    }
+}
+
+
+class OGNAircraft extends Aircraft {
+
+    constructor(name, colour, initial_position, map, iconLayer, textLayer, ageTimeout, trafficSource, aircraftType) {
+        super(name, colour, initial_position, map, iconLayer, textLayer, ageTimeout, trafficSource)
+        this.aircraftType = aircraftType
+    }
+
+    createAirplaneIcon(bearing, colour, opacity, zoomLevel) {
+        const size = this.getAircraftSize(zoomLevel)
+        let html = '<div style="color: ' + colour + ';opacity: ' + opacity + '; transform: rotate(' + bearing + 'deg); width: ' + size + 'px">' + jet(colour) + '</div>'
+        if (ognAircraftTypeMap[this.aircraftType]) {
+            html = '<div style="color: ' + colour + ';opacity: ' + opacity + '; transform: rotate(' + bearing + 'deg); width: ' + size + 'px">' + ognAircraftTypeMap[this.aircraftType](colour) + '</div>'
+        }
+
+        return L.divIcon({
+            html: html,
+            iconAnchor: [size / 2, size / 2],
+            iconSize: [size, size],
+            className: "myAirplaneIcon"
+        })
+
     }
 }
 
@@ -245,9 +351,10 @@ class ConnectedGlobalMapMap
         super(props);
         this.state = {map: null}
         this.map = null;
-        this.internalPositions = null
-        this.openskyPositions = null
-        this.ognPositions = null
+        this.internalPositionIcons = null
+        this.internalPositionText = null
+        this.externalPositionIcons = null
+        this.externalPositionText = null
         this.aircraft = {}  // deviceId is key
         this.purgeInterval = 180
         this.connectInterval = null;
@@ -274,8 +381,13 @@ class ConnectedGlobalMapMap
             this.sendUpdatedPosition()
         };
         this.client.onmessage = (message) => {
-            let data = JSON.parse(message.data);
-            this.handlePositions([data])
+            try {
+                let data = JSON.parse(message.data);
+                this.handlePositions([data])
+            } catch (e) {
+                console.log(e)
+                console.log(message.data)
+            }
         };
         this.client.onclose = (e) => {
             console.log(
@@ -338,21 +450,17 @@ class ConnectedGlobalMapMap
             const deviceTime = new Date(position.deviceTime)
             if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
                 if (this.aircraft[position.deviceId] === undefined) {
-                    let group = this.internalPositions
-                    let colour = "#C70039"
-                    let ageTimeout = 20
-                    if (position.traffic_source === "opensky") {
-                        group = this.openskyPositions
-                        colour = "#7d3c98"
-                        ageTimeout = 60
+                    if (position.traffic_source === "internal") {
+                        this.aircraft[position.deviceId] = new Aircraft(position.name, internalColour, position, this.map,
+                            this.internalPositionIcons, this.internalPositionText, 20, position.traffic_source)
+                    } else if (position.traffic_source === "opensky") {
+                        this.aircraft[position.deviceId] = new Aircraft(position.name, openSkyColour, position, this.map,
+                            this.externalPositionIcons, this.externalPositionText, 60, position.traffic_source)
+
                     } else if (position.traffic_source === "ogn") {
-                        group = this.ognPositions
-                        colour = "#FFC300"
-                        ageTimeout = 60
+                        this.aircraft[position.deviceId] = new OGNAircraft(position.name, ognColour, position, this.map,
+                            this.externalPositionIcons, this.externalPositionText, 60, position.traffic_source, position.aircraft_type)
                     }
-
-
-                    this.aircraft[position.deviceId] = new Aircraft(position.name, colour, position, group, ageTimeout, position.traffic_source)
                 } else {
                     if (this.aircraft[position.deviceId].displayText === "" && position.name.length > 0) {
                         this.aircraft[position.deviceId].displayText = position.name
@@ -363,6 +471,12 @@ class ConnectedGlobalMapMap
             }
         })
 
+    }
+
+    redrawAircraft() {
+        for (let a of Object.values(this.aircraft)) {
+            a.redraw()
+        }
     }
 
     componentDidUpdate(prevProps) {
@@ -424,9 +538,10 @@ class ConnectedGlobalMapMap
             preferCanvas: true
         })
 
-        this.internalPositions = L.layerGroup().addTo(this.map)
-        this.openskyPositions = L.layerGroup().addTo(this.map)
-        this.ognPositions = L.layerGroup().addTo(this.map)
+        this.internalPositionIcons = L.layerGroup().addTo(this.map)
+        this.internalPositionText = L.layerGroup().addTo(this.map)
+        this.externalPositionIcons = L.layerGroup().addTo(this.map)
+        this.externalPositionText = L.layerGroup().addTo(this.map)
         // this.addControlPlaceholders(this.map);
 
         // Change the position of the Zoom Control to a newly created placeholder.
@@ -485,6 +600,13 @@ class ConnectedGlobalMapMap
         this.setState({map: this.map})
         this.map.on("zoomend", (e) => {
             this.sendUpdatedPosition()
+            if (this.map.getZoom() < 7) {
+                this.externalPositionText.removeFrom(this.map)
+                this.internalPositionText.removeFrom(this.map)
+            } else {
+                this.externalPositionText.addTo(this.map)
+                this.internalPositionText.addTo(this.map)
+            }
         })
         this.map.on("moveend", (e) => {
             this.bounds = this.map.getBounds()
