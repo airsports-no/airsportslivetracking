@@ -23,8 +23,8 @@ RUN pip3 install shapely cartopy --no-binary shapely --no-binary cartopy
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 COPY config /config
-COPY wait-for-it.sh config/gunicorn.sh config/daphne.sh /
-RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
+COPY wait-for-it.sh config/gunicorn.sh config/daphne.sh config/gunicorn_uvicorn.sh /
+RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /gunicorn_uvicorn.sh
 
 
 ###### INSTALL JAVASCRIPT PACKAGES ######

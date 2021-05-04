@@ -1,4 +1,5 @@
-twisted==21.2.0
+#twisted==21.2.0
+twisted==20.3.0
 numpy
 scipy
 pandas
@@ -60,3 +61,4 @@ eval7
 utm
 sentry-sdk
 ogn-client
+uvicorn[standard]
