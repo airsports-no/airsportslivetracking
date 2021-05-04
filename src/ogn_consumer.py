@@ -41,11 +41,16 @@ from ogn.parser import parse, ParseError
 
 ws = WebsocketFacade()
 
+UNKNOWN = 0
+ICAO = 1
+FLARM = 2
+OGN = 3
+
 ADDRESS_TYPES = {
-    0: "Unknown",
-    1: "ICAO",
-    2: "Flarm",
-    3: "OGN Tracker"
+    UNKNOWN: "Unknown",
+    ICAO: "ICAO",
+    FLARM: "Flarm",
+    OGN: "OGN Tracker"
 }
 
 FLARM_AIRCRAFT_TYPES = {
@@ -84,9 +89,9 @@ def process_beacon(raw_message):
             altitude_feet = beacon["altitude"] * 3.281
             if altitude_feet < 10000 and beacon.get("address"):
                 beacon["timestamp"] = beacon["timestamp"].replace(tzinfo=datetime.timezone.utc)
-                # print(beacon["reference_timestamp"])
+                address = beacon.get("address").lower()
                 asyncio.run(
-                    ws.transmit_external_global_position_data(beacon.get("address") or beacon["name"], beacon["name"],
+                    ws.transmit_external_global_position_data(address, beacon["name"],
                                                               beacon["timestamp"],
                                                               beacon["latitude"], beacon["longitude"],
                                                               beacon["altitude"],

@@ -38,7 +38,8 @@ async def transmit_states(states):
             altitude_feet = state.geo_altitude * 3.281
             if altitude_feet < 10000:
                 timestamp = datetime.datetime.fromtimestamp(state.time_position, datetime.timezone.utc)
-                await websocket_facade.transmit_external_global_position_data(state.icao24, state.callsign or "", timestamp,
+                await websocket_facade.transmit_external_global_position_data(state.icao24.lower(),
+                                                                              state.callsign or "", timestamp,
                                                                               state.latitude, state.longitude,
                                                                               state.geo_altitude,
                                                                               state.baro_altitude,
@@ -66,7 +67,7 @@ if __name__ == "__main__":
             elapsed = datetime.datetime.now() - last_fetch
             sleep_interval = (FETCH_INTERVAL - elapsed).total_seconds()
             logger.info(f"Elapsed {elapsed.total_seconds()}, sleeping {sleep_interval}")
-            if sleep_interval>0:
+            if sleep_interval > 0:
                 time.sleep(sleep_interval)
         else:
             logger.warning("Failed fetching")
