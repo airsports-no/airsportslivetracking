@@ -42,6 +42,28 @@ class AircraftDatabase:
     def __init__(self):
         self.aircraft_database = pd.read_csv("/aircraft_database/aircraft_database.csv")
         self.aircraft_types = pd.read_csv("/aircraft_database/aircraft_types.csv")
+        self.aircraft_types.rename(columns={"Designator":"typecode"}, inplace=True)
+        self.ogn_aircraft_type_dictionary = {}
+        self.joined = self.join_frames()
+        self._build_dictionary()
+
+    def join_frames(self):
+        return pd.merge(self.aircraft_database, self.aircraft_types, on="typecode", how = "left")
+
+    def get_aircraft_type(self, icao: str) -> int:
+        return self.ogn_aircraft_type_dictionary.get(icao.lower(), self.DEFAULT_TYPE)
+
+    def _build_dictionary(self):
+        length = len(self.joined)
+        last_index = 0
+        for index, row in self.joined.iterrows():
+            if index == last_index + 10000:
+                last_index = index
+                print(f"{100 * index / length:.0f}%")
+            icao = str(row["icao24"]).lower()
+            if pd.notna(row['EngineType']):
+                type_code = row["EngineType"]
+                self.ogn_aircraft_type_dictionary[icao] = self.OGN_TYPE_MAP.get(type_code, self.DEFAULT_TYPE)
 
     def _get_type_for_id(self, icao) -> Optional[str]:
         try:
@@ -62,7 +84,7 @@ class AircraftDatabase:
         except IndexError:
             return self.DEFAULT_TYPE
 
-    def get_ogn_aircraft_type_code_for_id(self, icao):
+    def _get_ogn_aircraft_type_code_for_id(self, icao):
         aircraft_type = self._get_type_for_id(icao)
         print(aircraft_type)
         if aircraft_type is not None:
@@ -71,7 +93,7 @@ class AircraftDatabase:
 
 
 aircraft_database = AircraftDatabase()
-print(f"Type: {aircraft_database.get_ogn_aircraft_type_code_for_id('a808bb')}")
+print(f"Type: {aircraft_database.get_aircraft_type('a808bb')}")
 
 
 async def transmit_states(states):
@@ -87,7 +109,7 @@ async def transmit_states(states):
                                                                               state.baro_altitude,
                                                                               state.velocity * 1.944,
                                                                               state.heading, "opensky",
-                                                                              aircraft_type=aircraft_database.get_ogn_aircraft_type_code_for_id(
+                                                                              aircraft_type=aircraft_database.get_aircraft_type(
                                                                                   state.icao24.lower()))
 
 
