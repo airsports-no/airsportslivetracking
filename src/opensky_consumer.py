@@ -3,13 +3,14 @@ import sys
 import time
 import logging
 import os
-
+import pandas as pd
 import asyncio
 
 import redis
 import sentry_sdk
 from opensky_api import OpenSkyApi
 from requests import ReadTimeout
+from typing import Optional
 
 sentry_sdk.init(
     "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
@@ -32,6 +33,44 @@ logger = logging.getLogger(__name__)
 FETCH_INTERVAL = datetime.timedelta(seconds=5)
 
 
+class AircraftDatabase:
+    DEFAULT_TYPE = 9
+    OGN_TYPE_MAP = {
+        "piston": 8
+    }
+
+    def __init__(self):
+        self.aircraft_database = pd.read_csv("/aircraft_database/aircraft_database.csv")
+        self.aircraft_types = pd.read_csv("/aircraft_database/aircraft_types.csv")
+
+    def _get_type_for_id(self, icao) -> Optional[str]:
+        try:
+            return \
+                self.aircraft_database[self.aircraft_database["icao24"].str.contains(icao, na=False)]["typecode"].iloc[
+                    0]
+        except IndexError:
+            return None
+
+    def _get_ogn_aircraft_type_code_for_aircraft_type(self, aircraft_type_code: str) -> int:
+        try:
+            aircraft_type = self.aircraft_types[
+                self.aircraft_types["Designator"].str.contains(aircraft_type_code, na=False)].iloc[0]
+            engine_type = aircraft_type["EngineType"].lower()
+            return self.OGN_TYPE_MAP.get(engine_type, self.DEFAULT_TYPE)
+        except IndexError:
+            return self.DEFAULT_TYPE
+
+    def get_ogn_aircraft_type_code_for_id(self, icao):
+        aircraft_type = self._get_type_for_id(icao)
+        if aircraft_type is not None:
+            return self._get_ogn_aircraft_type_code_for_aircraft_type(aircraft_type)
+        return self.DEFAULT_TYPE
+
+
+aircraft_database = AircraftDatabase()
+print(f"Type: {aircraft_database.get_ogn_aircraft_type_code_for_id('47c404')}")
+
+
 async def transmit_states(states):
     for state in states:
         if state.time_position and state.latitude and state.longitude and state.velocity and state.geo_altitude:
@@ -44,7 +83,9 @@ async def transmit_states(states):
                                                                               state.geo_altitude,
                                                                               state.baro_altitude,
                                                                               state.velocity * 1.944,
-                                                                              state.heading, "opensky")
+                                                                              state.heading, "opensky",
+                                                                              aircraft_type=aircraft_database.get_ogn_aircraft_type_code_for_id(
+                                                                                  state.icao24.lower()))
 
 
 if __name__ == "__main__":

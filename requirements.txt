@@ -1,6 +1,7 @@
 twisted==21.2.0
 numpy
 scipy
+pandas
 pyepsg
 matplotlib
 iso8601

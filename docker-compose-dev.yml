@@ -25,6 +25,7 @@ services:
       - ./data:/data/
       - ./weblog:/logs/
       - ./mapserver:/maptiles
+      - ./aircraft_database:/aircraft_database
     environment:
       - MODE=dev
     ports:

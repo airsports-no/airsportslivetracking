@@ -173,6 +173,7 @@ services:
       - ./secret:/secret
       - ./src:/src/
       - ./openskyconsumerlogs:/logs/
+      - ./aircraft_database:/aircraft_database
     depends_on:
       - redis
 
