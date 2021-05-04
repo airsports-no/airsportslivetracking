@@ -148,11 +148,11 @@ class Aircraft {
     }
 
     getAircraftSize(zoomLevel) {
-        return 20 + 30 * zoomLevel / 20;
+        return 10 + 30 * zoomLevel / 20;
     }
 
     getTextSize(zoomLevel) {
-        return 7 + 4 * zoomLevel / 20;
+        return 8 + 7 * zoomLevel / 20;
     }
 
     createAirplaneIcon(bearing, colour, opacity, zoomLevel) {
@@ -169,6 +169,7 @@ class Aircraft {
 
     createAirplaneTextIcon(name, person_name, altitude, speed, colour, opacity, zoomLevel) {
         const size = this.getTextSize(zoomLevel);
+        const smallSize = size-2
         if (!speed) {
             speed = 0
         }
@@ -176,7 +177,7 @@ class Aircraft {
             altitude = 0
         }
         return L.divIcon({
-            html: '<div style="opacity: ' + opacity + '"><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top: 0px;">' + name + '</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -10px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: 10px; position: relative;top: -18px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
+            html: '<div style="opacity: ' + opacity + '"><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top: 0px;">' + name + '</span><br/><span style="color: ' + colour + ';font-size: ' + smallSize + 'px; position: relative;top: -10px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: ' + smallSize +'px; position: relative;top: -18px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
             iconAnchor: [100, -11],
             iconSize: [200, size],
             className: "myAirplaneTextIcon text-center"
