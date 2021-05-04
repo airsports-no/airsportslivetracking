@@ -68,7 +68,6 @@ class AircraftDatabase:
 
 
 aircraft_database = AircraftDatabase()
-print(f"Type: {aircraft_database.get_ogn_aircraft_type_code_for_id('47c404')}")
 
 
 async def transmit_states(states):
