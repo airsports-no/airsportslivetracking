@@ -32,6 +32,8 @@ def generate_contestant_data_block(contestant: "Contestant", positions: List = N
                                    log_entries: List = None, latest_time: datetime.datetime = None,
                                    gate_scores: List = None, playing_cards: List = None,
                                    include_contestant_track: bool = False):
+    if not hasattr(contestant, "contestanttrack"):
+        include_contestant_track = False
     data = {
         "contestant_id": contestant.id,
         "positions": positions or [],
