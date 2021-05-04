@@ -157,7 +157,7 @@ class Aircraft {
 
     createAirplaneIcon(bearing, colour, opacity, zoomLevel) {
         const size = this.getAircraftSize(zoomLevel)
-        let html = '<div style="color: ' + colour + ';opacity: ' + opacity + '; transform: rotate(' + bearing + 'deg); width: ' + size + 'px">' + jet(colour) + '</div>'
+        let html = '<div style="color: ' + colour + ';opacity: ' + opacity + '; transform: rotate(' + bearing + 'deg); width: ' + size + 'px">' + piston(colour) + '</div>'
         return L.divIcon({
             html: html,
             iconAnchor: [size / 2, size / 2],
@@ -455,8 +455,8 @@ class ConnectedGlobalMapMap
                         this.aircraft[position.deviceId] = new Aircraft(position.name, internalColour, position, this.map,
                             this.internalPositionIcons, this.internalPositionText, 20, position.traffic_source)
                     } else if (position.traffic_source === "opensky") {
-                        this.aircraft[position.deviceId] = new Aircraft(position.name, openSkyColour, position, this.map,
-                            this.externalPositionIcons, this.externalPositionText, 60, position.traffic_source)
+                        this.aircraft[position.deviceId] = new OGNAircraft(position.name, openSkyColour, position, this.map,
+                            this.externalPositionIcons, this.externalPositionText, 60, position.traffic_source, position.aircraft_type)
 
                     } else if (position.traffic_source === "ogn") {
                         this.aircraft[position.deviceId] = new OGNAircraft(position.name, ognColour, position, this.map,

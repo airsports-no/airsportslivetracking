@@ -94,7 +94,7 @@ class AircraftDatabase:
 
 
 aircraft_database = AircraftDatabase()
-print(f"Type: {aircraft_database.get_aircraft_type('a808bb')}")
+print(f"Type: {aircraft_database.get_aircraft_type('478745')}")
 
 
 async def transmit_states(states):
