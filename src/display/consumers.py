@@ -99,10 +99,11 @@ class GlobalConsumer(WebsocketConsumer):
             if now - stamp > GLOBAL_TRAFFIC_MAXIMUM_AGE:
                 self.redis.hdel(REDIS_GLOBAL_POSITIONS_KEY, key)
                 continue
-            if self.location and self.range:
-                position = (data["latitude"], data["longitude"])
-                if calculate_distance_lat_lon(position, self.location) > self.range:
-                    continue
+            # Location has not been set at this point
+            # if self.location and self.range:
+            #     position = (data["latitude"], data["longitude"])
+            #     if calculate_distance_lat_lon(position, self.location) > self.range:
+            #         continue
             self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
 
     def disconnect(self, code):

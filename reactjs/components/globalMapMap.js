@@ -223,7 +223,8 @@ class Aircraft {
             // this.dotText.unbindTooltip()
             this.dot.unbindTooltip()
             this.dot.bindTooltip(tooltipContents, {
-                permanent: false
+                permanent: false,
+                interactive: true
             })
             // this.dotText.bindTooltip(tooltipContents, {
             //     permanent: false
