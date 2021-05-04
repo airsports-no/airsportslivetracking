@@ -95,7 +95,7 @@ def process_beacon(raw_message):
                                                               beacon["timestamp"],
                                                               beacon["latitude"], beacon["longitude"],
                                                               beacon["altitude"],
-                                                              beacon["altitude"], beacon["ground_speed"],
+                                                              beacon["altitude"], beacon["ground_speed"]/1.852,  # is km/h
                                                               beacon["track"],
                                                               "ogn", raw_data=None,
                                                               aircraft_type=beacon["aircraft_type"]))
