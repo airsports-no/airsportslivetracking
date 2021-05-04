@@ -45,9 +45,11 @@ class AircraftDatabase:
 
     def _get_type_for_id(self, icao) -> Optional[str]:
         try:
-            return \
-                self.aircraft_database[self.aircraft_database["icao24"].str.contains(icao, na=False)]["typecode"].iloc[
-                    0]
+            matches = self.aircraft_database[self.aircraft_database["icao24"].str.contains(icao, na=False)]
+            type_code = matches["typecode"].iloc[0]
+            if pd.notna(type_code):
+                return type_code
+            return None
         except IndexError:
             return None
 
@@ -62,12 +64,14 @@ class AircraftDatabase:
 
     def get_ogn_aircraft_type_code_for_id(self, icao):
         aircraft_type = self._get_type_for_id(icao)
+        print(aircraft_type)
         if aircraft_type is not None:
             return self._get_ogn_aircraft_type_code_for_aircraft_type(aircraft_type)
         return self.DEFAULT_TYPE
 
 
 aircraft_database = AircraftDatabase()
+print(f"Type: {aircraft_database.get_ogn_aircraft_type_code_for_id('a808bb')}")
 
 
 async def transmit_states(states):
