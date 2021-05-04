@@ -41,14 +41,15 @@ class AircraftDatabase:
 
     def __init__(self):
         self.aircraft_database = pd.read_csv("/aircraft_database/aircraft_database.csv")
-        self.aircraft_types = pd.read_csv("/aircraft_database/aircraft_types.csv")
-        self.aircraft_types.rename(columns={"Designator":"typecode"}, inplace=True)
+        self.aircraft_types = pd.read_csv("/aircraft_database/aircraft_types.csv").drop_duplicates(
+            subset=["Designator"])
+        self.aircraft_types.rename(columns={"Designator": "typecode"}, inplace=True)
         self.ogn_aircraft_type_dictionary = {}
         self.joined = self.join_frames()
         self._build_dictionary()
 
     def join_frames(self):
-        return pd.merge(self.aircraft_database, self.aircraft_types, on="typecode", how = "left")
+        return pd.merge(self.aircraft_database, self.aircraft_types, on="typecode", how="left")
 
     def get_aircraft_type(self, icao: str) -> int:
         return self.ogn_aircraft_type_dictionary.get(icao.lower(), self.DEFAULT_TYPE)
@@ -62,7 +63,7 @@ class AircraftDatabase:
                 print(f"{100 * index / length:.0f}%")
             icao = str(row["icao24"]).lower()
             if pd.notna(row['EngineType']):
-                type_code = row["EngineType"]
+                type_code = row["EngineType"].lower()
                 self.ogn_aircraft_type_dictionary[icao] = self.OGN_TYPE_MAP.get(type_code, self.DEFAULT_TYPE)
 
     def _get_type_for_id(self, icao) -> Optional[str]:
