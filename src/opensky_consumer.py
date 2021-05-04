@@ -38,6 +38,9 @@ class AircraftDatabase:
     OGN_TYPE_MAP = {
         "piston": 8
     }
+    AIRCRAFT_DESCRIPTIONS = {
+        "helicopter": 3
+    }
 
     def __init__(self):
         self.aircraft_database = pd.read_csv("/aircraft_database/aircraft_database.csv")
@@ -47,6 +50,10 @@ class AircraftDatabase:
         self.ogn_aircraft_type_dictionary = {}
         self.joined = self.join_frames()
         self._build_dictionary()
+
+    def _get_ogn_map(self, row):
+        return self.AIRCRAFT_DESCRIPTIONS.get(row["AircraftDescription"].lower(),
+                                              self.OGN_TYPE_MAP.get(row["EngineType"].lower(), self.DEFAULT_TYPE))
 
     def join_frames(self):
         return pd.merge(self.aircraft_database, self.aircraft_types, on="typecode", how="left")
@@ -63,8 +70,7 @@ class AircraftDatabase:
                 print(f"{100 * index / length:.0f}%")
             icao = str(row["icao24"]).lower()
             if pd.notna(row['EngineType']):
-                type_code = row["EngineType"].lower()
-                self.ogn_aircraft_type_dictionary[icao] = self.OGN_TYPE_MAP.get(type_code, self.DEFAULT_TYPE)
+                self.ogn_aircraft_type_dictionary[icao] = self._get_ogn_map(row)
 
     def _get_type_for_id(self, icao) -> Optional[str]:
         try:
