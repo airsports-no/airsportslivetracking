@@ -32,6 +32,7 @@ import {tileLayer} from "leaflet";
 //     shadowUrl: markerShadow
 // });
 import ContestsGlobalMap from "./contests/contestsGlobalMap";
+import ContestPopupItem from "./contests/contestPopupItem";
 
 const ognAircraftTypeMap = {
     0: jet,
@@ -225,12 +226,10 @@ class Aircraft {
             this.dot.bindTooltip(tooltipContents, {
                 permanent: false,
                 interactive: true
-            }).on('click', (ev) => {
-                this.dot.toggleTooltip();
-            });
-            // this.dotText.bindTooltip(tooltipContents, {
-            //     permanent: false
-            // })
+            })
+            this.dot.bindPopup(tooltipContents, {
+                permanent: false,
+            })
         }
     }
 
