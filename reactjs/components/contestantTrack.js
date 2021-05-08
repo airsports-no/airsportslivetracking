@@ -43,6 +43,7 @@ class ConnectedContestantTrack extends Component {
         this.lastNewData = null;
         this.shortTrackDisplayed = false
         this.fullTrackDisplayed = false
+        this.lastPositionTime = null
 
         this.annotationLayer = L.layerGroup()
         this.iconMap = {
@@ -146,7 +147,12 @@ class ConnectedContestantTrack extends Component {
                                 longitude: position.longitude,
                                 time: new Date(position.time)
                             }
+                        }).filter((pos) => {
+                            return !this.lastPositionTime || pos.time > this.lastPositionTime
                         })
+                        if (p.length > 0) {
+                            this.lastPositionTime = p.slice(-1)[0].time
+                        }
                         // this.allPoints.push(...p)
                         this.partialPoints.push(...p)
                         const positions = this.props.contestantData.positions.map((position) => {
