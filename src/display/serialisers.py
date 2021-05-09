@@ -482,8 +482,6 @@ class ContestantTrackWithTrackPointsSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
     """
-    score_log = serializers.JSONField()
-    score_per_gate = serializers.JSONField()
     track = PositionSerialiser(many=True, read_only=True)
 
     class Meta:
