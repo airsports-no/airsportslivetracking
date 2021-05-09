@@ -241,12 +241,12 @@ def auto_complete_person_first_name(request):
         if request_number == 1:
             q = request.data.get('search', '')
             search_qs = Person.objects.filter(first_name__icontains=q)
-            result = [{"label": "{} {}".format(item.first_name, item.last_name), "value": item.first_name} for item in
+            result = [{"label": "{} {}".format(item.first_name, item.last_name), "value": item.pk} for item in
                       search_qs]
             return Response(result)
         else:
             q = request.data.get('search', '')
-            search_qs = Person.objects.filter(first_name=q)
+            search_qs = Person.objects.filter(pk=q)
             serialiser = PersonSerialiser(search_qs, many=True)
             return Response(serialiser.data)
     raise MethodNotAllowed
@@ -260,12 +260,12 @@ def auto_complete_person_last_name(request):
         if request_number == 1:
             q = request.data.get('search', '')
             search_qs = Person.objects.filter(last_name__icontains=q)
-            result = [{"label": "{} {}".format(item.first_name, item.last_name), "value": item.last_name} for item in
+            result = [{"label": "{} {}".format(item.first_name, item.last_name), "value": item.pk} for item in
                       search_qs]
             return Response(result)
         else:
             q = request.data.get('search', '')
-            search_qs = Person.objects.filter(last_name=q)
+            search_qs = Person.objects.filter(pk=q)
             serialiser = PersonSerialiser(search_qs, many=True)
             return Response(serialiser.data)
     raise MethodNotAllowed
