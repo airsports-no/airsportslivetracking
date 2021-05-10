@@ -108,7 +108,7 @@ TraccarMock.get_or_create_device.return_value = ({}, False)
 class TestAutoCompletePersonFirstName(APITestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
-        Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
+        self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
         self.user = get_user_model().objects.create(email="test")
@@ -138,7 +138,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
             "search": "first",
         }, format="json", **AJAX_HEADER)
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertListEqual([{'label': 'first_name last_name', 'value': 'first_name'}], result.json())
+        self.assertListEqual([{'label': 'first_name last_name', 'value': self.person.id}], result.json())
 
     def test_search_fail(self):
         self.client.force_login(self.user)
@@ -153,7 +153,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
         self.client.force_login(self.user)
         result = self.client.post("/display/contestant/autocomplete/firstname/", data={
             "request": 2,
-            "search": "first_name",
+            "search": self.person.id,
         }, format="json", **AJAX_HEADER)
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
@@ -166,7 +166,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
 class TestAutoCompletePersonLastname(APITestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
-        Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
+        self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
         self.user = get_user_model().objects.create(email="test")
@@ -196,7 +196,7 @@ class TestAutoCompletePersonLastname(APITestCase):
             "search": "last",
         }, format="json", **AJAX_HEADER)
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertListEqual([{'label': 'first_name last_name', 'value': 'last_name'}], result.json())
+        self.assertListEqual([{'label': 'first_name last_name', 'value': self.person.id}], result.json())
 
     def test_search_fail(self):
         self.client.force_login(self.user)
@@ -211,7 +211,7 @@ class TestAutoCompletePersonLastname(APITestCase):
         self.client.force_login(self.user)
         result = self.client.post("/display/contestant/autocomplete/lastname/", data={
             "request": 2,
-            "search": "last_name",
+            "search": self.person.id,
         }, format="json", **AJAX_HEADER)
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
