@@ -32,18 +32,17 @@ line = {
 }
 
 
-
 class TestCreateNavigationTask(APITestCase):
     def setUp(self):
         get_default_scorecard()
         self.NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(datetime.timezone.utc),
-                                "finish_time": datetime.datetime.now(datetime.timezone.utc), "route": {
+                                     "finish_time": datetime.datetime.now(datetime.timezone.utc), "route": {
                 "waypoints": [],
                 "takeoff_gate": line,
                 "landing_gate": line,
                 "name": "name"},
-                                "scorecard": get_default_scorecard().name
-                                }
+                                     "scorecard": get_default_scorecard().name
+                                     }
         self.user_owner = get_user_model().objects.create(email="withpermissions")
         permission = Permission.objects.get(codename="add_contest")
         self.user_owner.user_permissions.add(permission)
@@ -85,13 +84,13 @@ class TestCreateNavigationTask(APITestCase):
 class TestAccessNavigationTask(APITestCase):
     def setUp(self):
         self.NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(datetime.timezone.utc),
-                        "finish_time": datetime.datetime.now(datetime.timezone.utc), "route": {
-        "waypoints": [],
-        "takeoff_gate": line,
-        "landing_gate": line,
-        "name": "name"},
-                        "scorecard": get_default_scorecard().name
-                        }
+                                     "finish_time": datetime.datetime.now(datetime.timezone.utc), "route": {
+                "waypoints": [],
+                "takeoff_gate": line,
+                "landing_gate": line,
+                "name": "name"},
+                                     "scorecard": get_default_scorecard().name
+                                     }
 
         get_default_scorecard()
         self.user_owner = get_user_model().objects.create(email="withpermissions")
@@ -349,3 +348,105 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_share_navigation_task(self):
+        self.assertFalse(self.contest.is_public)
+        self.assertFalse(self.contest.is_featured)
+        self.client.force_login(user=self.user_owner)
+
+        result = self.client.put(
+            reverse("navigationtasks-share", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),
+            data={"visibility": "private"})
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.navigation_task.refresh_from_db()
+        self.contest.refresh_from_db()
+        self.assertFalse(self.navigation_task.is_public)
+        self.assertFalse(self.navigation_task.is_featured)
+        self.assertFalse(self.contest.is_public)
+        self.assertFalse(self.contest.is_featured)
+
+        result = self.client.put(
+            reverse("navigationtasks-share", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),
+            data={"visibility": "unlisted"})
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.navigation_task.refresh_from_db()
+        self.contest.refresh_from_db()
+        self.assertTrue(self.navigation_task.is_public)
+        self.assertFalse(self.navigation_task.is_featured)
+        self.assertTrue(self.contest.is_public)
+        self.assertFalse(self.contest.is_featured)
+
+        result = self.client.put(
+            reverse("navigationtasks-share", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),
+            data={"visibility": "public"})
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.navigation_task.refresh_from_db()
+        self.contest.refresh_from_db()
+        self.assertTrue(self.navigation_task.is_public)
+        self.assertTrue(self.navigation_task.is_featured)
+        self.assertTrue(self.contest.is_public)
+        self.assertTrue(self.contest.is_featured)
+
+        result = self.client.put(
+            reverse("navigationtasks-share", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),
+            data={"visibility": "private"})
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.navigation_task.refresh_from_db()
+        self.contest.refresh_from_db()
+        self.assertFalse(self.navigation_task.is_public)
+        self.assertFalse(self.navigation_task.is_featured)
+        self.assertTrue(self.contest.is_public)
+        self.assertTrue(self.contest.is_featured)
+
+    def test_share_contest(self):
+        self.assertFalse(self.contest.is_public)
+        self.assertFalse(self.contest.is_featured)
+        self.client.force_login(user=self.user_owner)
+
+        result = self.client.put(f"/api/v1/contests/{self.contest_id}/share/",
+                                 data={"visibility": "private"})
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.navigation_task.refresh_from_db()
+        self.contest.refresh_from_db()
+        self.assertFalse(self.navigation_task.is_public)
+        self.assertFalse(self.navigation_task.is_featured)
+        self.assertFalse(self.contest.is_public)
+        self.assertFalse(self.contest.is_featured)
+
+        result = self.client.put(
+            f"/api/v1/contests/{self.contest_id}/share/",
+            data={"visibility": "public"})
+        self.contest.refresh_from_db()
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertTrue(self.contest.is_public)
+        self.assertTrue(self.contest.is_featured)
+
+        result = self.client.put(
+            reverse("navigationtasks-share", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),
+            data={"visibility": "public"})
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.navigation_task.refresh_from_db()
+        self.assertTrue(self.navigation_task.is_public)
+        self.assertTrue(self.navigation_task.is_featured)
+
+        result = self.client.put(
+            f"/api/v1/contests/{self.contest_id}/share/",
+            data={"visibility": "unlisted"})
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.navigation_task.refresh_from_db()
+        self.contest.refresh_from_db()
+        self.assertTrue(self.navigation_task.is_public)
+        self.assertFalse(self.navigation_task.is_featured)
+        self.assertTrue(self.contest.is_public)
+        self.assertFalse(self.contest.is_featured)
+
+        result = self.client.put(
+            f"/api/v1/contests/{self.contest_id}/share/",
+            data={"visibility": "private"})
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.navigation_task.refresh_from_db()
+        self.contest.refresh_from_db()
+        self.assertFalse(self.navigation_task.is_public)
+        self.assertFalse(self.navigation_task.is_featured)
+        self.assertFalse(self.contest.is_public)
+        self.assertFalse(self.contest.is_featured)

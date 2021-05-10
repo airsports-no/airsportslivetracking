@@ -72,7 +72,7 @@ from display.serialisers import ContestantTrackSerialiser, \
     NavigationTasksSummarySerialiser, TaskSummaryWithoutReferenceSerialiser, TeamTestScoreWithoutReferenceSerialiser, \
     TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser, ContestantSerialiser, \
     TrackAnnotationSerialiser, ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser, \
-    ContestTeamManagementSerialiser, SignupSerialiser, PersonSignUpSerialiser
+    ContestTeamManagementSerialiser, SignupSerialiser, PersonSignUpSerialiser, SharingSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -328,17 +328,11 @@ def share_contest(request, pk):
         form = ShareForm(request.POST)
         if form.is_valid():
             if form.cleaned_data["publicity"] == ShareForm.PUBLIC:
-                contest.is_public = True
-                contest.is_featured = True
+                contest.make_public()
             elif form.cleaned_data["publicity"] == ShareForm.UNLISTED:
-                contest.is_public = True
-                contest.is_featured = False
-                contest.navigationtask_set.all().update(is_featured=False)
+                contest.make_unlisted()
             elif form.cleaned_data["publicity"] == ShareForm.PRIVATE:
-                contest.is_public = False
-                contest.is_featured = False
-                contest.navigationtask_set.all().update(is_featured=False, is_public=False)
-            contest.save()
+                contest.make_private()
             return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": contest.pk}))
     if contest.is_public and contest.is_featured:
         initial = ShareForm.PUBLIC
@@ -357,19 +351,11 @@ def share_navigation_task(request, pk):
         form = ShareForm(request.POST)
         if form.is_valid():
             if form.cleaned_data["publicity"] == ShareForm.PUBLIC:
-                navigation_task.is_public = True
-                navigation_task.is_featured = True
-                navigation_task.contest.is_public = True
-                navigation_task.contest.is_featured = True
+                navigation_task.make_public()
             elif form.cleaned_data["publicity"] == ShareForm.UNLISTED:
-                navigation_task.is_public = True
-                navigation_task.is_featured = False
-                navigation_task.contest.is_public = True
+                navigation_task.make_unlisted()
             elif form.cleaned_data["publicity"] == ShareForm.PRIVATE:
-                navigation_task.is_public = False
-                navigation_task.is_featured = False
-            navigation_task.contest.save()
-            navigation_task.save()
+                navigation_task.make_private()
             return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
     if navigation_task.is_public and navigation_task.is_featured:
         initial = ShareForm.PUBLIC
@@ -1462,7 +1448,8 @@ class ContestViewSet(ModelViewSet):
         "update_task_summary": TaskSummaryWithoutReferenceSerialiser,
         "update_test_result": TeamTestScoreWithoutReferenceSerialiser,
         "results_details": ContestResultsDetailsSerialiser,
-        "signup": SignupSerialiser
+        "signup": SignupSerialiser,
+        "share": SharingSerialiser
     }
     default_serialiser_class = ContestSerialiser
     lookup_url_kwarg = "pk"
@@ -1476,6 +1463,22 @@ class ContestViewSet(ModelViewSet):
         return get_objects_for_user(self.request.user, "display.view_contest",
                                     klass=self.queryset, accept_global_perms=False) | self.queryset.filter(
             is_public=True, is_featured=True)
+
+    @action(detail=True, methods=["put"])
+    def share(self, request, *args, **kwargs):
+        """
+        Change the visibility of the navigation task to one of the public, private, or unlisted
+        """
+        contest = self.get_object()
+        serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
+        if serialiser.is_valid(True):
+            if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
+                contest.make_public()
+            elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
+                contest.make_private()
+            elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
+                contest.make_unlisted()
+        return Response(serialiser.data, status=HTTP_200_OK)
 
     @action(detail=True, methods=["get"])
     def results_details(self, request, *args, **kwargs):
@@ -1608,11 +1611,19 @@ class ContestTeamViewSet(ModelViewSet):
 
 class NavigationTaskViewSet(ModelViewSet):
     queryset = NavigationTask.objects.all()
-    serializer_class = NavigationTaskNestedTeamRouteSerialiser
+    serializer_classes = {
+        "share": SharingSerialiser
+    }
+    default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
+    lookup_url_kwarg = "pk"
+
     permission_classes = [
         NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)]
 
     http_method_names = ['get', 'post', 'delete', 'put']
+
+    def get_serializer_class(self):
+        return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1639,6 +1650,22 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         raise PermissionDenied("It is not possible to modify existing navigation tasks except to publish or hide them")
+
+    @action(detail=True, methods=["put"])
+    def share(self, request, *args, **kwargs):
+        """
+        Change the visibility of the navigation task to one of the public, private, or unlisted
+        """
+        navigation_task = self.get_object()
+        serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
+        if serialiser.is_valid(True):
+            if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
+                navigation_task.make_public()
+            elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
+                navigation_task.make_private()
+            elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
+                navigation_task.make_unlisted()
+        return Response(serialiser.data, status=HTTP_200_OK)
 
 
 class RouteViewSet(ModelViewSet):

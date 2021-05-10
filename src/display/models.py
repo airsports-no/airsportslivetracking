@@ -403,6 +403,23 @@ class Contest(models.Model):
             self.longitude = longitude
             self.save()
 
+    def make_public(self):
+        self.is_public = True
+        self.is_featured = True
+        self.save()
+
+    def make_private(self):
+        self.is_public = False
+        self.is_featured = False
+        self.navigationtask_set.all().update(is_featured=False, is_public=False)
+        self.save()
+
+    def make_unlisted(self):
+        self.is_public = True
+        self.is_featured = False
+        self.navigationtask_set.all().update(is_featured=False)
+        self.save()
+
     @classmethod
     def visible_contests_for_user(cls, user: MyUser):
         return get_objects_for_user(user, "display.view_contest",
@@ -496,6 +513,26 @@ class NavigationTask(models.Model):
 
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.isoformat())
+
+    def make_public(self):
+        self.is_public = True
+        self.is_featured = True
+        self.contest.is_public = True
+        self.contest.is_featured = True
+        self.save()
+        self.contest.save()
+
+    def make_unlisted(self):
+        self.is_public = True
+        self.is_featured = False
+        self.contest.is_public = True
+        self.save()
+        self.contest.save()
+
+    def make_private(self):
+        self.is_public = False
+        self.is_featured = False
+        self.save()
 
     def create_results_service_test(self):
         task, _ = Task.objects.get_or_create(contest=self.contest, name=f"Navigation task {self.name}", defaults={
@@ -1664,7 +1701,6 @@ def update_contest_summary_on_task_delete(sender, instance: Task, **kwargs):
 def update_task_summary_on_task_test_delete(sender, instance: TaskTest, **kwargs):
     for task_summary in TaskSummary.objects.filter(task=instance.task):
         task_summary.update_sum()
-
 
 
 @receiver(post_save, sender=ContestTeam)
