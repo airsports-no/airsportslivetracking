@@ -190,6 +190,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSeria
     navigationtask_set = SerializerMethodField("get_visiblenavigationtasks")
     contestsummary_set = ContestSummaryNestedSerialiser(many=True, read_only=True)
     contest_team_count = serializers.IntegerField(read_only=True)
+    share_string = serializers.CharField(read_only=True)
 
     class Meta:
         model = Contest
@@ -633,6 +634,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
                                      lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
     actual_rules = serializers.JSONField(read_only=True)
     display_contestant_rank_summary = serializers.BooleanField(read_only=True)
+    share_string = serializers.CharField(read_only=True)
     route = RouteSerialiser()
 
     def get_scorecard_data(self, navigation_task):
