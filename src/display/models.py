@@ -357,7 +357,7 @@ class Contest(models.Model):
         (ASCENDING, "Ascending")
     )
     summary_score_sorting_direction = models.CharField(default=ASCENDING, choices=SORTING_DIRECTION,
-                                                       help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
+                                                       help_text="Whether the lowest (ascending) or highest (descending) score is the best result",
                                                        max_length=50, blank=True)
     autosum_scores = models.BooleanField(default=True,
                                          help_text="If true, contest summary points for a team will be updated with the new sum when any task is updated")
@@ -491,8 +491,14 @@ class NavigationTask(models.Model):
     @property
     def actual_rules(self):
         mock_contestant = Mock(Contestant)
-        mock_contestant.get_track_score_override.return_value = None
-        mock_contestant.get_gate_score_override.return_value = None
+        mock_contestant.get_track_score_override.return_value = self.track_score_override
+
+        def gate_score_override(gate_type):
+            for item in self.gate_score_override.all():
+                if gate_type in item.for_gate_types:
+                    return item
+
+        mock_contestant.get_gate_score_override = gate_score_override
         return self.scorecard.scores_display(mock_contestant)
 
     @property
