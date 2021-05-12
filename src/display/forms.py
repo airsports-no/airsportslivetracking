@@ -411,7 +411,7 @@ class NavigationTaskForm(forms.ModelForm):
 class ContestForm(forms.ModelForm):
     class Meta:
         model = Contest
-        exclude = ("contest_teams",)
+        exclude = ("contest_teams", "is_featured", "is_public")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
