@@ -1,5 +1,5 @@
 import React, {Component} from "react";
-import {Button, Container, Form, Modal} from "react-bootstrap";
+import {Button, Col, Container, Form, Modal} from "react-bootstrap";
 import axios from 'axios'
 import {ErrorMessage, Formik} from 'formik';
 import {connect} from "react-redux";
@@ -37,7 +37,9 @@ class ConnectedSelfRegistrationForm extends Component {
 
     render() {
         let initialValues = {
-            starting_point_time: new Date()
+            starting_point_time: new Date(),
+            wind_speed: 0,
+            wind_direction: 0
         }
 
         const formikProps = {
@@ -46,7 +48,9 @@ class ConnectedSelfRegistrationForm extends Component {
             onSubmit: (formValues, {setSubmitting, setStatus, setErrors}) => {
                 let data = {
                     starting_point_time: formValues.starting_point_time.toISOString(),
-                    contest_team: this.props.participation.id
+                    contest_team: this.props.participation.id,
+                    wind_speed: formValues.wind_speed,
+                    wind_direction: formValues.wind_direction
                 }
                 console.log("submit", data);
                 setSubmitting(true);
@@ -57,12 +61,11 @@ class ConnectedSelfRegistrationForm extends Component {
                     console.error(e);
                     console.log(e);
                     const errors = _.get(e, ["response", "data"])
-                    setErrors(errors)
-                    // if (Array.isArray(errors)) {
-                    //     setErrors({api: errors})
-                    // } else {
-                    //     setErrors(errors)
-                    // }
+                    if (Array.isArray(errors)) {
+                        setErrors({api: errors})
+                    } else {
+                        setErrors(errors)
+                    }
                 }).finally(() => {
                     setSubmitting(false);
                 })
@@ -86,9 +89,25 @@ class ConnectedSelfRegistrationForm extends Component {
                                                 timePrecision={"minutes"}
                                     />
                                 </Localization>
-                                <ErrorMessage name={"starting_point_time_id"} component={"div"}/>
+                                <ErrorMessage name={"starting_point_time"} component={"div"}/>
                             </Form.Group>
-                            <Form.Group>
+                            <Form.Row>
+                                <Col>
+                                    <Form.Label>Wind speed</Form.Label>
+                                    <Form.Control name={"wind_speed"} type={"number"} placeholder={"Speed"}
+                                                  onChange={props.handleChange}
+                                                  defaultValue={props.initialValues.wind_speed}/>
+                                    <ErrorMessage name={"wind_speed"} component={"div"}/>
+                                </Col>
+                                <Col>
+                                    <Form.Label>Wind direction</Form.Label>
+                                    <Form.Control name={"wind_direction"} type={"number"} placeholder={"Direction"}
+                                                  onChange={props.handleChange}
+                                                  defaultValue={props.initialValues.wind_direction}/>
+                                    <ErrorMessage name={"wind_direction"} component={"div"}/>
+                                </Col>
+                            </Form.Row>
+                            <Form.Row>
                                 <Button variant="primary" type="submit" disabled={props.isSubmitting}>
                                     Register
                                 </Button>
@@ -99,7 +118,7 @@ class ConnectedSelfRegistrationForm extends Component {
                                 {props.errors && _.has(props.errors, ["api"]) &&
                                 <div className="text-danger">{_.get(props.errors, ["api"])}</div>}
                                 {props.status && <div className="text-success">{props.status}</div>}
-                            </Form.Group>
+                            </Form.Row>
                         </Form>)}
                 </Formik>
             </div>

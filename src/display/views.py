@@ -1678,26 +1678,25 @@ class NavigationTaskViewSet(ModelViewSet):
             serialiser = self.get_serializer(data=request.data)
             serialiser.is_valid(True)
             contest_team = serialiser.validated_data["contest_team"]
-            print(contest_team)
             starting_point_time = serialiser.validated_data["starting_point_time"].astimezone(
                 navigation_task.contest.time_zone)  # type: datetime
-            print(starting_point_time)
             takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
             existing_contestants = navigation_task.contestant_set.all()
             if existing_contestants.exists():
                 contestant_number = max([item.contestant_number for item in existing_contestants]) + 1
             else:
                 contestant_number = 1
-            print(contestant_number)
             contestant = Contestant.objects.create(team=contest_team.team, takeoff_time=takeoff_time,
                                                    navigation_task=navigation_task,
                                                    tracker_start_time=takeoff_time - datetime.timedelta(minutes=10),
                                                    finished_by_time=takeoff_time + datetime.timedelta(days=1),
                                                    minutes_to_starting_point=navigation_task.minutes_to_starting_point,
                                                    air_speed=contest_team.air_speed,
-                                                   contestant_number=contestant_number)
-            print(contestant)
-            contestant.finished_by_time = contestant.calculate_finish_time()
+                                                   contestant_number=contestant_number,
+                                                   wind_speed=serialiser.validated_data["wind_speed"],
+                                                   wind_direction=serialiser.validated_data["wind_direction"])
+            contestant.finished_by_time = contestant.get_final_gate_time() + datetime.timedelta(
+                minutes=navigation_task.minutes_to_landing + 2)
             contestant.save()
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":

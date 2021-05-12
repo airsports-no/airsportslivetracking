@@ -4,6 +4,7 @@ import datetime
 import dateutil
 import phonenumbers
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import transaction
 from django.db.models import Q
 from django.http import Http404
@@ -248,6 +249,12 @@ class ContestParticipationSerialiser(ContestSerialiser):
 class SelfManagementSerialiser(serializers.Serializer):
     starting_point_time = serializers.DateTimeField()
     contest_team = serializers.PrimaryKeyRelatedField(queryset=ContestTeam.objects.all())
+    wind_speed = serializers.FloatField(validators=[
+        MaxValueValidator(40), MinValueValidator(0)
+    ])
+    wind_direction = serializers.FloatField(validators=[
+        MaxValueValidator(360), MinValueValidator(0)
+    ])
 
 
 class WaypointSerialiser(serializers.Serializer):
