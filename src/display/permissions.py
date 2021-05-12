@@ -225,6 +225,11 @@ class NavigationTaskContestPermissions(permissions.BasePermission):
         return False
 
 
+class NavigationTaskSelfManagementPermissions(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.allow_self_management
+
+
 class ContestantNavigationTaskContestPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         pk = view.kwargs.get("contest_pk")

@@ -1,4 +1,5 @@
 import base64
+import datetime
 
 import dateutil
 import phonenumbers
@@ -6,6 +7,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q
 from django.http import Http404
+from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
 from guardian.shortcuts import assign_perm, get_objects_for_user
@@ -185,6 +188,22 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
         fields = ("pk", "name", "start_time", "finish_time", "tracking_link")
 
 
+class NavigationTasksSummaryParticipationSerialiser(serializers.ModelSerializer):
+    future_contestants = SerializerMethodField("get_future_contestants")
+
+    class Meta:
+        model = NavigationTask
+        fields = ("pk", "name", "start_time", "finish_time", "tracking_link", "future_contestants")
+
+    def get_future_contestants(self, navigation_task):
+        person = get_object_or_404(Person, email=self.context["request"].user.email)
+        future_contestants = navigation_task.contestant_set.filter(team__crew__member1=person,
+                                                                   finished_by_time__gt=datetime.datetime.now(
+                                                                       datetime.timezone.utc))
+        serialiser = ContestantSerialiser(future_contestants, many=True, read_only=True)
+        return serialiser.data
+
+
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(required=True)
     navigationtask_set = SerializerMethodField("get_visiblenavigationtasks")
@@ -212,6 +231,23 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSeria
             contest_id=contest.pk)
         serialiser = NavigationTasksSummarySerialiser(items, many=True, read_only=True)
         return serialiser.data
+
+
+class ContestParticipationSerialiser(ContestSerialiser):
+    def get_visiblenavigationtasks(self, contest):
+        contests = get_objects_for_user(self.context["request"].user, "display.view_contest",
+                                        klass=Contest, accept_global_perms=False)
+        items = NavigationTask.objects.filter(
+            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)).filter(
+            contest_id=contest.pk).filter(allow_self_management=True)
+        serialiser = NavigationTasksSummaryParticipationSerialiser(items, many=True, read_only=True,
+                                                                   context={"request": self.context["request"]})
+        return serialiser.data
+
+
+class SelfManagementSerialiser(serializers.Serializer):
+    starting_point_time = serializers.DateTimeField()
+    contest_team = serializers.PrimaryKeyRelatedField(queryset=ContestTeam.objects.all())
 
 
 class WaypointSerialiser(serializers.Serializer):
@@ -393,7 +429,7 @@ class SignupSerialiser(serializers.Serializer):
 
 
 class ContestTeamManagementSerialiser(serializers.ModelSerializer):
-    contest = ContestSerialiser(read_only=True)
+    contest = ContestParticipationSerialiser(read_only=True)
     team = TeamNestedSerialiser(read_only=True)
     can_edit = serializers.BooleanField(read_only=True)
 
@@ -534,6 +570,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
     track_score_override = TrackScoreOverrideSerialiser(required=False)
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
+    default_map_url = SerializerMethodField("get_default_map_url")
+
+    def get_default_map_url(self, contestant):
+        return reverse("contestant_default_map", kwargs={"pk": contestant.pk})
 
     def create(self, validated_data):
         try:

@@ -33,7 +33,7 @@ import {
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
     REGISTER_FOR_CONTEST,
     UPDATE_CONTEST_REGISTRATION,
-    CANCEL_CONTEST_REGISTRATION, GET_CONTESTS, FETCH_MY_PARTICIPATING_CONTESTS
+    CANCEL_CONTEST_REGISTRATION, GET_CONTESTS, FETCH_MY_PARTICIPATING_CONTESTS, SELF_REGISTER_TASK
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -196,4 +196,12 @@ export const updateContestRegistration = (participation) => (dispatch) => {
 
 export const contestRegistrationFormReturn = () => (dispatch) => {
     dispatch({type: CANCEL_CONTEST_REGISTRATION, payload: null})
+}
+
+export const selfRegisterTask = (participation, navigationTask) => (dispatch) => {
+    dispatch({type: SELF_REGISTER_TASK, participation: participation, navigationTask: navigationTask})
+}
+
+export const selfRegisterTaskReturn = () => (dispatch) => {
+    dispatch({type: SELF_REGISTER_TASK, participation: null, navigationTask: null})
 }

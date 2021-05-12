@@ -34,7 +34,11 @@ import {
     DISPLAY_ABOUT_MODAL,
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
     REGISTER_FOR_CONTEST,
-    UPDATE_CONTEST_REGISTRATION, CANCEL_CONTEST_REGISTRATION, GET_CONTESTS, FETCH_MY_PARTICIPATING_CONTESTS
+    UPDATE_CONTEST_REGISTRATION,
+    CANCEL_CONTEST_REGISTRATION,
+    GET_CONTESTS,
+    FETCH_MY_PARTICIPATING_CONTESTS,
+    SELF_REGISTER_TASK
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -77,7 +81,9 @@ const initialState = {
     myParticipatingContests: [],
     currentContestRegistration: null,
     loadingMyParticipation: false,
-    loadingContests: false
+    loadingContests: false,
+    currentSelfRegisterTask: null,
+    currentSelfRegisterParticipation: null,
 };
 
 function rootReducer(state = initialState, action) {
@@ -447,7 +453,7 @@ function rootReducer(state = initialState, action) {
             visibleTaskDetails: {}
         })
     }
-    if (action.type===PUT_TEST_RESULT_SUCCESSFUL){
+    if (action.type === PUT_TEST_RESULT_SUCCESSFUL) {
         fetchContestResults(action.contestId)
         return state
     }
@@ -566,7 +572,13 @@ function rootReducer(state = initialState, action) {
             ...state,
             currentContestParticipation: action.payload
         })
-
+    }
+    if (action.type === SELF_REGISTER_TASK) {
+        return Object.assign({}, state, {
+            ...state,
+            currentSelfRegisterTask: action.navigationTask,
+            currentSelfRegisterParticipation: action.participation,
+        })
     }
     if (action.type === CANCEL_CONTEST_REGISTRATION) {
         return Object.assign({}, state, {

@@ -475,6 +475,8 @@ class NavigationTask(models.Model):
                                            help_text="The number of minutes from the finish point to the contestant should have landed")
     display_background_map = models.BooleanField(default=True,
                                                  help_text="If checked the online tracking map shows the mapping background. Otherwise the map will be blank.")
+    allow_self_management = models.BooleanField(default=False,
+                                                help_text="If checked, authenticated users will be allowed to set up themselves as a contestant after having registered for the contest.")
 
     @property
     def is_poker_run(self) -> bool:
@@ -1079,6 +1081,18 @@ class Contestant(models.Model):
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
         ordering = ("takeoff_time",)
+
+    def get_final_gate_time(self) -> datetime.datetime:
+        final_gate = self.navigation_task.route.landing_gate or self.navigation_task.route.waypoints[-1]
+        return self.gate_times[final_gate.name]
+
+    def calculate_finish_time(self) -> datetime.datetime:
+        print(self.gate_times)
+        print(self.navigation_task.route.landing_gate)
+        if self.navigation_task.route.landing_gate:
+            return self.gate_times[self.navigation_task.route.landing_gate.name]
+        return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
+            minutes=self.navigation_task.minutes_to_landing)
 
     @property
     def termination_request_key(self):

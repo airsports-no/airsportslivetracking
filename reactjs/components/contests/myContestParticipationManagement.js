@@ -4,13 +4,15 @@ import MyParticipatingEventsList from "./myParticipatingEventsList";
 import UpcomingContestsSignupTable from "../upcomingContestsSignupTable";
 import ContestRegistrationForm from "../contestRegistrationForm";
 import {fetchMyParticipatingContests} from "../../actions";
-import Navbar from "../navbar";
+import SelfRegistrationForm from "../navigationTaskStartForm";
 
 export const mapStateToProps = (state, props) => ({
     currentContestRegistration: state.currentContestRegistration,
     currentContestParticipation: state.currentContestParticipation,
     contests: state.contests,
     myParticipatingContests: state.myParticipatingContests,
+    currentSelfRegisterTask: state.currentSelfRegisterTask,
+    currentSelfRegisterParticipation: state.currentSelfRegisterParticipation
 })
 export const mapDispatchToProps = {
     fetchMyParticipatingContests
@@ -61,6 +63,18 @@ class ConnectedMyContestParticipationManagement extends Component {
                 alreadyRegistered = true
             }
         }
+        let mainDisplay = <div><h3>Upcoming contests</h3><UpcomingContestsSignupTable/></div>
+        if (contest) {
+            mainDisplay = <div>
+                <ContestRegistrationForm
+                    contest={contest} external={external}
+                    participation={this.props.currentContestParticipation}/></div>
+        } else if (this.props.currentSelfRegisterTask) {
+            mainDisplay = <div>
+                <SelfRegistrationForm navigationTask={this.props.currentSelfRegisterTask}
+                                      participation={this.props.currentSelfRegisterParticipation}/>
+            </div>
+        }
         return <div>
             <div className={"row"}>
                 <div className={"col-lg-4"}>
@@ -69,12 +83,7 @@ class ConnectedMyContestParticipationManagement extends Component {
                 </div>
                 <div className={"col-lg-8"}>
                     {alreadyRegistered ? <h3>You are already registered for that contest</h3> : null}
-                    {contest ? <div>
-
-                            <ContestRegistrationForm
-                                contest={contest} external={external}
-                                participation={this.props.currentContestParticipation}/></div> :
-                        <div><h3>Upcoming contests</h3><UpcomingContestsSignupTable/></div>}
+                    {mainDisplay}
                 </div>
             </div>
         </div>

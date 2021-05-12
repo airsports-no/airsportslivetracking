@@ -49,8 +49,8 @@ from display.forms import PrecisionImportRouteForm, WaypointForm, NavigationTask
     WaypointFormHelper, TaskTypeForm, ANRCorridorImportRouteForm, ANRCorridorScoreOverrideForm, \
     PrecisionScoreOverrideForm, TrackingDataForm, ContestTeamOptimisationForm, \
     AssignPokerCardForm, ChangeContestPermissionsForm, AddContestPermissionsForm, RouteCreationForm, \
-    LandingImportRouteForm, PNG, ShareForm
-from display.map_plotter import plot_route, get_basic_track
+    LandingImportRouteForm, PNG, ShareForm, SCALE_TO_FIT
+from display.map_plotter import plot_route, get_basic_track, A4
 from display.models import NavigationTask, Route, Contestant, Contest, Team, ContestantTrack, \
     Person, Aeroplane, Club, Crew, ContestTeam, Task, TaskSummary, ContestSummary, TaskTest, \
     TeamTestScore, TRACCAR, Scorecard, MyUser, PlayingCard, TRACKING_DEVICE, STARTINGPOINT, FINISHPOINT, ScoreLogEntry
@@ -59,7 +59,7 @@ from display.permissions import ContestPermissions, NavigationTaskContestPermiss
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
     ContestPermissionsWithoutObjects, ChangeContestKeyPermissions, TaskContestPermissions, TaskContestPublicPermissions, \
     TaskTestContestPublicPermissions, TaskTestContestPermissions, ContestPublicModificationPermissions, \
-    OrganiserPermission, ContestTeamContestPermissions
+    OrganiserPermission, ContestTeamContestPermissions, NavigationTaskSelfManagementPermissions
 from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedTeamSerialiser, \
@@ -72,7 +72,8 @@ from display.serialisers import ContestantTrackSerialiser, \
     NavigationTasksSummarySerialiser, TaskSummaryWithoutReferenceSerialiser, TeamTestScoreWithoutReferenceSerialiser, \
     TaskTestWithoutReferenceNestedSerialiser, TaskSerialiser, TaskTestSerialiser, ContestantSerialiser, \
     TrackAnnotationSerialiser, ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser, \
-    ContestTeamManagementSerialiser, SignupSerialiser, PersonSignUpSerialiser, SharingSerialiser
+    ContestTeamManagementSerialiser, SignupSerialiser, PersonSignUpSerialiser, SharingSerialiser, \
+    SelfManagementSerialiser
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
 from display.traccar_factory import get_traccar_instance
@@ -422,6 +423,22 @@ def get_contestant_map(request, pk):
             return response
     form = ContestantMapForm()
     return render(request, "display/map_form.html", {"form": form})
+
+
+@guardian_permission_required('display.view_contest', (Contest, "navigationtask__contestant__pk", "pk"))
+def get_contestant_default_map(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    map_image, pdf_image = plot_route(contestant.navigation_task, A4,
+                                      zoom_level=12,
+                                      landscape=LANDSCAPE,
+                                      contestant=contestant,
+                                      annotations=True,
+                                      waypoints_only=False, dpi=300,
+                                      scale=SCALE_TO_FIT,
+                                      map_source="/maptiles/Norway_N250",
+                                      line_width=1,
+                                      colour="#0000ff")
+    return HttpResponse(pdf_image, content_type='application/pdf')
 
 
 @guardian_permission_required('display.view_contest', (Contest, "navigationtask__pk", "pk"))
@@ -1612,7 +1629,8 @@ class ContestTeamViewSet(ModelViewSet):
 class NavigationTaskViewSet(ModelViewSet):
     queryset = NavigationTask.objects.all()
     serializer_classes = {
-        "share": SharingSerialiser
+        "share": SharingSerialiser,
+        "contestant_self_registration": SelfManagementSerialiser
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -1650,6 +1668,43 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         raise PermissionDenied("It is not possible to modify existing navigation tasks except to publish or hide them")
+
+    @action(detail=True, methods=["put", "delete"],
+            permission_classes=[permissions.IsAuthenticated & NavigationTaskSelfManagementPermissions & (
+                    NavigationTaskPublicPermissions | NavigationTaskContestPermissions)])
+    def contestant_self_registration(self, request, *args, **kwargs):
+        navigation_task = self.get_object()  # type: NavigationTask
+        if request.method == "PUT":
+            serialiser = self.get_serializer(data=request.data)
+            serialiser.is_valid(True)
+            contest_team = serialiser.validated_data["contest_team"]
+            print(contest_team)
+            starting_point_time = serialiser.validated_data["starting_point_time"].astimezone(
+                navigation_task.contest.time_zone)  # type: datetime
+            print(starting_point_time)
+            takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
+            existing_contestants = navigation_task.contestant_set.all()
+            if existing_contestants.exists():
+                contestant_number = max([item.contestant_number for item in existing_contestants]) + 1
+            else:
+                contestant_number = 1
+            print(contestant_number)
+            contestant = Contestant.objects.create(team=contest_team.team, takeoff_time=takeoff_time,
+                                                   navigation_task=navigation_task,
+                                                   tracker_start_time=takeoff_time - datetime.timedelta(minutes=10),
+                                                   finished_by_time=takeoff_time + datetime.timedelta(days=1),
+                                                   minutes_to_starting_point=navigation_task.minutes_to_starting_point,
+                                                   air_speed=contest_team.air_speed,
+                                                   contestant_number=contestant_number)
+            print(contestant)
+            contestant.finished_by_time = contestant.calculate_finish_time()
+            contestant.save()
+            return Response(status=status.HTTP_201_CREATED)
+        elif request.method == "DELETE":
+            # Delete all contestants that have not finished yet where I am the pilot
+            navigation_task.contestant_set.filter(finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+                                                  team__crew__member1__email=request.user.email).delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["put"])
     def share(self, request, *args, **kwargs):
