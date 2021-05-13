@@ -75,14 +75,13 @@ class ConnectedMyParticipatingEventsList extends Component {
                 <td>{task.name}</td>
                 <td>{task.future_contestants.length > 0 ? <div><a target={"_blank"} href={task.future_contestants[0].default_map_url}>Navigation map</a>
                     <div>Starting point
-                        time: {new Date(new Date(task.future_contestants[0].takeoff_time).getTime() + task.future_contestants[0].minutes_to_starting_point * 60000).toTimeString()}</div>
+                        time: {new Date(new Date(task.future_contestants[0].takeoff_time).getTime() + task.future_contestants[0].minutes_to_starting_point * 60000).toLocaleString()}</div>
 
                 </div> : null}</td>
                 <td>
                     {task.future_contestants.length > 0 ?
-                        <Button variant={"danger"} onClick={() => this.handleWithdrawTaskClick(this.state.currentParticipation.contest, task)}>Withdraw from
-                            task</Button> :
-                        <Button variant={"primary"} onClick={() => this.handleEnterClick(task)}>Start task</Button>}
+                        <Button variant={"danger"} onClick={() => this.handleWithdrawTaskClick(this.state.currentParticipation.contest, task)}>Cancel flight</Button> :
+                        <Button variant={"primary"} onClick={() => this.handleEnterClick(task)}>Start flight</Button>}
                 </td>
             </tr>
         }) : null

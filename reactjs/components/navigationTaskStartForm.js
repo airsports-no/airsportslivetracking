@@ -46,6 +46,7 @@ class ConnectedSelfRegistrationForm extends Component {
             initialValues: initialValues,
             validationSchema: this.schema,
             onSubmit: (formValues, {setSubmitting, setStatus, setErrors}) => {
+                formValues.starting_point_time.setSeconds(0)
                 let data = {
                     starting_point_time: formValues.starting_point_time.toISOString(),
                     contest_team: this.props.participation.id,

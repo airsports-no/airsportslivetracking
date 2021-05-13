@@ -59,7 +59,8 @@ from display.permissions import ContestPermissions, NavigationTaskContestPermiss
     ContestantNavigationTaskContestPermissions, RoutePermissions, ContestModificationPermissions, \
     ContestPermissionsWithoutObjects, ChangeContestKeyPermissions, TaskContestPermissions, TaskContestPublicPermissions, \
     TaskTestContestPublicPermissions, TaskTestContestPermissions, ContestPublicModificationPermissions, \
-    OrganiserPermission, ContestTeamContestPermissions, NavigationTaskSelfManagementPermissions
+    OrganiserPermission, ContestTeamContestPermissions, NavigationTaskSelfManagementPermissions, \
+    NavigationTaskPublicPutPermissions
 from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import ContestantTrackSerialiser, \
     ExternalNavigationTaskNestedTeamSerialiser, \
@@ -1671,13 +1672,15 @@ class NavigationTaskViewSet(ModelViewSet):
 
     @action(detail=True, methods=["put", "delete"],
             permission_classes=[permissions.IsAuthenticated & NavigationTaskSelfManagementPermissions & (
-                    NavigationTaskPublicPermissions | NavigationTaskContestPermissions)])
+                    NavigationTaskPublicPutPermissions | NavigationTaskContestPermissions)])
     def contestant_self_registration(self, request, *args, **kwargs):
         navigation_task = self.get_object()  # type: NavigationTask
         if request.method == "PUT":
             serialiser = self.get_serializer(data=request.data)
             serialiser.is_valid(True)
             contest_team = serialiser.validated_data["contest_team"]
+            if contest_team.team.crew.member1.email != request.user.email:
+                raise ValidationError("You cannot add a team where you are not the pilot")
             starting_point_time = serialiser.validated_data["starting_point_time"].astimezone(
                 navigation_task.contest.time_zone)  # type: datetime
             takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
