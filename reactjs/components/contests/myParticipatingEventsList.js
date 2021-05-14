@@ -96,12 +96,15 @@ class ConnectedMyParticipatingEventsList extends Component {
 
                     </div> : null}</td>
                 <td>
-                    {task.future_contestants.length > 0 ?
-                        <Button variant={"danger"}
-                                onClick={() => this.handleWithdrawTaskClick(currentParticipation.contest, task)}>Cancel
-                            flight</Button> :
-                        <Button variant={"primary"} onClick={() => this.handleEnterClick(currentParticipation, task)}>Start
-                            flight</Button>}
+                    {currentParticipation.can_edit ?
+                        task.future_contestants.length > 0 ?
+                            <Button variant={"danger"}
+                                    onClick={() => this.handleWithdrawTaskClick(currentParticipation.contest, task)}>Cancel
+                                flight</Button> :
+                            <Button variant={"primary"}
+                                    onClick={() => this.handleEnterClick(currentParticipation, task)}>Start
+                                flight</Button>
+                        : null}
                 </td>
             </tr>
         })
@@ -138,13 +141,16 @@ class ConnectedMyParticipatingEventsList extends Component {
                         details</Button>
                     <Button variant={"danger"}
                             onClick={() => this.handleWithdrawClick(currentParticipation)}>Withdraw</Button>
+
+                </div> : <b>Only pilots can edit contest participation</b>}
+                {taskRows.length > 0 ? <div>
                     <h3>Available tasks</h3>
                     <table className={"table table-condensed"}>
                         <tbody>
                         {taskRows}
                         </tbody>
                     </table>
-                </div> : <b>Only pilots can edit contest participation</b>}
+                </div> : null}
             </div>
         }
         return <Modal onHide={() => this.hideModal()}
