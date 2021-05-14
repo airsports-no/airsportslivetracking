@@ -35,6 +35,10 @@ class ConnectedContestRegistrationForm extends Component {
         this.props.contestRegistrationFormReturn()
     }
 
+    hideModal() {
+        this.props.contestRegistrationFormReturn()
+    }
+
     componentDidMount() {
         this.getClubOptions()
         this.getAircraftOptions()
@@ -149,81 +153,95 @@ class ConnectedContestRegistrationForm extends Component {
                 }
             }
         }
+        const form = <div>
+
+
+            <Formik {...formikProps}>
+                {props => (
+                    <Form onSubmit={props.handleSubmit} onAbort={() => this.props.history.push("/participation/")}>
+                        <Form.Group>
+                            <Form.Label>Copilot (optional)</Form.Label>
+                            <Typeahead id={"copilot_id"}
+                                       newSelectionPrefix={"Select co-pilot: "}
+                                       name={"copilot_id"}
+                                       options={props.values.personOptions}
+                                       isInvalid={!!props.errors.copilot_id}
+                                       defaultSelected={props.initialValues.copilot_id ? [{
+                                           id: this.props.participation.team.crew.member2.id,
+                                           label: this.props.participation.team.crew.member2.first_name + " " + this.props.participation.team.crew.member2.last_name + " (" + this.props.participation.team.crew.member2.email + ")"
+                                       }] : []}
+                                       onChange={e => props.setFieldValue("copilot_id", e.length > 0 ? e[0].id : null)}/>
+                            <ErrorMessage name={"copilot_id"} component={"div"}/>
+                        </Form.Group>
+                        <Form.Group>
+                            <Form.Label>Aircraft</Form.Label>
+                            <Typeahead id={"aircraft_registration"} allowNew
+                                       newSelectionPrefix={"Add new aircraft: "}
+                                       name={"aircraft_registration"}
+                                       options={props.values.aircraftOptions}
+                                       isInvalid={!!props.errors.aircraft_registration}
+                                       defaultSelected={[{label: props.initialValues.aircraft_registration}]}
+                                       onChange={e => props.setFieldValue("aircraft_registration", e.length > 0 ? e[0].label : null)}/>
+                            <ErrorMessage name={"aircraft_registration"} component={"div"}/>
+                        </Form.Group>
+                        <Form.Group>
+                            <Form.Label>Airspeed</Form.Label>
+                            <Form.Control type={"number"} name={"airspeed"} onChange={props.handleChange}
+                                          isInvalid={!!props.errors.airspeed} value={props.values.airspeed}
+                            />
+                            <ErrorMessage name={"airspeed"} component={"div"}/>
+
+                        </Form.Group>
+                        <Form.Group>
+                            <Form.Label>Club</Form.Label>
+                            <Typeahead id={"club_name"} allowNew
+                                       options={props.values.clubOptions}
+                                       name={"club_name"}
+                                       isInvalid={!!props.errors.club_name}
+                                       defaultSelected={[{
+                                           id: props.initialValues.club_name,
+                                           label: props.initialValues.club_name
+                                       }]}
+                                       onChange={e => props.setFieldValue("club_name", e.length > 0 ? e[0].customOption ? e[0].label : e[0].id : null)}/>
+                            <ErrorMessage name={"club_name"} component={"div"}/>
+                        </Form.Group>
+                        <Form.Group>
+                            <Button variant="primary" type="submit" disabled={props.isSubmitting}>
+                                Register
+                            </Button>
+                            <Button variant={"danger"} type={"button"}
+                                    onClick={() => {
+                                        if (!this.props.external) {
+                                            this.props.contestRegistrationFormReturn()
+                                        } else {
+                                            this.props.history.push("/participation/")
+                                        }
+                                    }}>Cancel</Button>
+                            {props.errors && _.has(props.errors, ["api"]) &&
+                            <div className="text-danger">{_.get(props.errors, ["api"])}</div>}
+                            {props.status && <div className="text-success">{props.status}</div>}
+                        </Form.Group>
+                    </Form>)}
+            </Formik>
+        </div>
 
         return (
-            <div>
-                {!this.props.participation ?
-                    <h2>Register for {this.props.contest.name}</h2> :
-                    <h2>Manage participation in {this.props.contest.name}</h2>}
-
-                <Formik {...formikProps}>
-                    {props => (
-                        <Form onSubmit={props.handleSubmit} onAbort={() => this.props.history.push("/participation/")}>
-                            <Form.Group>
-                                <Form.Label>Copilot (optional)</Form.Label>
-                                <Typeahead id={"copilot_id"}
-                                           newSelectionPrefix={"Select co-pilot: "}
-                                           name={"copilot_id"}
-                                           options={props.values.personOptions}
-                                           isInvalid={!!props.errors.copilot_id}
-                                           defaultSelected={props.initialValues.copilot_id ? [{
-                                               id: this.props.participation.team.crew.member2.id,
-                                               label: this.props.participation.team.crew.member2.first_name + " " + this.props.participation.team.crew.member2.last_name + " (" + this.props.participation.team.crew.member2.email + ")"
-                                           }] : []}
-                                           onChange={e => props.setFieldValue("copilot_id", e.length > 0 ? e[0].id : null)}/>
-                                <ErrorMessage name={"copilot_id"} component={"div"}/>
-                            </Form.Group>
-                            <Form.Group>
-                                <Form.Label>Aircraft</Form.Label>
-                                <Typeahead id={"aircraft_registration"} allowNew
-                                           newSelectionPrefix={"Add new aircraft: "}
-                                           name={"aircraft_registration"}
-                                           options={props.values.aircraftOptions}
-                                           isInvalid={!!props.errors.aircraft_registration}
-                                           defaultSelected={[{label: props.initialValues.aircraft_registration}]}
-                                           onChange={e => props.setFieldValue("aircraft_registration", e.length > 0 ? e[0].label : null)}/>
-                                <ErrorMessage name={"aircraft_registration"} component={"div"}/>
-                            </Form.Group>
-                            <Form.Group>
-                                <Form.Label>Airspeed</Form.Label>
-                                <Form.Control type={"number"} name={"airspeed"} onChange={props.handleChange}
-                                              isInvalid={!!props.errors.airspeed} value={props.values.airspeed}
-                                />
-                                <ErrorMessage name={"airspeed"} component={"div"}/>
-
-                            </Form.Group>
-                            <Form.Group>
-                                <Form.Label>Club</Form.Label>
-                                <Typeahead id={"club_name"} allowNew
-                                           options={props.values.clubOptions}
-                                           name={"club_name"}
-                                           isInvalid={!!props.errors.club_name}
-                                           defaultSelected={[{
-                                               id: props.initialValues.club_name,
-                                               label: props.initialValues.club_name
-                                           }]}
-                                           onChange={e => props.setFieldValue("club_name", e.length > 0 ? e[0].customOption ? e[0].label : e[0].id : null)}/>
-                                <ErrorMessage name={"club_name"} component={"div"}/>
-                            </Form.Group>
-                            <Form.Group>
-                                <Button variant="primary" type="submit" disabled={props.isSubmitting}>
-                                    Register
-                                </Button>
-                                <Button variant={"danger"} type={"button"}
-                                        onClick={() => {
-                                            if (!this.props.external) {
-                                                this.props.contestRegistrationFormReturn()
-                                            } else {
-                                                this.props.history.push("/participation/")
-                                            }
-                                        }}>Cancel</Button>
-                                {props.errors && _.has(props.errors, ["api"]) &&
-                                <div className="text-danger">{_.get(props.errors, ["api"])}</div>}
-                                {props.status && <div className="text-success">{props.status}</div>}
-                            </Form.Group>
-                        </Form>)}
-                </Formik>
-            </div>
+            <Modal onHide={() => this.hideModal()}
+                   show={true}
+                   aria-labelledby="contained-modal-title-vcenter">
+                <Modal.Header closeButton>
+                    <Modal.Title id="contained-modal-title-vcenter">
+                        {!this.props.participation ?
+                            <h2>Register for {this.props.contest.name}</h2> :
+                            <h2>Manage participation in {this.props.contest.name}</h2>}
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="show-grid">
+                    <Container>
+                        {form}
+                    </Container>
+                </Modal.Body>
+            </Modal>
         )
     }
 

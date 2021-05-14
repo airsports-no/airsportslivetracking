@@ -61,13 +61,6 @@ class ConnectedMyContestParticipationManagement extends Component {
                 alreadyRegistered = true
             }
         }
-        let mainDisplay = <div><h3>Upcoming contests</h3><UpcomingContestsSignupTable/></div>
-        if (contest) {
-            mainDisplay = <div>
-                <ContestRegistrationForm
-                    contest={contest} external={external}
-                    participation={this.props.currentContestParticipation}/></div>
-        }
         return <div>
             <div className={"row"}>
                 <div className={"col-lg-4"}>
@@ -76,8 +69,10 @@ class ConnectedMyContestParticipationManagement extends Component {
                 </div>
                 <div className={"col-lg-8"}>
                     {alreadyRegistered ? <h3>You are already registered for that contest</h3> : null}
-                    {mainDisplay}
-                </div>
+                    <h3>Upcoming contests</h3><UpcomingContestsSignupTable/></div>
+                {contest ? <ContestRegistrationForm
+                    contest={contest} external={external}
+                    participation={this.props.currentContestParticipation}/> : null}
             </div>
         </div>
     }
