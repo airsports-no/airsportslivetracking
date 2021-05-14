@@ -57,6 +57,7 @@ class ConnectedMyParticipatingEventsList extends Component {
 
     handleWithdrawClick(currentParticipation) {
         axios.delete("/api/v1/contests/" + currentParticipation.contest.id + "/withdraw/").then((res) => {
+            this.setState({displayManagementModal: false, currentParticipation: null})
             this.props.fetchMyParticipatingContests()
         }).catch((e) => {
             console.error(e);
