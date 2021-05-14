@@ -11,9 +11,9 @@
         <a href="{% url 'contest_details' object.contest.pk %}">Back to contest</a> |
         <a href="{% url 'frontend_view_map' object.pk %}">Track</a> |
         <a href="{% url 'navigationtask_rules' object.pk %}">Rules</a> |
-            <a href="/resultsservice/{{ object.contest.pk }}/taskresults/">Contest results</a>
+        <a href="/resultsservice/{{ object.contest.pk }}/taskresults/">Contest results</a> |
         {% if "change_contest" in contest_permissions %}
-            <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a>|
+            <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a> |
             <a href="{% url 'navigationtask_removecontestants' object.pk %}">Remove contestants</a> |
         {% endif %}
         <a href="{% url 'navigationtask_contestantstimeline' object.pk %}">Timeline</a> |

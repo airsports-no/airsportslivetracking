@@ -32,7 +32,7 @@
                     {% if user.is_superuser %}
                         | <a href="{% url 'person_update' object.team.crew.member1.pk %}">Edit crewmember one</a>
                         {% if object.team.crew.member2 %}
-                            <a href="{% url 'person_update' object.team.crew.member2.pk %}">Edit crewmember two</a>
+                            | <a href="{% url 'person_update' object.team.crew.member2.pk %}">Edit crewmember two</a>
                         {% endif %}
                     {% endif %}
 
