@@ -11,8 +11,6 @@ export const mapStateToProps = (state, props) => ({
     currentContestParticipation: state.currentContestParticipation,
     contests: state.contests,
     myParticipatingContests: state.myParticipatingContests,
-    currentSelfRegisterTask: state.currentSelfRegisterTask,
-    currentSelfRegisterParticipation: state.currentSelfRegisterParticipation
 })
 export const mapDispatchToProps = {
     fetchMyParticipatingContests
@@ -69,11 +67,6 @@ class ConnectedMyContestParticipationManagement extends Component {
                 <ContestRegistrationForm
                     contest={contest} external={external}
                     participation={this.props.currentContestParticipation}/></div>
-        } else if (this.props.currentSelfRegisterTask) {
-            mainDisplay = <div>
-                <SelfRegistrationForm navigationTask={this.props.currentSelfRegisterTask}
-                                      participation={this.props.currentSelfRegisterParticipation}/>
-            </div>
         }
         return <div>
             <div className={"row"}>
