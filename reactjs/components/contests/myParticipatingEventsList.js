@@ -86,7 +86,7 @@ class ConnectedMyParticipatingEventsList extends Component {
         const currentParticipation = this.props.myParticipatingContests.find((participation) => {
             return participation.id === this.state.currentParticipation
         })
-        const taskRows = currentParticipation.contest.navigationtask_set.map((task) => {
+        const taskRows = currentParticipation.contest.navigationtask_set.sort((a, b) => (a.start_time > b.start_time) ? 1 : ((b.start_time > a.start_time) ? -1 : 0)).reverse().map((task) => {
             return <tr key={task.pk}>
                 <td>{task.name}</td>
                 <td>{task.future_contestants.length > 0 ?
