@@ -1747,6 +1747,36 @@ class ClubViewSet(ModelViewSet):
     http_method_names = ['get']
 
 
+class ContestantTeamIdViewSet(ModelViewSet):
+    queryset = Contestant.objects.all()
+    permission_classes = [
+        ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)]
+    serializer_classes = {
+    }
+    default_serialiser_class = ContestantSerialiser
+
+    def get_serializer_class(self):
+        return self.serializer_classes.get(self.action, self.default_serialiser_class)
+
+    def get_queryset(self):
+        navigation_task_id = self.kwargs.get("navigationtask_pk")
+        contests = get_objects_for_user(self.request.user, "display.change_contest",
+                                        klass=Contest, accept_global_perms=False)
+        return Contestant.objects.filter(Q(navigation_task__contest__in=contests) | Q(navigation_task__is_public=True,
+                                                                                      navigation_task__contest__is_public=True)).filter(
+            navigation_task_id=navigation_task_id)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        try:
+            navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+            context.update({"navigation_task": navigation_task})
+        except Http404:
+            # This has to be handled where we retrieve the context
+            pass
+        return context
+
+
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     permission_classes = [
