@@ -1389,7 +1389,8 @@ class UserPersonViewSet(GenericViewSet):
 
     @action(detail=False, methods=["get"])
     def my_participating_contests(self, request, *args, **kwargs):
-        available_contests = Contest.visible_contests_for_user(request.user)
+        available_contests = Contest.visible_contests_for_user(request.user).filter(
+            finish_time__gte=datetime.datetime.now(datetime.timezone.utc))
         print(available_contests)
         print(self.get_object())
         contest_teams = ContestTeam.objects.filter(

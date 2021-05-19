@@ -19,7 +19,7 @@ axios.defaults.xsrfHeaderName = 'X-CSRFToken'
 
 export const mapStateToProps = (state, props) => ({
     myParticipatingContests: state.myParticipatingContests.filter((contestTeam) => {
-        return new Date(contestTeam.contest.start_time) >= new Date()
+        return new Date(contestTeam.contest.finish_time) >= new Date()
     }),
     loadingMyParticipation: state.loadingMyParticipation,
     currentSelfRegisterTask: state.currentSelfRegisterTask,
