@@ -354,7 +354,8 @@ def contestant_cards_list(request, pk):
     cards = sorted(cards, key=lambda c: c.waypoint_index)
     relative_score, hand_description = PlayingCard.get_relative_score(contestant)
     return render(request, "display/contestant_cards_list.html",
-                  {"cards": cards, "contestant": contestant, "form": form, "current_relative_score": f"{relative_score:.2f}",
+                  {"cards": cards, "contestant": contestant, "form": form,
+                   "current_relative_score": f"{relative_score:.2f}",
                    "current_hand": hand_description})
 
 
@@ -1020,7 +1021,10 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             route = create_landing_line_from_kml("route", data)
         # Cheque for gate polygons that do not match a turning point
         waypoint_names = [gate.name for gate in route.waypoints]
-        for gate_polygon in route.prohibited_set.filter(type = "gate"):
+        if route.prohibited_set.filter(type="gate"):
+            if len(waypoint_names) != len(set(waypoint_names)):
+                raise ValidationError("You cannot have multiple waypoints with the same name if you use gate polygons")
+        for gate_polygon in route.prohibited_set.filter(type="gate"):
             if gate_polygon.name not in waypoint_names:
                 route.delete()
                 raise ValidationError(f"Gate polygon '{gate_polygon.name}' is not matched by any turning point names.")
