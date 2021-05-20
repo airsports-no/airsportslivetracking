@@ -1,4 +1,4 @@
-PLAYING_CARDS = (
+PLAYING_CARDS = [
     # Hearts
     ("Ah", "Ace of hearts"),
     ("Kh", "King of hearts"),
@@ -55,4 +55,4 @@ PLAYING_CARDS = (
     ("4s", "4 of spades"),
     ("3s", "3 of spades"),
     ("2s", "2 of spades"),
-)
+]

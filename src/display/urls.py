@@ -11,7 +11,7 @@ from display.views import frontend_view_map, \
     ContestTeamTrackingUpdate, manifest, \
     tracking_qr_code_view, get_contestant_map, get_navigation_task_map, add_contest_teams_to_navigation_task, \
     clear_future_contestants, render_contestants_timeline, get_contestant_schedule, global_map, ContestDetailView, \
-    deal_card_to_contestant, list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
+    list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test, \
     clear_results_service, delete_score_item, \
     terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules, frontend_playback_map, \
@@ -56,7 +56,6 @@ urlpatterns = [
     path('contestant/<int:pk>/defaultmap/', get_contestant_default_map, name="contestant_default_map"),
     path('contestant/<int:pk>/rules/', get_contestant_rules, name="contestant_rules"),
     path('contestant/<int:pk>/stop_calculator/', terminate_contestant_calculator, name="contestant_stop_calculator"),
-    path('contestant/<int:pk>/deal_card/', deal_card_to_contestant, name="contestant_deal_card"),
     path('contestant/<int:pk>/list_cards/', contestant_cards_list, name="contestant_cards_list"),
     path('contestant/<int:pk>/remove_card/<int:card_pk>/', contestant_card_remove, name="contestant_card_remove"),
     path('contestant/<int:pk>/update/', ContestantUpdateView.as_view(), name="contestant_update"),

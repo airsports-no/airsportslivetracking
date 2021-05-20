@@ -1494,6 +1494,11 @@ class ContestantTrack(models.Model):
 class PlayingCard(models.Model):
     contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
     card = models.CharField(max_length=2, choices=PLAYING_CARDS)
+    waypoint_name = models.CharField(max_length=50, blank=True, null=True)
+    waypoint_index = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.card} for {self.contestant} at {self.waypoint_name} (waypoint {self.waypoint_index})"
 
     @classmethod
     def get_random_unique_card(cls, contestant: Contestant) -> str:
@@ -1543,8 +1548,9 @@ class PlayingCard(models.Model):
             ws.transmit_playing_cards(contestant)
 
     @classmethod
-    def add_contestant_card(cls, contestant: Contestant, card: str, waypoint: str):
-        poker_card = cls.objects.create(contestant=contestant, card=card)
+    def add_contestant_card(cls, contestant: Contestant, card: str, waypoint: str, waypoint_index: int):
+        poker_card = cls.objects.create(contestant=contestant, card=card, waypoint_name=waypoint,
+                                        waypoint_index=waypoint_index)
         relative_score, hand_description = cls.get_relative_score(contestant)
         message = "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description)
         entry = ScoreLogEntry.create_and_push(contestant=contestant, time=datetime.datetime.now(datetime.timezone.utc),

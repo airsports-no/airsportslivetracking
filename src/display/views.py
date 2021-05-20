@@ -319,8 +319,43 @@ def contestant_card_remove(request, pk, card_pk):
 @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 def contestant_cards_list(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
-    cards = contestant.playingcard_set.all().order_by('card')
-    return render(request, "display/contestant_cards_list.html", {"cards": cards, "contestant": contestant})
+    waypoint_names = [waypoint.name for waypoint in contestant.navigation_task.route.waypoints]
+
+    if request.method == "POST":
+        form = AssignPokerCardForm(request.POST)
+        form.fields["waypoint"].choices = [(str(index), item.name) for index, item in
+                                           enumerate(contestant.navigation_task.route.waypoints)]
+        if form.is_valid():
+            waypoint_index = int(form.cleaned_data["waypoint"])
+            waypoint_name = waypoint_names[waypoint_index]
+            card = form.cleaned_data["playing_card"]
+            random_card = card == "random"
+            if random_card:
+                card = PlayingCard.get_random_unique_card(contestant)
+            PlayingCard.add_contestant_card(contestant, card, waypoint_name, waypoint_index)
+    cards = contestant.playingcard_set.all().order_by('pk')
+    for card in cards:
+        print(card)
+    try:
+        latest_waypoint_index = max([card.waypoint_index for card in cards])
+    except ValueError:
+        latest_waypoint_index = -1
+    print(latest_waypoint_index)
+    try:
+        next_waypoint_name = waypoint_names[latest_waypoint_index + 1]
+    except IndexError:
+        next_waypoint_name = None
+    print(next_waypoint_name)
+    form = AssignPokerCardForm()
+    form.fields["waypoint"].choices = [(str(index), item.name) for index, item in
+                                       enumerate(contestant.navigation_task.route.waypoints)]
+    if next_waypoint_name is not None:
+        form.fields["waypoint"].initial = str(latest_waypoint_index + 1)
+    cards = sorted(cards, key=lambda c: c.waypoint_index)
+    relative_score, hand_description = PlayingCard.get_relative_score(contestant)
+    return render(request, "display/contestant_cards_list.html",
+                  {"cards": cards, "contestant": contestant, "form": form, "current_relative_score": f"{relative_score:.2f}",
+                   "current_hand": hand_description})
 
 
 @guardian_permission_required('display.change_contest', (Contest, "pk", "pk"))
@@ -367,27 +402,6 @@ def share_navigation_task(request, pk):
         initial = ShareForm.PRIVATE
     form = ShareForm(initial={"publicity": initial})
     return render(request, "display/share_navigationtask_form.html", {"form": form, "navigation_task": navigation_task})
-
-
-@guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
-def deal_card_to_contestant(request, pk):
-    contestant = get_object_or_404(Contestant, pk=pk)
-    if request.method == "POST":
-        form = AssignPokerCardForm(request.POST)
-        form.fields["waypoint"].choices = [(item.name, item.name) for item in
-                                           contestant.navigation_task.route.waypoints]
-        if form.is_valid():
-            waypoint = form.cleaned_data["waypoint"]
-            card = form.cleaned_data["playing_card"]
-            random_card = form.cleaned_data["random_card"]
-            if random_card:
-                card = PlayingCard.get_random_unique_card(contestant)
-            PlayingCard.add_contestant_card(contestant, card, waypoint)
-            return redirect(reverse("contestant_cards_list", kwargs={"pk": contestant.pk}))
-    form = AssignPokerCardForm()
-    form.fields["waypoint"].choices = [(item.name, item.name) for item in
-                                       contestant.navigation_task.route.waypoints]
-    return render(request, "display/deal_card_form.html", {"form": form, "contestant": contestant})
 
 
 # @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
