@@ -1,5 +1,8 @@
+from shapely.geometry import Polygon, Point
+
+import cartopy.crs as ccrs
 import datetime
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 
 from display.coordinate_utilities import cross_track_distance, along_track_distance, calculate_distance_lat_lon, \
     calculate_bearing
@@ -50,3 +53,27 @@ def round_time(dt=None, round_to=60):
     seconds = (dt.replace(tzinfo=None) - dt.min).seconds
     rounding = (seconds + round_to / 2) // round_to * round_to
     return dt + datetime.timedelta(0, rounding - seconds, -dt.microsecond)
+
+
+class PolygonHelper:
+    def __init__(self):
+        self.pc = ccrs.PlateCarree()
+        self.epsg = ccrs.epsg(3857)
+
+    def build_polygon(self, zone):
+        line = []
+        for element in zone.path:
+            line.append(self.epsg.transform_point(*list(reversed(element)), ccrs.PlateCarree()))
+        return Polygon(line)
+
+    def check_inside_polygons(self, polygons: Dict[str, Polygon], latitude, longitude) -> List[str]:
+        """
+        Returns a list of names of the prohibited zone is the position is inside
+        """
+        x, y = self.epsg.transform_point(longitude, latitude, self.pc)
+        p = Point(x, y)
+        incursions = []
+        for name, zone in polygons.items():
+            if zone.contains(p):
+                incursions.append(name)
+        return incursions

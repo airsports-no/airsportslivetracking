@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 from django.test import TransactionTestCase
 
 from display.calculators.gatekeeper import Gatekeeper
+from display.calculators.gatekeeper_route import GatekeeperRoute
 from display.calculators.positions_and_gates import Position
 from display.convert_flightcontest_gpx import create_precision_route_from_csv
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Contestant, Person, Team
@@ -48,7 +49,7 @@ class TestInterpolation(TransactionTestCase):
 
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def test_no_interpolation(self, p):
-        gatekeeper = Gatekeeper(self.contestant, Mock(), [])
+        gatekeeper = GatekeeperRoute(self.contestant, Mock(), [])
         start_position = Position("2020-01-01T00:00:00Z", 60, 11, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
         next_position = Position("2020-01-01T00:00:02Z", 60, 12, 0, 0, 0, 0)
@@ -58,7 +59,7 @@ class TestInterpolation(TransactionTestCase):
 
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def test_interpolation(self, p):
-        gatekeeper = Gatekeeper(self.contestant, Mock(), [])
+        gatekeeper = GatekeeperRoute(self.contestant, Mock(), [])
         start_position = Position("2020-01-01T00:00:00Z", 60, 11, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
         next_position = Position("2020-01-01T00:00:05Z", 60, 12, 0, 0, 0, 0)

@@ -170,13 +170,15 @@ class TestContestantGatesCalculation(APITestCase):
     def test_my_participation(self, p):
         with open("display/tests/NM.csv", "r") as file:
             route = create_precision_route_from_csv("navigation_task", file.readlines()[1:], True)
+        self.contest.finish_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+        self.contest.save()
         another_navigation_task = NavigationTask.objects.create(name="no self management",
                                                                 scorecard=self.scorecard,
                                                                 minutes_to_starting_point=5,
                                                                 minutes_to_landing=20,
                                                                 route=route, contest=self.contest,
-                                                                start_time=self.navigation_task_start_time,
-                                                                finish_time=self.navigation_task_finish_time,
+                                                                start_time=self.navigation_task.start_time,
+                                                                finish_time=self.navigation_task.finish_time,
                                                                 allow_self_management=False)
         self.client.force_login(user=self.user_owner)
         start_time = datetime.datetime.now(datetime.timezone.utc)
@@ -199,4 +201,5 @@ class TestContestantGatesCalculation(APITestCase):
         self.assertEqual("NM navigation test", data["contest"]["navigationtask_set"][0]["name"])
         self.assertEqual(1, len(data["contest"]["navigationtask_set"][0]["future_contestants"]))
         self.assertEqual((start_time - datetime.timedelta(minutes=self.navigation_task.minutes_to_starting_point)),
-                         dateutil.parser.parse(data["contest"]["navigationtask_set"][0]["future_contestants"][0]["takeoff_time"]))
+                         dateutil.parser.parse(
+                             data["contest"]["navigationtask_set"][0]["future_contestants"][0]["takeoff_time"]))

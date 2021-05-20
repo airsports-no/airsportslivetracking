@@ -233,9 +233,12 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
     route.save()
     # Create prohibited zones
     for name in features.keys():
-        if name.startswith("prohibited_"):
+        try:
             zone_type, zone_name = name.split("_")
-            Prohibited.objects.create(name=zone_name, route=route, path=features[name], type=zone_type)
+            if zone_type in ("prohibited", "info", "gate"):
+                Prohibited.objects.create(name=zone_name, route=route, path=features[name], type=zone_type)
+        except ValueError:
+            pass
 
 
 def create_precision_default_route_from_kml(input_kml) -> Route:

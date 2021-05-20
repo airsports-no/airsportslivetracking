@@ -1,7 +1,7 @@
 import datetime
 import logging
 import threading
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from multiprocessing.queues import Queue
 from queue import Empty
 from typing import List, TYPE_CHECKING, Optional, Callable, Tuple
@@ -45,7 +45,7 @@ LOOP_TIME = 60
 CONTESTANT_REFRESH_INTERVAL = datetime.timedelta(seconds=30)
 
 
-class Gatekeeper:
+class Gatekeeper(ABC):
     GATE_SCORE_TYPE = "gate_score"
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
