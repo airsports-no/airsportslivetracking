@@ -104,7 +104,7 @@ def load_features_from_kml(input_kml) -> Dict:
     place_marks = parse_placemarks(features)
     lines = {}
     for name, mark in place_marks:
-        lines[name.lower()] = mark
+        lines[name] = mark
     print(lines)
     return lines
 
