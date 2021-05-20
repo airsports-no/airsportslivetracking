@@ -1018,6 +1018,12 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             data = self.get_cleaned_data_for_step("landing_route_import")["file"]
             data.seek(0)
             route = create_landing_line_from_kml("route", data)
+        # Cheque for gate polygons that do not match a turning point
+        waypoint_names = [gate.name for gate in route.waypoints]
+        for gate_polygon in route.prohibited_set.filter(type = "gate"):
+            if gate_polygon.name not in waypoint_names:
+                route.delete()
+                raise ValidationError(f"Gate polygon '{gate_polygon.name}' is not matched by any turning point names.")
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
         # Build score overrides
