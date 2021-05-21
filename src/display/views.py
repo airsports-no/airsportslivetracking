@@ -1020,7 +1020,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             data.seek(0)
             route = create_landing_line_from_kml("route", data)
         # Cheque for gate polygons that do not match a turning point
-        waypoint_names = [gate.name for gate in route.waypoints]
+        waypoint_names = [gate.name for gate in route.waypoints if gate.type != "secret"]
         if route.prohibited_set.filter(type="gate"):
             if len(waypoint_names) != len(set(waypoint_names)):
                 raise ValidationError("You cannot have multiple waypoints with the same name if you use gate polygons")
