@@ -1023,6 +1023,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         waypoint_names = [gate.name for gate in route.waypoints if gate.type != "secret"]
         if route.prohibited_set.filter(type="gate"):
             if len(waypoint_names) != len(set(waypoint_names)):
+                route.delete()
                 raise ValidationError("You cannot have multiple waypoints with the same name if you use gate polygons")
         for gate_polygon in route.prohibited_set.filter(type="gate"):
             if gate_polygon.name not in waypoint_names:
