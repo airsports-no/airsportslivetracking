@@ -25,6 +25,7 @@ class GatekeeperPoker(Gatekeeper):
         self.sorted_polygons = [(polygon_name, polygon, index) for index, gate_name in enumerate(self.waypoint_names)
                                 for
                                 polygon_name, polygon in self.gate_polygons.items() if polygon_name == gate_name]
+        self.first_gate = True
 
     def check_termination(self):
         super().check_termination()
@@ -34,6 +35,7 @@ class GatekeeperPoker(Gatekeeper):
             if not already_terminated:
                 logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
             self.track_terminated = True
+            self.contestant.contestanttrack.updates_current_state("Finished")
 
     def check_gates(self):
         if len(self.sorted_polygons) > 0:
@@ -45,3 +47,6 @@ class GatekeeperPoker(Gatekeeper):
                 PlayingCard.add_contestant_card(self.contestant, PlayingCard.get_random_unique_card(self.contestant),
                                                 polygon_name, waypoint_index)
                 self.sorted_polygons.pop(0)
+                if self.first_gate:
+                    self.contestant.contestanttrack.updates_current_state("Tracking")
+                    self.first_gate = False

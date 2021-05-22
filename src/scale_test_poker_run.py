@@ -62,7 +62,9 @@ def load_data_traccar(tracks, offset=30, leadtime=0):
         requests.post("http://" + server + '/?' + urlencode(params))
 
     remaining = True
+    count = 0
     while remaining:
+        count += 1
         remaining = False
         start = time.time()
         for tracking_id, positions in tracks.items():
@@ -71,7 +73,12 @@ def load_data_traccar(tracks, offset=30, leadtime=0):
                 send(tracking_id, time.mktime(stamp.timetuple()), latitude, longitude, 0)
             remaining = remaining or len(positions) > 0
         finish = time.time()
-        print(f"Cycle duration: {finish-start:.02f}")
+        duration = finish - start
+        if duration < 1:
+            time.sleep(1 - duration)
+        if count%10==0:
+            print(f"Cycle duration: {finish - start:.02f}")
+
 
 navigation_task = NavigationTask.objects.get(pk=314)
 track = load_traccar_track("/data/tracks/espen_poker.csv")
