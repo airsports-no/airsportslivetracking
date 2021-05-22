@@ -71,7 +71,7 @@ def load_data_traccar(tracks, offset=30, leadtime=0):
 
 
 navigation_task = NavigationTask.objects.get(pk=314)
-track = load_track_points_traccar_csv(load_traccar_track("/data/tracks/espen_poker.csv"))
+track = load_traccar_track("/data/tracks/espen_poker.csv")
 actual_start_time = datetime.datetime.now(datetime.timezone.utc)
 current_start_time = track[0][0]
 start_difference = actual_start_time - current_start_time
