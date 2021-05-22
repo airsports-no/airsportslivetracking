@@ -38,7 +38,7 @@ import {
     CANCEL_CONTEST_REGISTRATION,
     GET_CONTESTS,
     FETCH_MY_PARTICIPATING_CONTESTS,
-    SELF_REGISTER_TASK
+    SELF_REGISTER_TASK, TOGGLE_OPEN_AIP
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -84,6 +84,7 @@ const initialState = {
     loadingContests: false,
     currentSelfRegisterTask: null,
     currentSelfRegisterParticipation: null,
+    displayOpenAip: false
 };
 
 function rootReducer(state = initialState, action) {
@@ -588,7 +589,12 @@ function rootReducer(state = initialState, action) {
         })
 
     }
-
+    if (action.type === TOGGLE_OPEN_AIP) {
+        return Object.assign({}, state, {
+            ...state,
+            displayOpenAip: !state.displayOpenAip
+        })
+    }
     return state;
 }
 

@@ -25,12 +25,22 @@ import LandingRenderer from "./landingRenderer";
 import ContestRankTable from "../contestRankTable";
 
 const L = window['L']
+const OpenAIP = L.tileLayer('http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}', {
+    attribution: '<a href="https://www.openaip.net/">openAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
+    ext: 'png',
+    minZoom: 4,
+    maxZoom: 14,
+    tms: true,
+    // detectRetina: true,
+    subdomains: '12'
+});
 
 
 export const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
     currentDisplay: state.currentDisplay,
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
+    displayOpenAip: state.displayOpenAip,
 })
 export const mapDispatchToProps = {
     dispatchContestantData,
@@ -211,6 +221,11 @@ class ConnectedNavigationTask extends Component {
         if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map) {
             this.fixMapBackground()
         }
+        if (this.props.displayOpenAip) {
+            OpenAIP.addTo(this.map)
+        } else {
+            OpenAIP.removeFrom(this.map)
+        }
 
     }
 
@@ -280,15 +295,18 @@ class ConnectedNavigationTask extends Component {
             const colourMap = this.buildColourMap()
             let display = <div/>
             if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
-                if(this.props.displayExpandedTrackingTable){
-                    display = <ContestRankTable colourMap={colourMap} contestId={this.props.contestId} navigationTaskId={this.props.navigationTaskId}
-                                               numberOfContestants={this.props.navigationTask.contestant_set.length}/>
-                }else {
-                    display = <ContestantRankTable colourMap={colourMap} scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker")?2:0}
+                if (this.props.displayExpandedTrackingTable) {
+                    display = <ContestRankTable colourMap={colourMap} contestId={this.props.contestId}
+                                                navigationTaskId={this.props.navigationTaskId}
+                                                numberOfContestants={this.props.navigationTask.contestant_set.length}/>
+                } else {
+                    display = <ContestantRankTable colourMap={colourMap}
+                                                   scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker") ? 2 : 0}
                                                    numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                 }
             } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
-                display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId} scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker")?2:0}/>
+                display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}
+                                                    scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker") ? 2 : 0}/>
                 this.props.shrinkTrackingTable();
             } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
                 display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}

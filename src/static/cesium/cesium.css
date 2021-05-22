@@ -564,6 +564,21 @@ tr.hidden {
 }
 
 
+.openAipLink {
+    /*height: 80px;*/
+    /*width: 30px;*/
+    top: 110px;
+    right: 15px;
+    position: fixed;
+    z-index: 2;
+    /*color: #e01b1c;*/
+    /*font-size: large;*/
+    /*background-color: #666666cc;*/
+    /*border-radius: 5px;*/
+    /*padding: 0 5px;*/
+}
+
+
 .menuButtonImage {
 
 }

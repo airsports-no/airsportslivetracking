@@ -33,7 +33,7 @@ import {
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
     REGISTER_FOR_CONTEST,
     UPDATE_CONTEST_REGISTRATION,
-    CANCEL_CONTEST_REGISTRATION, GET_CONTESTS, FETCH_MY_PARTICIPATING_CONTESTS, SELF_REGISTER_TASK
+    CANCEL_CONTEST_REGISTRATION, GET_CONTESTS, FETCH_MY_PARTICIPATING_CONTESTS, SELF_REGISTER_TASK, TOGGLE_OPEN_AIP
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -204,4 +204,8 @@ export const selfRegisterTask = (participation, navigationTask) => (dispatch) =>
 
 export const selfRegisterTaskReturn = () => (dispatch) => {
     dispatch({type: SELF_REGISTER_TASK, participation: null, navigationTask: null})
+}
+
+export const toggleDisplayOpenAip = () => (dispatch) => {
+    dispatch({type: TOGGLE_OPEN_AIP})
 }

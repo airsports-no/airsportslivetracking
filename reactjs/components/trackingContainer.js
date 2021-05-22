@@ -10,11 +10,11 @@ import {
     halfHeightTable,
     hideLowerThirds,
     setDisplay,
-    shrinkTrackingTable, toggleExplicitlyDisplayAllTracks
+    shrinkTrackingTable, toggleDisplayOpenAip, toggleExplicitlyDisplayAllTracks
 } from "../actions";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import Disclaimer from "./disclaimer";
-import {mdiGoKartTrack, mdiMagnify, mdiPodium} from "@mdi/js";
+import {mdiAirport, mdiGoKartTrack, mdiMagnify, mdiPodium} from "@mdi/js";
 import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
 
@@ -139,8 +139,12 @@ class ConnectedTrackingContainer extends Component {
                             </a>
                             <Disclaimer/>
                             <div className={"trackImage"}>
-                                <Icon path={mdiGoKartTrack} title={"Logout"} size={2} color={"#e01b1c"}
+                                <Icon path={mdiGoKartTrack} title={"Track"} size={2} color={"#e01b1c"}
                                       onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
+                            </div>
+                            <div className={"openAipLink"}>
+                                <Icon path={mdiAirport} title={"OpenAIP"} size={2} color={"#e01b1c"}
+                                      onClick={() => this.props.toggleDisplayOpenAip()}/>
                             </div>
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             <div id="cesiumContainer"/>
@@ -166,6 +170,7 @@ const
         hideLowerThirds,
         halfHeightTable,
         fullHeightTable,
-        toggleExplicitlyDisplayAllTracks
+        toggleExplicitlyDisplayAllTracks,
+        toggleDisplayOpenAip
     })(ConnectedTrackingContainer)
 export default TrackingContainer
