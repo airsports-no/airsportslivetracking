@@ -442,6 +442,12 @@ class NavigationTask(models.Model):
         (POKER, "Poker run"),
         (LANDING, "Landing")
     )
+    DESCENDING = "desc"
+    ASCENDING = "asc"
+    SORTING_DIRECTION = (
+        (DESCENDING, "Descending"),
+        (ASCENDING, "Ascending")
+    )
     name = models.CharField(max_length=200)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
     route = models.OneToOneField(Route, on_delete=models.PROTECT)
@@ -450,6 +456,9 @@ class NavigationTask(models.Model):
                                       lambda: ", ".join([str(item) for item in Scorecard.objects.all()])))
     track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True, blank=True)
     gate_score_override = models.ManyToManyField("GateScoreOverride", blank=True)
+    score_sorting_direction = models.CharField(default=ASCENDING, choices=SORTING_DIRECTION,
+                                               help_text="Whether the lowest (ascending) or highest (descending) score is the best result",
+                                               max_length=50, blank=True)
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have")
     finish_time = models.DateTimeField(

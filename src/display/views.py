@@ -1093,6 +1093,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         if step == "precision_override":
             scorecard = self.get_cleaned_data_for_step("task_content")["scorecard"]
             return PrecisionScoreOverrideForm.extract_default_values_from_scorecard(scorecard)
+        if step == "task_content":
+            return {"score_sorting_direction": self.contest.summary_score_sorting_direction}
         return {}
 
 

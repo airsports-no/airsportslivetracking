@@ -107,7 +107,7 @@ class ConnectedContestantRankTable extends Component {
                 classes: "align-middle",
                 sort: true,
                 formatter: (cell, row) => {
-                    if (!row.hasStarted){
+                    if (!row.hasStarted) {
                         return "--"
                     }
                     return cell.toFixed(this.props.scoreDecimals)
@@ -243,7 +243,9 @@ class ConnectedContestantRankTable extends Component {
         // Initially simply reversed the list depending on ascending or descending in the scorecard
         // May be later support more complex scoring descriptions
         contestants.sort(compareScore)
-
+        if (this.props.navigationTask.score_sorting_direction === "desc") {
+            contestants.reverse()
+        }
         return contestants.map((contestant, index) => {
             const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
             return {

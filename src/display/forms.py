@@ -351,7 +351,7 @@ class NavigationTaskForm(forms.ModelForm):
         model = NavigationTask
         fields = ("name", "start_time", "finish_time", "display_background_map", "scorecard",
                   "minutes_to_starting_point",
-                  "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management")
+                  "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management", "score_sorting_direction")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -363,7 +363,8 @@ class NavigationTaskForm(forms.ModelForm):
                 "start_time",
                 "finish_time",
                 "scorecard",
-                "allow_self_management"
+                "allow_self_management",
+                "score_sorting_direction"
             ),
             Fieldset(
                 "Wind",
