@@ -142,7 +142,7 @@ function PlayingCards(props) {
     const cards = props.contestantData.playing_cards.map((card) => {
         return card.card.toLowerCase()
     })
-    return <Hand hide={false} layout={"fan"} cards={cards} cardSize={200}/>
+    return <Hand hide={false} layout={"fan"} cards={cards} cardSize={250}/>
 }
 
 class ConnectedLowerThirdTeam extends Component {

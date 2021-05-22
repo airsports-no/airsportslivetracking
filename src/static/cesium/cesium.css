@@ -653,8 +653,8 @@ html, body {
 
 .myGateIcon {
     text-align: center;
-    line-height: 20px;
-    font-size: large;
+    line-height: 18px;
+    font-size: medium;
 }
 
 .ReactTable {
