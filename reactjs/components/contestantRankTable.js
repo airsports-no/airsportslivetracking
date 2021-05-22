@@ -2,7 +2,7 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
     calculateProjectedScore,
-    compareScore,
+    compareScoreAscending, compareScoreDescending,
     contestantRankingTable,
     contestantShortForm,
     pz,
@@ -242,9 +242,10 @@ class ConnectedContestantRankTable extends Component {
         // compareScore should be replaced depending on scorecard ascending or descending configuration
         // Initially simply reversed the list depending on ascending or descending in the scorecard
         // May be later support more complex scoring descriptions
-        contestants.sort(compareScore)
-        if (this.props.navigationTask.score_sorting_direction === "desc") {
-            contestants.reverse()
+        if (this.props.navigationTask.score_sorting_direction === "asc") {
+            contestants.sort(compareScoreAscending)
+        } else {
+            contestants.sort(compareScoreDescending)
         }
         return contestants.map((contestant, index) => {
             const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))

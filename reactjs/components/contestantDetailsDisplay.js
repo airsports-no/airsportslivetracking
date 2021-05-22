@@ -2,7 +2,7 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
     calculateProjectedScore,
-    compareScore,
+    compareScoreAscending, compareScoreDescending,
     contestantShortForm,
     contestantTwoLines,
     ordinal_suffix_of
@@ -29,6 +29,7 @@ const mapStateToProps = (state, props) => ({
             contestant: state.contestants[key]
         }
     }),
+    navigationTask: state.navigationTask,
 })
 
 function FormatMessage(props) {
@@ -52,7 +53,11 @@ class ConnectedContestantDetailsDisplay extends Component {
         const contestants = this.props.contestants.filter((contestant) => {
             return contestant != null && contestant.contestant !== undefined
         })
-        contestants.sort(compareScore)
+        if (this.props.navigationTask.score_sorting_direction === "asc") {
+            contestants.sort(compareScoreAscending)
+        } else {
+            contestants.sort(compareScoreDescending)
+        }
         let rank = 1
         for (let contestant of contestants) {
             if (contestant.contestant.id === this.props.contestant.id) {
@@ -124,7 +129,7 @@ class ConnectedContestantDetailsDisplay extends Component {
                         </div>
                     </div>
                 },
-                headerAttrs:(column, colIndex) => ({
+                headerAttrs: (column, colIndex) => ({
                     colspan: 2
                 }),
                 formatter: (cell, row) => {
