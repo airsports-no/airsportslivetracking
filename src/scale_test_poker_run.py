@@ -75,12 +75,13 @@ track = load_traccar_track("/data/tracks/espen_poker.csv")
 actual_start_time = datetime.datetime.now(datetime.timezone.utc)
 current_start_time = track[0][0]
 start_difference = actual_start_time - current_start_time
-current_offset = TIME_OFFSET
+current_offset = start_difference
 
 for number in range(NUMBER_OF_CONTESTANTS):
     contestant_track = offset_times(track, start_difference + current_offset)
     contestant = create_contestant(number, contestant_track[0][0], navigation_task)
     tracks[contestant.team.crew.member1.simulator_tracking_id] = contestant_track
     current_offset += TIME_OFFSET
-
+for item in tracks.values():
+    print(item[0][0])
 load_data_traccar(tracks, offset=60, leadtime=90)
