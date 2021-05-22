@@ -230,6 +230,7 @@ console.log('state: ', this.state);
                   console.log('refs', this.refs);
                   return (
                       <PlayingCard
+                          key={card}
                           onDragStart={this.onDragStart.bind(this)}
                           onDragStop={this.onDragStop.bind(this)}
                           onDrag={this.onDrag.bind(this)}

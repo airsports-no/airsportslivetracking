@@ -111,7 +111,7 @@ class ConnectedContestantDetailsDisplay extends Component {
             },
 
             {
-                dataField: "message",
+                dataField: "message.points",
                 text: "",
                 headerFormatter: (column, colIndex, components) => {
                     return <div className={"contestant-details-header"}>
@@ -130,10 +130,10 @@ class ConnectedContestantDetailsDisplay extends Component {
                     </div>
                 },
                 headerAttrs: (column, colIndex) => ({
-                    colspan: 2
+                    colSpan: 2
                 }),
                 formatter: (cell, row) => {
-                    return cell.points.toFixed(2)
+                    return cell.toFixed(2)
                 },
                 headerEvents: {
                     onClick: (e, column, columnIndex) => {
