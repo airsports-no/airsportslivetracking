@@ -97,10 +97,13 @@ class ConnectedContestantRankTable extends Component {
                 hidden: true
             },
             {
-                dataField: "name",
+                dataField: "pilotName",
                 text: "CREW",
                 sort: true,
                 classes: "align-middle crew-name",
+                formatter: (cell, row) => {
+                    return <div className={"align-middle crew-name"}>{teamRankingTable(row.contestant.team)}</div>
+                }
             },
             {
                 dataField: "score",
@@ -252,6 +255,7 @@ class ConnectedContestantRankTable extends Component {
             const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
             return {
                 key: contestant.contestant.id + "rack" + index,
+                contestant: contestant.contestant,
                 colour: "",
                 contestantNumber: contestant.contestant.contestant_number,
                 contestantId: contestant.contestant.id,
@@ -260,6 +264,7 @@ class ConnectedContestantRankTable extends Component {
                 progress: progress,
                 hasStarted: contestant.track.current_state !== "Waiting...",
                 name: teamRankingTable(contestant.contestant.team),
+                pilotName: contestant.contestant.team.crew ? contestant.contestant.team.crew.member1.first_name : '',
                 score: contestant.track.score,
                 contest_summary: contestant.track.contest_summary,
                 projectedScore: calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary),
