@@ -28,7 +28,7 @@ influx = InfluxFacade()
 server = 'traccar:5055'
 
 NUMBER_OF_CONTESTANTS = 50
-TIME_OFFSET = datetime.timedelta(seconds=60)
+TIME_OFFSET = datetime.timedelta(seconds=20)
 tracks = {}
 
 
@@ -61,14 +61,17 @@ def load_data_traccar(tracks, offset=30, leadtime=0):
         params = (('id', id), ('timestamp', int(time)), ('lat', lat), ('lon', lon), ('speed', speed))
         requests.post("http://" + server + '/?' + urlencode(params))
 
-    while True:
+    remaining = True
+    while remaining:
         remaining = False
+        start = time.time()
         for tracking_id, positions in tracks.items():
             while len(positions) > 0 and positions[0][0] < datetime.datetime.now(datetime.timezone.utc):
                 stamp, latitude, longitude = positions.pop(0)
                 send(tracking_id, time.mktime(stamp.timetuple()), latitude, longitude, 0)
             remaining = remaining or len(positions) > 0
-
+        finish = time.time()
+        print(f"Cycle duration: {finish-start:.02f}")
 
 navigation_task = NavigationTask.objects.get(pk=314)
 track = load_traccar_track("/data/tracks/espen_poker.csv")
