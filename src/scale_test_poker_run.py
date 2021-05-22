@@ -33,8 +33,8 @@ tracks = {}
 
 
 def create_contestant(index, start_time, navigation_task):
-    person = Person.objects.get_or_create(first_name=f"test_person_{index}", last_name=f"test_person_{index}",
-                                          email=f"test_{index}@email.com")
+    person, _ = Person.objects.get_or_create(first_name=f"test_person_{index}", last_name=f"test_person_{index}",
+                                             email=f"test_{index}@email.com")
     aircraft = Aeroplane.objects.get(registration="LN-YDB")
     club, _ = Club.objects.get_or_create(name="Kjeller Sportsflyklubb")
     crew, _ = Crew.objects.get_or_create(member1=person)
