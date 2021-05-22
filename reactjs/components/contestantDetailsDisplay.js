@@ -37,7 +37,7 @@ function FormatMessage(props) {
     if (message.offset_string != null && message.offset_string.length > 0) {
         offset_string = " (" + message.offset_string + ")"
     }
-    return <div className={"preWrap"}>{message.points.toFixed(2)} points {message.message} {offset_string}</div>
+    return <div className={"preWrap"}>{message.message} {offset_string}</div>
     // return <div className={"preWrap"}>{message.points.toFixed(2)} points {message.message} {offset_string}<span
     //     className={"gateTimesText"}>{message.times_string.length > 0 ? "\n" + message.times_string : null}</span></div>
 }
@@ -104,6 +104,7 @@ class ConnectedContestantDetailsDisplay extends Component {
                     }
                 }
             },
+
             {
                 dataField: "message",
                 text: "",
@@ -123,6 +124,22 @@ class ConnectedContestantDetailsDisplay extends Component {
                         </div>
                     </div>
                 },
+                headerAttrs:(column, colIndex) => ({
+                    colspan: 2
+                }),
+                formatter: (cell, row) => {
+                    return cell.points.toFixed(2)
+                },
+                headerEvents: {
+                    onClick: (e, column, columnIndex) => {
+                        this.resetToAllContestants()
+                    }
+                }
+            },
+
+            {
+                dataField: "message",
+                text: "",
                 formatter: (cell, row) => {
                     return <div className={"preWrap"}><FormatMessage message={cell}/></div>
                 },
