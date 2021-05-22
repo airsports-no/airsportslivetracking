@@ -13,7 +13,8 @@ body {
     width: 200px;
 }
 
-.scalable {}
+.scalable {
+}
 
 .outerBackdrop {
     transform-origin: top left;
@@ -857,5 +858,9 @@ html, body {
 }
 
 .flex-even {
-  flex: 1;
+    flex: 1;
+}
+
+.prohibitedTooltip {
+    border: none;
 }
