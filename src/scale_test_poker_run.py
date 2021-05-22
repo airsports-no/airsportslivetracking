@@ -74,8 +74,13 @@ navigation_task = NavigationTask.objects.get(pk=314)
 track = load_traccar_track("/data/tracks/espen_poker.csv")
 actual_start_time = datetime.datetime.now(datetime.timezone.utc)
 current_start_time = track[0][0]
+print(f"actual_start_time {actual_start_time}")
+print(f"current_start_time {current_start_time}")
 start_difference = actual_start_time - current_start_time
-current_offset = start_difference
+print(f"start_difference {start_difference}")
+
+current_offset = datetime.timedelta()
+print(f"current_offset {current_offset}")
 
 for number in range(NUMBER_OF_CONTESTANTS):
     contestant_track = offset_times(track, start_difference + current_offset)
