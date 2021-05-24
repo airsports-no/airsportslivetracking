@@ -1305,6 +1305,26 @@ class Contestant(models.Model):
         logger.error(f"Contestant {self.team} for navigation task {self.navigation_task} does not have a tracker ID")
         return ""
 
+    def generate_position_block_for_contestant(self, position_data: Dict,
+                                               device_time: datetime.datetime) -> Dict:
+        return {
+            "measurement": "device_position",
+            "tags": {
+                "contestant": self.pk,
+                "navigation_task": self.navigation_task_id,
+                "device_id": position_data["deviceId"]
+            },
+            "time": device_time.isoformat(),
+            "fields": {
+                "latitude": float(position_data["latitude"]),
+                "longitude": float(position_data["longitude"]),
+                "altitude": float(position_data["altitude"]),
+                "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
+                "speed": float(position_data["speed"]),
+                "course": float(position_data["course"])
+            }
+        }
+
     @classmethod
     def get_contestant_for_device_at_time(cls, device: str, stamp: datetime.datetime) -> Tuple[
         Optional["Contestant"], bool]:

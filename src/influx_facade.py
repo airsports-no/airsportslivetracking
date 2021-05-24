@@ -23,31 +23,11 @@ class InfluxFacade:
         self.client = InfluxDBClient(host, port, user, password, dbname)
         self.websocket_facade = WebsocketFacade()
 
-    def generate_position_block_for_contestant(self, contestant: Contestant, position_data: Dict,
-                                               device_time: datetime.datetime) -> Dict:
-        return {
-            "measurement": "device_position",
-            "tags": {
-                "contestant": contestant.pk,
-                "navigation_task": contestant.navigation_task_id,
-                "device_id": position_data["deviceId"]
-            },
-            "time": device_time.isoformat(),
-            "fields": {
-                "latitude": float(position_data["latitude"]),
-                "longitude": float(position_data["longitude"]),
-                "altitude": float(position_data["altitude"]),
-                "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
-                "speed": float(position_data["speed"]),
-                "course": float(position_data["course"])
-            }
-        }
-
     def generate_position_data_for_contestant(self, contestant: Contestant, positions: List) -> List:
         data = []
         for position_data in positions:
             device_time = dateutil.parser.parse(position_data["deviceTime"])
-            data.append(self.generate_position_block_for_contestant(contestant, position_data, device_time))
+            data.append(contestant.generate_position_block_for_contestant(position_data, device_time))
         return data
 
     def put_position_data_for_contestant(self, contestant: "Contestant", data: List):

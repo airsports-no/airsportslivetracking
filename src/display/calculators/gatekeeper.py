@@ -120,15 +120,17 @@ class Gatekeeper(ABC):
                     break
                 self.last_contestant_refresh = now
             try:
-                data = self.position_queue.get(timeout=30)
+                position_data = self.position_queue.get(timeout=30)
             except Empty:
                 # We have not received anything for 60 seconds, check if we should terminate
                 self.check_termination()
                 continue
-            if data is None:
+            if position_data is None:
                 # Signal the track processor that this is the end, and perform the track calculation
                 self.track_terminated = True
                 continue
+            data = self.contestant.generate_position_block_for_contestant(position_data, position_data["device_time"])
+
             p = Position(data["time"], **data["fields"])
             if len(self.track) > 0 and (
                     (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude) or self.track[
@@ -184,7 +186,7 @@ class Gatekeeper(ABC):
             times_string = "planned: {}, actual: {}".format(planned_time, actual_time)
         elif planned:
             times_string = "planned: {}, actual: --".format(planned_time)
-        if len(times_string)>0:
+        if len(times_string) > 0:
             string += f"\n{times_string}"
         logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))
         # Take into account that external events may have changed the score

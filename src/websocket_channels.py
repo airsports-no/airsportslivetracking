@@ -121,29 +121,38 @@ class WebsocketFacade:
         )
 
     def transmit_global_position_data(self, global_tracking_name: str, person: Optional[Dict], position_data: Dict,
-                                      device_time: datetime.datetime, navigation_task_id: Optional[int]) -> Dict:
+                                      device_time: datetime.datetime, navigation_task_id: Optional[int]):
         data = {
-            "type": "tracking.data",
-            "data": {
-                "name": global_tracking_name,
-                "time": device_time.isoformat(),
-                "person": person,
-                "deviceId": position_data["deviceId"],
-                "latitude": float(position_data["latitude"]),
-                "longitude": float(position_data["longitude"]),
-                "altitude": float(position_data["altitude"]),
-                "bare_altitude": float(position_data["altitude"]),
-                "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
-                "speed": float(position_data["speed"]),
-                "course": float(position_data["course"]),
-                "navigation_task_id": navigation_task_id,
-                "traffic_source": "internal"
-            }
+            "name": global_tracking_name,
+            "time": device_time,
+            "person": person,
+            "deviceId": position_data["deviceId"],
+            "latitude": float(position_data["latitude"]),
+            "longitude": float(position_data["longitude"]),
+            "altitude": float(position_data["altitude"]),
+            "bare_altitude": float(position_data["altitude"]),
+            "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
+            "speed": float(position_data["speed"]),
+            "course": float(position_data["course"]),
+            "navigation_task_id": navigation_task_id,
+            "traffic_source": "internal"
         }
+        s = json.dumps(data, cls=DateTimeEncoder)
+        container = {
+            "type": "tracking.data",
+            "data": s
+
+        }
+        device_id = data["deviceId"]
+        existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
+        if existing:
+            existing = pickle.loads(existing)
+            if existing["time"] >= data["time"]:
+                return
+        self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
         async_to_sync(self.channel_layer.group_send)(
-            "tracking_global", data
+            "tracking_global", container
         )
-        return data
 
     async def transmit_external_global_position_data(self, device_id: str, name: str, time_stamp: datetime, latitude,
                                                      longitude, altitude, baro_altitude, speed, course,

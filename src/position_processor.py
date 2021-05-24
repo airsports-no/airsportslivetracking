@@ -24,8 +24,6 @@ if __name__ == "__main__":
 
     django.setup()
 
-if TYPE_CHECKING:
-    from display.calculators.calculator import Calculator
 from traccar_facade import Traccar
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
@@ -41,8 +39,10 @@ from display.calculators.calculator_factory import calculator_factory
 
 logger = logging.getLogger(__name__)
 
-GLOBAL_TRANSMISSION_INTERVAL = 5
-PURGE_GLOBAL_MAP_INTERVAL = 180
+PURGE_GLOBAL_MAP_INTERVAL = 60
+
+CONTESTANT_TYPE = 0
+PERSON_TYPE = 1
 
 configuration = TraccarCredentials.objects.get()
 
@@ -53,8 +53,8 @@ if __name__ == "__main__":
 influx = InfluxFacade()
 processes = {}
 calculator_lock = threading.Lock()
-global_map = {}
-last_purge = datetime.datetime.now(datetime.timezone.utc)
+
+global_map_queue = Queue()
 
 
 def calculator_process(contestant_pk: int, position_queue: Queue):
@@ -105,7 +105,8 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
                 logger.error("Could not find device {}.".format(position_data["deviceId"]))
                 continue
         device_time = dateutil.parser.parse(position_data["deviceTime"])
-        # logger.info(device_name)
+        # Store this so that we do not have to parse the datetime string again
+        position_data["device_time"] = device_time
         now = datetime.datetime.now(datetime.timezone.utc)
         last_seen_key = f"last_seen_{position_data['deviceId']}"
         if (now - device_time).total_seconds() > 30:
@@ -118,63 +119,49 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
         cache.set(last_seen_key, device_time)
         # print(device_time)
         contestant, is_simulator = Contestant.get_contestant_for_device_at_time(device_name, device_time)
+        if contestant:
+            try:
+                received_tracks[contestant].append(position_data)
+            except KeyError:
+                received_tracks[contestant] = [position_data]
+            global_map_queue.put((CONTESTANT_TYPE, contestant.pk, position_data, device_time, is_simulator))
+        else:
+            global_map_queue.put((PERSON_TYPE, device_name, position_data, device_time, is_simulator))
+    return received_tracks
+
+
+def live_position_transmitter_process(queue):
+    django.db.connections.close_all()
+
+    while True:
+        data_type, person_or_contestant, position_data, device_time, is_simulator = queue.get()
+
         navigation_task_id = None
         global_tracking_name = None
         person_data = None
-        if not contestant:
+        if data_type == PERSON_TYPE:
             try:
-                person = Person.objects.get(app_tracking_id=device_name)
+                person = Person.objects.get(app_tracking_id=person_or_contestant)
                 global_tracking_name = person.app_aircraft_registration
                 if person.is_public:
                     person_data = PersonLtdSerialiser(person).data
             except ObjectDoesNotExist:
-                # logger.info("Found no person for tracking ID {}".format(device_name))
                 pass
-        # print(contestant)
-        if contestant:
+        else:
+            contestant = Contestant.objects.filter(pk=person_or_contestant).select_related("navigation_task", "team",
+                                                                                        "team__aeroplane").first()
             if contestant.navigation_task.everything_public:
                 navigation_task_id = contestant.navigation_task_id
             global_tracking_name = contestant.team.aeroplane.registration
             person = contestant.team.crew.member1
             if person.is_public:
                 person_data = PersonLtdSerialiser(person).data
-            data = influx.generate_position_block_for_contestant(contestant, position_data, device_time)
-            try:
-                received_tracks[contestant].append(data)
-            except KeyError:
-                received_tracks[contestant] = [data]
+        now = datetime.datetime.now(datetime.timezone.utc)
         if global_tracking_name is not None and not is_simulator and now < device_time + datetime.timedelta(
                 seconds=PURGE_GLOBAL_MAP_INTERVAL):
-            transmit_live_position(position_data, global_tracking_name, person_data, device_time, navigation_task_id)
-    return received_tracks
-
-
-def transmit_live_position(position_data: Dict, global_tracking_name: str, person: Optional[Dict],
-                           device_time: datetime.datetime, navigation_task_id: Optional[int]):
-    last_global, last_data = global_map.get(position_data["deviceId"],
-                                            (datetime.datetime.min.replace(tzinfo=datetime.timezone.utc),
-                                             {}))
-    now = datetime.datetime.now(datetime.timezone.utc)
-    if (now - last_global).total_seconds() > GLOBAL_TRANSMISSION_INTERVAL:
-        global_map[position_data["deviceId"]] = (
-            now,
-            websocket_facade.transmit_global_position_data(global_tracking_name, person, position_data, device_time,
-                                                           navigation_task_id))
-        cache.set("GLOBAL_MAP_DATA", global_map)
-
-
-def purge_global_map():
-    global last_purge
-    logger.info("Purging global map cache")
-    now = datetime.datetime.now(datetime.timezone.utc)
-    last_purge = now
-    for key in list(global_map.keys()):
-        value = global_map[key]
-        if (now - value[0]).total_seconds() > PURGE_GLOBAL_MAP_INTERVAL:
-            del global_map[key]
-    cache.set("GLOBAL_MAP_DATA", global_map)
-    threading.Timer(PURGE_GLOBAL_MAP_INTERVAL, purge_global_map).start()
-    logger.info("Purged global map cache")
+            websocket_facade.transmit_global_position_data(global_tracking_name, person_data, position_data,
+                                                           device_time,
+                                                           navigation_task_id)
 
 
 def build_and_push_position_data(data):
@@ -197,7 +184,6 @@ def on_message(ws, message):
     clean_db_positions()
     data = json.loads(message)
     build_and_push_position_data(data)
-    clean_db_positions()
 
 
 def on_error(ws, error):
@@ -218,8 +204,11 @@ headers = {
 headers['Upgrade'] = 'websocket'
 
 if __name__ == "__main__":
+    django.db.connections.close_all()
+    p = Process(target=live_position_transmitter_process, args=(global_map_queue,), daemon=True,
+                name="live_position_transmitter")
+    p.start()
     cache.clear()
-    purge_global_map()
     while True:
         websocket.enableTrace(True)
         cookies = traccar.session.cookies.get_dict()
