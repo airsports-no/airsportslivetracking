@@ -26,10 +26,17 @@ class ConnectedMyContestParticipationManagement extends Component {
     }
 
     componentDidMount() {
+        if (!document.configuration.authenticatedUser) {
+            window.location.href = "/accounts/login/?next=" + window.location.pathname
+        }
         this.props.fetchMyParticipatingContests()
     }
 
     componentDidUpdate(prevProps) {
+        if (!document.configuration.authenticatedUser) {
+            window.location.href = "/accounts/login/?next=" + window.location.pathname
+        }
+
         // if (this.props.externalContestId) {
         //     this.setState({
         //         externalContest: this.props.filter((contest) => {
