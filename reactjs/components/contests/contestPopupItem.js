@@ -42,11 +42,11 @@ export default class ContestPopupItem extends Component {
                     </div>
                     {new Date(this.props.contest.start_time).toLocaleDateString()} - {new Date(this.props.contest.finish_time).toLocaleDateString()}
                 </h6>
-                <span style={{fontSize: "16px"}}>{new Date(this.props.contest.finish_time) > new Date() ?
+                <span style={{fontSize: "18px"}}>{new Date(this.props.contest.finish_time) > new Date() ?
                     this.props.link ?
                         <Link to={"/participation/" + this.props.contest.id + "/register/"}>Register</Link> :
-                        <a href={"/participation/" + this.props.contest.id + "/register/"}>Register</a> : null}</span>
-                <span style={{"paddingTop": "0.4em", fontSize: "16px"}}
+                        <a href={"/participation/" + this.props.contest.id + "/register/"}>Register</a> : null}</span>&nbsp;
+                <span style={{"paddingTop": "0.3em", fontSize: "14px"}}
                       className={"badge badge-dark badge-pill"}>{this.props.contest.contest_team_count} </span>
 
                 {/*<p className={"card-text"}>*/}
