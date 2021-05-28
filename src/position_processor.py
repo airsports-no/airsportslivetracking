@@ -7,15 +7,6 @@ from multiprocessing import Process, Queue
 from typing import List, TYPE_CHECKING, Dict, Optional
 import sentry_sdk
 
-sentry_sdk.init(
-    "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
-
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-    # We recommend adjusting this value in production.
-    traces_sample_rate=1.0
-)
-
 import dateutil
 
 if __name__ == "__main__":
@@ -27,7 +18,7 @@ if __name__ == "__main__":
 from traccar_facade import Traccar
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import connections
+from django.db import connections, close_old_connections
 from display.serialisers import PersonSerialiser, PersonLtdSerialiser
 
 from websocket_channels import WebsocketFacade
@@ -132,7 +123,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
 
 def live_position_transmitter_process(queue):
     django.db.connections.close_all()
-
+    close_old_connections()
     while True:
         data_type, person_or_contestant, position_data, device_time, is_simulator = queue.get()
 
@@ -149,7 +140,7 @@ def live_position_transmitter_process(queue):
                 pass
         else:
             contestant = Contestant.objects.filter(pk=person_or_contestant).select_related("navigation_task", "team",
-                                                                                        "team__aeroplane").first()
+                                                                                           "team__aeroplane").first()
             if contestant.navigation_task.everything_public:
                 navigation_task_id = contestant.navigation_task_id
             global_tracking_name = contestant.team.aeroplane.registration
@@ -208,6 +199,14 @@ if __name__ == "__main__":
     p = Process(target=live_position_transmitter_process, args=(global_map_queue,), daemon=True,
                 name="live_position_transmitter")
     p.start()
+    sentry_sdk.init(
+        "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
+
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for performance monitoring.
+        # We recommend adjusting this value in production.
+        traces_sample_rate=1.0
+    )
     cache.clear()
     while True:
         websocket.enableTrace(True)
