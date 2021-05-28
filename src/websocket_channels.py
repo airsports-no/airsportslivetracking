@@ -130,7 +130,7 @@ class WebsocketFacade:
             "latitude": float(position_data["latitude"]),
             "longitude": float(position_data["longitude"]),
             "altitude": float(position_data["altitude"]),
-            "bare_altitude": float(position_data["altitude"]),
+            "baro_altitude": float(position_data["altitude"]),
             "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
             "speed": float(position_data["speed"]),
             "course": float(position_data["course"]),

@@ -518,7 +518,7 @@ class ConnectedGlobalMapMap
 //     }
 
     sendUpdatedPosition() {
-        if (this.client && this.client.readyState === WebSocket.OPEN) {
+        if (this.client && this.client.readyState === WebSocket.OPEN && this.bounds) {
             const position = this.map.getCenter()
             const extent = this.map.getBounds()
             const diagonalLength = extent.getNorthEast().distanceTo(extent.getSouthWest())
