@@ -612,7 +612,10 @@ class ConnectedGlobalMapMap
             }
         })
         this.map.on("moveend", (e) => {
-            this.bounds = this.map.getBounds()
+            if (this.bounds) {
+                // Only when loaded
+                this.bounds = this.map.getBounds()
+            }
             this.sendUpdatedPosition()
         })
     }
