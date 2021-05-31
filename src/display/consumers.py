@@ -76,9 +76,9 @@ class GlobalConsumer(WebsocketConsumer):
         self.safe_sky_timer = None
         self.bounding_box = None
         self.redis = StrictRedis("redis")
+        self.group_name = "tracking_global"
 
     def connect(self):
-        self.group_name = "tracking_global"
         logger.info(f"Current user {self.scope.get('user')}")
         async_to_sync(self.channel_layer.group_add)(
             self.group_name,

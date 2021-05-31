@@ -144,11 +144,11 @@ class WebsocketFacade:
 
         }
         device_id = data["deviceId"]
-        existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
-        if existing:
-            existing = pickle.loads(existing)
-            if existing["time"] >= data["time"]:
-                return
+        # existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
+        # if existing:
+        #     existing = pickle.loads(existing)
+        #     if existing["time"] >= data["time"]:
+        #         return
         self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
         async_to_sync(self.channel_layer.group_send)(
             "tracking_global", container
@@ -181,11 +181,11 @@ class WebsocketFacade:
             "data": s
 
         }
-        existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
-        if existing:
-            existing = pickle.loads(existing)
-            if existing["time"] >= data["time"]:
-                return
+        # existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
+        # if existing:
+        #     existing = pickle.loads(existing)
+        #     if existing["time"] >= data["time"]:
+        #         return
         self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
         await self.channel_layer.group_send(
             "tracking_global", container

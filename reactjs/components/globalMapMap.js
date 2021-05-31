@@ -451,6 +451,12 @@ class ConnectedGlobalMapMap
         positions.map((position) => {
             const now = new Date()
             const deviceTime = new Date(position.deviceTime)
+            if (this.aircraft[position.deviceId] !== undefined) {
+                if (this.aircraft[position.deviceId].latestPosition.time >= deviceTime) {
+                    return
+                }
+            }
+
             if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000 || true) {
                 if (this.aircraft[position.deviceId] === undefined) {
                     if (position.traffic_source === "internal") {
