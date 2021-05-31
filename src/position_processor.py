@@ -18,7 +18,7 @@ if __name__ == "__main__":
 from traccar_facade import Traccar
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import connections, close_old_connections
+from django.db import connections, close_old_connections, OperationalError
 from display.serialisers import PersonSerialiser, PersonLtdSerialiser
 
 from websocket_channels import WebsocketFacade
@@ -138,6 +138,9 @@ def live_position_transmitter_process(queue):
                     person_data = PersonLtdSerialiser(person).data
             except ObjectDoesNotExist:
                 pass
+            except OperationalError:
+                logger.exception(f"Error when fetching person for app_tracking_id '{person_or_contestant}'")
+
         else:
             contestant = Contestant.objects.filter(pk=person_or_contestant).select_related("navigation_task", "team",
                                                                                            "team__aeroplane").first()
