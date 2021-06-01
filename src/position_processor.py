@@ -18,7 +18,7 @@ if __name__ == "__main__":
 from traccar_facade import Traccar
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import connections, close_old_connections, OperationalError
+from django.db import connections, close_old_connections, OperationalError, connection
 from display.serialisers import PersonSerialiser, PersonLtdSerialiser
 
 from websocket_channels import WebsocketFacade
@@ -123,7 +123,6 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
 
 def live_position_transmitter_process(queue):
     django.db.connections.close_all()
-    close_old_connections()
     while True:
         data_type, person_or_contestant, position_data, device_time, is_simulator = queue.get()
 
@@ -139,7 +138,8 @@ def live_position_transmitter_process(queue):
             except ObjectDoesNotExist:
                 pass
             except OperationalError:
-                logger.exception(f"Error when fetching person for app_tracking_id '{person_or_contestant}'")
+                logger.exception(f"Error when fetching person for app_tracking_id '{person_or_contestant}'. Attempting to reconnect")
+                connection.connect()
 
         else:
             contestant = Contestant.objects.filter(pk=person_or_contestant).select_related("navigation_task", "team",

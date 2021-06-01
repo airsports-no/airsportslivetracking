@@ -242,7 +242,7 @@ LOGGING = {
         'file': {
             'level': 'DEBUG',
             'class': 'logging.handlers.WatchedFileHandler',
-            'filename': '/logs/DyST.log',
+            'filename': '/logs/airports.log',
             'formatter': 'standard'
         },
 
