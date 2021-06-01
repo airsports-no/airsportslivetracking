@@ -45,6 +45,7 @@ class TrackingConsumer(WebsocketConsumer):
             navigation_task = NavigationTask.objects.get(pk=self.navigation_task_pk)
         except ObjectDoesNotExist:
             return
+        self.accept()
         for contestant in navigation_task.contestant_set.all():
             self.send(
                 json.dumps(cached_generate_data(contestant.pk), cls=DateTimeEncoder)
@@ -74,6 +75,7 @@ class GlobalConsumer(WebsocketConsumer):
         self.groups.append("tracking_global")
 
     def connect(self):
+        self.accept()
         logger.info(f"Current user {self.scope.get('user')}")
         existing = cache.get("GLOBAL_MAP_DATA") or {}
         for age, data in existing.values():
@@ -106,9 +108,9 @@ class GlobalConsumer(WebsocketConsumer):
         message_type = message.get("type")
         if message_type == "location":
             if (
-                type(message.get("latitude")) in (float, int)
-                and type(message.get("longitude")) in (float, int)
-                and type(message.get("range")) in (float, int)
+                    type(message.get("latitude")) in (float, int)
+                    and type(message.get("longitude")) in (float, int)
+                    and type(message.get("range")) in (float, int)
             ):
                 self.location = (message.get("latitude"), message.get("longitude"))
                 self.range = message.get("range") * 1000
@@ -140,6 +142,7 @@ class ContestResultsConsumer(WebsocketConsumer):
             contest = Contest.objects.get(pk=self.contest_pk)
         except ObjectDoesNotExist:
             return
+        self.accept()
         ws = WebsocketFacade()
         ws.transmit_teams(contest)
         ws.transmit_tasks(contest)
