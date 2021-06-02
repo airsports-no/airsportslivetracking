@@ -852,7 +852,14 @@ def add_contest_teams_to_navigation_task(request, pk):
         # if contestant.takeoff_time - datetime.timedelta(
         #         minutes=TIME_LOCK_MINUTES) > now:
         #     selected = True
-        contest_team = navigation_task.contest.contestteam_set.get(team=contestant.team)
+        try:
+            contest_team = navigation_task.contest.contestteam_set.get(team=contestant.team)
+        except ObjectDoesNotExist:
+            contest_team = ContestTeam.objects.create(team=contestant.team, contest=contestant.navigation_task.contest,
+                                                      air_speed=contestant.air_speed,
+                                                      tracking_device=contestant.tracking_device,
+                                                      tracker_device_id=contestant.tracker_device_id,
+                                                      tracking_service=contestant.tracking_service)
         selected_existing.append((contest_team, f"{contest_team} (at {contestant.takeoff_time})", selected))
         used_contest_teams.add(contest_team.pk)
     selected_existing.extend([(item, str(item), False) for item in
