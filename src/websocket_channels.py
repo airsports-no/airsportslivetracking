@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
 
 import dateutil
@@ -14,6 +15,7 @@ from display.serialisers import ContestantTrackSerialiser, ContestTeamNestedSeri
     ScoreLogEntrySerialiser, GateCumulativeScoreSerialiser, PlayingCardSerialiser
 from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY
 
+logger = logging.getLogger(__name__)
 
 class DateTimeEncoder(json.JSONEncoder):
     """

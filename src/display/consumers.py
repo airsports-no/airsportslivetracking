@@ -40,6 +40,9 @@ class TrackingConsumer(WebsocketConsumer):
         self.navigation_task_pk = self.scope["url_route"]["kwargs"]["navigation_task"]
         self.navigation_task_group_name = "tracking_{}".format(self.navigation_task_pk)
         logger.info(f"Current user {self.scope.get('user')}")
+        async_to_sync(self.channel_layer.group_add)(
+            self.navigation_task_group_name, self.channel_name
+        )
         self.groups.append(self.navigation_task_group_name)
         try:
             navigation_task = NavigationTask.objects.get(pk=self.navigation_task_pk)
@@ -108,9 +111,9 @@ class GlobalConsumer(WebsocketConsumer):
         message_type = message.get("type")
         if message_type == "location":
             if (
-                    type(message.get("latitude")) in (float, int)
-                    and type(message.get("longitude")) in (float, int)
-                    and type(message.get("range")) in (float, int)
+                type(message.get("latitude")) in (float, int)
+                and type(message.get("longitude")) in (float, int)
+                and type(message.get("range")) in (float, int)
             ):
                 self.location = (message.get("latitude"), message.get("longitude"))
                 self.range = message.get("range") * 1000
@@ -138,9 +141,13 @@ class ContestResultsConsumer(WebsocketConsumer):
         self.contest_pk = self.scope["url_route"]["kwargs"]["contest_pk"]
         self.contest_results_group_name = "contestresults_{}".format(self.contest_pk)
         self.groups.append(self.contest_results_group_name)
+        async_to_sync(self.channel_layer.group_add)(
+            self.contest_results_group_name, self.channel_name
+        )
         try:
             contest = Contest.objects.get(pk=self.contest_pk)
         except ObjectDoesNotExist:
+            logger.warning(f"Contest with key {self.contest_pk} does not exist")
             return
         self.accept()
         ws = WebsocketFacade()
