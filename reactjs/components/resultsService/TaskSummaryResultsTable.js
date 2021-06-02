@@ -75,10 +75,10 @@ class ConnectedTaskSummaryResultsTable extends Component {
         this.initiateSession()
     }
 
-    componentWillReceiveProps(nextProps) {
-        if (nextProps.match.params.task && !this.props.tasks && nextProps.tasks) {
-            const task = nextProps.tasks.find((task) => {
-                return task.id === parseInt(nextProps.match.params.task)
+    componentDidUpdate(prevProps) {
+        if (this.props.match.params.task && !prevProps.tasks && this.props.tasks) {
+            const task = this.props.tasks.find((task) => {
+                return task.id === parseInt(this.props.match.params.task)
             })
             this.expandTask(task)
         }
