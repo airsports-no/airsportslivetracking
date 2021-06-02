@@ -44,7 +44,6 @@ SERVER_ROOT = "https://airsports.no"
 DEBUG = os.environ.get('MODE') == "dev"
 ALLOWED_HOSTS = ['*']
 
-
 REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
 # Application definition
 
@@ -71,11 +70,12 @@ INSTALLED_APPS = [
     "crispy_forms",
     "google_analytics",
     "channels",
-    'drf_firebase_auth',
     'display.apps.DisplayConfig',
     'firebase.apps.FirebaseConfig',
     'multiselectfield'
 ]
+if os.environ.get('MODE') != "dev":
+    INSTALLED_APPS.append('drf_firebase_auth')
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 GUARDIAN_MONKEY_PATCH = False
@@ -155,10 +155,11 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
-        'drf_firebase_auth.authentication.FirebaseAuthentication'
     ],
     'EXCEPTION_HANDLER': 'live_tracking_map.django_exception_handler.exception_handler',
 }
+if os.environ.get('MODE') != "dev":
+    REST_FRAMEWORK['DEFAULT_AUTHENTICATION_CLASSES'].append('drf_firebase_auth.authentication.FirebaseAuthentication')
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
