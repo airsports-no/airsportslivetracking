@@ -3,8 +3,8 @@ import {connect} from "react-redux";
 import MyParticipatingEventsList from "./myParticipatingEventsList";
 import UpcomingContestsSignupTable from "../upcomingContestsSignupTable";
 import ContestRegistrationForm from "../contestRegistrationForm";
-import {fetchMyParticipatingContests} from "../../actions";
-import SelfRegistrationForm from "../navigationTaskStartForm";
+import {fetchContests, fetchMyParticipatingContests} from "../../actions";
+import {withRouter} from "react-router-dom";
 
 export const mapStateToProps = (state, props) => ({
     currentContestRegistration: state.currentContestRegistration,
@@ -13,22 +13,21 @@ export const mapStateToProps = (state, props) => ({
     myParticipatingContests: state.myParticipatingContests,
 })
 export const mapDispatchToProps = {
-    fetchMyParticipatingContests
+    fetchMyParticipatingContests,
+    fetchContests
 }
 
 
 class ConnectedMyContestParticipationManagement extends Component {
     constructor(props) {
         super(props)
-        this.state = {
-            contest: null
-        }
     }
 
     componentDidMount() {
         if (!document.configuration.authenticatedUser) {
             window.location.href = "/accounts/login/?next=" + window.location.pathname
         }
+        this.props.fetchContests()
         this.props.fetchMyParticipatingContests()
     }
 
@@ -36,55 +35,40 @@ class ConnectedMyContestParticipationManagement extends Component {
         if (!document.configuration.authenticatedUser) {
             window.location.href = "/accounts/login/?next=" + window.location.pathname
         }
-
-        // if (this.props.externalContestId) {
-        //     this.setState({
-        //         externalContest: this.props.filter((contest) => {
-        //             return contest.id === this.props.externalContestId
-        //         })
-        //     })
-        // }
     }
 
 
     render() {
-        let contest = this.props.currentContestRegistration
-        if (!contest && this.props.currentContestParticipation) {
-            contest = this.props.currentContestParticipation.contest
-        }
-        let external = false
-        let alreadyRegistered = false
-        if (this.props.externalContestId) {
-            if (!this.props.myParticipatingContests.find((contestTeam) => {
-                return contestTeam.contest.id === this.props.externalContestId
-            })) {
-                contest = this.props.contests.find((contest) => {
-                    return contest.id === this.props.externalContestId
-                })
-                if (contest) {
-                    external = true
-                }
-            } else {
-                alreadyRegistered = true
-            }
+        let registerContest = null
+        let currentParticipation = this.props.currentParticipationId ? this.props.myParticipatingContests.find((contestTeam) => {
+            return contestTeam.id === this.props.currentParticipationId
+        }) : null
+        let currentParticipationRegistration = null
+        if (this.props.registerContestId) {
+            currentParticipationRegistration = this.props.myParticipatingContests.find((contestTeam) => {
+                return contestTeam.contest.id === this.props.registerContestId
+            })
+            registerContest = this.props.contests.find((contest) => {
+                return contest.id === this.props.registerContestId
+            })
         }
         return <div>
             <div className={"row"}>
                 <div className={"col-lg-4"}>
                     <h2>My participation</h2>
-                    <MyParticipatingEventsList/>
+                    <MyParticipatingEventsList currentParticipation={currentParticipation}
+                                               navigationTaskId={this.props.navigationTaskId}/>
                 </div>
                 <div className={"col-lg-8"}>
-                    {alreadyRegistered ? <h3>You are already registered for that contest</h3> : null}
                     <h3>Upcoming contests</h3><UpcomingContestsSignupTable/></div>
-                {contest ? <ContestRegistrationForm
-                    contest={contest} external={external}
-                    participation={this.props.currentContestParticipation}/> : null}
+                {this.props.registerContestId ? <ContestRegistrationForm
+                    contest={registerContest}
+                    participation={currentParticipationRegistration}/> : null}
             </div>
         </div>
     }
 }
 
 const MyContestParticipationManagement = connect(mapStateToProps,
-    mapDispatchToProps)(ConnectedMyContestParticipationManagement);
+    mapDispatchToProps)(withRouter(ConnectedMyContestParticipationManagement));
 export default MyContestParticipationManagement;

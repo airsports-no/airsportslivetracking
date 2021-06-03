@@ -4,8 +4,7 @@ import axios from 'axios'
 import {ErrorMessage, Formik} from 'formik';
 import {connect} from "react-redux";
 import * as yup from 'yup';
-import {Loading} from "./basicComponents";
-import {contestRegistrationFormReturn, fetchMyParticipatingContests, selfRegisterTaskReturn} from "../actions";
+import {fetchMyParticipatingContests} from "../actions";
 import {withRouter} from "react-router-dom";
 import DatePicker from "react-widgets/DatePicker";
 import "react-widgets/styles.css";
@@ -20,7 +19,6 @@ const mapStateToProps = (state, props) => ({})
 class ConnectedSelfRegistrationForm extends Component {
     constructor(props) {
         super(props)
-        this.state = {}
         this.schema = yup.object().shape({
             starting_point_time: yup.string().required(),
         });
@@ -28,7 +26,8 @@ class ConnectedSelfRegistrationForm extends Component {
 
     handleSuccess() {
         this.props.fetchMyParticipatingContests()
-        this.props.selfRegisterTaskReturn()
+        this.props.history.push("/participation/myparticipation/" + this.props.participation.id + "/")
+
     }
 
     componentDidMount() {
@@ -114,7 +113,7 @@ class ConnectedSelfRegistrationForm extends Component {
                                 </Button>
                                 <Button variant={"danger"} type={"button"}
                                         onClick={() => {
-                                            this.props.selfRegisterTaskReturn()
+                                            this.props.history.push("/participation/myparticipation/" + this.props.participation.id + "/")
                                         }}>Cancel</Button>
                                 {props.errors && _.has(props.errors, ["api"]) &&
                                 <div className="text-danger">{_.get(props.errors, ["api"])}</div>}
@@ -130,7 +129,6 @@ class ConnectedSelfRegistrationForm extends Component {
 
 const SelfRegistrationForm = withRouter(connect(mapStateToProps,
     {
-        selfRegisterTaskReturn,
         fetchMyParticipatingContests
     }
 )(ConnectedSelfRegistrationForm))

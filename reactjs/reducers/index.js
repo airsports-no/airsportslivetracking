@@ -12,11 +12,8 @@ import {
     GET_CONTESTANT_DATA_FAILED,
     INITIAL_LOADING_COMPLETE,
     INITIAL_LOADING,
-    CHECK_FOR_NEW_CONTESTANTS_SUCCESSFUL,
     SHOW_LOWER_THIRDS,
     HIDE_LOWER_THIRDS,
-    HIGHLIGHT_CONTESTANT,
-    REMOVE_HIGHLIGHT_CONTESTANT,
     REMOVE_HIGHLIGHT_CONTESTANT_TABLE,
     HIGHLIGHT_CONTESTANT_TABLE,
     HIGHLIGHT_CONTESTANT_TRACK,
@@ -29,16 +26,12 @@ import {
     GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
     DISPLAY_PAST_EVENTS_MODAL,
     DISPLAY_DISCLAIMER_MODAL,
-    FETCH_DISCLAIMER,
     FETCH_DISCLAIMER_SUCCESSFUL,
     DISPLAY_ABOUT_MODAL,
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
-    REGISTER_FOR_CONTEST,
-    UPDATE_CONTEST_REGISTRATION,
-    CANCEL_CONTEST_REGISTRATION,
     GET_CONTESTS,
     FETCH_MY_PARTICIPATING_CONTESTS,
-    SELF_REGISTER_TASK, TOGGLE_OPEN_AIP
+    TOGGLE_OPEN_AIP
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -559,35 +552,6 @@ function rootReducer(state = initialState, action) {
             myParticipatingContests: action.payload,
             loadingMyParticipation: false
         })
-    }
-    if (action.type === REGISTER_FOR_CONTEST) {
-        return Object.assign({}, state, {
-            ...state,
-            currentContestRegistration: action.payload
-        })
-
-    }
-
-    if (action.type === UPDATE_CONTEST_REGISTRATION) {
-        return Object.assign({}, state, {
-            ...state,
-            currentContestParticipation: action.payload
-        })
-    }
-    if (action.type === SELF_REGISTER_TASK) {
-        return Object.assign({}, state, {
-            ...state,
-            currentSelfRegisterTask: action.navigationTask,
-            currentSelfRegisterParticipation: action.participation,
-        })
-    }
-    if (action.type === CANCEL_CONTEST_REGISTRATION) {
-        return Object.assign({}, state, {
-            ...state,
-            currentContestParticipation: null,
-            currentContestRegistration: null
-        })
-
     }
     if (action.type === TOGGLE_OPEN_AIP) {
         return Object.assign({}, state, {

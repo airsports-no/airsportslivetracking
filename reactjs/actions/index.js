@@ -185,27 +185,6 @@ export const fetchMyParticipatingContests = () => (dispatch) => {
     });
 }
 
-export const registerForContest = (contest) => (dispatch) => {
-    dispatch({type: REGISTER_FOR_CONTEST, payload: contest})
-}
-
-
-export const updateContestRegistration = (participation) => (dispatch) => {
-    dispatch({type: UPDATE_CONTEST_REGISTRATION, payload: participation})
-}
-
-export const contestRegistrationFormReturn = () => (dispatch) => {
-    dispatch({type: CANCEL_CONTEST_REGISTRATION, payload: null})
-}
-
-export const selfRegisterTask = (participation, navigationTask) => (dispatch) => {
-    dispatch({type: SELF_REGISTER_TASK, participation: participation, navigationTask: navigationTask})
-}
-
-export const selfRegisterTaskReturn = () => (dispatch) => {
-    dispatch({type: SELF_REGISTER_TASK, participation: null, navigationTask: null})
-}
-
 export const toggleDisplayOpenAip = () => (dispatch) => {
     dispatch({type: TOGGLE_OPEN_AIP})
 }

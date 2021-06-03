@@ -1091,9 +1091,9 @@ class Contestant(models.Model):
         unique_together = ("navigation_task", "contestant_number")
         ordering = ("takeoff_time",)
 
-    def get_final_gate_time(self) -> datetime.datetime:
+    def get_final_gate_time(self) -> Optional[datetime.datetime]:
         final_gate = self.navigation_task.route.landing_gate or self.navigation_task.route.waypoints[-1]
-        return self.gate_times[final_gate.name]
+        return self.gate_times.get(final_gate.name)
 
     def calculate_finish_time(self) -> datetime.datetime:
         print(self.gate_times)

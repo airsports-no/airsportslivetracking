@@ -1607,8 +1607,8 @@ class ContestViewSet(ModelViewSet):
             contest = None
         serialiser = self.get_serializer(instance=contest, data=request.data)
         serialiser.is_valid(True)
-        serialiser.save()
-        return Response(request.data, status=status.HTTP_201_CREATED)
+        contest_team = serialiser.save()
+        return Response(ContestTeamSerialiser(contest_team).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["DELETE"],
             permission_classes=[permissions.IsAuthenticated & ContestPublicModificationPermissions])
@@ -1733,7 +1733,10 @@ class NavigationTaskViewSet(ModelViewSet):
                                                    contestant_number=contestant_number,
                                                    wind_speed=serialiser.validated_data["wind_speed"],
                                                    wind_direction=serialiser.validated_data["wind_direction"])
-            contestant.finished_by_time = contestant.get_final_gate_time() + datetime.timedelta(
+            final_time = contestant.get_final_gate_time()
+            if final_time is None:
+                final_time = starting_point_time
+            contestant.finished_by_time = final_time + datetime.timedelta(
                 minutes=navigation_task.minutes_to_landing + 2)
             contestant.save()
             return Response(status=status.HTTP_201_CREATED)

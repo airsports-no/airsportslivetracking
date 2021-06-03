@@ -2,10 +2,6 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
     fetchMyParticipatingContests,
-    registerForContest,
-    selfRegisterTask,
-    selfRegisterTaskReturn,
-    updateContestRegistration
 } from "../../actions";
 import TimePeriodEventList from "./timePeriodEventList";
 import {Button, Container, Modal} from "react-bootstrap";
@@ -13,6 +9,7 @@ import axios from "axios";
 import {teamRankingTable} from "../../utilities";
 import {Loading} from "../basicComponents";
 import SelfRegistrationForm from "../navigationTaskStartForm";
+import {withRouter} from "react-router-dom";
 
 axios.defaults.xsrfCookieName = 'csrftoken'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
@@ -27,47 +24,52 @@ export const mapStateToProps = (state, props) => ({
 })
 export const mapDispatchToProps = {
     fetchMyParticipatingContests,
-    updateContestRegistration,
-    selfRegisterTask,
-    selfRegisterTaskReturn
 }
 
 
 class ConnectedMyParticipatingEventsList extends Component {
     constructor(props) {
         super(props)
-        this.state = {
-            displayManagementModal: false,
-            currentParticipation: null
-        }
     }
 
     componentDidMount() {
         this.props.fetchMyParticipatingContests()
     }
 
+    getCurrentParticipation(participationId) {
+        return this.props.myParticipatingContests.find((participation) => {
+            return participation.id === participationId
+        })
+    }
+
+    getNavigationTask(navigationTaskId) {
+        return this.props.currentParticipation.contest.navigationtask_set.find((task) => {
+            return task.pk === navigationTaskId
+        })
+    }
+
     handleChangeClick(currentParticipation) {
-        this.setState({displayManagementModal: false})
-        this.props.updateContestRegistration(currentParticipation)
+        this.props.history.push("/participation/" + currentParticipation.contest.id + "/register/")
     }
 
     handleEnterClick(currentParticipation, navigationTask) {
-        this.props.selfRegisterTask(currentParticipation, navigationTask)
+        this.props.history.push("/participation/myparticipation/" + currentParticipation.id + "/signup/" + navigationTask.pk + "/")
     }
 
     handleWithdrawClick(currentParticipation) {
         axios.delete("/api/v1/contests/" + currentParticipation.contest.id + "/withdraw/").then((res) => {
-            this.setState({displayManagementModal: false, currentParticipation: null})
             this.props.fetchMyParticipatingContests()
+            this.props.history.push("/participation/")
         }).catch((e) => {
             console.error(e);
         }).finally(() => {
         })
     }
 
-    handleWithdrawTaskClick(contest, navigationTask) {
-        axios.delete("/api/v1/contests/" + contest.id + "/navigationtasks/" + navigationTask.pk + "/contestant_self_registration/").then((res) => {
+    handleWithdrawTaskClick(currentParticipation, navigationTask) {
+        axios.delete("/api/v1/contests/" + currentParticipation.contest.id + "/navigationtasks/" + navigationTask.pk + "/contestant_self_registration/").then((res) => {
             this.props.fetchMyParticipatingContests()
+            this.props.history.push("/participation/myparticipation/" + currentParticipation.id + "/")
         }).catch((e) => {
             console.error(e);
         }).finally(() => {
@@ -75,18 +77,14 @@ class ConnectedMyParticipatingEventsList extends Component {
     }
 
     hideModal() {
-        this.setState({displayManagementModal: false})
-        this.props.selfRegisterTaskReturn()
+        this.props.history.push("/participation/")
     }
 
     manageModal() {
-        if (!this.state.currentParticipation) {
+        if (!this.props.currentParticipation) {
             return null
         }
-        const currentParticipation = this.props.myParticipatingContests.find((participation) => {
-            return participation.id === this.state.currentParticipation
-        })
-        const taskRows = currentParticipation.contest.navigationtask_set.sort((a, b) => (a.start_time > b.start_time) ? 1 : ((b.start_time > a.start_time) ? -1 : 0)).reverse().map((task) => {
+        const taskRows = this.props.currentParticipation.contest.navigationtask_set.sort((a, b) => (a.start_time > b.start_time) ? 1 : ((b.start_time > a.start_time) ? -1 : 0)).reverse().map((task) => {
             return <tr key={task.pk}>
                 <td>{task.name}</td>
                 <td>{task.future_contestants.length > 0 ?
@@ -96,13 +94,13 @@ class ConnectedMyParticipatingEventsList extends Component {
 
                     </div> : null}</td>
                 <td>
-                    {currentParticipation.can_edit ?
+                    {this.props.currentParticipation.can_edit ?
                         task.future_contestants.length > 0 ?
                             <Button variant={"danger"}
-                                    onClick={() => this.handleWithdrawTaskClick(currentParticipation.contest, task)}>Cancel
+                                    onClick={() => this.handleWithdrawTaskClick(this.props.currentParticipation, task)}>Cancel
                                 flight</Button> :
                             <Button variant={"primary"}
-                                    onClick={() => this.handleEnterClick(currentParticipation, task)}>Start
+                                    onClick={() => this.handleEnterClick(this.props.currentParticipation, task)}>Start
                                 flight</Button>
                         : null}
                 </td>
@@ -111,36 +109,37 @@ class ConnectedMyParticipatingEventsList extends Component {
         let modalBody = null
         if (this.props.loadingMyParticipation) {
             modalBody = <Loading/>
-        } else if (this.props.currentSelfRegisterTask) {
-            modalBody = <SelfRegistrationForm navigationTask={this.props.currentSelfRegisterTask}
-                                              participation={this.props.currentSelfRegisterParticipation}/>
-        } else if (currentParticipation) {
+        } else if (this.props.navigationTaskId) {
+            const navigationTask = this.getNavigationTask(this.props.navigationTaskId)
+            modalBody = <SelfRegistrationForm navigationTask={navigationTask}
+                                              participation={this.props.currentParticipation}/>
+        } else if (this.props.currentParticipation) {
             modalBody = <div>
                 <table className={"table"}>
                     <tbody>
                     <tr>
                         <td>Team</td>
-                        <td>{teamRankingTable(currentParticipation.team)}</td>
+                        <td>{teamRankingTable(this.props.currentParticipation.team)}</td>
                     </tr>
                     <tr>
                         <td>Aircraft</td>
-                        <td>{currentParticipation.team.aeroplane.registration}</td>
+                        <td>{this.props.currentParticipation.team.aeroplane.registration}</td>
                     </tr>
                     <tr>
                         <td>Airspeed</td>
-                        <td>{currentParticipation.air_speed} knots</td>
+                        <td>{this.props.currentParticipation.air_speed} knots</td>
                     </tr>
                     <tr>
                         <td>Club</td>
-                        <td>{currentParticipation.team.club.name}</td>
+                        <td>{this.props.currentParticipation.team.club.name}</td>
                     </tr>
                     </tbody>
                 </table>
-                {currentParticipation.can_edit ? <div>
-                    <Button variant={"primary"} onClick={() => this.handleChangeClick(currentParticipation)}>Change
+                {this.props.currentParticipation.can_edit ? <div>
+                    <Button variant={"primary"} onClick={() => this.handleChangeClick(this.props.currentParticipation)}>Change
                         details</Button>
                     <Button variant={"danger"}
-                            onClick={() => this.handleWithdrawClick(currentParticipation)}>Withdraw</Button>
+                            onClick={() => this.handleWithdrawClick(this.props.currentParticipation)}>Withdraw</Button>
 
                 </div> : <b>Only pilots can edit contest participation</b>}
                 {taskRows.length > 0 ? <div>
@@ -154,12 +153,12 @@ class ConnectedMyParticipatingEventsList extends Component {
             </div>
         }
         return <Modal onHide={() => this.hideModal()}
-                      show={this.state.displayManagementModal}
+                      show={this.props.currentParticipation != null}
                       aria-labelledby="contained-modal-title-vcenter">
             <Modal.Header closeButton>
                 <Modal.Title id="contained-modal-title-vcenter">
                     Manage your participation
-                    in {this.state.currentParticipation ? currentParticipation.contest.name : "error"}
+                    in {this.props.currentParticipation ? this.props.currentParticipation.contest.name : "error"}
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body className="show-grid">
@@ -177,18 +176,17 @@ class ConnectedMyParticipatingEventsList extends Component {
             {!this.props.loadingMyParticipation ? <div className={"list-group"} id={"ongoing"}>
                 <TimePeriodEventList contests={this.props.myParticipatingContests.map((participation) => {
                     return participation.contest
-                })} onClick={(contest) => this.setState({
-                    currentParticipation: this.props.myParticipatingContests.find((participation) => {
+                })} onClick={(contest) => {
+                    const currentParticipation = this.props.myParticipatingContests.find((participation) => {
                         return participation.contest.id === contest.id
-                    }).id,
-                    displayManagementModal: true
-                })}/>
+                    }).id
+                    this.props.history.push("/participation/myparticipation/" + currentParticipation + "/")
+                }}/>
             </div> : <Loading/>}
-            {/*{this.state.currentContest ? this.manageModal() : null}*/}
         </div>
     }
 }
 
 const MyParticipatingEventsList = connect(mapStateToProps,
-    mapDispatchToProps)(ConnectedMyParticipatingEventsList);
+    mapDispatchToProps)(withRouter(ConnectedMyParticipatingEventsList));
 export default MyParticipatingEventsList;

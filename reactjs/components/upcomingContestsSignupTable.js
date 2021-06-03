@@ -1,12 +1,13 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {contestRegistrationFormReturn, fetchContests, registerForContest} from "../actions";
+import {fetchContests} from "../actions";
 import {Loading} from "./basicComponents";
 import BootstrapTable from "react-bootstrap-table-next";
 import 'react-bootstrap-table2-filter/dist/react-bootstrap-table2-filter.min.css';
 import filterFactory, {textFilter, dateFilter, selectFilter} from 'react-bootstrap-table2-filter';
 import Icon from "@mdi/react";
 import {mdiCheck} from "@mdi/js";
+import {withRouter} from "react-router-dom";
 
 const mapStateToProps = (state, props) => ({
     upcomingContests: state.contests.filter((contest) => {
@@ -26,7 +27,7 @@ class ConnectedUpcomingContestsSignupTable extends Component {
     }
 
     showRegistrationForm(contest) {
-        this.props.registerForContest(contest)
+        this.props.history.push("/participation/" + contest.id + "/register/")
     }
 
     filteredByPeriod(filterVal, data) {
@@ -135,7 +136,6 @@ class ConnectedUpcomingContestsSignupTable extends Component {
 const UpcomingContestsSignupTable = connect(mapStateToProps,
     {
         fetchContests,
-        registerForContest,
     }
-)(ConnectedUpcomingContestsSignupTable)
+)(withRouter(ConnectedUpcomingContestsSignupTable))
 export default UpcomingContestsSignupTable
