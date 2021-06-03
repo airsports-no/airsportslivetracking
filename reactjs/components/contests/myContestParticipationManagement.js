@@ -61,7 +61,7 @@ class ConnectedMyContestParticipationManagement extends Component {
                 </div>
                 <div className={"col-lg-8"}>
                     <h3>Upcoming contests</h3><UpcomingContestsSignupTable/></div>
-                {this.props.registerContestId ? <ContestRegistrationForm
+                {registerContest ? <ContestRegistrationForm
                     contest={registerContest}
                     participation={currentParticipationRegistration}/> : null}
             </div>
