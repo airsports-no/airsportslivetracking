@@ -90,7 +90,7 @@ class ConnectedSelfRegistrationForm extends Component {
                                     timeFormat="HH:mm"
                                     timeIntervals={1}
                                     timeCaption="time"
-                                    dateFormat="MMMM d, yyyy hh:mm"
+                                    dateFormat="MMMM d, yyyy HH:mm"
                                 />
                                 {/*<DateTimePicker value={props.values.starting_point_time}*/}
                                 {/*            name={"starting_point_time"} disableClock clearIcon={null} showLeadingZeros={true}*/}
