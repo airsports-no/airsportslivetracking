@@ -6,10 +6,10 @@ import {connect} from "react-redux";
 import * as yup from 'yup';
 import {fetchMyParticipatingContests} from "../actions";
 import {withRouter} from "react-router-dom";
-import DatePicker from "react-widgets/DatePicker";
-import "react-widgets/styles.css";
-import {DateLocalizer} from "react-widgets/IntlLocalizer";
-import {Localization} from "react-widgets/esm";
+import DatePicker from "react-datepicker";
+
+import "react-datepicker/dist/react-datepicker.css";
+
 
 axios.defaults.xsrfCookieName = 'csrftoken'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
@@ -82,13 +82,20 @@ class ConnectedSelfRegistrationForm extends Component {
                         <Form onSubmit={props.handleSubmit} onAbort={() => this.props.history.push("/participation/")}>
                             <Form.Group>
                                 <Form.Label>Starting point time</Form.Label>
-                                <Localization date={new DateLocalizer('no-nb', 1)}>
-                                    <DatePicker defaultValue={props.initialValues.starting_point_time} includeTime
-                                                name={"starting_point_time"}
-                                                onChange={value => props.setFieldValue("starting_point_time", value)}
-                                                timePrecision={"minutes"}
-                                    />
-                                </Localization>
+                                <DatePicker
+                                    selected={props.values.starting_point_time}
+                                    name={"starting_point_time"}
+                                    onChange={value => props.setFieldValue("starting_point_time", value)}
+                                    showTimeSelect
+                                    timeFormat="HH:mm"
+                                    timeIntervals={1}
+                                    timeCaption="time"
+                                    dateFormat="MMMM d, yyyy hh:mm"
+                                />
+                                {/*<DateTimePicker value={props.values.starting_point_time}*/}
+                                {/*            name={"starting_point_time"} disableClock clearIcon={null} showLeadingZeros={true}*/}
+                                {/*            onChange={value => props.setFieldValue("starting_point_time", value)}*/}
+                                {/*/>*/}
                                 <ErrorMessage name={"starting_point_time"} component={"div"}/>
                             </Form.Group>
                             <Form.Row>
