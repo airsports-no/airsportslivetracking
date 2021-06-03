@@ -114,10 +114,16 @@ class ConnectedContestRegistrationForm extends Component {
                 }
                 console.log("submit", data);
                 setSubmitting(true);
+                let method = "post"
                 if (this.props.participation) {
+                    method = "put"
                     data.contest_team = this.props.participation.id
                 }
-                axios.post("/api/v1/contests/" + this.props.contest.id + "/signup/", data).then((res) => {
+                axios({
+                    method: method,
+                    url: "/api/v1/contests/" + this.props.contest.id + "/signup/",
+                    data: data
+                }).then((res) => {
                     console.log("Response")
                     console.log(res)
                     setStatus("Registration successful")
