@@ -81,11 +81,11 @@ def process_beacon(raw_message):
     message_count += 1
     now = time.time()
     if now>count_timestamp + 10:
-        print(f"Messages per second: {message_count/(now-count_timestamp)}")
+        logger.info(f"Messages per second: {message_count/(now-count_timestamp)}")
         message_count = 0
         count_timestamp = now
     if raw_message[0] == '#':
-        print('Server Status: {}'.format(raw_message))
+        logger.info('Server Status: {}'.format(raw_message))
         return
 
     try:
@@ -112,7 +112,7 @@ def process_beacon(raw_message):
         # print('Received {aprs_type}: {raw_message}'.format(**beacon))
         # print('Received {beacon_type} from {name}'.format(**beacon))
     except ParseError as e:
-        print('Error, {}'.format(e.message))
+        logger.exception("Parse error")
 
 
 if __name__ == "__main__":
