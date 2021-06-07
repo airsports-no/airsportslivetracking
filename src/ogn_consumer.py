@@ -72,8 +72,18 @@ FLARM_AIRCRAFT_TYPES = {
     15: "Static"
 }
 
+message_count = 0
+count_timestamp = 0
+
 
 def process_beacon(raw_message):
+    global message_count, count_timestamp
+    message_count += 1
+    now = time.time()
+    if now>count_timestamp + 10:
+        print(f"Messages per second: {message_count/(now-count_timestamp)}")
+        message_count = 0
+        count_timestamp = now
     if raw_message[0] == '#':
         print('Server Status: {}'.format(raw_message))
         return

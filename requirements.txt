@@ -10,7 +10,7 @@ django
 djangorestframework
 gunicorn
 requests
-django-webpack-loader
+django-webpack-loader==0.7.0
 Pillow
 numpy
 scipy
