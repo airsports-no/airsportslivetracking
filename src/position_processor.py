@@ -78,7 +78,9 @@ def cleanup_calculators():
             processes.pop(key)
 
 
-def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Contestant, List[Dict]]:
+def map_positions_to_contestants(
+    traccar: Traccar, positions: List
+) -> Dict[Contestant, List[Dict]]:
     if len(positions) == 0:
         return {}
     # logger.info("Received {} positions".format(len(positions)))
@@ -93,7 +95,9 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
             try:
                 device_name = traccar.device_map[position_data["deviceId"]]
             except KeyError:
-                logger.error("Could not find device {}.".format(position_data["deviceId"]))
+                logger.error(
+                    "Could not find device {}.".format(position_data["deviceId"])
+                )
                 continue
         device_time = dateutil.parser.parse(position_data["deviceTime"])
         # Store this so that we do not have to parse the datetime string again
@@ -103,28 +107,50 @@ def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Cont
         if (now - device_time).total_seconds() > 30:
             # Only check the cache if the position is old
             last_seen = cache.get(last_seen_key)
-            if last_seen == device_time or device_time < now - datetime.timedelta(hours=14):
+            if last_seen == device_time or device_time < now - datetime.timedelta(
+                hours=14
+            ):
                 # If we have seen it or it is really old, ignore it
-                logger.info(f"Received repeated position, disregarding: {device_name} {device_time}")
+                logger.info(
+                    f"Received repeated position, disregarding: {device_name} {device_time}"
+                )
                 continue
         cache.set(last_seen_key, device_time)
         # print(device_time)
-        contestant, is_simulator = Contestant.get_contestant_for_device_at_time(device_name, device_time)
+        contestant, is_simulator = Contestant.get_contestant_for_device_at_time(
+            device_name, device_time
+        )
         if contestant:
             try:
                 received_tracks[contestant].append(position_data)
             except KeyError:
                 received_tracks[contestant] = [position_data]
-            global_map_queue.put((CONTESTANT_TYPE, contestant.pk, position_data, device_time, is_simulator))
+            global_map_queue.put(
+                (
+                    CONTESTANT_TYPE,
+                    contestant.pk,
+                    position_data,
+                    device_time,
+                    is_simulator,
+                )
+            )
         else:
-            global_map_queue.put((PERSON_TYPE, device_name, position_data, device_time, is_simulator))
+            global_map_queue.put(
+                (PERSON_TYPE, device_name, position_data, device_time, is_simulator)
+            )
     return received_tracks
 
 
 def live_position_transmitter_process(queue):
     django.db.connections.close_all()
     while True:
-        data_type, person_or_contestant, position_data, device_time, is_simulator = queue.get()
+        (
+            data_type,
+            person_or_contestant,
+            position_data,
+            device_time,
+            is_simulator,
+        ) = queue.get()
 
         navigation_task_id = None
         global_tracking_name = None
@@ -138,30 +164,51 @@ def live_position_transmitter_process(queue):
             except ObjectDoesNotExist:
                 pass
             except OperationalError:
-                logger.exception(f"Error when fetching person for app_tracking_id '{person_or_contestant}'. Attempting to reconnect")
+                logger.warning(
+                    f"Error when fetching person for app_tracking_id '{person_or_contestant}'. Attempting to reconnect"
+                )
                 connection.connect()
 
         else:
-            contestant = Contestant.objects.filter(pk=person_or_contestant).select_related("navigation_task", "team",
-                                                                                           "team__aeroplane").first()
-            if contestant.navigation_task.everything_public:
-                navigation_task_id = contestant.navigation_task_id
+            try:
+                contestant = (
+                    Contestant.objects.filter(pk=person_or_contestant)
+                    .select_related("navigation_task", "team", "team__aeroplane")
+                    .first()
+                )
+                if contestant.navigation_task.everything_public:
+                    navigation_task_id = contestant.navigation_task_id
+            except OperationalError:
+                logger.warning(
+                    f"Error when fetching contestant for app_tracking_id '{person_or_contestant}'. Attempting to reconnect"
+                )
+                connection.connect()
             global_tracking_name = contestant.team.aeroplane.registration
             person = contestant.team.crew.member1
             if person.is_public:
                 person_data = PersonLtdSerialiser(person).data
         now = datetime.datetime.now(datetime.timezone.utc)
-        if global_tracking_name is not None and not is_simulator and now < device_time + datetime.timedelta(
-                seconds=PURGE_GLOBAL_MAP_INTERVAL):
-            websocket_facade.transmit_global_position_data(global_tracking_name, person_data, position_data,
-                                                           device_time,
-                                                           navigation_task_id)
+        if (
+            global_tracking_name is not None
+            and not is_simulator
+            and now
+            < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
+        ):
+            websocket_facade.transmit_global_position_data(
+                global_tracking_name,
+                person_data,
+                position_data,
+                device_time,
+                navigation_task_id,
+            )
 
 
 def build_and_push_position_data(data):
     # logger.info("Received data")
     with calculator_lock:
-        received_positions = map_positions_to_contestants(traccar, data.get("positions", []))
+        received_positions = map_positions_to_contestants(
+            traccar, data.get("positions", [])
+        )
         for contestant, positions in received_positions.items():
             # logger.info("Positions for {}".format(contestant))
             add_positions_to_calculator(contestant, positions)
@@ -193,32 +240,38 @@ def on_open(ws):
 
 
 headers = {
-    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'}
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36"
+}
 
-headers['Upgrade'] = 'websocket'
+headers["Upgrade"] = "websocket"
 
 if __name__ == "__main__":
     django.db.connections.close_all()
-    p = Process(target=live_position_transmitter_process, args=(global_map_queue,), daemon=True,
-                name="live_position_transmitter")
+    p = Process(
+        target=live_position_transmitter_process,
+        args=(global_map_queue,),
+        daemon=True,
+        name="live_position_transmitter",
+    )
     p.start()
     sentry_sdk.init(
         "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
-
         # Set traces_sample_rate to 1.0 to capture 100%
         # of transactions for performance monitoring.
         # We recommend adjusting this value in production.
-        traces_sample_rate=1.0
+        traces_sample_rate=1.0,
     )
     cache.clear()
     while True:
         websocket.enableTrace(True)
         cookies = traccar.session.cookies.get_dict()
-        ws = websocket.WebSocketApp("ws://{}/api/socket".format(configuration.address),
-                                    on_message=on_message,
-                                    on_error=on_error,
-                                    on_close=on_close,
-                                    header=headers,
-                                    cookie="; ".join(["%s=%s" % (i, j) for i, j in cookies.items()]))
+        ws = websocket.WebSocketApp(
+            "ws://{}/api/socket".format(configuration.address),
+            on_message=on_message,
+            on_error=on_error,
+            on_close=on_close,
+            header=headers,
+            cookie="; ".join(["%s=%s" % (i, j) for i, j in cookies.items()]),
+        )
         ws.run_forever()
         logger.warning("Websocket terminated, restarting")
