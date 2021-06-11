@@ -49,7 +49,7 @@ from redis import Redis
 from rest_framework import status, permissions, mixins
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.exceptions import PermissionDenied, MethodNotAllowed
+from rest_framework.exceptions import PermissionDenied, MethodNotAllowed, AuthenticationFailed
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -2582,6 +2582,9 @@ class TaskTestViewSet(ModelViewSet):
 def firebase_token_login(request):
     token = request.GET.get("token")
     firebase_authenticator = FirebaseAuthentication()
-    user, decoded_token = firebase_authenticator.authenticate_credentials(token)
-    login(request, user)
+    try:
+        user, decoded_token = firebase_authenticator.authenticate_credentials(token)
+        login(request, user)
+    except AuthenticationFailed:
+        messages.error(request, "Login failed")
     return redirect("/")

@@ -53,12 +53,12 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("display/", include("display.urls")),
     path("links/", include("firebase.urls")),
-    path("accounts/token/", view_token, name="token"),
+    path("accounts/token/", view_token, name="tokefocus terminaln"),
     path(
         "accounts/password_change/done/", RedirectView.as_view(url="/", permanent=False)
     ),
     path("accounts/", include("django.contrib.auth.urls")),
-    path("firebase_login", firebase_token_login),
+    path("firebase_login/", firebase_token_login),
     path("docs/", docs.with_ui()),
     re_path("djga/", include("google_analytics.urls")),
     url(r"^api/v1/", include(api.urlpatters)),
