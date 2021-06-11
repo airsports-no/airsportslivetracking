@@ -53,7 +53,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("display/", include("display.urls")),
     path("links/", include("firebase.urls")),
-    path("accounts/token/", view_token, name="tokefocus terminaln"),
+    path("accounts/token/", view_token, name="token"),
     path(
         "accounts/password_change/done/", RedirectView.as_view(url="/", permanent=False)
     ),
