@@ -1,5 +1,6 @@
 import base64
 import datetime
+import logging
 
 import dateutil
 import phonenumbers
@@ -27,6 +28,8 @@ from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, C
     GateCumulativeScore
 from display.waypoint import Waypoint
 
+
+logger=logging.getLogger(__name__)
 
 class MangledEmailField(serializers.Field):
     def to_representation(self, value):
@@ -378,6 +381,7 @@ class SignupSerialiser(serializers.Serializer):
         contest = self.context["contest"]
 
         contest_team = validated_data["contest_team"]
+        logger.info(f'Updating contest team {contest_team}')
         teams = ContestTeam.objects.filter(Q(team__crew__member1=request.user.pk) | Q(
             team__crew__member2=request.user.pk), contest=contest).exclude(pk=contest_team.pk)
         if teams.exists():
@@ -404,6 +408,8 @@ class SignupSerialiser(serializers.Serializer):
         team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_id"],
                                               validated_data["aircraft_registration"], validated_data["club_name"])
         print(team)
+        logger.info(f'Creating new contest team for team {team}')
+
         contest = self.context["contest"]
         if ContestTeam.objects.filter(contest=contest, team=team).exists():
             raise ValidationError(f"Team {team} is already registered for contest {contest}")

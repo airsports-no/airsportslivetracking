@@ -1604,7 +1604,9 @@ class ContestViewSet(ModelViewSet):
     def signup(self, request, *args, **kwargs):
         contest = self.get_object()
         if request.method == "POST":
+            logger.info(f'POSTING new contest team {request.data}')
             contest = None
+        logger.info(f'UPDATING existing contest team {request.data}')
         serialiser = self.get_serializer(instance=contest, data=request.data)
         serialiser.is_valid(True)
         contest_team = serialiser.save()
