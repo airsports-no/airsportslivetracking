@@ -84,8 +84,16 @@ class Solver:
             self.team_map[team.pk].start_time = self.first_takeoff_time + datetime.timedelta(
                 minutes=slot * self.minutes_per_slot)
             self.team_map[team.pk].start_slot = slot
-            logger.info(f"Team {team} will start in slot {slot} at {self.team_map[team.pk].start_time}")
+            self.dump_solution()
         return self.teams
+
+    def dump_solution(self):
+        teams = sorted(self.teams, key=lambda t: t.start_slot)
+        for team_definition in teams:
+            team = self.team_map[team_definition.pk]
+            logger.info(f"Team {team} will start in slot {team.start_slot} at {team.start_time}")
+
+
 
     def __initiate_problem(self):
         logger.info("Initiating problem")
