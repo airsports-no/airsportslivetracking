@@ -24,7 +24,7 @@ class ConnectedContestDisplayGlobalMap extends Component {
         }
         this.circle = L.marker([this.props.contest.latitude, this.props.contest.longitude], {
             title: this.props.contest.name,
-            zIndexOffset: 1000,
+            zIndexOffset: 1000000,
             riseOnHover: true
 
         }).addTo(this.props.map)

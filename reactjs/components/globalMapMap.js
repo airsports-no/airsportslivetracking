@@ -179,8 +179,8 @@ class Aircraft {
         }
         return L.divIcon({
             html: '<div style="opacity: ' + opacity + '"><span style="color: ' + colour + '; font-size: ' + size + 'px;position: relative;top: 0px;">' + name + '</span><br/><span style="color: ' + colour + ';font-size: ' + smallSize + 'px; position: relative;top: -10px;">GPS Approx</span><br/><span style="color: ' + colour + ';font-size: ' + smallSize + 'px; position: relative;top: -18px;">' + speed.toFixed(0) + 'kn ' + altitude.toFixed(0) + 'ft</span></div>',
-            iconAnchor: [100, -11],
-            iconSize: [200, size],
+            iconAnchor: [50, -11],
+            iconSize: [100, size],
             className: "myAirplaneTextIcon text-center"
         })
 
