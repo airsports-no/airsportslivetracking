@@ -24,6 +24,8 @@ class ConnectedContestDisplayGlobalMap extends Component {
         }
         this.circle = L.marker([this.props.contest.latitude, this.props.contest.longitude], {
             title: this.props.contest.name,
+            zIndexOffset: 5,
+            riseOnHover: true
 
         }).addTo(this.props.map)
         this.circle.bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={this.props.contest}/>), {
