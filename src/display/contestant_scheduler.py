@@ -88,7 +88,7 @@ class Solver:
         return self.teams
 
     def dump_solution(self):
-        teams = sorted(self.teams, key=lambda t: t.start_slot)
+        teams = sorted(self.teams, key=lambda t: self.team_map[t.pk].start_slot)
         for team_definition in teams:
             team = self.team_map[team_definition.pk]
             logger.info(f"Team {team} will start in slot {team.start_slot} at {team.start_time}")
