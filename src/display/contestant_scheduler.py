@@ -84,7 +84,7 @@ class Solver:
             self.team_map[team.pk].start_time = self.first_takeoff_time + datetime.timedelta(
                 minutes=slot * self.minutes_per_slot)
             self.team_map[team.pk].start_slot = slot
-            self.dump_solution()
+        self.dump_solution()
         return self.teams
 
     def dump_solution(self):
