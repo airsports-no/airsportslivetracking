@@ -251,10 +251,10 @@ services:
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
 
   redis:
-    image: redis
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: redis
-    volumes:
-      - ./redis.conf:/usr/local/etc/redis/redis.conf
     volumes_from:
       - tmp
   logrotate:
