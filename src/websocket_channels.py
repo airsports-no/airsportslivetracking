@@ -230,11 +230,11 @@ class WebsocketFacade:
         }
         s = json.dumps(data, cls=DateTimeEncoder)
         container = {"type": "tracking.data", "data": s}
-        # existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
-        # if existing:
-        #     existing = pickle.loads(existing)
-        #     if existing["time"] >= data["time"]:
-        #         return
+        existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
+        if existing:
+            existing = pickle.loads(existing)
+            if existing["time"] >= data["time"]:
+                return
         self.redis.hset(
             REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data)
         )
