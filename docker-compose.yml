@@ -253,7 +253,7 @@ services:
   redis:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.redis
     container_name: redis
     volumes_from:
       - tmp
