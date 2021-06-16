@@ -263,7 +263,7 @@ CACHES = {
     'default': {
         'BACKEND': 'redis_cache.RedisCache',
         'LOCATION': [
-            'redis:6379',
+            '/tmp/docker/redis.sock',
         ],
         "TIMEOUT": None,
         'OPTIONS': {
@@ -281,8 +281,8 @@ CACHES = {
 }
 
 # celery
-CELERY_BROKER_URL = 'redis://redis:6379'
-CELERY_RESULT_BACKEND = 'redis://redis:6379'
+CELERY_BROKER_URL = 'redis+socket:///tmp/docker/redis.sock'
+CELERY_RESULT_BACKEND = 'redis+socket:///tmp/docker/redis.sock'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
@@ -292,7 +292,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("redis", 6379)],
+            "hosts": ["unix:/tmp/docker/redis.sock"],
             "capacity": 1500,  # default 100
             "expiry": 20,  # default 60
         }

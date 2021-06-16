@@ -74,7 +74,7 @@ class GlobalConsumer(WebsocketConsumer):
         self.range = 0
         self.safe_sky_timer = None
         self.bounding_box = None
-        self.redis = StrictRedis("redis")
+        self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
         self.groups.append("tracking_global")
 
     def connect(self):

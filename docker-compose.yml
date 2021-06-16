@@ -2,7 +2,11 @@
 
 version: '2'
 services:
-
+  tmp:
+    image: busybox
+    command: chmod -R 777 /tmp/docker
+    volumes:
+      - /tmp/docker/
   swag:
     image: ghcr.io/linuxserver/swag
     container_name: swag
@@ -55,6 +59,8 @@ services:
       - ./data:/data/
       - ./weblog:/logs/
       - ./mapserver:/maptiles
+    volumes_from:
+      - tmp
     ports:
       - "8002:8000"
     depends_on:
@@ -88,6 +94,8 @@ services:
       - ./reactjs:/reactjs/
       - ./data:/data/
       - ./daphnelog:/logs/
+    volumes_from:
+      - tmp
     depends_on:
       - mysql
       - influx
@@ -120,6 +128,8 @@ services:
       - ./reactjs:/reactjs/
       - ./data:/data/
       - ./celerylog:/logs/
+    volumes_from:
+      - tmp
     depends_on:
       - mysql
       - influx
@@ -148,7 +158,8 @@ services:
       - ./django-rest-authemail:/django-rest-authemail
       - ./src:/src/
       - ./processorlog:/logs/
-
+    volumes_from:
+      - tmp
     depends_on:
       - influx
       - traccar
@@ -174,6 +185,8 @@ services:
       - ./src:/src/
       - ./openskyconsumerlogs:/logs/
       - ./aircraft_database:/aircraft_database
+    volumes_from:
+      - tmp
     depends_on:
       - redis
 
@@ -191,6 +204,8 @@ services:
       - ./secret:/secret
       - ./src:/src/
       - ./ognconsumerlogs:/logs/
+    volumes_from:
+      - tmp
     depends_on:
       - redis
 
@@ -238,6 +253,10 @@ services:
   redis:
     image: redis
     container_name: redis
+    volumes:
+      - redis.conf:usr/local/etc/redis/redis.conf
+    volumes_from:
+      - tmp
   logrotate:
     image: blacklabelops/logrotate
     volumes:
