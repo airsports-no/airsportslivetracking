@@ -99,7 +99,7 @@ class GlobalConsumer(WebsocketConsumer):
             #     position = (data["latitude"], data["longitude"])
             #     if calculate_distance_lat_lon(position, self.location) > self.range:
             #         continue
-            self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
+            # self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
 
     def disconnect(self, code):
         if self.safe_sky_timer:
