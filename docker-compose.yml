@@ -254,7 +254,7 @@ services:
     image: redis
     container_name: redis
     volumes:
-      - redis.conf:usr/local/etc/redis/redis.conf
+      - ./redis.conf:usr/local/etc/redis/redis.conf
     volumes_from:
       - tmp
   logrotate:
