@@ -314,6 +314,10 @@ class Aircraft {
         )
     }
 
+    visible(){
+        return this.map.getBounds().contains(this.dot.getLatLng())
+    }
+
     removeFromMap() {
         if (this.dot) {
             this.dot.removeFrom(this.iconLayer)
@@ -443,6 +447,14 @@ class ConnectedGlobalMapMap
             if (now.getTime() - this.aircraft[id].time.getTime() > this.purgeInterval * 1000) {
                 this.aircraft[id].removeFromMap()
                 delete this.aircraft[id]
+            }
+        }
+    }
+
+    clearAircraftNotVisible() {
+        for (let id of Object.keys(this.aircraft)) {
+            if (!this.aircraft[id].visible()) {
+                this.aircraft[id].removeFromMap()
             }
         }
     }
@@ -616,6 +628,7 @@ class ConnectedGlobalMapMap
                 this.externalPositionText.addTo(this.map)
                 this.internalPositionText.addTo(this.map)
             }
+            this.clearAircraftNotVisible()
         })
         this.map.on("moveend", (e) => {
             if (this.bounds) {
@@ -623,6 +636,7 @@ class ConnectedGlobalMapMap
                 this.bounds = this.map.getBounds()
             }
             this.sendUpdatedPosition()
+            this.clearAircraftNotVisible()
         })
     }
 
