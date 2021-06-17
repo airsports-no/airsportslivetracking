@@ -325,6 +325,15 @@ class Aircraft {
             this.dotText.removeFrom(this.textLayer)
         }
     }
+
+    addToMap(){
+        if (this.dot){
+            this.dot.addToMap(this.iconLayer)
+            if (this.map.getZoom() >= 7) {
+                this.dotText.addToMap(this.textLayer)
+            }
+        }
+    }
 }
 
 
@@ -455,6 +464,8 @@ class ConnectedGlobalMapMap
         for (let id of Object.keys(this.aircraft)) {
             if (!this.aircraft[id].visible()) {
                 this.aircraft[id].removeFromMap()
+            }else{
+                this.aircraft[id].addToMap()
             }
         }
     }
