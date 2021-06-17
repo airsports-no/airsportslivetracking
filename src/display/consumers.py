@@ -16,6 +16,7 @@ from display.coordinate_utilities import (
 )
 from display.models import NavigationTask, Contest
 from display.views import cached_generate_data
+from live_tracking_map import settings
 from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY
 from websocket_channels import WebsocketFacade
 
@@ -74,7 +75,10 @@ class GlobalConsumer(WebsocketConsumer):
         self.range = 0
         self.safe_sky_timer = None
         self.bounding_box = None
-        self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
+        if settings.PRODUCTION:
+            self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
+        else:
+            self.redis = StrictRedis("redis")
         self.groups.append("tracking_global")
 
     def connect(self):

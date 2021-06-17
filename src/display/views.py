@@ -34,7 +34,6 @@ from django.views.generic import (
 )
 import logging
 
-from drf_firebase_auth.authentication import FirebaseAuthentication
 from formtools.wizard.views import SessionWizardView, CookieWizardView
 from guardian.decorators import permission_required as guardian_permission_required
 from guardian.mixins import PermissionRequiredMixin as GuardianPermissionRequiredMixin
@@ -1193,7 +1192,10 @@ def add_contest_teams_to_navigation_task(request, pk):
     )
 
 
-connection = Redis(unix_socket_path="/tmp/docker/redis.sock")
+if settings.PRODUCTION:
+    connection = Redis(unix_socket_path="/tmp/docker/redis.sock")
+else:
+    connection = Redis("redis")
 
 
 def cached_generate_data(contestant_pk) -> Dict:
@@ -2580,6 +2582,7 @@ class TaskTestViewSet(ModelViewSet):
 
 
 def firebase_token_login(request):
+    from drf_firebase_auth.authentication import FirebaseAuthentication
     token = request.GET.get("token")
     firebase_authenticator = FirebaseAuthentication()
     try:

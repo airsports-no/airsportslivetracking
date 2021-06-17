@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import os
 from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
 
 import dateutil
@@ -22,6 +23,7 @@ from display.serialisers import (
     GateCumulativeScoreSerialiser,
     PlayingCardSerialiser,
 )
+from live_tracking_map import settings
 from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY
 
 logger = logging.getLogger(__name__)
@@ -72,7 +74,11 @@ def generate_contestant_data_block(
 class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
-        self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
+        if settings.PRODUCTION:
+            self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
+        else:
+            self.redis = StrictRedis("redis")
+
 
     def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
