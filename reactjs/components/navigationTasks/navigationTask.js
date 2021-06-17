@@ -41,6 +41,7 @@ export const mapStateToProps = (state, props) => ({
     currentDisplay: state.currentDisplay,
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
     displayOpenAip: state.displayOpenAip,
+        displayTracks: state.displayTracks,
 })
 export const mapDispatchToProps = {
     dispatchContestantData,
@@ -282,7 +283,7 @@ class ConnectedNavigationTask extends Component {
             let prohibitedRender = null;
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard_data.task_type.includes("precision") || this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
-                    routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
+                    routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask} currentHighlightedContestant = {this.props.displayTracks&&this.props.displayTracks.length===1?this.props.displayTracks[0]:null}
                                                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}/>
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}/>

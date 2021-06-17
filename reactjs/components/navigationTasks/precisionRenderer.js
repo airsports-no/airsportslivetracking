@@ -8,6 +8,42 @@ const L = window['L']
 export default class PrecisionRenderer extends Component {
     componentDidMount() {
         this.renderRoute()
+        this.markers = []
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        this.renderMarkers()
+    }
+
+    renderMarkers() {
+        for (const marker of this.markers) {
+            marker.removeFrom(this.props.map)
+        }
+        this.markers = []
+        const currentContestant = this.props.navigationTask.contestant_set.find((contestant) => {
+            return contestant.id === this.props.currentHighlightedContestant
+        })
+        this.props.navigationTask.route.waypoints.filter((waypoint) => {
+            return waypoint.gate_check || waypoint.time_check
+        }).map((waypoint) => {
+            let waypointText = waypoint.name
+
+            if (currentContestant) {
+                const time = new Date(currentContestant.gate_times[waypoint.name])
+                waypointText = waypoint.name + "<br/>" + time.getHours() + ":" + time.getMinutes() + ":" + time.getSeconds()
+            }
+            const m = marker([waypoint.latitude, waypoint.longitude], {
+                color: "blue",
+                icon: divIcon({
+                    html: '<i class="fas"><br/>' + waypointText + '</i>',
+                    iconSize: [60, 20],
+                    className: "myGateIcon"
+                })
+            }).on('click', () => {
+                this.props.handleMapTurningPointClick(waypoint.name)
+            }).addTo(this.props.map)
+            this.markers.push(m)
+        });
     }
 
     renderRoute() {
@@ -41,20 +77,7 @@ export default class PrecisionRenderer extends Component {
         // }).map((waypoint) => {
         //     return [waypoint.latitude, waypoint.longitude]
         // });
-        this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return waypoint.gate_check || waypoint.time_check
-        }).map((waypoint) => {
-            marker([waypoint.latitude, waypoint.longitude], {
-                color: "blue",
-                icon: divIcon({
-                    html: '<i class="fas"><br/>' + waypoint.name + '</i>',
-                    iconSize: [20, 20],
-                    className: "myGateIcon"
-                })
-            }).on('click', () => {
-                this.props.handleMapTurningPointClick(waypoint.name)
-            }).addTo(this.props.map)
-        });
+
         // this.props.navigationTask.route.waypoints.filter((waypoint) => {
         //     return waypoint.is_procedure_turn
         // }).map((waypoint) => {
