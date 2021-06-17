@@ -301,7 +301,7 @@ class ConnectedContestantTrack extends Component {
 
     addAnnotation(latitude, longitude, message, icon) {
         if (icon === undefined) icon = informationAnnotationIcon
-        this.markers.addLayer(L.marker([latitude, longitude], {icon: icon}).bindTooltip(message, {
+        this.markers.addLayer(L.marker([latitude, longitude], {icon: icon}).bindTooltip(message.replace("\n", "<br/>"), {
             permanent: false
         }))
     }

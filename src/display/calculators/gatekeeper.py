@@ -175,17 +175,17 @@ class Gatekeeper(ABC):
         if capped:
             message += " (capped)"
         planned_time = planned.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
-            "%H:%M:%S %z") if planned else None
+            "%H:%M:%S") if planned else None
         actual_time = actual.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
-            "%H:%M:%S %z") if actual else None
+            "%H:%M:%S") if actual else None
         string = "{}: {} points {}".format(gate.name, score, message)
         if offset_string:
             string += " ({})".format(offset_string)
         times_string = ""
         if planned and actual:
-            times_string = "planned: {}, actual: {}".format(planned_time, actual_time)
+            times_string = "planned: {}\nactual:  {}".format(planned_time, actual_time)
         elif planned:
-            times_string = "planned: {}, actual: --".format(planned_time)
+            times_string = "planned: {}\nactual:  --".format(planned_time)
         if len(times_string) > 0:
             string += f"\n{times_string}"
         logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))
