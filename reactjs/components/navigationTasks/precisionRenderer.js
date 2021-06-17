@@ -20,6 +20,12 @@ export default class PrecisionRenderer extends Component {
             marker.removeFrom(this.props.map)
         }
         this.markers = []
+        const leadingZero = (num) => `0${num}`.slice(-2);
+
+        const formatTime = (date) =>
+            [date.getHours(), date.getMinutes(), date.getSeconds()]
+                .map(leadingZero)
+                .join(':');
         const currentContestant = this.props.navigationTask.contestant_set.find((contestant) => {
             return contestant.id === this.props.currentHighlightedContestant
         })
@@ -30,7 +36,7 @@ export default class PrecisionRenderer extends Component {
 
             if (currentContestant) {
                 const time = new Date(currentContestant.gate_times[waypoint.name])
-                waypointText = waypoint.name + "<br/>" + time.getHours() + ":" + time.getMinutes() + ":" + time.getSeconds()
+                waypointText = waypoint.name + "<br/>" + formatTime(time)
             }
             const m = marker([waypoint.latitude, waypoint.longitude], {
                 color: "blue",
