@@ -411,7 +411,7 @@ class ContestTeam(models.Model):
     def get_tracker_id(self) -> str:
         if self.tracking_device == TRACKING_DEVICE:
             return self.tracker_device_id
-        if self.tracking_device == TRACKING_PILOT:
+        if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
             return self.team.crew.member1.app_tracking_id
         if self.tracking_device == TRACKING_COPILOT:
             return self.team.crew.member2.app_tracking_id
@@ -1739,7 +1739,7 @@ class Contestant(models.Model):
     def get_tracker_id(self) -> str:
         if self.tracking_device == TRACKING_DEVICE:
             return self.tracker_device_id
-        if self.tracking_device == TRACKING_PILOT:
+        if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
             return self.team.crew.member1.app_tracking_id
         if self.tracking_device == TRACKING_COPILOT:
             return self.team.crew.member2.app_tracking_id
