@@ -373,7 +373,7 @@ class ContestTeam(models.Model):
         help_text="Supported tracking services: {}".format(TRACKING_SERVICES),
     )
     tracking_device = models.CharField(
-        default=TRACKING_PILOT,
+        default=TRACKING_PILOT_AND_COPILOT,
         choices=TRACKING_DEVICES,
         max_length=30,
         help_text="The device used for tracking the team",
