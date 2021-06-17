@@ -744,7 +744,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     """
     imagery = OSM()
     ax = plt.axes(projection=imagery.crs)
-    ax.add_image(imagery, 13)
+    ax.add_image(imagery, 7)
     ax.set_aspect("auto")
     ys, xs = np.array(positions).T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH * 2)
