@@ -416,7 +416,7 @@ class ContestTeam(models.Model):
         if self.tracking_device == TRACKING_COPILOT:
             return self.team.crew.member2.app_tracking_id
         logger.error(
-            f"ContestTeam {self.team} for contest {self.contest} does not have a tracker ID"
+            f"ContestTeam {self.team} for contest {self.contest} does not have a tracker ID for tracking device {self.tracking_device}"
         )
         return ""
 
@@ -1744,7 +1744,7 @@ class Contestant(models.Model):
         if self.tracking_device == TRACKING_COPILOT:
             return self.team.crew.member2.app_tracking_id
         logger.error(
-            f"Contestant {self.team} for navigation task {self.navigation_task} does not have a tracker ID"
+            f"Contestant {self.team} for navigation task {self.navigation_task} does not have a tracker ID for tracking device {self.tracking_device}"
         )
         return ""
 
@@ -1786,18 +1786,19 @@ class Contestant(models.Model):
                 contestant, is_simulator = cls._try_to_get_copilot_tracking(
                     device, stamp
                 )
-        currently_tracked = contestant.is_currently_tracked_by_device(device)
-        # Only allow contestants with validated team members compete
-        if currently_tracked:
-            if (
-                contestant.team.crew.member1 is None
-                or contestant.team.crew.member1.validated
-            ):
+        if contestant:
+            currently_tracked = contestant.is_currently_tracked_by_device(device)
+            # Only allow contestants with validated team members compete
+            if currently_tracked:
                 if (
-                    contestant.team.crew.member2 is None
-                    or contestant.team.crew.member2.validated
+                    contestant.team.crew.member1 is None
+                    or contestant.team.crew.member1.validated
                 ):
-                    return contestant, is_simulator
+                    if (
+                        contestant.team.crew.member2 is None
+                        or contestant.team.crew.member2.validated
+                    ):
+                        return contestant, is_simulator
         return None, is_simulator
 
     @classmethod
