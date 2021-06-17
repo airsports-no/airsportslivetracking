@@ -48,10 +48,12 @@ TRACKING_SERVICES = (
 TRACKING_DEVICE = "device"
 TRACKING_PILOT = "pilot_app"
 TRACKING_COPILOT = "copilot_app"
+TRACKING_PILOT_AND_COPILOT = "pilot_app_or_copilot_a[["
 TRACKING_DEVICES = (
     (TRACKING_DEVICE, "Hardware GPS tracker"),
     (TRACKING_PILOT, "Pilot's Air Sports Live Tracking app"),
     (TRACKING_COPILOT, "Copilot's Air Sports Live Tracking app"),
+    (TRACKING_PILOT_AND_COPILOT, "Pilot's or copilot's Air Sports Live Tracking app")
 )
 
 TURNPOINT = "tp"
@@ -72,6 +74,8 @@ GATES_TYPES = (
     (INTERMEDIARY_STARTINGPOINT, "Intermediary starting point"),
     (INTERMEDIARY_FINISHPOINT, "Intermediary finish point")
 )
+
+TRACKING_DEVICE_TIMEOUT = 10
 
 logger = logging.getLogger(__name__)
 
@@ -1056,7 +1060,7 @@ class Contestant(models.Model):
         help_text="A unique number for the contestant in this navigation task")
     tracking_service = models.CharField(default=TRACCAR, choices=TRACKING_SERVICES, max_length=30,
                                         help_text="Supported tracking services: {}".format(TRACKING_SERVICES))
-    tracking_device = models.CharField(default=TRACKING_PILOT, choices=TRACKING_DEVICES, max_length=30,
+    tracking_device = models.CharField(default=TRACKING_PILOT_AND_COPILOT, choices=TRACKING_DEVICES, max_length=30,
                                        help_text="The device used for tracking the team")
     tracker_device_id = models.CharField(max_length=100,
                                          help_text="ID of physical tracking device that will be brought into the plane. If using the Air Sports Live Tracking app this should be left blank.",
@@ -1332,34 +1336,67 @@ class Contestant(models.Model):
         Retrieves the contestant that owns the tracking device for the time stamp. Returns an extra flag "is_simulator"
         which is true if the contestant is running the simulator tracking ID.
         """
-        is_simulator = False
+        contestant, is_simulator=cls._try_to_get_tracker_tracking (device, stamp)
+        if contestant is None:
+            contestant, is_simulator = cls._try_to_get_pilot_tracking(device, stamp)
+            if contestant is None:
+                contestant, is_simulator = cls._try_to_get_copilot_tracking(device, stamp)
+        currently_tracked = contestant.is_currently_tracked_by_device(device)
+        # Only allow contestants with validated team members compete
+        if currently_tracked:
+            if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
+                if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
+                    return contestant, is_simulator
+        return None, is_simulator
+
+    @classmethod
+    def _try_to_get_tracker_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[
+        Optional["Contestant"], bool]:
         try:
             # Device belongs to contestant from 30 minutes before takeoff
-            contestant = cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
+            return cls.objects.get(tracker_device_id=device, tracker_start_time__lte=stamp,
                                          tracking_device=TRACKING_DEVICE,
-                                         finished_by_time__gte=stamp, contestanttrack__calculator_finished=False)
+                                         finished_by_time__gte=stamp, contestanttrack__calculator_finished=False), False
         except ObjectDoesNotExist:
-            try:
-                contestant = cls.objects.get(Q(team__crew__member1__app_tracking_id=device) | Q(
-                    team__crew__member1__simulator_tracking_id=device), tracker_start_time__lte=stamp,
-                                             finished_by_time__gte=stamp, contestanttrack__calculator_finished=False,
-                                             tracking_device=TRACKING_PILOT)
-                is_simulator = contestant.team.crew.member1.simulator_tracking_id == device
-            except ObjectDoesNotExist:
-                try:
-                    contestant = cls.objects.get(Q(team__crew__member2__app_tracking_id=device) | Q(
-                        team__crew__member2__simulator_tracking_id=device), tracker_start_time__lte=stamp,
-                                                 finished_by_time__gte=stamp,
-                                                 contestanttrack__calculator_finished=False,
-                                                 tracking_device=TRACKING_COPILOT)
-                    is_simulator = contestant.team.crew.member2.simulator_tracking_id == device
-                except ObjectDoesNotExist:
-                    return None, is_simulator
-        # Only allow contestants with validated team members compete
-        if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
-            if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
-                return contestant, is_simulator
-        return None, is_simulator
+            return None, False
+
+    @classmethod
+    def _try_to_get_pilot_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[
+        Optional["Contestant"], bool]:
+        try:
+            contestant = cls.objects.get(Q(team__crew__member1__app_tracking_id=device) | Q(
+                team__crew__member1__simulator_tracking_id=device), tracker_start_time__lte=stamp,
+                                         finished_by_time__gte=stamp, contestanttrack__calculator_finished=False,
+                                         tracking_device__in=(TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT))
+            return contestant,contestant.team.crew.member1.simulator_tracking_id == device
+        except ObjectDoesNotExist:
+            return None, False
+
+    @classmethod
+    def _try_to_get_copilot_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[
+        Optional["Contestant"], bool]:
+        try:
+            contestant = cls.objects.get(Q(team__crew__member2__app_tracking_id=device) | Q(
+                team__crew__member2__simulator_tracking_id=device), tracker_start_time__lte=stamp,
+                                         finished_by_time__gte=stamp, contestanttrack__calculator_finished=False,
+                                         tracking_device__in=(TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT))
+            return contestant, contestant.team.crew.member2.simulator_tracking_id == device
+        except ObjectDoesNotExist:
+            return None, False
+
+    def is_currently_tracked_by_device(self, device_id: str)->bool:
+        """
+        Returns true unless tracking_device is TRACKING_PILOT_AND_COPILOT. In this case the function returns true if we
+        responded to this device_id the last time, or the was no loss time. Otherwise it will return false.
+        """
+        if self.tracking_device == TRACKING_PILOT_AND_COPILOT:
+            key = f"latest_tracking_device_{self.pk}"
+            previously_used_device_id = cache.get(key)
+            if previously_used_device_id == device_id or previously_used_device_id is None:
+                cache.set(key, device_id, TRACKING_DEVICE_TIMEOUT)
+                return True
+            return False
+        return True
 
     def get_latest_position(self) -> Optional[Dict]:
         from influx_facade import InfluxFacade
