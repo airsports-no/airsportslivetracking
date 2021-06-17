@@ -328,9 +328,9 @@ class Aircraft {
 
     addToMap(){
         if (this.dot){
-            this.dot.addToMap(this.iconLayer)
+            this.dot.addTo(this.iconLayer)
             if (this.map.getZoom() >= 7) {
-                this.dotText.addToMap(this.textLayer)
+                this.dotText.addTo(this.textLayer)
             }
         }
     }
