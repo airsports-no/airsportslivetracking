@@ -16,7 +16,7 @@ import {
     isIOS
 } from "react-device-detect";
 import {popup} from "leaflet/dist/leaflet-src.esm";
-import {Link} from "react-router-dom";
+import {Link, withRouter} from "react-router-dom";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -49,7 +49,6 @@ function sortContestTimes(a, b) {
 class PastEvents extends Component {
     constructor(props) {
         super(props)
-        this.state = {contest: this.props.contest}
     }
 
     // let contestBoxes = props.contests.map((contest) => {
@@ -60,7 +59,7 @@ class PastEvents extends Component {
     render() {
         let contestBoxes = this.props.contests.map((contest) => {
             return <span key={contest.id + "past_event_span"} style={{width: "350px"}}
-                         onClick={() => this.setState({contest: contest})}><ContestItem
+                         onClick={()=>this.props.handleContestClick(contest)}><ContestItem
                 key={"contest" + contest.pk} contest={contest}/></span>
         })
 
@@ -75,14 +74,9 @@ class PastEvents extends Component {
                 </Modal.Header>
                 <Modal.Body className="show-grid">
                     <Container>
-                        {this.state.contest ?
-                            <span onClick={() => this.setState({contest: null})} className={'past-event-detail'}>
-                            <ContestPopupItem contest={this.state.contest} link={true}/>
-                            </span> :
-                            <ul className={"d-flex flex-wrap justify-content-around"} style={{paddingLeft: "0px"}}>
-                                {contestBoxes}
-                            </ul>
-                        }
+                        <ul className={"d-flex flex-wrap justify-content-around"} style={{paddingLeft: "0px"}}>
+                            {contestBoxes}
+                        </ul>
                     </Container>
                 </Modal.Body>
             </Modal>
@@ -118,10 +112,8 @@ class ConnectedGlobalEventList extends Component {
     handleContestClick(contest) {
         if (contest.latitude !== 0 && contest.longitude !== 0) {
             this.props.zoomFocusContest(contest.id)
-            this.setState({popupContest: contest, displayPopupContest: true})
-        } else {
-            this.setState({popupContest: contest, displayPopupContest: true})
         }
+        this.props.history.push("/global/contest_details/"+ contest.id + "/")
     }
 
     handleManagementClick() {
@@ -181,6 +173,11 @@ class ConnectedGlobalEventList extends Component {
                 return contest
             }
         }).sort(sortContestTimes)
+        const popupContest = this.props.contests.find((contest) => {
+            return contest.id === this.props.contestDetailsId
+        })
+        console.log("Pop-up contest")
+        console.log(popupContest)
         return <div>
             <div className={"globalMapBackdrop"}>
                 <div className={"flexWrapper"}>
@@ -265,13 +262,14 @@ class ConnectedGlobalEventList extends Component {
                 </div>
             </div>
 
-            <PastEvents contests={earlierEvents} show={this.props.pastEventsModalShow} contest={this.state.popupContest}
+            <PastEvents contests={earlierEvents} show={this.props.pastEventsModalShow}
+                        handleContestClick={(contest)=>this.handleContestClick(contest)}
                         dialogClassName="modal-90w" onHide={() => this.props.hidePastEventsModal()}/>
-            <ContestPopupModal contest={this.state.popupContest} show={this.state.displayPopupContest}
-                               onHide={() => this.setState({displayPopupContest: false, popupContest: null})}/>
+            <ContestPopupModal contest={popupContest} show={popupContest}
+                               onHide={() => this.props.history.push("/")}/>
         </div>
     }
 }
 
-const GlobalEventList = connect(mapStateToProps, mapDispatchToProps)(ConnectedGlobalEventList);
+const GlobalEventList = connect(mapStateToProps, mapDispatchToProps)(withRouter(ConnectedGlobalEventList));
 export default GlobalEventList;

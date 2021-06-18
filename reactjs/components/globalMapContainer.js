@@ -8,6 +8,7 @@ import Disclaimer, {DisclaimerLong} from "./disclaimer";
 import AboutLogoPopup from "./aboutLogoPopup";
 import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
 import {internalColour, ognColour, openSkyColour} from "./aircraft/aircraft";
+import {withRouter} from "react-router-dom";
 
 const mapStateToProps = (state, props) => ({})
 
@@ -22,7 +23,6 @@ class ConnectedGlobalMapContainer extends Component {
 
 
     render() {
-        let TrackerDisplay = <GlobalMapMap/>
         return (
             <div id="map-holder">
                 <div id='main_div' className={"fill"}>
@@ -30,7 +30,7 @@ class ConnectedGlobalMapContainer extends Component {
                         <a className={"btn"} id="returnLink" href={"/"}>
                             <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
                         </a>
-                        <GlobalEventList/>
+                        <GlobalEventList contestDetailsId={this.props.contestDetailsId}/>
                         <div className={"aircraft-legend-global"}>
                             <i className="mdi mdi-airplanemode-active"
                                style={{color: internalColour}}/> AirSports<br/>
@@ -48,7 +48,7 @@ class ConnectedGlobalMapContainer extends Component {
                         <div id="cesiumContainer"/>
                     </div>
                 </div>
-                {TrackerDisplay}
+                <GlobalMapMap/>
             </div>
         )
     }
@@ -57,5 +57,5 @@ class ConnectedGlobalMapContainer extends Component {
 const
     GlobalMapContainer = connect(mapStateToProps, {
         fetchContests,
-    })(ConnectedGlobalMapContainer)
+    })(withRouter(ConnectedGlobalMapContainer))
 export default GlobalMapContainer
