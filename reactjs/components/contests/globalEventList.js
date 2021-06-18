@@ -265,7 +265,7 @@ class ConnectedGlobalEventList extends Component {
             <PastEvents contests={earlierEvents} show={this.props.pastEventsModalShow}
                         handleContestClick={(contest)=>this.handleContestClick(contest)}
                         dialogClassName="modal-90w" onHide={() => this.props.hidePastEventsModal()}/>
-            <ContestPopupModal contest={popupContest} show={popupContest}
+            <ContestPopupModal contest={popupContest} show={popupContest !== undefined}
                                onHide={() => this.props.history.push("/")}/>
         </div>
     }
