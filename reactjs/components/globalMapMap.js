@@ -623,6 +623,9 @@ class ConnectedGlobalMapMap
         Jawg_Sunny.addTo(this.map);
         // OpenAIP.addTo(this.map);
         // this.map.setView([0, 0], 2)
+        this.map.on("locationerror", (e)=>{
+            this.map.setView(L.latLng(59, 10.5), 7)
+        })
         this.map.locate({setView: true, maxZoom: 7})
         this.map.whenReady(() => {
             this.bounds = this.map.getBounds()
