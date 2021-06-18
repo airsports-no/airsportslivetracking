@@ -154,7 +154,7 @@ def folder_map_name(folder: str) -> str:
 
 
 MAP_FOLDERS = glob.glob("/maptiles/*")
-MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [("osm", "OSM"), ("fc", "Flight Contest")]
+MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [("osm", "OSM"), ("fc", "Flight Contest"), ("mto", "MapTiler Outdoor")]
 
 
 class FlightContest(GoogleWTS):
@@ -192,10 +192,15 @@ class OpenAIP(GoogleWTS):
         ext = 'png'
         return f"http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}"
 
+class MapTilerOutdoor(GoogleWTS):
+    def _image_url(self, tile):
+        x, y, z = tile
+        return f"https://api.maptiler.com/maps/outdoor/{z}/{x}/{y}.png?key=YxHsFU6aEqsEULL34uJT"
+
 
 class LocalImages(GoogleWTS):
-    def __init__(self, folder: str):
-        super().__init__()
+    def __init__(self, folder: str, **kwargs):
+        super().__init__(**kwargs)
         self.folder = folder
 
     def _image_url(self, tile):
@@ -569,8 +574,10 @@ def plot_route(task: NavigationTask, map_size: str, zoom_level: Optional[int] = 
         imagery = OSM()
     elif map_source == "fc":
         imagery = FlightContest(desired_tile_form='RGBA')
+    elif map_source == "mto":
+        imagery = MapTilerOutdoor(desired_tile_form='RGBA')
     else:
-        imagery = LocalImages(map_source)
+        imagery = LocalImages(map_source, desired_tile_form='RGBA')
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
