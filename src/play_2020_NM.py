@@ -57,11 +57,13 @@ configuration = TraccarCredentials.objects.get()
 
 traccar = Traccar.create_from_configuration(configuration)
 
-deleted = traccar.update_and_get_devices()
+devices = traccar.update_and_get_devices()
 # Group ID = 1
-for item in deleted:
-    traccar.delete_device(item["id"])
-    traccar.create_device(item["name"], item["uniqueId"])
+
+for item in devices:
+    if item["uniqueId"] in contestants.keys():
+        traccar.delete_device(item["id"])
+        traccar.create_device(item["name"], item["uniqueId"])
 name = "Demo contest"
 scorecard = get_default_scorecard()
 original_contest = Contest.objects.filter(name=name).first()
@@ -142,4 +144,4 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
 tracks = OrderedDict(sorted(tracks.items(), key=lambda item: contestants[item[0]][1], reverse=True))
 print("Sleeping for 10 seconds")
 time.sleep(10)
-load_data_traccar(tracks, offset=60, leadtime=90)
+load_data_traccar(tracks, offset=120, leadtime=90)
