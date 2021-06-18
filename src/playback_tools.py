@@ -40,7 +40,7 @@ def build_traccar_track(filename, today: datetime.datetime, start_index: int = 0
     return positions
 
 
-def load_data_traccar(tracks, offset=30, leadtime = 0):
+def load_data_traccar(tracks, offset=30, leadtime = 0, round_sleep = 0.2):
     def send(id, time, lat, lon, speed):
         params = (('id', id), ('timestamp', int(time)), ('lat', lat), ('lon', lon), ('speed', speed))
         requests.post("http://" + server + '/?' + urlencode(params))
@@ -65,7 +65,7 @@ def load_data_traccar(tracks, offset=30, leadtime = 0):
             remaining = remaining or len(positions) > 0
         print(count)
         first_round = False
-        time.sleep(0.2)
+        time.sleep(round_sleep)
         if not remaining:
             break
 

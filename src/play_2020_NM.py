@@ -144,4 +144,4 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
 tracks = OrderedDict(sorted(tracks.items(), key=lambda item: contestants[item[0]][1], reverse=True))
 print("Sleeping for 10 seconds")
 time.sleep(10)
-load_data_traccar(tracks, offset=300, leadtime=90)
+load_data_traccar(tracks, offset=300, leadtime=90, round_sleep=0.8)
