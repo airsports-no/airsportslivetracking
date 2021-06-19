@@ -295,8 +295,8 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": ["unix:/tmp/docker/redis.sock" if PRODUCTION else ("redis", 6379)],
-            "capacity": 1500,  # default 100
-            "expiry": 20,  # default 60
+            "capacity": 100,  # default 100
+            "expiry": 30,  # default 60
         },
     }
 }
