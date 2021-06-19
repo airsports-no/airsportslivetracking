@@ -210,6 +210,7 @@ MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [
     ("osm", "OSM"),
     ("fc", "Flight Contest"),
     ("mto", "MapTiler Outdoor"),
+    ("cyclosm", "CycleOSM")
 ]
 
 
@@ -255,6 +256,12 @@ class MapTilerOutdoor(GoogleWTS):
     def _image_url(self, tile):
         x, y, z = tile
         return f"https://api.maptiler.com/maps/outdoor/{z}/{x}/{y}.png?key=YxHsFU6aEqsEULL34uJT"
+
+
+class CyclOSM(GoogleWTS):
+    def _image_url(self, tile):
+        x, y, z = tile
+        return f"https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png"
 
 
 class LocalImages(GoogleWTS):
@@ -858,6 +865,8 @@ def plot_route(
         imagery = FlightContest(desired_tile_form="RGBA")
     elif map_source == "mto":
         imagery = MapTilerOutdoor(desired_tile_form="RGBA")
+    elif map_source == "cyclosm":
+        imagery = CyclOSM(desired_tile_form="RGBA")
     else:
         imagery = LocalImages(map_source, desired_tile_form="RGBA")
     if map_size == A3:
