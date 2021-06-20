@@ -265,7 +265,7 @@ CACHES = {
     "default": {
         "BACKEND": "redis_cache.RedisCache",
         "LOCATION": [
-            "/tmp/docker/redis.sock",
+            "/tmp/docker/redis.sock" if PRODUCTION else 'redis:6379',
         ],
         "TIMEOUT": None,
         "OPTIONS": {

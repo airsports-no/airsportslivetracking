@@ -35,10 +35,13 @@ class ConnectedSelfRegistrationForm extends Component {
 
 
     render() {
+        let today = new Date();
+        today.setHours(today.getHours() + 1);
         let initialValues = {
-            starting_point_time: new Date(),
+            starting_point_time: today,
             wind_speed: 0,
-            wind_direction: 0
+            wind_direction: 0,
+            adaptive_start: false
         }
 
         const formikProps = {
@@ -49,6 +52,7 @@ class ConnectedSelfRegistrationForm extends Component {
                 let data = {
                     starting_point_time: formValues.starting_point_time.toISOString(),
                     contest_team: this.props.participation.id,
+                    adaptive_start: formValues.adaptive_start,
                     wind_speed: formValues.wind_speed,
                     wind_direction: formValues.wind_direction
                 }
@@ -80,24 +84,42 @@ class ConnectedSelfRegistrationForm extends Component {
                 <Formik {...formikProps}>
                     {props => (
                         <Form onSubmit={props.handleSubmit} onAbort={() => this.props.history.push("/participation/")}>
-                            <Form.Group>
-                                <Form.Label>Starting point time</Form.Label>
-                                <DatePicker
-                                    selected={props.values.starting_point_time}
-                                    name={"starting_point_time"}
-                                    onChange={value => props.setFieldValue("starting_point_time", value)}
-                                    showTimeSelect
-                                    timeFormat="HH:mm"
-                                    timeIntervals={1}
-                                    timeCaption="time"
-                                    dateFormat="MMMM d, yyyy HH:mm"
-                                />
-                                {/*<DateTimePicker value={props.values.starting_point_time}*/}
-                                {/*            name={"starting_point_time"} disableClock clearIcon={null} showLeadingZeros={true}*/}
-                                {/*            onChange={value => props.setFieldValue("starting_point_time", value)}*/}
-                                {/*/>*/}
-                                <ErrorMessage name={"starting_point_time"} component={"div"}/>
-                            </Form.Group>
+                            <Form.Row>
+                                <Col>
+                                    <Form.Label>Starting point time: </Form.Label>&nbsp;
+                                    <DatePicker
+                                        selected={props.values.starting_point_time}
+                                        name={"starting_point_time"}
+                                        onChange={value => props.setFieldValue("starting_point_time", value)}
+                                        showTimeSelect
+                                        timeFormat="HH:mm"
+                                        timeIntervals={1}
+                                        timeCaption="time"
+                                        dateFormat="MMMM d, yyyy HH:mm"
+                                    />
+                                    {/*<DateTimePicker value={props.values.starting_point_time}*/}
+                                    {/*            name={"starting_point_time"} disableClock clearIcon={null} showLeadingZeros={true}*/}
+                                    {/*            onChange={value => props.setFieldValue("starting_point_time", value)}*/}
+                                    {/*/>*/}
+                                    <ErrorMessage name={"starting_point_time"} component={"div"}/>
+                                </Col>
+                            </Form.Row>
+                            <Form.Row>
+                                <Col>
+                                    <Form.Check name={"adaptive_start"} type={"checkbox"}
+                                                onChange={props.handleChange}
+                                                label={"Adaptive start"}
+                                                defaultValue={props.initialValues.adaptive_start}/>
+                                    <ErrorMessage name={"adaptive_start"} component={"div"}/>
+                                </Col>
+                            </Form.Row>
+                            <Form.Row>
+                                <Col>
+                                    <Form.Text>If adaptive start is selected, you can cross the starting time at a whole
+                                        minute anywhere between one hour before and one hour after the selector starting
+                                        point time</Form.Text>
+                                </Col>
+                            </Form.Row>
                             <Form.Row>
                                 <Col>
                                     <Form.Label>Wind speed</Form.Label>

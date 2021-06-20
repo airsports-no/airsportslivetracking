@@ -2272,11 +2272,16 @@ class NavigationTaskViewSet(ModelViewSet):
                 )
             else:
                 contestant_number = 1
+            adaptive_start = serialiser.validated_data["adaptive_start"]
+            tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
+            if adaptive_start:
+                tracker_start_time = starting_point_time-datetime.timedelta(hours=1)
             contestant = Contestant.objects.create(
                 team=contest_team.team,
                 takeoff_time=takeoff_time,
                 navigation_task=navigation_task,
-                tracker_start_time=takeoff_time - datetime.timedelta(minutes=10),
+                tracker_start_time=tracker_start_time,
+                adaptive_start=adaptive_start,
                 finished_by_time=takeoff_time + datetime.timedelta(days=1),
                 minutes_to_starting_point=navigation_task.minutes_to_starting_point,
                 air_speed=contest_team.air_speed,
@@ -2287,6 +2292,8 @@ class NavigationTaskViewSet(ModelViewSet):
             final_time = contestant.get_final_gate_time()
             if final_time is None:
                 final_time = starting_point_time
+            if adaptive_start:
+                final_time += datetime.timedelta(hours=1)
             contestant.finished_by_time = final_time + datetime.timedelta(
                 minutes=navigation_task.minutes_to_landing + 2
             )

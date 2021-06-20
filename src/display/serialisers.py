@@ -252,6 +252,7 @@ class ContestParticipationSerialiser(ContestSerialiser):
 class SelfManagementSerialiser(serializers.Serializer):
     starting_point_time = serializers.DateTimeField()
     contest_team = serializers.PrimaryKeyRelatedField(queryset=ContestTeam.objects.all())
+    adaptive_start = serializers.BooleanField(required=False)
     wind_speed = serializers.FloatField(validators=[
         MaxValueValidator(40), MinValueValidator(0)
     ])

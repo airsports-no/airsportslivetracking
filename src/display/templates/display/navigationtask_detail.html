@@ -46,7 +46,7 @@
                 <td>{{ contestant.contestant_number }}</td>
                 <td><a href="{% url 'contestant_update' contestant.pk %}">{{ contestant.team }}</a></td>
                 <td>{{ contestant.tracker_start_time|date:"Y-m-d H:i:s e" }}</td>
-                <td>{{ contestant.takeoff_time|date:"Y-m-d H:i:s e" }}</td>
+                <td>{% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.takeoff_time|date:"Y-m-d H:i:s e" }}{% endif %}</td>
                 <td>{{ contestant.finished_by_time|date:"Y-m-d H:i:s e" }}</td>
                 <td>{{ contestant.air_speed|stringformat:"d" }}</td>
                 <td>
