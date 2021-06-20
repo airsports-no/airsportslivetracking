@@ -1748,6 +1748,20 @@ class Contestant(models.Model):
         )
         return ""
 
+    @property
+    def tracker_id_display(self) -> List[str]:
+        devices = []
+        if self.tracking_device == TRACKING_DEVICE:
+            devices.append(self.tracker_device_id)
+        if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
+            devices.append(self.team.crew.member1.email)
+        if self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT):
+            devices.append(self.team.crew.member2.email)
+        logger.error(
+            f"Contestant {self.team} for navigation task {self.navigation_task} does not have a tracker ID for tracking device {self.tracking_device}"
+        )
+        return devices
+
     def generate_position_block_for_contestant(
         self, position_data: Dict, device_time: datetime.datetime
     ) -> Dict:

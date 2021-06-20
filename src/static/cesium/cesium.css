@@ -198,6 +198,10 @@ tr.hidden {
     white-space: pre-wrap;
 }
 
+.no-wrap {
+    white-space: nowrap;
+}
+
 .gateTimesText {
     /*font-size: clamp(0.25rem, -0.0372rem + 1.2766vw, 1rem);*/
     font-size: 0.7rem
