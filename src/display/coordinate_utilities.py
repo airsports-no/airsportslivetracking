@@ -22,8 +22,8 @@ def to_deg(value) -> float:
 def dot_v(A: np.ndarray, B: np.ndarray, axis=0) -> np.ndarray:
     """
     Return the dot product of each vector in A and B
-    :param axis: 
-    :return: 
+    :param axis:
+    :return:
     """
     # return np.einsum('ij,ij->j', norm_v(A),norm_v(B))
     #
@@ -57,11 +57,28 @@ def bearing_difference(bearing1, bearing2) -> float:
     return (bearing2 - bearing1 + 540) % 360 - 180
 
 
-def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
+def equirectangular_distance(
+    start: Tuple[float, float], finish: Tuple[float, float]
+) -> float:
     """
 
-    :param start:
-    :param finish:
+    :param start: degrees
+    :param finish: degrees
+    :return: Distance in metres
+    """
+    avg_lat = to_rad((start[0] + finish[0]) / 2)
+    x = to_rad(finish[1] - start[1]) * math.cos(avg_lat)
+    y = to_rad(finish[0] - start[0])
+    return math.sqrt(x ** 2 + y ** 2) * R
+
+
+def calculate_distance_lat_lon(
+    start: Tuple[float, float], finish: Tuple[float, float]
+) -> float:
+    """
+
+    :param start: degrees
+    :param finish: degrees
     :return: Distance in metres
     """
     # return geodesic(start, finish).km * 1000  # This is the most correct
@@ -80,14 +97,16 @@ def calculate_bearing(start: Tuple[float, float], finish: Tuple[float, float]) -
     la2 = finish[0] * math.pi / 180
     lo2 = finish[1] * math.pi / 180
     y = math.sin(lo2 - lo1) * math.cos(la2)
-    x = math.cos(la1) * math.sin(la2) - math.sin(la1) * math.cos(la2) * math.cos(lo2 - lo1)
+    x = math.cos(la1) * math.sin(la2) - math.sin(la1) * math.cos(la2) * math.cos(
+        lo2 - lo1
+    )
     brng = math.atan2(y, x) * 180 / math.pi
     return (brng + 360) % 360
 
 
-def calculate_fractional_distance_point_lat_lon(start: Tuple[float, float], finish: Tuple[float, float],
-                                                fraction: float) -> Tuple[
-    float, float]:
+def calculate_fractional_distance_point_lat_lon(
+    start: Tuple[float, float], finish: Tuple[float, float], fraction: float
+) -> Tuple[float, float]:
     R = 6371000  # metres
     la1 = start[0] * math.pi / 180
     lo1 = start[1] * math.pi / 180
@@ -105,8 +124,9 @@ def calculate_fractional_distance_point_lat_lon(start: Tuple[float, float], fini
     return (finalLatitude, finalLongitude)
 
 
-def get_centre_of_line_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> Tuple[
-    float, float]:
+def get_centre_of_line_lat_lon(
+    start: Tuple[float, float], finish: Tuple[float, float]
+) -> Tuple[float, float]:
     return calculate_fractional_distance_point_lat_lon(start, finish, 0.5)
 
 
@@ -120,7 +140,9 @@ def normalise_longitude(longitude: np.ndarray) -> np.ndarray:
     return np.arctan2(np.sin(longitude), np.cos(longitude)) * 180 / np.pi
 
 
-def project_position_lat_lon(start: Tuple[float, float], bearing: float, distance: float) -> Tuple[float, float]:
+def project_position_lat_lon(
+    start: Tuple[float, float], bearing: float, distance: float
+) -> Tuple[float, float]:
     """
 
     :param start: Starting position to project from
@@ -135,18 +157,22 @@ def project_position_lat_lon(start: Tuple[float, float], bearing: float, distanc
     latitude, longitude = start
     latitude *= math.pi / 180
     longitude *= math.pi / 180
-    newLatitude = math.asin(math.sin(latitude) * math.cos(angularDistance) +
-                            math.cos(latitude) * math.sin(angularDistance) * math.cos(temporaryHeading))
+    newLatitude = math.asin(
+        math.sin(latitude) * math.cos(angularDistance)
+        + math.cos(latitude) * math.sin(angularDistance) * math.cos(temporaryHeading)
+    )
     newLongitude = longitude + math.atan2(
         math.sin(temporaryHeading) * math.sin(angularDistance) * math.cos(latitude),
-        math.cos(angularDistance) - math.sin(latitude) * math.sin(newLatitude))
+        math.cos(angularDistance) - math.sin(latitude) * math.sin(newLatitude),
+    )
     newLatitude *= 180 / np.pi
     newLongitude *= 180 / np.pi
     return normalise_latitude(newLatitude), normalise_longitude(newLongitude)
 
 
-def extend_line(start: Tuple[float, float], finish: Tuple[float, float], distance: float) -> Optional[Tuple[
-    Tuple[float, float], Tuple[float, float]]]:
+def extend_line(
+    start: Tuple[float, float], finish: Tuple[float, float], distance: float
+) -> Optional[Tuple[Tuple[float, float], Tuple[float, float]]]:
     """
 
     :param start: degrees
@@ -158,8 +184,12 @@ def extend_line(start: Tuple[float, float], finish: Tuple[float, float], distanc
         return None
     line_length = calculate_distance_lat_lon(start, finish)
     distance_scale = 1852 * distance / (2 * line_length)
-    new_finish = calculate_fractional_distance_point_lat_lon(start, finish, 1 + distance_scale)
-    new_start = calculate_fractional_distance_point_lat_lon(finish, start, 1 + distance_scale)
+    new_finish = calculate_fractional_distance_point_lat_lon(
+        start, finish, 1 + distance_scale
+    )
+    new_start = calculate_fractional_distance_point_lat_lon(
+        finish, start, 1 + distance_scale
+    )
     return new_start, new_finish
 
 
@@ -168,7 +198,7 @@ def line_intersect(x1, y1, x2, y2, x3, y3, x4, y4):
     if (x1 == x2 and y1 == y2) or (x3 == x4 and y3 == y4):
         return None
 
-    denominator = ((y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1))
+    denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1)
     # Lines are parallel
     if denominator == 0:
         return None
@@ -195,8 +225,11 @@ from functools import partial
 
 class Projector:
     def __init__(self, latitude, longitude):
-        WGS84 = CRS.from_string('epsg:4326')
-        proj4str = '+proj=aeqd +lat_0=%s +lon_0=%s +x_0=0 +y_0=0' % (latitude, longitude)
+        WGS84 = CRS.from_string("epsg:4326")
+        proj4str = "+proj=aeqd +lat_0=%s +lon_0=%s +x_0=0 +y_0=0" % (
+            latitude,
+            longitude,
+        )
         AEQD = CRS.from_proj4(proj4str)
         self.to_projection = Transformer.from_crs(WGS84, AEQD, always_xy=True)
         self.from_projection = Transformer.from_crs(AEQD, WGS84, always_xy=True)
@@ -233,7 +266,9 @@ def nv_intersect(start1, stop1, start2, stop2):
 
 
 def fraction_of_leg(start, finish, intersect_point):
-    return calculate_distance_lat_lon(start, intersect_point) / calculate_distance_lat_lon(start, finish)
+    return calculate_distance_lat_lon(
+        start, intersect_point
+    ) / calculate_distance_lat_lon(start, finish)
 
 
 def get_heading_difference(heading1, heading2):
@@ -260,13 +295,21 @@ def cross_track_distance(lat1, lon1, lat2, lon2, lat, lon) -> float:
     angular_distance13 = calculate_distance_lat_lon((lat1, lon1), (lat, lon)) / R
     first_bearing = calculate_bearing((lat1, lon1), (lat, lon)) * math.pi / 180
     second_bearing = calculate_bearing((lat1, lon1), (lat2, lon2)) * math.pi / 180
-    return math.asin(math.sin(angular_distance13) * math.sin(first_bearing - second_bearing)) * R
+    return (
+        math.asin(
+            math.sin(angular_distance13) * math.sin(first_bearing - second_bearing)
+        )
+        * R
+    )
 
 
 def along_track_distance(lat1, lon1, lat, lon, cross_track_distance):
     angular_distance13 = calculate_distance_lat_lon((lat1, lon1), (lat, lon)) / R
     try:
-        return math.acos(math.cos(angular_distance13) / math.cos(cross_track_distance / R)) * R
+        return (
+            math.acos(math.cos(angular_distance13) / math.cos(cross_track_distance / R))
+            * R
+        )
     except:
         # try:
         #     logger.exception("Something failed when calculating along track distance: {} {} {}".format(
@@ -277,7 +320,9 @@ def along_track_distance(lat1, lon1, lat, lon, cross_track_distance):
         return 999999999999
 
 
-def get_procedure_turn_track(latitude, longitude, bearing_in, bearing_out, turn_radius) -> List[Tuple[float, float]]:
+def get_procedure_turn_track(
+    latitude, longitude, bearing_in, bearing_out, turn_radius
+) -> List[Tuple[float, float]]:
     """
 
     :param latitude: TP degrees
@@ -299,7 +344,9 @@ def get_procedure_turn_track(latitude, longitude, bearing_in, bearing_out, turn_
     circle_resolution = np.pi / 20
     slice_angle = np.pi + inner_angle_rad
     slice_length = 2 * turn_radius * np.sin(circle_resolution / 2)
-    initial_point = project_position_lat_lon((latitude, longitude), bearing_in, tangent_distance)
+    initial_point = project_position_lat_lon(
+        (latitude, longitude), bearing_in, tangent_distance
+    )
     points_list = [(latitude, longitude), initial_point]
     current_angle = 0
     if bearing_difference > 0:
@@ -322,12 +369,16 @@ def get_procedure_turn_track(latitude, longitude, bearing_in, bearing_out, turn_
 def rotate_vector_angle(x, y, degrees):
     # Rotation is counterclockwise for positive angles, so negate the angle to make it make sense
     rad = -to_rad(degrees)
-    return np.array([x * np.cos(rad) - y * np.sin(rad), x * np.sin(rad) + y * np.cos(rad)])
+    return np.array(
+        [x * np.cos(rad) - y * np.sin(rad), x * np.sin(rad) + y * np.cos(rad)]
+    )
 
 
-def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tuple[float, float]],
-                                   corridor_width: float, corner_degrees: float) -> Tuple[
-    List[Tuple[float, float]], List[Tuple[float, float]]]:
+def create_rounded_corridor_corner(
+    bisecting_line: Tuple[Tuple[float, float], Tuple[float, float]],
+    corridor_width: float,
+    corner_degrees: float,
+) -> Tuple[List[Tuple[float, float]], List[Tuple[float, float]]]:
     """
     Create a rounded line for the left and right corridor walls for the turn described by the bisecting line
 
@@ -370,18 +421,31 @@ def create_rounded_corridor_corner(bisecting_line: Tuple[Tuple[float, float], Tu
     # turn_radius = bisection_length / 2
     turn_radius = 0
 
-    new_centre = (norm_v(rotate_vector_angle(unit_circle[0], unit_circle[1], 180)) * turn_radius) + centre
+    new_centre = (
+        norm_v(rotate_vector_angle(unit_circle[0], unit_circle[1], 180)) * turn_radius
+    ) + centre
 
     track_point = unit_circle
 
-    starting_point = norm_v(rotate_vector_angle(track_point[0], track_point[1], initial_offset))
+    starting_point = norm_v(
+        rotate_vector_angle(track_point[0], track_point[1], initial_offset)
+    )
     outer_edge = []
     inner_edge = []
     for angle in np.arange(0, turn_degrees, turn_degrees / 10):
-        rotated = norm_v(rotate_vector_angle(starting_point[0], starting_point[1], angle))
+        rotated = norm_v(
+            rotate_vector_angle(starting_point[0], starting_point[1], angle)
+        )
         outer_edge.append(
-            (rotated * (turn_radius + bisection_corridor_difference + corridor_width_metres)) + new_centre)
-        inner_edge.append((rotated * (turn_radius + bisection_corridor_difference)) + new_centre)
+            (
+                rotated
+                * (turn_radius + bisection_corridor_difference + corridor_width_metres)
+            )
+            + new_centre
+        )
+        inner_edge.append(
+            (rotated * (turn_radius + bisection_corridor_difference)) + new_centre
+        )
     if left_turn:
         left_edge = np.array(inner_edge)
         right_edge = np.array(outer_edge)
@@ -424,7 +488,9 @@ def create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length):
     return [[x1, y1], [x2, y2]]
 
 
-def create_bisecting_line_between_segments_corridor_width_lonlat(x1, y1, x2, y2, x3, y3, corridor_width):
+def create_bisecting_line_between_segments_corridor_width_lonlat(
+    x1, y1, x2, y2, x3, y3, corridor_width
+):
     """
 
     :param x1:
@@ -444,7 +510,9 @@ def create_bisecting_line_between_segments_corridor_width_lonlat(x1, y1, x2, y2,
     x1, y1 = epsg.transform_point(x1, y1, pc)
     x2, y2 = epsg.transform_point(x2, y2, pc)
     x3, y3 = epsg.transform_point(x3, y3, pc)
-    s, f = create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3, y3, corridor_width)
+    s, f = create_bisecting_line_between_segments_corridor_width_xy(
+        x1, y1, x2, y2, x3, y3, corridor_width
+    )
     x1, y1 = pc.transform_point(s[0], s[1], epsg)
     x2, y2 = pc.transform_point(f[0], f[1], epsg)
     line = [[x1, y1], [x2, y2]]
@@ -453,7 +521,9 @@ def create_bisecting_line_between_segments_corridor_width_lonlat(x1, y1, x2, y2,
     return line
 
 
-def create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3, y3, corridor_width):
+def create_bisecting_line_between_segments_corridor_width_xy(
+    x1, y1, x2, y2, x3, y3, corridor_width
+):
     """
 
     :param x1:
@@ -527,7 +597,9 @@ def create_perpendicular_line_at_end_xy(x1, y1, x2, y2, length):
     return [[x1, y1], [x2, y2]]
 
 
-def calculate_bounding_box(centre: Tuple[float, float], radius: float) -> Tuple[float, float, float, float]:
+def calculate_bounding_box(
+    centre: Tuple[float, float], radius: float
+) -> Tuple[float, float, float, float]:
     """
 
     :param centre: degrees

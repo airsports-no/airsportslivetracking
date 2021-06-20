@@ -12,7 +12,7 @@ from redis import StrictRedis
 
 from display.coordinate_utilities import (
     calculate_distance_lat_lon,
-    calculate_bounding_box,
+    calculate_bounding_box, equirectangular_distance,
 )
 from display.models import NavigationTask, Contest
 from display.views import cached_generate_data
@@ -133,7 +133,7 @@ class GlobalConsumer(WebsocketConsumer):
         data = json.loads(event["data"])
         if self.location and self.range:
             position = (data["latitude"], data["longitude"])
-            if calculate_distance_lat_lon(position, self.location) > self.range:
+            if equirectangular_distance(position, self.location) > self.range:
                 return
         # logger.info("Received data: {}".format(data))
         self.send(text_data=event["data"])

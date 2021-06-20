@@ -4,7 +4,7 @@ from parameterized import parameterized
 from display.coordinate_utilities import calculate_bearing, get_heading_difference, extend_line, \
     fraction_of_leg, Projector, get_procedure_turn_track, create_bisecting_line_between_segments, \
     create_bisecting_line_between_segments_corridor_width_lonlat, \
-    create_bisecting_line_between_segments_corridor_width_xy
+    create_bisecting_line_between_segments_corridor_width_xy, equirectangular_distance, calculate_distance_lat_lon
 
 
 class TestCoordinateUtilities(TestCase):
@@ -84,6 +84,13 @@ class TestCoordinateUtilities(TestCase):
     def test_create_bisecting_line_between_segments_corridor_width_xy(self, x1, y1, x2, y2, x3, y3, length, expected):
         gate_line = create_bisecting_line_between_segments_corridor_width_xy(x1, y1, x2, y2, x3, y3, length)
         self.assertListEqual(expected, gate_line)
+
+    @parameterized.expand([
+        ((60, 11), (61, 11), 111194.92664455874)
+    ])
+    def test_equirectangular_distance(self, start, finish, actual):
+        print(calculate_distance_lat_lon( start, finish))
+        self.assertEqual(actual, equirectangular_distance(start, finish))
 
 
 class TestProcedureTurnPoints(TestCase):
