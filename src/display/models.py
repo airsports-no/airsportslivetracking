@@ -294,6 +294,12 @@ class Crew(models.Model):
         related_name="crewmember_two",
     )
 
+    @property
+    def table_display(self):
+        if self.member2:
+            return "{}<br/>{}".format(self.member1, self.member2)
+        return "{}".format(self.member1)
+
     def validate(self):
         if (
             Crew.objects.filter(member1=self.member1, member2=self.member2)
@@ -340,6 +346,9 @@ class Team(models.Model):
     def __str__(self):
         return "{} in {}".format(self.crew, self.aeroplane)
 
+    @property
+    def table_display(self):
+        return f"{self.crew.table_display}<br/>{self.aeroplane}"
     @property
     def country_flag_url(self):
         if self.country:

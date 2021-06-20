@@ -45,7 +45,7 @@
         {% for contestant in object.contestant_set.all %}
             <tr>
                 <td>{{ contestant.contestant_number }}</td>
-                <td><a href="{% url 'contestant_update' contestant.pk %}">{{ contestant.team }}</a></td>
+                <td class="no-wrap"><a href="{% url 'contestant_update' contestant.pk %}">{{ contestant.team.table_display|safe }}</a></td>
                 <td>
                     {{ contestant.tracker_id_display|join:", " }}
                 </td>
@@ -78,19 +78,19 @@
                 </td>
                 <td>{{ contestant.contestanttrack.current_state }}</td>
                 <td>
+                    <a href="{% url 'contestant_map' contestant.pk %}">map</a> |
+                    <a href="{% url 'contestant_rules' contestant.pk %}">rules</a>
                     {% if object.is_poker_run %}
                         {% if "change_contest" in contest_permissions %}
-                            <a href="{% url 'contestant_cards_list' contestant.pk %}">playing cards</a> |
+                            | <a href="{% url 'contestant_cards_list' contestant.pk %}">playing cards</a>
                         {% endif %}
                     {% endif %}
                     {% if "change_contest" in contest_permissions %}
-                        <a href="{% url 'contestant_delete' contestant.pk %}">delete</a> |
-                        <a href="{% url 'contestant_stop_calculator' contestant.pk %}"
+                        <br/><a href="{% url 'contestant_stop_calculator' contestant.pk %}"
                            onclick="return confirm('Are you sure you want to stop the calculator?')">stop calculator</a>
                         |
+                                                <a href="{% url 'contestant_delete' contestant.pk %}">delete</a>
                     {% endif %}
-                    <a href="{% url 'contestant_rules' contestant.pk %}">rules</a> |
-                    <a href="{% url 'contestant_map' contestant.pk %}">map</a>
                 </td>
             </tr>
         {% endfor %}
