@@ -50,8 +50,9 @@
                 </td>
                 <td>
                     {% for tracker in contestant.tracker_id_display %}
-                        {{ tracker.tracker }}{% if not tracker.has_user %}<a href="#" data-toggle="tooltip" title="The user for the tracker is not registered">*</a><br/>
+                        {{ tracker.tracker }}{% if not tracker.has_user %}<a href="#" data-toggle="tooltip" title="The user for the tracker is not registered">*</a>
                         {% endif %}
+                        <br/>
                     {% endfor %}
                 </td>
                 <td>
