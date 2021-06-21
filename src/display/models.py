@@ -1640,9 +1640,6 @@ class Contestant(models.Model):
             and self.team.crew.member2 is not None
         ):
             devices.append(self.team.crew.member2.email)
-        logger.error(
-            f"Contestant {self.team} for navigation task {self.navigation_task} does not have a tracker ID for tracking device {self.tracking_device}"
-        )
         return devices
 
     def generate_position_block_for_contestant(self, position_data: Dict, device_time: datetime.datetime) -> Dict:
