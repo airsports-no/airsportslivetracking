@@ -22,14 +22,39 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
 
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx
-from display.models import NavigationTask, Aeroplane, Team, Route, Contestant, ContestantTrack, Scorecard, Crew, \
-    Contest, ContestSummary, TaskTest, Task, TaskSummary, TeamTestScore, Person, Club, ContestTeam, TRACCAR, \
-    GateScoreOverride, TrackScoreOverride, GateScore, Prohibited, PlayingCard, TrackAnnotation, ScoreLogEntry, \
-    GateCumulativeScore
+from display.models import (
+    NavigationTask,
+    Aeroplane,
+    Team,
+    Route,
+    Contestant,
+    ContestantTrack,
+    Scorecard,
+    Crew,
+    Contest,
+    ContestSummary,
+    TaskTest,
+    Task,
+    TaskSummary,
+    TeamTestScore,
+    Person,
+    Club,
+    ContestTeam,
+    TRACCAR,
+    GateScoreOverride,
+    TrackScoreOverride,
+    GateScore,
+    Prohibited,
+    PlayingCard,
+    TrackAnnotation,
+    ScoreLogEntry,
+    GateCumulativeScore,
+)
 from display.waypoint import Waypoint
 
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
 
 class MangledEmailField(serializers.Field):
     def to_representation(self, value):
@@ -65,10 +90,12 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
     # phone = PhoneNumberField(required=False)
-    phone_country_prefix = serializers.CharField(max_length=5, required=False,
-                                                 help_text="International prefix for a phone number, e.g. +47")
-    phone_national_number = serializers.CharField(max_length=30, required=False,
-                                                  help_text="Actual phone number without international prefix")
+    phone_country_prefix = serializers.CharField(
+        max_length=5, required=False, help_text="International prefix for a phone number, e.g. +47"
+    )
+    phone_national_number = serializers.CharField(
+        max_length=30, required=False, help_text="Actual phone number without international prefix"
+    )
 
     def create(self, validated_data):
         country_prefix = validated_data.pop("phone_country_prefix", None)
@@ -121,13 +148,15 @@ class CrewSerialiser(serializers.ModelSerializer):
 
     def create(self, validated_data):
         member1 = validated_data.pop("member1")
-        member1_object = Person.get_or_create(member1["first_name"], member1["last_name"], member1.get("phone"),
-                                              member1.get("email"))
+        member1_object = Person.get_or_create(
+            member1["first_name"], member1["last_name"], member1.get("phone"), member1.get("email")
+        )
         member2 = validated_data.pop("member2", None)
         member2_object = None
         if member2:
-            member2_object = Person.get_or_create(member2["first_name"], member2["last_name"], member2.get("phone"),
-                                                  member2.get("email"))
+            member2_object = Person.get_or_create(
+                member2["first_name"], member2["last_name"], member2.get("phone"), member2.get("email")
+            )
         crew, _ = Crew.objects.get_or_create(member1=member1_object, member2=member2_object)
         return crew
 
@@ -201,9 +230,9 @@ class NavigationTasksSummaryParticipationSerialiser(serializers.ModelSerializer)
 
     def get_future_contestants(self, navigation_task):
         person = get_object_or_404(Person, email=self.context["request"].user.email)
-        future_contestants = navigation_task.contestant_set.filter(team__crew__member1=person,
-                                                                   finished_by_time__gt=datetime.datetime.now(
-                                                                       datetime.timezone.utc))
+        future_contestants = navigation_task.contestant_set.filter(
+            team__crew__member1=person, finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc)
+        )
         serialiser = ContestantSerialiser(future_contestants, many=True, read_only=True)
         return serialiser.data
 
@@ -221,31 +250,34 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSeria
 
     def get_permissions_map(self, created):
         user = self.context["request"].user
-        return {
-            "change_contest": [user],
-            "delete_contest": [user],
-            "view_contest": [user]
-        }
+        return {"change_contest": [user], "delete_contest": [user], "view_contest": [user]}
 
     def get_visiblenavigationtasks(self, contest):
-        contests = get_objects_for_user(self.context["request"].user, "display.view_contest",
-                                        klass=Contest, accept_global_perms=False)
+        contests = get_objects_for_user(
+            self.context["request"].user, "display.view_contest", klass=Contest, accept_global_perms=False
+        )
         items = NavigationTask.objects.filter(
-            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)).filter(
-            contest_id=contest.pk)
+            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
+        ).filter(contest_id=contest.pk)
         serialiser = NavigationTasksSummarySerialiser(items, many=True, read_only=True)
         return serialiser.data
 
 
 class ContestParticipationSerialiser(ContestSerialiser):
     def get_visiblenavigationtasks(self, contest):
-        contests = get_objects_for_user(self.context["request"].user, "display.view_contest",
-                                        klass=Contest, accept_global_perms=False)
-        items = NavigationTask.objects.filter(
-            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)).filter(
-            contest_id=contest.pk).filter(allow_self_management=True)
-        serialiser = NavigationTasksSummaryParticipationSerialiser(items, many=True, read_only=True,
-                                                                   context={"request": self.context["request"]})
+        contests = get_objects_for_user(
+            self.context["request"].user, "display.view_contest", klass=Contest, accept_global_perms=False
+        )
+        items = (
+            NavigationTask.objects.filter(
+                Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
+            )
+            .filter(contest_id=contest.pk)
+            .filter(allow_self_management=True)
+        )
+        serialiser = NavigationTasksSummaryParticipationSerialiser(
+            items, many=True, read_only=True, context={"request": self.context["request"]}
+        )
         return serialiser.data
 
 
@@ -253,12 +285,8 @@ class SelfManagementSerialiser(serializers.Serializer):
     starting_point_time = serializers.DateTimeField()
     contest_team = serializers.PrimaryKeyRelatedField(queryset=ContestTeam.objects.all())
     adaptive_start = serializers.BooleanField(required=False)
-    wind_speed = serializers.FloatField(validators=[
-        MaxValueValidator(40), MinValueValidator(0)
-    ])
-    wind_direction = serializers.FloatField(validators=[
-        MaxValueValidator(360), MinValueValidator(0)
-    ])
+    wind_speed = serializers.FloatField(validators=[MaxValueValidator(40), MinValueValidator(0)])
+    wind_direction = serializers.FloatField(validators=[MaxValueValidator(360), MinValueValidator(0)])
 
 
 class WaypointSerialiser(serializers.Serializer):
@@ -274,7 +302,8 @@ class WaypointSerialiser(serializers.Serializer):
     elevation = serializers.FloatField(help_text="Metres above MSL")
     width = serializers.FloatField(help_text="Width of the gate in NM")
     gate_line = serializers.JSONField(
-        help_text="Coordinates that describe the starting point and finish point of the gate line, e.g. [[lat1,lon2],[lat2,lon2]")
+        help_text="Coordinates that describe the starting point and finish point of the gate line, e.g. [[lat1,lon2],[lat2,lon2]"
+    )
     time_check = serializers.BooleanField()
     gate_check = serializers.BooleanField()
     end_curved = serializers.BooleanField()
@@ -283,13 +312,16 @@ class WaypointSerialiser(serializers.Serializer):
     distance_previous = serializers.FloatField(help_text="Distance from the previous gate (NM)")
     bearing_next = serializers.FloatField(help_text="True track to the next gate (degrees)")
     bearing_from_previous = serializers.FloatField(help_text="True track from the previous gates to this")
-    procedure_turn_points = serializers.JSONField(help_text="Curve that describes the procedure turn (read-only)",
-                                                  required=False, read_only=True)
+    procedure_turn_points = serializers.JSONField(
+        help_text="Curve that describes the procedure turn (read-only)", required=False, read_only=True
+    )
     is_procedure_turn = serializers.BooleanField()
-    outside_distance = serializers.FloatField(help_text="The distance at which we leave the gate vicinity",
-                                              read_only=True, required=False)
-    inside_distance = serializers.FloatField(help_text="The distance at which we enter the gate vicinity",
-                                             read_only=True, required=False)
+    outside_distance = serializers.FloatField(
+        help_text="The distance at which we leave the gate vicinity", read_only=True, required=False
+    )
+    inside_distance = serializers.FloatField(
+        help_text="The distance at which we enter the gate vicinity", read_only=True, required=False
+    )
 
     left_corridor_line = serializers.JSONField(required=False)
     right_corridor_line = serializers.JSONField(required=False)
@@ -339,10 +371,12 @@ class RouteSerialiser(serializers.ModelSerializer):
         waypoints = []
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
-        route = Route.objects.create(waypoints=waypoints,
-                                     landing_gate=self._create_waypoint(validated_data.pop("landing_gate")),
-                                     takeoff_gate=self._create_waypoint(validated_data.pop("takeoff_gate")),
-                                     **validated_data)
+        route = Route.objects.create(
+            waypoints=waypoints,
+            landing_gate=self._create_waypoint(validated_data.pop("landing_gate")),
+            takeoff_gate=self._create_waypoint(validated_data.pop("takeoff_gate")),
+            **validated_data,
+        )
         return route
 
     def update(self, instance, validated_data):
@@ -357,7 +391,8 @@ class RouteSerialiser(serializers.ModelSerializer):
 
 class GateScoreOverrideSerialiser(serializers.ModelSerializer):
     for_gate_types = serializers.JSONField(
-        help_text='List of gates types (eg. ["tp", "secret", "sp"]) that should be overridden (all lower case)')
+        help_text='List of gates types (eg. ["tp", "secret", "sp"]) that should be overridden (all lower case)'
+    )
 
     class Meta:
         model = GateScoreOverride
@@ -379,56 +414,73 @@ class ContestTeamSerialiser(serializers.ModelSerializer):
 class SignupSerialiser(serializers.Serializer):
     def update(self, instance, validated_data):
         request = self.context["request"]
-        contest = self.context["contest"]
+        contest = self.context["contest"]  # type: Contest
 
         contest_team = validated_data["contest_team"]
-        logger.info(f'Updating contest team {contest_team.pk} {contest_team}')
-        teams = ContestTeam.objects.filter(Q(team__crew__member1=request.user.pk) | Q(
-            team__crew__member2=request.user.pk), contest=contest).exclude(pk=contest_team.pk)
+        original_team = contest_team.team
+        logger.info(f"Updating contest team {contest_team.pk} {contest_team}")
+        teams = ContestTeam.objects.filter(
+            Q(team__crew__member1=request.user.pk) | Q(team__crew__member2=request.user.pk), contest=contest
+        ).exclude(pk=contest_team.pk)
         if teams.exists():
             raise ValidationError(
-                f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
+                f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+            )
         if validated_data["copilot_id"]:
-            teams = ContestTeam.objects.filter(Q(team__crew__member1=validated_data["copilot_id"]) | Q(
-                team__crew__member2=validated_data["copilot_id"]), contest=contest).exclude(
-                pk=contest_team.pk)
+            teams = ContestTeam.objects.filter(
+                Q(team__crew__member1=validated_data["copilot_id"])
+                | Q(team__crew__member2=validated_data["copilot_id"]),
+                contest=contest,
+            ).exclude(pk=contest_team.pk)
             if teams.exists():
                 raise ValidationError(
-                    f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
+                    f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+                )
 
-        team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_id"],
-                                              validated_data["aircraft_registration"], validated_data["club_name"])
-        contest_team.team = team
-        contest_team.air_speed = validated_data["airspeed"]
-        contest_team.save()
-        logger.info(f'Updated contest team {contest_team.pk} {contest_team}')
+        team = Team.get_or_create_from_signup(
+            self.context["request"].user,
+            validated_data["copilot_id"],
+            validated_data["aircraft_registration"],
+            validated_data["club_name"],
+        )
+        new_contest_team = contest.replace_team(original_team, team, {"air_speed": validated_data["airspeed"]})
+        logger.info(f"Updated contest team {new_contest_team.pk} {new_contest_team}")
 
-        return contest_team
+        return new_contest_team
 
     def create(self, validated_data):
         request = self.context["request"]
         print(validated_data["copilot_id"])
-        team = Team.get_or_create_from_signup(self.context["request"].user, validated_data["copilot_id"],
-                                              validated_data["aircraft_registration"], validated_data["club_name"])
+        team = Team.get_or_create_from_signup(
+            self.context["request"].user,
+            validated_data["copilot_id"],
+            validated_data["aircraft_registration"],
+            validated_data["club_name"],
+        )
         print(team)
-        logger.info(f'Creating new contest team for team {team}')
+        logger.info(f"Creating new contest team for team {team}")
 
         contest = self.context["contest"]
         if ContestTeam.objects.filter(contest=contest, team=team).exists():
             raise ValidationError(f"Team {team} is already registered for contest {contest}")
-        teams = ContestTeam.objects.filter(Q(team__crew__member1_id=request.user.pk) | Q(
-            team__crew__member2_id=request.user.pk), contest=contest)
+        teams = ContestTeam.objects.filter(
+            Q(team__crew__member1_id=request.user.pk) | Q(team__crew__member2_id=request.user.pk), contest=contest
+        )
         if teams.exists():
             raise ValidationError(
-                f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
+                f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+            )
         if validated_data["copilot_id"]:
-            teams = ContestTeam.objects.filter(Q(team__crew__member1=validated_data["copilot_id"]) | Q(
-                team__crew__member2=validated_data["copilot_id"]), contest=contest)
+            teams = ContestTeam.objects.filter(
+                Q(team__crew__member1=validated_data["copilot_id"])
+                | Q(team__crew__member2=validated_data["copilot_id"]),
+                contest=contest,
+            )
             if teams.exists():
                 raise ValidationError(
-                    f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}")
-        contest_team = ContestTeam.objects.create(team=team, contest=contest, air_speed=validated_data["airspeed"])
-        return contest_team
+                    f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+                )
+        return contest.replace_team(None, team, {"air_speed": validated_data["airspeed"]})
 
     aircraft_registration = serializers.CharField()
     club_name = serializers.CharField()
@@ -519,13 +571,12 @@ class GpxTrackSerialiser(serializers.Serializer):
     def create(self, validated_data):
         pass
 
-    track_file = serializers.CharField(write_only=True, required=True,
-                                       help_text="Base64 encoded gpx track file")
+    track_file = serializers.CharField(write_only=True, required=True, help_text="Base64 encoded gpx track file")
 
     def validate_track_file(self, value):
         if value:
             try:
-                base64.decodebytes(bytes(value, 'utf-8'))
+                base64.decodebytes(bytes(value, "utf-8"))
             except Exception as e:
                 raise ValidationError("track_file must be in a valid base64 string format.")
         return value
@@ -535,6 +586,7 @@ class ContestantTrackWithTrackPointsSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
     """
+
     track = PositionSerialiser(many=True, read_only=True)
 
     class Meta:
@@ -558,11 +610,7 @@ class SharingSerialiser(serializers.Serializer):
     PUBLIC = "public"
     PRIVATE = "private"
     UNLISTED = "unlisted"
-    VISIBILITIES = (
-        (PUBLIC, "Public"),
-        (PRIVATE, "Private"),
-        (UNLISTED, "Unlisted")
-    )
+    VISIBILITIES = ((PUBLIC, "Public"), (PRIVATE, "Private"), (UNLISTED, "Unlisted"))
     visibility = serializers.ChoiceField(choices=VISIBILITIES)
 
 
@@ -570,6 +618,7 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
     """
+
     contest_summary = serializers.FloatField(read_only=True, required=False)
 
     class Meta:
@@ -585,7 +634,8 @@ class ContestantSerialiser(serializers.ModelSerializer):
     gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
     track_score_override = TrackScoreOverrideSerialiser(required=False)
     gate_times = serializers.JSONField(
-        help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)")
+        help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)"
+    )
     default_map_url = SerializerMethodField("get_default_map_url")
 
     def get_default_map_url(self, contestant):
@@ -601,13 +651,16 @@ class ContestantSerialiser(serializers.ModelSerializer):
         track_score_override_data = validated_data.pop("track_score_override", None)
         gate_score_override_data = validated_data.pop("gate_score_override", None)
         contestant = Contestant.objects.create(**validated_data)
-        contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
-                                            gate_times.items()}
+        contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
         contestant.save()
         if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
-            ContestTeam.objects.create(contest=contestant.navigation_task.contest, team=contestant.team,
-                                       tracker_device_id=contestant.tracker_device_id,
-                                       tracking_service=contestant.tracking_service, air_speed=contestant.air_speed)
+            ContestTeam.objects.create(
+                contest=contestant.navigation_task.contest,
+                team=contestant.team,
+                tracker_device_id=contestant.tracker_device_id,
+                tracking_service=contestant.tracking_service,
+                air_speed=contestant.air_speed,
+            )
         if track_score_override_data is not None:
             track_override = TrackScoreOverride.objects.create(**track_score_override_data)
             contestant.track_score_override = track_override
@@ -625,14 +678,17 @@ class ContestantSerialiser(serializers.ModelSerializer):
         gate_score_override_data = validated_data.pop("gate_score_override", None)
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()
-        instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in
-                                          gate_times.items()}
+        instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
         instance.save()
 
         if not ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).exists():
-            ContestTeam.objects.create(contest=instance.navigation_task.contest, team=instance.team,
-                                       tracker_device_id=instance.tracker_device_id,
-                                       tracking_service=instance.tracking_service, air_speed=instance.air_speed)
+            ContestTeam.objects.create(
+                contest=instance.navigation_task.contest,
+                team=instance.team,
+                tracker_device_id=instance.tracker_device_id,
+                tracking_service=instance.tracking_service,
+                air_speed=instance.air_speed,
+            )
         if track_score_override_data is not None:
             track_override = TrackScoreOverride.objects.create(**track_score_override_data)
             instance.track_score_override = track_override
@@ -648,6 +704,7 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
     Contestants. When putting or patching, note that the entire team has to be specified for it to be changed.
     Otherwise changes will be ignored.
     """
+
     team = TeamNestedSerialiser()
 
     class Meta:
@@ -685,9 +742,14 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
     track_score_override = TrackScoreOverrideSerialiser(required=False)
     scorecard_data = serializers.SerializerMethodField()
-    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=False,
-                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-                                     lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
+    scorecard = SlugRelatedField(
+        slug_field="name",
+        queryset=Scorecard.objects.all(),
+        required=False,
+        help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+            lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])
+        ),
+    )
     actual_rules = serializers.JSONField(read_only=True)
     display_contestant_rank_summary = serializers.BooleanField(read_only=True)
     share_string = serializers.CharField(read_only=True)
@@ -720,15 +782,17 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         track_override = None
         if track_score_override_data is not None:
             track_override = TrackScoreOverride.objects.create(**track_score_override_data)
-        navigation_task = NavigationTask.objects.create(**validated_data, track_score_override=track_override,
-                                                        route=route)
+        navigation_task = NavigationTask.objects.create(
+            **validated_data, track_score_override=track_override, route=route
+        )
         if gate_score_override_data is not None and len(gate_score_override_data) > 0:
             for item in gate_score_override_data:
                 navigation_task.gate_score_override.add(GateScoreOverride.objects.create(**item))
 
         for contestant_data in contestant_set:
-            contestant_serialiser = ContestantNestedTeamSerialiser(data=contestant_data,
-                                                                   context={"navigation_task": navigation_task})
+            contestant_serialiser = ContestantNestedTeamSerialiser(
+                data=contestant_data, context={"navigation_task": navigation_task}
+            )
             contestant_serialiser.is_valid(True)
             contestant_serialiser.save()
         return navigation_task
@@ -736,13 +800,17 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
 class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiser(many=True)
-    scorecard = SlugRelatedField(slug_field="name", queryset=Scorecard.objects.all(), required=True,
-                                 help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-                                     lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])))
+    scorecard = SlugRelatedField(
+        slug_field="name",
+        queryset=Scorecard.objects.all(),
+        required=True,
+        help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
+            lambda: ", ".join(["'{}'".format(item) for item in Scorecard.objects.all()])
+        ),
+    )
     gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
     track_score_override = TrackScoreOverrideSerialiser(required=False)
-    route_file = serializers.CharField(write_only=True, required=True,
-                                       help_text="Base64 encoded gpx file")
+    route_file = serializers.CharField(write_only=True, required=True, help_text="Base64 encoded gpx file")
     internal_serialiser = ContestantNestedTeamSerialiser
 
     class Meta:
@@ -752,7 +820,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     def validate_route_file(self, value):
         if value:
             try:
-                base64.decodebytes(bytes(value, 'utf-8'))
+                base64.decodebytes(bytes(value, "utf-8"))
             except Exception as e:
                 raise ValidationError("route_file must be in a valid base64 string format.")
         return value
@@ -764,8 +832,9 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             track_score_override_data = validated_data.pop("track_score_override", None)
             gate_score_override_data = validated_data.pop("gate_score_override", None)
             try:
-                route = create_precision_route_from_gpx(base64.decodebytes(route_file.encode("utf-8")),
-                                                        validated_data["scorecard"].use_procedure_turns)
+                route = create_precision_route_from_gpx(
+                    base64.decodebytes(route_file.encode("utf-8")), validated_data["scorecard"].use_procedure_turns
+                )
             except Exception as e:
                 raise ValidationError("Failed building route from provided GPX: {}".format(e))
             user = self.context["request"].user
@@ -787,11 +856,12 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
                 for item in gate_score_override_data:
                     navigation_task.gate_score_override.add(GateScoreOverride.objects.create(**item))
             for contestant_data in contestant_set:
-                if isinstance(contestant_data['team'], Team):
+                if isinstance(contestant_data["team"], Team):
                     contestant_data["team"] = contestant_data["team"].pk
 
-            contestant_serialiser = self.internal_serialiser(data=contestant_set, many=True,
-                                                             context={"navigation_task": navigation_task})
+            contestant_serialiser = self.internal_serialiser(
+                data=contestant_set, many=True, context={"navigation_task": navigation_task}
+            )
             contestant_serialiser.is_valid(True)
         contestant_serialiser.save()
         return navigation_task
@@ -801,6 +871,7 @@ class ExternalNavigationTaskTeamIdSerialiser(ExternalNavigationTaskNestedTeamSer
     """
     Does not provide team data input, only team ID for each contestant.
     """
+
     contestant_set = ContestantSerialiser(many=True)
     internal_serialiser = ContestantSerialiser
 

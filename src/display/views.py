@@ -1631,16 +1631,9 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         # Must be retrieved before we delete the existing relationship
         tracking_data = self.get_cleaned_data_for_step("tracking")
         contest = get_object_or_404(Contest, pk=contest_pk)
+        original_team = None
         if team_pk:
             original_team = get_object_or_404(Team, pk=team_pk)
-        else:
-            original_team = None
-        affected_contestants = None
-        if original_team:
-            affected_contestants = Contestant.objects.filter(
-                navigation_task__contest=contest, team=original_team
-            )
-            ContestTeam.objects.filter(contest=contest, team=original_team).delete()
         # Check if member one has been created
         member_one_search = self.get_post_data_for_step("member1search")
         use_existing1 = member_one_search.get("use_existing_pilot") is not None
@@ -1693,21 +1686,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         team, created_team = Team.objects.get_or_create(
             crew=crew, aeroplane=aeroplane, club=club
         )
-        # Clear away any old association since we have updated the data
-        ContestTeam.objects.filter(contest=contest, team=team).delete()
-        ct, _ = ContestTeam.objects.get_or_create(
-            contest=contest, team=team, defaults=tracking_data
-        )
-        if (
-            ct.tracking_service == TRACCAR
-            and ct.tracker_device_id
-            and len(ct.tracker_device_id) > 0
-            and ct.tracking_device == TRACKING_DEVICE
-        ):
-            traccar = get_traccar_instance()
-            traccar.get_or_create_device(ct.tracker_device_id, ct.tracker_device_id)
-        if affected_contestants is not None:
-            affected_contestants.update(team=team)
+        contest.replace_team(original_team, team, tracking_data)
         return HttpResponseRedirect(
             reverse("contest_team_list", kwargs={"contest_pk": contest_pk})
         )

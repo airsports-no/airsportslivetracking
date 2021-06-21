@@ -174,9 +174,7 @@ class CharNullField(models.CharField):
     description = "CharField that stores NULL"
 
     def get_db_prep_value(self, value, connection=None, prepared=False):
-        value = super(CharNullField, self).get_db_prep_value(
-            value, connection, prepared
-        )
+        value = super(CharNullField, self).get_db_prep_value(value, connection, prepared)
         if value == "":
             return None
         else:
@@ -255,26 +253,15 @@ class Person(models.Model):
         possible_person = None
         if phone is not None and len(phone) > 0:
             possible_person = Person.objects.filter(phone=phone)
-        if (
-            (not possible_person or possible_person.count() == 0)
-            and email is not None
-            and len(email) > 0
-        ):
+        if (not possible_person or possible_person.count() == 0) and email is not None and len(email) > 0:
             possible_person = Person.objects.filter(email__iexact=email)
         elif not possible_person or possible_person.count() == 0:
-            if (
-                first_name is not None
-                and len(first_name) > 0
-                and last_name is not None
-                and len(last_name) > 0
-            ):
+            if first_name is not None and len(first_name) > 0 and last_name is not None and len(last_name) > 0:
                 possible_person = Person.objects.filter(
                     first_name__iexact=first_name, last_name__iexact=last_name
                 ).first()
         if possible_person is None or possible_person.count() == 0:
-            return Person.objects.create(
-                phone=phone, email=email, first_name=first_name, last_name=last_name
-            )
+            return Person.objects.create(phone=phone, email=email, first_name=first_name, last_name=last_name)
         return possible_person.first()
 
     def validate(self):
@@ -283,9 +270,7 @@ class Person(models.Model):
 
 
 class Crew(models.Model):
-    member1 = models.ForeignKey(
-        Person, on_delete=models.PROTECT, related_name="crewmember_one"
-    )
+    member1 = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="crewmember_one")
     member2 = models.ForeignKey(
         Person,
         on_delete=models.PROTECT,
@@ -301,11 +286,7 @@ class Crew(models.Model):
         return "{}".format(self.member1)
 
     def validate(self):
-        if (
-            Crew.objects.filter(member1=self.member1, member2=self.member2)
-            .exclude(pk=self.pk)
-            .exists()
-        ):
+        if Crew.objects.filter(member1=self.member1, member2=self.member2).exclude(pk=self.pk).exists():
             raise ValidationError("A crew with this email already exists")
 
     def __str__(self):
@@ -362,9 +343,7 @@ class Team(models.Model):
     ) -> "Team":
         my_person = Person.objects.get(email=user.email)
         crew, _ = Crew.objects.get_or_create(member1=my_person, member2=copilot)
-        aircraft, _ = Aeroplane.objects.get_or_create(
-            registration=aircraft_registration
-        )
+        aircraft, _ = Aeroplane.objects.get_or_create(registration=aircraft_registration)
         club, _ = Club.objects.get_or_create(name=club_name)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aircraft, club=club)
         return team
@@ -373,9 +352,7 @@ class Team(models.Model):
 class ContestTeam(models.Model):
     contest = models.ForeignKey("Contest", on_delete=models.CASCADE)
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
-    air_speed = models.FloatField(
-        default=70, help_text="The planned airspeed for the contestant"
-    )
+    air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
     tracking_service = models.CharField(
         default=TRACCAR,
         choices=TRACKING_SERVICES,
@@ -405,10 +382,7 @@ class ContestTeam(models.Model):
                 f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
             )
         try:
-            if (
-                self.tracking_device == TRACKING_COPILOT
-                and self.team.crew.member2 is None
-            ):
+            if self.tracking_device == TRACKING_COPILOT and self.team.crew.member2 is None:
                 raise ValidationError(
                     f"Tracking device is set to {self.get_tracking_device_display()}, but there is no copilot"
                 )
@@ -473,9 +447,7 @@ class Contest(models.Model):
         default=False,
         help_text="A featured contest is visible to all (if it is public). If it is not featured, a direct link is required to access it.",
     )
-    contest_website = models.CharField(
-        help_text="URL to contest website", blank=True, default="", max_length=300
-    )
+    contest_website = models.CharField(help_text="URL to contest website", blank=True, default="", max_length=300)
     header_image = models.ImageField(
         upload_to="images/contests/",
         null=True,
@@ -503,6 +475,20 @@ class Contest(models.Model):
 
     class Meta:
         ordering = ("-start_time", "-finish_time")
+
+    def replace_team(self, old_team: Optional[Team], new_team: Team, tracking_data: Dict) -> ContestTeam:
+        """
+        Whenever a ContestTeam is modified, we need to update all navigation tasks, contest summaries, tasks summaries,
+        and team test scores.
+        """
+        ContestTeam.objects.filter(contest=self, team=old_team).delete()
+        ContestTeam.objects.filter(contest=self, team=new_team).delete()
+        ct = ContestTeam.objects.create(contest=self, team=new_team, **tracking_data)
+        Contestant.objects.filter(navigation_task__contest=self, team=old_team).update(team=new_team)
+        ContestSummary.objects.filter(contest=self, team=old_team).update(team=new_team)
+        TaskSummary.objects.filter(task__contest=self, team=old_team).update(team=new_team)
+        TeamTestScore.objects.filter(task_test__task__contest=self, team=old_team).update(team=new_team)
+        return ct
 
     def update_position_if_not_set(self, latitude, longitude):
         if self.latitude == 0 and self.longitude == 0:
@@ -562,9 +548,7 @@ class NavigationTask(models.Model):
             lambda: ", ".join([str(item) for item in Scorecard.objects.all()])
         ),
     )
-    track_score_override = models.ForeignKey(
-        "TrackScoreOverride", on_delete=models.SET_NULL, null=True, blank=True
-    )
+    track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True, blank=True)
     gate_score_override = models.ManyToManyField("GateScoreOverride", blank=True)
     score_sorting_direction = models.CharField(
         default=ASCENDING,
@@ -630,9 +614,7 @@ class NavigationTask(models.Model):
     @property
     def actual_rules(self):
         mock_contestant = Mock(Contestant)
-        mock_contestant.get_track_score_override.return_value = (
-            self.track_score_override
-        )
+        mock_contestant.get_track_score_override.return_value = self.track_score_override
 
         def gate_score_override(gate_type):
             for item in self.gate_score_override.all():
@@ -750,13 +732,9 @@ class Scorecard(models.Model):
         max_length=20,
         help_text="Supported calculator types",
     )
-    task_type = MultiSelectField(
-        choices=NavigationTask.NAVIGATION_TASK_TYPES, default=list
-    )
+    task_type = MultiSelectField(choices=NavigationTask.NAVIGATION_TASK_TYPES, default=list)
     use_procedure_turns = models.BooleanField(default=True, blank=True)
-    backtracking_penalty = models.FloatField(
-        default=200, help_text="The number of points given for backtracking"
-    )
+    backtracking_penalty = models.FloatField(default=200, help_text="The number of points given for backtracking")
     backtracking_bearing_difference = models.FloatField(
         default=90,
         help_text="The bearing difference from the leg direction to initiate backtracking",
@@ -826,18 +804,12 @@ class Scorecard(models.Model):
     )
 
     ##### ANR Corridor
-    corridor_width = models.FloatField(
-        default=0.3, help_text="The corridor width (NM) for ANR tasks"
-    )
-    corridor_grace_time = models.IntegerField(
-        default=5, help_text="The corridor grace time for ANR tasks"
-    )
+    corridor_width = models.FloatField(default=0.3, help_text="The corridor width (NM) for ANR tasks")
+    corridor_grace_time = models.IntegerField(default=5, help_text="The corridor grace time for ANR tasks")
     corridor_outside_penalty = models.FloatField(
         default=3, help_text="The penalty awarded for leaving the ANR corridor"
     )
-    corridor_maximum_penalty = models.FloatField(
-        default=-1, help_text="The maximum penalty for leaving the corridor"
-    )
+    corridor_maximum_penalty = models.FloatField(default=-1, help_text="The maximum penalty for leaving the corridor")
 
     def __str__(self):
         return self.name
@@ -884,16 +856,10 @@ class Scorecard(models.Model):
             self.__format_value_gate("maximum_timing_penalty", contestant, gate),
             self.__format_value_gate("missed_penalty", contestant, gate),
             self.__format_value_gate("procedure_turn_penalty", contestant, gate),
-            self.__format_value_gate(
-                "bad_crossing_extended_gate_penalty", contestant, gate
-            ),
+            self.__format_value_gate("bad_crossing_extended_gate_penalty", contestant, gate),
             self.__format_value_gate("extended_gate_width", contestant, gate),
-            self.__format_value_gate(
-                "backtracking_after_steep_gate_grace_period_seconds", contestant, gate
-            ),
-            self.__format_value_gate(
-                "backtracking_after_gate_grace_period_nm", contestant, gate
-            ),
+            self.__format_value_gate("backtracking_after_steep_gate_grace_period_seconds", contestant, gate),
+            self.__format_value_gate("backtracking_after_gate_grace_period_nm", contestant, gate),
         ]
 
     def __scores_display_precision(self, contestant: "Contestant") -> List[Dict]:
@@ -904,15 +870,10 @@ class Scorecard(models.Model):
                 self.__format_value("backtracking_grace_time_seconds", contestant),
                 self.__format_value("backtracking_maximum_penalty", contestant),
                 self.__format_value("below_minimum_altitude_penalty", contestant),
-                self.__format_value(
-                    "below_minimum_altitude_maximum_penalty", contestant
-                ),
+                self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
                 self.__format_value("prohibited_zone_penalty", contestant),
             ],
-            "gates": [
-                {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
-                for item in GATES_TYPES
-            ],
+            "gates": [{"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])} for item in GATES_TYPES],
         }
         return scores
 
@@ -924,9 +885,7 @@ class Scorecard(models.Model):
                 self.__format_value("backtracking_grace_time_seconds", contestant),
                 self.__format_value("backtracking_maximum_penalty", contestant),
                 self.__format_value("below_minimum_altitude_penalty", contestant),
-                self.__format_value(
-                    "below_minimum_altitude_maximum_penalty", contestant
-                ),
+                self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
                 self.__format_value("prohibited_zone_penalty", contestant),
                 self.__format_value("corridor_width", contestant),
                 self.__format_value("corridor_grace_time", contestant),
@@ -1009,86 +968,56 @@ class Scorecard(models.Model):
             self.get_gate_score_override(gate_type, contestant),
         )
 
-    def get_missed_penalty_for_gate_type(
-        self, gate_type: str, contestant: "Contestant"
-    ) -> float:
+    def get_missed_penalty_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
         """
         The number of points given for each second from the target time
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_missed_penalty(
-            self.get_gate_score_override(gate_type, contestant)
-        )
+        return gate_score.get_missed_penalty(self.get_gate_score_override(gate_type, contestant))
 
-    def get_penalty_per_second_for_gate_type(
-        self, gate_type: str, contestant: "Contestant"
-    ) -> float:
+    def get_penalty_per_second_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
         """
         The number of points given for each second from the target time
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_penalty_per_second(
-            self.get_gate_score_override(gate_type, contestant)
-        )
+        return gate_score.get_penalty_per_second(self.get_gate_score_override(gate_type, contestant))
 
-    def get_maximum_timing_penalty_for_gate_type(
-        self, gate_type: str, contestant: "Contestant"
-    ) -> float:
+    def get_maximum_timing_penalty_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
         """
         The maximum penalty that can be awarded for being off time
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_maximum_penalty(
-            self.get_gate_score_override(gate_type, contestant)
-        )
+        return gate_score.get_maximum_penalty(self.get_gate_score_override(gate_type, contestant))
 
-    def get_graceperiod_before_for_gate_type(
-        self, gate_type: str, contestant: "Contestant"
-    ) -> float:
+    def get_graceperiod_before_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
         """
         The number of seconds the gate can be passed early without giving penalty
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_graceperiod_before(
-            self.get_gate_score_override(gate_type, contestant)
-        )
+        return gate_score.get_graceperiod_before(self.get_gate_score_override(gate_type, contestant))
 
-    def get_graceperiod_after_for_gate_type(
-        self, gate_type: str, contestant: "Contestant"
-    ) -> float:
+    def get_graceperiod_after_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
         """
         The number of seconds the gate can be passed late without giving penalty
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_graceperiod_after(
-            self.get_gate_score_override(gate_type, contestant)
-        )
+        return gate_score.get_graceperiod_after(self.get_gate_score_override(gate_type, contestant))
 
-    def get_procedure_turn_penalty_for_gate_type(
-        self, gate_type: str, contestant: "Contestant"
-    ) -> float:
+    def get_procedure_turn_penalty_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
         """
         The penalty for missing a procedure turn
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_missed_procedure_turn_penalty(
-            self.get_gate_score_override(gate_type, contestant)
-        )
+        return gate_score.get_missed_procedure_turn_penalty(self.get_gate_score_override(gate_type, contestant))
 
-    def get_bad_crossing_extended_gate_penalty_for_gate_type(
-        self, gate_type: str, contestant: "Contestant"
-    ) -> float:
+    def get_bad_crossing_extended_gate_penalty_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
         """
         The penalty for crossing the extended starting line backwards
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_bad_crossing_extended_gate_penalty(
-            self.get_gate_score_override(gate_type, contestant)
-        )
+        return gate_score.get_bad_crossing_extended_gate_penalty(self.get_gate_score_override(gate_type, contestant))
 
-    def get_extended_gate_width_for_gate_type(
-        self, gate_type: str, contestant: "Contestant"
-    ) -> float:
+    def get_extended_gate_width_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
         """
         The width of the extended gate line
         """
@@ -1184,26 +1113,17 @@ class GateScore(models.Model):
             return score_override.checkpoint_maximum_penalty
         return self.maximum_penalty
 
-    def get_bad_course_crossing_penalty(
-        self, score_override: Optional["GateScoreOverride"]
-    ):
+    def get_bad_course_crossing_penalty(self, score_override: Optional["GateScoreOverride"]):
         if score_override and score_override.bad_course_penalty is not None:
             return score_override.bad_course_penalty
         return self.bad_course_crossing_penalty
 
-    def get_bad_crossing_extended_gate_penalty(
-        self, score_override: Optional["GateScoreOverride"]
-    ):
-        if (
-            score_override
-            and score_override.bad_crossing_extended_gate_penalty is not None
-        ):
+    def get_bad_crossing_extended_gate_penalty(self, score_override: Optional["GateScoreOverride"]):
+        if score_override and score_override.bad_crossing_extended_gate_penalty is not None:
             return score_override.bad_crossing_extended_gate_penalty
         return self.bad_crossing_extended_gate_penalty
 
-    def get_missed_procedure_turn_penalty(
-        self, score_override: Optional["GateScoreOverride"]
-    ):
+    def get_missed_procedure_turn_penalty(self, score_override: Optional["GateScoreOverride"]):
         if score_override and score_override.missing_procedure_turn_penalty is not None:
             return score_override.missing_procedure_turn_penalty
         return self.missed_procedure_turn_penalty
@@ -1213,14 +1133,10 @@ class GateScore(models.Model):
             return score_override.checkpoint_penalty_per_second
         return self.penalty_per_second
 
-    def get_backtracking_after_steep_gate_grace_period_seconds(
-        self, score_override: Optional["GateScoreOverride"]
-    ):
+    def get_backtracking_after_steep_gate_grace_period_seconds(self, score_override: Optional["GateScoreOverride"]):
         return self.backtracking_after_steep_gate_grace_period_seconds
 
-    def get_backtracking_after_gate_grace_period_nm(
-        self, score_override: Optional["GateScoreOverride"]
-    ):
+    def get_backtracking_after_gate_grace_period_nm(self, score_override: Optional["GateScoreOverride"]):
         return self.backtracking_after_gate_grace_period_nm
 
     def calculate_score(
@@ -1238,20 +1154,14 @@ class GateScore(models.Model):
         if actual_time is None:
             return self.get_missed_penalty(score_override)
         time_difference = (actual_time - planned_time).total_seconds()
-        if (
-            -self.get_graceperiod_before(score_override)
-            < time_difference
-            < self.get_graceperiod_after(score_override)
-        ):
+        if -self.get_graceperiod_before(score_override) < time_difference < self.get_graceperiod_after(score_override):
             return 0
         else:
             if time_difference > 0:
                 grace_limit = self.get_graceperiod_after(score_override)
             else:
                 grace_limit = self.get_graceperiod_before(score_override)
-            score = (
-                round(abs(time_difference) - grace_limit)
-            ) * self.get_penalty_per_second(score_override)
+            score = (round(abs(time_difference) - grace_limit)) * self.get_penalty_per_second(score_override)
             if self.get_maximum_penalty(score_override) >= 0:
                 return min(self.get_maximum_penalty(score_override), score)
             return score
@@ -1283,9 +1193,7 @@ class TrackScoreOverride(models.Model):
         help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas",
     )
     ### ANR Corridor
-    corridor_width = models.FloatField(
-        default=None, blank=True, null=True, help_text="The width of the ANR corridor"
-    )
+    corridor_width = models.FloatField(default=None, blank=True, null=True, help_text="The width of the ANR corridor")
     corridor_grace_time = models.FloatField(
         default=None,
         blank=True,
@@ -1384,9 +1292,7 @@ class Contestant(models.Model):
     finished_by_time = models.DateTimeField(
         help_text="The time it is expected that the navigation task has finished and landed (used among other things for knowing when the tracker is busy). Is also used for the gate time for the landing gate"
     )
-    air_speed = models.FloatField(
-        default=70, help_text="The planned airspeed for the contestant"
-    )
+    air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
     contestant_number = models.PositiveIntegerField(
         help_text="A unique number for the contestant in this navigation task"
     )
@@ -1422,9 +1328,7 @@ class Contestant(models.Model):
         blank=True,
         null=True,
     )
-    track_score_override = models.ForeignKey(
-        TrackScoreOverride, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    track_score_override = models.ForeignKey(TrackScoreOverride, on_delete=models.SET_NULL, null=True, blank=True)
     calculator_started = models.BooleanField(
         default=False,
         help_text="Set to true when the calculator has started. After this point it is not permitted to change the contestant",
@@ -1446,19 +1350,14 @@ class Contestant(models.Model):
         help_text="The navigation test wind direction. This is used to calculate gate times if these are not predefined.",
         validators=[MaxValueValidator(360), MinValueValidator(0)],
     )
-    annotation_index = models.IntegerField(
-        default=0, help_text="Internal housekeeping for annotation transmission"
-    )
+    annotation_index = models.IntegerField(default=0, help_text="Internal housekeeping for annotation transmission")
 
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
         ordering = ("takeoff_time",)
 
     def get_final_gate_time(self) -> Optional[datetime.datetime]:
-        final_gate = (
-            self.navigation_task.route.landing_gate
-            or self.navigation_task.route.waypoints[-1]
-        )
+        final_gate = self.navigation_task.route.landing_gate or self.navigation_task.route.waypoints[-1]
         return self.gate_times.get(final_gate.name)
 
     def calculate_finish_time(self) -> datetime.datetime:
@@ -1466,9 +1365,9 @@ class Contestant(models.Model):
         print(self.navigation_task.route.landing_gate)
         if self.navigation_task.route.landing_gate:
             return self.gate_times[self.navigation_task.route.landing_gate.name]
-        return self.gate_times[
-            self.navigation_task.route.waypoints[-1].name
-        ] + datetime.timedelta(minutes=self.navigation_task.minutes_to_landing)
+        return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
+            minutes=self.navigation_task.minutes_to_landing
+        )
 
     @property
     def termination_request_key(self):
@@ -1490,9 +1389,7 @@ class Contestant(models.Model):
         # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.navigation_task.name, self.takeoff_time,
         #                                       self.finished_by_time)
 
-    def calculate_progress(
-        self, latest_time: datetime, ignore_finished: bool = False
-    ) -> float:
+    def calculate_progress(self, latest_time: datetime, ignore_finished: bool = False) -> float:
         if NavigationTask.POKER in self.navigation_task.scorecard.task_type:
             return 100 * self.playingcard_set.all().count() / 5
         if NavigationTask.LANDING in self.navigation_task.scorecard.task_type:
@@ -1513,9 +1410,7 @@ class Contestant(models.Model):
         return route_progress
 
     def get_groundspeed(self, bearing) -> float:
-        return calculate_ground_speed_combined(
-            bearing, self.air_speed, self.wind_speed, self.wind_direction
-        )
+        return calculate_ground_speed_combined(bearing, self.air_speed, self.wind_speed, self.wind_direction)
 
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
@@ -1539,9 +1434,7 @@ class Contestant(models.Model):
             intervals = []
             for contestant in overlapping_trackers:
                 smallest_end = min(contestant.finished_by_time, self.finished_by_time)
-                largest_start = max(
-                    contestant.tracker_start_time, self.tracker_start_time
-                )
+                largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
                 intervals.append(
                     (
                         contestant.navigation_task,
@@ -1556,8 +1449,7 @@ class Contestant(models.Model):
             )
         # Validate that persons are not part of other contestants for the same interval
         overlapping1 = Contestant.objects.filter(
-            Q(team__crew__member1=self.team.crew.member1)
-            | Q(team__crew__member2=self.team.crew.member1),
+            Q(team__crew__member1=self.team.crew.member1) | Q(team__crew__member2=self.team.crew.member1),
             tracker_start_time__lte=self.finished_by_time,
             finished_by_time__gte=self.tracker_start_time,
         ).exclude(pk=self.pk)
@@ -1565,9 +1457,7 @@ class Contestant(models.Model):
             intervals = []
             for contestant in overlapping1:
                 smallest_end = min(contestant.finished_by_time, self.finished_by_time)
-                largest_start = max(
-                    contestant.tracker_start_time, self.tracker_start_time
-                )
+                largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
                 intervals.append(
                     (
                         contestant.navigation_task,
@@ -1581,20 +1471,15 @@ class Contestant(models.Model):
 
         if self.team.crew.member2 is not None:
             overlapping2 = Contestant.objects.filter(
-                Q(team__crew__member1=self.team.crew.member2)
-                | Q(team__crew__member2=self.team.crew.member2),
+                Q(team__crew__member1=self.team.crew.member2) | Q(team__crew__member2=self.team.crew.member2),
                 tracker_start_time__lte=self.finished_by_time,
                 finished_by_time__gte=self.tracker_start_time,
             ).exclude(pk=self.pk)
             if overlapping2.exists():
                 intervals = []
                 for contestant in overlapping2:
-                    smallest_end = min(
-                        contestant.finished_by_time, self.finished_by_time
-                    )
-                    largest_start = max(
-                        contestant.tracker_start_time, self.tracker_start_time
-                    )
+                    smallest_end = min(contestant.finished_by_time, self.finished_by_time)
+                    largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
                     intervals.append(
                         (
                             contestant.navigation_task,
@@ -1632,9 +1517,7 @@ class Contestant(models.Model):
                         f"Calculator has started for {self}, it is not possible to change tracker start time"
                     )
                 if original.wind_speed != self.wind_speed:
-                    raise ValidationError(
-                        f"Calculator has started for {self}, it is not possible to change wind speed"
-                    )
+                    raise ValidationError(f"Calculator has started for {self}, it is not possible to change wind speed")
                 if original.wind_direction != self.wind_direction:
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change wind direction"
@@ -1648,9 +1531,7 @@ class Contestant(models.Model):
                         f"Calculator has started for {self}, it is not possible to change minutes to starting point"
                     )
 
-    def calculate_and_get_gate_times(
-        self, start_point_override: Optional[datetime.datetime] = None
-    ) -> Dict:
+    def calculate_and_get_gate_times(self, start_point_override: Optional[datetime.datetime] = None) -> Dict:
         gates = self.navigation_task.route.waypoints  # type: List[Waypoint]
         if len(gates) == 0:
             return {}
@@ -1665,45 +1546,34 @@ class Contestant(models.Model):
         if start_point_override is not None:
             crossing_time = start_point_override
         else:
-            crossing_time = self.takeoff_time + datetime.timedelta(
-                minutes=self.minutes_to_starting_point
-            )
+            crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
         for gate, relative in relative_crossing_times:
             crossing_times[gate] = crossing_time + relative
         if (
             self.navigation_task.route.takeoff_gate is not None
             and self.navigation_task.route.takeoff_gate.name not in crossing_times
         ):
-            crossing_times[
-                self.navigation_task.route.takeoff_gate.name
-            ] = self.takeoff_time
+            crossing_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
         if (
             self.navigation_task.route.landing_gate is not None
             and self.navigation_task.route.landing_gate.name not in crossing_times
         ):
-            crossing_times[
-                self.navigation_task.route.landing_gate.name
-            ] = self.finished_by_time + datetime.timedelta(minutes=1)
+            crossing_times[self.navigation_task.route.landing_gate.name] = self.finished_by_time + datetime.timedelta(
+                minutes=1
+            )
         return crossing_times
 
     @property
     def gate_times(self) -> Dict:
-        if (
-            self.predefined_gate_times is not None
-            and len(self.predefined_gate_times) > 0
-        ):
+        if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
             if (
                 self.navigation_task.route.takeoff_gate is not None
-                and self.navigation_task.route.takeoff_gate.name
-                not in self.predefined_gate_times
+                and self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times
             ):
-                self.predefined_gate_times[
-                    self.navigation_task.route.takeoff_gate.name
-                ] = self.takeoff_time
+                self.predefined_gate_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
             if (
                 self.navigation_task.route.landing_gate is not None
-                and self.navigation_task.route.landing_gate.name
-                not in self.predefined_gate_times
+                and self.navigation_task.route.landing_gate.name not in self.predefined_gate_times
             ):
                 self.predefined_gate_times[
                     self.navigation_task.route.landing_gate.name
@@ -1711,9 +1581,9 @@ class Contestant(models.Model):
             return self.predefined_gate_times
         zero_time = None
         if self.adaptive_start:
-            zero_time = self.takeoff_time.astimezone(
-                self.navigation_task.contest.time_zone
-            ).replace(hour=0, minute=0, second=0, microsecond=0)
+            zero_time = self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
         return self.calculate_and_get_gate_times(zero_time)
 
     @gate_times.setter
@@ -1763,10 +1633,7 @@ class Contestant(models.Model):
         devices = []
         if self.tracking_device == TRACKING_DEVICE:
             devices.append(self.tracker_device_id)
-        if (
-            self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT)
-            and self.team.crew.member1 is not None
-        ):
+        if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT) and self.team.crew.member1 is not None:
             devices.append(self.team.crew.member1.email)
         if (
             self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
@@ -1778,9 +1645,7 @@ class Contestant(models.Model):
         )
         return devices
 
-    def generate_position_block_for_contestant(
-        self, position_data: Dict, device_time: datetime.datetime
-    ) -> Dict:
+    def generate_position_block_for_contestant(self, position_data: Dict, device_time: datetime.datetime) -> Dict:
         return {
             "measurement": "device_position",
             "tags": {
@@ -1793,9 +1658,7 @@ class Contestant(models.Model):
                 "latitude": float(position_data["latitude"]),
                 "longitude": float(position_data["longitude"]),
                 "altitude": float(position_data["altitude"]),
-                "battery_level": float(
-                    position_data["attributes"].get("batteryLevel", -1.0)
-                ),
+                "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
                 "speed": float(position_data["speed"]),
                 "course": float(position_data["course"]),
             },
@@ -1813,28 +1676,18 @@ class Contestant(models.Model):
         if contestant is None:
             contestant, is_simulator = cls._try_to_get_pilot_tracking(device, stamp)
             if contestant is None:
-                contestant, is_simulator = cls._try_to_get_copilot_tracking(
-                    device, stamp
-                )
+                contestant, is_simulator = cls._try_to_get_copilot_tracking(device, stamp)
         if contestant:
             currently_tracked = contestant.is_currently_tracked_by_device(device)
             # Only allow contestants with validated team members compete
             if currently_tracked:
-                if (
-                    contestant.team.crew.member1 is None
-                    or contestant.team.crew.member1.validated
-                ):
-                    if (
-                        contestant.team.crew.member2 is None
-                        or contestant.team.crew.member2.validated
-                    ):
+                if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
+                    if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
                         return contestant, is_simulator
         return None, is_simulator
 
     @classmethod
-    def _try_to_get_tracker_tracking(
-        cls, device: str, stamp: datetime.datetime
-    ) -> Tuple[Optional["Contestant"], bool]:
+    def _try_to_get_tracker_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[Optional["Contestant"], bool]:
         try:
             # Device belongs to contestant from 30 minutes before takeoff
             return (
@@ -1851,13 +1704,10 @@ class Contestant(models.Model):
             return None, False
 
     @classmethod
-    def _try_to_get_pilot_tracking(
-        cls, device: str, stamp: datetime.datetime
-    ) -> Tuple[Optional["Contestant"], bool]:
+    def _try_to_get_pilot_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[Optional["Contestant"], bool]:
         try:
             contestant = cls.objects.get(
-                Q(team__crew__member1__app_tracking_id=device)
-                | Q(team__crew__member1__simulator_tracking_id=device),
+                Q(team__crew__member1__app_tracking_id=device) | Q(team__crew__member1__simulator_tracking_id=device),
                 tracker_start_time__lte=stamp,
                 finished_by_time__gte=stamp,
                 contestanttrack__calculator_finished=False,
@@ -1871,13 +1721,10 @@ class Contestant(models.Model):
             return None, False
 
     @classmethod
-    def _try_to_get_copilot_tracking(
-        cls, device: str, stamp: datetime.datetime
-    ) -> Tuple[Optional["Contestant"], bool]:
+    def _try_to_get_copilot_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[Optional["Contestant"], bool]:
         try:
             contestant = cls.objects.get(
-                Q(team__crew__member2__app_tracking_id=device)
-                | Q(team__crew__member2__simulator_tracking_id=device),
+                Q(team__crew__member2__app_tracking_id=device) | Q(team__crew__member2__simulator_tracking_id=device),
                 tracker_start_time__lte=stamp,
                 finished_by_time__gte=stamp,
                 contestanttrack__calculator_finished=False,
@@ -1898,10 +1745,7 @@ class Contestant(models.Model):
         if self.tracking_device == TRACKING_PILOT_AND_COPILOT:
             key = f"latest_tracking_device_{self.pk}"
             previously_used_device_id = cache.get(key)
-            if (
-                previously_used_device_id == device_id
-                or previously_used_device_id is None
-            ):
+            if previously_used_device_id == device_id or previously_used_device_id is None:
                 cache.set(key, device_id, TRACKING_DEVICE_TIMEOUT)
                 return True
             return False
@@ -1920,16 +1764,12 @@ class Contestant(models.Model):
 
     def record_actual_gate_time(self, gate_name: str, passing_time: datetime.datetime):
         try:
-            ActualGateTime.objects.create(
-                gate=gate_name, time=passing_time, contestant=self
-            )
+            ActualGateTime.objects.create(gate=gate_name, time=passing_time, contestant=self)
         except IntegrityError:
             logger.exception(f"Contestant has already passed gate {gate_name}")
 
     def record_score_by_gate(self, gate_name: str, score: float):
-        gate_score, _ = GateCumulativeScore.objects.get_or_create(
-            gate=gate_name, contestant=self
-        )
+        gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self)
         gate_score.points += score
         gate_score.save()
 
@@ -2035,9 +1875,7 @@ class ContestantTrack(models.Model):
         self.score = score
         # Update task test score if it exists
         try:
-            task_test = TaskTest.objects.get(
-                navigation_task=self.contestant.navigation_task
-            )
+            task_test = TaskTest.objects.get(navigation_task=self.contestant.navigation_task)
             entry, _ = TeamTestScore.objects.get_or_create(
                 team=self.contestant.team, task_test=task_test, defaults={"points": 0}
             )
@@ -2121,9 +1959,7 @@ class PlayingCard(models.Model):
             card.delete()
             relative_score, hand_description = cls.get_relative_score(contestant)
             waypoint = contestant.navigation_task.route.waypoints[-1].name
-            message = "Removed card {}, current hand is {}".format(
-                card.get_card_display(), hand_description
-            )
+            message = "Removed card {}, current hand is {}".format(card.get_card_display(), hand_description)
             ScoreLogEntry.create_and_push(
                 contestant=contestant,
                 time=datetime.datetime.now(datetime.timezone.utc),
@@ -2140,9 +1976,7 @@ class PlayingCard(models.Model):
             ws.transmit_playing_cards(contestant)
 
     @classmethod
-    def add_contestant_card(
-        cls, contestant: Contestant, card: str, waypoint: str, waypoint_index: int
-    ):
+    def add_contestant_card(cls, contestant: Contestant, card: str, waypoint: str, waypoint_index: int):
         poker_card = cls.objects.create(
             contestant=contestant,
             card=card,
@@ -2150,9 +1984,7 @@ class PlayingCard(models.Model):
             waypoint_index=waypoint_index,
         )
         relative_score, hand_description = cls.get_relative_score(contestant)
-        message = "Received card {}, current hand is {}".format(
-            poker_card.get_card_display(), hand_description
-        )
+        message = "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description)
         entry = ScoreLogEntry.create_and_push(
             contestant=contestant,
             time=datetime.datetime.now(datetime.timezone.utc),
@@ -2227,9 +2059,7 @@ class TaskTest(models.Model):
     ASCENDING = "asc"
     SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    navigation_task = models.OneToOneField(
-        NavigationTask, on_delete=models.CASCADE, blank=True, null=True
-    )
+    navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE, blank=True, null=True)
     name = models.CharField(max_length=100)
     heading = models.CharField(max_length=100)
     sorting = models.CharField(
@@ -2262,9 +2092,7 @@ class TaskSummary(models.Model):
 
     def update_sum(self):
         if self.task.autosum_scores:
-            tests = TeamTestScore.objects.filter(
-                team=self.team, task_test__task=self.task
-            )
+            tests = TeamTestScore.objects.filter(team=self.team, task_test__task=self.task)
             if tests.exists():
                 total = sum([test.points for test in tests])
                 self.points = total
@@ -2287,9 +2115,7 @@ class ContestSummary(models.Model):
 
     def update_sum(self):
         if self.contest.autosum_scores:
-            tasks = TaskSummary.objects.filter(
-                team=self.team, task__contest=self.contest
-            )
+            tasks = TaskSummary.objects.filter(team=self.team, task__contest=self.contest)
             if tasks.exists():
                 total = sum([task.points for task in tasks])
                 self.points = total
@@ -2344,9 +2170,7 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
         from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()
-        for c in instance.team.contestant_set.filter(
-            navigation_task__contest=instance.task.contest
-        ):
+        for c in instance.team.contestant_set.filter(navigation_task__contest=instance.task.contest):
             ws.transmit_basic_information(c)
 
 
@@ -2411,9 +2235,7 @@ def push_task_change(sender, instance: Task, **kwargs):
 def update_task_index(sender, instance: Task, created, **kwargs):
     if created:
         if instance.contest.task_set.all().count() > 0:
-            highest_index = max(
-                [item.index for item in instance.contest.task_set.all()]
-            )
+            highest_index = max([item.index for item in instance.contest.task_set.all()])
             instance.index = highest_index + 1
             instance.save()
 
@@ -2422,9 +2244,7 @@ def update_task_index(sender, instance: Task, created, **kwargs):
 def update_task_test_index(sender, instance: TaskTest, created, **kwargs):
     if created:
         if instance.task.tasktest_set.all().count() > 0:
-            highest_index = max(
-                [item.index for item in instance.task.tasktest_set.all()]
-            )
+            highest_index = max([item.index for item in instance.task.tasktest_set.all()])
             instance.index = highest_index + 1
             instance.save()
 
@@ -2481,9 +2301,7 @@ def validate_route(sender, instance: Route, **kwargs):
 
 
 @receiver(post_delete, sender=NavigationTask)
-def remove_route_from_deleted_navigation_task(
-    sender, instance: NavigationTask, **kwargs
-):
+def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, **kwargs):
     instance.route.delete()
 
 
@@ -2494,9 +2312,7 @@ def create_results_service_test(sender, instance: NavigationTask, created, **kwa
 
 
 @receiver(post_delete, sender=NavigationTask)
-def clear_navigation_task_results_service_test(
-    sender, instance: NavigationTask, **kwargs
-):
+def clear_navigation_task_results_service_test(sender, instance: NavigationTask, **kwargs):
     if hasattr(instance, "tasktest"):
         task = instance.tasktest.task
         for test in instance.tasktest.teamtestscore_set.all():
@@ -2518,10 +2334,20 @@ def remove_track_from_influx(sender, instance: NavigationTask, **kwargs):
     influx.clear_data_for_contestant(instance.pk)
 
 
+@receiver(post_save, sender=Contestant)
+def create_tracker_in_traccar(sender, instance: Contestant, **kwargs):
+    if (
+        instance.tracking_service == TRACCAR
+        and instance.tracker_device_id
+        and len(instance.tracker_device_id) > 0
+        and instance.tracking_device == TRACKING_DEVICE
+    ):
+        traccar = get_traccar_instance()
+        traccar.get_or_create_device(instance.tracker_device_id, instance.tracker_device_id)
+
+
 def generate_random_string(length) -> str:
-    return "".join(
-        choice(ascii_uppercase + ascii_lowercase + digits) for i in range(length)
-    )
+    return "".join(choice(ascii_uppercase + ascii_lowercase + digits) for i in range(length))
 
 
 @receiver(pre_save, sender=Person)
@@ -2542,34 +2368,21 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         while existing:
             app_random_string = generate_random_string(28)
             simulator_random_string = generate_random_string(28)
-            logger.info(
-                f"Generated random string {app_random_string} for person {instance}"
-            )
+            logger.info(f"Generated random string {app_random_string} for person {instance}")
             existing = Person.objects.filter(
-                Q(app_tracking_id=app_random_string)
-                | Q(simulator_tracking_id=simulator_random_string)
+                Q(app_tracking_id=app_random_string) | Q(simulator_tracking_id=simulator_random_string)
             ).exists()
         instance.app_tracking_id = app_random_string
         instance.simulator_tracking_id = simulator_random_string
-        logger.info(
-            f"Assigned random string {instance.app_tracking_id} to person {instance}"
-        )
-        device, created = traccar.get_or_create_device(
-            str(instance), instance.app_tracking_id
-        )
+        logger.info(f"Assigned random string {instance.app_tracking_id} to person {instance}")
+        device, created = traccar.get_or_create_device(str(instance), instance.app_tracking_id)
         logger.info(f"Traccar device {device} was created: {created}")
-        if (
-            created
-            and original_tracking_id is not None
-            and original_tracking_id != instance.app_tracking_id
-        ):
+        if created and original_tracking_id is not None and original_tracking_id != instance.app_tracking_id:
             original_device = traccar.get_device(original_tracking_id)
             if original_device is not None:
                 logger.info(f"Clearing original device {original_device}")
                 traccar.delete_device(original_device["id"])
-        device, created = traccar.get_or_create_device(
-            str(instance) + " simulator", instance.simulator_tracking_id
-        )
+        device, created = traccar.get_or_create_device(str(instance) + " simulator", instance.simulator_tracking_id)
         logger.info(f"Traccar device {device} was created: {created}")
         if (
             created
@@ -2586,9 +2399,7 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         if str(original) != str(instance):
             traccar = get_traccar_instance()
             traccar.update_device_name(str(instance), instance.app_tracking_id)
-            traccar.update_device_name(
-                str(instance) + " simulator", instance.simulator_tracking_id
-            )
+            traccar.update_device_name(str(instance) + " simulator", instance.simulator_tracking_id)
 
 
 @receiver(pre_delete, sender=Person)
