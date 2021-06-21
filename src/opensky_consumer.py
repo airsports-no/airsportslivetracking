@@ -119,7 +119,6 @@ async def transmit_states(states):
                                                                               aircraft_type=aircraft_database.get_aircraft_type(
                                                                                   state.icao24.lower()))
 
-
 if __name__ == "__main__":
     username, password = sys.argv[1:]
     websocket_facade = WebsocketFacade()
