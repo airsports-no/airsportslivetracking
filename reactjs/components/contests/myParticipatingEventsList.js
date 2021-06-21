@@ -30,6 +30,7 @@ export const mapDispatchToProps = {
 class ConnectedMyParticipatingEventsList extends Component {
     constructor(props) {
         super(props)
+        this.state = {errorMessage: null}
     }
 
     componentDidMount() {
@@ -57,16 +58,19 @@ class ConnectedMyParticipatingEventsList extends Component {
     }
 
     handleWithdrawClick(currentParticipation) {
+        this.setState({errorMessage: null})
         axios.delete("/api/v1/contests/" + currentParticipation.contest.id + "/withdraw/").then((res) => {
             this.props.fetchMyParticipatingContests()
             this.props.history.push("/participation/")
         }).catch((e) => {
             console.error(e);
+            this.setState({errorMessage: e.response.data[0]})
         }).finally(() => {
         })
     }
 
     handleWithdrawTaskClick(currentParticipation, navigationTask) {
+        this.setState({errorMessage: null})
         axios.delete("/api/v1/contests/" + currentParticipation.contest.id + "/navigationtasks/" + navigationTask.pk + "/contestant_self_registration/").then((res) => {
             this.props.fetchMyParticipatingContests()
             this.props.history.push("/participation/myparticipation/" + currentParticipation.id + "/")
@@ -142,6 +146,12 @@ class ConnectedMyParticipatingEventsList extends Component {
                             onClick={() => this.handleWithdrawClick(this.props.currentParticipation)}>Withdraw</Button>
 
                 </div> : <b>Only pilots can edit contest participation</b>}
+                {this.state.errorMessage ? <div className={"alert alert-danger alert-dismissible fade show"}
+                                                role={"alert"}>{this.state.errorMessage}
+                    <button type="button" className="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div> : null}
                 {taskRows.length > 0 ? <div>
                     <h3>Available tasks</h3>
                     <table className={"table table-condensed"}>
