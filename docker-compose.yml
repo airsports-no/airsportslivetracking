@@ -72,8 +72,8 @@ services:
   tracker_daphne:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "/gunicorn_uvicorn.sh" ]
-               #"bash", "-c", "/daphne.sh" ]
+               #"bash", "-c", "/gunicorn_uvicorn.sh" ]
+               "bash", "-c", "/daphne.sh" ]
 
     container_name: tracker_daphne
     environment:
