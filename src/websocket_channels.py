@@ -79,67 +79,46 @@ class WebsocketFacade:
         else:
             self.redis = StrictRedis("redis")
 
-
     def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        annotation_data = TrackAnnotationSerialiser(
-            contestant.trackannotation_set.all(), many=True
-        ).data
-        channel_data = generate_contestant_data_block(
-            contestant, annotations=annotation_data
-        )
+        annotation_data = TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data
+        channel_data = generate_contestant_data_block(contestant, annotations=annotation_data)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data", "data": channel_data}
+            group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )
 
     def transmit_score_log_entry(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        log_entries = ScoreLogEntrySerialiser(
-            contestant.scorelogentry_set.all(), many=True
-        ).data
-        channel_data = generate_contestant_data_block(
-            contestant, log_entries=log_entries
-        )
+        log_entries = ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data
+        channel_data = generate_contestant_data_block(contestant, log_entries=log_entries)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data", "data": channel_data}
+            group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )
 
     def transmit_gate_score_entry(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        gate_scores = GateCumulativeScoreSerialiser(
-            contestant.gatecumulativescore_set.all(), many=True
-        ).data
-        channel_data = generate_contestant_data_block(
-            contestant, gate_scores=gate_scores
-        )
+        gate_scores = GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data
+        channel_data = generate_contestant_data_block(contestant, gate_scores=gate_scores)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data", "data": channel_data}
+            group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )
 
     def transmit_playing_cards(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        playing_cards = PlayingCardSerialiser(
-            contestant.playingcard_set.all(), many=True
-        ).data
-        channel_data = generate_contestant_data_block(
-            contestant, playing_cards=playing_cards
-        )
+        playing_cards = PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data
+        channel_data = generate_contestant_data_block(contestant, playing_cards=playing_cards)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data", "data": channel_data}
+            group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )
 
     def transmit_basic_information(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        channel_data = generate_contestant_data_block(
-            contestant, include_contestant_track=True
-        )
+        channel_data = generate_contestant_data_block(contestant, include_contestant_track=True)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data", "data": channel_data}
+            group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )
 
-    def transmit_navigation_task_position_data(
-        self, contestant: "Contestant", data: List[Dict]
-    ):
+    def transmit_navigation_task_position_data(self, contestant: "Contestant", data: List[Dict]):
         if len(data) == 0:
             return
         position_data = []
@@ -161,7 +140,7 @@ class WebsocketFacade:
         )
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data", "data": channel_data}
+            group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )
 
     def transmit_global_position_data(
@@ -181,25 +160,26 @@ class WebsocketFacade:
             "longitude": float(position_data["longitude"]),
             "altitude": float(position_data["altitude"]),
             "baro_altitude": float(position_data["altitude"]),
-            "battery_level": float(
-                position_data["attributes"].get("batteryLevel", -1.0)
-            ),
+            "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
             "speed": float(position_data["speed"]),
             "course": float(position_data["course"]),
             "navigation_task_id": navigation_task_id,
             "traffic_source": "internal",
         }
         s = json.dumps(data, cls=DateTimeEncoder)
-        container = {"type": "tracking.data", "data": s}
+        container = {
+            "type": "tracking.data",
+            "data": s,
+            "latitude": float(position_data["latitude"]),
+            "longitude": float(position_data["longitude"]),
+        }
         device_id = data["deviceId"]
         # existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
         # if existing:
         #     existing = pickle.loads(existing)
         #     if existing["time"] >= data["time"]:
         #         return
-        self.redis.hset(
-            REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data)
-        )
+        self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
         async_to_sync(self.channel_layer.group_send)("tracking_global", container)
 
     async def transmit_external_global_position_data(
@@ -235,15 +215,13 @@ class WebsocketFacade:
             "aircraft_type": aircraft_type,
         }
         s = json.dumps(data, cls=DateTimeEncoder)
-        container = {"type": "tracking.data", "data": s}
+        container = {"type": "tracking.data", "data": s, "latitude": latitude, "longitude": longitude}
         existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
         if existing:
             existing = pickle.loads(existing)
             if existing["time"] >= data["time"]:
                 return
-        self.redis.hset(
-            REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data)
-        )
+        self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
         await self.channel_layer.group_send("tracking_global", container)
 
     def contest_results_channel_name(self, contest: "Contest") -> str:
@@ -256,9 +234,7 @@ class WebsocketFacade:
             "type": "contestresults",
             "content": {"type": "contest.teams", "teams": serialiser.data},
         }
-        async_to_sync(self.channel_layer.group_send)(
-            self.contest_results_channel_name(contest), data
-        )
+        async_to_sync(self.channel_layer.group_send)(self.contest_results_channel_name(contest), data)
 
     def transmit_tasks(self, contest: "Contest"):
         tasks = Task.objects.filter(contest=contest)
@@ -269,9 +245,7 @@ class WebsocketFacade:
                 "tasks": TaskSerialiser(tasks, many=True).data,
             },
         }
-        async_to_sync(self.channel_layer.group_send)(
-            self.contest_results_channel_name(contest), data
-        )
+        async_to_sync(self.channel_layer.group_send)(self.contest_results_channel_name(contest), data)
 
     def transmit_tests(self, contest: "Contest"):
         tests = TaskTest.objects.filter(task__contest=contest)
@@ -282,15 +256,11 @@ class WebsocketFacade:
                 "tests": TaskTestSerialiser(tests, many=True).data,
             },
         }
-        async_to_sync(self.channel_layer.group_send)(
-            self.contest_results_channel_name(contest), data
-        )
+        async_to_sync(self.channel_layer.group_send)(self.contest_results_channel_name(contest), data)
 
     def transmit_contest_results(self, user: Optional["MyUser"], contest: "Contest"):
         contest.permission_change_contest = (
-            user.has_perm("display.change_contest", contest)
-            if user is not None
-            else False
+            user.has_perm("display.change_contest", contest) if user is not None else False
         )
         serialiser = ContestResultsDetailsSerialiser(contest)
 
@@ -298,6 +268,4 @@ class WebsocketFacade:
             "type": "contestresults",
             "content": {"type": "contest.results", "results": serialiser.data},
         }
-        async_to_sync(self.channel_layer.group_send)(
-            self.contest_results_channel_name(contest), data
-        )
+        async_to_sync(self.channel_layer.group_send)(self.contest_results_channel_name(contest), data)

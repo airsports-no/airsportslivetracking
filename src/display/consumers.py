@@ -62,7 +62,7 @@ class TrackingConsumer(WebsocketConsumer):
     def tracking_data(self, event):
         data = event["data"]
         # logger.info("Received data: {}".format(data))
-        self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
+        self.send(text_data=data)
 
 
 GLOBAL_TRAFFIC_MAXIMUM_AGE = datetime.timedelta(seconds=20)
@@ -130,12 +130,10 @@ class GlobalConsumer(WebsocketConsumer):
                 self.range = None
 
     def tracking_data(self, event):
-        data = json.loads(event["data"])
         if self.location and self.range:
-            position = (data["latitude"], data["longitude"])
+            position = (event["latitude"], event["longitude"])
             if equirectangular_distance(position, self.location) > self.range:
                 return
-        # logger.info("Received data: {}".format(data))
         self.send(text_data=event["data"])
 
 
