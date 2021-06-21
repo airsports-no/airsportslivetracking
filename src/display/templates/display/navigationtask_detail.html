@@ -45,9 +45,14 @@
         {% for contestant in object.contestant_set.all %}
             <tr>
                 <td>{{ contestant.contestant_number }}</td>
-                <td class="no-wrap"><a href="{% url 'contestant_update' contestant.pk %}">{{ contestant.team.table_display|safe }}</a></td>
+                <td class="no-wrap"><a
+                        href="{% url 'contestant_update' contestant.pk %}">{{ contestant.team.table_display|safe }}</a>
+                </td>
                 <td>
-                    {{ contestant.tracker_id_display|join:", " }}
+                    {% for tracker in contestant.tracker_id_display %}
+                        {{ tracker.tracker }}{% if not tracker.has_user %}<a href="#" data-toggle="tooltip" title="The user for the tracker is not registered">*</a>
+                        {% endif %}
+                    {% endfor %}
                 </td>
                 <td>
                     <table class="table borderless table-sm" style="font-size: small">
@@ -87,9 +92,10 @@
                     {% endif %}
                     {% if "change_contest" in contest_permissions %}
                         <br/><a href="{% url 'contestant_stop_calculator' contestant.pk %}"
-                           onclick="return confirm('Are you sure you want to stop the calculator?')">stop calculator</a>
+                                onclick="return confirm('Are you sure you want to stop the calculator?')">stop
+                        calculator</a>
                         |
-                                                <a href="{% url 'contestant_delete' contestant.pk %}">delete</a>
+                        <a href="{% url 'contestant_delete' contestant.pk %}">delete</a>
                     {% endif %}
                 </td>
             </tr>

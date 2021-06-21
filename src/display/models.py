@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import eval7 as eval7
 from django import core
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -1629,17 +1630,17 @@ class Contestant(models.Model):
         return ""
 
     @property
-    def tracker_id_display(self) -> List[str]:
+    def tracker_id_display(self) -> List[Dict]:
         devices = []
         if self.tracking_device == TRACKING_DEVICE:
-            devices.append(self.tracker_device_id)
+            devices.append({"tracker":self.tracker_device_id, "has_user":True})
         if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT) and self.team.crew.member1 is not None:
-            devices.append(self.team.crew.member1.email)
+            devices.append({"tracker":self.team.crew.member1.email, "has_user":get_user_model().objects.filter(email=self.team.crew.member1.email).exists()})
         if (
             self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
             and self.team.crew.member2 is not None
         ):
-            devices.append(self.team.crew.member2.email)
+            devices.append({"tracker":self.team.crew.member2.email, "has_user":get_user_model().objects.filter(email=self.team.crew.member2.email).exists()})
         return devices
 
     def generate_position_block_for_contestant(self, position_data: Dict, device_time: datetime.datetime) -> Dict:
