@@ -10,6 +10,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from redis import StrictRedis
 
+from display.consumers import GLOBAL_TRAFFIC_MAXIMUM_AGE
 from display.models import Contestant, ContestTeam, Task, TaskTest, MyUser, Team
 from display.serialisers import (
     ContestantTrackSerialiser,
@@ -43,14 +44,14 @@ class DateTimeEncoder(json.JSONEncoder):
 
 
 def generate_contestant_data_block(
-    contestant: "Contestant",
-    positions: List = None,
-    annotations: List = None,
-    log_entries: List = None,
-    latest_time: datetime.datetime = None,
-    gate_scores: List = None,
-    playing_cards: List = None,
-    include_contestant_track: bool = False,
+        contestant: "Contestant",
+        positions: List = None,
+        annotations: List = None,
+        log_entries: List = None,
+        latest_time: datetime.datetime = None,
+        gate_scores: List = None,
+        playing_cards: List = None,
+        include_contestant_track: bool = False,
 ):
     if not hasattr(contestant, "contestanttrack"):
         include_contestant_track = False
@@ -78,6 +79,16 @@ class WebsocketFacade:
             self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
         else:
             self.redis = StrictRedis("redis")
+
+    # def cull_cache(self):
+    #     cached = self.redis.hgetall(REDIS_GLOBAL_POSITIONS_KEY)
+    #     now = datetime.datetime.now(datetime.timezone.utc)
+    #     for key, value in cached.items():
+    #         data = pickle.loads(value)
+    #         stamp = data["time"]
+    #         if now - stamp > GLOBAL_TRAFFIC_MAXIMUM_AGE:
+    #             self.redis.hdel(REDIS_GLOBAL_POSITIONS_KEY, key)
+    #             continue
 
     def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
@@ -144,12 +155,12 @@ class WebsocketFacade:
         )
 
     def transmit_global_position_data(
-        self,
-        global_tracking_name: str,
-        person: Optional[Dict],
-        position_data: Dict,
-        device_time: datetime.datetime,
-        navigation_task_id: Optional[int],
+            self,
+            global_tracking_name: str,
+            person: Optional[Dict],
+            position_data: Dict,
+            device_time: datetime.datetime,
+            navigation_task_id: Optional[int],
     ):
         data = {
             "name": global_tracking_name,
@@ -183,19 +194,19 @@ class WebsocketFacade:
         async_to_sync(self.channel_layer.group_send)("tracking_global", container)
 
     async def transmit_external_global_position_data(
-        self,
-        device_id: str,
-        name: str,
-        time_stamp: datetime,
-        latitude,
-        longitude,
-        altitude,
-        baro_altitude,
-        speed,
-        course,
-        traffic_source: str,
-        raw_data: Optional[Dict] = None,
-        aircraft_type: int = 9,
+            self,
+            device_id: str,
+            name: str,
+            time_stamp: datetime,
+            latitude,
+            longitude,
+            altitude,
+            baro_altitude,
+            speed,
+            course,
+            traffic_source: str,
+            raw_data: Optional[Dict] = None,
+            aircraft_type: int = 9,
     ):
         data = {
             "name": name,

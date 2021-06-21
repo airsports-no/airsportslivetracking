@@ -84,26 +84,12 @@ class GlobalConsumer(WebsocketConsumer):
     def connect(self):
         self.accept()
         logger.info(f"Current user {self.scope.get('user')}")
-        existing = cache.get("GLOBAL_MAP_DATA") or {}
-        for age, data in existing.values():
-            try:
-                self.send(json.dumps(data["data"]))
-            except KeyError:
-                logger.exception("Did not find expected data block in {}".format(data))
-        cached = self.redis.hgetall(REDIS_GLOBAL_POSITIONS_KEY)
-        now = datetime.datetime.now(datetime.timezone.utc)
-        for key, value in cached.items():
-            data = pickle.loads(value)
-            stamp = data["time"]
-            if now - stamp > GLOBAL_TRAFFIC_MAXIMUM_AGE:
-                self.redis.hdel(REDIS_GLOBAL_POSITIONS_KEY, key)
-                continue
-            # Location has not been set at this point
-            # if self.location and self.range:
-            #     position = (data["latitude"], data["longitude"])
-            #     if calculate_distance_lat_lon(position, self.location) > self.range:
-            #         continue
-            # self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
+        # Location has not been set at this point
+        # if self.location and self.range:
+        #     position = (data["latitude"], data["longitude"])
+        #     if calculate_distance_lat_lon(position, self.location) > self.range:
+        #         continue
+        # self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
 
     def disconnect(self, code):
         if self.safe_sky_timer:
