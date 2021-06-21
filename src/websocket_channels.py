@@ -10,7 +10,6 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from redis import StrictRedis
 
-from display.consumers import GLOBAL_TRAFFIC_MAXIMUM_AGE
 from display.models import Contestant, ContestTeam, Task, TaskTest, MyUser, Team
 from display.serialisers import (
     ContestantTrackSerialiser,
