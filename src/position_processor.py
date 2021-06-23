@@ -176,17 +176,21 @@ def live_position_transmitter_process(queue):
                     .select_related("navigation_task", "team", "team__aeroplane")
                     .first()
                 )
-                if contestant.navigation_task.everything_public:
-                    navigation_task_id = contestant.navigation_task_id
+                if contestant is not None:
+                    global_tracking_name = contestant.team.aeroplane.registration
+                    try:
+                        person = contestant.team.crew.member1
+                        if person.is_public:
+                            person_data = PersonLtdSerialiser(person).data
+                    except:
+                        logger.exception(f"Failed fetching person data for contestant {contestant}")
+                    if contestant.navigation_task.everything_public:
+                        navigation_task_id = contestant.navigation_task_id
             except OperationalError:
                 logger.warning(
                     f"Error when fetching contestant for app_tracking_id '{person_or_contestant}'. Attempting to reconnect"
                 )
                 connection.connect()
-            global_tracking_name = contestant.team.aeroplane.registration
-            person = contestant.team.crew.member1
-            if person.is_public:
-                person_data = PersonLtdSerialiser(person).data
         now = datetime.datetime.now(datetime.timezone.utc)
         if (
             global_tracking_name is not None
