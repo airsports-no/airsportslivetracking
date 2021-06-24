@@ -2313,6 +2313,7 @@ def firebase_token_login(request):
     from drf_firebase_auth.authentication import FirebaseAuthentication
 
     token = request.GET.get("token")
+    logger.debug(f"Token {token}")
     firebase_authenticator = FirebaseAuthentication()
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
