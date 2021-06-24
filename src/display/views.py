@@ -2317,6 +2317,6 @@ def firebase_token_login(request):
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
         login(request, user)
-    except AuthenticationFailed:
+    except drf_exceptions.AuthenticationFailed:
         messages.error(request, "Login failed")
     return redirect("/")
