@@ -5,7 +5,7 @@ from typing import Optional, Dict
 
 import dateutil
 from django.contrib import messages
-from django.contrib.auth import login, backends
+from django.contrib.auth import login
 from django.contrib.auth.decorators import permission_required, login_required
 from django.contrib.auth.mixins import (
     PermissionRequiredMixin,
@@ -2317,7 +2317,7 @@ def firebase_token_login(request):
     firebase_authenticator = FirebaseAuthentication()
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
-        login(request, user, backend=backends.ModelBackend)
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     except drf_exceptions.AuthenticationFailed as e:
         messages.error(request, f"Login failed: {e}")
     return redirect("/")
