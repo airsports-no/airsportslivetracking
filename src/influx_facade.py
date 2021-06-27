@@ -26,7 +26,7 @@ class InfluxFacade:
     def generate_position_data_for_contestant(self, contestant: Contestant, positions: List) -> List:
         data = []
         for position_data in positions:
-            device_time = dateutil.parser.parse(position_data["deviceTime"])
+            device_time = dateutil.parser.parse(position_data["device_time"])
             data.append(contestant.generate_position_block_for_contestant(position_data, device_time))
         return data
 
