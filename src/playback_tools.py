@@ -84,7 +84,7 @@ def insert_gpx_file(contestant_object: "Contestant", file, influx: InfluxFacade)
                     "attributes": {"batteryLevel": 1.0},
                     "speed": 0.0,
                     "course": 0.0,
-                    "deviceTime": point.time.isoformat()
+                    "device_time": point.time.isoformat()
                 })
     generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
     influx.put_position_data_for_contestant(contestant_object, generated_positions)
