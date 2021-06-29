@@ -873,9 +873,9 @@ html, body {
 
 
 .leaflet-marker-pane > * {
-  -webkit-transition: transform .2s linear;
-  -moz-transition: transform .2s linear;
-  -o-transition: transform .2s linear;
-  -ms-transition: transform .2s linear;
-  transition: transform .2s linear;
+  -webkit-transition: transform 1.0s linear;
+  -moz-transition: transform 1.0s linear;
+  -o-transition: transform 1.0s linear;
+  -ms-transition: transform 1.0s linear;
+  transition: transform 1.0s linear;
 }
