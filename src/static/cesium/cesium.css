@@ -870,3 +870,12 @@ html, body {
     background: none;
     box-shadow: none;
 }
+
+
+.leaflet-marker-pane > * {
+  -webkit-transition: transform .5s linear;
+  -moz-transition: transform .5s linear;
+  -o-transition: transform .5s linear;
+  -ms-transition: transform .5s linear;
+  transition: transform .5s linear;
+}
