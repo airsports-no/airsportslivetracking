@@ -129,7 +129,7 @@ class ConnectedNavigationTask extends Component {
             }
         }
         this.playbackSecond += this.tracklist.length / 2
-        setTimeout(() => this.playBackData(), 200)
+        setTimeout(() => this.playBackData(), 500)
     }
 
     initiateSession() {
