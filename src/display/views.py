@@ -608,8 +608,10 @@ def get_contestant_map(request, pk):
             )
             if int(form.cleaned_data["output_type"]) == PNG:
                 response = HttpResponse(map_image, content_type="image/png")
+                response["Content-Disposition"] = f"attachment; filename=map.png"
             else:
                 response = HttpResponse(pdf_image, content_type="application/pdf")
+                response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
     form = ContestantMapForm()
     return render(request, "display/map_form.html", {"form": form})
@@ -632,8 +634,9 @@ def get_contestant_default_map(request, pk):
         line_width=1,
         colour="#0000ff",
     )
-    return HttpResponse(pdf_image, content_type="application/pdf")
-
+    response =  HttpResponse(pdf_image, content_type="application/pdf")
+    response["Content-Disposition"] = f"attachment; filename=map.pdf"
+    return response
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_navigation_task_map(request, pk):
@@ -656,8 +659,10 @@ def get_navigation_task_map(request, pk):
             )
             if int(form.cleaned_data["output_type"]) == PNG:
                 response = HttpResponse(map_image, content_type="image/png")
+                response["Content-Disposition"] = f"attachment; filename=map.png"
             else:
                 response = HttpResponse(pdf_image, content_type="application/pdf")
+                response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
     form = MapForm()
     return render(request, "display/map_form.html", {"form": form})
