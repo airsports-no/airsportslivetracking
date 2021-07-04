@@ -2026,7 +2026,7 @@ class NavigationTaskViewSet(ModelViewSet):
             tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
             if adaptive_start:
                 tracker_start_time = starting_point_time - datetime.timedelta(hours=1)
-            contestant = Contestant.objects.create(
+            contestant = Contestant(
                 team=contest_team.team,
                 takeoff_time=takeoff_time,
                 navigation_task=navigation_task,
