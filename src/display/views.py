@@ -2045,9 +2045,13 @@ class NavigationTaskViewSet(ModelViewSet):
                 final_time = starting_point_time
             if adaptive_start:
                 final_time += datetime.timedelta(hours=1)
+            logger.debug(f"takeg time is {contestant.takeoff_time}")
+            logger.debug(f"Final time is {final_time}")
             contestant.finished_by_time = final_time + datetime.timedelta(
                 minutes=navigation_task.minutes_to_landing + 2
             )
+            logger.debug(f"Finished by time is {contestant.finished_by_time}")
+
             contestant.save()
             logger.debug("Updated contestant")
             return Response(status=status.HTTP_201_CREATED)
