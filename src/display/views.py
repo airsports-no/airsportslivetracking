@@ -634,9 +634,10 @@ def get_contestant_default_map(request, pk):
         line_width=1,
         colour="#0000ff",
     )
-    response =  HttpResponse(pdf_image, content_type="application/pdf")
+    response = HttpResponse(pdf_image, content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=map.pdf"
     return response
+
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_navigation_task_map(request, pk):
@@ -1891,7 +1892,9 @@ class ContestViewSet(ModelViewSet):
             contest=contest,
         )
         contestants = Contestant.objects.filter(
-            navigation_task__contest=contest, team__in=[item.team for item in teams], finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc)
+            navigation_task__contest=contest,
+            team__in=[item.team for item in teams],
+            finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
         )
         if contestants.exists():
             raise drf_exceptions.ValidationError(
@@ -2045,7 +2048,11 @@ class NavigationTaskViewSet(ModelViewSet):
                 final_time = starting_point_time
             if adaptive_start:
                 # Properly account for how final time is created when adaptive start is active
-                final_time += datetime.timedelta(hours=1) + datetime.timedelta(hours=final_time.hour, minutes=final_time.minute, seconds=final_time.second)
+                final_time = (
+                    starting_point_time
+                    + datetime.timedelta(hours=1)
+                    + datetime.timedelta(hours=final_time.hour, minutes=final_time.minute, seconds=final_time.second)
+                )
             logger.debug(f"takeg time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")
             contestant.finished_by_time = final_time + datetime.timedelta(
