@@ -252,7 +252,11 @@ LOGGING = {
     },
     "root": {
         "handlers": ["console", "file"],
-        "level": "INFO",
+        "level": "DEBUG",
+    },
+    "": {
+        "handlers": ["console", "file"],
+        "level": "DEBUG",
     },
     "celery": {
         "handlers": ["file", "console"],
