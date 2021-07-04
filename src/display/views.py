@@ -2044,7 +2044,8 @@ class NavigationTaskViewSet(ModelViewSet):
             if final_time is None:
                 final_time = starting_point_time
             if adaptive_start:
-                final_time += datetime.timedelta(hours=1)
+                # Properly account for how final time is created when adaptive start is active
+                final_time += datetime.timedelta(hours=1) + datetime.timedelta(hours=final_time.hour, minutes=final_time.minute, seconds=final_time.second)
             logger.debug(f"takeg time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")
             contestant.finished_by_time = final_time + datetime.timedelta(
