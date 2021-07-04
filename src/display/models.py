@@ -1502,7 +1502,7 @@ class Contestant(models.Model):
         if self.takeoff_time > self.finished_by_time:
             raise ValidationError(
                 "Takeoff time '{}' is after finished by time '{}' for contestant number {}".format(
-                    self.tracker_start_time, self.takeoff_time, self.contestant_number
+                    self.takeoff_time, self.takeoff_time, self.contestant_number
                 )
             )
         # Validate no timing changes after calculator start

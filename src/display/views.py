@@ -2039,6 +2039,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 wind_speed=serialiser.validated_data["wind_speed"],
                 wind_direction=serialiser.validated_data["wind_direction"],
             )
+            logger.debug("Creative contestant")
             final_time = contestant.get_final_gate_time()
             if final_time is None:
                 final_time = starting_point_time
@@ -2048,6 +2049,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 minutes=navigation_task.minutes_to_landing + 2
             )
             contestant.save()
+            logger.debug("Updated contestant")
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
             # Delete all contestants that have not finished yet where I am the pilot

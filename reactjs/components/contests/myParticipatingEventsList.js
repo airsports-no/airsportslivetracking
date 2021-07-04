@@ -92,7 +92,7 @@ class ConnectedMyParticipatingEventsList extends Component {
             return <tr key={task.pk}>
                 <td>{task.name}</td>
                 <td>{task.future_contestants.length > 0 ?
-                    <div><a href={task.future_contestants[0].default_map_url}>Navigation map (slow)</a>
+                    <div><a href={task.future_contestants[0].default_map_url}>Map (slow)</a>
                         <div>Starting point
                             time: {new Date(new Date(task.future_contestants[0].takeoff_time).getTime() + task.future_contestants[0].minutes_to_starting_point * 60000).toLocaleString()}</div>
 
