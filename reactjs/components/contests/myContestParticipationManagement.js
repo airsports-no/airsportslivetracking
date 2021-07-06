@@ -28,10 +28,13 @@ class ConnectedMyContestParticipationManagement extends Component {
             window.location.href = "/accounts/login/?next=" + window.location.pathname
         }
         this.props.fetchContests()
-        this.props.fetchMyParticipatingContests()
     }
 
     componentDidUpdate(prevProps) {
+        if (prevProps.registrationContestId !== this.props.registrationContestId) {
+            this.props.fetchMyParticipatingContests()
+        }
+
         if (!document.configuration.authenticatedUser) {
             window.location.href = "/accounts/login/?next=" + window.location.pathname
         }

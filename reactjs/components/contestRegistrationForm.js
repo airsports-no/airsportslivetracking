@@ -223,7 +223,7 @@ class ConnectedContestRegistrationForm extends Component {
                     <Modal.Title id="contained-modal-title-vcenter">
                         {!this.props.participation ?
                             <h2>Register for {this.props.contest.name}</h2> :
-                            <h3>Already registered, changed registration details for '{this.props.contest.name}'</h3>}
+                            <h3>Change registration details for '{this.props.contest.name}'</h3>}
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body className="show-grid">
