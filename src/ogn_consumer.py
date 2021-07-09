@@ -32,6 +32,11 @@ if __name__ == "__main__":
 
 from websocket_channels import WebsocketFacade
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(processName)-15s: %(threadName)-15s %(levelname)-8s %(message)s',
+                    datefmt='%d/%m/%Y %H:%M:%S')
+
+
 logger = logging.getLogger(__name__)
 FETCH_INTERVAL = datetime.timedelta(seconds=5)
 

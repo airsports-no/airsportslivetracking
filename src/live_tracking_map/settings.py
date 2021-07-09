@@ -87,12 +87,8 @@ EMAIL_BCC = os.environ.get("AUTHEMAIL_DEFAULT_EMAIL_BCC") or "tracking@airsports
 
 EMAIL_HOST = os.environ.get("AUTHEMAIL_EMAIL_HOST") or ""
 EMAIL_PORT = os.environ.get("AUTHEMAIL_EMAIL_PORT") or 587
-EMAIL_HOST_USER = (
-    os.environ.get("AUTHEMAIL_EMAIL_HOST_USER") or "<YOUR EMAIL_HOST_USER HERE>"
-)
-EMAIL_HOST_PASSWORD = (
-    os.environ.get("AUTHEMAIL_EMAIL_HOST_PASSWORD") or "<YOUR EMAIL_HOST_PASSWORD HERE>"
-)
+EMAIL_HOST_USER = os.environ.get("AUTHEMAIL_EMAIL_HOST_USER") or "<YOUR EMAIL_HOST_USER HERE>"
+EMAIL_HOST_PASSWORD = os.environ.get("AUTHEMAIL_EMAIL_HOST_PASSWORD") or "<YOUR EMAIL_HOST_PASSWORD HERE>"
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 DEFAULT_FROM_EMAIL = "tracking@airsports.no"
@@ -163,9 +159,7 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "live_tracking_map.django_exception_handler.exception_handler",
 }
 if os.environ.get("MODE") != "dev":
-    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].append(
-        "drf_firebase_auth.authentication.FirebaseAuthentication"
-    )
+    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].append("drf_firebase_auth.authentication.FirebaseAuthentication")
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
@@ -254,30 +248,19 @@ LOGGING = {
         "handlers": ["console", "file"],
         "level": "DEBUG",
     },
-    "": {
-        "handlers": ["console", "file"],
-        "level": "DEBUG",
-    },
+    "": {"handlers": ["console", "file"], "level": "DEBUG", "propagate": True},
     "celery": {
         "handlers": ["file", "console"],
         "level": "INFO",
-        # 'propagate': False,
+        "propagate": False,
     },
-    "asyncio":{
-        "handlers": ["file", "console"],
-        "level": "WARNING",
-    },
-    "aioredis": {
-        "handlers": ["file", "console"],
-        "level": "WARNING",
-    }
 }
 
 CACHES = {
     "default": {
         "BACKEND": "redis_cache.RedisCache",
         "LOCATION": [
-            "/tmp/docker/redis.sock" if PRODUCTION else 'redis:6379',
+            "/tmp/docker/redis.sock" if PRODUCTION else "redis:6379",
         ],
         "TIMEOUT": None,
         "OPTIONS": {
@@ -295,8 +278,8 @@ CACHES = {
 }
 
 # celery
-CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else 'redis://redis:6379'
-CELERY_RESULT_BACKEND = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else 'redis://redis:6379'
+CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
+CELERY_RESULT_BACKEND = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_SERIALIZER = "json"
