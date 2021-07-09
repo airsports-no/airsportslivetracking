@@ -265,6 +265,11 @@ LOGGING = {
             "level": "WARNING",
             "propagate": False,
         },
+        "channels_redis": {
+            "handlers": ["file", "console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
     },
 }
 
