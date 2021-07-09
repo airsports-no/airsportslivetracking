@@ -254,6 +254,16 @@ LOGGING = {
         "level": "INFO",
         "propagate": False,
     },
+    "asyncio": {
+        "handlers": ["file", "console"],
+        "level": "WARNING",
+        "propagate": False,
+    },
+    "aioredis": {
+        "handlers": ["file", "console"],
+        "level": "WARNING",
+        "propagate": False,
+    },
 }
 
 CACHES = {
