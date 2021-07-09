@@ -244,25 +244,27 @@ LOGGING = {
             "formatter": "standard",
         },
     },
-    "root": {
-        "handlers": ["console", "file"],
-        "level": "DEBUG",
-    },
-    "": {"handlers": ["console", "file"], "level": "DEBUG", "propagate": True},
-    "celery": {
-        "handlers": ["file", "console"],
-        "level": "INFO",
-        "propagate": False,
-    },
-    "asyncio": {
-        "handlers": ["file", "console"],
-        "level": "WARNING",
-        "propagate": False,
-    },
-    "aioredis": {
-        "handlers": ["file", "console"],
-        "level": "WARNING",
-        "propagate": False,
+    "loggers": {
+        "root": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+        },
+        "": {"handlers": ["console", "file"], "level": "DEBUG", "propagate": True},
+        "celery": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "asyncio": {
+            "handlers": ["file", "console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "aioredis": {
+            "handlers": ["file", "console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
     },
 }
 
