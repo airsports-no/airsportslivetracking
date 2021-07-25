@@ -17,6 +17,7 @@ import Disclaimer from "./disclaimer";
 import {mdiAirport, mdiGoKartTrack, mdiMagnify, mdiPodium} from "@mdi/js";
 import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
+import TimeDisplay from "./timeDisplay";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -149,8 +150,10 @@ class ConnectedTrackingContainer extends Component {
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             <div id="cesiumContainer"/>
                             {this.props.displayLowerThirds !== null ?
-                                <LowerThirdTeam scorecard_data={this.props.navigationTask.scorecard_data}
-                                                contestant={this.props.contestants[this.props.displayLowerThirds]}/> : null}
+                                <div><LowerThirdTeam scorecard_data={this.props.navigationTask.scorecard_data}
+                                                     contestant={this.props.contestants[this.props.displayLowerThirds]}/>
+                                    <TimeDisplay contestantId={this.props.displayLowerThirds} class={"pilotTime"}/>
+                                </div> : null}
 
                         </div>
                     </div>

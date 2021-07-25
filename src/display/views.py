@@ -1772,6 +1772,14 @@ class ContestViewSet(ModelViewSet):
             | self.queryset.filter(is_public=True, is_featured=True)
         )
 
+    @action(detail=True, methods=["get"])
+    def get_current_time(self, request, *args, **kwargs):
+        """
+        Return the current time for the appropriate time zone
+        """
+        contest = self.get_object()
+        return datetime.datetime.now(datetime.timezone.utc).astimezone(contest.time_zone).strftime("%H:%M:%S")
+
     @action(detail=True, methods=["put"])
     def share(self, request, *args, **kwargs):
         """
@@ -1997,7 +2005,9 @@ class NavigationTaskViewSet(ModelViewSet):
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
-        raise PermissionDenied("It is not possible to modify existing navigation tasks except to publish or hide them")
+        raise drf_exceptions.PermissionDenied(
+            "It is not possible to modify existing navigation tasks except to publish or hide them"
+        )
 
     @action(
         detail=True,

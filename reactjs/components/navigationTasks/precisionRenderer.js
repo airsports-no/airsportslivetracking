@@ -1,6 +1,7 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
+import {formatTime} from "../../utilities";
 
 const L = window['L']
 
@@ -20,12 +21,7 @@ export default class PrecisionRenderer extends Component {
             marker.removeFrom(this.props.map)
         }
         this.markers = []
-        const leadingZero = (num) => `0${num}`.slice(-2);
 
-        const formatTime = (date) =>
-            [date.getHours(), date.getMinutes(), date.getSeconds()]
-                .map(leadingZero)
-                .join(':');
         const currentContestant = this.props.navigationTask.contestant_set.find((contestant) => {
             return contestant.id === this.props.currentHighlightedContestant
         })
