@@ -77,7 +77,6 @@ if os.environ.get("MODE") != "dev":
 
 PRODUCTION = os.environ.get("MODE") != "dev"
 
-
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 GUARDIAN_MONKEY_PATCH = False
 AUTH_USER_MODEL = "display.MyUser"
@@ -281,6 +280,11 @@ LOGGING = {
             "propagate": False,
         },
         "matplotlib": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "shapely": {
             "handlers": ["file", "console"],
             "level": "INFO",
             "propagate": False,
