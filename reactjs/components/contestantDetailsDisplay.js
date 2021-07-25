@@ -83,7 +83,7 @@ class ConnectedContestantDetailsDisplay extends Component {
 
     render() {
         const progress = Math.min(100, Math.max(0, this.props.progress.toFixed(1)))
-        const finished = this.props.contestantData.current_state === "Finished"
+        const finished = this.props.contestantData.current_state === "Finished" || this.props.contestantData.calculator_finished
         let projectedScore = calculateProjectedScore(this.props.contestantData.score, progress).toFixed(0)
         if (projectedScore === "99999") {
             projectedScore = "--"
