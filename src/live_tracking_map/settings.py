@@ -275,6 +275,16 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "urllib3": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "matplotlib": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
 
