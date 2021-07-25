@@ -270,6 +270,11 @@ LOGGING = {
             "level": "WARNING",
             "propagate": False,
         },
+        "daphne": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
 

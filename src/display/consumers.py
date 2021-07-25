@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import pickle
+import threading
 
 import dateutil.parser
 from asgiref.sync import async_to_sync
@@ -12,7 +13,8 @@ from redis import StrictRedis
 
 from display.coordinate_utilities import (
     calculate_distance_lat_lon,
-    calculate_bounding_box, equirectangular_distance,
+    calculate_bounding_box,
+    equirectangular_distance,
 )
 from display.models import NavigationTask, Contest
 from display.views import cached_generate_data
@@ -41,19 +43,30 @@ class TrackingConsumer(WebsocketConsumer):
         self.navigation_task_pk = self.scope["url_route"]["kwargs"]["navigation_task"]
         self.navigation_task_group_name = "tracking_{}".format(self.navigation_task_pk)
         logger.info(f"Current user {self.scope.get('user')}")
-        async_to_sync(self.channel_layer.group_add)(
-            self.navigation_task_group_name, self.channel_name
-        )
+        async_to_sync(self.channel_layer.group_add)(self.navigation_task_group_name, self.channel_name)
         self.groups.append(self.navigation_task_group_name)
         try:
-            navigation_task = NavigationTask.objects.get(pk=self.navigation_task_pk)
+            self.navigation_task = NavigationTask.objects.get(pk=self.navigation_task_pk)
         except ObjectDoesNotExist:
             return
         self.accept()
-        for contestant in navigation_task.contestant_set.all():
-            self.send(
-                json.dumps(cached_generate_data(contestant.pk), cls=DateTimeEncoder)
+        for contestant in self.navigation_task.contestant_set.all():
+            self.send(json.dumps(cached_generate_data(contestant.pk), cls=DateTimeEncoder))
+        self.transmit_current_time()
+
+    def transmit_current_time(self):
+        self.send(
+            json.dumps(
+                {
+                    "current_time": datetime.datetime.now(datetime.timezone.utc)
+                    .astimezone(self.navigation_task.contest.time_zone)
+                    .strftime("%H:%M:%S")
+                }
             )
+        )
+        timer = threading.Timer(1, self.transmit_current_time)
+        timer.daemon = True
+        timer.start()
 
     def receive(self, text_data, **kwargs):
         message = json.loads(text_data)
@@ -107,9 +120,7 @@ class GlobalConsumer(WebsocketConsumer):
             ):
                 self.location = (message.get("latitude"), message.get("longitude"))
                 self.range = message.get("range") * 1000
-                logger.info(
-                    f"Setting position to {self.location} with range {self.range}"
-                )
+                logger.info(f"Setting position to {self.location} with range {self.range}")
                 self.bounding_box = calculate_bounding_box(self.location, self.range)
             else:
                 self.location = None
@@ -129,9 +140,7 @@ class ContestResultsConsumer(WebsocketConsumer):
         self.contest_pk = self.scope["url_route"]["kwargs"]["contest_pk"]
         self.contest_results_group_name = "contestresults_{}".format(self.contest_pk)
         self.groups.append(self.contest_results_group_name)
-        async_to_sync(self.channel_layer.group_add)(
-            self.contest_results_group_name, self.channel_name
-        )
+        async_to_sync(self.channel_layer.group_add)(self.contest_results_group_name, self.channel_name)
         try:
             contest = Contest.objects.get(pk=self.contest_pk)
         except ObjectDoesNotExist:

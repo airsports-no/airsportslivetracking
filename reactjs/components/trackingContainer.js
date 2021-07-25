@@ -153,7 +153,7 @@ class ConnectedTrackingContainer extends Component {
                                 <div><LowerThirdTeam scorecard_data={this.props.navigationTask.scorecard_data}
                                                      contestant={this.props.contestants[this.props.displayLowerThirds]}/>
                                     <TimeDisplay contestantId={this.props.displayLowerThirds} class={"pilotTime"}/>
-                                </div> : null}
+                                </div> : <TimeDisplay class={"pilotTime"}/>}
 
                         </div>
                     </div>

@@ -1778,7 +1778,7 @@ class ContestViewSet(ModelViewSet):
         Return the current time for the appropriate time zone
         """
         contest = self.get_object()
-        return datetime.datetime.now(datetime.timezone.utc).astimezone(contest.time_zone).strftime("%H:%M:%S")
+        return Response(datetime.datetime.now(datetime.timezone.utc).astimezone(contest.time_zone).strftime("%H:%M:%S"))
 
     @action(detail=True, methods=["put"])
     def share(self, request, *args, **kwargs):

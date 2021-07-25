@@ -77,7 +77,8 @@ const initialState = {
     loadingContests: false,
     currentSelfRegisterTask: null,
     currentSelfRegisterParticipation: null,
-    displayOpenAip: false
+    displayOpenAip: false,
+    currentTime: null
 };
 
 function rootReducer(state = initialState, action) {
@@ -160,7 +161,13 @@ function rootReducer(state = initialState, action) {
         })
     }
     if (action.type === GET_CONTESTANT_DATA_SUCCESSFUL) {
-        if (Object.keys(action.payload).length == 0) {
+        if (action.payload.current_time !== undefined) {
+            return Object.assign({}, state, {
+                ...state,
+                currentTime: action.payload.current_time
+            })
+        }
+        if (Object.keys(action.payload).length === 0) {
             return {
                 ...state,
                 isFetchingContestantData: {
@@ -180,7 +187,7 @@ function rootReducer(state = initialState, action) {
                     log_entries: action.payload.score_log_entries ? action.payload.score_log_entries : state.contestantData[action.payload.contestant_id].log_entries,
                     gate_scores: action.payload.gate_scores ? action.payload.gate_scores : state.contestantData[action.payload.contestant_id].gate_scores,
                     playing_cards: action.payload.playing_cards ? action.payload.playing_cards : state.contestantData[action.payload.contestant_id].playing_cards,
-                    latest_position_time: action.payload.positions.length>0?new Date(action.payload.positions.slice(-1)[0].time):null,
+                    latest_position_time: action.payload.positions.length > 0 ? new Date(action.payload.positions.slice(-1)[0].time) : null,
                     progress: action.payload.progress !== undefined ? action.payload.progress : state.contestantData[action.payload.contestant_id].progress,
                     contestant_track: action.payload.contestant_track ? action.payload.contestant_track : state.contestantData[action.payload.contestant_id].contestant_track,
                     contestant_id: action.payload.contestant_id,
