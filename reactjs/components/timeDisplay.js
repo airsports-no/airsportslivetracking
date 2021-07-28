@@ -18,7 +18,7 @@ class ConnectedTimeDisplay extends Component {
 
     incrementTime() {
         this.setState({contestantTime: new Date(this.state.contestantTime.getTime() + 1000)})
-        setTimeout(() => this.incrementTime(), 1000)
+        this.timer = setTimeout(() => this.incrementTime(), 1000)
     }
 
     updateTime() {
@@ -26,7 +26,7 @@ class ConnectedTimeDisplay extends Component {
         if (this.timer) {
             clearTimeout(this.timer)
         }
-        setTimeout(() => this.incrementTime(), 1000)
+        this.timer = setTimeout(() => this.incrementTime(), 1000)
     }
 
     componentDidMount() {
