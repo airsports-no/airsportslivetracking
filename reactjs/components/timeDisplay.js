@@ -9,9 +9,39 @@ const mapStateToProps = (state, props) => ({
 })
 
 class ConnectedTimeDisplay extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {contestantTime: null}
+        this.timer = null
+
+    }
+
+    incrementTime() {
+        this.setState({contestantTime: new Date(this.state.contestantTime.getTime() + 1000)})
+        setTimeout(() => this.incrementTime(), 1000)
+    }
+
+    updateTime() {
+        this.setState({contestantTime: this.props.latestPositionTime})
+        if (this.timer) {
+            clearTimeout(this.timer)
+        }
+        setTimeout(() => this.incrementTime(), 1000)
+    }
+
+    componentDidMount() {
+        this.updateTime()
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if (this.props.latestPositionTime !== prevProps.latestPositionTime && this.props.latestPositionTime) {
+            this.updateTime()
+        }
+    }
+
     render() {
         return <div
-            className={this.props.class}>{this.props.latestPositionTime && !this.props.finished ? formatTime(this.props.latestPositionTime) : this.props.currentTime}</div>
+            className={this.props.class}>{this.props.latestPositionTime && !this.props.finished ? formatTime(this.state.contestantTime) : this.props.currentTime}</div>
     }
 }
 
