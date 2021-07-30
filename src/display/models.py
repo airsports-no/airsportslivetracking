@@ -1313,6 +1313,7 @@ class Contestant(models.Model):
         max_length=100,
         help_text="ID of physical tracking device that will be brought into the plane. If using the Air Sports Live Tracking app this should be left blank.",
         blank=True,
+        null=True
     )
     tracker_start_time = models.DateTimeField(
         help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this."
