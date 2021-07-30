@@ -1381,7 +1381,7 @@ class Contestant(models.Model):
         cache.set(self.termination_request_key, True, timeout=3600)
 
     def save(self, **kwargs):
-        self.tracker_device_id = self.tracker_device_id.strip()
+        self.tracker_device_id = self.tracker_device_id.strip() if self.tracker_device_id else ""
         if self.tracking_service == TRACCAR:
             traccar = get_traccar_instance()
             traccar.get_or_create_device(self.tracker_device_id, self.tracker_device_id)
