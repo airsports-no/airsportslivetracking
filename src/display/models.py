@@ -370,6 +370,7 @@ class ContestTeam(models.Model):
         max_length=100,
         help_text="ID of physical tracking device that will be brought into the plane. Leave empty if official Air Sports Live Tracking app is used. Note that only a single tracker is to be used per plane.",
         blank=True,
+        null=True
     )
 
     class Meta:
