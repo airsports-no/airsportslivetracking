@@ -294,7 +294,9 @@ class ConnectedContestantTrack extends Component {
 
     renderAnnotations(annotations) {
         this.clearAnnotations()
-        annotations.map((annotation) => {
+        annotations.filter((annotation) => {
+            return this.props.navigationTask.display_secrets || annotation.gate_type !== "secret"
+        }).map((annotation) => {
             this.addAnnotation(annotation.latitude, annotation.longitude, annotation.message, this.iconMap[annotation.type])
         })
     }

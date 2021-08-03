@@ -596,6 +596,11 @@ class NavigationTask(models.Model):
         default=True,
         help_text="If checked the online tracking map shows the mapping background. Otherwise the map will be blank.",
     )
+    display_secrets = models.BooleanField(
+        default=True,
+        help_text="If checked secret gates will be displayed on the map. Otherwise the map will only include gates that"
+                  " are not secret, and also not display annotations related to the secret gates.",
+    )
     allow_self_management = models.BooleanField(
         default=False,
         help_text="If checked, authenticated users will be allowed to set up themselves as a contestant after having registered for the contest.",
@@ -1809,6 +1814,8 @@ class TrackAnnotation(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     message = models.TextField()
+    gate = models.CharField(max_length=30, blank=True, default="")
+    gate_type = models.CharField(max_length=30, blank=True, default=TURNPOINT, choices=GATES_TYPES)
     type = models.CharField(max_length=30, choices=TYPES)
 
     class Meta:

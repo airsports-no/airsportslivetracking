@@ -379,6 +379,7 @@ class NavigationTaskForm(forms.ModelForm):
             Fieldset(
                 "Display control",
                 "display_background_map",
+                "display_secrets",
             ),
             ButtonHolder(
                 Submit("submit", "Submit")

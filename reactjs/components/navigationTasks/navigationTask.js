@@ -326,7 +326,7 @@ class ConnectedNavigationTask extends Component {
             const mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
                 return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}
                                         contestant={contestant} contestId={this.props.contestId}
-                                        navigationTaskId={this.props.navigationTaskId}
+                                        navigationTask={this.props.navigationTask}
                                         displayMap={this.props.displayMap}
                                         colour={colourMap[contestant.contestant_number]}/>
             });

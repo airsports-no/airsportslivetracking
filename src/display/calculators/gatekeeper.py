@@ -199,7 +199,7 @@ class Gatekeeper(ABC):
                                               message=message, points=score, planned=planned, actual=actual,
                                               offset_string=offset_string, string=string, times_string=times_string)
         TrackAnnotation.create_and_push(contestant=self.contestant, latitude=latitude, longitude=longitude,
-                                        message=string, type=annotation_type,
+                                        message=string, type=annotation_type, gate=gate.name, gate_type=gate.type,
                                         time=self.track[-1].time if len(
                                             self.track) > 0 else self.contestant.navigation_task.start_time,
                                         score_log_entry=entry)

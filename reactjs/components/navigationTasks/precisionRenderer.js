@@ -26,7 +26,7 @@ export default class PrecisionRenderer extends Component {
             return contestant.id === this.props.currentHighlightedContestant
         })
         this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return waypoint.gate_check || waypoint.time_check
+            return (waypoint.gate_check || waypoint.time_check) && (this.props.navigationTask.display_secrets || !waypoint.type!=="secret")
         }).map((waypoint) => {
             let waypointText = waypoint.name
 
@@ -50,7 +50,7 @@ export default class PrecisionRenderer extends Component {
 
     renderRoute() {
         this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return waypoint.gate_check || waypoint.time_check
+            return (waypoint.gate_check || waypoint.time_check) && (this.props.navigationTask.display_secrets || !waypoint.type!=="secret")
         }).map((gate) => {
             polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
                 color: "blue"
