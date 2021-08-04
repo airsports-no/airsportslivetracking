@@ -349,7 +349,7 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "display_background_map", "scorecard",
+        fields = ("name", "start_time", "finish_time", "display_background_map", "display_secrets", "scorecard",
                   "minutes_to_starting_point",
                   "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management", "score_sorting_direction")
 
