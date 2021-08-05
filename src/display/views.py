@@ -181,7 +181,7 @@ from display.serialisers import (
     SignupSerialiser,
     PersonSignUpSerialiser,
     SharingSerialiser,
-    SelfManagementSerialiser,
+    SelfManagementSerialiser, OngoingNavigationSerialiser,
 )
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
@@ -1042,14 +1042,14 @@ def add_contest_teams_to_navigation_task(request, pk):
         if form.is_valid():
             try:
                 if not schedule_and_create_contestants(
-                    navigation_task,
-                    [int(item) for item in form.cleaned_data["contest_teams"]],
-                    form.cleaned_data["tracker_lead_time_minutes"],
-                    form.cleaned_data["minutes_for_aircraft_switch"],
-                    form.cleaned_data["minutes_for_tracker_switch"],
-                    form.cleaned_data["minutes_between_contestants"],
-                    form.cleaned_data["minutes_for_crew_switch"],
-                    optimise=form.cleaned_data.get("optimise", False),
+                        navigation_task,
+                        [int(item) for item in form.cleaned_data["contest_teams"]],
+                        form.cleaned_data["tracker_lead_time_minutes"],
+                        form.cleaned_data["minutes_for_aircraft_switch"],
+                        form.cleaned_data["minutes_for_tracker_switch"],
+                        form.cleaned_data["minutes_between_contestants"],
+                        form.cleaned_data["minutes_for_crew_switch"],
+                        optimise=form.cleaned_data.get("optimise", False),
                 ):
                     messages.error(request, "Optimisation failed")
                 else:
@@ -1165,9 +1165,9 @@ def show_route_definition_step(wizard):
     return cleaned_data.get("file_type") == FILE_TYPE_KML and wizard.get_cleaned_data_for_step("task_type").get(
         "task_type"
     ) in (
-        NavigationTask.PRECISION,
-        NavigationTask.POKER,
-    )
+               NavigationTask.PRECISION,
+               NavigationTask.POKER,
+           )
 
 
 def show_precision_path(wizard):
@@ -1673,8 +1673,8 @@ class UserPersonViewSet(GenericViewSet):
                 Q(team__crew__member1=self.get_object()) | Q(team__crew__member2=self.get_object()),
                 contest__in=available_contests,
             )
-            .order_by("contest__start_time")
-            .distinct()
+                .order_by("contest__start_time")
+                .distinct()
         )
         teams = []
         for team in contest_teams:
@@ -1750,6 +1750,7 @@ class ContestViewSet(ModelViewSet):
         "update_task_summary": TaskSummaryWithoutReferenceSerialiser,
         "update_test_result": TeamTestScoreWithoutReferenceSerialiser,
         "results_details": ContestResultsDetailsSerialiser,
+        "ongoing_navigation": OngoingNavigationSerialiser,
         "signup": SignupSerialiser,
         "share": SharingSerialiser,
     }
@@ -1763,13 +1764,13 @@ class ContestViewSet(ModelViewSet):
 
     def get_queryset(self):
         return (
-            get_objects_for_user(
-                self.request.user,
-                "display.view_contest",
-                klass=self.queryset,
-                accept_global_perms=False,
-            )
-            | self.queryset.filter(is_public=True, is_featured=True)
+                get_objects_for_user(
+                    self.request.user,
+                    "display.view_contest",
+                    klass=self.queryset,
+                    accept_global_perms=False,
+                )
+                | self.queryset.filter(is_public=True, is_featured=True)
         )
 
     @action(detail=True, methods=["get"])
@@ -1795,6 +1796,15 @@ class ContestViewSet(ModelViewSet):
             elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
                 contest.make_unlisted()
         return Response(serialiser.data, status=HTTP_200_OK)
+
+    @action(detail=False, methods=["get"])
+    def ongoing_navigation(self, request, *args, **kwargs):
+        navigation_tasks = NavigationTask.get_visible_navigation_tasks(self.request.user).filter(
+            contestant__contestanttrack__past_starting_gate=True,
+            contestant__contestanttrack__past_finish_gate=False
+        )
+        data = self.get_serializer_class()(navigation_tasks, many=True, context={"request": self.request}).data
+        return Response(data)
 
     @action(detail=True, methods=["get"])
     def results_details(self, request, *args, **kwargs):
@@ -2059,9 +2069,10 @@ class NavigationTaskViewSet(ModelViewSet):
             if adaptive_start:
                 # Properly account for how final time is created when adaptive start is active
                 final_time = (
-                    starting_point_time
-                    + datetime.timedelta(hours=1)
-                    + datetime.timedelta(hours=final_time.hour, minutes=final_time.minute, seconds=final_time.second)
+                        starting_point_time
+                        + datetime.timedelta(hours=1)
+                        + datetime.timedelta(hours=final_time.hour, minutes=final_time.minute,
+                                             seconds=final_time.second)
                 )
             logger.debug(f"takeg time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")

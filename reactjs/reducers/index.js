@@ -31,7 +31,7 @@ import {
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
     GET_CONTESTS,
     FETCH_MY_PARTICIPATING_CONTESTS,
-    TOGGLE_OPEN_AIP
+    TOGGLE_OPEN_AIP, GET_ONGOING_NAVIGATION_SUCCESSFUL
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -78,7 +78,8 @@ const initialState = {
     currentSelfRegisterTask: null,
     currentSelfRegisterParticipation: null,
     displayOpenAip: false,
-    currentTime: null
+    currentTime: null,
+    ongoingNavigation: []
 };
 
 function rootReducer(state = initialState, action) {
@@ -315,6 +316,12 @@ function rootReducer(state = initialState, action) {
         return Object.assign({}, state, {
             contests: action.payload,
             loadingContests: false
+        })
+    }
+
+    if (action.type === GET_ONGOING_NAVIGATION_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ongoingNavigation: action.payload,
         })
     }
     if (action.type === GLOBAL_MAP_ZOOM_FOCUS_CONTEST) {

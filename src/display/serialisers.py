@@ -52,7 +52,6 @@ from display.models import (
 )
 from display.waypoint import Waypoint
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -272,8 +271,8 @@ class ContestParticipationSerialiser(ContestSerialiser):
             NavigationTask.objects.filter(
                 Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
             )
-            .filter(contest_id=contest.pk)
-            .filter(allow_self_management=True)
+                .filter(contest_id=contest.pk)
+                .filter(allow_self_management=True)
         )
         serialiser = NavigationTasksSummaryParticipationSerialiser(
             items, many=True, read_only=True, context={"request": self.context["request"]}
@@ -697,6 +696,23 @@ class ContestantSerialiser(serializers.ModelSerializer):
             for item in gate_score_override_data:
                 instance.gate_score_override.add(GateScoreOverride.objects.create(**item))
         return instance
+
+
+class OngoingNavigationSerialiser(serializers.ModelSerializer):
+    contest = ContestSerialiser(read_only=True)
+    active_contestants = SerializerMethodField("get_active_contestants")
+
+    class Meta:
+        model = NavigationTask
+        fields = ("pk", "name", "start_time", "finish_time", "tracking_link", "active_contestants", "contest")
+
+    def get_active_contestants(self, navigation_task):
+        future_contestants = navigation_task.contestant_set.filter(
+            contestanttrack__past_starting_gate=True,
+            contestanttrack__past_finish_gate=False
+        )
+        serialiser = ContestantSerialiser(future_contestants, many=True, read_only=True)
+        return serialiser.data
 
 
 class ContestantNestedTeamSerialiser(ContestantSerialiser):

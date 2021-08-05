@@ -9,6 +9,7 @@ import AboutLogoPopup from "./aboutLogoPopup";
 import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
 import {internalColour, ognColour, openSkyColour} from "./aircraft/aircraft";
 import {withRouter} from "react-router-dom";
+import OngoingNavigationTicker from "./contests/ongoingNavigationTicker";
 
 const mapStateToProps = (state, props) => ({})
 
@@ -46,6 +47,7 @@ class ConnectedGlobalMapContainer extends Component {
                         <Disclaimer/>
                         <AboutLogoPopup aboutText={aboutGlobalMap} size={2}/>
                         <div id="cesiumContainer"/>
+                        <div className="ongoing-navigation-ticker"><OngoingNavigationTicker/></div>
                     </div>
                 </div>
                 <GlobalMapMap/>

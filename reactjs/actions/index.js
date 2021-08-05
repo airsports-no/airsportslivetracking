@@ -33,7 +33,12 @@ import {
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
     REGISTER_FOR_CONTEST,
     UPDATE_CONTEST_REGISTRATION,
-    CANCEL_CONTEST_REGISTRATION, GET_CONTESTS, FETCH_MY_PARTICIPATING_CONTESTS, SELF_REGISTER_TASK, TOGGLE_OPEN_AIP
+    CANCEL_CONTEST_REGISTRATION,
+    GET_CONTESTS,
+    FETCH_MY_PARTICIPATING_CONTESTS,
+    SELF_REGISTER_TASK,
+    TOGGLE_OPEN_AIP,
+    GET_ONGOING_NAVIGATION_SUCCESSFUL
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -170,6 +175,16 @@ export const fetchContests = () => (dispatch) => {
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_CONTESTS_SUCCESSFUL, payload: value}),
+        error: error => console.log(error)
+    });
+}
+
+export const fetchOngoingNavigation=()=>(dispatch)=>{
+    $.ajax({
+        url: "/api/v1/contests/ongoing_navigation/",
+        datatype: 'json',
+        cache: false,
+        success: value => dispatch({type: GET_ONGOING_NAVIGATION_SUCCESSFUL, payload: value}),
         error: error => console.log(error)
     });
 }
