@@ -57,7 +57,7 @@ class ConnectedOngoingNavigationTicker extends Component {
         return <div>
             Ongoing {this.state.currentNavigationIndex + 1}/{this.props.ongoingNavigation.length}:<br/>
             <a href={currentNavigation.tracking_link}>
-                <b>{currentNavigation.contest.name} {currentNavigation.name}</b><br/>
+                <b>{currentNavigation.contest.name} ({currentNavigation.name})</b><br/>
             </a>
             {currentNavigation.active_contestants.length} active {currentNavigation.active_contestants.length>1?"contestants":"contestant"}.
         </div>
