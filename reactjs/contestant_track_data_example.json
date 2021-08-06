@@ -16716,8 +16716,8 @@
       "current_leg": "",
       "last_gate": "FP",
       "last_gate_time_offset": -3.783105,
-      "past_starting_gate": false,
-      "past_finish_gate": false,
+      "passed_starting_gate": false,
+      "passed_finish_gate": false,
       "contestant": 16
     }
   ]

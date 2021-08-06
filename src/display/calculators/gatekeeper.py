@@ -109,6 +109,7 @@ class Gatekeeper(ABC):
     def run(self):
         logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
+        self.contestant.contestanttrack.set_calculator_started()
         while not self.track_terminated:
             now = datetime.datetime.now(datetime.timezone.utc)
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:

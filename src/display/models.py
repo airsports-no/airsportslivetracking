@@ -1867,9 +1867,10 @@ class ContestantTrack(models.Model):
     current_leg = models.CharField(max_length=100, default="")
     last_gate = models.CharField(max_length=100, default="")
     last_gate_time_offset = models.FloatField(default=0)
-    past_starting_gate = models.BooleanField(default=False)
-    past_finish_gate = models.BooleanField(default=False)
+    passed_starting_gate = models.BooleanField(default=False)
+    passed_finish_gate = models.BooleanField(default=False)
     calculator_finished = models.BooleanField(default=False)
+    calculator_started = models.BooleanField(default=False)
 
     @property
     def contest_summary(self):
@@ -1921,6 +1922,12 @@ class ContestantTrack(models.Model):
     def set_calculator_finished(self):
         self.refresh_from_db()
         self.calculator_finished = True
+        self.save()
+        self.__push_change()
+
+    def set_calculator_started(self):
+        self.refresh_from_db()
+        self.calculator_started = True
         self.save()
         self.__push_change()
 

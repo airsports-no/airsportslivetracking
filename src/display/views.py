@@ -1800,8 +1800,8 @@ class ContestViewSet(ModelViewSet):
     @action(detail=False, methods=["get"])
     def ongoing_navigation(self, request, *args, **kwargs):
         navigation_tasks = NavigationTask.get_visible_navigation_tasks(self.request.user).filter(
-            contestant__contestanttrack__past_starting_gate=True,
-            contestant__contestanttrack__past_finish_gate=False
+            contestant__contestanttrack__calculator_started=True,
+            contestant__contestanttrack__calculator_finished=False
         )
         data = self.get_serializer_class()(navigation_tasks, many=True, context={"request": self.request}).data
         return Response(data)

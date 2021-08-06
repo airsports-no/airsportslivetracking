@@ -708,8 +708,8 @@ class OngoingNavigationSerialiser(serializers.ModelSerializer):
 
     def get_active_contestants(self, navigation_task):
         future_contestants = navigation_task.contestant_set.filter(
-            contestanttrack__past_starting_gate=True,
-            contestanttrack__past_finish_gate=False
+            contestanttrack__calculator_started=True,
+            contestanttrack__calculator_finished=False
         )
         serialiser = ContestantSerialiser(future_contestants, many=True, read_only=True)
         return serialiser.data
