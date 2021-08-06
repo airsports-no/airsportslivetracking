@@ -8,11 +8,14 @@ const L = window['L']
 
 export default class PrecisionRenderer extends Component {
     componentDidMount() {
-        this.renderRoute()
         this.markers = []
+        this.lines=[]
+        this.renderRoute()
+        this.renderMarkers()
     }
 
     componentDidUpdate(prevProps, prevState) {
+        this.renderRoute()
         this.renderMarkers()
     }
 
@@ -26,7 +29,7 @@ export default class PrecisionRenderer extends Component {
             return contestant.id === this.props.currentHighlightedContestant
         })
         this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return (waypoint.gate_check || waypoint.time_check) && (this.props.navigationTask.display_secrets || waypoint.type!=="secret")
+            return (waypoint.gate_check || waypoint.time_check) && ((this.props.navigationTask.display_secrets && this.props.displaySecretGates) || waypoint.type!=="secret")
         }).map((waypoint) => {
             let waypointText = waypoint.name
 
@@ -49,12 +52,16 @@ export default class PrecisionRenderer extends Component {
     }
 
     renderRoute() {
+        for (const line of this.lines) {
+            line.removeFrom(this.props.map)
+        }
+        this.lines = []
         this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return (waypoint.gate_check || waypoint.time_check) && (this.props.navigationTask.display_secrets || waypoint.type!=="secret")
+            return (waypoint.gate_check || waypoint.time_check) && ((this.props.navigationTask.display_secrets && this.props.displaySecretGates) || waypoint.type!=="secret")
         }).map((gate) => {
-            polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
+            this.lines.push(polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
                 color: "blue"
-            }).addTo(this.props.map)
+            }).addTo(this.props.map))
             // }
         })
         let tracks = []
@@ -105,6 +112,7 @@ export default class PrecisionRenderer extends Component {
             route = polyline(track, {
                 color: "blue"
             }).addTo(this.props.map)
+            this.lines.push(route)
         }
         this.props.map.fitBounds(route.getBounds(), {padding: [50, 50]})
 

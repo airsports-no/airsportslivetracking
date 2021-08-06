@@ -38,7 +38,7 @@ import {
     FETCH_MY_PARTICIPATING_CONTESTS,
     SELF_REGISTER_TASK,
     TOGGLE_OPEN_AIP,
-    GET_ONGOING_NAVIGATION_SUCCESSFUL
+    GET_ONGOING_NAVIGATION_SUCCESSFUL, TOGGLE_SECRET_GATES, TOGGLE_BACKGROUND_MAP
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -167,6 +167,14 @@ export const hideAboutModal = () => (dispatch) => {
     dispatch({type: DISPLAY_ABOUT_MODAL, payload: false})
 }
 
+export const toggleSecretGates = () => (dispatch) => {
+    dispatch({type: TOGGLE_SECRET_GATES})
+}
+
+
+export const toggleBackgroundMap = () => (dispatch) => {
+    dispatch({type: TOGGLE_BACKGROUND_MAP})
+}
 
 export const fetchContests = () => (dispatch) => {
     dispatch({type: GET_CONTESTS})
@@ -179,7 +187,7 @@ export const fetchContests = () => (dispatch) => {
     });
 }
 
-export const fetchOngoingNavigation=()=>(dispatch)=>{
+export const fetchOngoingNavigation = () => (dispatch) => {
     $.ajax({
         url: "/api/v1/contests/ongoing_navigation/",
         datatype: 'json',

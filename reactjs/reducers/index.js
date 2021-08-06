@@ -31,7 +31,7 @@ import {
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
     GET_CONTESTS,
     FETCH_MY_PARTICIPATING_CONTESTS,
-    TOGGLE_OPEN_AIP, GET_ONGOING_NAVIGATION_SUCCESSFUL
+    TOGGLE_OPEN_AIP, GET_ONGOING_NAVIGATION_SUCCESSFUL, TOGGLE_SECRET_GATES, TOGGLE_BACKGROUND_MAP
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -79,7 +79,9 @@ const initialState = {
     currentSelfRegisterParticipation: null,
     displayOpenAip: false,
     currentTime: null,
-    ongoingNavigation: []
+    ongoingNavigation: [],
+    displaySecretGates: true,
+    displayBackgroundMap: true
 };
 
 function rootReducer(state = initialState, action) {
@@ -316,6 +318,21 @@ function rootReducer(state = initialState, action) {
         return Object.assign({}, state, {
             contests: action.payload,
             loadingContests: false
+        })
+    }
+    if (action.type === TOGGLE_SECRET_GATES) {
+        return Object.assign({}, state, {
+            displaySecretGates: !state.displaySecretGates,
+        })
+    }
+    if (action.type === TOGGLE_BACKGROUND_MAP) {
+        return Object.assign({}, state, {
+            displayBackgroundMap: !state.displayBackgroundMap,
+        })
+    }
+    if (action.type === GET_ONGOING_NAVIGATION_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ongoingNavigation: action.payload,
         })
     }
 

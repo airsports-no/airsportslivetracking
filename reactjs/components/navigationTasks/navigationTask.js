@@ -35,13 +35,26 @@ const OpenAIP = L.tileLayer('http://{s}.tile.maps.openaip.net/geowebcache/servic
     subdomains: '12'
 });
 
-
+const CartoDB_Positron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+});
+const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
+    attribution: '<a href="http://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    minZoom: 0,
+    maxZoom: 22,
+    subdomains: 'abcd',
+    accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
+});
 export const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
     currentDisplay: state.currentDisplay,
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
     displayOpenAip: state.displayOpenAip,
-        displayTracks: state.displayTracks,
+    displayTracks: state.displayTracks,
+    displaySecretGates: state.displaySecretGates,
+    displayBackgroundMap: state.displayBackgroundMap
 })
 export const mapDispatchToProps = {
     dispatchContestantData,
@@ -219,7 +232,7 @@ class ConnectedNavigationTask extends Component {
 
             }
         }
-        if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map) {
+        if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map || this.props.displayBackgroundMap !== previousProps.displayBackgroundMap) {
             this.fixMapBackground()
         }
         if (this.props.displayOpenAip) {
@@ -259,20 +272,11 @@ class ConnectedNavigationTask extends Component {
         //     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
         //     maxZoom: 16
         // });
-        const CartoDB_Positron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 19
-        });
-        const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
-            attribution: '<a href="http://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            minZoom: 0,
-            maxZoom: 22,
-            subdomains: 'abcd',
-            accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
-        });
-        if (this.props.navigationTask.display_background_map) {
+
+        if (this.props.navigationTask.display_background_map && this.props.displayBackgroundMap) {
             Jawg_Sunny.addTo(this.map);
+        } else {
+            Jawg_Sunny.removeFrom(this.map);
         }
     }
 
@@ -283,8 +287,10 @@ class ConnectedNavigationTask extends Component {
             let prohibitedRender = null;
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard_data.task_type.includes("precision") || this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
-                    routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask} currentHighlightedContestant = {this.props.displayTracks&&this.props.displayTracks.length===1?this.props.displayTracks[0]:null}
-                                                       handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}/>
+                    routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
+                                                       currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
+                                                       handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
+                                                       displaySecretGates={this.props.displaySecretGates}/>
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}/>
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("landing")) {
