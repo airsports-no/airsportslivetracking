@@ -97,6 +97,7 @@
     "react-widgets": "^5.1.1",
     "redux": "^4.0.5",
     "social-media-icons-react": "^1.1.2",
+    "universal-cookie": "^4.0.4",
     "websocket": "^1.0.32",
     "yup": "^0.32.9"
   }

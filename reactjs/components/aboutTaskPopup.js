@@ -6,11 +6,12 @@ import AboutLogoPopup from "./aboutLogoPopup";
 
 export default class AboutTaskPopup extends Component {
     render() {
-        let text = null;
+        let text = null, displaySecretGatesToggle=false;
         if (this.props.navigationTask.contestant_set !== undefined) {
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard_data.task_type.includes("precision")) {
                     text = aboutPrecisionFlying(this.props.navigationTask.actual_rules, this.props.navigationTask.route.waypoints)
+                    displaySecretGatesToggle = true
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
                     text = aboutPilotPokerRun
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
@@ -18,6 +19,6 @@ export default class AboutTaskPopup extends Component {
                 }
             }
         }
-        return <AboutLogoPopup aboutText={text} colour={"#e01b1c"} size={2}/>
+        return <AboutLogoPopup aboutText={text} colour={"#e01b1c"} size={2} displaySecretGatesToggle={displaySecretGatesToggle}/>
     }
 }

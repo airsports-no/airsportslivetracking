@@ -1,5 +1,5 @@
 import React, {Component} from "react";
-import {Button, Container, Modal} from "react-bootstrap";
+import {Button, Container, Form, Modal} from "react-bootstrap";
 import {connect} from "react-redux";
 import {
     displayAboutModal,
@@ -9,17 +9,62 @@ import {mdiInformation, mdiLogin, mdiMagnify} from "@mdi/js";
 import Icon from "@mdi/react";
 import {SocialMediaLinks} from "./socialMediaLinks";
 import {isAndroid, isIOS} from "react-device-detect";
-const mapStateToPropsModal = (state, props) => ({
-})
+import Cookies from 'universal-cookie';
 
-const mapStateToProps = (state, props) => ({
-    aboutModalShow: state.displayAboutModal,
+const _ = require('lodash');
+
+const mapStateToPropsModal = (state, props) => ({
+    navigationTask: state.navigationTask,
     displaySecretGates: state.displaySecretGates,
     displayBackgroundMap: state.displayBackgroundMap
 })
 
+const mapStateToProps = (state, props) => ({
+    aboutModalShow: state.displayAboutModal,
+})
+
 
 class ConnectedAboutLogoModal extends Component {
+    constructor(props) {
+        super(props)
+        this.loadSettings()
+    }
+
+    loadSettings() {
+        const cookies = new Cookies();
+        this.settings = _.get(cookies.get("aslt_settings") || {}, [this.props.navigationTask.id], {})
+        console.log("Loaded settings")
+        console.log(this.settings)
+        this.props.toggleSecretGates(_.get(this.settings, ["displaySecretGates"], true))
+        this.props.toggleBackgroundMap(_.get(this.settings, ["displayBackgroundMap"], true))
+    }
+
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        if (this.props.navigationTask !== prevProps.navigationTask) {
+            this.loadSettings()
+        }
+    }
+
+    saveSettings() {
+        console.log("Saving settings")
+        console.log(this.settings)
+        const cookies = new Cookies();
+        const settings = cookies.get("aslt_settings") || {}
+        settings[this.props.navigationTask.id] = this.settings
+        cookies.set("aslt_settings", settings)
+    }
+
+    toggleSecretGates(visible) {
+        this.settings.displaySecretGates = visible
+        this.saveSettings()
+        this.props.toggleSecretGates(visible)
+    }
+
+    toggleBackgroundMap(visible) {
+        this.settings.displayBackgroundMap = visible
+        this.saveSettings()
+        this.props.toggleBackgroundMap(visible)
+    }
 
     render() {
         const {aboutText, ...other} = this.props
@@ -64,10 +109,19 @@ class ConnectedAboutLogoModal extends Component {
                         <div>
                             {aboutText}
                         </div>
+                        <hr style={{marginTop: 0}}/>
                         <div>
-                            <button onClick={() => this.props.toggleSecretGates()}>Toggle secret gates</button>
-                            <button onClick={() => this.props.toggleBackgroundMap()}>Toggle background map</button>
-
+                            <h3>Settings</h3>
+                            <Form.Group>
+                                {this.props.displaySecretGatesToggle ? <Form.Check type={"checkbox"} onChange={(e) => {
+                                    this.toggleSecretGates(e.target.checked)
+                                }} checked={this.props.displaySecretGates} label={"Display secret gates"}
+                                                                                   disabled={!this.props.navigationTask.display_secrets}/> : null}
+                                <Form.Check type={"checkbox"} onChange={(e) => {
+                                    this.toggleBackgroundMap(e.target.checked)
+                                }} checked={this.props.displayBackgroundMap} label={"Display background map"}
+                                            disabled={!this.props.navigationTask.display_background_map}/>
+                            </Form.Group>
                         </div>
                     </Container>
                 </Modal.Body>
@@ -103,7 +157,8 @@ class ConnectedAboutLogoPopup extends Component {
                 {/*     src={"/static/img/about_live_tracking_shadow.png"}/>*/}
             </a>
             <AboutLogoModal aboutText={this.props.aboutText} show={this.props.aboutModalShow}
-                            onHide={() => this.props.hideAboutModal()}/>
+                            onHide={() => this.props.hideAboutModal()}
+                            displaySecretGatesToggle={this.props.displaySecretGatesToggle}/>
         </div>
     }
 }

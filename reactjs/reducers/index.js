@@ -322,12 +322,12 @@ function rootReducer(state = initialState, action) {
     }
     if (action.type === TOGGLE_SECRET_GATES) {
         return Object.assign({}, state, {
-            displaySecretGates: !state.displaySecretGates,
+            displaySecretGates: action.visible,
         })
     }
     if (action.type === TOGGLE_BACKGROUND_MAP) {
         return Object.assign({}, state, {
-            displayBackgroundMap: !state.displayBackgroundMap,
+            displayBackgroundMap: action.visible,
         })
     }
     if (action.type === GET_ONGOING_NAVIGATION_SUCCESSFUL) {

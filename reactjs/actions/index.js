@@ -167,13 +167,13 @@ export const hideAboutModal = () => (dispatch) => {
     dispatch({type: DISPLAY_ABOUT_MODAL, payload: false})
 }
 
-export const toggleSecretGates = () => (dispatch) => {
-    dispatch({type: TOGGLE_SECRET_GATES})
+export const toggleSecretGates = (visible) => (dispatch) => {
+    dispatch({type: TOGGLE_SECRET_GATES, visible: visible})
 }
 
 
-export const toggleBackgroundMap = () => (dispatch) => {
-    dispatch({type: TOGGLE_BACKGROUND_MAP})
+export const toggleBackgroundMap = (visible) => (dispatch) => {
+    dispatch({type: TOGGLE_BACKGROUND_MAP, visible: visible})
 }
 
 export const fetchContests = () => (dispatch) => {
