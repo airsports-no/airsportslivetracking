@@ -624,6 +624,9 @@ class ConnectedTaskSummaryResultsTable extends Component {
             blurToSave: true,
             afterSaveCell: (oldValue, newValue, row, column) => {
                 const teamId = row.team.id
+                if (newValue===undefined||newValue.length===0){
+                    newValue = 0
+                }
                 if (column.columnType === "contestSummary") {
                     this.props.putContestSummary(this.props.contestId, teamId, newValue)
                 } else if (column.columnType === "task") {
