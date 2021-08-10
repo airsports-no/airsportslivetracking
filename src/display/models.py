@@ -2180,10 +2180,13 @@ class EmailMapLink(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def send_email(self, user: MyUser):
-        url = reverse("email_map_link", kwargs={"key": self.id})
+        url = "https://airsports.no/" + reverse("email_map_link", kwargs={"key": self.id})
         user.email_user(
             f"Navigation map for task {self.contestant.navigation_task.name}",
-            f"Here is the link to download an annotated navigation map for use in your navigation task {self.contestant.navigation_task.name} with takeoff time {self.contestant.takeoff_time} {'and adaptive start' if self.contestant.adaptive_start else ''}.\n\n<a href={url}>Map link</a>\n\nThe link is valid for two hours.",
+            html_message=f"Here is the link to download an annotated navigation map for use in your navigation task "
+            f"{self.contestant.navigation_task.name} with takeoff time {self.contestant.takeoff_time} "
+            f"{'and adaptive start' if self.contestant.adaptive_start else ''}.<p>"
+            f"<a href='{url}'>Map link</a><p>The link is valid for two hours.",
         )
 
 

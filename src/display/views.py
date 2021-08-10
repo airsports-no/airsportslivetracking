@@ -639,7 +639,7 @@ def get_contestant_default_map(request, pk):
     return response
 
 
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__emailmaplink_set__id", "key"))
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__emailmaplink__id", "key"))
 def get_contestant_email_map_link(request, key):
     map_link = get_object_or_404(EmailMapLink, id=key)
     map_image, pdf_image = plot_route(
