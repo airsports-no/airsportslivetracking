@@ -194,12 +194,12 @@ class ConnectedContestRegistrationForm extends Component {
                         </Form.Group>
                         <Form.Group>
                             <Button variant="primary" type="submit" disabled={props.isSubmitting}>
-                                Register
+                                Save
                             </Button>
-                            <Button variant={"danger"} type={"button"}
-                                    onClick={() => {
-                                        this.props.history.push("/participation/")
-                                    }}>Cancel</Button>
+                            {/*<Button variant={"danger"} type={"button"}*/}
+                            {/*        onClick={() => {*/}
+                            {/*            this.props.history.push("/participation/")*/}
+                            {/*        }}>Cancel</Button>*/}
                             {this.props.participation ?
                                 <Button variant="primary" type="button" onClick={() => {
                                     this.props.history.push("/participation/myparticipation/" + this.props.participation.id + "/")

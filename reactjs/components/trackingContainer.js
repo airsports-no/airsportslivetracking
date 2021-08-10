@@ -18,6 +18,7 @@ import {mdiAirport, mdiGoKartTrack, mdiMagnify, mdiPodium} from "@mdi/js";
 import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
 import TimeDisplay from "./timeDisplay";
+import {Link} from "react-router-dom";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -139,6 +140,12 @@ class ConnectedTrackingContainer extends Component {
                                 <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
                             </a>
                             <Disclaimer/>
+                            {this.props.navigationTask.allow_self_management?
+                            <div className={"registerLink"}>
+                                <a href={"/participation/" + this.contestId + "/register/"}>
+                                    <button className={"btn btn-danger"}>Register crew</button>
+                                </a>
+                            </div>:null}
                             <div className={"trackImage"}>
                                 <Icon path={mdiGoKartTrack} title={"Track"} size={2} color={"#e01b1c"}
                                       onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>

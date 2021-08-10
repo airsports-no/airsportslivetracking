@@ -882,6 +882,16 @@ html, body {
     font-size: clamp(1rem, 0.1667rem + 3.33333vw, 2rem);
 }
 
+.registerLink {
+    position: absolute;
+    z-index: 1000;
+    left: 0px;
+    bottom: 30px;
+    /*background-color: rgba(255, 255, 255, 0.7);*/
+    /*border-radius: 10px;*/
+    font-size: clamp(1rem, 0.1667rem + 3.33333vw, 2rem);
+}
+
 
 .borderless tr, .borderless td, .borderless th {
     border: none !important;

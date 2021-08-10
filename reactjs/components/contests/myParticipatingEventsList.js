@@ -10,6 +10,8 @@ import {teamRankingTable} from "../../utilities";
 import {Loading} from "../basicComponents";
 import SelfRegistrationForm from "../navigationTaskStartForm";
 import {withRouter} from "react-router-dom";
+import {mdiShare} from "@mdi/js";
+import Icon from "@mdi/react";
 
 axios.defaults.xsrfCookieName = 'csrftoken'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
@@ -107,6 +109,10 @@ class ConnectedMyParticipatingEventsList extends Component {
                                     onClick={() => this.handleEnterClick(this.props.currentParticipation, task)}>Start
                                 flight</Button>
                         : null}
+                    <a style={{float: "right"}} href={task.tracking_link}><Icon path={mdiShare}
+                                                                                title={"Direct link"}
+                                                                                size={1.5}
+                                                                                color={"black"}/></a>
                 </td>
             </tr>
         })

@@ -4,6 +4,8 @@ import {zoomFocusContest} from "../../actions";
 import {connect} from "react-redux";
 import EllipsisWithTooltip from "react-ellipsis-with-tooltip";
 import {Link} from "react-router-dom";
+import {mdiContentCopy, mdiGoKartTrack, mdiShare} from "@mdi/js";
+import Icon from "@mdi/react";
 
 
 function sortTaskTimes(a, b) {
@@ -27,6 +29,22 @@ function sortTaskTimes(a, b) {
 }
 
 export default class ContestPopupItem extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {copied: false}
+    }
+
+    copy(value) {
+        const el = document.createElement("input");
+        el.value = value;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+        this.setState({copied: true})
+    }
+
+
     render() {
         const tasks = this.props.contest.navigationtask_set.sort(sortTaskTimes)
         return <div className={""} key={"contest" + this.props.contest.id}>
@@ -41,15 +59,27 @@ export default class ContestPopupItem extends Component {
                             <a href={this.props.contest.contest_website}>Website</a> : ""}
                     </div>
                     {new Date(this.props.contest.start_time).toLocaleDateString()} - {new Date(this.props.contest.finish_time).toLocaleDateString()}
+                    <div style={{float: "right"}}>
+                        {/*<a href={"#"}*/}
+                        {/*   onClick={() => this.copy("https://airsports.no/global/contest_details/" + this.props.contest.id + "/")}>{!this.state.copied ?*/}
+                        {/*    <Icon path={mdiContentCopy} title={"Copy URL"} size={1.5} color={"black"}/> :*/}
+                        {/*    <Icon path={mdiContentCopy} title={"URL copied to clipboard"} size={1.5} color={"grey"}/>}</a>*/}
+                        <a href={"/global/contest_details/" + this.props.contest.id + "/"}><Icon path={mdiShare}
+                                                                                                 title={"Direct link"}
+                                                                                                 size={1.5}
+                                                                                                 color={"black"}/></a>
+                    </div>
                 </h6>
                 <span style={{fontSize: "18px"}}>{new Date(this.props.contest.finish_time) > new Date() ?
                     this.props.link ?
-                        <Link to={"/participation/" + this.props.contest.id + "/register/"}>Register</Link> :
-                        <a href={"/participation/" + this.props.contest.id + "/register/"}>Register</a> : null}</span>&nbsp;
+                        <Link to={"/participation/" + this.props.contest.id + "/register/"}>
+                            <button className={"btn btn-danger"}>Register crew</button>
+                        </Link> :
+                        <a href={"/participation/" + this.props.contest.id + "/register/"}>
+                            <button className={"btn btn-danger"}>Register crew</button>
+                        </a> : null}</span>&nbsp;
                 <span style={{"paddingTop": "0.3em", fontSize: "14px"}}
                       className={"badge badge-dark badge-pill"}>{this.props.contest.contest_team_count} </span>
-
-                {/*<p className={"card-text"}>*/}
                 <ul className={"d-flex flex-wrap justify-content-around"}
                     style={{paddingLeft: "0px", columnGap: "5px", rowGap: "5px"}}>
                     {tasks.map((task) => {
@@ -57,8 +87,6 @@ export default class ContestPopupItem extends Component {
                     })}
 
                 </ul>
-
-                {/*</p>*/}
             </div>
         </div>
     }
