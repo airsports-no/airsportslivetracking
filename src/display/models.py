@@ -2187,9 +2187,9 @@ class EmailMapLink(models.Model):
             f"{self.contestant.navigation_task.name} with takeoff time {self.contestant.takeoff_time} "
             f"{'and adaptive start' if self.contestant.adaptive_start else ''}.<p>"
             f"<a href='{url}'>Map link</a><p>The link is valid for two hours.",
-            html_message=f"Here is the link to download an annotated navigation map for use in your navigation task "
-            f"{self.contestant.navigation_task.name} with takeoff time {self.contestant.takeoff_time} "
-            f"{'and adaptive start' if self.contestant.adaptive_start else ''}.<p>"
+            html_message=f"Hi {user.first_name}<p>Here is the link to download an annotated navigation map for use in your navigation task "
+            f"{self.contestant.navigation_task.name} with tracking start time {self.contestant.tracker_start_time} "
+            f"{'and adaptive start' if self.contestant.adaptive_start else ''}. The exact gate times are printed on the map.<p>"
             f"<a href='{url}'>Map link</a><p>The link is valid for two hours.",
         )
 

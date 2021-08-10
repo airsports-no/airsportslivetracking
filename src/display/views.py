@@ -642,6 +642,9 @@ def get_contestant_default_map(request, pk):
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__emailmaplink__id", "key"))
 def get_contestant_email_map_link(request, key):
     map_link = get_object_or_404(EmailMapLink, id=key)
+    if map_link.created_at<datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(hours=2):
+        map_link.delete()
+        raise Http404()
     map_image, pdf_image = plot_route(
         map_link.contestant.navigation_task,
         A4,
