@@ -54,10 +54,8 @@ export default class ContestPopupItem extends Component {
             <div className={""}>
                 <h5 className={"card-title"}>{this.props.contest.name}</h5>
                 <h6 className={"card-subtitle mb-2 text-muted"}>
-                    <div className={"float-right"}>
-                        {this.props.contest.contest_website.length > 0 ?
-                            <a href={this.props.contest.contest_website}>Website</a> : ""}
-                    </div>
+                    {this.props.contest.contest_website.length > 0 ?
+                        <a href={this.props.contest.contest_website}>Website</a> : ""}
                     {new Date(this.props.contest.start_time).toLocaleDateString()} - {new Date(this.props.contest.finish_time).toLocaleDateString()}
                     <div style={{float: "right"}}>
                         {/*<a href={"#"}*/}
