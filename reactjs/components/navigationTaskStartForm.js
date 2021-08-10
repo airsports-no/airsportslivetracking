@@ -116,7 +116,7 @@ class ConnectedSelfRegistrationForm extends Component {
                             <Form.Row>
                                 <Col>
                                     <Form.Text>If adaptive start is selected, you can cross the starting time at a whole
-                                        minute anywhere between one hour before and one hour after the selector starting
+                                        minute anywhere between one hour before and one hour after the selected starting
                                         point time</Form.Text>
                                 </Col>
                             </Form.Row>
@@ -135,6 +135,10 @@ class ConnectedSelfRegistrationForm extends Component {
                                                   defaultValue={props.initialValues.wind_direction}/>
                                     <ErrorMessage name={"wind_direction"} component={"div"}/>
                                 </Col>
+                            </Form.Row>
+                            <Form.Row>
+                                <Form.Text>After clicking "Register" you will receive an email with a link to an
+                                    annotated navigation map that can be used to fly the task.</Form.Text>
                             </Form.Row>
                             <Form.Row>
                                 <Button variant="primary" type="submit" disabled={props.isSubmitting}>

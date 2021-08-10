@@ -2108,7 +2108,6 @@ class NavigationTaskViewSet(ModelViewSet):
             contestant.save()
             mail_link = EmailMapLink.objects.create(contestant=contestant)
             mail_link.send_email(request.user)
-            messages.success(request, "Email with navigation map has been sent")
             logger.debug("Updated contestant")
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
