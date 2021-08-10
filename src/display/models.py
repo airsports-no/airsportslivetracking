@@ -1,6 +1,7 @@
 import datetime
 import logging
 import random
+import uuid
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
 from typing import List, Optional, Tuple, Dict
@@ -12,6 +13,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.mail import send_mail
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 from django.db import models, IntegrityError
@@ -128,9 +130,9 @@ class Route(models.Model):
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 1 NM when using rounded corners. Perhaps there is an error in your route file."
                 )
             if (
-                    waypoint.distance_next < 1852 / 2
-                    and self.waypoints[index + 1].type != "secret"
-                    and waypoint.type != "secret"
+                waypoint.distance_next < 1852 / 2
+                and self.waypoints[index + 1].type != "secret"
+                and waypoint.type != "secret"
             ):
                 raise ValidationError(
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 0.5 NM"
@@ -194,11 +196,11 @@ class Person(models.Model):
     validated = models.BooleanField(
         default=True,
         help_text="Usually true, but set to false for persons created automatically during "
-                  "app API login. This is used to signify that the user profile must be "
-                  "updatedfocus of. If this remains false for more than a few days, the person "
-                  "object and corresponding user will be deleted from the system.  This "
-                  "must therefore be set to True when submitting an updated profile from "
-                  "the app.",
+        "app API login. This is used to signify that the user profile must be "
+        "updatedfocus of. If this remains false for more than a few days, the person "
+        "object and corresponding user will be deleted from the system.  This "
+        "must therefore be set to True when submitting an updated profile from "
+        "the app.",
     )
     app_tracking_id = models.CharField(
         max_length=28,
@@ -245,11 +247,11 @@ class Person(models.Model):
 
     @classmethod
     def get_or_create(
-            cls,
-            first_name: Optional[str],
-            last_name: Optional[str],
-            phone: Optional[str],
-            email: Optional[str],
+        cls,
+        first_name: Optional[str],
+        last_name: Optional[str],
+        phone: Optional[str],
+        email: Optional[str],
     ) -> Optional["Person"]:
         possible_person = None
         if phone is not None and len(phone) > 0:
@@ -340,7 +342,7 @@ class Team(models.Model):
 
     @classmethod
     def get_or_create_from_signup(
-            cls, user: MyUser, copilot: Person, aircraft_registration: str, club_name: str
+        cls, user: MyUser, copilot: Person, aircraft_registration: str, club_name: str
     ) -> "Team":
         my_person = Person.objects.get(email=user.email)
         crew, _ = Crew.objects.get_or_create(member1=my_person, member2=copilot)
@@ -370,7 +372,7 @@ class ContestTeam(models.Model):
         max_length=100,
         help_text="ID of physical tracking device that will be brought into the plane. Leave empty if official Air Sports Live Tracking app is used. Note that only a single tracker is to be used per plane.",
         blank=True,
-        null=True
+        null=True,
     )
 
     class Meta:
@@ -378,7 +380,7 @@ class ContestTeam(models.Model):
 
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
-                self.tracker_device_id is None or len(self.tracker_device_id) == 0
+            self.tracker_device_id is None or len(self.tracker_device_id) == 0
         ):
             raise ValidationError(
                 f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
@@ -599,7 +601,7 @@ class NavigationTask(models.Model):
     display_secrets = models.BooleanField(
         default=True,
         help_text="If checked secret gates will be displayed on the map. Otherwise the map will only include gates that"
-                  " are not secret, and also not display annotations related to the secret gates.",
+        " are not secret, and also not display annotations related to the secret gates.",
     )
     allow_self_management = models.BooleanField(
         default=False,
@@ -608,9 +610,7 @@ class NavigationTask(models.Model):
 
     @classmethod
     def get_visible_navigation_tasks(cls, user: User):
-        contests = get_objects_for_user(
-            user, "display.view_contest", klass=Contest, accept_global_perms=False
-        )
+        contests = get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
         return NavigationTask.objects.filter(
             Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
         )
@@ -971,11 +971,11 @@ class Scorecard(models.Model):
         return self.prohibited_zone_penalty
 
     def get_gate_timing_score_for_gate_type(
-            self,
-            gate_type: str,
-            contestant: "Contestant",
-            planned_time: datetime.datetime,
-            actual_time: Optional[datetime.datetime],
+        self,
+        gate_type: str,
+        contestant: "Contestant",
+        planned_time: datetime.datetime,
+        actual_time: Optional[datetime.datetime],
     ) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.calculate_score(
@@ -1041,7 +1041,7 @@ class Scorecard(models.Model):
         return gate_score.extended_gate_width
 
     def get_backtracking_after_steep_gate_grace_period_seconds_for_gate_type(
-            self, gate_type: str, contestant: "Contestant"
+        self, gate_type: str, contestant: "Contestant"
     ) -> float:
         """
         The number of seconds after passing a gate with a steep turn (more than 90 degrees) where backtracking is not calculated
@@ -1050,7 +1050,7 @@ class Scorecard(models.Model):
         return gate_score.backtracking_after_steep_gate_grace_period_seconds
 
     def get_backtracking_after_gate_grace_period_nm_for_gate_type(
-            self, gate_type: str, contestant: "Contestant"
+        self, gate_type: str, contestant: "Contestant"
     ) -> float:
         """
         The number of NM around a gate where backtracking is not calculated
@@ -1156,10 +1156,10 @@ class GateScore(models.Model):
         return self.backtracking_after_gate_grace_period_nm
 
     def calculate_score(
-            self,
-            planned_time: datetime.datetime,
-            actual_time: Optional[datetime.datetime],
-            score_override: Optional["GateScoreOverride"],
+        self,
+        planned_time: datetime.datetime,
+        actual_time: Optional[datetime.datetime],
+        score_override: Optional["GateScoreOverride"],
     ) -> float:
         """
 
@@ -1328,7 +1328,7 @@ class Contestant(models.Model):
         max_length=100,
         help_text="ID of physical tracking device that will be brought into the plane. If using the Air Sports Live Tracking app this should be left blank.",
         blank=True,
-        null=True
+        null=True,
     )
     tracker_start_time = models.DateTimeField(
         help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this."
@@ -1414,7 +1414,7 @@ class Contestant(models.Model):
             return 0
         route_progress = 100
         if len(self.navigation_task.route.waypoints) > 0 and (
-                not self.contestanttrack.calculator_finished or ignore_finished
+            not self.contestanttrack.calculator_finished or ignore_finished
         ):
             first_gate = self.navigation_task.route.waypoints[0]
             last_gate = self.navigation_task.route.waypoints[-1]
@@ -1431,7 +1431,7 @@ class Contestant(models.Model):
 
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
-                self.tracker_device_id is None or len(self.tracker_device_id) == 0
+            self.tracker_device_id is None or len(self.tracker_device_id) == 0
         ):
             raise ValidationError(
                 f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
@@ -1567,13 +1567,13 @@ class Contestant(models.Model):
         for gate, relative in relative_crossing_times:
             crossing_times[gate] = crossing_time + relative
         if (
-                self.navigation_task.route.takeoff_gate is not None
-                and self.navigation_task.route.takeoff_gate.name not in crossing_times
+            self.navigation_task.route.takeoff_gate is not None
+            and self.navigation_task.route.takeoff_gate.name not in crossing_times
         ):
             crossing_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
         if (
-                self.navigation_task.route.landing_gate is not None
-                and self.navigation_task.route.landing_gate.name not in crossing_times
+            self.navigation_task.route.landing_gate is not None
+            and self.navigation_task.route.landing_gate.name not in crossing_times
         ):
             crossing_times[self.navigation_task.route.landing_gate.name] = self.finished_by_time + datetime.timedelta(
                 minutes=1
@@ -1584,13 +1584,13 @@ class Contestant(models.Model):
     def gate_times(self) -> Dict:
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
             if (
-                    self.navigation_task.route.takeoff_gate is not None
-                    and self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times
+                self.navigation_task.route.takeoff_gate is not None
+                and self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times
             ):
                 self.predefined_gate_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
             if (
-                    self.navigation_task.route.landing_gate is not None
-                    and self.navigation_task.route.landing_gate.name not in self.predefined_gate_times
+                self.navigation_task.route.landing_gate is not None
+                and self.navigation_task.route.landing_gate.name not in self.predefined_gate_times
             ):
                 self.predefined_gate_times[
                     self.navigation_task.route.landing_gate.name
@@ -1651,14 +1651,22 @@ class Contestant(models.Model):
         if self.tracking_device == TRACKING_DEVICE:
             devices.append({"tracker": self.tracker_device_id, "has_user": True})
         if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT) and self.team.crew.member1 is not None:
-            devices.append({"tracker": self.team.crew.member1.email,
-                            "has_user": get_user_model().objects.filter(email=self.team.crew.member1.email).exists()})
+            devices.append(
+                {
+                    "tracker": self.team.crew.member1.email,
+                    "has_user": get_user_model().objects.filter(email=self.team.crew.member1.email).exists(),
+                }
+            )
         if (
-                self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
-                and self.team.crew.member2 is not None
+            self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
+            and self.team.crew.member2 is not None
         ):
-            devices.append({"tracker": self.team.crew.member2.email,
-                            "has_user": get_user_model().objects.filter(email=self.team.crew.member2.email).exists()})
+            devices.append(
+                {
+                    "tracker": self.team.crew.member2.email,
+                    "has_user": get_user_model().objects.filter(email=self.team.crew.member2.email).exists(),
+                }
+            )
         return devices
 
     def generate_position_block_for_contestant(self, position_data: Dict, device_time: datetime.datetime) -> Dict:
@@ -1682,7 +1690,7 @@ class Contestant(models.Model):
 
     @classmethod
     def get_contestant_for_device_at_time(
-            cls, device: str, stamp: datetime.datetime
+        cls, device: str, stamp: datetime.datetime
     ) -> Tuple[Optional["Contestant"], bool]:
         """
         Retrieves the contestant that owns the tracking device for the time stamp. Returns an extra flag "is_simulator"
@@ -2162,6 +2170,23 @@ class TeamTestScore(models.Model):
         unique_together = ("team", "task_test")
 
 
+class EmailMapLink(models.Model):
+    """
+    Holds all self registrations in order to deliver a generated map based on a link sent by email
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def send_email(self, user: MyUser):
+        url = reverse("email_map_link", kwargs={"key": self.id})
+        user.email_user(
+            f"Navigation map for task {self.contestant.navigation_task.name}",
+            f"Here is the link to download an annotated navigation map for use in your navigation task {self.contestant.navigation_task.name} with takeoff time {self.contestant.takeoff_time} {'and adaptive start' if self.contestant.adaptive_start else ''}.\n\n<a href={url}>Map link</a>\n\nThe link is valid for two hours.",
+        )
+
+
 # @receiver(post_save, sender=Task)
 # def populate_task_summaries(sender, instance: Task, **kwargs):
 #     teams = Team.objects.filter(contestteam__contest=instance.contest)
@@ -2362,10 +2387,10 @@ def remove_track_from_influx(sender, instance: NavigationTask, **kwargs):
 @receiver(post_save, sender=Contestant)
 def create_tracker_in_traccar(sender, instance: Contestant, **kwargs):
     if (
-            instance.tracking_service == TRACCAR
-            and instance.tracker_device_id
-            and len(instance.tracker_device_id) > 0
-            and instance.tracking_device == TRACKING_DEVICE
+        instance.tracking_service == TRACCAR
+        and instance.tracker_device_id
+        and len(instance.tracker_device_id) > 0
+        and instance.tracking_device == TRACKING_DEVICE
     ):
         traccar = get_traccar_instance()
         traccar.get_or_create_device(instance.tracker_device_id, instance.tracker_device_id)
@@ -2410,9 +2435,9 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         device, created = traccar.get_or_create_device(str(instance) + " simulator", instance.simulator_tracking_id)
         logger.info(f"Traccar device {device} was created: {created}")
         if (
-                created
-                and simulator_original_tracking_id is not None
-                and simulator_original_tracking_id != instance.simulator_tracking_id
+            created
+            and simulator_original_tracking_id is not None
+            and simulator_original_tracking_id != instance.simulator_tracking_id
         ):
             original_device = traccar.get_device(simulator_original_tracking_id)
             if original_device is not None:

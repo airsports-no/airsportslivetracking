@@ -15,7 +15,8 @@ from display.views import frontend_view_map, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test, \
     clear_results_service, delete_score_item, \
     terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules, frontend_playback_map, \
-    share_contest, share_navigation_task, get_persons_for_signup, get_contestant_default_map
+    share_contest, share_navigation_task, get_persons_for_signup, get_contestant_default_map, \
+    get_contestant_email_map_link
 
 urlpatterns = [
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
@@ -51,6 +52,7 @@ urlpatterns = [
          name="navigationtask_contestantstimelinedata"),
     # path('navigationtask/<int:pk>/scoreoverride/', BasicScoreOverrideUpdateView.as_view(),
     #      name="navigationtask_scoreoverride"),
+    path('maplink/<uuid:key>/', get_contestant_email_map_link, name='email_map_link'),
     path('contestant/<int:navigationtask_pk>/create/', ContestantCreateView.as_view(), name="contestant_create"),
     path('contestant/<int:pk>/map/', get_contestant_map, name="contestant_map"),
     path('contestant/<int:pk>/defaultmap/', get_contestant_default_map, name="contestant_default_map"),

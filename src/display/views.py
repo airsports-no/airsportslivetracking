@@ -122,7 +122,7 @@ from display.models import (
     TRACKING_DEVICE,
     STARTINGPOINT,
     FINISHPOINT,
-    ScoreLogEntry,
+    ScoreLogEntry, EmailMapLink,
 )
 from display.permissions import (
     ContestPermissions,
@@ -636,6 +636,30 @@ def get_contestant_default_map(request, pk):
     )
     response = HttpResponse(pdf_image, content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=map.pdf"
+    return response
+
+
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__emailmaplink_set__id", "key"))
+def get_contestant_email_map_link(request, key):
+    map_link = get_object_or_404(EmailMapLink, id=key)
+    map_image, pdf_image = plot_route(
+        map_link.contestant.navigation_task,
+        A4,
+        zoom_level=12,
+        landscape=LANDSCAPE,
+        contestant=map_link.contestant,
+        annotations=True,
+        waypoints_only=False,
+        dpi=300,
+        scale=SCALE_TO_FIT,
+        map_source="/maptiles/Norway_N250",
+        line_width=1,
+        colour="#0000ff",
+    )
+    response = HttpResponse(map_image, content_type="image/png")
+    response["Content-Disposition"] = f"attachment; filename=map.png"
+    # response = HttpResponse(pdf_image, content_type="application/pdf")
+    # response["Content-Disposition"] = f"attachment; filename=map.pdf"
     return response
 
 
@@ -2062,7 +2086,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 wind_speed=serialiser.validated_data["wind_speed"],
                 wind_direction=serialiser.validated_data["wind_direction"],
             )
-            logger.debug("Creative contestant")
+            logger.debug("Created contestant")
             final_time = contestant.get_final_gate_time()
             if final_time is None:
                 final_time = starting_point_time
@@ -2082,6 +2106,9 @@ class NavigationTaskViewSet(ModelViewSet):
             logger.debug(f"Finished by time is {contestant.finished_by_time}")
 
             contestant.save()
+            mail_link = EmailMapLink.objects.create(contestant=contestant)
+            mail_link.send_email(request.user)
+            messages.success(request, "Email with navigation map has been sent")
             logger.debug("Updated contestant")
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
