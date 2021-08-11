@@ -160,12 +160,12 @@ export function calculateProjectedScore(score, progress, summary) {
 export const leadingZero = (num) => `0${num}`.slice(-2);
 
 export const formatDate = (date) =>
-    date?[date.getDate(), date.getMonth()+1, date.getFullYear()]
+    date ? "-" + date.getFullYear() + [date.getMonth() + 1, date.getDate()]
         .map(leadingZero)
-        .join('-'):"";
+        .join('-') : "";
 
 
 export const formatTime = (date) =>
-    date?[date.getHours(), date.getMinutes(), date.getSeconds()]
+    date ? [date.getHours(), date.getMinutes(), date.getSeconds()]
         .map(leadingZero)
-        .join(':'):"";
+        .join(':') : "";
