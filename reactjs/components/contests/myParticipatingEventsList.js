@@ -90,8 +90,8 @@ class ConnectedMyParticipatingEventsList extends Component {
         if (!this.props.currentParticipation) {
             return null
         }
-        const startingPointTime=new Date(new Date(task.future_contestants[0].takeoff_time).getTime() + task.future_contestants[0].minutes_to_starting_point * 60000)
         const taskRows = this.props.currentParticipation.contest.navigationtask_set.sort((a, b) => (a.start_time > b.start_time) ? 1 : ((b.start_time > a.start_time) ? -1 : 0)).reverse().map((task) => {
+            const startingPointTime=task.future_contestants.length > 0?new Date(new Date(task.future_contestants[0].takeoff_time).getTime() + task.future_contestants[0].minutes_to_starting_point * 60000):null
             return <tr key={task.pk}>
                 <td>{task.name}</td>
                 <td>{task.future_contestants.length > 0 ?
