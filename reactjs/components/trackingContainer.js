@@ -143,7 +143,7 @@ class ConnectedTrackingContainer extends Component {
                             {this.props.navigationTask.allow_self_management?
                             <div className={"registerLink"}>
                                 <a href={"/participation/" + this.contestId + "/register/"}>
-                                    <button className={"btn btn-danger"}>Register crew</button>
+                                    <button className={"btn btn-danger btn-sm"}>Register crew</button>
                                 </a>
                             </div>:null}
                             <div className={"trackImage"}>
