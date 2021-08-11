@@ -2193,11 +2193,11 @@ class EmailMapLink(models.Model):
             f"<a href='{url}'>Map link</a><p>The link is valid for two hours.",
             html_message=f"Hi {user.first_name}<p>Here is the link to download an annotated navigation map for use in "
                          f"your navigation task "
-                         f"{self.contestant.navigation_task.name} with starting point time {starting_point_time_string} "
-                         f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string}' if self.contestant.adaptive_start else ''}. The exact gate times are printed on the "
+                         f"{self.contestant.navigation_task.name} with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
+                         f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p> The exact gate times are printed on the "
                          f"map. Note that generation the map can take up to a few minutes. The result is a relatively "
                          f"large image with a size up to 20 MB.<p>"
-                         f"<a href='{url}'>Map link</a>Regards, <br>The Airsports Live Tracking team",
+                         f"<a href='{url}'>Map link</a><p>Regards, <br>The Airsports Live Tracking team",
         )
 
 
