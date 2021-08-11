@@ -193,7 +193,7 @@ class ConnectedContestRegistrationForm extends Component {
                             <ErrorMessage name={"club_name"} component={"div"}/>
                         </Form.Group>
                         <Form.Group>
-                            <Button variant="primary" type="submit" disabled={props.isSubmitting}>
+                            <Button variant="success" type="submit" disabled={props.isSubmitting} style={{marginRight: "5px"}}>
                                 Save
                             </Button>
                             {/*<Button variant={"danger"} type={"button"}*/}

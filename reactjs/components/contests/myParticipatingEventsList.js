@@ -6,7 +6,7 @@ import {
 import TimePeriodEventList from "./timePeriodEventList";
 import {Button, Container, Modal} from "react-bootstrap";
 import axios from "axios";
-import {teamRankingTable} from "../../utilities";
+import {formatDate, formatTime, teamRankingTable} from "../../utilities";
 import {Loading} from "../basicComponents";
 import SelfRegistrationForm from "../navigationTaskStartForm";
 import {withRouter} from "react-router-dom";
@@ -90,6 +90,7 @@ class ConnectedMyParticipatingEventsList extends Component {
         if (!this.props.currentParticipation) {
             return null
         }
+        const startingPointTime=new Date(new Date(task.future_contestants[0].takeoff_time).getTime() + task.future_contestants[0].minutes_to_starting_point * 60000)
         const taskRows = this.props.currentParticipation.contest.navigationtask_set.sort((a, b) => (a.start_time > b.start_time) ? 1 : ((b.start_time > a.start_time) ? -1 : 0)).reverse().map((task) => {
             return <tr key={task.pk}>
                 <td>{task.name}</td>
@@ -97,7 +98,7 @@ class ConnectedMyParticipatingEventsList extends Component {
                     <div>
                         {/*<a href={task.future_contestants[0].default_map_url}>Map (slow)</a>*/}
                         <div>Starting point
-                            time: {new Date(new Date(task.future_contestants[0].takeoff_time).getTime() + task.future_contestants[0].minutes_to_starting_point * 60000).toLocaleString()}</div>
+                            time: {formatDate(startingPointTime)  + " " + formatTime(startingPointTime)}</div>
 
                     </div> : null}</td>
                 <td>
