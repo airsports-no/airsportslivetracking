@@ -160,7 +160,7 @@ export function calculateProjectedScore(score, progress, summary) {
 export const leadingZero = (num) => `0${num}`.slice(-2);
 
 export const formatDate = (date) =>
-    date ? "-" + date.getFullYear() + [date.getMonth() + 1, date.getDate()]
+    date ? date.getFullYear() + "-" + [date.getMonth() + 1, date.getDate()]
         .map(leadingZero)
         .join('-') : "";
 
