@@ -48,7 +48,7 @@ from display.models import (
     PlayingCard,
     TrackAnnotation,
     ScoreLogEntry,
-    GateCumulativeScore,
+    GateCumulativeScore, EditableRoute,
 )
 from display.waypoint import Waypoint
 
@@ -1051,4 +1051,12 @@ class TaskSerialiser(serializers.ModelSerializer):
 class TaskTestSerialiser(serializers.ModelSerializer):
     class Meta:
         model = TaskTest
+        fields = "__all__"
+
+
+class EditableRouteSerialiser(serializers.ModelSerializer):
+    route = serializers.JSONField()
+
+    class Meta:
+        model = EditableRoute
         fields = "__all__"

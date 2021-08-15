@@ -8,8 +8,9 @@ import "leaflet";
 import "leaflet-draw";
 import {Button, Container, Form, Modal, Row} from "react-bootstrap";
 import {divIcon, marker} from "leaflet";
-
-// const L = window['L']
+import {fetchEditableRoute} from "../../actions";
+import axios from "axios";
+import {Link, withRouter} from "react-router-dom";
 
 
 class ConnectedRouteEditor extends Component {
@@ -17,6 +18,72 @@ class ConnectedRouteEditor extends Component {
         super(props)
         this.map = null
         this.state = {featureEditLayer: null, currentName: null}
+    }
+
+    componentDidMount() {
+        this.initialiseMap()
+        if (this.props.routeId) {
+            this.props.fetchEditableRoute(this.props.routeId)
+        }
+    }
+
+
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        console.log("routeId: " + this.props.routeId)
+        if (this.props.route !== prevProps.route) {
+            this.renderRoute()
+        }
+    }
+
+    handleSaveSuccess(id) {
+        this.history.push("/routeeditor/" + id + "/")
+    }
+
+    saveRoute() {
+        let features = []
+        for (let l of this.drawnItems.getLayers()) {
+            if (l.trackPoints !== undefined) {
+                features.push({
+                    name: l.name,
+                    layer_type: l.layerType,
+                    track_points: l.trackPoints,
+                    feature_type: l.featureType,
+                    geojson: l.toGeoJSON()
+                })
+            }
+        }
+        let method = "post", url = "/api/v1/editableroutes/"
+        if (this.props.routeId) {
+            method = "put"
+            url += this.props.routeId + "/"
+        }
+        axios({
+            method: method,
+            url: url,
+            data: {route: features, name: "Test"}
+        }).then((res) => {
+            console.log("Response")
+            console.log(res)
+            this.handleSaveSuccess(res.data.id)
+        }).catch((e) => {
+            console.error(e);
+            console.log(e);
+        }).finally(() => {
+        })
+    }
+
+    renderRoute() {
+        this.drawnItems.clearLayers()
+        for (let r of this.props.route) {
+            let layer = L.GeoJSON(r.geojson)
+            layer.name = r.name
+            layer.layerType = r.layerType
+            layer.trackPoints = r.trackPoints
+            layer.addTo(this.drawnItems)
+            if (r.layerType === "polyline") {
+                this.renderWaypointNames(layer.trackPoints)
+            }
+        }
     }
 
     saveLayer() {
@@ -94,11 +161,12 @@ class ConnectedRouteEditor extends Component {
             <Modal.Body className="show-grid">
                 <Container>
 
-                    {this.state.featureEditLayer && this.state.featureEditLayer.layerType === "polyline" ? this.trackContent() : <div><Form.Label>Feature name:</Form.Label>&nbsp;
-                    <Form.Control name={"feature_name"} type={"string"} placeholder={"Name"}
-                                  defaultValue={this.state.featureEditLayer ? this.state.featureEditLayer.name : null}
-                                  onChange={(e) => this.setState({currentName: e.target.value})}
-                    /></div>}
+                    {this.state.featureEditLayer && this.state.featureEditLayer.layerType === "polyline" ? this.trackContent() :
+                        <div><Form.Label>Feature name:</Form.Label>&nbsp;
+                            <Form.Control name={"feature_name"} type={"string"} placeholder={"Name"}
+                                          defaultValue={this.state.featureEditLayer ? this.state.featureEditLayer.name : null}
+                                          onChange={(e) => this.setState({currentName: e.target.value})}
+                            /></div>}
                 </Container>
             </Modal.Body>
             <Modal.Footer>
@@ -108,9 +176,6 @@ class ConnectedRouteEditor extends Component {
 
     }
 
-    componentDidMount() {
-        this.initialiseMap()
-    }
 
     initialiseMap() {
         const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
@@ -188,16 +253,21 @@ class ConnectedRouteEditor extends Component {
     render() {
         return <div>
             {this.featureEditModal()}
+            <button id="routeSaveButton" onClick={() => this.saveRoute()}>Save</button>
         </div>
     }
 
 }
 
 const
-    mapStateToProps = (state, props) => ({})
+    mapStateToProps = (state, props) => ({
+        route: props.routeId ? state.editableRoutes[props.routeId] : null
+    })
 const
-    mapDispatchToProps = {}
+    mapDispatchToProps = {
+        fetchEditableRoute
+    }
 
 const
-    RouteEditor = connect(mapStateToProps, mapDispatchToProps)(ConnectedRouteEditor);
+    RouteEditor = connect(mapStateToProps, mapDispatchToProps)(withRouter(ConnectedRouteEditor));
 export default RouteEditor;

@@ -31,7 +31,11 @@ import {
     FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL,
     GET_CONTESTS,
     FETCH_MY_PARTICIPATING_CONTESTS,
-    TOGGLE_OPEN_AIP, GET_ONGOING_NAVIGATION_SUCCESSFUL, TOGGLE_SECRET_GATES, TOGGLE_BACKGROUND_MAP
+    TOGGLE_OPEN_AIP,
+    GET_ONGOING_NAVIGATION_SUCCESSFUL,
+    TOGGLE_SECRET_GATES,
+    TOGGLE_BACKGROUND_MAP,
+    FETCH_EDITABLE_ROUTE_SUCCESSFUL, FETCH_EDITABLE_ROUTE
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -81,7 +85,9 @@ const initialState = {
     currentTime: null,
     ongoingNavigation: [],
     displaySecretGates: true,
-    displayBackgroundMap: true
+    displayBackgroundMap: true,
+    editableRoutes: {},
+    fetchingEditableRoute: false
 };
 
 function rootReducer(state = initialState, action) {
@@ -577,6 +583,11 @@ function rootReducer(state = initialState, action) {
             loadingMyParticipation: true
         });
     }
+    if (action.type === FETCH_EDITABLE_ROUTE) {
+        return Object.assign({}, state, {
+            fetchingEditableRoute: true
+        });
+    }
     if (action.type === FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL) {
         return Object.assign({}, state, {
             ...state,
@@ -584,6 +595,17 @@ function rootReducer(state = initialState, action) {
             loadingMyParticipation: false
         })
     }
+    if (action.type === FETCH_EDITABLE_ROUTE_SUCCESSFUL) {
+        return Object.assign({}, state, {
+            ...state,
+            editableRoutes: {
+                ...state.editableRoutes,
+                [action.payload.id]: action.payload
+            },
+            fetchingEditableRoute: false
+        })
+    }
+
     if (action.type === TOGGLE_OPEN_AIP) {
         return Object.assign({}, state, {
             ...state,

@@ -6,6 +6,7 @@ from rest_framework.permissions import SAFE_METHODS
 from display.models import Contest
 
 
+
 class ContestPermissionsWithoutObjects(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in ['POST']:
@@ -30,6 +31,18 @@ class ContestPermissions(ContestPermissionsWithoutObjects):
             return request.user.has_perm('display.delete_contest', obj)
         return False
 
+
+class EditableRoutePermission(ContestPermissionsWithoutObjects):
+    def has_object_permission(self, request, view, obj):
+        if request.method in ['GET']:
+            return request.user.has_perm('display.view_editableroute', obj)
+        if request.method in ['POST']:
+            return request.user.has_perm('display.add_editableroute', obj)
+        if request.method in ['PUT', 'PATCH']:
+            return request.user.has_perm('display.change_editableroute', obj)
+        if request.method in ['DELETE']:
+            return request.user.has_perm('display.delete_editableroute', obj)
+        return False
 
 class OrganiserPermission(permissions.BasePermission):
     def has_permission(self, request, view):

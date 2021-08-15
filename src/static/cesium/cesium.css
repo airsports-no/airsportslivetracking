@@ -673,6 +673,13 @@ html, body {
     left: 0;
 }
 
+#routeSaveButton{
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    z-index: 2;
+}
+
 .myAirplaneIcon {
     text-align: center;
     /*line-height: 20px;*/

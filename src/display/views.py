@@ -122,7 +122,7 @@ from display.models import (
     TRACKING_DEVICE,
     STARTINGPOINT,
     FINISHPOINT,
-    ScoreLogEntry, EmailMapLink,
+    ScoreLogEntry, EmailMapLink, EditableRoute,
 )
 from display.permissions import (
     ContestPermissions,
@@ -143,7 +143,7 @@ from display.permissions import (
     OrganiserPermission,
     ContestTeamContestPermissions,
     NavigationTaskSelfManagementPermissions,
-    NavigationTaskPublicPutPermissions,
+    NavigationTaskPublicPutPermissions, EditableRoutePermission,
 )
 from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import (
@@ -181,7 +181,7 @@ from display.serialisers import (
     SignupSerialiser,
     PersonSignUpSerialiser,
     SharingSerialiser,
-    SelfManagementSerialiser, OngoingNavigationSerialiser,
+    SelfManagementSerialiser, OngoingNavigationSerialiser, EditableRouteSerialiser,
 )
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track
@@ -1758,6 +1758,21 @@ class UserPersonViewSet(GenericViewSet):
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
+
+
+class EditableRouteViewSet(ModelViewSet):
+    queryset = EditableRoute.objects.all()
+    permission_classes = [EditableRoutePermission]
+    serializer_class = EditableRouteSerialiser
+    def get_queryset(self):
+        return (
+            get_objects_for_user(
+                self.request.user,
+                "display.view_editableroute",
+                klass=self.queryset,
+                accept_global_perms=False,
+            )
+        )
 
 
 class ContestViewSet(ModelViewSet):
