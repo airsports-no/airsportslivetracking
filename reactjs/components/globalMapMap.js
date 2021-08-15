@@ -4,7 +4,7 @@ import {connect} from "react-redux";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import {zoomFocusContest} from "../actions";
 import ReactDOMServer from "react-dom/server";
-import L from 'leaflet';
+// import L from 'leaflet';
 import {
     balloon,
     blimp,
@@ -19,10 +19,10 @@ import {
     tower
 } from "./aircraft/aircraft";
 
-import marker from 'leaflet/dist/images/marker-icon.png';
-import marker2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import {tileLayer} from "leaflet";
+// import marker from 'leaflet/dist/images/marker-icon.png';
+// import marker2x from 'leaflet/dist/images/marker-icon-2x.png';
+// import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+// import {tileLayer} from "leaflet";
 
 // delete L.Icon.Default.prototype._getIconUrl;
 //
@@ -97,11 +97,11 @@ const ZOOM_LEVELS = {
 }
 
 const TRAIL_LENGTH = 180;
-export const mapStateToProps = (state, props) => ({
+const mapStateToProps = (state, props) => ({
     zoomContest: state.zoomContest,
     contests: state.contests
 })
-export const mapDispatchToProps = {
+const mapDispatchToProps = {
     zoomFocusContest
 }
 
@@ -314,7 +314,7 @@ class Aircraft {
         )
     }
 
-    visible(){
+    visible() {
         return this.map.getBounds().contains(this.dot.getLatLng())
     }
 
@@ -326,8 +326,8 @@ class Aircraft {
         }
     }
 
-    addToMap(){
-        if (this.dot){
+    addToMap() {
+        if (this.dot) {
             this.dot.addTo(this.iconLayer)
             if (this.map.getZoom() >= 7) {
                 this.dotText.addTo(this.textLayer)
@@ -464,7 +464,7 @@ class ConnectedGlobalMapMap
         for (let id of Object.keys(this.aircraft)) {
             if (!this.aircraft[id].visible()) {
                 this.aircraft[id].removeFromMap()
-            }else{
+            } else {
                 this.aircraft[id].addToMap()
             }
         }
@@ -623,7 +623,7 @@ class ConnectedGlobalMapMap
         Jawg_Sunny.addTo(this.map);
         // OpenAIP.addTo(this.map);
         // this.map.setView([0, 0], 2)
-        this.map.on("locationerror", (e)=>{
+        this.map.on("locationerror", (e) => {
             this.map.setView(L.latLng(59, 10.5), 7)
         })
         this.map.locate({setView: true, maxZoom: 7})

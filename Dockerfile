@@ -34,7 +34,7 @@ RUN npm install
 
 ###### INSTALL APPLICATION ######
 COPY reactjs /reactjs
-RUN cd / && npm run webpack
+#RUN cd / && npm run webpack
 COPY src /src
 # Need to download new version for Ubuntu 20.04
 #COPY scip /scip
