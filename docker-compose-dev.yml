@@ -18,12 +18,12 @@ services:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
       - ./static:/static
-      - ./assets:/assets/
-      - ./src:/src/
+      - ./assets:/assets
+      - ./src:/src
       - ./config:/config
-      - ./reactjs:/reactjs/
-      - ./data:/data/
-      - ./weblog:/logs/
+      - ./reactjs:/reactjs
+      - ./data:/data
+      - ./weblog:/logs
       - ./mapserver:/maptiles
       - ./aircraft_database:/aircraft_database
     environment:
@@ -50,11 +50,11 @@ services:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
       - ./static:/static
-      - ./assets:/assets/
-      - ./src:/src/
-      - ./reactjs:/reactjs/
-      - ./data:/data/
-      - ./celerylog:/logs/
+      - ./assets:/assets
+      - ./src:/src
+      - ./reactjs:/reactjs
+      - ./data:/data
+      - ./celerylog:/logs
     depends_on:
       - mysql
       - influx
@@ -74,8 +74,8 @@ services:
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
-      - ./src:/src/
-      - ./processorlog:/logs/
+      - ./src:/src
+      - ./processorlog:/logs
     depends_on:
       - influx
       - traccar
@@ -120,7 +120,7 @@ services:
       - MYSQL_ROOT_PASSWORD=traccar
     #      - MYSQL_PASSWORD=traccar
     volumes:
-      - mysqldata:/var/lib/mysql/
+      - mysqldata:/var/lib/mysql
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
 
   redis:

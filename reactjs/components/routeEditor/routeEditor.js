@@ -36,7 +36,7 @@ class ConnectedRouteEditor extends Component {
     }
 
     handleSaveSuccess(id) {
-        this.history.push("/routeeditor/" + id + "/")
+        this.props.history.push("/routeeditor/" + id + "/")
     }
 
     saveRoute() {
@@ -74,15 +74,39 @@ class ConnectedRouteEditor extends Component {
 
     renderRoute() {
         this.drawnItems.clearLayers()
-        for (let r of this.props.route) {
-            let layer = L.GeoJSON(r.geojson)
-            layer.name = r.name
-            layer.layerType = r.layerType
-            layer.trackPoints = r.trackPoints
-            layer.addTo(this.drawnItems)
-            if (r.layerType === "polyline") {
-                this.renderWaypointNames(layer.trackPoints)
-            }
+        console.log(this.props.route)
+        for (let r of this.props.route.route) {
+            let layer = new L.GeoJSON(r.geojson, {
+                    pointToLayer: (feature, latlng) => {
+                        switch (feature.geometry.type) {
+                            case 'Polygon':
+                                //var ii = new L.Polygon(latlng)
+                                //ii.addTo(drawnItems);
+                                return L.polygon(latlng);
+                            case 'LineString':
+                                return L.polyline(latlng);
+                            case 'Point':
+                                return L.marker(latlng);
+                            default:
+                                return;
+                        }
+                    },
+                    onEachFeature: (feature, layer) => {
+                        layer.addTo(this.drawnItems);
+                        layer.name = r.name
+                        layer.layerType = r.layer_type
+                        layer.trackPoints = r.track_points
+                        layer.waypointNamesFeatureGroup = L.featureGroup().addTo(this.drawnItems);
+                        layer.on("click", (item) => {
+                            const layer = item.target
+                            this.setState({featureEditLayer: layer})
+                        })
+                        // layer.addTo(this.drawnItems)
+                        // if (r.layer_type === "polyline") {
+                        this.renderWaypointNames(layer)
+                    }
+                }
+            )
         }
     }
 
@@ -113,7 +137,7 @@ class ConnectedRouteEditor extends Component {
     }
 
     renderWaypointNames(track) {
-        this.waypointNamesLayer.clearLayers()
+        track.waypointNamesFeatureGroup.clearLayers()
         let index = 0
         for (let p of track.trackPoints) {
             const m = marker([p.latitude, p.longitude], {
@@ -123,7 +147,7 @@ class ConnectedRouteEditor extends Component {
                     iconSize: [60, 20],
                     className: "myGateIcon"
                 })
-            }).addTo(this.waypointNamesLayer)
+            }).addTo(track.waypointNamesFeatureGroup)
         }
     }
 
@@ -204,7 +228,6 @@ class ConnectedRouteEditor extends Component {
         console.log("Initialised map")
         // Jawg_Sunny.addTo(this.map)
         this.drawnItems = L.featureGroup().addTo(this.map)
-        this.waypointNamesLayer = L.featureGroup().addTo(this.map);
         L.control.layers({
             "jawg": Jawg_Sunny,
             "google": L.tileLayer('http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x={x}&y={y}&z={z}', {
@@ -233,14 +256,19 @@ class ConnectedRouteEditor extends Component {
                 }
             }
         }));
-
+        this.map.on(L.Draw.Event.EDITED, (event) => {
+            const layers = event.layers;
+            layers.eachLayer((layer) => {
+                console.log(layer)
+                this.renderWaypointNames(layer)
+            })
+        })
         this.map.on(L.Draw.Event.CREATED, (event) => {
             const layer = event.layer;
             console.log(event)
             layer.layerType = event.layerType
+            layer.waypointNamesFeatureGroup = L.featureGroup().addTo(this.drawnItems);
             layer.on("click", (item) => {
-                console.log("Clicked on")
-                console.log(item)
                 const layer = item.target
                 this.setState({featureEditLayer: layer})
             })
