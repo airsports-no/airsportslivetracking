@@ -13,19 +13,28 @@ import {fetchEditableRoute} from "../../actions";
 import axios from "axios";
 import {Link, withRouter} from "react-router-dom";
 
+const featureTypes = {
+    polyline: [["Track", "track"], ["Takeoff gate", "to"], ["Landing gate", "ldg"]],
+    polygon: [["Prohibited area", "prohibited"], ["Information zone", "info"], ["Gate area", "gate"]],
+    rectangle: [["Prohibited area", "prohibited"], ["Information zone", "info"], ["Gate area", "gate"]]
+}
 
 class ConnectedRouteEditor extends Component {
     constructor(props) {
         super(props)
         this.map = null
-        this.state = {featureEditLayer: null, currentName: null}
+        this.state = {featureEditLayer: null, featureType: null, currentName: null, routeName: null}
     }
 
     componentDidMount() {
         this.initialiseMap()
         if (this.props.routeId) {
-            this.props.fetchEditableRoute(this.props.routeId)
+            this.reloadMap()
         }
+    }
+
+    reloadMap() {
+        this.props.fetchEditableRoute(this.props.routeId)
     }
 
 
@@ -59,14 +68,23 @@ class ConnectedRouteEditor extends Component {
             }
         }
         let method = "post", url = "/api/v1/editableroutes/"
+        let name = this.state.routeName
+        if (!name) {
+
+        }
         if (this.props.routeId) {
             method = "put"
             url += this.props.routeId + "/"
+            if (this.state.routeName) {
+                name = this.state.routeName
+            } else {
+                name = this.props.route.name
+            }
         }
         axios({
             method: method,
             url: url,
-            data: {route: features, name: "Test"}
+            data: {route: features, name: name}
         }).then((res) => {
             console.log("Response")
             console.log(res)
@@ -101,6 +119,7 @@ class ConnectedRouteEditor extends Component {
                         layer.addTo(this.drawnItems);
                         layer.name = r.name
                         layer.layerType = r.layer_type
+                        layer.featureType = r.feature_type
                         layer.trackPoints = r.track_points
                         layer.waypointNamesFeatureGroup = L.featureGroup().addTo(this.drawnItems);
                         layer.on("click", (item) => {
@@ -150,8 +169,11 @@ class ConnectedRouteEditor extends Component {
         }
         this.state.featureEditLayer.editing.disable()
         this.renderWaypointNames(this.state.featureEditLayer)
+        if (this.state.featureType) {
+            this.state.featureEditLayer.featureType = this.state.featureType
+        }
         console.log(this.state.featureEditLayer)
-        this.setState({featureEditLayer: null})
+        this.setState({featureEditLayer: null, featureType: null})
     }
 
     renderWaypointNames(track) {
@@ -199,6 +221,16 @@ class ConnectedRouteEditor extends Component {
         </Form.Group>
     }
 
+    renderFeatureSelect(layerType, current) {
+        let options = featureTypes[layerType] || []
+        return options.map((item) => {
+            console.log(item)
+            return <Form.Check inline key={item[1]} name={"featureType"} label={item[0]} type={"radio"} onChange={(e) => {
+                this.setState({featureType: item[1]})
+            }} defaultChecked={current === item[1]}/>
+        })
+    }
+
     featureEditModal() {
         return <Modal onHide={() => this.setState({featureEditLayer: null})}
                       show={this.state.featureEditLayer !== null}
@@ -218,6 +250,9 @@ class ConnectedRouteEditor extends Component {
                                           defaultValue={this.state.featureEditLayer ? this.state.featureEditLayer.name : null}
                                           onChange={(e) => this.setState({currentName: e.target.value})}
                             /></div>}
+                    {this.state.featureEditLayer ?
+                        this.renderFeatureSelect(this.state.featureEditLayer.layerType, this.state.featureEditLayer.featureType)
+                        : null}
                 </Container>
             </Modal.Body>
             <Modal.Footer>
@@ -226,7 +261,7 @@ class ConnectedRouteEditor extends Component {
                     <Button onClick={() => {
                         this.state.featureEditLayer.editing.enable()
                         this.setState({featureEditLayer: null})
-                    }}>Edit</Button> : null}
+                    }}>Edit points</Button> : null}
             </Modal.Footer>
         </Modal>
 
@@ -282,6 +317,10 @@ class ConnectedRouteEditor extends Component {
             //     }
             // },
             draw: {
+                marker: false,
+                rectangle: false,
+                circle: false,
+                circlemarker: false,
                 polygon: {
                     allowIntersection: false,
                     showArea: true
@@ -321,7 +360,16 @@ class ConnectedRouteEditor extends Component {
     render() {
         return <div>
             {this.featureEditModal()}
-            <button id="routeSaveButton" className={"btn btn-primary"} onClick={() => this.saveRoute()}>Save</button>
+            <div id="routeSaveButton">
+                <Form.Control type={"string"} placeholder={"Route name"}
+                              defaultValue={this.props.route ? this.props.route.name : ""}
+                              onChange={(e) => this.setState({routeName: e.target.value})}/>
+                <button className={"btn btn-primary"} onClick={() => this.saveRoute()}>Save</button>
+                &nbsp;
+                <button id="routeCancelButton" className={"btn btn-danger"}
+                        onClick={() => this.reloadMap()}>Cancel
+                </button>
+            </div>
         </div>
     }
 
