@@ -1,6 +1,7 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 // import "leaflet-draw/dist/leaflet.draw.css"
+// import 'leaflet-draw/dist/images/layers.png'
 // import "leaflet/dist/leaflet.css"
 // import Draw from "leaflet-draw"
 // import L from "leaflet";
@@ -30,7 +31,7 @@ class ConnectedRouteEditor extends Component {
 
     componentDidUpdate(prevProps, prevState, snapshot) {
         console.log("routeId: " + this.props.routeId)
-        if (this.props.route !== prevProps.route) {
+        if (this.props.route !== prevProps.route && this.props.route) {
             this.renderRoute()
         }
     }
@@ -39,10 +40,15 @@ class ConnectedRouteEditor extends Component {
         this.props.history.push("/routeeditor/" + id + "/")
     }
 
+
     saveRoute() {
         let features = []
         for (let l of this.drawnItems.getLayers()) {
-            if (l.trackPoints !== undefined) {
+            if (["polyline", "rectangle", "polygon"].includes(l.layerType)) {
+                if (this.checkIfUpdateIsNeeded(l)) {
+                    this.setState({featureEditLayer: l})
+                    return
+                }
                 features.push({
                     name: l.name,
                     layer_type: l.layerType,
@@ -101,6 +107,10 @@ class ConnectedRouteEditor extends Component {
                             const layer = item.target
                             this.setState({featureEditLayer: layer})
                         })
+                        layer.on("edit", (item) => {
+                            const layer = item.target
+                            this.renderWaypointNames(layer)
+                        })
                         // layer.addTo(this.drawnItems)
                         // if (r.layer_type === "polyline") {
                         this.renderWaypointNames(layer)
@@ -108,6 +118,17 @@ class ConnectedRouteEditor extends Component {
                 }
             )
         }
+    }
+
+    checkIfUpdateIsNeeded(layer) {
+        if (layer.layerType === "polyline") {
+            if (layer.getLatLngs().length !== layer.trackPoints.length) {
+                layer.errors = "The length of points and the length of the names do not match"
+                return true
+            }
+        }
+        layer.errors = null
+        return false
     }
 
     saveLayer() {
@@ -118,8 +139,6 @@ class ConnectedRouteEditor extends Component {
             for (let i = 0; i < positions.length; i++) {
                 try {
                     trackPoints.push({
-                        latitude: positions[i].lat,
-                        longitude: positions[i].lng,
                         name: this.state["waypointname" + i] || this.existingWaypointNames[i]
                     })
                 } catch (e) {
@@ -128,26 +147,33 @@ class ConnectedRouteEditor extends Component {
                 }
             }
             this.state.featureEditLayer.trackPoints = trackPoints
-            this.renderWaypointNames(this.state.featureEditLayer)
-        } else {
-            this.state.featureEditLayer.bindTooltip(this.state.currentName, {permanent: true})
         }
+        this.state.featureEditLayer.editing.disable()
+        this.renderWaypointNames(this.state.featureEditLayer)
         console.log(this.state.featureEditLayer)
         this.setState({featureEditLayer: null})
     }
 
     renderWaypointNames(track) {
-        track.waypointNamesFeatureGroup.clearLayers()
-        let index = 0
-        for (let p of track.trackPoints) {
-            const m = marker([p.latitude, p.longitude], {
-                color: "blue",
-                icon: divIcon({
-                    html: '<i class="fas"><br/>' + p.name + '</i>',
-                    iconSize: [60, 20],
-                    className: "myGateIcon"
-                })
-            }).addTo(track.waypointNamesFeatureGroup)
+        if (track.layerType === "polyline") {
+            track.waypointNamesFeatureGroup.clearLayers()
+            let index = 0
+            for (let p of track.getLatLngs()) {
+                const m = marker([p.lat, p.lng], {
+                    color: "blue",
+                    icon: divIcon({
+                        html: '<i class="fas"">' + track.trackPoints[index].name + '</i>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, -10],
+                        className: "myGateIcon",
+
+                    })
+                }).addTo(track.waypointNamesFeatureGroup)
+                index += 1
+            }
+        } else {
+            track.unbindTooltip()
+            track.bindTooltip(track.name, {permanent: true})
         }
     }
 
@@ -184,7 +210,8 @@ class ConnectedRouteEditor extends Component {
             </Modal.Header>
             <Modal.Body className="show-grid">
                 <Container>
-
+                    {this.state.featureEditLayer && this.state.featureEditLayer.errors ?
+                        <div className={"alert-danger"}>{this.state.featureEditLayer.errors}</div> : null}
                     {this.state.featureEditLayer && this.state.featureEditLayer.layerType === "polyline" ? this.trackContent() :
                         <div><Form.Label>Feature name:</Form.Label>&nbsp;
                             <Form.Control name={"feature_name"} type={"string"} placeholder={"Name"}
@@ -195,6 +222,11 @@ class ConnectedRouteEditor extends Component {
             </Modal.Body>
             <Modal.Footer>
                 <Button onClick={() => this.saveLayer()}>Save</Button>
+                {this.state.featureEditLayer && !this.state.featureEditLayer.editing.enabled() ?
+                    <Button onClick={() => {
+                        this.state.featureEditLayer.editing.enable()
+                        this.setState({featureEditLayer: null})
+                    }}>Edit</Button> : null}
             </Modal.Footer>
         </Modal>
 
@@ -243,12 +275,12 @@ class ConnectedRouteEditor extends Component {
         this.map.locate({setView: true, maxZoom: 7})
 
         this.map.addControl(new L.Control.Draw({
-            edit: {
-                featureGroup: this.drawnItems,
-                poly: {
-                    allowIntersection: false
-                }
-            },
+            // edit: {
+            //     featureGroup: this.drawnItems,
+            //     poly: {
+            //         allowIntersection: false
+            //     }
+            // },
             draw: {
                 polygon: {
                     allowIntersection: false,
@@ -260,6 +292,10 @@ class ConnectedRouteEditor extends Component {
             const layers = event.layers;
             layers.eachLayer((layer) => {
                 console.log(layer)
+                if (this.checkIfUpdateIsNeeded(layer)) {
+                    this.setState({featureEditLayer: layer})
+                    return
+                }
                 this.renderWaypointNames(layer)
             })
         })
@@ -272,6 +308,10 @@ class ConnectedRouteEditor extends Component {
                 const layer = item.target
                 this.setState({featureEditLayer: layer})
             })
+            layer.on("edit", (item) => {
+                const layer = item.target
+                this.renderWaypointNames(layer)
+            })
             this.drawnItems.addLayer(layer);
             this.setState({featureEditLayer: layer})
         });
@@ -281,7 +321,7 @@ class ConnectedRouteEditor extends Component {
     render() {
         return <div>
             {this.featureEditModal()}
-            <button id="routeSaveButton" onClick={() => this.saveRoute()}>Save</button>
+            <button id="routeSaveButton" className={"btn btn-primary"} onClick={() => this.saveRoute()}>Save</button>
         </div>
     }
 
