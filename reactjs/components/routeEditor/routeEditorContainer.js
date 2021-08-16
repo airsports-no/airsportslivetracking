@@ -7,7 +7,7 @@ class ConnectedRouteEditorOuter extends Component {
     render() {
         return <div>
             <div id="routeEditor"/>
-            <RouteEditor routeId={this.props.routeId}/>
+            <RouteEditor routeId={this.props.routeId} routeType={this.props.routeType}/>
         </div>
     }
 }

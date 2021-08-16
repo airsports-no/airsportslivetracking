@@ -13,10 +13,35 @@ import {fetchEditableRoute} from "../../actions";
 import axios from "axios";
 import {Link, withRouter} from "react-router-dom";
 
+const generalTypes = {
+    "track": [1, 1],
+    "to": [0, 1],
+    "ldg": [0, 1],
+    "prohibited": [0, 1000],
+    "info": [0, 1000],
+    "gate": [0, 1000],
+    "penalty": [0, 1000]
+}
+
+const featureTypeCounts = {
+    "precision": generalTypes,
+    "anr": generalTypes,
+    "poker": generalTypes,
+    "landing": {
+        "track": [0, 1],
+        "to": [0, 1],
+        "ldg": [1, 1],
+        "prohibited": [0, 1000],
+        "info": [0, 1000],
+        "gate": [0, 1000],
+        "penalty": [0, 1000]
+    }
+}
+
+
 const featureTypes = {
     polyline: [["Track", "track"], ["Takeoff gate", "to"], ["Landing gate", "ldg"]],
-    polygon: [["Prohibited area", "prohibited"], ["Information zone", "info"], ["Gate area", "gate"]],
-    rectangle: [["Prohibited area", "prohibited"], ["Information zone", "info"], ["Gate area", "gate"]]
+    polygon: [["Prohibited area", "prohibited"], ["Penalty zone", "penalty"], ["Information zone", "info"], ["Gate area", "gate"]],
 }
 
 class ConnectedRouteEditor extends Component {
@@ -49,6 +74,17 @@ class ConnectedRouteEditor extends Component {
         this.props.history.push("/routeeditor/" + id + "/")
     }
 
+    existingFeatureTypes() {
+        let existingFeatureTypes = {}
+        for (let l of this.drawnItems.getLayers()) {
+            if (existingFeatureTypes[l.featureType] === undefined) {
+                existingFeatureTypes[l.featureType] = 1
+            } else {
+                existingFeatureTypes[l.featureType] += 1
+            }
+        }
+        return existingFeatureTypes
+    }
 
     saveRoute() {
         let features = []
@@ -140,7 +176,7 @@ class ConnectedRouteEditor extends Component {
     }
 
     checkIfUpdateIsNeeded(layer) {
-        if (layer.layerType === "polyline") {
+        if (layer.featureType === "track") {
             if (layer.getLatLngs().length !== layer.trackPoints.length) {
                 layer.errors = "The length of points and the length of the names do not match"
                 return true
@@ -151,9 +187,17 @@ class ConnectedRouteEditor extends Component {
     }
 
     saveLayer() {
-        this.state.featureEditLayer.name = this.state.currentName
-        if (this.state.featureEditLayer.layerType === "polyline") {
-            let trackPoints = []
+        if (this.state.featureType) {
+            this.state.featureEditLayer.featureType = this.state.featureType
+        }
+        this.state.featureEditLayer.name=featureTypes[this.state.featureEditLayer.layerType].find((item)=>{
+            return item[1]===this.state.featureEditLayer.featureType
+        })[0]
+        if (this.state.currentName) {
+            this.state.featureEditLayer.name = this.state.currentName
+        }
+        let trackPoints = []
+        if (this.state.featureEditLayer.featureType === "track") {
             const positions = this.state.featureEditLayer.getLatLngs()
             for (let i = 0; i < positions.length; i++) {
                 try {
@@ -165,19 +209,16 @@ class ConnectedRouteEditor extends Component {
                     alert("Waypoint " + (i + 1) + " does not have a name")
                 }
             }
-            this.state.featureEditLayer.trackPoints = trackPoints
         }
+        this.state.featureEditLayer.trackPoints = trackPoints
         this.state.featureEditLayer.editing.disable()
         this.renderWaypointNames(this.state.featureEditLayer)
-        if (this.state.featureType) {
-            this.state.featureEditLayer.featureType = this.state.featureType
-        }
         console.log(this.state.featureEditLayer)
-        this.setState({featureEditLayer: null, featureType: null})
+        this.setState({featureEditLayer: null, featureType: null, currentName: null})
     }
 
     renderWaypointNames(track) {
-        if (track.layerType === "polyline") {
+        if (track.featureType === "track") {
             track.waypointNamesFeatureGroup.clearLayers()
             let index = 0
             for (let p of track.getLatLngs()) {
@@ -221,15 +262,50 @@ class ConnectedRouteEditor extends Component {
         </Form.Group>
     }
 
-    renderFeatureSelect(layerType, current) {
-        let options = featureTypes[layerType] || []
-        return options.map((item) => {
-            console.log(item)
-            return <Form.Check inline key={item[1]} name={"featureType"} label={item[0]} type={"radio"} onChange={(e) => {
-                this.setState({featureType: item[1]})
-            }} defaultChecked={current === item[1]}/>
-        })
+    isFeatureSelectable(featureType, checked) {
+        const usedFeatureTypes = this.existingFeatureTypes()
+        const limits = featureTypeCounts[this.props.routeType][featureType]
+        return checked || usedFeatureTypes[featureType] === undefined || usedFeatureTypes[featureType] < limits[1];
     }
+
+    renderFeatureSelect(layerType, current) {
+        const currentFeatureType = this.state.featureType || current
+        let options = featureTypes[layerType] || []
+        const checkboxes = options.map((item) => {
+            const checked = current === item[1]
+            return <Form.Check inline key={item[1]} name={"featureType"} label={item[0]} type={"radio"}
+                               onChange={(e) => {
+                                   this.setState({featureType: item[1]})
+                               }
+                               } disabled={!this.isFeatureSelectable(item[1], checked)} defaultChecked={checked}/>
+        })
+        let extra = null
+        if (currentFeatureType === "track") {
+            extra = this.trackContent()
+        }
+        return <div>
+            {checkboxes}
+            {extra}
+        </div>
+
+    }
+
+    renderFeatureForm(layer) {
+        return <div>
+            <div className={"alert-danger"}>{layer.errors}</div>
+            {layer.layerType !== "polyline" ?
+                <div>
+                    <Form.Label>Feature name:</Form.Label>&nbsp;
+                    <Form.Control name={"feature_name"} type={"string"} placeholder={"Name"}
+                                  defaultValue={layer.name}
+                                  onChange={(e) => this.setState({currentName: e.target.value})}
+                    />
+                </div> : null
+            }
+            {this.renderFeatureSelect(layer.layerType, layer.featureType)}
+        </div>
+    }
+
 
     featureEditModal() {
         return <Modal onHide={() => this.setState({featureEditLayer: null})}
@@ -242,17 +318,7 @@ class ConnectedRouteEditor extends Component {
             </Modal.Header>
             <Modal.Body className="show-grid">
                 <Container>
-                    {this.state.featureEditLayer && this.state.featureEditLayer.errors ?
-                        <div className={"alert-danger"}>{this.state.featureEditLayer.errors}</div> : null}
-                    {this.state.featureEditLayer && this.state.featureEditLayer.layerType === "polyline" ? this.trackContent() :
-                        <div><Form.Label>Feature name:</Form.Label>&nbsp;
-                            <Form.Control name={"feature_name"} type={"string"} placeholder={"Name"}
-                                          defaultValue={this.state.featureEditLayer ? this.state.featureEditLayer.name : null}
-                                          onChange={(e) => this.setState({currentName: e.target.value})}
-                            /></div>}
-                    {this.state.featureEditLayer ?
-                        this.renderFeatureSelect(this.state.featureEditLayer.layerType, this.state.featureEditLayer.featureType)
-                        : null}
+                    {this.state.featureEditLayer ? this.renderFeatureForm(this.state.featureEditLayer) : null}
                 </Container>
             </Modal.Body>
             <Modal.Footer>
@@ -262,6 +328,11 @@ class ConnectedRouteEditor extends Component {
                         this.state.featureEditLayer.editing.enable()
                         this.setState({featureEditLayer: null})
                     }}>Edit points</Button> : null}
+                <button className={"btn btn-danger"} onClick={() => {
+                    this.drawnItems.removeLayer(this.state.featureEditLayer)
+                    this.setState({featureEditLayer: null})
+                }}>Delete
+                </button>
             </Modal.Footer>
         </Modal>
 
