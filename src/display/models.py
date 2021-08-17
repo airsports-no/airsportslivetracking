@@ -2221,14 +2221,18 @@ class EditableRoute(models.Model):
             return None
 
     @staticmethod
-    def _get_feature_coordinates(feature: Dict) -> List[Tuple[float, float]]:
+    def _get_feature_coordinates(feature: Dict, flip:bool = True) -> List[Tuple[float, float]]:
         """
         Switch lon, lat to lat, lon.
         :param feature:
         :return:
         """
         coordinates = feature["geojson"]["geometry"]["coordinates"]
-        return [tuple(reversed(item)) for item in coordinates]
+        if feature["geojson"]["geometry"]["type"] == "Polygon":
+            coordinates = coordinates[0]
+        if flip:
+            return [tuple(reversed(item)) for item in coordinates]
+        return coordinates
 
     def create_precision_route(self, use_procedure_turns: bool) -> Route:
         from display.convert_flightcontest_gpx import build_waypoint
@@ -2292,8 +2296,9 @@ class EditableRoute(models.Model):
         # Create prohibited zones
         for zone_type in ("info", "penalty", "prohibited"):
             for feature in self._get_features_type(zone_type):
+                logger.debug(feature)
                 Prohibited.objects.create(name=feature["name"], route=route,
-                                          path=self._get_feature_coordinates(feature), type=zone_type)
+                                          path=self._get_feature_coordinates(feature, flip=True), type=zone_type)
 
 
 # @receiver(post_save, sender=Task)
