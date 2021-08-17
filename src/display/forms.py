@@ -16,7 +16,7 @@ from timezone_field import TimeZoneFormField
 
 from display.map_plotter import A4, A3, N250_MAP, OSM_MAP, M517_BERGEN_MAP, GERMANY1, MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES
+    ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES, EditableRoute
 from display.poker_cards import PLAYING_CARDS
 
 FILE_TYPE_CSV = "csv"
@@ -254,8 +254,10 @@ kml_description = HTML("""
 
 
 class PrecisionImportRouteForm(forms.Form):
-    file_type = forms.ChoiceField(choices=FILE_TYPES, initial=FILE_TYPE_KML)
-    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz", "csv", "gpx"])])
+    file_type = forms.ChoiceField(choices=FILE_TYPES, initial=FILE_TYPE_KML, required=False)
+    file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz", "csv", "gpx"])],
+                           required=False)
+    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -264,20 +266,29 @@ class PrecisionImportRouteForm(forms.Form):
             Fieldset(
                 "Route import",
                 "file",
-                "file_type"
+                "file_type",
+                "internal_route"
             ),
             kml_description,
             ButtonHolder(
                 Submit("submit", "Submit")
             )
         )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("file") and cleaned_data.get("internal_route"):
+            raise ValidationError("You cannot both upload a file and use an internal route")
+        if not cleaned_data.get("internal_route") and  bool(cleaned_data.get("file")) != bool(cleaned_data.get("file_type")):
+            raise ValidationError("You must select both file and file type")
 
 
 class ANRCorridorImportRouteForm(forms.Form):
     file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz"])],
-                           help_text="File must be of type KML or KMZ")
+                           help_text="File must be of type KML or KMZ", required=False)
     rounded_corners = forms.BooleanField(required=False, initial=False,
                                          help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
+    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -286,6 +297,7 @@ class ANRCorridorImportRouteForm(forms.Form):
             Fieldset(
                 "Route import",
                 "file",
+                "internal_route",
                 "rounded_corners"
             ),
             kml_description,
@@ -294,10 +306,16 @@ class ANRCorridorImportRouteForm(forms.Form):
             )
         )
 
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("file") and cleaned_data.get("internal_route"):
+            raise ValidationError("You cannot both upload a file and use an internal route")
+
 
 class LandingImportRouteForm(forms.Form):
     file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz"])],
-                           help_text="File must be of type KML or KMZ")
+                           help_text="File must be of type KML or KMZ", required=False)
+    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -306,7 +324,7 @@ class LandingImportRouteForm(forms.Form):
             Fieldset(
                 "Route import",
                 "file",
-                "rounded_corners"
+                "internal_route"
             ),
             HTML("""
                         <p>The KML must contain at least the following:
@@ -323,6 +341,11 @@ class LandingImportRouteForm(forms.Form):
                 Submit("submit", "Submit")
             )
         )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("file") and cleaned_data.get("internal_route"):
+            raise ValidationError("You cannot both upload a file and use an internal route")
 
 
 class WaypointFormHelper(FormHelper):
@@ -351,7 +374,8 @@ class NavigationTaskForm(forms.ModelForm):
         model = NavigationTask
         fields = ("name", "start_time", "finish_time", "display_background_map", "display_secrets", "scorecard",
                   "minutes_to_starting_point",
-                  "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management", "score_sorting_direction")
+                  "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
+                  "score_sorting_direction")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

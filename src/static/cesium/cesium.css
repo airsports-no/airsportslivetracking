@@ -680,6 +680,13 @@ html, body {
     z-index: 2;
 }
 
+.toastContainer{
+    position: fixed;
+    top: 90px;
+    right: 10px;
+    z-index: 2;
+}
+
 .myAirplaneIcon {
     text-align: center;
     /*line-height: 20px;*/

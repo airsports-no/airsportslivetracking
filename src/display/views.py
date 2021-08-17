@@ -1186,7 +1186,8 @@ def _generate_data(contestant_pk):
 # Everything below he is related to management and requires authentication
 def show_route_definition_step(wizard):
     cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}
-    return cleaned_data.get("file_type") == FILE_TYPE_KML and wizard.get_cleaned_data_for_step("task_type").get(
+    return not cleaned_data.get("internal_route") and cleaned_data.get(
+        "file_type") == FILE_TYPE_KML and wizard.get_cleaned_data_for_step("task_type").get(
         "task_type"
     ) in (
                NavigationTask.PRECISION,
@@ -1267,7 +1268,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
             initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
             use_procedure_turns = self.get_cleaned_data_for_step("task_content")["scorecard"].use_procedure_turns
-            if initial_step_data["file_type"] == FILE_TYPE_CSV:
+            if initial_step_data["internal_route"]:
+                route = initial_step_data["internal_route"].create_precision_route(use_procedure_turns)
+            elif initial_step_data["file_type"] == FILE_TYPE_CSV:
                 data = [item.decode(encoding="UTF-8") for item in initial_step_data["file"].readlines()]
                 route = create_precision_route_from_csv("route", data[1:], use_procedure_turns)
             elif initial_step_data["file_type"] == FILE_TYPE_FLIGHTCONTEST_GPX:
@@ -1284,11 +1287,15 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                     data = None
                 route = create_precision_route_from_formset("route", second_step_data, use_procedure_turns, data)
         elif task_type == NavigationTask.ANR_CORRIDOR:
-            data = self.get_cleaned_data_for_step("anr_route_import")["file"]
-            data.seek(0)
-            rounded_corners = self.get_cleaned_data_for_step("anr_route_import")["rounded_corners"]
+            initial_step_data = self.get_cleaned_data_for_step("anr_route_import")
+            rounded_corners = initial_step_data["rounded_corners"]
             corridor_width = self.get_cleaned_data_for_step("anr_corridor_override")["corridor_width"]
-            route = create_anr_corridor_route_from_kml("route", data, corridor_width, rounded_corners)
+            if initial_step_data["internal_route"]:
+                route = initial_step_data["internal_route"].create_anr_route(rounded_corners, corridor_width)
+            else:
+                data = self.get_cleaned_data_for_step("anr_route_import")["file"]
+                data.seek(0)
+                route = create_anr_corridor_route_from_kml("route", data, corridor_width, rounded_corners)
         elif task_type == NavigationTask.LANDING:
             data = self.get_cleaned_data_for_step("landing_route_import")["file"]
             data.seek(0)
@@ -1338,6 +1345,12 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         form = super().get_form(step, data, files)
         if step == "waypoint_definition":
             print(len(form))
+        if step in ("anr_route_import", "precision_route_import", "landing_route_import"):
+            form.fields["internal_route"].queryset = get_objects_for_user(self.request.user,
+                                                                          "display.view_editableroute",
+                                                                          klass=EditableRoute.objects.all(),
+                                                                          accept_global_perms=False,
+                                                                          )
         return form
 
     def get_form_initial(self, step):

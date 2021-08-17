@@ -2211,21 +2211,89 @@ class EditableRoute(models.Model):
     def __str__(self):
         return self.name
 
-    def _get_feature_type(self, feature_type: str) -> List[Dict]:
+    def _get_features_type(self, feature_type: str) -> List[Dict]:
         return [item for item in self.route if item["feature_type"] == feature_type]
 
-    def create_route(self) -> Route:
-        route = self._get_feature_type("route")
-        if len(route) > 1:
-            raise drf_exceptions.ValidationError(f"Only a single route can be defined, there are {len(route)}")
-        if len(route) == 0:
-            raise drf_exceptions.ValidationError("Exactly one route must be defined, there are none")
+    def _get_feature_type(self, feature_type: str) -> Optional[Dict]:
+        try:
+            return self._get_features_type(feature_type)[0]
+        except IndexError:
+            return None
+
+    @staticmethod
+    def _get_feature_coordinates(feature: Dict) -> List[Tuple[float, float]]:
+        """
+        Switch lon, lat to lat, lon.
+        :param feature:
+        :return:
+        """
+        coordinates = feature["geojson"]["geometry"]["coordinates"]
+        return [tuple(reversed(item)) for item in coordinates]
+
+    def create_precision_route(self, use_procedure_turns: bool) -> Route:
+        from display.convert_flightcontest_gpx import build_waypoint
+        from display.convert_flightcontest_gpx import create_precision_route_from_waypoint_list
+        track = self._get_feature_type("track")
         waypoint_list = []
-        route = route[0]
-        for item in route:
+        coordinates = self._get_feature_coordinates(track)
+        track_points = track["track_points"]
+        for index, (latitude, longitude) in enumerate(coordinates):
+            item = track_points[index]
             waypoint_list.append(
-                build_waypoint(item["name"], item["latitude"], item["longitude"], item["type"], item["width"],
-                               item["time_check"], item["gate_check"]))
+                build_waypoint(item["name"], latitude, longitude, item["gateType"], item["gateWidth"],
+                               item["timeCheck"], item["gateCheck"]))
+        route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns)
+        self.extract_additional_features(route)
+        return route
+
+    def create_anr_route(self, rounded_corners: bool, corridor_width: float) -> Route:
+        from display.convert_flightcontest_gpx import build_waypoint
+        from display.convert_flightcontest_gpx import create_anr_corridor_route_from_waypoint_list
+        track = self._get_feature_type("track")
+        waypoint_list = []
+        coordinates = self._get_feature_coordinates(track)
+        track_points = track["track_points"]
+        for index, (latitude, longitude) in enumerate(coordinates):
+            item = track_points[index]
+            waypoint_list.append(
+                build_waypoint(f"Waypoint {index}", latitude, longitude, "secret", corridor_width,
+                               False, False))
+        waypoint_list[0].name = "SP"
+        waypoint_list[0].type = "sp"
+        waypoint_list[0].gate_check = True
+        waypoint_list[0].time_check = True
+
+        waypoint_list[-1].name = "FP"
+        waypoint_list[-1].type = "fp"
+        waypoint_list[-1].gate_check = True
+        waypoint_list[-1].time_check = True
+        logger.debug(f"Created waypoints {waypoint_list}")
+        route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners)
+        self.extract_additional_features(route)
+        return route
+
+    def extract_additional_features(self, route: Route):
+        from display.convert_flightcontest_gpx import create_gate_from_line
+        takeoff_gate = self._get_feature_type("to")
+        if takeoff_gate is not None:
+            takeoff_gate_line = self._get_feature_coordinates(takeoff_gate)
+            if len(takeoff_gate_line) != 2:
+                raise ValidationError("Take-off gate should have exactly 2 points")
+            route.takeoff_gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
+            route.takeoff_gate.gate_line = takeoff_gate_line
+        landing_gate = self._get_feature_type("ldg")
+        if landing_gate is not None:
+            landing_gate_line = self._get_feature_coordinates(landing_gate)
+            if len(landing_gate_line) != 2:
+                raise ValidationError("Landing gate should have exactly 2 points")
+            route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
+            route.landing_gate.gate_line = landing_gate_line
+        route.save()
+        # Create prohibited zones
+        for zone_type in ("info", "penalty", "prohibited"):
+            for feature in self._get_features_type(zone_type):
+                Prohibited.objects.create(name=feature["name"], route=route,
+                                          path=self._get_feature_coordinates(feature), type=zone_type)
 
 
 # @receiver(post_save, sender=Task)
