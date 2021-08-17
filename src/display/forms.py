@@ -239,6 +239,7 @@ class TaskTypeForm(forms.Form):
 
 
 kml_description = HTML("""
+            <p>Select either a file and file type, or an "internal route" which has already been created in the route editor.
             <p>The KML must contain at least the following:
             <ol>
             <li>route: A path with the name "route" which makes up the route that should be flown.</li>

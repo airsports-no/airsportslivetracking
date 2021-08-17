@@ -57,7 +57,9 @@
 <header>
     {% if not skip_nav %}
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-            <a class="navbar-brand" href="/"><img style = "height: 30px" src="{% static 'img/airsports_live_tracking_white.png' %}" alt="AirSports"></a>
+            <a class="navbar-brand" href="/"><img style="height: 30px"
+                                                  src="{% static 'img/airsports_live_tracking_white.png' %}"
+                                                  alt="AirSports"></a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
                     aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -65,12 +67,17 @@
 
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav mr-auto">
-{#                    <li class="nav-item">#}
-{#                        <a class="nav-link" href="{% url 'global_map' %}">Global map</a>#}
-{#                    </li>#}
+                    {#                    <li class="nav-item">#}
+                    {#                        <a class="nav-link" href="{% url 'global_map' %}">Global map</a>#}
+                    {#                    </li>#}
                     {% if perms.display.add_contest %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'contest_list' %}">Contest management</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="dropdown01"
+                               data-toggle="dropdown">Contest management</a>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item" href="{% url 'contest_list' %}">Contest</a>
+                                <a class="dropdown-item" href="{% url 'editableroute_list' %}">Routes</a>
+                            </div>
                         </li>
                     {% endif %}
                     <li class="nav-item">
