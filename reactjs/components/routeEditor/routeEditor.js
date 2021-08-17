@@ -13,6 +13,16 @@ import {fetchEditableRoute} from "../../actions";
 import axios from "axios";
 import {Link, withRouter} from "react-router-dom";
 
+const featureStyles = {
+    "track": {"color": "blue"},
+    "to": {"color": "green"},
+    "ldg": {"color": "red"},
+    "prohibited": {"color": "red"},
+    "info": {"color": "lightblue"},
+    "penalty": {"color": "orange"},
+    "gate": {"color": "blue"},
+}
+
 const generalTypes = {
     "track": [1, 1],
     "to": [0, 1],
@@ -120,7 +130,7 @@ class ConnectedRouteEditor extends Component {
         axios({
             method: method,
             url: url,
-            data: {route: features, name: name}
+            data: {route: features, name: name, route_type: this.props.routeType}
         }).then((res) => {
             console.log("Response")
             console.log(res)
@@ -130,6 +140,25 @@ class ConnectedRouteEditor extends Component {
             console.log(e);
         }).finally(() => {
         })
+    }
+
+    configureLayer(layer, name, layerType, featureType, trackPoints) {
+        layer.addTo(this.drawnItems);
+        layer.name = name
+        layer.layerType = layerType
+        layer.featureType = featureType
+        layer.trackPoints = trackPoints
+        layer.waypointNamesFeatureGroup = L.featureGroup().addTo(this.drawnItems);
+        layer.on("click", (item) => {
+            const layer = item.target
+            this.setState({featureEditLayer: layer})
+        })
+        layer.on("edit", (item) => {
+            const layer = item.target
+            this.renderWaypointNames(layer)
+        })
+        layer.setStyle(featureStyles[featureType])
+        this.renderWaypointNames(layer)
     }
 
     renderRoute() {
@@ -152,23 +181,7 @@ class ConnectedRouteEditor extends Component {
                         }
                     },
                     onEachFeature: (feature, layer) => {
-                        layer.addTo(this.drawnItems);
-                        layer.name = r.name
-                        layer.layerType = r.layer_type
-                        layer.featureType = r.feature_type
-                        layer.trackPoints = r.track_points
-                        layer.waypointNamesFeatureGroup = L.featureGroup().addTo(this.drawnItems);
-                        layer.on("click", (item) => {
-                            const layer = item.target
-                            this.setState({featureEditLayer: layer})
-                        })
-                        layer.on("edit", (item) => {
-                            const layer = item.target
-                            this.renderWaypointNames(layer)
-                        })
-                        // layer.addTo(this.drawnItems)
-                        // if (r.layer_type === "polyline") {
-                        this.renderWaypointNames(layer)
+                        this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points)
                     }
                 }
             )
@@ -190,8 +203,8 @@ class ConnectedRouteEditor extends Component {
         if (this.state.featureType) {
             this.state.featureEditLayer.featureType = this.state.featureType
         }
-        this.state.featureEditLayer.name=featureTypes[this.state.featureEditLayer.layerType].find((item)=>{
-            return item[1]===this.state.featureEditLayer.featureType
+        this.state.featureEditLayer.name = featureTypes[this.state.featureEditLayer.layerType].find((item) => {
+            return item[1] === this.state.featureEditLayer.featureType
         })[0]
         if (this.state.currentName) {
             this.state.featureEditLayer.name = this.state.currentName
@@ -210,6 +223,7 @@ class ConnectedRouteEditor extends Component {
                 }
             }
         }
+        this.state.featureEditLayer.setStyle(featureStyles[this.state.featureEditLayer.featureType])
         this.state.featureEditLayer.trackPoints = trackPoints
         this.state.featureEditLayer.editing.disable()
         this.renderWaypointNames(this.state.featureEditLayer)
@@ -410,19 +424,9 @@ class ConnectedRouteEditor extends Component {
             })
         })
         this.map.on(L.Draw.Event.CREATED, (event) => {
-            const layer = event.layer;
             console.log(event)
-            layer.layerType = event.layerType
-            layer.waypointNamesFeatureGroup = L.featureGroup().addTo(this.drawnItems);
-            layer.on("click", (item) => {
-                const layer = item.target
-                this.setState({featureEditLayer: layer})
-            })
-            layer.on("edit", (item) => {
-                const layer = item.target
-                this.renderWaypointNames(layer)
-            })
-            this.drawnItems.addLayer(layer);
+            const layer = event.layer;
+            this.configureLayer(layer, null, event.layerType, null, [])
             this.setState({featureEditLayer: layer})
         });
 
@@ -439,6 +443,9 @@ class ConnectedRouteEditor extends Component {
                 &nbsp;
                 <button id="routeCancelButton" className={"btn btn-danger"}
                         onClick={() => this.reloadMap()}>Cancel
+                </button>
+                <button id="routeReturnButton" className={"btn btn-secondary"}
+                        onClick={() => window.location="/display/editableroute/"}>Map list
                 </button>
             </div>
         </div>

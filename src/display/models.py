@@ -2203,27 +2203,30 @@ class EmailMapLink(models.Model):
 
 
 class EditableRoute(models.Model):
+    route_type = models.CharField(choices=NavigationTask.NAVIGATION_TASK_TYPES, default=NavigationTask.PRECISION,
+                                  max_length=200)
     name = models.CharField(max_length=200, help_text="User-friendly name")
     route = MyPickledObjectField(default=dict)
 
     def __str__(self):
         return self.name
 
-    def _get_feature_type(self,feature_type: str)->List[Dict]:
+    def _get_feature_type(self, feature_type: str) -> List[Dict]:
         return [item for item in self.route if item["feature_type"] == feature_type]
 
-    def create_route(self)->Route:
+    def create_route(self) -> Route:
         route = self._get_feature_type("route")
-        if len(route) >1:
+        if len(route) > 1:
             raise drf_exceptions.ValidationError(f"Only a single route can be defined, there are {len(route)}")
         if len(route) == 0:
             raise drf_exceptions.ValidationError("Exactly one route must be defined, there are none")
         waypoint_list = []
-        route=route[0]
+        route = route[0]
         for item in route:
             waypoint_list.append(
                 build_waypoint(item["name"], item["latitude"], item["longitude"], item["type"], item["width"],
                                item["time_check"], item["gate_check"]))
+
 
 # @receiver(post_save, sender=Task)
 # def populate_task_summaries(sender, instance: Task, **kwargs):

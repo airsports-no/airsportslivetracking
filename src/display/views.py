@@ -1631,6 +1631,27 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
         return context
 
 
+class EditableRouteList(GuardianPermissionRequiredMixin, ListView):
+    model = EditableRoute
+    permission_required = ("display.view_editableroute",)
+
+    def get_queryset(self):
+        return get_objects_for_user(self.request.user, "display.view_editableroute",
+                                    klass=self.queryset,
+                                    accept_global_perms=False,
+                                    )
+
+
+class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):
+    model = EditableRoute
+    permission_required = ("display.delete_editableroute",)
+    template_name = "model_delete.html"
+    success_url = reverse_lazy("editableroute_list")
+
+    def get_permission_object(self):
+        return self.get_object()
+
+
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
 def remove_team_from_contest(request, contest_pk, team_pk):
     contest = get_object_or_404(Contest, pk=contest_pk)
@@ -1764,6 +1785,7 @@ class EditableRouteViewSet(ModelViewSet):
     queryset = EditableRoute.objects.all()
     permission_classes = [EditableRoutePermission]
     serializer_class = EditableRouteSerialiser
+
     def get_queryset(self):
         return (
             get_objects_for_user(

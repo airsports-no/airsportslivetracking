@@ -1054,9 +1054,14 @@ class TaskTestSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class EditableRouteSerialiser(serializers.ModelSerializer):
+class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     route = serializers.JSONField()
 
     class Meta:
         model = EditableRoute
         fields = "__all__"
+
+    def get_permissions_map(self, created):
+        user = self.context["request"].user
+        return {"change_editableroute": [user], "delete_editableroute": [user], "view_editableroute": [user]}
+
