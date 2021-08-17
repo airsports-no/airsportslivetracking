@@ -164,6 +164,7 @@ class ConnectedRouteEditor extends Component {
     renderRoute() {
         this.drawnItems.clearLayers()
         console.log(this.props.route)
+        let zoomed = false
         for (let r of this.props.route.route) {
             let layer = new L.GeoJSON(r.geojson, {
                     pointToLayer: (feature, latlng) => {
@@ -181,10 +182,20 @@ class ConnectedRouteEditor extends Component {
                         }
                     },
                     onEachFeature: (feature, layer) => {
+                        if (r.feature_type === "track") {
+                            zoomed = true
+                            this.map.fitBounds(layer.getBounds(), {padding: [50, 50]})
+                        }
                         this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points)
                     }
                 }
             )
+        }
+        if (!zoomed) {
+            const layers = this.drawnItems.getLayers()
+            if (layers.length > 0) {
+                this.map.fitBounds(layers[0].getBounds(), {padding: [50, 50]})
+            }
         }
     }
 
@@ -445,7 +456,7 @@ class ConnectedRouteEditor extends Component {
                         onClick={() => this.reloadMap()}>Cancel
                 </button>
                 <button id="routeReturnButton" className={"btn btn-secondary"}
-                        onClick={() => window.location="/display/editableroute/"}>Map list
+                        onClick={() => window.location = "/display/editableroute/"}>Map list
                 </button>
             </div>
         </div>
