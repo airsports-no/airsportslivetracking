@@ -1443,7 +1443,7 @@ Crossing the extended starting line before start ({self.navigation_task.scorecar
 {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
             """
         if self.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
-            text=f"""For this task the ANR corridor width is {self.navigation_task.scorecard.get_corridor_width(self)} nm. 
+            text = f"""For this task the ANR corridor width is {self.navigation_task.scorecard.get_corridor_width(self)} nm. 
 {scorecard.get_corridor_outside_penalty(self)} point(s) is awarded per second outside the corridor for more than {scorecard.get_corridor_grace_time(self)} seconds."""
         return text
 
@@ -2223,7 +2223,7 @@ class EmailMapLink(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
-    orders = MyPickledObjectField()
+    orders = MyPickledObjectField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def send_email(self, email_address: str, first_name: str):
