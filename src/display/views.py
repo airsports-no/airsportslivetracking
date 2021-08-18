@@ -98,7 +98,7 @@ from display.forms import (
     SCALE_TO_FIT,
 )
 from display.map_plotter import plot_route, get_basic_track, A4, get_country_code_from_location, \
-    country_code_to_map_source
+    country_code_to_map_source, generate_turning_point_image, generate_flight_orders
 from display.models import (
     NavigationTask,
     Route,
@@ -676,6 +676,14 @@ def get_contestant_email_map_link(request, key):
     response["Content-Disposition"] = f"attachment; filename=map.png"
     # response = HttpResponse(pdf_image, content_type="application/pdf")
     # response["Content-Disposition"] = f"attachment; filename=map.pdf"
+    return response
+
+
+def get_contestant_email_flying_orders_link(request, pk):
+    contestant = get_object_or_404(Contestant, id=pk)
+    report = generate_flight_orders(contestant)
+    response = HttpResponse(report, content_type="application/pdf")
+    response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
     return response
 
 

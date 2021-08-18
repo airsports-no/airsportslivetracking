@@ -1,5 +1,6 @@
 import glob
 from io import BytesIO
+from tempfile import TemporaryFile, NamedTemporaryFile
 
 import six
 import utm
@@ -10,10 +11,12 @@ import sys
 from typing import Optional, Tuple, List
 
 from PIL import Image
-from cartopy.io.img_tiles import OSM, GoogleWTS
+from cartopy import geodesic
+from cartopy.io.img_tiles import OSM, GoogleWTS, GoogleTiles
 import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
+from fpdf import FPDF
 from matplotlib import patheffects
 from matplotlib.transforms import Bbox
 from shapely.geometry import Polygon
@@ -855,6 +858,171 @@ def plot_precision_track(
         return path
 
 
+def generate_turning_point_image(waypoints: List[Waypoint], index):
+    waypoint = waypoints[index]
+    imagery = GoogleTiles(style="satellite")
+    plt.figure(figsize=(10, 10))
+    ax = plt.axes(projection=imagery.crs)
+    print(f"Figure projection: {imagery.crs}")
+    ax.add_image(imagery, 15)
+    ax.set_aspect("auto")
+    plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree())
+    if index > 0:
+        plt.plot(
+            [waypoints[index - 1].longitude, waypoints[index].longitude],
+            [waypoints[index - 1].latitude, waypoints[index].latitude], transform=ccrs.PlateCarree(), color="blue",
+            linewidth=2
+        )
+    if index < len(waypoints) - 1:
+        plt.plot(
+            [waypoints[index].longitude, waypoints[index + 1].longitude],
+            [waypoints[index].latitude, waypoints[index + 1].latitude], transform=ccrs.PlateCarree(), color="blue",
+            linewidth=2
+        )
+    proj = ccrs.PlateCarree()
+    utm = utm_from_lat_lon(waypoint.latitude, waypoint.longitude)
+    centre_x, centre_y = utm.transform_point(waypoint.longitude, waypoint.latitude, proj)
+    range = 700
+    x0, y0 = proj.transform_point(centre_x - range, centre_y - range, utm)
+    x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
+    extent = [x0, x1, y0, y1]
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    circle_points = geodesic.Geodesic().circle(lon=waypoint.longitude, lat=waypoint.latitude, radius=200, n_samples=50,
+                                               endpoint=False)
+    geom = Polygon(circle_points)
+    ax.add_geometries((geom,), crs=ccrs.PlateCarree(), facecolor='none', edgecolor='red', linewidth=3)
+    figdata = BytesIO()
+    plt.savefig(
+        figdata, format="png", dpi=200, transparent=True
+    )
+    # plt.savefig(
+    #     "temporary", format="png", dpi=100, transparent=True
+    # )
+    figdata.seek(0)
+    img = Image.open(figdata, formats=["PNG"])
+    if index > 0:
+        img2 = img.rotate(waypoint.bearing_from_previous)
+    else:
+        img2 = img.rotate(waypoint.bearing_next)
+    width, height = img2.size
+    overlap = 500
+    cropped = img2.crop((overlap, overlap, width - overlap, height - overlap))
+    image_data = BytesIO()
+    cropped.save(image_data, "PNG")
+    image_data.seek(0)
+    return image_data
+
+
+def insert_turning_point_images(contestant, pdf: FPDF):
+    navigation = contestant.navigation_task  # type: NavigationTask
+    waypoints = [item for item in navigation.route.waypoints if
+                 item.type != "secret" and (item.gate_check or item.time_check)]
+    rows_per_page = 3
+    number_of_images = len(waypoints)
+    number_of_pages = 1 + number_of_images // (2 * rows_per_page)
+    current_page = -1
+    image_height = 230 / rows_per_page
+    title_offset = 10
+    row_step = image_height + title_offset
+    row_start = 20
+    for index in range(number_of_images):
+        if index % (rows_per_page * 2) == 0:
+            pdf.add_page()
+            page_text = f" {current_page + 2}/{number_of_pages}" if number_of_pages > 1 else ""
+            pdf.cell(0, 10, txt=f"Turning point images{page_text}")
+            current_page += 1
+        if index % 2 == 0:  # left column
+            x = 10
+        else:
+            x = 110
+        row_number = (index - (current_page * rows_per_page * 2)) // 2
+        y = row_start + row_number * row_step
+        pdf.text(x, y, waypoints[index].name)
+        image = generate_turning_point_image(waypoints, index)
+        file = NamedTemporaryFile(suffix=".png")
+        file.write(image.read())
+        file.seek(0)
+        pdf.image(file.name, x=x, y=y + 1, h=image_height)
+
+
+def generate_flight_orders(contestant: "Contestant") -> bytes:
+    """
+    Returns a PDF report
+
+    :param contestant:
+    :return:
+    """
+    from display.forms import PORTRAIT, SCALE_TO_FIT
+    starting_point_time = contestant.takeoff_time + datetime.timedelta(
+        minutes=contestant.navigation_task.minutes_to_starting_point)
+    starting_point_time_string = starting_point_time.strftime("%Y-%m-%d %H:%M:%S")
+    tracking_start_time_string = contestant.tracker_start_time.strftime("%Y-%m-%d %H:%M:%S")
+    finish_tracking_time = contestant.finished_by_time.strftime("%Y-%m-%d %H:%M:%S")
+    pdf = FPDF(orientation='P', unit='mm', format='A4')
+    # 210 x 297 mm
+    pdf.set_margins(0, 0)
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, txt=f"Welcome to", align="C", ln=1)
+    pdf.ln(10)
+    pdf.cell(0, txt=f"{contestant.navigation_task.contest.name}", align="C", ln=1)
+    pdf.ln(10)
+    pdf.cell(0, txt=f"{contestant.navigation_task.name}", align="C", ln=1)
+    pdf.ln(10)
+    pdf.cell(0, txt=f"Contestant: {contestant}")
+    pdf.ln(10)
+    pdf.cell(0,
+             txt=f"Departure: {contestant.takeoff_time.strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take of time is not measured'}")
+    pdf.ln(10)
+    pdf.cell(0, txt=f"Start point: {starting_point_time_string if not contestant.adaptive_start else 'Adaptive start'}")
+    pdf.ln(10)
+    if contestant.adaptive_start:
+        pdf.cell(0,
+                 txt=f"Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time.",
+                 ln=1)
+        pdf.cell(0,
+                 txt=f"Total tracing period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}")
+
+    starting_point = generate_turning_point_image(contestant.navigation_task.route.waypoints, 0)
+    starting_point_file = NamedTemporaryFile(suffix=".png")
+    starting_point_file.write(starting_point.read())
+    starting_point_file.seek(0)
+    pdf.text(10, 170, "Starting point")
+    pdf.text(110, 170, "Finish point")
+    pdf.image(starting_point_file.name, x=10, y=180, w=90)
+    finish_point = generate_turning_point_image(contestant.navigation_task.route.waypoints,
+                                                len(contestant.navigation_task.route.waypoints) - 1)
+    finish_point_file = NamedTemporaryFile(suffix=".png")
+    finish_point_file.write(finish_point.read())
+    finish_point_file.seek(0)
+    pdf.image(finish_point_file.name, x=110, y=180, w=90)
+
+    pdf.add_page()
+    waypoint = contestant.navigation_task.route.waypoints[0]  # type: Waypoint
+    country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
+    map_source = country_code_to_map_source(country_code)
+    # map_image, pdf_image = plot_route(
+    #     contestant.navigation_task,
+    #     A4,
+    #     zoom_level=12,
+    #     landscape=False,
+    #     contestant=contestant,
+    #     annotations=True,
+    #     waypoints_only=False,
+    #     dpi=300,
+    #     scale=SCALE_TO_FIT,
+    #     map_source=map_source,
+    #     line_width=2,
+    #     colour="#0000ff",
+    # )
+    # mapimage_file = NamedTemporaryFile(suffix=".png")
+    # mapimage_file.write(map_image.read())
+    # mapimage_file.seek(0)
+    # pdf.image(mapimage_file.name, x=0, y=0, h=297)
+    # insert_turning_point_images(contestant, pdf)
+    return pdf.output(dest="S").encode('latin-1')
+
+
 def plot_route(
         task: NavigationTask,
         map_size: str,
@@ -867,8 +1035,7 @@ def plot_route(
         dpi: int = 300,
         map_source: str = "osm",
         line_width: float = 0.5,
-        colour: str = "#0000ff",
-        country_code: str = None
+        colour: str = "#0000ff"
 ):
     route = task.route
     A4_width = 21.0
