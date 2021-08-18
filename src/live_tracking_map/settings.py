@@ -296,8 +296,7 @@ CACHES = {
     "default": {
         "BACKEND": "redis_cache.RedisCache",
         "LOCATION": [
-            # "/tmp/docker/redis.sock" if PRODUCTION else "redis:6379",
-            "redis:6379",
+            "/tmp/docker/redis.sock" if PRODUCTION else "redis:6379",
         ],
         "TIMEOUT": None,
         "OPTIONS": {
@@ -315,10 +314,8 @@ CACHES = {
 }
 
 # celery
-# CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
-# CELERY_RESULT_BACKEND = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
-CELERY_BROKER_URL = "redis://redis:6379"
-CELERY_RESULT_BACKEND = "redis://redis:6379"
+CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
+CELERY_RESULT_BACKEND = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_SERIALIZER = "json"
@@ -328,8 +325,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            # "hosts": ["unix:/tmp/docker/redis.sock" if PRODUCTION else ("redis", 6379)],
-            "hosts": [("redis", 6379)],
+            "hosts": ["unix:/tmp/docker/redis.sock" if PRODUCTION else ("redis", 6379)],
             "capacity": 100,  # default 100
             "expiry": 30,  # default 60
         },

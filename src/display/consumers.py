@@ -89,8 +89,7 @@ class GlobalConsumer(WebsocketConsumer):
         self.safe_sky_timer = None
         self.bounding_box = None
         if settings.PRODUCTION:
-            self.redis = StrictRedis("redis")
-            # self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
+            self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
         else:
             self.redis = StrictRedis("redis")
         self.groups.append("tracking_global")
