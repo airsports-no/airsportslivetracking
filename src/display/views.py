@@ -2160,7 +2160,7 @@ class NavigationTaskViewSet(ModelViewSet):
                         + datetime.timedelta(hours=final_time.hour, minutes=final_time.minute,
                                              seconds=final_time.second)
                 )
-            logger.debug(f"takeg time is {contestant.takeoff_time}")
+            logger.debug(f"Take-off time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")
             contestant.finished_by_time = final_time + datetime.timedelta(
                 minutes=navigation_task.minutes_to_landing + 2
@@ -2168,8 +2168,8 @@ class NavigationTaskViewSet(ModelViewSet):
             logger.debug(f"Finished by time is {contestant.finished_by_time}")
 
             contestant.save()
-            generate_and_notify_flight_order.apply_async((contestant.pk, request.user.email, request.user.first_name))
             logger.debug("Updated contestant")
+            generate_and_notify_flight_order.apply_async((contestant.pk, request.user.email, request.user.first_name))
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
             # Delete all contestants that have not finished yet where I am the pilot

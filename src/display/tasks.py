@@ -24,7 +24,13 @@ def setup_periodic_tasks(sender, **kwargs):
         crontab(hour=7, minute=30, day_of_week="*"),
         delete_old_flight_orders.s(),
     )
+    sender.add_periodic_task(
+        10, debug.s()
+    )
 
+@shared_task
+def debug():
+    print(debug)
 
 @shared_task
 def import_gpx_track(contestant_pk: int, gpx_file: str):
