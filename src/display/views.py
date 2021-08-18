@@ -2171,7 +2171,7 @@ class NavigationTaskViewSet(ModelViewSet):
             contestant.save()
             logger.debug("Updated contestant")
             mail_link = EmailMapLink.objects.create(contestant=contestant)
-            mail_link.send_email(request.user)
+            mail_link.send_email(request.user.email, request.user.first_name)
             # generate_and_notify_flight_order.apply_async((contestant.pk, request.user.email, request.user.first_name))
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
