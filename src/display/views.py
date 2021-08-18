@@ -97,7 +97,8 @@ from display.forms import (
     ShareForm,
     SCALE_TO_FIT,
 )
-from display.map_plotter import plot_route, get_basic_track, A4
+from display.map_plotter import plot_route, get_basic_track, A4, get_country_code_from_location, \
+    country_code_to_map_source
 from display.models import (
     NavigationTask,
     Route,
@@ -629,6 +630,9 @@ def get_contestant_map(request, pk):
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_default_map(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
+    waypoint = contestant.navigation_task.route.waypoints[0]  # type: Waypoint
+    country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
+    map_source = country_code_to_map_source(country_code)
     map_image, pdf_image = plot_route(
         contestant.navigation_task,
         A4,
@@ -639,7 +643,7 @@ def get_contestant_default_map(request, pk):
         waypoints_only=False,
         dpi=300,
         scale=SCALE_TO_FIT,
-        map_source="/maptiles/Norway_N250",
+        map_source=map_source,
         line_width=1,
         colour="#0000ff",
     )
@@ -651,6 +655,9 @@ def get_contestant_default_map(request, pk):
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__emailmaplink__id", "key"))
 def get_contestant_email_map_link(request, key):
     map_link = get_object_or_404(EmailMapLink, id=key)
+    waypoint = map_link.contestant.navigation_task.route.waypoints[0]  # type: Waypoint
+    country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
+    map_source = country_code_to_map_source(country_code)
     map_image, pdf_image = plot_route(
         map_link.contestant.navigation_task,
         A4,
@@ -661,7 +668,7 @@ def get_contestant_email_map_link(request, key):
         waypoints_only=False,
         dpi=300,
         scale=SCALE_TO_FIT,
-        map_source="/maptiles/Norway_N250",
+        map_source=map_source,
         line_width=1,
         colour="#0000ff",
     )
