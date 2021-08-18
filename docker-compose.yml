@@ -137,6 +137,39 @@ services:
       - redis
 
 
+  tracker_beat:
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "/wait-for-it.sh", "influx:8086", "--",
+               "bash", "-c", "celery -A live_tracking_map beat -l DEBUG -f /logs/celery.log" ]
+
+    container_name: tracker_celery
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./secret:/secret
+      - ./django-rest-authemail:/django-rest-authemail
+      - ./static:/static
+      - ./assets:/assets/
+      - ./src:/src/
+      - ./reactjs:/reactjs/
+      - ./data:/data/
+      - ./celerylog:/logs/
+    volumes_from:
+      - tmp
+    depends_on:
+      - mysql
+      - influx
+      - redis
+
+
   tracker_processor:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "traccar:8082", "--",
