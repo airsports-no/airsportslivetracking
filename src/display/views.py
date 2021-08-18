@@ -571,6 +571,15 @@ def share_navigation_task(request, pk):
 
 # @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 # def view_cards(request, pk):
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
+def refresh_editable_route_navigation_task(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    try:
+        navigation_task.refresh_editable_route()
+        messages.success(request, "Route refreshed")
+    except ValidationError as e:
+        messages.error(request, str(e))
+    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
@@ -1265,11 +1274,13 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
 
     def done(self, form_list, **kwargs):
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
+        editable_route = None
         if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
             initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
             use_procedure_turns = self.get_cleaned_data_for_step("task_content")["scorecard"].use_procedure_turns
             if initial_step_data["internal_route"]:
                 route = initial_step_data["internal_route"].create_precision_route(use_procedure_turns)
+                editable_route = initial_step_data["internal_route"]
             elif initial_step_data["file_type"] == FILE_TYPE_CSV:
                 data = [item.decode(encoding="UTF-8") for item in initial_step_data["file"].readlines()]
                 route = create_precision_route_from_csv("route", data[1:], use_procedure_turns)
@@ -1292,6 +1303,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             corridor_width = self.get_cleaned_data_for_step("anr_corridor_override")["corridor_width"]
             if initial_step_data["internal_route"]:
                 route = initial_step_data["internal_route"].create_anr_route(rounded_corners, corridor_width)
+                editable_route = initial_step_data["internal_route"]
             else:
                 data = self.get_cleaned_data_for_step("anr_route_import")["file"]
                 data.seek(0)
@@ -1300,18 +1312,11 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             data = self.get_cleaned_data_for_step("landing_route_import")["file"]
             data.seek(0)
             route = create_landing_line_from_kml("route", data)
-        # Cheque for gate polygons that do not match a turning point
-        waypoint_names = [gate.name for gate in route.waypoints if gate.type != "secret"]
-        if route.prohibited_set.filter(type="gate"):
-            if len(waypoint_names) != len(set(waypoint_names)):
-                route.delete()
-                raise ValidationError("You cannot have multiple waypoints with the same name if you use gate polygons")
-        for gate_polygon in route.prohibited_set.filter(type="gate"):
-            if gate_polygon.name not in waypoint_names:
-                route.delete()
-                raise ValidationError(f"Gate polygon '{gate_polygon.name}' is not matched by any turning point names.")
+        # Check for gate polygons that do not match a turning point
+        route.validate_gate_polygons()
         final_data = self.get_cleaned_data_for_step("task_content")
-        navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route)
+        navigation_task = NavigationTask.objects.create(**final_data, contest=self.contest, route=route,
+                                                        editable_route=editable_route)
         # Build score overrides
         if task_type == NavigationTask.PRECISION:
             kwargs["form_dict"].get("precision_override").build_score_override(navigation_task)

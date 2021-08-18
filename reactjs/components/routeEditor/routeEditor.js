@@ -7,6 +7,7 @@ import {connect} from "react-redux";
 // import L from "leaflet";
 import "leaflet";
 import "leaflet-draw";
+import "../../pointInPolygon"
 import {Button, Container, Form, Modal, Row, Col, ToastContainer, Toast} from "react-bootstrap";
 import {divIcon, marker} from "leaflet";
 import {fetchEditableRoute} from "../../actions";
@@ -23,8 +24,8 @@ const gateTypes = [
 const featureStyles = {
     "track": {"color": "blue"},
     "to": {"color": "green"},
-    "ldg": {"color": "red"},
-    "prohibited": {"color": "red"},
+    "ldg": {"color": "crimson"},
+    "prohibited": {"color": "crimson"},
     "info": {"color": "lightblue"},
     "penalty": {"color": "orange"},
     "gate": {"color": "blue"},
@@ -70,9 +71,6 @@ class ConnectedRouteEditor extends Component {
             featureType: null,
             currentName: null,
             routeName: null,
-            gateType: null,
-            timeCheck: null,
-            gateCheck: null,
             changesSaved: false
         }
     }
@@ -85,6 +83,7 @@ class ConnectedRouteEditor extends Component {
     }
 
     reloadMap() {
+        this.clearFormData()
         this.setState({changesSaved: false, validationErrors: null, saveFailed: null})
         this.props.fetchEditableRoute(this.props.routeId)
     }
@@ -117,7 +116,7 @@ class ConnectedRouteEditor extends Component {
     saveRoute() {
         let features = []
         let errors = []
-        for (let l of this.drawnItems.getLayers()) {
+        for (let l of this.drawnItems.getLayers().filter((a) => a.layerType !== undefined)) {
             errors = errors.concat(this.validateLayer(l))
             if (["polyline", "rectangle", "polygon"].includes(l.layerType)) {
                 features.push({
@@ -217,10 +216,29 @@ class ConnectedRouteEditor extends Component {
         }
     }
 
+    highlightLayer(layer) {
+        layer.setStyle({
+            color: "red"
+        })
+    }
+
     validateLayer(layer) {
         let errors = []
         console.log("Validation")
         console.log(layer)
+        // This must be run before validating the name since it sets the name
+        if (layer.featureType === "gate") {
+            // Verify that the gate surrounds exactly one turning point, and give the gate the same name as the turning point it surrounds
+            errors = errors.concat(this.saveAndVerifyGatePolygons(layer))
+        }
+        if (layer.featureType === undefined || !layer.featureType) {
+            errors.push("Feature type has not been selected for the highlighted item")
+            this.highlightLayer(layer)
+        }
+        if (layer.name === undefined || !layer.name || layer.name === "") {
+            errors.push("Highlighted layer is missing name")
+            this.highlightLayer(layer)
+        }
         if (layer.featureType === "track") {
             if (layer.getLatLngs().length < 2) {
                 errors.push("A track must have at least two waypoints")
@@ -246,6 +264,7 @@ class ConnectedRouteEditor extends Component {
                 errors.push(layer.name + ": Must be exactly 2 points")
             }
         }
+
         return errors
     }
 
@@ -258,6 +277,33 @@ class ConnectedRouteEditor extends Component {
         }
         layer.errors = null
         return false
+    }
+
+    saveAndVerifyGatePolygons(layer) {
+        // Verify that the gate surrounds exactly one turning point, and give the gate the same name as the turning point it surrounds
+        const track = this.drawnItems.getLayers().find((l) => {
+            return l.featureType === "track"
+        })
+        if (!track) {
+            return ["You must have a track before you can start creating gate zones"]
+        }
+        let candidateWaypoints = []
+        let index = 0
+        for (const position of track.getLatLngs()) {
+            if (layer.contains(position)) {
+                candidateWaypoints.push(index)
+            }
+            index += 1
+        }
+        if (candidateWaypoints.length === 0) {
+            return ["Gate polygon must wrap exactly one turning point, currently wraps 0"]
+        }
+        if (candidateWaypoints.length > 1) {
+            return ["Gate polygon must wrap exactly one turning point, currently at wraps" + candidateWaypoints.length]
+        }
+        // Here everything is in order, so that the same name
+        layer.name = track.trackPoints[candidateWaypoints[0]].name
+        return []
     }
 
     saveLayer() {
@@ -274,33 +320,29 @@ class ConnectedRouteEditor extends Component {
         }
         let trackPoints = []
         if (this.state.featureEditLayer.featureType === "track") {
-            const positions = this.state.featureEditLayer.getLatLngs()
-            for (let i = 0; i < positions.length; i++) {
-                trackPoints.push({
-                    ...this.existingWaypointConfiguration[i],
-                    ...this.state["waypointname" + i] || {}
-                })
-            }
+            trackPoints = this.existingWaypointConfiguration
         }
         this.state.featureEditLayer.setStyle(featureStyles[this.state.featureEditLayer.featureType])
         this.state.featureEditLayer.trackPoints = trackPoints
         this.state.featureEditLayer.editing.disable()
-        this.state.featureEditLayer.initialSaved = true
         this.renderWaypointNames(this.state.featureEditLayer)
+
         console.log(this.state.featureEditLayer)
         const errors = this.validateLayer(this.state.featureEditLayer)
         this.setState({validationErrors: errors})
         if (errors.length === 0) {
-            this.setState({
-                featureEditLayer: null,
-                featureType: null,
-                currentName: null,
-                gateType: null,
-                timeCheck: null,
-                gateCheck: null,
-                changesSaved: false
-            })
+            this.clearFormData()
         }
+    }
+
+    clearFormData() {
+        this.setState({
+            featureEditLayer: null,
+            featureType: null,
+            currentName: null,
+            changesSaved: false,
+            validationErrors: []
+        })
     }
 
     renderWaypointNames(track) {
@@ -327,7 +369,7 @@ class ConnectedRouteEditor extends Component {
         }
     }
 
-    trackContent() {
+    renderWaypointsForm() {
         this.existingWaypointConfiguration = []
         return <Form.Group>
             {this.state.featureEditLayer.getLatLngs().map((position, index) => {
@@ -365,15 +407,22 @@ class ConnectedRouteEditor extends Component {
                         <Col xs={"auto"}>
                             <Form.Control type={"string"} placeholder={"Name"}
                                           defaultValue={defaultValue.name}
-                                          onChange={(e) => this.setState({["waypointname" + index]: {["name"]: e.target.value}})}/>
+                                          onChange={
+                                              (e) => {
+                                                  this.existingWaypointConfiguration[index]["name"] = e.target.value
+                                              }
+                                          }/>
                         </Col>
                         <Col xs={"auto"}>
-                            <Form.Control as="select" onChange={e => {
-                                console.log("e.target.value", e.target.value);
-                                this.setState({["waypointname" + index]: {["gateType"]: e.target.value}});
-                            }} defaultValue={defaultValue.gateType}>
+                            <Form.Control as="select"
+                                          onChange={
+                                              (e) => {
+                                                  this.existingWaypointConfiguration[index]["gateType"] = e.target.value
+                                              }
+                                          }
+                                          defaultValue={defaultValue.gateType}>
                                 {gateTypes.map((item) => {
-                                    return <option value={item[1]}>{item[0]}</option>
+                                    return <option key={item[1]} value={item[1]}>{item[0]}</option>
                                 })}
                             </Form.Control>
 
@@ -381,26 +430,32 @@ class ConnectedRouteEditor extends Component {
                         <Col xs={"auto"}>
                             <Form.Control key={"gateCheck"} placeholder={"Width"}
                                           type={"number"}
-                                          onChange={(e) => {
-                                              this.setState({["waypointname" + index]: {["gateWidth"]: e.target.value}})
+                                          onChange={
+                                              (e) => {
+                                                  this.existingWaypointConfiguration[index]["gateWidth"] = e.target.value
+                                              }
                                           }
-                                          } defaultValue={defaultValue.gateWidth}/>
+                                          defaultValue={defaultValue.gateWidth}/>
                         </Col>
                         <Col xs={"auto"}>
                             <Form.Check inline key={"gateCheck"} name={"gateCheck"} label={"Gate check"}
                                         type={"checkbox"}
-                                        onChange={(e) => {
-                                            this.setState({["waypointname" + index]: {["gateCheck"]: e.target.value}})
+                                        onChange={
+                                            (e) => {
+                                                this.existingWaypointConfiguration[index]["gateCheck"] = e.target.value
+                                            }
                                         }
-                                        } defaultChecked={defaultValue.gateCheck}/>
+                                        defaultChecked={defaultValue.gateCheck}/>
                         </Col>
                         <Col xs={"auto"}>
                             <Form.Check inline key={"timeCheck"} name={"timeCheck"} label={"Time check"}
                                         type={"checkbox"}
-                                        onChange={(e) => {
-                                            this.setState({["waypointname" + index]: {["timeCheck"]: e.target.value}})
+                                        onChange={
+                                            (e) => {
+                                                this.existingWaypointConfiguration[index]["timeCheck"] = e.target.value
+                                            }
                                         }
-                                        } defaultChecked={defaultValue.timeCheck}/>
+                                        defaultChecked={defaultValue.timeCheck}/>
                         </Col>
                     </Row>
                     <hr/>
@@ -415,11 +470,11 @@ class ConnectedRouteEditor extends Component {
         return checked || usedFeatureTypes[featureType] === undefined || usedFeatureTypes[featureType] < limits[1];
     }
 
-    renderFeatureSelect(layerType, current) {
-        const currentFeatureType = this.state.featureType || current
-        let options = featureTypes[layerType] || []
+    renderFeatureSelect(layer) {
+        const currentFeatureType = this.state.featureType || layer.featureType
+        let options = featureTypes[layer.layerType] || []
         const checkboxes = options.map((item) => {
-            const checked = current === item[1]
+            const checked = layer.featureType === item[1]
             return <Form.Check inline key={item[1]} name={"featureType"} label={item[0]} type={"radio"}
                                onChange={(e) => {
                                    this.setState({featureType: item[1]})
@@ -428,9 +483,18 @@ class ConnectedRouteEditor extends Component {
         })
         let extra = null
         if (currentFeatureType === "track") {
-            extra = this.trackContent()
+            extra = this.renderWaypointsForm()
         }
         return <div>
+            {layer.layerType !== "polyline" && currentFeatureType !== "gate" ?
+                <div>
+                    <Form.Label>Feature name:</Form.Label>&nbsp;
+                    <Form.Control name={"feature_name"} type={"string"} placeholder={"Name"}
+                                  defaultValue={layer.name}
+                                  onChange={(e) => this.setState({currentName: e.target.value})}
+                    />
+                </div> : null
+            }
             {checkboxes}
             {extra}
         </div>
@@ -443,16 +507,8 @@ class ConnectedRouteEditor extends Component {
                 <ul>{this.state.validationErrors ? this.state.validationErrors.map((item) =>
                     <li>{item}</li>) : null}</ul>
             </div>
-            {layer.layerType !== "polyline" ?
-                <div>
-                    <Form.Label>Feature name:</Form.Label>&nbsp;
-                    <Form.Control name={"feature_name"} type={"string"} placeholder={"Name"}
-                                  defaultValue={layer.name}
-                                  onChange={(e) => this.setState({currentName: e.target.value})}
-                    />
-                </div> : null
-            }
-            {this.renderFeatureSelect(layer.layerType, layer.featureType)}
+
+            {this.renderFeatureSelect(layer)}
         </Form>
     }
 
@@ -474,7 +530,10 @@ class ConnectedRouteEditor extends Component {
             <Modal.Footer>
                 <Button onClick={() => this.saveLayer()}>Save</Button>
                 <Button variant={"secondary"}
-                        onClick={() => this.setState({featureEditLayer: null, validationErrors: null})}>Cancel</Button>
+                        onClick={() => {
+                            this.clearFormData()
+                            this.setState({featureEditLayer: null, validationErrors: null})
+                        }}>Cancel</Button>
                 {this.state.featureEditLayer && !this.state.featureEditLayer.editing.enabled() ?
                     <Button onClick={() => {
                         this.state.featureEditLayer.editing.enable()
@@ -483,7 +542,7 @@ class ConnectedRouteEditor extends Component {
                 <Button variant={"danger"} onClick={() => {
                     this.state.featureEditLayer.waypointNamesFeatureGroup.clearLayers()
                     this.drawnItems.removeLayer(this.state.featureEditLayer)
-                    this.setState({featureEditLayer: null})
+                    this.clearFormData()
                 }}>Delete
                 </Button>
             </Modal.Footer>
@@ -531,25 +590,27 @@ class ConnectedRouteEditor extends Component {
             this.map.setView(L.latLng(59, 10.5), 7)
         })
         this.map.locate({setView: true, maxZoom: 7})
-
-        this.map.addControl(new L.Control.Draw({
-            // edit: {
-            //     featureGroup: this.drawnItems,
-            //     poly: {
-            //         allowIntersection: false
-            //     }
-            // },
-            draw: {
-                marker: false,
-                rectangle: false,
-                circle: false,
-                circlemarker: false,
-                polygon: {
-                    allowIntersection: false,
-                    showArea: true
+        this.map.whenReady(() => {
+            this.map.addControl(new L.Control.Draw({
+                // edit: {
+                //     featureGroup: this.drawnItems,
+                //     poly: {
+                //         allowIntersection: false
+                //     }
+                // },
+                draw: {
+                    marker: false,
+                    rectangle: false,
+                    circle: false,
+                    circlemarker: false,
+                    polygon: {
+                        allowIntersection: false,
+                        showArea: true
+                    }
                 }
-            }
-        }));
+            }));
+        })
+
         this.map.on(L.Draw.Event.EDITED, (event) => {
             const layers = event.layers;
             layers.eachLayer((layer) => {
@@ -564,7 +625,12 @@ class ConnectedRouteEditor extends Component {
         this.map.on(L.Draw.Event.CREATED, (event) => {
             console.log(event)
             const layer = event.layer;
-            this.configureLayer(layer, null, event.layerType, null, [])
+            let featureType = null
+            if (this.isFeatureSelectable("track", false) && event.layerType === "polyline") {
+                featureType = "track"
+
+            }
+            this.configureLayer(layer, null, event.layerType, featureType, [])
             this.setState({featureEditLayer: layer})
         });
 

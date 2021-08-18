@@ -16,7 +16,7 @@ from display.views import frontend_view_map, \
     clear_results_service, delete_score_item, \
     terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules, frontend_playback_map, \
     share_contest, share_navigation_task, get_persons_for_signup, get_contestant_default_map, \
-    get_contestant_email_map_link, EditableRouteList, EditableRouteDeleteView
+    get_contestant_email_map_link, EditableRouteList, EditableRouteDeleteView, refresh_editable_route_navigation_task
 
 urlpatterns = [
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
@@ -42,6 +42,7 @@ urlpatterns = [
     path('navigationtask/<int:pk>/update/', NavigationTaskUpdateView.as_view(), name="navigationtask_update"),
     path('navigationtask/<int:pk>/delete/', NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),
     path('navigationtask/<int:pk>/share/', share_navigation_task, name="navigationtask_share"),
+    path('navigationtask/<int:pk>/refresheditableroute/', refresh_editable_route_navigation_task, name="navigationtask_refresheditableroute"),
     path('navigationtask/<int:pk>/add_contestants/', add_contest_teams_to_navigation_task,
          name="navigationtask_addcontestants"),
     path('navigationtask/<int:pk>/remove_contestants/', clear_future_contestants,

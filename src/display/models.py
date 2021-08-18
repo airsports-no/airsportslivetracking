@@ -143,6 +143,17 @@ class Route(models.Model):
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} ({waypoint.distance_next}m) should be greater than 200m if not this or the next gate are secret"
                 )
 
+    def validate_gate_polygons(self):
+        waypoint_names = [gate.name for gate in self.waypoints if gate.type != "secret"]
+        if self.prohibited_set.filter(type="gate"):
+            if len(waypoint_names) != len(set(waypoint_names)):
+                self.delete()
+                raise ValidationError("You cannot have multiple waypoints with the same name if you use gate polygons")
+        for gate_polygon in self.prohibited_set.filter(type="gate"):
+            if gate_polygon.name not in waypoint_names:
+                self.delete()
+                raise ValidationError(f"Gate polygon '{gate_polygon.name}' is not matched by any turning point names.")
+
     def __str__(self):
         return self.name
 
@@ -555,6 +566,7 @@ class NavigationTask(models.Model):
     )
     track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True, blank=True)
     gate_score_override = models.ManyToManyField("GateScoreOverride", blank=True)
+    editable_route = models.ForeignKey("EditableRoute", on_delete=models.SET_NULL, null=True, blank=True)
     score_sorting_direction = models.CharField(
         default=ASCENDING,
         choices=SORTING_DIRECTION,
@@ -659,6 +671,23 @@ class NavigationTask(models.Model):
 
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.isoformat())
+
+    def refresh_editable_route(self):
+        if self.contestant_set.all().count() > 0:
+            raise ValidationError("Cannot refresh the route as long as they are contestants")
+        if self.editable_route is None:
+            raise ValidationError("There is no route to refresh")
+        route = None
+        if self.scorecard.calculator in (Scorecard.PRECISION, Scorecard.POKER):
+            route = self.editable_route.create_precision_route(self.route.use_procedure_turns)
+        elif self.scorecard.calculator == Scorecard.ANR_CORRIDOR:
+            route = self.editable_route.create_anr_route(self.route.rounded_corners,
+                                                         self.scorecard.get_corridor_width(None))
+        if route:
+            old_route = self.route
+            self.route = route
+            self.save()
+            old_route.delete()
 
     def make_public(self):
         self.is_public = True
@@ -2221,7 +2250,7 @@ class EditableRoute(models.Model):
             return None
 
     @staticmethod
-    def _get_feature_coordinates(feature: Dict, flip:bool = True) -> List[Tuple[float, float]]:
+    def _get_feature_coordinates(feature: Dict, flip: bool = True) -> List[Tuple[float, float]]:
         """
         Switch lon, lat to lat, lon.
         :param feature:

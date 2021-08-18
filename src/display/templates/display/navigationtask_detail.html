@@ -15,6 +15,9 @@
         {% if "change_contest" in contest_permissions %}
             <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a> |
             <a href="{% url 'navigationtask_removecontestants' object.pk %}">Remove contestants</a> |
+            {% if object.editable_route %}
+                <a href="{% url 'navigationtask_refresheditableroute' object.pk %}">Reload route</a> |
+            {% endif %}
         {% endif %}
         <a href="{% url 'navigationtask_contestantstimeline' object.pk %}">Timeline</a> |
         <a href="{% url 'navigationtask_qr' object.pk %}">QR</a> |
@@ -50,7 +53,8 @@
                 </td>
                 <td>
                     {% for tracker in contestant.tracker_id_display %}
-                        {{ tracker.tracker }}{% if not tracker.has_user %}<a href="#" data-toggle="tooltip" title="The user for the tracker is not registered. This probably means that the user has not downloaded and logged into the app.">*</a>
+                        {{ tracker.tracker }}{% if not tracker.has_user %}<a href="#" data-toggle="tooltip"
+                                                                             title="The user for the tracker is not registered. This probably means that the user has not downloaded and logged into the app.">*</a>
                         {% endif %}
                         <br/>
                     {% endfor %}
