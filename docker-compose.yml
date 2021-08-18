@@ -142,7 +142,7 @@ services:
                "/wait-for-it.sh", "influx:8086", "--",
                "bash", "-c", "celery -A live_tracking_map beat -l DEBUG -f /logs/celery.log" ]
 
-    container_name: tracker_celery
+    container_name: tracker_beat
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
       - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
