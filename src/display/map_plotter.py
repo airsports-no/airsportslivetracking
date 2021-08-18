@@ -1001,25 +1001,25 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     waypoint = contestant.navigation_task.route.waypoints[0]  # type: Waypoint
     country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
     map_source = country_code_to_map_source(country_code)
-    # map_image, pdf_image = plot_route(
-    #     contestant.navigation_task,
-    #     A4,
-    #     zoom_level=12,
-    #     landscape=False,
-    #     contestant=contestant,
-    #     annotations=True,
-    #     waypoints_only=False,
-    #     dpi=300,
-    #     scale=SCALE_TO_FIT,
-    #     map_source=map_source,
-    #     line_width=2,
-    #     colour="#0000ff",
-    # )
-    # mapimage_file = NamedTemporaryFile(suffix=".png")
-    # mapimage_file.write(map_image.read())
-    # mapimage_file.seek(0)
-    # pdf.image(mapimage_file.name, x=0, y=0, h=297)
-    # insert_turning_point_images(contestant, pdf)
+    map_image, pdf_image = plot_route(
+        contestant.navigation_task,
+        A4,
+        zoom_level=12,
+        landscape=False,
+        contestant=contestant,
+        annotations=True,
+        waypoints_only=False,
+        dpi=300,
+        scale=SCALE_TO_FIT,
+        map_source=map_source,
+        line_width=2,
+        colour="#0000ff",
+    )
+    mapimage_file = NamedTemporaryFile(suffix=".png")
+    mapimage_file.write(map_image.read())
+    mapimage_file.seek(0)
+    pdf.image(mapimage_file.name, x=0, y=0, h=297)
+    insert_turning_point_images(contestant, pdf)
     return pdf.output(dest="S").encode('latin-1')
 
 
