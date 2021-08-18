@@ -1029,7 +1029,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         dpi=300,
         scale=SCALE_TO_FIT,
         map_source=map_source,
-        line_width=2,
+        line_width=1.5,
         colour="#0000ff",
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")
