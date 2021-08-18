@@ -963,6 +963,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.set_margins(0, 0)
     pdf.add_page()
     pdf.set_font('Arial', 'B', 16)
+    pdf.ln(10)
     pdf.cell(0, txt=f"Welcome to", align="C", ln=1)
     pdf.ln(10)
     pdf.cell(0, txt=f"{contestant.navigation_task.contest.name}", align="C", ln=1)
