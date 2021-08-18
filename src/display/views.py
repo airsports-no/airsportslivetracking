@@ -1141,7 +1141,8 @@ def add_contest_teams_to_navigation_task(request, pk):
 
 
 if settings.PRODUCTION:
-    connection = Redis(unix_socket_path="/tmp/docker/redis.sock")
+    connection = Redis("redis")
+    # connection = Redis(unix_socket_path="/tmp/docker/redis.sock")
 else:
     connection = Redis("redis")
 

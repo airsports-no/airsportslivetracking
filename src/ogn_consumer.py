@@ -121,7 +121,8 @@ def process_beacon(raw_message):
 
 
 if __name__ == "__main__":
-    redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
+    redis = StrictRedis("redis")
+    # redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
     redis.delete(REDIS_GLOBAL_POSITIONS_KEY)
     client = AprsClient(aprs_user='N0CALL')
     client.connect()

@@ -75,7 +75,8 @@ class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
         if settings.PRODUCTION:
-            self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
+            self.redis = StrictRedis("redis")
+            # self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
         else:
             self.redis = StrictRedis("redis")
 
