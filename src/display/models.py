@@ -1431,6 +1431,22 @@ class Contestant(models.Model):
             traccar.get_or_create_device(self.tracker_device_id, self.tracker_device_id)
         super().save(**kwargs)
 
+    def get_formatted_rules_description(self):
+        text = ""
+        scorecard = self.navigation_task.scorecard
+        if self.navigation_task.scorecard.calculator == Scorecard.PRECISION:
+            gate_sizes = [item.width for item in self.navigation_task.route.waypoints]
+            text = f"""For this task the turning point gate width is between {min(gate_sizes)} and {max(gate_sizes)} nm.
+ The penalty for 
+crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds.
+Crossing the extended starting line ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp", self)} nm) gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self)}
+{"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
+            """
+        if self.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
+            text=f"""For this task the ANR corridor width is {self.navigation_task.scorecard.get_corridor_width(self)} nm. 
+{scorecard.get_corridor_outside_penalty(self)} point(s) is awarded per second outside the corridor for more than {scorecard.get_corridor_grace_time(self)} seconds."""
+        return text
+
     def __str__(self):
         return "{} - {}".format(self.contestant_number, self.team)
         # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.navigation_task.name, self.takeoff_time,
@@ -2207,27 +2223,26 @@ class EmailMapLink(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
+    orders = MyPickledObjectField()
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def send_email(self, user: MyUser):
+    def send_email(self, email_address: str, first_name: str):
         url = "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
         starting_point_time = self.contestant.takeoff_time + datetime.timedelta(
             minutes=self.contestant.navigation_task.minutes_to_starting_point)
         starting_point_time_string = starting_point_time.strftime("%Y-%m-%d %H:%M:%S")
         tracking_start_time_string = self.contestant.tracker_start_time.strftime("%Y-%m-%d %H:%M:%S")
-        user.email_user(
-            f"Navigation map for task {self.contestant.navigation_task.name}",
-            f"Here is the link to download an annotated navigation map for use in your navigation task "
-            f"{self.contestant.navigation_task.name} with takeoff time {self.contestant.takeoff_time} "
-            f"{'and adaptive start' if self.contestant.adaptive_start else ''}.<p>"
-            f"<a href='{url}'>Map link</a><p>The link is valid for two hours.",
-            html_message=f"Hi {user.first_name}<p>Here is the link to download an annotated navigation map for use in "
+        send_mail(
+            f"Flight orders for task {self.contestant.navigation_task.name}",
+            f"Here is the link to download the flight orders for your navigation task ",
+            None,  # Should default to system from email
+            recipient_list=[email_address],
+            html_message=f"Hi {first_name}<p>Here is the link to download the flight orders for  "
                          f"your navigation task "
                          f"{self.contestant.navigation_task.name} with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
-                         f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p> The exact gate times are printed on the "
-                         f"map. Note that generation the map can take up to a few minutes. The result is a relatively "
-                         f"large image with a size up to 20 MB.<p>"
+                         f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p>"
                          f"<a href='{url}'>Map link</a><p>Regards, <br>The Airsports Live Tracking team",
+
         )
 
 

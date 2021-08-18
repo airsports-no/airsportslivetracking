@@ -16,12 +16,15 @@ from cartopy.io.img_tiles import OSM, GoogleWTS, GoogleTiles
 import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
-from fpdf import FPDF
+from fpdf import FPDF, HTMLMixin
 from matplotlib import patheffects
 from matplotlib.transforms import Bbox
 from shapely.geometry import Polygon
 
 from geopy.geocoders import Nominatim
+
+class MyFPDF(FPDF, HTMLMixin):
+    pass
 
 from display.coordinate_utilities import (
     calculate_distance_lat_lon,
@@ -952,37 +955,50 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     :param contestant:
     :return:
     """
-    from display.forms import PORTRAIT, SCALE_TO_FIT
+    from display.forms import SCALE_TO_FIT
     starting_point_time = contestant.takeoff_time + datetime.timedelta(
         minutes=contestant.navigation_task.minutes_to_starting_point)
     starting_point_time_string = starting_point_time.strftime("%Y-%m-%d %H:%M:%S")
     tracking_start_time_string = contestant.tracker_start_time.strftime("%Y-%m-%d %H:%M:%S")
     finish_tracking_time = contestant.finished_by_time.strftime("%Y-%m-%d %H:%M:%S")
-    pdf = FPDF(orientation='P', unit='mm', format='A4')
+    head_html = f"""
+<table border="0" width="100%">
+<thead><tr><th width="30%"></th><th width="70%"></th></tr></thead>
+<tr><td><b>Contestant:</b></td><td>{contestant}</td></tr>
+<tr><td><b>Task type:</b></td><td>{contestant.navigation_task.scorecard.get_calculator_display()}</td></tr>
+<tr><td><b>Airspeed:</b></td><td>{"{:.0f}".format(contestant.air_speed)} knots</td></tr>
+<tr><td><b>Task wind:</b></td><td>{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}</td></tr>
+<tr><td><b>Departure:</b></td><td>{contestant.takeoff_time.strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}</td></tr>
+<tr><td><b>Start point:</b></td><td>{starting_point_time_string if not contestant.adaptive_start else 'Adaptive start'}</td></tr>
+</table>
+{f"Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
+"""
+
+    pdf = MyFPDF(orientation='P', unit='mm', format='A4')
     # 210 x 297 mm
-    pdf.set_margins(0, 0)
     pdf.add_page()
+    print(os.getcwd())
     pdf.set_font('Arial', 'B', 16)
-    pdf.ln(10)
+    pdf.image("static/img/airsports_no_text.png", x=170, y=10, w=30)
+    pdf.ln(5)
+    # pdf.cell(60)
     pdf.cell(0, txt=f"Welcome to", align="C", ln=1)
     pdf.ln(10)
+    # pdf.cell(60)
+    pdf.set_text_color(0, 128, 0)
     pdf.cell(0, txt=f"{contestant.navigation_task.contest.name}", align="C", ln=1)
     pdf.ln(10)
+    # pdf.cell(60)
+    pdf.set_text_color(194, 16, 16)
     pdf.cell(0, txt=f"{contestant.navigation_task.name}", align="C", ln=1)
     pdf.ln(10)
-    pdf.cell(0, txt=f"Contestant: {contestant}")
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.write_html(head_html)
     pdf.ln(10)
-    pdf.cell(0,
-             txt=f"Departure: {contestant.takeoff_time.strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take of time is not measured'}")
-    pdf.ln(10)
-    pdf.cell(0, txt=f"Start point: {starting_point_time_string if not contestant.adaptive_start else 'Adaptive start'}")
-    pdf.ln(10)
-    if contestant.adaptive_start:
-        pdf.cell(0,
-                 txt=f"Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time.",
-                 ln=1)
-        pdf.cell(0,
-                 txt=f"Total tracing period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}")
+    pdf.write_html(f"""
+<b>Rules</b><br/>{contestant.get_formatted_rules_description()}
+    """)
 
     starting_point = generate_turning_point_image(contestant.navigation_task.route.waypoints, 0)
     starting_point_file = NamedTemporaryFile(suffix=".png")
@@ -1019,6 +1035,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     mapimage_file = NamedTemporaryFile(suffix=".png")
     mapimage_file.write(map_image.read())
     mapimage_file.seek(0)
+    # Negative values to account for margins
     pdf.image(mapimage_file.name, x=0, y=0, h=297)
     insert_turning_point_images(contestant, pdf)
     return pdf.output(dest="S").encode('latin-1')

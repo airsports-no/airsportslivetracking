@@ -185,7 +185,7 @@ from display.serialisers import (
     SelfManagementSerialiser, OngoingNavigationSerialiser, EditableRouteSerialiser,
 )
 from display.show_slug_choices import ShowChoicesMetadata
-from display.tasks import import_gpx_track
+from display.tasks import import_gpx_track, generate_and_notify_flight_order
 from display.traccar_factory import get_traccar_instance
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
@@ -449,7 +449,7 @@ def tracking_qr_code_view(request, pk):
         request,
         "display/tracking_qr_code.html",
         {
-            "url": "https://tracking.airsports.no{}".format(url),
+            "url": "https://airsports.no{}".format(url),
             "navigation_task": NavigationTask.objects.get(pk=pk),
         },
     )
@@ -652,29 +652,10 @@ def get_contestant_default_map(request, pk):
     return response
 
 
-def get_contestant_email_map_link(request, key):
+def get_contestant_email_flight_orders_link(request, key):
     map_link = get_object_or_404(EmailMapLink, id=key)
-    waypoint = map_link.contestant.navigation_task.route.waypoints[0]  # type: Waypoint
-    country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
-    map_source = country_code_to_map_source(country_code)
-    map_image, pdf_image = plot_route(
-        map_link.contestant.navigation_task,
-        A4,
-        zoom_level=12,
-        landscape=LANDSCAPE,
-        contestant=map_link.contestant,
-        annotations=True,
-        waypoints_only=False,
-        dpi=300,
-        scale=SCALE_TO_FIT,
-        map_source=map_source,
-        line_width=1,
-        colour="#0000ff",
-    )
-    response = HttpResponse(map_image, content_type="image/png")
-    response["Content-Disposition"] = f"attachment; filename=map.png"
-    # response = HttpResponse(pdf_image, content_type="application/pdf")
-    # response["Content-Disposition"] = f"attachment; filename=map.pdf"
+    response = HttpResponse(map_link.orders, content_type="application/pdf")
+    response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
     return response
 
 
@@ -684,6 +665,18 @@ def get_contestant_email_flying_orders_link(request, pk):
     response = HttpResponse(report, content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
     return response
+
+
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+def broadcast_navigation_task_orders(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    contestants = navigation_task.contestant_set.filter(
+            tracker_start_time__gt=datetime.datetime.now(datetime.timezone.utc))
+    for contestant in contestants:
+        generate_and_notify_flight_order.apply_async(
+            (contestant.pk, contestant.team.crew.member1.email, contestant.team.crew.member1.first_name))
+    messages.success(request, f"Started generating flight orders for {contestants.count()} contestants")
+    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
@@ -2175,8 +2168,7 @@ class NavigationTaskViewSet(ModelViewSet):
             logger.debug(f"Finished by time is {contestant.finished_by_time}")
 
             contestant.save()
-            mail_link = EmailMapLink.objects.create(contestant=contestant)
-            mail_link.send_email(request.user)
+            generate_and_notify_flight_order.apply_async((contestant.pk, request.user.email, request.user.first_name))
             logger.debug("Updated contestant")
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
