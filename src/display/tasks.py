@@ -36,7 +36,7 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
     insert_gpx_file(contestant, base64.decodebytes(gpx_file.encode("utf-8")), influx)
 
 
-@app.task
+@shared_task
 def generate_and_notify_flight_order(contestant_pk: int, email: str, first_name: str):
     try:
         contestant = Contestant.objects.get(pk=contestant_pk)
