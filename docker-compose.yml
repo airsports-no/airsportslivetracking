@@ -107,7 +107,7 @@ services:
   tracker_celery:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log" ]
+               "bash", "-c", "celery -A live_tracking_map worker -B -l DEBUG -f /logs/celery.log" ]
 
     container_name: tracker_celery
     environment:
