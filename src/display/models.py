@@ -1439,7 +1439,7 @@ class Contestant(models.Model):
             text = f"""For this task the turning point gate width is between {min(gate_sizes)} and {max(gate_sizes)} nm.
  The penalty for 
 crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds.
-Crossing the extended starting line ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp", self)} nm) gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self)}
+Crossing the extended starting line before start ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp", self)} nm) gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self)}
 {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
             """
         if self.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
