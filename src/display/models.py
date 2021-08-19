@@ -1577,11 +1577,11 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         if self.pk is not None:
             original = Contestant.objects.get(pk=self.pk)
             if original.calculator_started:
-                if original.takeoff_time != self.takeoff_time:
+                if original.takeoff_time.replace(microsecond=0) != self.takeoff_time.replace(microsecond=0):
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change takeoff time from {original.takeoff_time} to {self.takeoff_time}"
                     )
-                if original.tracker_start_time != self.tracker_start_time:
+                if original.tracker_start_time.replace(microsecond=0) != self.tracker_start_time.replace(microsecond=0):
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change tracker start time"
                     )
@@ -1988,6 +1988,18 @@ class ContestantTrack(models.Model):
     def set_calculator_started(self):
         self.refresh_from_db()
         self.calculator_started = True
+        self.save()
+        self.__push_change()
+
+    def set_passed_starting_gate(self):
+        self.refresh_from_db()
+        self.passed_starting_gate = True
+        self.save()
+        self.__push_change()
+
+    def set_passed_finish_gate(self):
+        self.refresh_from_db()
+        self.passed_finish_gate = True
         self.save()
         self.__push_change()
 
