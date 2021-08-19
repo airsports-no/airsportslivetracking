@@ -1,4 +1,5 @@
 import glob
+import logging
 from io import BytesIO
 from tempfile import TemporaryFile, NamedTemporaryFile
 
@@ -23,8 +24,10 @@ from shapely.geometry import Polygon
 
 from geopy.geocoders import Nominatim
 
+
 class MyFPDF(FPDF, HTMLMixin):
     pass
+
 
 from display.coordinate_utilities import (
     calculate_distance_lat_lon,
@@ -50,6 +53,8 @@ from display.models import Route, Contestant, NavigationTask, Scorecard
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
+
+logger = logging.getLogger(__name__)
 
 
 def get_country_code_from_location(latitude: float, longitude: float):
@@ -1039,7 +1044,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     mapimage_file.seek(0)
     # Negative values to account for margins
     pdf.image(mapimage_file.name, x=0, y=0, h=297)
-    if contestant.navigation_task.scorecard.calculator!=Scorecard.ANR_CORRIDOR:
+    if contestant.navigation_task.scorecard.calculator != Scorecard.ANR_CORRIDOR:
         insert_turning_point_images(contestant, pdf)
     return pdf.output(dest="S").encode('latin-1')
 

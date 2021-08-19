@@ -95,6 +95,7 @@ services:
       - ./reactjs:/reactjs/
       - ./data:/data/
       - ./daphnelog:/logs/
+      - ./mapserver:/maptiles
     volumes_from:
       - tmp
     depends_on:
@@ -129,6 +130,7 @@ services:
       - ./reactjs:/reactjs/
       - ./data:/data/
       - ./celerylog:/logs/
+      - ./mapserver:/maptiles
     volumes_from:
       - tmp
     depends_on:
