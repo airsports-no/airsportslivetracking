@@ -2,19 +2,17 @@ import base64
 import datetime
 import logging
 
-from celery import shared_task, Celery
 from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
 
 from display.map_plotter import generate_flight_orders
 from influx_facade import InfluxFacade
 from display.models import Contestant, EmailMapLink, MyUser
+from live_tracking_map.celery import app
 from playback_tools import insert_gpx_file
 
 influx = InfluxFacade()
 logger = logging.getLogger(__name__)
-
-app = Celery()
 
 
 @app.on_after_configure.connect
@@ -28,11 +26,11 @@ def setup_periodic_tasks(sender, **kwargs):
         10, debug.s()
     )
 
-@shared_task
+@app.task
 def debug():
     print(debug)
 
-@shared_task
+@app.task
 def import_gpx_track(contestant_pk: int, gpx_file: str):
     try:
         contestant = Contestant.objects.get(pk=contestant_pk)
@@ -42,7 +40,7 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
     insert_gpx_file(contestant, base64.decodebytes(gpx_file.encode("utf-8")), influx)
 
 
-@shared_task
+@app.task
 def generate_and_notify_flight_order(contestant_pk: int, email: str, first_name: str):
     try:
         contestant = Contestant.objects.get(pk=contestant_pk)

@@ -1440,11 +1440,16 @@ class Contestant(models.Model):
  The penalty for 
 crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds.
 Crossing the extended starting line before start ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp", self)} nm) gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self)}
+Flying off track by more than {"{:.04}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.get_backtracking_grace_time_seconds(self)} seconds
+gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
+Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_prohibited_zone_penalty(self))} points.
 {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
             """
         if self.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
-            text = f"""For this task the ANR corridor width is {self.navigation_task.scorecard.get_corridor_width(self)} nm. 
-{scorecard.get_corridor_outside_penalty(self)} point(s) is awarded per second outside the corridor for more than {scorecard.get_corridor_grace_time(self)} seconds."""
+            text = f"""For this task the ANR corridor width is {"{:.1f}".format(self.navigation_task.scorecard.get_corridor_width(self))} nm. 
+Flying outside of the corridor more than 
+{scorecard.get_corridor_grace_time(self)} seconds gives a penalty of {"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second. 
+There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg.  Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_prohibited_zone_penalty(self))} points."""
         return text
 
     def __str__(self):

@@ -63,3 +63,6 @@ sentry-sdk
 ogn-client
 uvicorn[standard]
 FPDF
+flower
+django-celery-results
+django-celery-beat

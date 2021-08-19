@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+from pytz import UTC
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 ADMINS = [("admin", "test@test.com")]
@@ -55,6 +56,8 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "rest_framework",
     "rest_framework.authtoken",
+    # "django_celery_beat",
+    "django_celery_results",
     "timezone_field",
     "webpack_loader",
     "bootstrap4",
@@ -315,10 +318,16 @@ CACHES = {
 
 # celery
 CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
-CELERY_RESULT_BACKEND = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
-CELERY_ACCEPT_CONTENT = ["application/json"]
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_BACKEND = "django-db"
+
+# CELERY_ACCEPT_CONTENT = ["application/json"]
+# CELERY_RESULT_SERIALIZER = "json"
+# CELERY_TASK_SERIALIZER = "json"
+CELERY_TIMEZONE = UTC
+CELERY_ENABLE_UTC = True
+CELERY_TASK_ACKS_LATE = False
+CELERY_BEAT_SCHEDULE = {
+}
 
 ASGI_APPLICATION = "live_tracking_map.asgi.application"
 CHANNEL_LAYERS = {

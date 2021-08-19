@@ -654,8 +654,8 @@ def get_contestant_default_map(request, pk):
 
 def get_contestant_email_flight_orders_link(request, key):
     map_link = get_object_or_404(EmailMapLink, id=key)
-    orders = generate_flight_orders(map_link.contestant)
-    response = HttpResponse(orders, content_type="application/pdf")
+    # orders = generate_flight_orders(map_link.contestant)
+    response = HttpResponse(map_link.orders, content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
     return response
 
@@ -2170,9 +2170,9 @@ class NavigationTaskViewSet(ModelViewSet):
 
             contestant.save()
             logger.debug("Updated contestant")
-            mail_link = EmailMapLink.objects.create(contestant=contestant)
-            mail_link.send_email(request.user.email, request.user.first_name)
-            # generate_and_notify_flight_order.apply_async((contestant.pk, request.user.email, request.user.first_name))
+            # mail_link = EmailMapLink.objects.create(contestant=contestant)
+            # mail_link.send_email(request.user.email, request.user.first_name)
+            generate_and_notify_flight_order.apply_async((contestant.pk, request.user.email, request.user.first_name))
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
             # Delete all contestants that have not finished yet where I am the pilot

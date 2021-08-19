@@ -39,7 +39,7 @@ services:
   tracker_celery:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log" ]
+               "bash", "-c", "celery -A live_tracking_map worker -E -l DEBUG -f /logs/celery.log" ]
 #               "bash",  "-c", "sleep 100m" ]
 
     container_name: tracker_celery
@@ -55,10 +55,14 @@ services:
       - ./reactjs:/reactjs
       - ./data:/data
       - ./celerylog:/logs
+    environment:
+      - MODE=dev
     depends_on:
       - mysql
       - influx
       - redis
+    ports:
+      - "5555:5555"
 
 
   tracker_processor:
