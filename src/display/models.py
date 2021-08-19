@@ -2243,11 +2243,11 @@ class EmailMapLink(models.Model):
             f"Here is the link to download the flight orders for your navigation task ",
             None,  # Should default to system from email
             recipient_list=[email_address],
-            html_message=f"Hi {first_name}<p>Here is the link to download the flight orders for  "
+            html_message=f"Hi {first_name},<p>Here is the link to download the flight orders for  "
                          f"your navigation task "
-                         f"{self.contestant.navigation_task.name} with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
+                         f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
                          f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p>"
-                         f"<a href='{url}'>Map link</a><p>Regards, <br>The Airsports Live Tracking team",
+                         f"<a href='{url}'>Flight orders link</a><p>Regards, <br>The Airsports Live Tracking team",
 
         )
 
