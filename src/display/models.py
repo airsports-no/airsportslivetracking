@@ -1447,9 +1447,10 @@ Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_pro
             """
         if self.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
             text = f"""For this task the ANR corridor width is {"{:.1f}".format(self.navigation_task.scorecard.get_corridor_width(self))} nm. 
-Flying outside of the corridor more than 
-{scorecard.get_corridor_grace_time(self)} seconds gives a penalty of {"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second. 
-There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg.  Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_prohibited_zone_penalty(self))} points."""
+Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of {"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second."""
+            if scorecard.get_corridor_maximum_penalty(self) != -1:
+                text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg."""
+            text += f""" Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_prohibited_zone_penalty(self))} points."""
         return text
 
     def __str__(self):

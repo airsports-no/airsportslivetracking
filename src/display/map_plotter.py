@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.models import Route, Contestant, NavigationTask
+from display.models import Route, Contestant, NavigationTask, Scorecard
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
@@ -970,8 +970,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 <tr><td><b>Task wind:</b></td><td>{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}</td></tr>
 <tr><td><b>Departure:</b></td><td>{contestant.takeoff_time.strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}</td></tr>
 <tr><td><b>Start point:</b></td><td>{starting_point_time_string if not contestant.adaptive_start else 'Adaptive start'}</td></tr>
-</table>
-{f"Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
+</table>{f"Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
 """
 
     pdf = MyFPDF(orientation='P', unit='mm', format='A4')
@@ -982,22 +981,25 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.image("static/img/airsports_no_text.png", x=170, y=10, w=30)
     pdf.ln(5)
     # pdf.cell(60)
-    pdf.cell(0, txt=f"Welcome to", align="C", ln=1)
+    pdf.cell(170, txt=f"Welcome to", align="C", ln=1)
     pdf.ln(10)
     # pdf.cell(60)
     pdf.set_text_color(0, 128, 0)
-    pdf.cell(0, txt=f"{contestant.navigation_task.contest.name}", align="C", ln=1)
+    pdf.cell(170, txt=f"{contestant.navigation_task.contest.name}", align="C", ln=1)
     pdf.ln(10)
     # pdf.cell(60)
     pdf.set_text_color(194, 16, 16)
-    pdf.cell(0, txt=f"{contestant.navigation_task.name}", align="C", ln=1)
+    pdf.cell(170, txt=f"{contestant.navigation_task.name}", align="C", ln=1)
     pdf.ln(10)
     pdf.set_text_color(0, 0, 0)
     pdf.set_font('Arial', 'B', 12)
     pdf.write_html(head_html)
     pdf.ln(10)
+    pdf.write_html(f"""<b>Rules</b><br/>{contestant.get_formatted_rules_description()}
+    """)
     pdf.write_html(f"""
-<b>Rules</b><br/>{contestant.get_formatted_rules_description()}
+    <p><center><h2>Good luck</h2></center>
+    <img src="static/img/AirSportsLiveTracking.png" width="110"/>
     """)
 
     starting_point = generate_turning_point_image(contestant.navigation_task.route.waypoints, 0)
@@ -1037,7 +1039,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     mapimage_file.seek(0)
     # Negative values to account for margins
     pdf.image(mapimage_file.name, x=0, y=0, h=297)
-    insert_turning_point_images(contestant, pdf)
+    if contestant.navigation_task.scorecard.calculator!=Scorecard.ANR_CORRIDOR:
+        insert_turning_point_images(contestant, pdf)
     return pdf.output(dest="S").encode('latin-1')
 
 
