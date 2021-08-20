@@ -672,7 +672,7 @@ def get_contestant_email_flying_orders_link(request, pk):
 def broadcast_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestants = navigation_task.contestant_set.filter(
-            tracker_start_time__gt=datetime.datetime.now(datetime.timezone.utc))
+        tracker_start_time__gt=datetime.datetime.now(datetime.timezone.utc))
     for contestant in contestants:
         generate_and_notify_flight_order.apply_async(
             (contestant.pk, contestant.team.crew.member1.email, contestant.team.crew.member1.first_name))
@@ -2175,11 +2175,25 @@ class NavigationTaskViewSet(ModelViewSet):
             generate_and_notify_flight_order.apply_async((contestant.pk, request.user.email, request.user.first_name))
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
-            # Delete all contestants that have not finished yet where I am the pilot
+            # Delete all contestants that have not started yet where I am the pilot
             navigation_task.contestant_set.filter(
                 finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
                 team__crew__member1__email=request.user.email,
+                contestanttrack__calculator_started=False
             ).delete()
+            # Terminate ongoing contestants
+            ongoing = list(navigation_task.contestant_set.filter(
+                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+                team__crew__member1__email=request.user.email,
+                contestanttrack__calculator_started=True
+            ))
+            navigation_task.contestant_set.filter(
+                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+                team__crew__member1__email=request.user.email,
+                contestanttrack__calculator_started=True
+            ).update(finished_by_time=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=1))
+            for contestant in ongoing:
+                contestant.request_calculator_termination()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["put"])

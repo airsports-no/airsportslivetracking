@@ -963,9 +963,9 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     from display.forms import SCALE_TO_FIT
     starting_point_time = contestant.takeoff_time + datetime.timedelta(
         minutes=contestant.navigation_task.minutes_to_starting_point)
-    starting_point_time_string = starting_point_time.strftime("%Y-%m-%d %H:%M:%S")
-    tracking_start_time_string = contestant.tracker_start_time.strftime("%Y-%m-%d %H:%M:%S")
-    finish_tracking_time = contestant.finished_by_time.strftime("%Y-%m-%d %H:%M:%S")
+    starting_point_time_string = starting_point_time.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+    tracking_start_time_string = contestant.tracker_start_time.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+    finish_tracking_time = contestant.finished_by_time.astimezone().strftime("%Y-%m-%d %H:%M:%S")
     head_html = f"""
 <table border="0" width="100%">
 <thead><tr><th width="30%"></th><th width="70%"></th></tr></thead>
