@@ -97,11 +97,9 @@
                         {% endif %}
                     {% endif %}
                     {% if "change_contest" in contest_permissions %}
-                        {% if contestant.emailmaplink_set.exists %}
-                            {% for a in contestant.emailmaplink_set.all %}
-                                <a href="{% url 'email_map_link' a.uuid %}">Flight order</a>
-                            {% endfor %}
-                        {% endif %}
+                        {% for a in contestant.emailmaplink_set.all %}
+                            <a href="{% url 'email_map_link' a.uuid %}">Flight order</a>
+                        {% endfor %}
                         <br/><a href="{% url 'contestant_stop_calculator' contestant.pk %}"
                                 onclick="return confirm('Are you sure you want to stop the calculator?')">stop
                         calculator</a>
