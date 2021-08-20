@@ -963,9 +963,9 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     from display.forms import SCALE_TO_FIT
     starting_point_time = contestant.takeoff_time + datetime.timedelta(
         minutes=contestant.navigation_task.minutes_to_starting_point)
-    starting_point_time_string = starting_point_time.astimezone().strftime("%Y-%m-%d %H:%M:%S")
-    tracking_start_time_string = contestant.tracker_start_time.astimezone().strftime("%Y-%m-%d %H:%M:%S")
-    finish_tracking_time = contestant.finished_by_time.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+    starting_point_time_string = starting_point_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%Y-%m-%d %H:%M:%S")
+    tracking_start_time_string = contestant.tracker_start_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%Y-%m-%d %H:%M:%S")
+    finish_tracking_time = contestant.finished_by_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%Y-%m-%d %H:%M:%S")
     head_html = f"""
 <table border="0" width="100%">
 <thead><tr><th width="30%"></th><th width="70%"></th></tr></thead>
@@ -973,7 +973,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 <tr><td><b>Task type:</b></td><td>{contestant.navigation_task.scorecard.get_calculator_display()}</td></tr>
 <tr><td><b>Airspeed:</b></td><td>{"{:.0f}".format(contestant.air_speed)} knots</td></tr>
 <tr><td><b>Task wind:</b></td><td>{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}</td></tr>
-<tr><td><b>Departure:</b></td><td>{contestant.takeoff_time.strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}</td></tr>
+<tr><td><b>Departure:</b></td><td>{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}</td></tr>
 <tr><td><b>Start point:</b></td><td>{starting_point_time_string if not contestant.adaptive_start else 'Adaptive start'}</td></tr>
 </table>{f"Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
 """
