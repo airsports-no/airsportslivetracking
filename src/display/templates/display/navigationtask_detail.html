@@ -100,7 +100,7 @@
                         {% for a in contestant.emailmaplink_set.all %}
                             | <a href="{% url 'email_map_link' a.id %}">Flight order</a>
                         {% endfor %}
-                            <br/><a href="{% url 'contestant_stop_calculator' contestant.pk %}"
+                            | <a href="{% url 'contestant_stop_calculator' contestant.pk %}"
                                 onclick="return confirm('Are you sure you want to stop the calculator?')">stop
                         calculator</a>
                         |
