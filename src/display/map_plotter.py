@@ -723,7 +723,7 @@ def plot_anr_corridor_track(
                 contestant.wind_speed,
                 contestant.wind_direction,
                 2,
-                10,
+                12,
             )
         # print(inner_track)
     path = np.array(inner_track)
@@ -756,7 +756,7 @@ def plot_minute_marks(
     )
     # print(f"track_points: {track_points}")
     ys, xs = np.array(track_points).T
-    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=LINEWIDTH)
+    # plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=LINEWIDTH)
     minute_lines = create_minute_lines_track(
         track_points,
         contestant.air_speed,
@@ -1036,7 +1036,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         dpi=300,
         scale=SCALE_TO_FIT,
         map_source=map_source,
-        line_width=1.5,
+        line_width=1,
         colour="#0000ff",
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")
