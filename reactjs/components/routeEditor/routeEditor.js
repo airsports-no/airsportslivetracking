@@ -67,6 +67,11 @@ const featureTypes = {
 const bgcolor="darkgrey"
 const slides = [
     {
+        title: "Mouse required",
+        description: "The route editor does unfortunately not work with touchscreen devices. Click next to continue the tutorial.",
+        image: "/static/img/tutorial/1.png",
+        background: bgcolor
+    },{
         title: "Create route",
         description: "Click icons to create a route or an zone (control zone, etc)",
         image: "/static/img/tutorial/1.png",
