@@ -20,7 +20,8 @@ import {Link, withRouter} from "react-router-dom";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
-    pastEventsModalShow: state.displayPastEventsModal
+    pastEventsModalShow: state.displayPastEventsModal,
+    myParticipatingContests: state.myParticipatingContests
 })
 export const mapDispatchToProps = {
     displayPastEventsModal, hidePastEventsModal, displayAboutModal, zoomFocusContest
@@ -96,7 +97,7 @@ function ContestPopupModal(props) {
         </Modal.Header>
         <Modal.Body className="show-grid">
             <Container>
-                <ContestPopupItem contest={props.contest} link={true}/>
+                <ContestPopupItem contest={props.contest} participation={props.participation} link={true}/>
             </Container>
         </Modal.Body>
     </Modal>
@@ -120,6 +121,11 @@ class ConnectedGlobalEventList extends Component {
         window.location.href = document.configuration.managementLink
     }
 
+    getCurrentParticipation(contestId) {
+        return this.props.myParticipatingContests.find((participation) => {
+            return participation.contest.id === contestId
+        })
+    }
 
     render() {
         let settingsButton = null
@@ -265,7 +271,7 @@ class ConnectedGlobalEventList extends Component {
             <PastEvents contests={earlierEvents} show={this.props.pastEventsModalShow}
                         handleContestClick={(contest)=>this.handleContestClick(contest)}
                         dialogClassName="modal-90w" onHide={() => this.props.hidePastEventsModal()}/>
-            <ContestPopupModal contest={popupContest} show={popupContest !== undefined}
+            <ContestPopupModal contest={popupContest} show={popupContest !== undefined} participation={this.getCurrentParticipation(popupContest.id)}
                                onHide={() => this.props.history.push("/")}/>
         </div>
     }

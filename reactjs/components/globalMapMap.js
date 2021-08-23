@@ -2,7 +2,7 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 
 import {w3cwebsocket as W3CWebSocket} from "websocket";
-import {zoomFocusContest} from "../actions";
+import {fetchMyParticipatingContests, zoomFocusContest} from "../actions";
 import ReactDOMServer from "react-dom/server";
 // import L from 'leaflet';
 import {
@@ -102,7 +102,8 @@ const mapStateToProps = (state, props) => ({
     contests: state.contests
 })
 const mapDispatchToProps = {
-    zoomFocusContest
+    zoomFocusContest,
+    fetchMyParticipatingContests
 }
 
 
@@ -526,6 +527,7 @@ class ConnectedGlobalMapMap
     }
 
     componentDidMount() {
+        this.props.fetchMyParticipatingContests()
         this.initialiseMap()
         this.initiateSession()
     }
