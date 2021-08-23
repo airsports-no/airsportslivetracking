@@ -73,7 +73,7 @@ const slides = [
         background: bgcolor
     },{
         title: "Create route",
-        description: "Click icons to create a route or an zone (control zone, etc)",
+        description: "Click icons to create a route or a zone (control zone, etc)",
         image: "/static/img/tutorial/1.png",
         background: bgcolor
     }, {
