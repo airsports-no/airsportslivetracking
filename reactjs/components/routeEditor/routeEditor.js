@@ -6,13 +6,15 @@ import {connect} from "react-redux";
 // import Draw from "leaflet-draw"
 // import L from "leaflet";
 import "leaflet";
-import "leaflet-draw";
+import "leaflet-draw-with-touch";
 import "../../pointInPolygon"
 import {Button, Container, Form, Modal, Row, Col, ToastContainer, Toast} from "react-bootstrap";
 import {divIcon, marker} from "leaflet";
 import {fetchEditableRoute} from "../../actions";
 import axios from "axios";
 import {Link, withRouter} from "react-router-dom";
+import IntroSlider from "react-intro-slider";
+import Cookies from "universal-cookie";
 
 const gateTypes = [
     ["Starting point", "sp"],
@@ -62,6 +64,56 @@ const featureTypes = {
     polygon: [["Prohibited zone", "prohibited"], ["Penalty zone", "penalty"], ["Information zone", "info"], ["Gate zone", "gate"]],
 }
 
+const slides = [
+    {
+        title: "Create route",
+        description: "Click icons to create a route or an zone (control zone, etc)",
+        image: "/static/img/tutorial/1.png",
+        // background: "black"
+    }, {
+        title: "Create route",
+        description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created",
+        image: "/static/img/tutorial/2.png",
+        // background: "black"
+    }, {
+        title: "Create route",
+        description: "Select type of route. If it is a track, give each waypoint an appropriate name and type. Choose whether penalties should be given for missing gate or missing the time. Takeoff and landing gates should cross the runway, but not be crossed during taxi.",
+        image: "/static/img/tutorial/3.png",
+        // background: "black"
+    }, {
+        title: "Create route",
+        description: "Optionally, create a prohibited zone (fixed penalty), penalty area (penalty per second), or information area. For certain types of tasks (poker run) you can create a gate area around a waypoint to represent the waypoint.",
+        image: "/static/img/tutorial/4.png",
+        // background: "black"
+    }, {
+        title: "Create route",
+        description: "Select the type of zone and give a name. The name will be displayed on the map.",
+        image: "/static/img/tutorial/5.png",
+        // background: "black"
+    }, {
+        title: "Create route",
+        description: "To edit an existing track or area, click on it and select 'Edit points' at the bottom of the pop-up.",
+        image: "/static/img/tutorial/6.png",
+        // background: "black"
+    }, {
+        title: "Create route",
+        description: "Click and drag the available markers to the desired shape. When editing is complete, click the line and click 'Save' at the bottom of the pop-up",
+        image: "/static/img/tutorial/7.png",
+        // background: "black"
+    }, {
+        title: "Create route",
+        description: "At any time, give the route a name and click save at the bottom of the map. This will validate that the rout is set up correctly and save it for later editing and use.",
+        image: "/static/img/tutorial/8.png",
+        // background: "black"
+    }, {
+        title: "Create route",
+        description: "There has to be one track, and zero or one takeoff and landing gates. You can have as many different zones as you wish. Gate zones have to encompass exactly one waypoint",
+        image: "/static/img/tutorial/9.png",
+        // background: "black"
+    },
+
+]
+
 class ConnectedRouteEditor extends Component {
     constructor(props) {
         super(props)
@@ -71,11 +123,19 @@ class ConnectedRouteEditor extends Component {
             featureType: null,
             currentName: null,
             routeName: null,
-            changesSaved: false
+            changesSaved: false,
+            displayTutorial: false
         }
     }
 
     componentDidMount() {
+        const cookies = new Cookies();
+        const key = "aslt_routeeditor_visited"
+        const visited = cookies.get(key)
+        if (!visited) {
+            this.setState({displayTutoria: true})
+            cookies.set(key, true)
+        }
         this.initialiseMap()
         if (this.props.routeId) {
             this.reloadMap()
@@ -310,7 +370,7 @@ class ConnectedRouteEditor extends Component {
         if (this.state.featureType) {
             this.state.featureEditLayer.featureType = this.state.featureType
         }
-        if (this.state.featureEditLayer.name === undefined || this.state.featureEditLayer.name === "") {
+        if (!this.state.featureEditLayer.name || this.state.featureEditLayer.name === "") {
             this.state.featureEditLayer.name = featureTypes[this.state.featureEditLayer.layerType].find((item) => {
                 return item[1] === this.state.featureEditLayer.featureType
             })[0]
@@ -582,7 +642,7 @@ class ConnectedRouteEditor extends Component {
             "google": L.tileLayer('http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x={x}&y={y}&z={z}', {
                 attribution: 'google'
             })
-        }, {'drawlayer': this.drawnItems, "OpenAIP": OpenAIP}, {
+        }, {"OpenAIP": OpenAIP}, {
             position: 'topleft',
             collapsed: false
         }).addTo(this.map);
@@ -666,6 +726,10 @@ class ConnectedRouteEditor extends Component {
                     <Toast.Body>{this.state.saveFailed}</Toast.Body>
                 </Toast> : null}
             </div>
+            <a href={"#"} className={"logoImage"} onClick={() => this.setState({displayTutorial: true})}>
+                <img src={"/static/img/airsports_info.png"} style={{width: "50px"}} alt={"Help"}/>
+            </a>
+
             {this.featureEditModal()}
             <div id="routeSaveButton">
                 <Form.Control type={"string"} placeholder={"Route name"}
@@ -681,16 +745,26 @@ class ConnectedRouteEditor extends Component {
                         onClick={() => window.location = "/display/editableroute/"}>Map list
                 </button>
             </div>
+            {/*<IntroSlider slides={slides} size="fullscreen" handleDone={() => this.setState({displayTutorial: false})}*/}
+            {/*                 handleClose={() => this.setState({displayTutorial: false})}/>*/}
+            {this.state.displayTutorial ?
+                <IntroSlider slides={slides} sliderIsOpen={this.state.displayTutorial}
+                             handleDone={() => this.setState({displayTutorial: false})}
+                             handleClose={() => this.setState({displayTutorial: false})}/> : null}
         </div>
     }
 
 }
 
 const
-    mapStateToProps = (state, props) => (
-        {
-            route: props.routeId ? state.editableRoutes[props.routeId] : null
+    mapStateToProps = (state, props) => ({
+            route: props.routeId
+                ?
+                state
+                    .editableRoutes
+                    [props.routeId] : null
         }
+
     )
 const
     mapDispatchToProps =
