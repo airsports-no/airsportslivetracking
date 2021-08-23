@@ -72,42 +72,42 @@ const slides = [
         image: "/static/img/tutorial/1.png",
         background: bgcolor
     }, {
-        title: "Create route",
+        title: "Draw track",
         description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created",
         image: "/static/img/tutorial/2.png",
         background: bgcolor
     }, {
-        title: "Create route",
+        title: "Track details",
         description: "Select type of route. If it is a track, give each waypoint an appropriate name and type. Choose whether penalties should be given for missing gate or missing the time. Takeoff and landing gates should cross the runway, but not be crossed during taxi.",
         image: "/static/img/tutorial/3.png",
         background: bgcolor
     }, {
-        title: "Create route",
+        title: "Zones",
         description: "Optionally, create a prohibited zone (fixed penalty), penalty area (penalty per second), or information area. For certain types of tasks (poker run) you can create a gate area around a waypoint to represent the waypoint.",
         image: "/static/img/tutorial/4.png",
         background: bgcolor
     }, {
-        title: "Create route",
+        title: "Zone details",
         description: "Select the type of zone and give a name. The name will be displayed on the map.",
         image: "/static/img/tutorial/5.png",
         background: bgcolor
     }, {
-        title: "Create route",
+        title: "Editing",
         description: "To edit an existing track or area, click on it and select 'Edit points' at the bottom of the pop-up.",
         image: "/static/img/tutorial/6.png",
         background: bgcolor
     }, {
-        title: "Create route",
+        title: "Editing",
         description: "Click and drag the available markers to the desired shape. When editing is complete, click the line and click 'Save' at the bottom of the pop-up",
         image: "/static/img/tutorial/7.png",
         background: bgcolor
     }, {
-        title: "Create route",
+        title: "Saving",
         description: "At any time, give the route a name and click save at the bottom of the map. This will validate that the rout is set up correctly and save it for later editing and use.",
         image: "/static/img/tutorial/8.png",
         background: bgcolor
     }, {
-        title: "Create route",
+        title: "Summary",
         description: "There has to be one track, and zero or one takeoff and landing gates. You can have as many different zones as you wish. Gate zones have to encompass exactly one waypoint",
         image: "/static/img/tutorial/9.png",
         background: bgcolor
