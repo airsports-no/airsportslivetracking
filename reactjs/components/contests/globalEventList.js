@@ -122,6 +122,7 @@ class ConnectedGlobalEventList extends Component {
     }
 
     getCurrentParticipation(contestId) {
+        if (!this.props.myParticipatingContests) return null
         return this.props.myParticipatingContests.find((participation) => {
             return participation.contest.id === contestId
         })
