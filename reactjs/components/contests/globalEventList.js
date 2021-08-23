@@ -186,6 +186,7 @@ class ConnectedGlobalEventList extends Component {
         const currentParticipation = this.getCurrentParticipation(this.props.contestDetailsId)
         console.log("Pop-up contest")
         console.log(popupContest)
+        console.log(currentParticipation)
         return <div>
             <div className={"globalMapBackdrop"}>
                 <div className={"flexWrapper"}>

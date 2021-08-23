@@ -73,7 +73,7 @@ export default class ContestPopupItem extends Component {
                 </h6>
 
                 <span style={{fontSize: "18px"}}>
-                    {new Date(this.props.contest.finish_time) > new Date() ? this.registerButton():null}
+                    {new Date(this.props.contest.finish_time) > new Date() ? this.registerButton(this.props.contest, this.props.participation, this.props.link):null}
                 </span>&nbsp;
                 <span style={{"paddingTop": "0.3em", fontSize: "20px"}}
                       className={"badge badge-dark badge-pill"}>{this.props.contest.contest_team_count} </span>

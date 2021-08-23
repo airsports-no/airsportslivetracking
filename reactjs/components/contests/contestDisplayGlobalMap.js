@@ -6,7 +6,8 @@ import ContestPopupItem from "./contestPopupItem";
 const L = window['L']
 
 export const mapStateToProps = (state, props) => ({
-    zoomContest: state.zoomContest
+    zoomContest: state.zoomContest,
+    myParticipatingContests: state.myParticipatingContests
 })
 export const mapDispatchToProps = {}
 
@@ -14,6 +15,13 @@ class ConnectedContestDisplayGlobalMap extends Component {
     constructor(props) {
         super(props)
         this.circle = null
+    }
+
+    getCurrentParticipation(contestId) {
+        if (!this.props.myParticipatingContests) return null
+        return this.props.myParticipatingContests.find((participation) => {
+            return participation.contest.id === contestId
+        })
     }
 
     componentDidMount() {
@@ -28,7 +36,8 @@ class ConnectedContestDisplayGlobalMap extends Component {
             riseOnHover: true
 
         }).addTo(this.props.map)
-        this.circle.bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={this.props.contest}/>), {
+        this.circle.bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={this.props.contest}
+                                                                              participation={this.getCurrentParticipation(this.props.contest.id)}/>), {
             className: "contest-popup",
             maxWidth: 350,
             // maxWidth: 500,
