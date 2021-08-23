@@ -183,6 +183,7 @@ class ConnectedGlobalEventList extends Component {
         const popupContest = this.props.contests.find((contest) => {
             return contest.id === this.props.contestDetailsId
         })
+        const currentParticipation = this.getCurrentParticipation(this.props.contestDetailsId)
         console.log("Pop-up contest")
         console.log(popupContest)
         return <div>
@@ -272,7 +273,7 @@ class ConnectedGlobalEventList extends Component {
             <PastEvents contests={earlierEvents} show={this.props.pastEventsModalShow}
                         handleContestClick={(contest)=>this.handleContestClick(contest)}
                         dialogClassName="modal-90w" onHide={() => this.props.hidePastEventsModal()}/>
-            <ContestPopupModal contest={popupContest} show={popupContest !== undefined} participation={popupContest?this.getCurrentParticipation(popupContest.id):null}
+            <ContestPopupModal contest={popupContest} show={popupContest !== undefined} participation={currentParticipation}
                                onHide={() => this.props.history.push("/")}/>
         </div>
     }
