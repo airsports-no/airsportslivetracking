@@ -978,3 +978,7 @@ div.ris-controller-container {
 div.ris-slide-icons-container {
     display: none
 }
+
+div.ris-large {
+    width: 90vw;
+}
