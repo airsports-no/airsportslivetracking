@@ -128,14 +128,13 @@ class ConnectedMyParticipatingEventsList extends Component {
         } else if (this.props.currentParticipation) {
             modalBody = <div>
                 {taskRows.length > 0 ? <div>
-                    <h3>Available tasks</h3>
                     <table className={"table table-condensed"}>
                         <tbody>
                         {taskRows}
                         </tbody>
                     </table>
                 </div> : null}
-
+                <h4>Team details</h4>
                 <table className={"table"}>
                     <tbody>
                     <tr>
