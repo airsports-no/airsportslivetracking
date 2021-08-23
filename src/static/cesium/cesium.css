@@ -564,6 +564,23 @@ tr.hidden {
 }
 
 
+.logoImageRE {
+    /*height: 80px;*/
+    /*width: 40vw;*/
+    top: 60px;
+    /*max-width: 400px;*/
+    /*min-width: 200px;*/
+    right: 10px;
+    position: fixed;
+    z-index: 2;
+    color: #e01b1c;
+    /*font-size: large;*/
+    /*background-color: #666666cc;*/
+    /*border-radius: 5px;*/
+    /*padding: 0 5px;*/
+}
+
+
 .resultsServiceIcon {
     top: 110px;
     right: 15px;
@@ -673,14 +690,14 @@ html, body {
     left: 0;
 }
 
-#routeSaveButton{
+#routeSaveButton {
     position: fixed;
     bottom: 10px;
     left: 10px;
     z-index: 2;
 }
 
-.toastContainer{
+.toastContainer {
     position: fixed;
     top: 90px;
     right: 10px;
@@ -942,3 +959,22 @@ html, body {
 /*    -ms-transition: transform 1.0s linear;*/
 /*    transition: transform 1.0s linear;*/
 /*}*/
+
+
+div.ris-slide-image-container {
+    padding: unset;
+    height: 55%;
+}
+
+div.ris-slide-title-container {
+    padding: unset;
+}
+
+div.ris-controller-container {
+    height: 20%;
+    top: 90%
+}
+
+div.ris-slide-icons-container {
+    display: none
+}

@@ -91,14 +91,14 @@ class ConnectedMyParticipatingEventsList extends Component {
             return null
         }
         const taskRows = this.props.currentParticipation.contest.navigationtask_set.sort((a, b) => (a.start_time > b.start_time) ? 1 : ((b.start_time > a.start_time) ? -1 : 0)).reverse().map((task) => {
-            const startingPointTime=task.future_contestants.length > 0?new Date(new Date(task.future_contestants[0].takeoff_time).getTime() + task.future_contestants[0].minutes_to_starting_point * 60000):null
+            const startingPointTime = task.future_contestants.length > 0 ? new Date(new Date(task.future_contestants[0].takeoff_time).getTime() + task.future_contestants[0].minutes_to_starting_point * 60000) : null
             return <tr key={task.pk}>
                 <td>{task.name}</td>
                 <td>{task.future_contestants.length > 0 ?
                     <div>
                         {/*<a href={task.future_contestants[0].default_map_url}>Map (slow)</a>*/}
                         <div>Starting point
-                            time: {formatDate(startingPointTime)  + " " + formatTime(startingPointTime)}</div>
+                            time: {formatDate(startingPointTime) + " " + formatTime(startingPointTime)}</div>
 
                     </div> : null}</td>
                 <td>
@@ -127,6 +127,15 @@ class ConnectedMyParticipatingEventsList extends Component {
                                               participation={this.props.currentParticipation}/>
         } else if (this.props.currentParticipation) {
             modalBody = <div>
+                {taskRows.length > 0 ? <div>
+                    <h3>Available tasks</h3>
+                    <table className={"table table-condensed"}>
+                        <tbody>
+                        {taskRows}
+                        </tbody>
+                    </table>
+                </div> : null}
+
                 <table className={"table"}>
                     <tbody>
                     <tr>
@@ -159,14 +168,6 @@ class ConnectedMyParticipatingEventsList extends Component {
                     <button type="button" className="close" data-dismiss="alert" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
-                </div> : null}
-                {taskRows.length > 0 ? <div>
-                    <h3>Available tasks</h3>
-                    <table className={"table table-condensed"}>
-                        <tbody>
-                        {taskRows}
-                        </tbody>
-                    </table>
                 </div> : null}
             </div>
         }

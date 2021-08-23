@@ -6,7 +6,8 @@ import {connect} from "react-redux";
 // import Draw from "leaflet-draw"
 // import L from "leaflet";
 import "leaflet";
-import "leaflet-draw-with-touch";
+import "leaflet-draw";
+// import "leaflet-draw-with-touch";
 import "../../pointInPolygon"
 import {Button, Container, Form, Modal, Row, Col, ToastContainer, Toast} from "react-bootstrap";
 import {divIcon, marker} from "leaflet";
@@ -63,53 +64,53 @@ const featureTypes = {
     polyline: [["Track", "track"], ["Takeoff gate", "to"], ["Landing gate", "ldg"]],
     polygon: [["Prohibited zone", "prohibited"], ["Penalty zone", "penalty"], ["Information zone", "info"], ["Gate zone", "gate"]],
 }
-
+const bgcolor="darkgrey"
 const slides = [
     {
         title: "Create route",
         description: "Click icons to create a route or an zone (control zone, etc)",
         image: "/static/img/tutorial/1.png",
-        // background: "black"
+        background: bgcolor
     }, {
         title: "Create route",
         description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created",
         image: "/static/img/tutorial/2.png",
-        // background: "black"
+        background: bgcolor
     }, {
         title: "Create route",
         description: "Select type of route. If it is a track, give each waypoint an appropriate name and type. Choose whether penalties should be given for missing gate or missing the time. Takeoff and landing gates should cross the runway, but not be crossed during taxi.",
         image: "/static/img/tutorial/3.png",
-        // background: "black"
+        background: bgcolor
     }, {
         title: "Create route",
         description: "Optionally, create a prohibited zone (fixed penalty), penalty area (penalty per second), or information area. For certain types of tasks (poker run) you can create a gate area around a waypoint to represent the waypoint.",
         image: "/static/img/tutorial/4.png",
-        // background: "black"
+        background: bgcolor
     }, {
         title: "Create route",
         description: "Select the type of zone and give a name. The name will be displayed on the map.",
         image: "/static/img/tutorial/5.png",
-        // background: "black"
+        background: bgcolor
     }, {
         title: "Create route",
         description: "To edit an existing track or area, click on it and select 'Edit points' at the bottom of the pop-up.",
         image: "/static/img/tutorial/6.png",
-        // background: "black"
+        background: bgcolor
     }, {
         title: "Create route",
         description: "Click and drag the available markers to the desired shape. When editing is complete, click the line and click 'Save' at the bottom of the pop-up",
         image: "/static/img/tutorial/7.png",
-        // background: "black"
+        background: bgcolor
     }, {
         title: "Create route",
         description: "At any time, give the route a name and click save at the bottom of the map. This will validate that the rout is set up correctly and save it for later editing and use.",
         image: "/static/img/tutorial/8.png",
-        // background: "black"
+        background: bgcolor
     }, {
         title: "Create route",
         description: "There has to be one track, and zero or one takeoff and landing gates. You can have as many different zones as you wish. Gate zones have to encompass exactly one waypoint",
         image: "/static/img/tutorial/9.png",
-        // background: "black"
+        background: bgcolor
     },
 
 ]
@@ -132,8 +133,9 @@ class ConnectedRouteEditor extends Component {
         const cookies = new Cookies();
         const key = "aslt_routeeditor_visited"
         const visited = cookies.get(key)
+        console.log("Visited: " + visited)
         if (!visited) {
-            this.setState({displayTutoria: true})
+            this.setState({displayTutorial: true})
             cookies.set(key, true)
         }
         this.initialiseMap()
@@ -726,7 +728,7 @@ class ConnectedRouteEditor extends Component {
                     <Toast.Body>{this.state.saveFailed}</Toast.Body>
                 </Toast> : null}
             </div>
-            <a href={"#"} className={"logoImage"} onClick={() => this.setState({displayTutorial: true})}>
+            <a href={"#"} className={"logoImageRE"} onClick={() => this.setState({displayTutorial: true})}>
                 <img src={"/static/img/airsports_info.png"} style={{width: "50px"}} alt={"Help"}/>
             </a>
 
@@ -748,7 +750,9 @@ class ConnectedRouteEditor extends Component {
             {/*<IntroSlider slides={slides} size="fullscreen" handleDone={() => this.setState({displayTutorial: false})}*/}
             {/*                 handleClose={() => this.setState({displayTutorial: false})}/>*/}
             {this.state.displayTutorial ?
-                <IntroSlider slides={slides} sliderIsOpen={this.state.displayTutorial}
+                <IntroSlider slides={slides} sliderIsOpen={this.state.displayTutorial} skipButton={true} controllerOrientation={"horizontal"} size={"large"}
+                             descriptionStyle={{fontSize:"1.1rem"}}
+                             imageStyle={{padding: null}}
                              handleDone={() => this.setState({displayTutorial: false})}
                              handleClose={() => this.setState({displayTutorial: false})}/> : null}
         </div>
