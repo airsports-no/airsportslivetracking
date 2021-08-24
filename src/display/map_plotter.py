@@ -58,9 +58,12 @@ logger = logging.getLogger(__name__)
 
 
 def get_country_code_from_location(latitude: float, longitude: float):
-    geolocator = Nominatim(user_agent="airsports.no")
-    location = geolocator.reverse(f"{latitude}, {longitude}")
-    return location.raw["address"]["country_code"]
+    try:
+        geolocator = Nominatim(user_agent="airsports.no")
+        location = geolocator.reverse(f"{latitude}, {longitude}")
+        return location.raw["address"]["country_code"]
+    except KeyError:
+        return "xxx"
 
 
 def get_course_position(
@@ -206,31 +209,6 @@ def create_minute_lines_track(
 
 A4 = "A4"
 A3 = "A3"
-
-OSM_MAP = 0
-N250_MAP = 1
-M517_BERGEN_MAP = 2
-GERMANY1 = 3
-TILE_MAP = {
-    N250_MAP: "Norway_N250",
-    M517_BERGEN_MAP: "m517_bergen",
-    GERMANY1: "germany_map",
-}
-
-
-def folder_map_name(folder: str) -> str:
-    actual_map = folder.split("/")[-1]
-    elements = actual_map.split("_")
-    return " ".join([item.capitalize() for item in elements])
-
-
-MAP_FOLDERS = glob.glob("/maptiles/*")
-MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [
-    ("osm", "OSM"),
-    ("fc", "Flight Contest"),
-    ("mto", "MapTiler Outdoor"),
-    ("cyclosm", "CycleOSM")
-]
 
 
 def country_code_to_map_source(country_code: str) -> str:
@@ -1023,8 +1001,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 
     pdf.add_page()
     waypoint = contestant.navigation_task.route.waypoints[0]  # type: Waypoint
-    country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
-    map_source = country_code_to_map_source(country_code)
+    # country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
+    # map_source = country_code_to_map_source(country_code)
     map_image, pdf_image = plot_route(
         contestant.navigation_task,
         A4,
@@ -1035,8 +1013,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         waypoints_only=False,
         dpi=300,
         scale=SCALE_TO_FIT,
-        map_source=map_source,
-        line_width=1,
+        map_source=contestant.navigation_task.default_map,
+        line_width=contestant.navigation_task.default_line_width,
         colour="#0000ff",
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")

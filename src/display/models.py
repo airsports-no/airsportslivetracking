@@ -37,6 +37,7 @@ from solo.models import SingletonModel
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.coordinate_utilities import bearing_difference
+from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.my_pickled_object_field import MyPickledObjectField
 from display.poker_cards import PLAYING_CARDS
 from display.waypoint import Waypoint
@@ -122,6 +123,15 @@ class Route(models.Model):
     waypoints = MyPickledObjectField(default=list)
     takeoff_gate = MyPickledObjectField(default=None, null=True)
     landing_gate = MyPickledObjectField(default=None, null=True)
+
+    def get_location(self) -> Tuple[float, float]:
+        if self.waypoints and len(self.waypoints) > 0:
+            return self.waypoints[0].latitude, self.waypoints[0].longitude
+        if self.takeoff_gate:
+            return self.takeoff_gate.latitude, self.takeoff_gate.longitude
+        if self.landing_gate:
+            return self.landing_gate.latitude, self.landing_gate.longitude
+        return 0, 0
 
     def clean(self):
         for index in range(len(self.waypoints) - 1):
@@ -620,6 +630,8 @@ class NavigationTask(models.Model):
         default=False,
         help_text="If checked, authenticated users will be allowed to set up themselves as a contestant after having registered for the contest.",
     )
+    default_map = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=200)
+    default_line_width = models.FloatField(default=1)
 
     @classmethod
     def get_visible_navigation_tasks(cls, user: User):

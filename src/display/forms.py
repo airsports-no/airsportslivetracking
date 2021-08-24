@@ -14,7 +14,8 @@ from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 from timezone_field import TimeZoneFormField
 
-from display.map_plotter import A4, A3, N250_MAP, OSM_MAP, M517_BERGEN_MAP, GERMANY1, MAP_CHOICES
+from display.map_plotter import A4, A3
+from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
     ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES, EditableRoute
 from display.poker_cards import PLAYING_CARDS
@@ -79,7 +80,7 @@ class MapForm(forms.Form):
                                     help_text="WARNING: scale printing is currently only correct for landscape orientation")
     include_only_waypoints = forms.BooleanField(initial=False, required=False)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="osm")
+    map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="cyclosm")
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7)
@@ -92,7 +93,7 @@ class ContestantMapForm(forms.Form):
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE,
                                     help_text="WARNING: scale printing is currently only correct for landscape orientation")
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="osm")
+    map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="cyclosm")
     include_annotations = forms.BooleanField(required=False, initial=True)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
@@ -376,7 +377,7 @@ class NavigationTaskForm(forms.ModelForm):
         fields = ("name", "start_time", "finish_time", "display_background_map", "display_secrets", "scorecard",
                   "minutes_to_starting_point",
                   "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
-                  "score_sorting_direction")
+                  "score_sorting_direction", "default_map", "default_line_width")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -405,6 +406,8 @@ class NavigationTaskForm(forms.ModelForm):
                 "Display control",
                 "display_background_map",
                 "display_secrets",
+                "default_map",
+                "default_line_width"
             ),
             ButtonHolder(
                 Submit("submit", "Submit")
