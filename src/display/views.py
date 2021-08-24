@@ -1612,7 +1612,12 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 scorecard
             )
         if step == "task_content":
+            country_code = get_country_code_from_location(
+                self.contest.latitude, self.contest.longitude
+            )
+            print(country_code)
             return {
+                "default_map": country_code_to_map_source(country_code),
                 "score_sorting_direction": self.contest.summary_score_sorting_direction,
             }
         return {}
