@@ -651,13 +651,13 @@ class ConnectedRouteEditor extends Component {
             accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
         });
         const OpenAIP = L.tileLayer('http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}', {
-            attribution: '<a href="https://www.openaip.net/">openAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
+            attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
             ext: 'png',
             minZoom: 4,
             maxZoom: 14,
             tms: true,
-            detectRetina: true,
-            subdomains: 'abcd'
+            // detectRetina: true,
+            subdomains: '12'
         });
 
 
