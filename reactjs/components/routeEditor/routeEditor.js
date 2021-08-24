@@ -16,6 +16,7 @@ import axios from "axios";
 import {Link, withRouter} from "react-router-dom";
 import IntroSlider from "react-intro-slider";
 import Cookies from "universal-cookie";
+import {getBearing} from "../../utilities";
 
 const gateTypes = [
     ["Starting point", "sp"],
@@ -311,21 +312,44 @@ class ConnectedRouteEditor extends Component {
         if (layer.featureType === "track") {
             if (layer.getLatLngs().length < 2) {
                 errors.push("A track must have at least two waypoints")
-            }
-            if (layer.getLatLngs().length !== layer.trackPoints.length) {
-                errors.push("The length of points and the length of the names do not match")
-            }
-            const startingPoints = layer.trackPoints.filter((item) => {
-                return item.gateType === "sp"
-            })
-            if (!startingPoints || startingPoints.length !== 1) {
-                errors.push("The track must contain exactly one starting point")
-            }
-            const finishPoints = layer.trackPoints.filter((item) => {
-                return item.gateType === "fp"
-            })
-            if (!finishPoints || finishPoints.length !== 1) {
-                errors.push("The track must contain exactly one finish point")
+            } else {
+                if (layer.getLatLngs().length !== layer.trackPoints.length) {
+                    errors.push("The length of points and the length of the names do not match")
+                }
+                const startingPoints = layer.trackPoints.filter((item) => {
+                    return item.gateType === "sp"
+                })
+                if (!startingPoints || startingPoints.length !== 1) {
+                    errors.push("The track must contain exactly one starting point")
+                }
+                if (layer.trackPoints[0].gateType !== "sp") {
+                    errors.push("The first gate must be starting point")
+                }
+                if (layer.trackPoints[layer.trackPoints.length - 1].gateType !== "fp") {
+                    errors.push("The last gate must be finish point")
+                }
+                const finishPoints = layer.trackPoints.filter((item) => {
+                    return item.gateType === "fp"
+                })
+                if (!finishPoints || finishPoints.length !== 1) {
+                    errors.push("The track must contain exactly one finish point")
+                }
+                const positions = layer.getLatLngs()
+                for (let i = 0; i < layer.trackPoints.length; i++) {
+                    if (i === 0 && layer.trackPoints[i].gateType === "secret") {
+                        errors.push("The first gate cannot be secret")
+                    } else if (i === layer.trackPoints.length - 1 && layer.trackPoints[i].gateType === "secret") {
+                        errors.push("The last gate cannot be secret")
+                    } else if (layer.trackPoints[i].gateType === "secret") {
+                        // He we know there is at least one gate before and one after
+                        const bearingToThis = getBearing(positions[i - 1].lat, positions[i - 1].lng, positions[i].lat, positions[i].lng)
+                        const bearingFromThis = getBearing(positions[1].lat, positions[1].lng, positions[i + 1].lat, positions[i + 1].lng)
+                        const bearingDifference = Math.abs(bearingToThis - bearingFromThis)
+                        if (bearingDifference > 1) {
+                            errors.push("The secret gate " + layer.trackPoints[i].name + " must lie on a straight line between " + layer.trackPoints[i - 1].name + " and " + layer.trackPoints[i + 1].name + ". The current bearing difference is " + bearingDifference.toFixed(2))
+                        }
+                    }
+                }
             }
         }
         if (layer.featureType === "to" || layer.featureType === "to") {
@@ -655,7 +679,9 @@ class ConnectedRouteEditor extends Component {
             collapsed: false
         }).addTo(this.map);
         this.map.on("locationerror", (e) => {
-            this.map.setView(L.latLng(59, 10.5), 7)
+            if (!this.props.route) {
+                this.map.setView(L.latLng(59, 10.5), 7)
+            }
         })
         this.map.locate({setView: true, maxZoom: 7})
         this.map.whenReady(() => {
