@@ -64,14 +64,14 @@ const featureTypes = {
     polyline: [["Track", "track"], ["Takeoff gate", "to"], ["Landing gate", "ldg"]],
     polygon: [["Prohibited zone", "prohibited"], ["Penalty zone", "penalty"], ["Information zone", "info"], ["Gate zone", "gate"]],
 }
-const bgcolor="darkgrey"
+const bgcolor = "darkgrey"
 const slides = [
     {
         title: "Mouse required",
         description: "The route editor does unfortunately not work with touchscreen devices. Click next to continue the tutorial.",
         image: "/static/img/tutorial/1.png",
         background: bgcolor
-    },{
+    }, {
         title: "Create route",
         description: "Click icons to create a route or a zone (control zone, etc)",
         image: "/static/img/tutorial/1.png",
@@ -226,7 +226,7 @@ class ConnectedRouteEditor extends Component {
         })
     }
 
-    configureLayer(layer, name, layerType, featureType, trackPoints) {
+    configureLayer(layer, name, layerType, featureType, trackPoints, created) {
         layer.addTo(this.drawnItems);
         layer.name = name
         layer.layerType = layerType
@@ -242,7 +242,9 @@ class ConnectedRouteEditor extends Component {
             this.renderWaypointNames(layer)
         })
         layer.setStyle(featureStyles[featureType])
-        this.renderWaypointNames(layer)
+        if (!created) {
+            this.renderWaypointNames(layer)
+        }
     }
 
     renderRoute() {
@@ -270,7 +272,7 @@ class ConnectedRouteEditor extends Component {
                             zoomed = true
                             this.map.fitBounds(layer.getBounds(), {padding: [50, 50]})
                         }
-                        this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points)
+                        this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points, false)
                     }
                 }
             )
@@ -415,7 +417,6 @@ class ConnectedRouteEditor extends Component {
     renderWaypointNames(track) {
         track.unbindTooltip()
         if (track.featureType === "track") {
-            track.name = "Track"
             track.waypointNamesFeatureGroup.clearLayers()
             let index = 0
             for (let p of track.getLatLngs()) {
@@ -697,7 +698,7 @@ class ConnectedRouteEditor extends Component {
                 featureType = "track"
 
             }
-            this.configureLayer(layer, null, event.layerType, featureType, [])
+            this.configureLayer(layer, null, event.layerType, featureType, [], true)
             this.setState({featureEditLayer: layer})
         });
 
@@ -755,8 +756,9 @@ class ConnectedRouteEditor extends Component {
             {/*<IntroSlider slides={slides} size="fullscreen" handleDone={() => this.setState({displayTutorial: false})}*/}
             {/*                 handleClose={() => this.setState({displayTutorial: false})}/>*/}
             {this.state.displayTutorial ?
-                <IntroSlider slides={slides} sliderIsOpen={this.state.displayTutorial} skipButton={true} controllerOrientation={"horizontal"} size={"large"}
-                             descriptionStyle={{fontSize:"1.1rem"}}
+                <IntroSlider slides={slides} sliderIsOpen={this.state.displayTutorial} skipButton={true}
+                             controllerOrientation={"horizontal"} size={"large"}
+                             descriptionStyle={{fontSize: "1.1rem"}}
                              imageStyle={{padding: null}}
                              handleDone={() => this.setState({displayTutorial: false})}
                              handleClose={() => this.setState({displayTutorial: false})}/> : null}
