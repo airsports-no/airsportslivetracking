@@ -67,10 +67,10 @@ def get_country_code_from_location(latitude: float, longitude: float):
 
 
 def get_course_position(
-        start: Tuple[float, float],
-        finish: Tuple[float, float],
-        left_side: bool,
-        distance_nm: float,
+    start: Tuple[float, float],
+    finish: Tuple[float, float],
+    left_side: bool,
+    distance_nm: float,
 ) -> Tuple[float, float]:
     centre = calculate_fractional_distance_point_lat_lon(start, finish, 0.5)
     return centre
@@ -81,15 +81,15 @@ def get_course_position(
 
 
 def create_minute_lines(
-        start: Tuple[float, float],
-        finish: Tuple[float, float],
-        air_speed: float,
-        wind_speed: float,
-        wind_direction: float,
-        gate_start_time: datetime.datetime,
-        route_start_time: datetime.datetime,
-        resolution_seconds: int = 60,
-        line_width_nm=0.5,
+    start: Tuple[float, float],
+    finish: Tuple[float, float],
+    air_speed: float,
+    wind_speed: float,
+    wind_direction: float,
+    gate_start_time: datetime.datetime,
+    route_start_time: datetime.datetime,
+    resolution_seconds: int = 60,
+    line_width_nm=0.5,
 ) -> List[
     Tuple[
         Tuple[Tuple[float, float], Tuple[float, float]],
@@ -143,14 +143,14 @@ def create_minute_lines(
 
 
 def create_minute_lines_track(
-        track: List[Tuple[float, float]],
-        air_speed: float,
-        wind_speed: float,
-        wind_direction: float,
-        gate_start_time: datetime.datetime,
-        route_start_time: datetime.datetime,
-        resolution_seconds: int = 60,
-        line_width_nm=0.5,
+    track: List[Tuple[float, float]],
+    air_speed: float,
+    wind_speed: float,
+    wind_direction: float,
+    gate_start_time: datetime.datetime,
+    route_start_time: datetime.datetime,
+    resolution_seconds: int = 60,
+    line_width_nm=0.5,
 ) -> List[
     Tuple[
         Tuple[Tuple[float, float], Tuple[float, float]],
@@ -212,9 +212,7 @@ A3 = "A3"
 
 
 def country_code_to_map_source(country_code: str) -> str:
-    map = {
-        "no": "/maptiles/Norway_N250"
-    }
+    map = {"no": "/maptiles/Norway_N250"}
     return map.get(country_code, "cyclosm")
 
 
@@ -333,14 +331,14 @@ def utm_from_lat_lon(lat, lon) -> ccrs.CRS:
 
 
 def scale_bar(
-        ax,
-        proj,
-        length,
-        location=(0.5, 0.05),
-        linewidth=3,
-        units="km",
-        m_per_unit=1000,
-        scale=0,
+    ax,
+    proj,
+    length,
+    location=(0.5, 0.05),
+    linewidth=3,
+    units="km",
+    m_per_unit=1000,
+    scale=0,
 ):
     """
     http://stackoverflow.com/a/35705477/1072212
@@ -414,14 +412,14 @@ def scale_bar(
 
 
 def scale_bar_y(
-        ax,
-        proj,
-        length,
-        location=(0.05, 0.5),
-        linewidth=3,
-        units="km",
-        m_per_unit=1000,
-        scale=0,
+    ax,
+    proj,
+    length,
+    location=(0.05, 0.5),
+    linewidth=3,
+    units="km",
+    m_per_unit=1000,
+    scale=0,
 ):
     """
     http://stackoverflow.com/a/35705477/1072212
@@ -528,13 +526,13 @@ def calculate_extent(width: float, height: float, centre: Tuple[float, float]):
 
 
 def plot_leg_bearing(
-        current_waypoint,
-        next_waypoint,
-        air_speed,
-        wind_speed,
-        wind_direction,
-        character_offset: int = 4,
-        fontsize: int = 14,
+    current_waypoint,
+    next_waypoint,
+    air_speed,
+    wind_speed,
+    wind_direction,
+    character_offset: int = 4,
+    fontsize: int = 14,
 ):
     bearing = current_waypoint.bearing_next
     wind_correction_angle = calculate_wind_correction_angle(
@@ -583,6 +581,12 @@ def waypoint_bearing(waypoint, index) -> float:
 
 
 def plot_prohibited_zones(route: Route, target_projection, ax):
+    PROHIBITED_COLOURS = {
+        "prohibited": "red",
+        "penalty": "orange",
+        "info": "lightblue",
+        "gate": "blue",
+    }
     for prohibited in route.prohibited_set.all():
         line = []
         for element in prohibited.path:
@@ -593,20 +597,25 @@ def plot_prohibited_zones(route: Route, target_projection, ax):
             )
         polygon = Polygon(line)
         centre = polygon.centroid
-        ax.add_geometries([polygon], crs=target_projection, facecolor="red", alpha=0.4)
+        ax.add_geometries(
+            [polygon],
+            crs=target_projection,
+            facecolor=PROHIBITED_COLOURS.get(prohibited.type, "blue"),
+            alpha=0.4,
+        )
         plt.text(centre.x, centre.y, prohibited.name, horizontalalignment="center")
 
 
 def plot_waypoint_name(
-        route: Route,
-        waypoint: Waypoint,
-        bearing: float,
-        annotations: bool,
-        waypoints_only: bool,
-        contestant: Optional[Contestant],
-        line_width: float,
-        colour: str,
-        character_padding: int = 4,
+    route: Route,
+    waypoint: Waypoint,
+    bearing: float,
+    annotations: bool,
+    waypoints_only: bool,
+    contestant: Optional[Contestant],
+    line_width: float,
+    colour: str,
+    character_padding: int = 4,
 ):
     text = "{}".format(waypoint.name)
     if contestant is not None and annotations:
@@ -623,11 +632,11 @@ def plot_waypoint_name(
     )
     if bearing_difference > 0:
         text = (
-                "\n" + text + " " * len(text) + " " * character_padding
+            "\n" + text + " " * len(text) + " " * character_padding
         )  # Padding to get things aligned correctly
     else:
         text = (
-                "\n" + " " * (len(text) + character_padding) + text
+            "\n" + " " * (len(text) + character_padding) + text
         )  # Padding to get things aligned correctly
     if waypoints_only:
         bearing = 0
@@ -648,11 +657,11 @@ def plot_waypoint_name(
 
 
 def plot_anr_corridor_track(
-        route: Route,
-        contestant: Optional[Contestant],
-        annotations,
-        line_width: float,
-        colour: str,
+    route: Route,
+    contestant: Optional[Contestant],
+    annotations,
+    line_width: float,
+    colour: str,
 ):
     inner_track = []
     outer_track = []
@@ -714,14 +723,14 @@ def plot_anr_corridor_track(
 
 
 def plot_minute_marks(
-        waypoint: Waypoint,
-        contestant: Contestant,
-        track,
-        index,
-        line_width: float,
-        colour: str,
-        mark_offset=1,
-        line_width_nm: float = 0.5,
+    waypoint: Waypoint,
+    contestant: Contestant,
+    track,
+    index,
+    line_width: float,
+    colour: str,
+    mark_offset=1,
+    line_width_nm: float = 0.5,
 ):
     gate_start_time = contestant.gate_times.get(waypoint.name)
     if waypoint.is_procedure_turn:
@@ -729,8 +738,8 @@ def plot_minute_marks(
     first_segments = waypoint.get_centre_track_segments()
     last_segments = track[index + 1].get_centre_track_segments()
     track_points = (
-            first_segments[len(first_segments) // 2:]
-            + last_segments[: (len(last_segments) // 2) + 1]
+        first_segments[len(first_segments) // 2 :]
+        + last_segments[: (len(last_segments) // 2) + 1]
     )
     # print(f"track_points: {track_points}")
     ys, xs = np.array(track_points).T
@@ -770,12 +779,12 @@ def plot_minute_marks(
 
 
 def plot_precision_track(
-        route: Route,
-        contestant: Optional[Contestant],
-        waypoints_only: bool,
-        annotations: bool,
-        line_width: float,
-        colour: str,
+    route: Route,
+    contestant: Optional[Contestant],
+    waypoints_only: bool,
+    annotations: bool,
+    line_width: float,
+    colour: str,
 ):
     tracks = [[]]
     for waypoint in route.waypoints:  # type: Waypoint
@@ -856,31 +865,42 @@ def generate_turning_point_image(waypoints: List[Waypoint], index):
     if index > 0:
         plt.plot(
             [waypoints[index - 1].longitude, waypoints[index].longitude],
-            [waypoints[index - 1].latitude, waypoints[index].latitude], transform=ccrs.PlateCarree(), color="blue",
-            linewidth=2
+            [waypoints[index - 1].latitude, waypoints[index].latitude],
+            transform=ccrs.PlateCarree(),
+            color="blue",
+            linewidth=2,
         )
     if index < len(waypoints) - 1:
         plt.plot(
             [waypoints[index].longitude, waypoints[index + 1].longitude],
-            [waypoints[index].latitude, waypoints[index + 1].latitude], transform=ccrs.PlateCarree(), color="blue",
-            linewidth=2
+            [waypoints[index].latitude, waypoints[index + 1].latitude],
+            transform=ccrs.PlateCarree(),
+            color="blue",
+            linewidth=2,
         )
     proj = ccrs.PlateCarree()
     utm = utm_from_lat_lon(waypoint.latitude, waypoint.longitude)
-    centre_x, centre_y = utm.transform_point(waypoint.longitude, waypoint.latitude, proj)
+    centre_x, centre_y = utm.transform_point(
+        waypoint.longitude, waypoint.latitude, proj
+    )
     range = 700
     x0, y0 = proj.transform_point(centre_x - range, centre_y - range, utm)
     x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
     extent = [x0, x1, y0, y1]
     ax.set_extent(extent, crs=ccrs.PlateCarree())
-    circle_points = geodesic.Geodesic().circle(lon=waypoint.longitude, lat=waypoint.latitude, radius=200, n_samples=50,
-                                               endpoint=False)
-    geom = Polygon(circle_points)
-    ax.add_geometries((geom,), crs=ccrs.PlateCarree(), facecolor='none', edgecolor='red', linewidth=3)
-    figdata = BytesIO()
-    plt.savefig(
-        figdata, format="png", dpi=200, transparent=True
+    circle_points = geodesic.Geodesic().circle(
+        lon=waypoint.longitude,
+        lat=waypoint.latitude,
+        radius=200,
+        n_samples=50,
+        endpoint=False,
     )
+    geom = Polygon(circle_points)
+    ax.add_geometries(
+        (geom,), crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red", linewidth=3
+    )
+    figdata = BytesIO()
+    plt.savefig(figdata, format="png", dpi=200, transparent=True)
     # plt.savefig(
     #     "temporary", format="png", dpi=100, transparent=True
     # )
@@ -901,8 +921,11 @@ def generate_turning_point_image(waypoints: List[Waypoint], index):
 
 def insert_turning_point_images(contestant, pdf: FPDF):
     navigation = contestant.navigation_task  # type: NavigationTask
-    waypoints = [item for item in navigation.route.waypoints if
-                 item.type != "secret" and (item.gate_check or item.time_check)]
+    waypoints = [
+        item
+        for item in navigation.route.waypoints
+        if item.type != "secret" and (item.gate_check or item.time_check)
+    ]
     rows_per_page = 3
     number_of_images = len(waypoints)
     number_of_pages = 1 + number_of_images // (2 * rows_per_page)
@@ -914,7 +937,9 @@ def insert_turning_point_images(contestant, pdf: FPDF):
     for index in range(number_of_images):
         if index % (rows_per_page * 2) == 0:
             pdf.add_page()
-            page_text = f" {current_page + 2}/{number_of_pages}" if number_of_pages > 1 else ""
+            page_text = (
+                f" {current_page + 2}/{number_of_pages}" if number_of_pages > 1 else ""
+            )
             pdf.cell(0, 10, txt=f"Turning point images{page_text}")
             current_page += 1
         if index % 2 == 0:  # left column
@@ -939,11 +964,19 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     :return:
     """
     from display.forms import SCALE_TO_FIT
+
     starting_point_time = contestant.takeoff_time + datetime.timedelta(
-        minutes=contestant.navigation_task.minutes_to_starting_point)
-    starting_point_time_string = starting_point_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%Y-%m-%d %H:%M:%S")
-    tracking_start_time_string = contestant.tracker_start_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%Y-%m-%d %H:%M:%S")
-    finish_tracking_time = contestant.finished_by_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%Y-%m-%d %H:%M:%S")
+        minutes=contestant.navigation_task.minutes_to_starting_point
+    )
+    starting_point_time_string = starting_point_time.astimezone(
+        contestant.navigation_task.contest.time_zone
+    ).strftime("%Y-%m-%d %H:%M:%S")
+    tracking_start_time_string = contestant.tracker_start_time.astimezone(
+        contestant.navigation_task.contest.time_zone
+    ).strftime("%Y-%m-%d %H:%M:%S")
+    finish_tracking_time = contestant.finished_by_time.astimezone(
+        contestant.navigation_task.contest.time_zone
+    ).strftime("%Y-%m-%d %H:%M:%S")
     head_html = f"""
 <table border="0" width="100%">
 <thead><tr><th width="30%"></th><th width="70%"></th></tr></thead>
@@ -956,11 +989,11 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 </table>{f"Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
 """
 
-    pdf = MyFPDF(orientation='P', unit='mm', format='A4')
+    pdf = MyFPDF(orientation="P", unit="mm", format="A4")
     # 210 x 297 mm
     pdf.add_page()
     print(os.getcwd())
-    pdf.set_font('Arial', 'B', 16)
+    pdf.set_font("Arial", "B", 16)
     pdf.image("static/img/airsports_no_text.png", x=170, y=10, w=30)
     pdf.ln(5)
     # pdf.cell(60)
@@ -975,25 +1008,33 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.cell(170, txt=f"{contestant.navigation_task.name}", align="C", ln=1)
     pdf.ln(10)
     pdf.set_text_color(0, 0, 0)
-    pdf.set_font('Arial', 'B', 12)
+    pdf.set_font("Arial", "B", 12)
     pdf.write_html(head_html)
     pdf.ln(10)
-    pdf.write_html(f"""<b>Rules</b><br/>{contestant.get_formatted_rules_description()}
-    """)
-    pdf.write_html(f"""
+    pdf.write_html(
+        f"""<b>Rules</b><br/>{contestant.get_formatted_rules_description()}
+    """
+    )
+    pdf.write_html(
+        f"""
     <p><center><h2>Good luck</h2></center>
     <img src="static/img/AirSportsLiveTracking.png" width="110"/>
-    """)
+    """
+    )
 
-    starting_point = generate_turning_point_image(contestant.navigation_task.route.waypoints, 0)
+    starting_point = generate_turning_point_image(
+        contestant.navigation_task.route.waypoints, 0
+    )
     starting_point_file = NamedTemporaryFile(suffix=".png")
     starting_point_file.write(starting_point.read())
     starting_point_file.seek(0)
     pdf.text(10, 170, "Starting point")
     pdf.text(110, 170, "Finish point")
     pdf.image(starting_point_file.name, x=10, y=180, w=90)
-    finish_point = generate_turning_point_image(contestant.navigation_task.route.waypoints,
-                                                len(contestant.navigation_task.route.waypoints) - 1)
+    finish_point = generate_turning_point_image(
+        contestant.navigation_task.route.waypoints,
+        len(contestant.navigation_task.route.waypoints) - 1,
+    )
     finish_point_file = NamedTemporaryFile(suffix=".png")
     finish_point_file.write(finish_point.read())
     finish_point_file.seek(0)
@@ -1024,22 +1065,22 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.image(mapimage_file.name, x=0, y=0, h=297)
     if contestant.navigation_task.scorecard.calculator != Scorecard.ANR_CORRIDOR:
         insert_turning_point_images(contestant, pdf)
-    return pdf.output(dest="S").encode('latin-1')
+    return pdf.output(dest="S").encode("latin-1")
 
 
 def plot_route(
-        task: NavigationTask,
-        map_size: str,
-        zoom_level: Optional[int] = None,
-        landscape: bool = True,
-        contestant: Optional[Contestant] = None,
-        waypoints_only: bool = False,
-        annotations: bool = True,
-        scale: int = 200,
-        dpi: int = 300,
-        map_source: str = "osm",
-        line_width: float = 0.5,
-        colour: str = "#0000ff"
+    task: NavigationTask,
+    map_size: str,
+    zoom_level: Optional[int] = None,
+    landscape: bool = True,
+    contestant: Optional[Contestant] = None,
+    waypoints_only: bool = False,
+    annotations: bool = True,
+    scale: int = 200,
+    dpi: int = 300,
+    map_source: str = "osm",
+    line_width: float = 0.5,
+    colour: str = "#0000ff",
 ):
     route = task.route
     A4_width = 21.0
@@ -1182,7 +1223,7 @@ def plot_route(
         # Projection in metres
         utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
         centre_longitude = (
-                minimum_longitude + (maximum_longitude - minimum_longitude) / 2
+            minimum_longitude + (maximum_longitude - minimum_longitude) / 2
         )
         centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
         centre_x, centre_y = utm.transform_point(

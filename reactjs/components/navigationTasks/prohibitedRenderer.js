@@ -12,8 +12,11 @@ export default class ProhibitedRenderer extends Component {
             if (polygonDefinition.type === "prohibited") {
                 let p = polygon(polygonDefinition.path, {color: "red"}).addTo(this.props.map)
                 p.bindTooltip(polygonDefinition.name, {permanent: true, direction: "center", className: "prohibitedTooltip"}).openTooltip()
-            } else if (polygonDefinition.type === "info") {
+            } else if (polygonDefinition.type === "penalty") {
                 let p = polygon(polygonDefinition.path, {color: "orange"}).addTo(this.props.map)
+                p.bindTooltip(polygonDefinition.name, {permanent: true, direction: "center", className: "prohibitedTooltip"}).openTooltip()
+            } else if (polygonDefinition.type === "info") {
+                let p = polygon(polygonDefinition.path, {color: "lightblue"}).addTo(this.props.map)
                 p.bindTooltip(polygonDefinition.name, {permanent: true, direction: "center", className: "prohibitedTooltip"}).openTooltip()
             } else if (polygonDefinition.type === "gate") {
                 let p = polygon(polygonDefinition.path, {color: "blue"}).addTo(this.props.map)
