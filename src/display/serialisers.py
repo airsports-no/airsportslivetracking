@@ -776,7 +776,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = NavigationTask
-        exclude = ("contest",)
+        fields = "__all__"
 
     def create(self, validated_data):
         user = self.context["request"].user
@@ -1064,4 +1064,3 @@ class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.Mode
     def get_permissions_map(self, created):
         user = self.context["request"].user
         return {"change_editableroute": [user], "delete_editableroute": [user], "view_editableroute": [user]}
-

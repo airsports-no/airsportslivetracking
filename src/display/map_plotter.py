@@ -931,16 +931,18 @@ def insert_turning_point_images(contestant, pdf: FPDF):
     number_of_pages = 1 + number_of_images // (2 * rows_per_page)
     current_page = -1
     image_height = 230 / rows_per_page
-    title_offset = 10
+    title_offset = 5
     row_step = image_height + title_offset
-    row_start = 20
+    row_start = 30
     for index in range(number_of_images):
         if index % (rows_per_page * 2) == 0:
+            if index>0:
+                pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
             pdf.add_page()
             page_text = (
                 f" {current_page + 2}/{number_of_pages}" if number_of_pages > 1 else ""
             )
-            pdf.cell(0, 10, txt=f"Turning point images{page_text}")
+            pdf.write_html(f"<h2>Turning point images{page_text}</h2>")
             current_page += 1
         if index % 2 == 0:  # left column
             x = 10
@@ -954,6 +956,8 @@ def insert_turning_point_images(contestant, pdf: FPDF):
         file.write(image.read())
         file.seek(0)
         pdf.image(file.name, x=x, y=y + 1, h=image_height)
+    pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
+
 
 
 def generate_flight_orders(contestant: "Contestant") -> bytes:
@@ -994,7 +998,10 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.add_page()
     print(os.getcwd())
     pdf.set_font("Arial", "B", 16)
-    pdf.image("static/img/airsports_no_text.png", x=170, y=10, w=30)
+    if contestant.navigation_task.contest.logo:
+        pdf.image(f"/src/media/{contestant.navigation_task.contest.logo}", x=170, y=10, w=30)
+    else:
+        pdf.image("static/img/airsports_no_text.png", x=170, y=10, w=30)
     pdf.ln(5)
     # pdf.cell(60)
     pdf.cell(170, txt=f"Welcome to", align="C", ln=1)
@@ -1018,7 +1025,6 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.write_html(
         f"""
     <p><center><h2>Good luck</h2></center>
-    <img src="static/img/AirSportsLiveTracking.png" width="110"/>
     """
     )
 
@@ -1039,6 +1045,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     finish_point_file.write(finish_point.read())
     finish_point_file.seek(0)
     pdf.image(finish_point_file.name, x=110, y=180, w=90)
+
+    pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
 
     pdf.add_page()
     waypoint = contestant.navigation_task.route.waypoints[0]  # type: Waypoint
@@ -1063,6 +1071,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     mapimage_file.seek(0)
     # Negative values to account for margins
     pdf.image(mapimage_file.name, x=0, y=0, h=297)
+    pdf.image("static/img/AirSportsLiveTrackingWhiteBG.png", x=160, y=288, w=50)
     if contestant.navigation_task.scorecard.calculator != Scorecard.ANR_CORRIDOR:
         insert_turning_point_images(contestant, pdf)
     return pdf.output(dest="S").encode("latin-1")

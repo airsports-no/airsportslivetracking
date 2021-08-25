@@ -11,7 +11,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         self.route = Route.objects.create(name="test")
         Prohibited.objects.create(name="test", path=[(60, 11), (60, 12), (61, 12), (61, 11)],
                                   route=self.route,
-                                  type="square")
+                                  type="prohibited")
         from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
         self.update_score = Mock()
         self.calculator = ProhibitedZoneCalculator(None, get_default_scorecard(), [], self.route, self.update_score)

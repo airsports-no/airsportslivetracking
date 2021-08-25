@@ -16,7 +16,7 @@ import axios from "axios";
 import {Link, withRouter} from "react-router-dom";
 import IntroSlider from "react-intro-slider";
 import Cookies from "universal-cookie";
-import {getBearing} from "../../utilities";
+import {getBearing, getHeadingDifference} from "../../utilities";
 
 const gateTypes = [
     ["Starting point", "sp"],
@@ -344,7 +344,7 @@ class ConnectedRouteEditor extends Component {
                         // He we know there is at least one gate before and one after
                         const bearingToThis = getBearing(positions[i - 1].lat, positions[i - 1].lng, positions[i].lat, positions[i].lng)
                         const bearingFromThis = getBearing(positions[1].lat, positions[1].lng, positions[i + 1].lat, positions[i + 1].lng)
-                        const bearingDifference = Math.abs(bearingToThis - bearingFromThis)
+                        const bearingDifference = getHeadingDifference(bearingToThis, bearingFromThis)
                         if (bearingDifference > 1) {
                             errors.push("The secret gate " + layer.trackPoints[i].name + " must lie on a straight line between " + layer.trackPoints[i - 1].name + " and " + layer.trackPoints[i + 1].name + ". The current bearing difference is " + bearingDifference.toFixed(2))
                         }
@@ -761,7 +761,7 @@ class ConnectedRouteEditor extends Component {
                 </Toast> : null}
             </div>
             <a href={"#"} className={"logoImageRE"} onClick={() => this.setState({displayTutorial: true})}>
-                <img src={"/static/img/airsports_info.png"} style={{width: "50px"}} alt={"Help"}/>
+                <img src={"/static/img/airsports_help.png"} style={{width: "50px"}} alt={"Help"}/>
             </a>
 
             {this.featureEditModal()}

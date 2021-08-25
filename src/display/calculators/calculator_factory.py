@@ -6,6 +6,7 @@ from display.calculators.gatekeeper import Gatekeeper
 from display.calculators.gatekeeper_landing import GatekeeperLanding
 from display.calculators.gatekeeper_poker import GatekeeperPoker
 from display.calculators.gatekeeper_route import GatekeeperRoute
+from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 
 from display.models import Contestant, Scorecard
@@ -14,12 +15,12 @@ from display.models import Contestant, Scorecard
 def calculator_factory(contestant: "Contestant", position_queue: Queue, live_processing: bool = True) -> "Gatekeeper":
     if contestant.navigation_task.scorecard.calculator == Scorecard.PRECISION:
         return GatekeeperRoute(contestant, position_queue,
-                               [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator],
+                               [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator],
                                live_processing=live_processing)
     if contestant.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
         return GatekeeperRoute(contestant, position_queue,
                                [BacktrackingAndProcedureTurnsCalculator, AnrCorridorCalculator,
-                                ProhibitedZoneCalculator],
+                                ProhibitedZoneCalculator, PenaltyZoneCalculator],
                                live_processing=live_processing)
     if contestant.navigation_task.scorecard.calculator == Scorecard.LANDING:
         return GatekeeperLanding(contestant, position_queue, [], live_processing=live_processing)

@@ -6,7 +6,7 @@ import TrackLoadingIndicator from "./trackLoadingIndicator";
 import {LowerThirdTeam} from "./teamBadges";
 import {
     displayAllTracks,
-    expandTrackingTable, fetchNavigationTask, fullHeightTable,
+    expandTrackingTable, fetchMyParticipatingContests, fetchNavigationTask, fullHeightTable,
     halfHeightTable,
     hideLowerThirds,
     setDisplay,
@@ -28,7 +28,8 @@ const mapStateToProps = (state, props) => ({
     displayLowerThirds: state.displayLowerThirds,
     contestants: state.contestants,
     currentDisplay: state.currentDisplay,
-    displayFullHeightTrackingTable: state.displayFullHeightTrackingTable
+    displayFullHeightTrackingTable: state.displayFullHeightTrackingTable,
+    myParticipatingContests: state.myParticipatingContests
 })
 
 class ConnectedTrackingContainer extends Component {
@@ -60,6 +61,13 @@ class ConnectedTrackingContainer extends Component {
         this.props.hideLowerThirds();
     }
 
+    getCurrentParticipation() {
+        if (!this.props.myParticipatingContests) return null
+        return this.props.myParticipatingContests.find((participation) => {
+            return participation.contest.id === this.contestId
+        })
+    }
+
     render() {
         const TableHeightLink = <a className={"heightLink taskTitle"} href={"#"}
                                    onClick={this.props.displayFullHeightTrackingTable ? this.props.halfHeightTable : this.props.fullHeightTable}>{this.props.displayFullHeightTrackingTable ?
@@ -74,6 +82,7 @@ class ConnectedTrackingContainer extends Component {
                                              navigationTaskId={this.navigationTaskId}
                                              fetchInterval={2000}
                                              displayMap={this.displayMap} displayTable={true} playback={this.playback}/>
+        const currentParticipation = this.getCurrentParticipation()
         if (this.displayTable && this.displayMap) {
             return (
                 <div id="map-holder">
@@ -140,12 +149,16 @@ class ConnectedTrackingContainer extends Component {
                                 <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
                             </a>
                             <Disclaimer/>
-                            {this.props.navigationTask.allow_self_management?
-                            <div className={"registerLink"}>
-                                <a href={"/participation/" + this.contestId + "/register/"}>
-                                    <button className={"btn btn-danger btn-sm"}>Register crew</button>
-                                </a>
-                            </div>:null}
+                            {this.props.navigationTask.allow_self_management ?
+                                <div className={"registerLink"}>
+                                    {currentParticipation ?
+                                        <a href={"/participation/myparticipation/" + currentParticipation.id + "/"}>
+                                            <button className={"btn btn-danger btn-sm"}>Manage crew</button>
+                                        </a> :
+                                        <a href={"/participation/" + this.contestId + "/register/"}>
+                                            <button className={"btn btn-danger btn-sm"}>Register crew</button>
+                                        </a>}
+                                </div> : null}
                             <div className={"trackImage"}>
                                 <Icon path={mdiGoKartTrack} title={"Track"} size={2} color={"#e01b1c"}
                                       onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
@@ -182,6 +195,7 @@ const
         halfHeightTable,
         fullHeightTable,
         toggleExplicitlyDisplayAllTracks,
-        toggleDisplayOpenAip
+        toggleDisplayOpenAip,
+        fetchMyParticipatingContests
     })(ConnectedTrackingContainer)
 export default TrackingContainer

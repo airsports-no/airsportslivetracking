@@ -170,7 +170,8 @@ class Gatekeeper(ABC):
         score, capped = self.accumulated_scores.set_and_update_score(score, score_type, maximum_score)
         if planned is not None and actual is not None:
             offset = (actual - planned).total_seconds()
-            offset_string = "{} s".format("+{}".format(int(offset)) if offset > 0 else int(offset))
+            # Must use round, this is the same as used in the score calculation
+            offset_string = "{} s".format("+{}".format(round(offset)) if offset > 0 else int(offset))
         else:
             offset_string = ""
         if capped:

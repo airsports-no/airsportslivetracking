@@ -861,6 +861,19 @@ class Scorecard(models.Model):
         help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas",
     )
 
+    penalty_zone_grace_time = models.FloatField(
+        default=3,
+        help_text="The number of seconds the contestant can be within the penalty zone before getting penalty"
+    )
+    penalty_zone_penalty_per_second = models.FloatField(
+        default=3,
+        help_text="The number of points per second beyond the grace time while inside the penalty zone"
+    )
+    penalty_zone_maximum = models.FloatField(
+        default=100,
+        help_text="Maximum penalty within a single zone"
+    )
+
     ##### ANR Corridor
     corridor_width = models.FloatField(default=0.3, help_text="The corridor width (NM) for ANR tasks")
     corridor_grace_time = models.IntegerField(default=5, help_text="The corridor grace time for ANR tasks")
@@ -949,6 +962,9 @@ class Scorecard(models.Model):
                 self.__format_value("corridor_grace_time", contestant),
                 self.__format_value("corridor_outside_penalty", contestant),
                 self.__format_value("corridor_maximum_penalty", contestant),
+                self.__format_value("penalty_zone_grace_time", contestant),
+                self.__format_value("penalty_zone_penalty_per_second", contestant),
+                self.__format_value("penalty_zone_maximum", contestant),
             ],
             "gates": [
                 {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
@@ -979,6 +995,37 @@ class Scorecard(models.Model):
 
     def get_gate_score_override(self, gate_type: str, contestant: "Contestant"):
         return contestant.get_gate_score_override(gate_type)
+
+    def calculate_penalty_zone_score(self, contestant: "Contestant", enter: datetime.datetime, exit: datetime.datetime):
+        difference = round((exit - enter).total_seconds()) - self.get_penalty_zone_grace_time(contestant)
+        if difference < 0:
+            return 0
+        return min(self.get_penalty_zone_maximum(contestant),
+                   difference * self.get_penalty_zone_penalty_per_second(contestant))
+
+    def get_penalty_zone_grace_time(self, contestant: "Contestant"):
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if override.penalty_zone_grace_time is not None:
+                    return override.penalty_zone_grace_time
+        return self.penalty_zone_grace_time
+
+    def get_penalty_zone_penalty_per_second(self, contestant: "Contestant"):
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if override.penalty_zone_penalty_per_second is not None:
+                    return override.penalty_zone_penalty_per_second
+        return self.penalty_zone_penalty_per_second
+
+    def get_penalty_zone_maximum(self, contestant: "Contestant"):
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if override.penalty_zone_maximum is not None:
+                    return override.penalty_zone_maximum
+        return self.penalty_zone_maximum
 
     def get_backtracking_penalty(self, contestant: "Contestant"):
         if contestant:
@@ -1250,6 +1297,19 @@ class TrackScoreOverride(models.Model):
         null=True,
         help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas",
     )
+    penalty_zone_grace_time = models.FloatField(
+        default=3,
+        help_text="The number of seconds the contestant can be within the penalty zone before getting penalty"
+    )
+    penalty_zone_penalty_per_second = models.FloatField(
+        default=3,
+        help_text="The number of points per second beyond the grace time while inside the penalty zone"
+    )
+    penalty_zone_maximum = models.FloatField(
+        default=100,
+        help_text="Maximum penalty within a single zone"
+    )
+
     ### ANR Corridor
     corridor_width = models.FloatField(default=None, blank=True, null=True, help_text="The width of the ANR corridor")
     corridor_grace_time = models.FloatField(
