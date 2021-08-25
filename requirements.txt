@@ -66,3 +66,4 @@ FPDF
 flower
 django-celery-results
 django-celery-beat
+qrcode

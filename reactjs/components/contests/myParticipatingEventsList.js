@@ -108,7 +108,7 @@ class ConnectedMyParticipatingEventsList extends Component {
                                     onClick={() => this.handleWithdrawTaskClick(this.props.currentParticipation, task)}>Cancel
                                 flight</Button> :
                             <Button variant={"primary"}
-                                    onClick={() => this.handleEnterClick(this.props.currentParticipation, task)}>Start
+                                    onClick={() => this.handleEnterClick(this.props.currentParticipation, task)}>Schedule
                                 flight</Button>
                         : null}
                     <a style={{float: "right"}} href={task.tracking_link}><Icon path={mdiShare}
