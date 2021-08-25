@@ -1,5 +1,6 @@
 import glob
 import logging
+import urllib
 from io import BytesIO
 from tempfile import TemporaryFile, NamedTemporaryFile
 
@@ -983,8 +984,9 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     finish_tracking_time = contestant.finished_by_time.astimezone(
         contestant.navigation_task.contest.time_zone
     ).strftime("%Y-%m-%d %H:%M:%S")
-
-    qr=qr_code_image("https://airsports.no/" + contestant.navigation_task.tracking_link, "static/img/facebook_logo.png")
+    facebook_share_url = "https://www.facebook.com/sharer/sharer.php?u="
+    url=facebook_share_url + urllib.parse.quote("https://airsports.no" + contestant.navigation_task.tracking_link)
+    qr=qr_code_image(url, "static/img/facebook_logo.png")
     qr_file = NamedTemporaryFile(suffix=".png")
     qr.save(qr_file)
     qr_file.seek(0)
@@ -992,13 +994,13 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     head_html = f"""
 <table border="0" width="100%">
 <thead><tr><th width="20%"></th><th width="50%"></th><th width="30%"></td></tr></thead>
-<tr><td><b>Contestant:</b></td><td>{contestant}</td><td rowspan=6><img src="{qr_file.name}" width=100 /></td></tr>
+<tr><td><b>Contestant:</b></td><td>{contestant}</td><td rowspan=6><a href="{url}"><img src="{qr_file.name}" width=100 /></a></td></tr>
 <tr><td><b>Task type:</b></td><td>{contestant.navigation_task.scorecard.get_calculator_display()}</td><td></td></tr>
 <tr><td><b>Airspeed:</b></td><td>{"{:.0f}".format(contestant.air_speed)} knots</td><td></td></tr>
 <tr><td><b>Task wind:</b></td><td>{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}</td><td></td></tr>
 <tr><td><b>Departure:</b></td><td>{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}</td><td></td></tr>
 <tr><td><b>Start point:</b></td><td>{starting_point_time_string if not contestant.adaptive_start else 'Adaptive start'}</td><td></td></tr>
-<tr><td>&nbsp; </td><td>&nbsp; </td><td><b>Share on Facebook</b></td></tr>
+<tr><td>&nbsp; </td><td>&nbsp; </td><td><b><a href="{url}">Share flight on Facebook</a></b></td></tr>
 </table>{f"Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
 """
 

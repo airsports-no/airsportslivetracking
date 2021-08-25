@@ -45,9 +45,8 @@ def qr_code_image(url: str, image_path: str):
     QRcode = qrcode.QRCode(
         error_correction=qrcode.constants.ERROR_CORRECT_H
     )
-    facebook_share_url = "https://www.facebook.com/sharer/sharer.php?u="
     # addingg URL or text to QRcode
-    QRcode.add_data(facebook_share_url + urllib.parse.quote(url))
+    QRcode.add_data(url)
 
     # generating QR code
     QRcode.make()
