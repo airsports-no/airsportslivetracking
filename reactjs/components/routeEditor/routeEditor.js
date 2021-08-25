@@ -345,7 +345,7 @@ class ConnectedRouteEditor extends Component {
                         const bearingToThis = getBearing(positions[i - 1].lat, positions[i - 1].lng, positions[i].lat, positions[i].lng)
                         const bearingFromThis = getBearing(positions[1].lat, positions[1].lng, positions[i + 1].lat, positions[i + 1].lng)
                         const bearingDifference = getHeadingDifference(bearingToThis, bearingFromThis)
-                        if (bearingDifference > 1) {
+                        if (bearingDifference > 3) {
                             errors.push("The secret gate " + layer.trackPoints[i].name + " must lie on a straight line between " + layer.trackPoints[i - 1].name + " and " + layer.trackPoints[i + 1].name + ". The current bearing difference is " + bearingDifference.toFixed(2))
                         }
                     }

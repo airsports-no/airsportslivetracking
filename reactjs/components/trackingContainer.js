@@ -53,6 +53,7 @@ class ConnectedTrackingContainer extends Component {
 
     componentDidMount() {
         this.fetchNavigationTask()
+        this.props.fetchMyParticipatingContests()
     }
 
     resetToAllContestants() {
