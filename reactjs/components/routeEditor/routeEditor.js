@@ -679,11 +679,11 @@ class ConnectedRouteEditor extends Component {
             collapsed: false
         }).addTo(this.map);
         this.map.on("locationerror", (e) => {
-            if (!this.props.route) {
+            if (!this.props.routeId) {
                 this.map.setView(L.latLng(59, 10.5), 7)
             }
         })
-        if (!this.props.route) {
+        if (!this.props.routeId) {
             this.map.locate({setView: true, maxZoom: 7})
         }
         this.map.whenReady(() => {
