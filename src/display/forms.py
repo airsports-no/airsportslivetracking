@@ -108,9 +108,30 @@ class PrecisionScoreOverrideForm(forms.Form):
     regular_gate_penalty_per_second = forms.FloatField(required=True,
                                                        help_text="Penalty per second time offset (beyond regular_gate_grace_time) for regular and secret gates")
 
+    prohibited_zone_penalty = forms.FloatField(required=True,
+                                               help_text="This penalty is awarded whenever the contestant enters a prohibited zone")
+    penalty_zone_maximum = forms.FloatField(required=True,
+                                            help_text="The maximum penalty achievable inside a single penalty zone")
+    penalty_zone_grace_time = forms.FloatField(required=True,
+                                               help_text="The number of seconds the contestant can be within the zone before getting penalties")
+    penalty_zone_penalty_per_second = forms.FloatField(required=True,
+                                                       help_text="The number of penalty points given per second inside the zone")
+
     def build_score_override(self, navigation_task: NavigationTask):
         navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            bad_course_penalty=self.cleaned_data["backtracking_penalty"])
+            bad_course_penalty=self.cleaned_data["backtracking_penalty"],
+            prohibited_zone_penalty=
+            self.cleaned_data[
+                "prohibited_zone_penalty"],
+            penalty_zone_maximum=self.cleaned_data[
+                "penalty_zone_maximum"],
+            penalty_zone_grace_time=
+            self.cleaned_data[
+                "penalty_zone_grace_time"],
+            penalty_zone_penalty_per_second=
+            self.cleaned_data[
+                "penalty_zone_penalty_per_second"]
+        )
         navigation_task.save()
         navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["tp", "secret"],
                                                                                  checkpoint_grace_period_after=
@@ -127,6 +148,10 @@ class PrecisionScoreOverrideForm(forms.Form):
     def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
         return {
             "backtracking_penalty": scorecard.backtracking_penalty,
+            "prohibited_zone_penalty": scorecard.prohibited_zone_penalty,
+            "penalty_zone_maximum": scorecard.penalty_zone_maximum,
+            "penalty_zone_grace_time": scorecard.penalty_zone_grace_time,
+            "penalty_zone_penalty_per_second": scorecard.penalty_zone_penalty_per_second,
             "regular_gate_grace_time": scorecard.turning_point_gate_score.graceperiod_before,
             "regular_gate_penalty_per_second": scorecard.turning_point_gate_score.penalty_per_second
         }
@@ -139,7 +164,14 @@ class PrecisionScoreOverrideForm(forms.Form):
                 "If required, override default scorecard penalty points",
                 "backtracking_penalty",
                 "regular_gate_grace_time",
-                "regular_gate_penalty_per_second"
+                "regular_gate_penalty_per_second",
+            ),
+            Fieldset(
+                "Zones",
+                "prohibited_zone_penalty",
+                "penalty_zone_maximum",
+                "penalty_zone_grace_time",
+                "penalty_zone_penalty_per_second"
             ),
             ButtonHolder(
                 Submit("submit", "Submit")
@@ -163,6 +195,15 @@ class ANRCorridorScoreOverrideForm(forms.Form):
     gate_miss_penalty = forms.FloatField(required=True,
                                          help_text="Penalty awarded when missing the starting point or finish point entirely")
 
+    prohibited_zone_penalty = forms.FloatField(required=True,
+                                               help_text="This penalty is awarded whenever the contestant enters a prohibited zone")
+    penalty_zone_maximum = forms.FloatField(required=True,
+                                            help_text="The maximum penalty achievable inside a single penalty zone")
+    penalty_zone_grace_time = forms.FloatField(required=True,
+                                               help_text="The number of seconds the contestant can be within the zone before getting penalties")
+    penalty_zone_penalty_per_second = forms.FloatField(required=True,
+                                                       help_text="The number of penalty points given per second inside the zone")
+
     def build_score_override(self, navigation_task: NavigationTask):
         navigation_task.track_score_override = TrackScoreOverride.objects.create(corridor_width=self.cleaned_data[
             "corridor_width"],
@@ -173,7 +214,18 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                                                                                      "corridor_outside_penalty"],
                                                                                  corridor_maximum_penalty=
                                                                                  self.cleaned_data[
-                                                                                     "corridor_maximum_penalty"]
+                                                                                     "corridor_maximum_penalty"],
+                                                                                 prohibited_zone_penalty=
+                                                                                 self.cleaned_data[
+                                                                                     "prohibited_zone_penalty"],
+                                                                                 penalty_zone_maximum=self.cleaned_data[
+                                                                                     "penalty_zone_maximum"],
+                                                                                 penalty_zone_grace_time=
+                                                                                 self.cleaned_data[
+                                                                                     "penalty_zone_grace_time"],
+                                                                                 penalty_zone_penalty_per_second=
+                                                                                 self.cleaned_data[
+                                                                                     "penalty_zone_penalty_per_second"]
                                                                                  )
         navigation_task.save()
         navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["sp", "fp"],
@@ -198,7 +250,11 @@ class ANRCorridorScoreOverrideForm(forms.Form):
             "corridor_maximum_penalty": scorecard.corridor_maximum_penalty,
             "gate_grace_time": scorecard.starting_point_gate_score.graceperiod_before,
             "gate_penalty_per_second": scorecard.starting_point_gate_score.penalty_per_second,
-            "gate_miss_penalty": scorecard.starting_point_gate_score.missed_penalty
+            "gate_miss_penalty": scorecard.starting_point_gate_score.missed_penalty,
+            "prohibited_zone_penalty": scorecard.prohibited_zone_penalty,
+            "penalty_zone_maximum": scorecard.penalty_zone_maximum,
+            "penalty_zone_grace_time": scorecard.penalty_zone_grace_time,
+            "penalty_zone_penalty_per_second": scorecard.penalty_zone_penalty_per_second
         }
 
     def __init__(self, *args, **kwargs):
@@ -214,6 +270,13 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                 "gate_grace_time",
                 "gate_penalty_per_second",
                 "gate_miss_penalty",
+            ),
+            Fieldset(
+                "Zones",
+                "prohibited_zone_penalty",
+                "penalty_zone_maximum",
+                "penalty_zone_grace_time",
+                "penalty_zone_penalty_per_second"
             ),
             ButtonHolder(
                 Submit("submit", "Submit")
@@ -281,7 +344,8 @@ class PrecisionImportRouteForm(forms.Form):
         cleaned_data = super().clean()
         if cleaned_data.get("file") and cleaned_data.get("internal_route"):
             raise ValidationError("You cannot both upload a file and use an internal route")
-        if not cleaned_data.get("internal_route") and  bool(cleaned_data.get("file")) != bool(cleaned_data.get("file_type")):
+        if not cleaned_data.get("internal_route") and bool(cleaned_data.get("file")) != bool(
+                cleaned_data.get("file_type")):
             raise ValidationError("You must select both file and file type")
 
 
