@@ -1000,8 +1000,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 <tr><td><b>Task wind:</b></td><td>{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}</td><td></td></tr>
 <tr><td><b>Departure:</b></td><td>{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}</td><td></td></tr>
 <tr><td><b>Start point:</b></td><td>{starting_point_time_string if not contestant.adaptive_start else 'Adaptive start'}</td><td></td></tr>
-<tr><td>&nbsp; </td><td>&nbsp; </td><td><b><a href="{url}">Share flight on Facebook</a></b></td></tr>
-</table>{f"Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
+</table>{f"<p>Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
 """
 
     pdf = MyFPDF(orientation="P", unit="mm", format="A4")
@@ -1040,7 +1039,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     <p><center><h2>Good luck</h2></center>
     """
     )
-
+    pdf.set_xy(136,80)
+    pdf.write(10,"Share flight on Facebook", url)
     starting_point = generate_turning_point_image(
         contestant.navigation_task.route.waypoints, 0
     )
