@@ -683,7 +683,9 @@ class ConnectedRouteEditor extends Component {
                 this.map.setView(L.latLng(59, 10.5), 7)
             }
         })
-        this.map.locate({setView: true, maxZoom: 7})
+        if (!this.props.route) {
+            this.map.locate({setView: true, maxZoom: 7})
+        }
         this.map.whenReady(() => {
             this.map.addControl(new L.Control.Draw({
                 // edit: {
