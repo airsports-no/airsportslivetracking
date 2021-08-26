@@ -8,16 +8,27 @@
     <p>
         {% get_obj_perms request.user for contest as "contest_permissions" %}
 
+
         {% if "change_contest" in contest_permissions %}
+            <div class="btn-group float-right">
+                <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false">
+                    Management
+                </button>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a>
+                    <a class="dropdown-item" href= {% url 'contest_permissions_list' object.pk %}>Permissions</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{% url 'contest_update' object.pk %}">Update</a>
+                    {% if "delete_contest" in contest_permissions %}
+                        <a class="dropdown-item" href="{% url 'contest_delete' object.pk %}">Delete</a>
+                    {% endif %}
+                </div>
+            </div>
             <a href="{% url 'contest_share' object.pk %}">Share</a> |
             <a href="{% url 'contest_team_list' object.pk %}">Team list</a> |
-            <a href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a> | <a
-                href="{% url 'contest_update' object.pk %}">Update</a> |
-            <a href= {% url 'contest_permissions_list' object.pk %}>Permissions</a> |
             <a href="/resultsservice/{{ object.pk }}/taskresults/">Contest results</a>
-            {% if "delete_contest" in contest_permissions %}
-                | <a href="{% url 'contest_delete' object.pk %}">delete</a>
-            {% endif %}{% endif %}
+        {% endif %}
     <table class="table table-condensed">
         <thead>
         <tr>

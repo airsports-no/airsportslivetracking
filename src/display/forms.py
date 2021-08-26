@@ -796,3 +796,21 @@ class ChangeContestPermissionsForm(forms.Form):
 
 class RouteCreationForm(forms.Form):
     route = LineStringField(widget=OSMWidget(attrs={'map_width': 800, 'map_height': 500}))
+
+
+class GPXTrackImportForm(forms.Form):
+    track_file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["gpx"])],
+                                 required=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "GPX Track upload",
+                "track_file",
+            ),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )

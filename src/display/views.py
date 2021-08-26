@@ -95,7 +95,7 @@ from display.forms import (
     LandingImportRouteForm,
     PNG,
     ShareForm,
-    SCALE_TO_FIT,
+    SCALE_TO_FIT, GPXTrackImportForm,
 )
 from display.generate_flight_orders import generate_flight_orders
 from display.map_plotter import (
@@ -775,6 +775,31 @@ def get_navigation_task_map(request, pk):
             return response
     form = MapForm()
     return render(request, "display/map_form.html", {"form": form})
+
+
+@guardian_permission_required(
+    "display.change_contest", (Contest, "navigationtask__contestant__pk", "pk")
+)
+def upload_gpx_track_for_contesant(request, pk):
+    """
+    Consumes a FC GPX file that contains the GPS track of a contestant.
+    """
+    contestant = get_object_or_404(Contestant, pk=pk)
+    if request.method == "POST":
+        form = GPXTrackImportForm(request.POST)
+        if form.is_valid():
+            ContestantTrack.objects.filter(contestant=contestant).delete()
+            contestant.save()  # Creates new contestant track
+            track_file = request.data.get("track_file", None)
+            if not track_file:
+                raise ValidationError("Missing track_file")
+            import_gpx_track.apply_async((contestant.pk, track_file))
+            return HttpResponseRedirect(
+                reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
+            )
+    else:
+        form = GPXTrackImportForm()
+    return render(request, "display/upload_gpx_form.html", {"form": form, "contestant": contestant})
 
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
@@ -1500,7 +1525,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
 
     def done(self, form_list, **kwargs):
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
-        route, ediable_route=self.create_route()
+        route, ediable_route = self.create_route()
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.objects.create(
             **final_data,

@@ -7,27 +7,47 @@
     {{ object.start_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }} -
     {{ object.finish_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }} ({{ object.share_string }})
     <p>
-        <a href="{% url 'navigationtask_share' object.pk %}">Share</a> |
-        <a href="{% url 'contest_details' object.contest.pk %}">Back to contest</a> |
-        <a href="{% url 'frontend_view_map' object.pk %}">Track</a> |
-        <a href="{% url 'navigationtask_rules' object.pk %}">Rules</a> |
-        <a href="/resultsservice/{{ object.contest.pk }}/taskresults/">Contest results</a> <br/>
         {% if "change_contest" in contest_permissions %}
-            <a href="{% url 'navigationtask_addcontestants' object.pk %}">Add contestants</a> |
-            <a href="{% url 'navigationtask_removecontestants' object.pk %}">Remove contestants</a> |
-            {% if object.editable_route %}
-                <a href="{% url 'navigationtask_refresheditableroute' object.pk %}">Reload route</a> |
-            {% endif %}
-            <a href="{% url 'navigationtask_broadcastflightorders' object.pk %}" title="Regenerate flight orders for all future contestants and email them">Broadcast flight orders</a> |
+            <div class="btn-group float-right">
+                <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false">
+                    Management
+                </button>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="{% url 'navigationtask_addcontestants' object.pk %}"
+                       title="Schedule contestants based on registered teams">Add
+                        contestants</a>
+                    <a class="dropdown-item" href="{% url 'navigationtask_removecontestants' object.pk %}"
+                       title="Remove all scheduled contestants">Remove
+                        contestants</a>
+                    {% if object.editable_route %}
+                        <a class="dropdown-item" href="{% url 'navigationtask_refresheditableroute' object.pk %}"
+                           title="If the task is generated from a route built in the route editor, click this link to refresh the task if changes have been made to the route.">Reload
+                            route</a>
+                    {% endif %}
+                    <a class="dropdown-item" href="{% url 'navigationtask_broadcastflightorders' object.pk %}"
+                       title="Regenerate flight orders for all future contestants and email them">Broadcast flight
+                        orders</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{% url 'navigationtask_update' object.pk %}">Update</a>
+                    <a class="dropdown-item" href="{% url 'navigationtask_delete' object.pk %}">Delete</a>
+                </div>
+            </div>
         {% endif %}
-        <a href="{% url 'navigationtask_contestantstimeline' object.pk %}">Timeline</a> |
-        <a href="{% url 'navigationtask_qr' object.pk %}">QR</a> |
-        <a href="{% url 'navigationtask_map' object.pk %}">Map</a>
-        {% if "change_contest" in contest_permissions %}
-            <br/><a href="{% url 'navigationtask_delete' object.pk %}">delete</a>
-            | <a href="{% url 'navigationtask_update' object.pk %}">update</a>
-            {#                            | <a href="{% url 'navigationtask_scoreoverride' navigation_task.pk %}">Score override</a>#}
-        {% endif %}
+    <a href="{% url 'contest_details' object.contest.pk %}">Back to contest</a> |
+    <a href="{% url 'navigationtask_share' object.pk %}" title="Toggle the visibility of the navigation task">Share</a>
+    |
+    <a href="{% url 'frontend_view_map' object.pk %}" title="Link to the online tracking map">Tracking map</a> |
+    <a href="{% url 'navigationtask_rules' object.pk %}">Rules</a> |
+    <a href="/resultsservice/{{ object.contest.pk }}/taskresults/">Contest results</a>
+
+    <br/>
+    <a href="{% url 'navigationtask_contestantstimeline' object.pk %}"
+       title="A graphical representation of the starting times">Timeline</a> |
+    <a href="{% url 'navigationtask_qr' object.pk %}"
+       title="A page with a QR code to share the navigation task link. Can be printed and posted at the venue, for instance.">QR</a>
+    |
+    <a href="{% url 'navigationtask_map' object.pk %}" title="Generate navigation map">Navigation map</a>
 
     <table class="table table-condensed">
         <thead>
@@ -89,23 +109,43 @@
                 </td>
                 <td>{{ contestant.contestanttrack.current_state }}</td>
                 <td>
-                    <a href="{% url 'contestant_map' contestant.pk %}">map</a> |
-                    <a href="{% url 'contestant_rules' contestant.pk %}">rules</a>
-                    {% if object.is_poker_run %}
-                        {% if "change_contest" in contest_permissions %}
-                            | <a href="{% url 'contestant_cards_list' contestant.pk %}">playing cards</a>
-                        {% endif %}
-                    {% endif %}
-                    {% if "change_contest" in contest_permissions %}
-                        {% for a in contestant.emailmaplink_set.all %}
-                            | <a href="{% url 'email_map_link' a.id %}">Flight order</a>
-                        {% endfor %}
-                            | <a href="{% url 'contestant_stop_calculator' contestant.pk %}"
-                                onclick="return confirm('Are you sure you want to stop the calculator?')">stop
-                        calculator</a>
-                        |
-                        <a href="{% url 'contestant_delete' contestant.pk %}">delete</a>
-                    {% endif %}
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
+                                aria-haspopup="true" aria-expanded="false">
+                            Actions
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="{% url 'contestant_map' contestant.pk %}"
+                               title="Generate the navigation map for the contestant">Map</a>
+                            <a class="dropdown-item" href="{% url 'contestant_rules' contestant.pk %}"
+                               title="Display the specific rules for the contestant">Rules</a>
+
+                            {% if "change_contest" in contest_permissions %}
+                                <div class="dropdown-divider"></div>
+                                {% for a in contestant.emailmaplink_set.all %}
+                                    <a class="dropdown-item" href="{% url 'email_map_link' a.id %}"
+                                       title="Download the already generated flight order. If settings have been changed, regenerate the flight orders by clicking the button 'Broadcast flight orders' at the top">Flight
+                                        order</a>
+                                {% endfor %}
+                                <a class="dropdown-item" href="{% url 'contestant_uploadgpxtrack' contestant.pk %}"
+                                   title="Upload a GPX track for scoring. This will delete any existing track for the contestant.">Upload
+                                    gpx</a>
+                                <a class="dropdown-item" href="{% url 'contestant_stop_calculator' contestant.pk %}"
+                                   title="Terminates the running scoring of the contestant. This cannot be restarted."
+                                   onclick="return confirm('Are you sure you want to stop the calculator?')">Stop
+                                    calculator</a>
+                                {% if object.is_poker_run %}
+                                    <a class="dropdown-item" href="{% url 'contestant_cards_list' contestant.pk %}"
+                                       title="Manage the poker playing cards for the contestant">Playing
+                                        cards</a>
+                                {% endif %}
+                                <div class="dropdown-divider"></div>
+                                <button class="btn btn-danger dropdown-item"
+                                        href="{% url 'contestant_delete' contestant.pk %}">Delete
+                                </>
+                            {% endif %}
+                        </div>
+                    </div>
                 </td>
             </tr>
         {% endfor %}
