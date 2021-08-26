@@ -786,14 +786,13 @@ def upload_gpx_track_for_contesant(request, pk):
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     if request.method == "POST":
-        form = GPXTrackImportForm(request.POST)
+        form = GPXTrackImportForm(request.POST, request.FILES)
         if form.is_valid():
             ContestantTrack.objects.filter(contestant=contestant).delete()
             contestant.save()  # Creates new contestant track
-            track_file = request.data.get("track_file", None)
-            if not track_file:
-                raise ValidationError("Missing track_file")
-            import_gpx_track.apply_async((contestant.pk, track_file))
+            track_file = form.cleaned_data["track_file"]
+            import_gpx_track.apply_async((contestant.pk, track_file.readlines()))
+            messages.success(request, "Started loading track")
             return HttpResponseRedirect(
                 reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
             )
