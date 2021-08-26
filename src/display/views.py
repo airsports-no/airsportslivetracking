@@ -97,14 +97,13 @@ from display.forms import (
     ShareForm,
     SCALE_TO_FIT,
 )
+from display.generate_flight_orders import generate_flight_orders
 from display.map_plotter import (
     plot_route,
     get_basic_track,
     A4,
     get_country_code_from_location,
     country_code_to_map_source,
-    generate_turning_point_image,
-    generate_flight_orders,
 )
 from display.models import (
     NavigationTask,
@@ -714,7 +713,7 @@ def get_contestant_email_flight_orders_link(request, key):
 def get_contestant_email_flying_orders_link(request, pk):
     contestant = get_object_or_404(Contestant, id=pk)
     report = generate_flight_orders(contestant)
-    response = HttpResponse(report, content_type="application/pdf")
+    response = HttpResponse(bytes(report), content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
     return response
 
@@ -728,6 +727,8 @@ def broadcast_navigation_task_orders(request, pk):
         tracker_start_time__gt=datetime.datetime.now(datetime.timezone.utc)
     )
     for contestant in contestants:
+        # Delete existing order
+        contestant.emailmaplink_set.all().delete()
         generate_and_notify_flight_order.apply_async(
             (
                 contestant.pk,

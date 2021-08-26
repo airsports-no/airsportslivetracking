@@ -1,5 +1,7 @@
 import glob
-import urllib
+import numpy as np
+import cartopy.crs as ccrs
+import utm
 
 from PIL import Image
 import qrcode
@@ -28,6 +30,32 @@ MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [
     ("mto", "MapTiler Outdoor"),
     ("cyclosm", "CycleOSM")
 ]
+
+def utm_from_lon(lon):
+    """
+    utm_from_lon - UTM zone for a longitude
+    Not right for some polar regions (Norway, Svalbard, Antartica)
+    :param float lon: longitude
+    :return: UTM zone number
+    :rtype: int
+    """
+
+    return np.floor((lon + 180) / 6) + 1
+
+
+def utm_from_lat_lon(lat, lon) -> ccrs.CRS:
+    """
+    utm_from_lon - UTM zone for a longitude
+    Not right for some polar regions (Norway, Svalbard, Antartica)
+    :param float lon: longitude
+    :return: UTM zone number
+    :rtype: int
+    """
+    _, _, zone, letter = utm.from_latlon(lat, lon)
+    print(zone)
+    print(letter)
+    return ccrs.UTM(zone, southern_hemisphere=lat < 0)
+
 
 def qr_code_image(url: str, image_path: str):
 

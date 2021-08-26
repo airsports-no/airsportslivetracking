@@ -18,7 +18,7 @@
             {% if object.editable_route %}
                 <a href="{% url 'navigationtask_refresheditableroute' object.pk %}">Reload route</a> |
             {% endif %}
-            <a href="{% url 'navigationtask_broadcastflightorders' object.pk %}">Broadcast flight orders</a> |
+            <a href="{% url 'navigationtask_broadcastflightorders' object.pk %}" title="Regenerate flight orders for all future contestants and email them">Broadcast flight orders</a> |
         {% endif %}
         <a href="{% url 'navigationtask_contestantstimeline' object.pk %}">Timeline</a> |
         <a href="{% url 'navigationtask_qr' object.pk %}">QR</a> |

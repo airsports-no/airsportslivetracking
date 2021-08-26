@@ -62,7 +62,7 @@ utm
 sentry-sdk
 ogn-client
 uvicorn[standard]
-FPDF
+fpdf2
 flower
 django-celery-results
 django-celery-beat

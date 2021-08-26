@@ -5,7 +5,7 @@ import logging
 from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
 
-from display.map_plotter import generate_flight_orders
+from display.generate_flight_orders import generate_flight_orders
 from influx_facade import InfluxFacade
 from display.models import Contestant, EmailMapLink, MyUser
 from live_tracking_map.celery import app
