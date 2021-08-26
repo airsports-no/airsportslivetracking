@@ -790,7 +790,7 @@ def upload_gpx_track_for_contesant(request, pk):
         if form.is_valid():
             ContestantTrack.objects.filter(contestant=contestant).delete()
             contestant.save()  # Creates new contestant track
-            track_file = form.cleaned_data["track_file"]
+            track_file = request.FILES["track_file"]
             import_gpx_track.apply_async((contestant.pk, track_file.read()))
             messages.success(request, "Started loading track")
             return HttpResponseRedirect(
