@@ -788,8 +788,7 @@ def upload_gpx_track_for_contesant(request, pk):
     if request.method == "POST":
         form = GPXTrackImportForm(request.POST, request.FILES)
         if form.is_valid():
-            ContestantTrack.objects.filter(contestant=contestant).delete()
-            contestant.save()  # Creates new contestant track
+            contestant.reset_track_and_score()
             track_file = request.FILES["track_file"]
             import_gpx_track.apply_async((contestant.pk, track_file.read().decode("utf-8")))
             messages.success(request, "Started loading track")
@@ -2701,8 +2700,7 @@ class ContestantViewSet(ModelViewSet):
         contestant = (
             self.get_object()
         )  # This is important, this is where the object permissions are checked
-        ContestantTrack.objects.filter(contestant=contestant).delete()
-        contestant.save()  # Creates new contestant track
+        contestant.reset_track_and_score()
         # Not required, covered by delete above
         # influx.clear_data_for_contestant(contestant.pk)
         track_file = request.data.get("track_file", None)
