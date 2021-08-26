@@ -791,7 +791,7 @@ def upload_gpx_track_for_contesant(request, pk):
             ContestantTrack.objects.filter(contestant=contestant).delete()
             contestant.save()  # Creates new contestant track
             track_file = form.cleaned_data["track_file"]
-            import_gpx_track.apply_async((contestant.pk, track_file.readlines()))
+            import_gpx_track.apply_async((contestant.pk, track_file.read()))
             messages.success(request, "Started loading track")
             return HttpResponseRedirect(
                 reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
