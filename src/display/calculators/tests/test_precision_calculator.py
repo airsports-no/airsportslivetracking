@@ -86,7 +86,7 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -152,7 +152,7 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -183,7 +183,7 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(contestant, i, dateutil.parser.parse(i["time"]))
+            data = contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -200,7 +200,7 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -218,7 +218,7 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -282,7 +282,7 @@ class Test2017WPFC(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -378,7 +378,7 @@ class TestNM2019(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -407,7 +407,7 @@ class TestNM2019(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -465,7 +465,7 @@ class TestHamar23March2021(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -493,7 +493,7 @@ class TestHamar23March2021(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -521,7 +521,7 @@ class TestHamar23March2021(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()
@@ -549,7 +549,7 @@ class TestHamar23March2021(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = influx.generate_position_block_for_contestant(self.contestant, i, dateutil.parser.parse(i["time"]))
+            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
             q.put(data)
         q.put(None)
         calculator.run()

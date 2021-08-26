@@ -28,6 +28,10 @@ class GatekeeperPoker(Gatekeeper):
         self.first_gate = True
         self.first_finish = True
 
+    def notify_termination(self):
+        super().notify_termination()
+        self.contestant.contestanttrack.updates_current_state("Finished")
+
     def check_termination(self):
         super().check_termination()
         already_terminated = self.track_terminated
@@ -35,14 +39,11 @@ class GatekeeperPoker(Gatekeeper):
         if self.live_processing and now > self.contestant.finished_by_time:
             if not already_terminated:
                 logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
-            self.track_terminated = True
-            self.contestant.contestanttrack.updates_current_state("Finished")
+                self.notify_termination()
         if len(self.sorted_polygons) == 0:
             if not already_terminated:
                 logger.info(f"{self.contestant}: No more gate polygons, terminating")
-            self.track_terminated = True
-            self.contestant.contestanttrack.updates_current_state("Finished")
-
+                self.notify_termination()
 
     def check_gates(self):
         if len(self.sorted_polygons) > 0:

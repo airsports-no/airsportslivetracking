@@ -53,7 +53,7 @@ class GatekeeperRoute(Gatekeeper):
         self.outstanding_gates = list(self.gates)
         # Take of gate is handled separately, so should not be part of outstanding gates
         if self.contestant.adaptive_start:
-            self.takeoff_gate=None
+            self.takeoff_gate = None
         elif self.takeoff_gate is not None:
             self.gates.insert(0, self.takeoff_gate)
         self.in_range_of_gate = None
@@ -156,7 +156,6 @@ class GatekeeperRoute(Gatekeeper):
                 if self.starting_line.is_passed_in_correct_direction_track_to_next(self.track):
                     # Start the clock
                     if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
-
                         self.takeoff_gate.missed = True
                     self.in_range_of_gate = self.gates[0]
                     logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
@@ -231,6 +230,12 @@ class GatekeeperRoute(Gatekeeper):
         if self.last_gate and self.last_gate.type == "fp":
             self.passed_finishpoint()
 
+    def notify_termination(self):
+        super().notify_termination()
+        logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
+        self.miss_outstanding_gates()
+        self.calculate_gate_score()
+
     def check_termination(self):
         super().check_termination()
         already_terminated = self.track_terminated
@@ -248,11 +253,7 @@ class GatekeeperRoute(Gatekeeper):
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.live_processing and now > self.contestant.finished_by_time:
             if not already_terminated:
-                logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
-            self.track_terminated = True
-        if not already_terminated and self.track_terminated:
-            self.miss_outstanding_gates()
-            self.calculate_gate_score()
+                self.notify_termination()
 
     def calculate_gate_score(self):
         index = 0

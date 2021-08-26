@@ -246,10 +246,14 @@ class Gatekeeper(ABC):
             for calculator in self.calculators:
                 calculator.passed_finishpoint(self.track, self.last_gate)
 
+    def notify_termination(self):
+        self.track_terminated = True
+
     def check_termination(self):
         if not self.track_terminated:
             self.track_terminated = self.is_termination_commanded()
             if self.track_terminated:
+                self.notify_termination()
                 self.update_score(self.last_gate or self.gates[0], 0, "manually terminated",
                                   self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
                                   self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,

@@ -50,14 +50,16 @@ class GatekeeperLanding(Gatekeeper):
                     self.update_score(self.landing_gate, 1, "passed landing line", self.track[-1].latitude,
                                       self.track[-1].longitude, "information", "landing_line")
 
+    def notify_termination(self):
+        logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
+
     def check_termination(self):
         super().check_termination()
         already_terminated = self.track_terminated
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.live_processing and now > self.contestant.finished_by_time:
             if not already_terminated:
-                logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
-            self.track_terminated = True
+                self.notify_termination()
 
     def check_gates(self):
         self.check_intersections()
