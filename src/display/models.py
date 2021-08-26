@@ -1926,11 +1926,8 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         self.trackannotation_set.all().delete()
         self.gatecumulativescore_set.all().delete()
         self.actualgatetime_set.all().delete()
-        try:
-            self.contestanttrack.delete()
-        except:
-            pass
-        ContestantTrack.objects.get_or_create(contestant=self)
+        self.contestanttrack.delete()
+        ContestantTrack.objects.create(contestant=self)
 
 
 class ScoreLogEntry(models.Model):
@@ -2613,10 +2610,10 @@ def validate_route(sender, instance: Route, **kwargs):
 def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, **kwargs):
     instance.route.delete()
 
-@receiver(post_delete, sender=ContestantTrack)
-def remove_route_from_deleted_navigation_task(sender, instance: ContestantTrack, **kwargs):
-    if instance.contestant:
-        instance.contestant.reset_track_and_score()
+# @receiver(post_delete, sender=ContestantTrack)
+# def remove_route_from_deleted_navigation_task(sender, instance: ContestantTrack, **kwargs):
+#     if instance.contestant:
+#         instance.contestant.reset_track_and_score()
 
 
 @receiver(post_save, sender=NavigationTask)
