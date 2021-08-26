@@ -97,7 +97,7 @@ def insert_turning_point_images(contestant, pdf: FPDF):
     ]
     rows_per_page = 3
     number_of_images = len(waypoints)
-    number_of_pages = max(1, number_of_images // (2 * rows_per_page))
+    number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
     current_page = -1
     image_height = 230 / rows_per_page
     title_offset = 5
@@ -114,9 +114,9 @@ def insert_turning_point_images(contestant, pdf: FPDF):
             pdf.write_html(f"<font size=14>Turning point images{page_text}</font>")
             current_page += 1
         if index % 2 == 0:  # left column
-            x = 10
+            x = 18
         else:
-            x = 110
+            x = 118
         row_number = (index - (current_page * rows_per_page * 2)) // 2
         y = row_start + row_number * row_step
         pdf.text(x, y, waypoints[index].name)
@@ -192,7 +192,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf = MyFPDF(orientation="P", unit="mm", format="a4")
     # 210 x 297 mm
     pdf.add_page()
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font("Times", "B", 12)
 
     pdf.write_html(heading)
     pdf.set_text_color(0, 0, 255)
@@ -206,8 +206,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     starting_point_file.write(starting_point.read())
     starting_point_file.seek(0)
     pdf.set_font("Arial", "B", 14)
-    pdf.text(10, 180, "Starting point")
-    pdf.text(110, 180, "Finish point")
+    pdf.text(10, 178, "Starting point")
+    pdf.text(110, 178, "Finish point")
     pdf.set_font("Arial", "B", 12)
     pdf.image(starting_point_file.name, x=10, y=180, w=90)
     finish_point = generate_turning_point_image(

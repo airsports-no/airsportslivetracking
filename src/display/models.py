@@ -1511,8 +1511,8 @@ class Contestant(models.Model):
             text = f"""For this task the turning point gate width is between {min(gate_sizes)} and {max(gate_sizes)} nm.
  The penalty for 
 crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds.
-Crossing the extended starting line before start ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp", self)} nm) gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self)}
-Flying off track by more than {"{:.04}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.get_backtracking_grace_time_seconds(self)} seconds
+Crossing the extended starting line before start ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp", self)} nm) gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self)}.
+Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.get_backtracking_grace_time_seconds(self)} seconds
 gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
 Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_prohibited_zone_penalty(self))} points.
 {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
