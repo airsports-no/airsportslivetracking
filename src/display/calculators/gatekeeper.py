@@ -128,7 +128,7 @@ class Gatekeeper(ABC):
                 continue
             if position_data is None:
                 # Signal the track processor that this is the end, and perform the track calculation
-                self.track_terminated = True
+                self.notify_termination()
                 continue
             data = self.contestant.generate_position_block_for_contestant(position_data, position_data["device_time"])
 
