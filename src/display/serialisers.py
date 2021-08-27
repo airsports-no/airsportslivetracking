@@ -770,6 +770,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     display_contestant_rank_summary = serializers.BooleanField(read_only=True)
     share_string = serializers.CharField(read_only=True)
     route = RouteSerialiser()
+    contest = serializers.PrimaryKeyRelatedField(read_only=True)
 
     def get_scorecard_data(self, navigation_task):
         return ScorecardSerialiser(instance=navigation_task.scorecard).data

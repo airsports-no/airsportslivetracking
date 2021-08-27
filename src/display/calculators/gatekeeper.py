@@ -185,9 +185,9 @@ class Gatekeeper(ABC):
             string += " ({})".format(offset_string)
         times_string = ""
         if planned and actual:
-            times_string = "planned: {}\nactual:  {}".format(planned_time, actual_time)
+            times_string = "planned: {}\nactual: {}".format(planned_time, actual_time)
         elif planned:
-            times_string = "planned: {}\nactual:  --".format(planned_time)
+            times_string = "planned: {}\nactual: --".format(planned_time)
         if len(times_string) > 0:
             string += f"\n{times_string}"
         logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))

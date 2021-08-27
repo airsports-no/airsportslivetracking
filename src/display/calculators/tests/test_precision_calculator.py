@@ -86,8 +86,8 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -152,8 +152,8 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -183,8 +183,8 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -200,8 +200,8 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -218,8 +218,8 @@ class TestFullTrack(TransactionTestCase):
         for i in positions:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -282,8 +282,8 @@ class Test2017WPFC(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -378,8 +378,8 @@ class TestNM2019(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -407,8 +407,8 @@ class TestNM2019(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -465,8 +465,8 @@ class TestHamar23March2021(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -493,8 +493,8 @@ class TestHamar23March2021(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -521,8 +521,8 @@ class TestHamar23March2021(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():
@@ -549,8 +549,8 @@ class TestHamar23March2021(TransactionTestCase):
         for i in track:
             i["deviceId"] = ""
             i["attributes"] = {}
-            data = self.contestant.generate_position_block_for_contestant(i, dateutil.parser.parse(i["time"]))
-            q.put(data)
+            i["device_time"] = dateutil.parser.parse(i["time"])
+            q.put(i)
         q.put(None)
         calculator.run()
         while not q.empty():

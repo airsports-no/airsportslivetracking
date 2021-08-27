@@ -122,7 +122,7 @@ class TestContestantValidation(TransactionTestCase):
 
     def test_finish_before_takeoff(self, patch):
         with self.assertRaisesMessage(ValidationError,
-                                      "Takeoff time '2020-01-02 13:00:00+00:00' is after finished by time '2020-01-02 13:30:00+00:00' for contestant number 2"):
+                                      "Takeoff time '2020-01-02 13:30:00+00:00' is after finished by time '2020-01-02 13:15:00+00:00' for contestant number 2"):
             Contestant.objects.create(team=self.team,
                                       navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 2, 13, 30,

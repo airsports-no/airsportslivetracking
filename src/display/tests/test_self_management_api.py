@@ -63,6 +63,7 @@ class TestContestantGatesCalculation(APITestCase):
         data = {
             "starting_point_time": "2021-05-13T09:00:00Z",
             "contest_team": self.contest_team.pk,
+            "adaptive_start": False,
             "wind_speed": 5,
             "wind_direction": 170
         }
@@ -95,6 +96,7 @@ class TestContestantGatesCalculation(APITestCase):
         data = {
             "starting_point_time": "2021-05-13T09:00:00Z",
             "contest_team": self.contest_team.pk,
+            "adaptive_start": False,
             "wind_speed": 5,
             "wind_direction": 170
         }
@@ -185,6 +187,7 @@ class TestContestantGatesCalculation(APITestCase):
         data = {
             "starting_point_time": start_time.isoformat(),
             "contest_team": self.contest_team.pk,
+            "adaptive_start": False,
             "wind_speed": 5,
             "wind_direction": 170
         }
