@@ -1943,7 +1943,7 @@ class ScoreLogEntry(models.Model):
     times_string = models.CharField(max_length=200, default="")
 
     class Meta:
-        ordering = ("time",)
+        ordering = ("time","pk")
 
     @classmethod
     def create_and_push(cls, **kwargs):
