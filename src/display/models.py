@@ -964,11 +964,11 @@ class Scorecard(models.Model):
                 self.__format_value("penalty_zone_grace_time", contestant),
                 self.__format_value("penalty_zone_penalty_per_second", contestant),
                 self.__format_value("penalty_zone_maximum", contestant),
-                {
-                    "name":"corridor_width",
-                    "value":contestant.navigation_task.route.corridor_width,
-                    "help_text":"The width of the corridor in nautical miles"
-                }
+                # {
+                #     "name": "Corridor width",
+                #     "value": contestant.navigation_task.route.corridor_width,
+                #     "help_text": "The width of the corridor in nautical miles"
+                # }
             ],
             "gates": [
                 {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
