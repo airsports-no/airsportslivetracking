@@ -313,6 +313,8 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
     waypoint_list[-1].time_check = True
     logger.debug(f"Created waypoints {waypoint_list}")
     route = create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners)
+    route.corridor_width=corridor_width
+    route.save()
     extract_additional_features_from_kml_features(features, route)
     return route
 

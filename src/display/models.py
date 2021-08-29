@@ -2427,6 +2427,8 @@ class EditableRoute(models.Model):
         waypoint_list[-1].time_check = True
         logger.debug(f"Created waypoints {waypoint_list}")
         route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners)
+        route.corridor_width = corridor_width
+        route.save()
         self.extract_additional_features(route)
         return route
 

@@ -1535,8 +1535,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 route = create_anr_corridor_route_from_kml(
                     "route", data, corridor_width, rounded_corners
                 )
-            route.corridor_width = corridor_width
-            route.save()
         elif task_type == NavigationTask.LANDING:
             data = self.get_cleaned_data_for_step("landing_route_import")["file"]
             data.seek(0)
