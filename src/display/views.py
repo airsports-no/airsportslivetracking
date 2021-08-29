@@ -1297,9 +1297,9 @@ def add_contest_teams_to_navigation_task(request, pk):
 )
 def navigation_task_score_override_view(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    if navigation_task.scorecard.task_type == NavigationTask.PRECISION:
+    if NavigationTask.PRECISION in navigation_task.scorecard.task_type:
         form_class = PrecisionScoreOverrideForm
-    elif navigation_task.scorecard.task_type == NavigationTask.ANR_CORRIDOR:
+    elif NavigationTask.ANR_CORRIDOR in navigation_task.scorecard.task_type:
         form_class = ANRCorridorScoreOverrideForm
     else:
         messages.error(request,
@@ -1703,8 +1703,12 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     }
     templates = {
         "contest_selection": "display/navigationtaskwizardform.html",
+        "anr_parameters": "display/navigationtaskwizardform.html",
         "contest_creation": "display/navigationtaskwizardform.html"
     }
+
+    def get_template_names(self):
+        return [self.templates[self.steps.current]]
 
     def get_form(self, step=None, data=None, files=None):
         form = super().get_form(step, data, files)
@@ -1719,7 +1723,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
 
     def create_route(self) -> Tuple[Route, Optional[EditableRoute]]:
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
-        scorecard = Scorecard.objects.filter(task_type=task_type).first()
+        scorecard = Scorecard.objects.filter(task_type__contains=task_type).first()
         route = None
         if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
             use_procedure_turns = scorecard.use_procedure_turns
@@ -1727,7 +1731,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         elif task_type == NavigationTask.ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_parameters")
             rounded_corners = initial_step_data["rounded_corners"]
-            corridor_width = initial_step_data("anr_corridor_override")["corridor_width"]
+            corridor_width = initial_step_data["corridor_width"]
             route = self.editable_route.create_anr_route(rounded_corners, corridor_width)
         elif task_type == NavigationTask.LANDING:
             data = self.get_cleaned_data_for_step("landing_route_import")["file"]

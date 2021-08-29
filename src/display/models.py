@@ -966,7 +966,7 @@ class Scorecard(models.Model):
                 self.__format_value("penalty_zone_penalty_per_second", contestant),
                 self.__format_value("penalty_zone_maximum", contestant),
                 {
-                    "name": "Corridor width",
+                    "name": "corridor width",
                     "value": contestant.navigation_task.route.corridor_width,
                     "help_text": "The width of the corridor in nautical miles"
                 }
