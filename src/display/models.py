@@ -656,6 +656,7 @@ class NavigationTask(models.Model):
     @property
     def actual_rules(self):
         mock_contestant = Mock(Contestant)
+        mock_contestant.navigation_task = self
         mock_contestant.get_track_score_override.return_value = self.track_score_override
 
         def gate_score_override(gate_type):
@@ -964,11 +965,11 @@ class Scorecard(models.Model):
                 self.__format_value("penalty_zone_grace_time", contestant),
                 self.__format_value("penalty_zone_penalty_per_second", contestant),
                 self.__format_value("penalty_zone_maximum", contestant),
-                # {
-                #     "name": "Corridor width",
-                #     "value": contestant.navigation_task.route.corridor_width,
-                #     "help_text": "The width of the corridor in nautical miles"
-                # }
+                {
+                    "name": "Corridor width",
+                    "value": contestant.navigation_task.route.corridor_width,
+                    "help_text": "The width of the corridor in nautical miles"
+                }
             ],
             "gates": [
                 {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
