@@ -95,7 +95,7 @@ from display.forms import (
     LandingImportRouteForm,
     PNG,
     ShareForm,
-    SCALE_TO_FIT, GPXTrackImportForm,
+    SCALE_TO_FIT, GPXTrackImportForm, ContestSelectForm, ANRCorridorParametersForm,
 )
 from display.generate_flight_orders import generate_flight_orders
 from display.map_plotter import (
@@ -1292,6 +1292,29 @@ def add_contest_teams_to_navigation_task(request, pk):
     )
 
 
+@guardian_permission_required(
+    "display.change_contest", (Contest, "navigationtask__pk", "pk")
+)
+def navigation_task_score_override_view(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    if navigation_task.scorecard.task_type == NavigationTask.PRECISION:
+        form_class = PrecisionScoreOverrideForm
+    elif navigation_task.scorecard.task_type == NavigationTask.ANR_CORRIDOR:
+        form_class = ANRCorridorScoreOverrideForm
+    else:
+        messages.error(request,
+                       f"{navigation_task.scorecard.get_task_type_display()} has no scoring parameters to override")
+        return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
+    if request.method == "POST":
+        form = form_class(request.POST)
+        if form.is_valid():
+            form.build_score_override(navigation_task)
+            messages.success(request, "Updated scoring")
+            return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
+    form = form_class()
+    return render(request, "display/score_override_form.html", {"form": form, "navigation_task": navigation_task})
+
+
 if settings.PRODUCTION:
     connection = Redis(unix_socket_path="/tmp/docker/redis.sock")
 else:
@@ -1499,9 +1522,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         elif task_type == NavigationTask.ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_route_import")
             rounded_corners = initial_step_data["rounded_corners"]
-            corridor_width = initial_step_data("anr_corridor_override")[
-                "corridor_width"
-            ]
+            corridor_width = initial_step_data["corridor_width"]
             if initial_step_data["internal_route"]:
                 route = initial_step_data["internal_route"].create_anr_route(
                     rounded_corners, corridor_width
@@ -1513,6 +1534,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 route = create_anr_corridor_route_from_kml(
                     "route", data, corridor_width, rounded_corners
                 )
+            route.corridor_width = corridor_width
+            route.save()
         elif task_type == NavigationTask.LANDING:
             data = self.get_cleaned_data_for_step("landing_route_import")["file"]
             data.seek(0)
@@ -1645,6 +1668,97 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 "score_sorting_direction": self.contest.summary_score_sorting_direction,
             }
         return {}
+
+
+def contest_not_chosen(wizard):
+    return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("contest") is None
+
+
+def anr_task_type(wizard):
+    return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("task_type") == NavigationTask.ANR_CORRIDOR
+
+
+class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
+    permission_required = ("display.change_editableroute",)
+    file_storage = FileSystemStorage(
+        location=os.path.join(settings.MEDIA_ROOT, "unneeded")
+    )
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.editable_route = get_object_or_404(EditableRoute, pk=self.kwargs.get("pk"))
+
+    def get_permission_object(self):
+        return self.editable_route
+
+    form_list = [
+        ("contest_selection", ContestSelectForm),
+        ("anr_parameters", ANRCorridorParametersForm),
+        ("contest_creation", ContestForm)
+    ]
+
+    condition_dict = {
+        "contest_creation": contest_not_chosen,
+        "anr_parameters": anr_task_type
+    }
+    templates = {
+        "contest_selection": "display/navigationtaskwizardform.html",
+        "contest_creation": "display/navigationtaskwizardform.html"
+    }
+
+    def get_form(self, step=None, data=None, files=None):
+        form = super().get_form(step, data, files)
+        if step == "contest_selection":
+            form.fields["contest"].queryset = get_objects_for_user(
+                self.request.user,
+                "display.view_contest",
+                klass=Contest.objects.all(),
+                accept_global_perms=False,
+            )
+        return form
+
+    def create_route(self) -> Tuple[Route, Optional[EditableRoute]]:
+        task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
+        scorecard = Scorecard.objects.filter(task_type=task_type).first()
+        route = None
+        if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
+            use_procedure_turns = scorecard.use_procedure_turns
+            route = self.editable_route.create_precision_route(use_procedure_turns)
+        elif task_type == NavigationTask.ANR_CORRIDOR:
+            initial_step_data = self.get_cleaned_data_for_step("anr_parameters")
+            rounded_corners = initial_step_data["rounded_corners"]
+            corridor_width = initial_step_data("anr_corridor_override")["corridor_width"]
+            route = self.editable_route.create_anr_route(rounded_corners, corridor_width)
+        elif task_type == NavigationTask.LANDING:
+            data = self.get_cleaned_data_for_step("landing_route_import")["file"]
+            data.seek(0)
+            route = self.editable_route.create_landing_route()
+        # Check for gate polygons that do not match a turning point
+        route.validate_gate_polygons()
+        return route
+
+    def done(self, form_list, **kwargs):
+        task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
+        task_name = self.get_cleaned_data_for_step("contest_selection")["navigation_task_name"]
+        if self.get_cleaned_data_for_step("contest_selection")["contest"] is None:
+            contest = Contest.objects.create(**self.get_cleaned_data_for_step("contest_creation"))
+        else:
+            contest = self.get_cleaned_data_for_step("contest_selection")["contest"]
+        scorecard = Scorecard.objects.filter(task_type=task_type).first()
+        route = self.create_route()
+        navigation_task = NavigationTask.objects.create(
+            name=task_name,
+            contest=contest,
+            route=route,
+            editable_route=self.editable_route,
+            scorecard=scorecard,
+            start_time=contest.start_time,
+            finish_time=contest.finish_time,
+            allow_self_management=True
+        )
+        return HttpResponseRedirect(
+            reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
+        )
 
 
 class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):

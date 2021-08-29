@@ -14,6 +14,7 @@
         <td><a href="/routeeditor/{{object.id}}/">{{ object.name }}</a></td>
         <td>{{ object.get_route_type_display }}</td>
         <td>
+            <a href="{% url 'editableroute_createnavigationtask' object.pk %}">Create task</a> |
             <a href="{% url 'editableroute_delete' object.pk %}">Delete</a>
         </td>
     </tr>

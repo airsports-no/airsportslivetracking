@@ -209,26 +209,26 @@ class ANRCorridorScoreOverrideForm(forms.Form):
         if navigation_task.track_score_override:
             navigation_task.track_score_override.delete()
         navigation_task.track_score_override = TrackScoreOverride.objects.create(
-                                                                                 corridor_grace_time=self.cleaned_data[
-                                                                                     "corridor_grace_time"],
-                                                                                 corridor_outside_penalty=
-                                                                                 self.cleaned_data[
-                                                                                     "corridor_outside_penalty"],
-                                                                                 corridor_maximum_penalty=
-                                                                                 self.cleaned_data[
-                                                                                     "corridor_maximum_penalty"],
-                                                                                 prohibited_zone_penalty=
-                                                                                 self.cleaned_data[
-                                                                                     "prohibited_zone_penalty"],
-                                                                                 penalty_zone_maximum=self.cleaned_data[
-                                                                                     "penalty_zone_maximum"],
-                                                                                 penalty_zone_grace_time=
-                                                                                 self.cleaned_data[
-                                                                                     "penalty_zone_grace_time"],
-                                                                                 penalty_zone_penalty_per_second=
-                                                                                 self.cleaned_data[
-                                                                                     "penalty_zone_penalty_per_second"]
-                                                                                 )
+            corridor_grace_time=self.cleaned_data[
+                "corridor_grace_time"],
+            corridor_outside_penalty=
+            self.cleaned_data[
+                "corridor_outside_penalty"],
+            corridor_maximum_penalty=
+            self.cleaned_data[
+                "corridor_maximum_penalty"],
+            prohibited_zone_penalty=
+            self.cleaned_data[
+                "prohibited_zone_penalty"],
+            penalty_zone_maximum=self.cleaned_data[
+                "penalty_zone_maximum"],
+            penalty_zone_grace_time=
+            self.cleaned_data[
+                "penalty_zone_grace_time"],
+            penalty_zone_penalty_per_second=
+            self.cleaned_data[
+                "penalty_zone_penalty_per_second"]
+        )
         navigation_task.save()
         navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["sp", "fp"],
                                                                                  checkpoint_grace_period_after=
@@ -356,7 +356,6 @@ class ANRCorridorImportRouteForm(forms.Form):
                                          help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
     internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=False)
     corridor_width = forms.FloatField(required=True, help_text="The width of the ANR corridor in NM")
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -504,6 +503,49 @@ class NavigationTaskForm(forms.ModelForm):
 #             instance.save()
 #         # print(instance.for_gate_types)
 #         return instance
+
+class ANRCorridorParametersForm(forms.Form):
+    rounded_corners = forms.BooleanField(required=False, initial=False,
+                                         help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
+    corridor_width = forms.FloatField(required=True, help_text="The width of the ANR corridor in NM")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "Route import",
+                "rounded_corners",
+                "corridor_width"
+            ),
+            kml_description,
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+
+
+class ContestSelectForm(forms.Form):
+    contest = forms.ModelChoiceField(Contest.objects.all(), required=False,
+                                     help_text="Choose an existing contest for the new task. If no contest is chosen, you will be prompted to create a new one on the next screen")
+    task_type = forms.ChoiceField(choices=NavigationTask.NAVIGATION_TASK_TYPES,
+                                  help_text="The type of the task. This determines how the route is processed")
+    navigation_task_name = forms.CharField(max_length=200)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "Create a navigation task from the route",
+                "contest",
+                "task_type",
+                "navigation_task_name"
+            ),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
 
 
 class ContestForm(forms.ModelForm):

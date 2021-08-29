@@ -120,6 +120,7 @@ class Route(models.Model):
     name = models.CharField(max_length=200)
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     rounded_corners = models.BooleanField(default=False, blank=True)
+    corridor_width = models.FloatField(default=0.5, blank=True)
     waypoints = MyPickledObjectField(default=list)
     takeoff_gate = MyPickledObjectField(default=None, null=True)
     landing_gate = MyPickledObjectField(default=None, null=True)
@@ -957,13 +958,17 @@ class Scorecard(models.Model):
                 self.__format_value("below_minimum_altitude_penalty", contestant),
                 self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
                 self.__format_value("prohibited_zone_penalty", contestant),
-                self.__format_value("corridor_width", contestant),
                 self.__format_value("corridor_grace_time", contestant),
                 self.__format_value("corridor_outside_penalty", contestant),
                 self.__format_value("corridor_maximum_penalty", contestant),
                 self.__format_value("penalty_zone_grace_time", contestant),
                 self.__format_value("penalty_zone_penalty_per_second", contestant),
                 self.__format_value("penalty_zone_maximum", contestant),
+                {
+                    "name":"corridor_width",
+                    "value":contestant.navigation_task.route.corridor_width,
+                    "help_text":"The width of the corridor in nautical miles"
+                }
             ],
             "gates": [
                 {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
@@ -1942,7 +1947,7 @@ class ScoreLogEntry(models.Model):
     times_string = models.CharField(max_length=200, default="")
 
     class Meta:
-        ordering = ("time","pk")
+        ordering = ("time", "pk")
 
     @classmethod
     def create_and_push(cls, **kwargs):
@@ -2375,6 +2380,13 @@ class EditableRoute(models.Model):
             return [tuple(reversed(item)) for item in coordinates]
         return coordinates
 
+    def create_landing_route(self):
+        route = Route.objects.create(name="", waypoints=[], use_procedure_turns=False)
+        self.extract_additional_features(route)
+        route.waypoints = [route.landing_gate]
+        route.save()
+        return route
+
     def create_precision_route(self, use_procedure_turns: bool) -> Route:
         from display.convert_flightcontest_gpx import build_waypoint
         from display.convert_flightcontest_gpx import create_precision_route_from_waypoint_list
@@ -2608,6 +2620,7 @@ def validate_route(sender, instance: Route, **kwargs):
 @receiver(post_delete, sender=NavigationTask)
 def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, **kwargs):
     instance.route.delete()
+
 
 # @receiver(post_delete, sender=ContestantTrack)
 # def remove_route_from_deleted_navigation_task(sender, instance: ContestantTrack, **kwargs):
