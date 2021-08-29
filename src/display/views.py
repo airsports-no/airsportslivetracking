@@ -1748,7 +1748,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             contest = Contest.objects.create(**self.get_cleaned_data_for_step("contest_creation"))
         else:
             contest = self.get_cleaned_data_for_step("contest_selection")["contest"]
-        scorecard = Scorecard.objects.filter(task_type=task_type).first()
+        scorecard = Scorecard.objects.filter(task_type__contains=task_type).first()
         route = self.create_route()
         navigation_task = NavigationTask.objects.create(
             name=task_name,
