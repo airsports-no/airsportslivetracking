@@ -1311,7 +1311,8 @@ def navigation_task_score_override_view(request, pk):
             form.build_score_override(navigation_task)
             messages.success(request, "Updated scoring")
             return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
-    form = form_class()
+    initial = form_class.extract_default_values_from_scorecard(navigation_task.scorecard)
+    form = form_class(initial=initial)
     return render(request, "display/score_override_form.html", {"form": form, "navigation_task": navigation_task})
 
 
