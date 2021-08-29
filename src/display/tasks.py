@@ -48,7 +48,7 @@ def generate_and_notify_flight_order(contestant_pk: int, email: str, first_name:
         logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
         return
     orders = generate_flight_orders(contestant)
-    mail_link = EmailMapLink.objects.create(contestant=contestant, orders=orders)
+    mail_link = EmailMapLink.objects.create(contestant=contestant, orders=bytes(orders))
     mail_link.send_email(email, first_name)
 
 
