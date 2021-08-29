@@ -1499,7 +1499,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         elif task_type == NavigationTask.ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_route_import")
             rounded_corners = initial_step_data["rounded_corners"]
-            corridor_width = self.get_cleaned_data_for_step("anr_corridor_override")[
+            corridor_width = initial_step_data("anr_corridor_override")[
                 "corridor_width"
             ]
             if initial_step_data["internal_route"]:

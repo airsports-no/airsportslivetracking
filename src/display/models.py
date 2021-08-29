@@ -875,7 +875,6 @@ class Scorecard(models.Model):
     )
 
     ##### ANR Corridor
-    corridor_width = models.FloatField(default=0.3, help_text="The corridor width (NM) for ANR tasks")
     corridor_grace_time = models.IntegerField(default=5, help_text="The corridor grace time for ANR tasks")
     corridor_outside_penalty = models.FloatField(
         default=3, help_text="The penalty awarded for leaving the ANR corridor"

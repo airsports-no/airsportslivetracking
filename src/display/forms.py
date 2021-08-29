@@ -118,6 +118,8 @@ class PrecisionScoreOverrideForm(forms.Form):
                                                        help_text="The number of penalty points given per second inside the zone")
 
     def build_score_override(self, navigation_task: NavigationTask):
+        if navigation_task.track_score_override:
+            navigation_task.track_score_override.delete()
         navigation_task.track_score_override = TrackScoreOverride.objects.create(
             bad_course_penalty=self.cleaned_data["backtracking_penalty"],
             prohibited_zone_penalty=
@@ -180,7 +182,6 @@ class PrecisionScoreOverrideForm(forms.Form):
 
 
 class ANRCorridorScoreOverrideForm(forms.Form):
-    corridor_width = forms.FloatField(required=True, help_text="The width of the ANR corridor in NM")
     corridor_grace_time = forms.IntegerField(required=True,
                                              help_text="The number of seconds the contestant can stay outside the corridor before penalties start")
     corridor_outside_penalty = forms.FloatField(required=True,
@@ -205,8 +206,9 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                                                        help_text="The number of penalty points given per second inside the zone")
 
     def build_score_override(self, navigation_task: NavigationTask):
-        navigation_task.track_score_override = TrackScoreOverride.objects.create(corridor_width=self.cleaned_data[
-            "corridor_width"],
+        if navigation_task.track_score_override:
+            navigation_task.track_score_override.delete()
+        navigation_task.track_score_override = TrackScoreOverride.objects.create(
                                                                                  corridor_grace_time=self.cleaned_data[
                                                                                      "corridor_grace_time"],
                                                                                  corridor_outside_penalty=
@@ -244,7 +246,6 @@ class ANRCorridorScoreOverrideForm(forms.Form):
     @classmethod
     def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
         return {
-            "corridor_width": scorecard.corridor_width,
             "corridor_grace_time": scorecard.corridor_grace_time,
             "corridor_outside_penalty": scorecard.corridor_outside_penalty,
             "corridor_maximum_penalty": scorecard.corridor_maximum_penalty,
@@ -263,7 +264,6 @@ class ANRCorridorScoreOverrideForm(forms.Form):
         self.helper.layout = Layout(
             Fieldset(
                 "If required, override default scorecard penalty points",
-                "corridor_width",
                 "corridor_grace_time",
                 "corridor_outside_penalty",
                 "corridor_maximum_penalty",
@@ -355,6 +355,8 @@ class ANRCorridorImportRouteForm(forms.Form):
     rounded_corners = forms.BooleanField(required=False, initial=False,
                                          help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
     internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=False)
+    corridor_width = forms.FloatField(required=True, help_text="The width of the ANR corridor in NM")
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -364,7 +366,8 @@ class ANRCorridorImportRouteForm(forms.Form):
                 "Route import",
                 "file",
                 "internal_route",
-                "rounded_corners"
+                "rounded_corners",
+                "corridor_width"
             ),
             kml_description,
             ButtonHolder(
