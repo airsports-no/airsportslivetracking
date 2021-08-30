@@ -142,9 +142,9 @@ class Route(models.Model):
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 1 NM when using rounded corners. Perhaps there is an error in your route file."
                 )
             if (
-                    waypoint.distance_next < 1852 / 2
-                    and self.waypoints[index + 1].type != "secret"
-                    and waypoint.type != "secret"
+                waypoint.distance_next < 1852 / 2
+                and self.waypoints[index + 1].type != "secret"
+                and waypoint.type != "secret"
             ):
                 raise ValidationError(
                     f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 0.5 NM"
@@ -219,11 +219,11 @@ class Person(models.Model):
     validated = models.BooleanField(
         default=True,
         help_text="Usually true, but set to false for persons created automatically during "
-                  "app API login. This is used to signify that the user profile must be "
-                  "updatedfocus of. If this remains false for more than a few days, the person "
-                  "object and corresponding user will be deleted from the system.  This "
-                  "must therefore be set to True when submitting an updated profile from "
-                  "the app.",
+        "app API login. This is used to signify that the user profile must be "
+        "updatedfocus of. If this remains false for more than a few days, the person "
+        "object and corresponding user will be deleted from the system.  This "
+        "must therefore be set to True when submitting an updated profile from "
+        "the app.",
     )
     app_tracking_id = models.CharField(
         max_length=28,
@@ -270,11 +270,11 @@ class Person(models.Model):
 
     @classmethod
     def get_or_create(
-            cls,
-            first_name: Optional[str],
-            last_name: Optional[str],
-            phone: Optional[str],
-            email: Optional[str],
+        cls,
+        first_name: Optional[str],
+        last_name: Optional[str],
+        phone: Optional[str],
+        email: Optional[str],
     ) -> Optional["Person"]:
         possible_person = None
         if phone is not None and len(phone) > 0:
@@ -365,7 +365,7 @@ class Team(models.Model):
 
     @classmethod
     def get_or_create_from_signup(
-            cls, user: MyUser, copilot: Person, aircraft_registration: str, club_name: str
+        cls, user: MyUser, copilot: Person, aircraft_registration: str, club_name: str
     ) -> "Team":
         my_person = Person.objects.get(email=user.email)
         crew, _ = Crew.objects.get_or_create(member1=my_person, member2=copilot)
@@ -403,7 +403,7 @@ class ContestTeam(models.Model):
 
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
-                self.tracker_device_id is None or len(self.tracker_device_id) == 0
+            self.tracker_device_id is None or len(self.tracker_device_id) == 0
         ):
             raise ValidationError(
                 f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
@@ -625,7 +625,7 @@ class NavigationTask(models.Model):
     display_secrets = models.BooleanField(
         default=True,
         help_text="If checked secret gates will be displayed on the map. Otherwise the map will only include gates that"
-                  " are not secret, and also not display annotations related to the secret gates.",
+        " are not secret, and also not display annotations related to the secret gates.",
     )
     allow_self_management = models.BooleanField(
         default=False,
@@ -695,8 +695,9 @@ class NavigationTask(models.Model):
         if self.scorecard.calculator in (Scorecard.PRECISION, Scorecard.POKER):
             route = self.editable_route.create_precision_route(self.route.use_procedure_turns)
         elif self.scorecard.calculator == Scorecard.ANR_CORRIDOR:
-            route = self.editable_route.create_anr_route(self.route.rounded_corners,
-                                                         self.scorecard.get_corridor_width(None))
+            route = self.editable_route.create_anr_route(
+                self.route.rounded_corners, self.scorecard.get_corridor_width(None)
+            )
         if route:
             old_route = self.route
             self.route = route
@@ -865,16 +866,12 @@ class Scorecard(models.Model):
 
     penalty_zone_grace_time = models.FloatField(
         default=3,
-        help_text="The number of seconds the contestant can be within the penalty zone before getting penalty"
+        help_text="The number of seconds the contestant can be within the penalty zone before getting penalty",
     )
     penalty_zone_penalty_per_second = models.FloatField(
-        default=3,
-        help_text="The number of points per second beyond the grace time while inside the penalty zone"
+        default=3, help_text="The number of points per second beyond the grace time while inside the penalty zone"
     )
-    penalty_zone_maximum = models.FloatField(
-        default=100,
-        help_text="Maximum penalty within a single zone"
-    )
+    penalty_zone_maximum = models.FloatField(default=100, help_text="Maximum penalty within a single zone")
 
     ##### ANR Corridor
     corridor_grace_time = models.IntegerField(default=5, help_text="The corridor grace time for ANR tasks")
@@ -968,8 +965,8 @@ class Scorecard(models.Model):
                 {
                     "name": "corridor width",
                     "value": contestant.navigation_task.route.corridor_width,
-                    "help_text": "The width of the corridor in nautical miles"
-                }
+                    "help_text": "The width of the corridor in nautical miles",
+                },
             ],
             "gates": [
                 {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
@@ -1005,8 +1002,9 @@ class Scorecard(models.Model):
         difference = round((exit - enter).total_seconds()) - self.get_penalty_zone_grace_time(contestant)
         if difference < 0:
             return 0
-        return min(self.get_penalty_zone_maximum(contestant),
-                   difference * self.get_penalty_zone_penalty_per_second(contestant))
+        return min(
+            self.get_penalty_zone_maximum(contestant), difference * self.get_penalty_zone_penalty_per_second(contestant)
+        )
 
     def get_penalty_zone_grace_time(self, contestant: "Contestant"):
         if contestant:
@@ -1065,11 +1063,11 @@ class Scorecard(models.Model):
         return self.prohibited_zone_penalty
 
     def get_gate_timing_score_for_gate_type(
-            self,
-            gate_type: str,
-            contestant: "Contestant",
-            planned_time: datetime.datetime,
-            actual_time: Optional[datetime.datetime],
+        self,
+        gate_type: str,
+        contestant: "Contestant",
+        planned_time: datetime.datetime,
+        actual_time: Optional[datetime.datetime],
     ) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.calculate_score(
@@ -1135,7 +1133,7 @@ class Scorecard(models.Model):
         return gate_score.extended_gate_width
 
     def get_backtracking_after_steep_gate_grace_period_seconds_for_gate_type(
-            self, gate_type: str, contestant: "Contestant"
+        self, gate_type: str, contestant: "Contestant"
     ) -> float:
         """
         The number of seconds after passing a gate with a steep turn (more than 90 degrees) where backtracking is not calculated
@@ -1144,7 +1142,7 @@ class Scorecard(models.Model):
         return gate_score.backtracking_after_steep_gate_grace_period_seconds
 
     def get_backtracking_after_gate_grace_period_nm_for_gate_type(
-            self, gate_type: str, contestant: "Contestant"
+        self, gate_type: str, contestant: "Contestant"
     ) -> float:
         """
         The number of NM around a gate where backtracking is not calculated
@@ -1250,10 +1248,10 @@ class GateScore(models.Model):
         return self.backtracking_after_gate_grace_period_nm
 
     def calculate_score(
-            self,
-            planned_time: datetime.datetime,
-            actual_time: Optional[datetime.datetime],
-            score_override: Optional["GateScoreOverride"],
+        self,
+        planned_time: datetime.datetime,
+        actual_time: Optional[datetime.datetime],
+        score_override: Optional["GateScoreOverride"],
     ) -> float:
         """
 
@@ -1304,16 +1302,12 @@ class TrackScoreOverride(models.Model):
     )
     penalty_zone_grace_time = models.FloatField(
         default=3,
-        help_text="The number of seconds the contestant can be within the penalty zone before getting penalty"
+        help_text="The number of seconds the contestant can be within the penalty zone before getting penalty",
     )
     penalty_zone_penalty_per_second = models.FloatField(
-        default=3,
-        help_text="The number of points per second beyond the grace time while inside the penalty zone"
+        default=3, help_text="The number of points per second beyond the grace time while inside the penalty zone"
     )
-    penalty_zone_maximum = models.FloatField(
-        default=100,
-        help_text="Maximum penalty within a single zone"
-    )
+    penalty_zone_maximum = models.FloatField(default=100, help_text="Maximum penalty within a single zone")
 
     ### ANR Corridor
     corridor_width = models.FloatField(default=None, blank=True, null=True, help_text="The width of the ANR corridor")
@@ -1543,7 +1537,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             return 0
         route_progress = 100
         if len(self.navigation_task.route.waypoints) > 0 and (
-                not self.contestanttrack.calculator_finished or ignore_finished
+            not self.contestanttrack.calculator_finished or ignore_finished
         ):
             first_gate = self.navigation_task.route.waypoints[0]
             last_gate = self.navigation_task.route.waypoints[-1]
@@ -1560,7 +1554,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
 
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
-                self.tracker_device_id is None or len(self.tracker_device_id) == 0
+            self.tracker_device_id is None or len(self.tracker_device_id) == 0
         ):
             raise ValidationError(
                 f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
@@ -1696,13 +1690,13 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         for gate, relative in relative_crossing_times:
             crossing_times[gate] = crossing_time + relative
         if (
-                self.navigation_task.route.takeoff_gate is not None
-                and self.navigation_task.route.takeoff_gate.name not in crossing_times
+            self.navigation_task.route.takeoff_gate is not None
+            and self.navigation_task.route.takeoff_gate.name not in crossing_times
         ):
             crossing_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
         if (
-                self.navigation_task.route.landing_gate is not None
-                and self.navigation_task.route.landing_gate.name not in crossing_times
+            self.navigation_task.route.landing_gate is not None
+            and self.navigation_task.route.landing_gate.name not in crossing_times
         ):
             crossing_times[self.navigation_task.route.landing_gate.name] = self.finished_by_time + datetime.timedelta(
                 minutes=1
@@ -1713,13 +1707,13 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
     def gate_times(self) -> Dict:
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
             if (
-                    self.navigation_task.route.takeoff_gate is not None
-                    and self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times
+                self.navigation_task.route.takeoff_gate is not None
+                and self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times
             ):
                 self.predefined_gate_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
             if (
-                    self.navigation_task.route.landing_gate is not None
-                    and self.navigation_task.route.landing_gate.name not in self.predefined_gate_times
+                self.navigation_task.route.landing_gate is not None
+                and self.navigation_task.route.landing_gate.name not in self.predefined_gate_times
             ):
                 self.predefined_gate_times[
                     self.navigation_task.route.landing_gate.name
@@ -1787,8 +1781,8 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 }
             )
         if (
-                self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
-                and self.team.crew.member2 is not None
+            self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
+            and self.team.crew.member2 is not None
         ):
             devices.append(
                 {
@@ -1819,7 +1813,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
 
     @classmethod
     def get_contestant_for_device_at_time(
-            cls, device: str, stamp: datetime.datetime
+        cls, device: str, stamp: datetime.datetime
     ) -> Tuple[Optional["Contestant"], bool]:
         """
         Retrieves the contestant that owns the tracking device for the time stamp. Returns an extra flag "is_simulator"
@@ -2329,29 +2323,92 @@ class EmailMapLink(models.Model):
     orders = MyPickledObjectField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    HTML_SIGNATURE = """
+<h3><strong>Best Regards,</strong><br /><br /><span style="color: #000080;">
+<strong>Team&nbsp;Air Sports Live Tracking</strong>
+<strong>&nbsp;</strong>
+</span></h3>
+<p>Flight Tracking and competition flying made easy!&nbsp;<br /> <br /> 
+<em>Air Sports Live Tracking gives you live tracking and live scoring of competitions in Precision Flying and Air 
+Navigation Racing. GA pilot? We also provide an open GA flight tracking service. Using your mobile as a tracker you 
+can follow it live on&nbsp;</em><em><a href="http://www.airsports.no/" data-saferedirecturl="https://www.google.com/url?q=http://www.airsports.no/&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNGxwqYMGGRw9YV110LVORQjwrEKSg">www.airsports.no</a></em><em>.</em></p>
+
+<p><em>Download APP:&nbsp;&nbsp;</em><em><a href="https://apps.apple.com/no/app/air-sports-live-tracking/id1559193686?l=nb" data-saferedirecturl="https://www.google.com/url?q=https://apps.apple.com/no/app/air-sports-live-tracking/id1559193686?l%3Dnb&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNEaGuuRKna3cTbq1d9pFS5W0XjhHg">Apple Store</a></em><em>&nbsp;|&nbsp;</em><em><a href="https://play.google.com/store/apps/details?id=no.airsports.android.livetracking" data-saferedirecturl="https://www.google.com/url?q=https://play.google.com/store/apps/details?id%3Dno.airsports.android.livetracking&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNGm5zuqA1ARkWWhBHJFCMoEHOEITQ">Google Play</a></em><br /> <br /> Follow us:&nbsp;<a href="https://www.instagram.com/AirSportsLive" data-saferedirecturl="https://www.google.com/url?q=https://www.instagram.com/AirSportsLive&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNHQAv3QL2PQFDIv8jmTQj6QVXNDng">Instagram</a>&nbsp;|&nbsp;&nbsp;<a href="https://twitter.com/AirSportsLive" data-saferedirecturl="https://www.google.com/url?q=https://twitter.com/AirSportsLive&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNFgfCQfnysD__aABYrpmxbmDh36EQ">Twitter</a>&nbsp; |&nbsp;&nbsp;<a href="https://www.facebook.com/AirSportsLive" data-saferedirecturl="https://www.google.com/url?q=https://www.facebook.com/AirSportsLive&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNHYjyR8NJqLEAtt7acO6jaJCF7Suw">Facebook</a>&nbsp; |&nbsp;&nbsp;<a href="https://www.youtube.com/channel/UCgKCfAzU9wl42wnb1Tj_SCA" data-saferedirecturl="https://www.google.com/url?q=https://www.youtube.com/channel/UCgKCfAzU9wl42wnb1Tj_SCA&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNHx8Xk2Xlrp6S9RRedRguMFi2Gi7w">YouTube</a><br /> <br /> <span style="color: #ff0000;"><strong>Partners:&nbsp;</strong></span><br /> <strong>Norges Luftsportforbund /&nbsp;<em>Norwegian Air Sports Federation&nbsp;</em></strong><strong><a href="https://nlf.no/" data-saferedirecturl="https://www.google.com/url?q=https://nlf.no/&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNH_cLc2E8CUYMNJH9lDgRKxaAQksw">&gt;&gt;</a></strong><br /> <strong>IG - TRADE WITH IG&nbsp;</strong><strong><a href="https://www.ig.com/no/demokonto/?CHID=15&amp;QPID=35652" data-saferedirecturl="https://www.google.com/url?q=https://www.ig.com/no/demokonto/?CHID%3D15%26QPID%3D35652&amp;source=gmail&amp;ust=1630044200328000&amp;usg=AFQjCNET2W7jI_hyJLIFfL986LWWgdaA7g">&gt;&gt;</a></strong></p>
+
+<p><br /> <em>Air Sports Live Tracking is based on voluntary work and is a non-profit organization.&nbsp;We depend on 
+partners who support our work.&nbsp;If you want to become our partners, please get in touch, we are very grateful for 
+your support.&nbsp;Thanks!</em></p>
+
+<p><em><img src="https://airsports.no/static/img/AirSportsLiveTracking.png" alt="Air Sports Live Tracking" width="350" height="52" /></em></p>
+<p><span style="color: #999999;">____________________________________________________________</span></p>
+<p><span style="color: #999999;"><em>NOTICE: This e-mail transmission, and any documents, files or previous e-mail 
+messages attached to it, may contain confidential or privileged information. If you are not the intended recipient, or 
+a person responsible for delivering it to the intended recipient, you are hereby notified that any disclosure, copying, 
+distribution or use of any of the information contained in or attached to this message is STRICTLY PROHIBITED. If you 
+have received this transmission in error, please immediately notify the sender and delete the e-mail and attached 
+documents. Thank you.</em></span></p>
+<p><span style="color: #999999;">____________________________________________________________</span></p>"""
+
+    PLAINTEXT_SIGNATURE = """Best Regards,
+
+Team Air Sports Live Tracking 
+Flight Tracking and competition flying made easy! 
+
+Air Sports Live Tracking gives you live tracking and live scoring of competitions in Precision Flying and Air Navigation 
+Racing. GA pilot? We also provide an open GA flight tracking service. Using your mobile as a tracker you can follow it 
+live on www.airsports.no.
+
+Download the APP from:
+Apple Store (https://apps.apple.com/no/app/air-sports-live-tracking/id1559193686?l=nb)
+Google Play (https://play.google.com/store/apps/details?id=no.airsports.android.livetracking)
+
+Follow us: 
+Instagram (https://www.instagram.com/AirSportsLive)
+Twitter (https://twitter.com/AirSportsLive)
+Facebook (https://www.facebook.com/AirSportsLive)
+YouTube (https://www.youtube.com/channel/UCgKCfAzU9wl42wnb1Tj_SCA)
+
+Partners: 
+Norges Luftsportforbund / Norwegian Air Sports Federation (https://nlf.no/)
+IG - TRADE WITH IG (https://www.ig.com/no/demokonto/?CHID=15&QPID=35652)
+
+Air Sports Live Tracking is based on voluntary work and is a non-profit organization. We depend on partners who support 
+our work. If you want to become our partners, please get in touch, we need your  support. Thanks!
+____________________________________________________________
+ NOTICE: This e-mail transmission, and any documents, files or previous e-mail messages attached to it, may contain 
+ confidential or privileged information. If you are not the intended recipient, or a person responsible for delivering 
+ it to the intended recipient, you are hereby notified that any disclosure, copying, distribution or use of any of the 
+ information contained in or attached to this message is STRICTLY PROHIBITED. If you have received this transmission in 
+ error, please immediately notify the sender and delete the e-mail and attached documents. Thank you.
+____________________________________________________________    
+"""
+
     def send_email(self, email_address: str, first_name: str):
         url = "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
         starting_point_time = self.contestant.takeoff_time + datetime.timedelta(
-            minutes=self.contestant.navigation_task.minutes_to_starting_point)
+            minutes=self.contestant.navigation_task.minutes_to_starting_point
+        )
         starting_point_time_string = starting_point_time.strftime("%Y-%m-%d %H:%M:%S")
         tracking_start_time_string = self.contestant.tracker_start_time.strftime("%Y-%m-%d %H:%M:%S")
         send_mail(
             f"Flight orders for task {self.contestant.navigation_task.name}",
-            f"Here is the link to download the flight orders for your navigation task ",
+            f"Hi {first_name},\n\nHere is the link to download the flight orders for your navigation task "
+            + f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
+            f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.\n\n{url}\n{self.PLAINTEXT_SIGNATURE}",
             None,  # Should default to system from email
             recipient_list=[email_address],
             html_message=f"Hi {first_name},<p>Here is the link to download the flight orders for  "
-                         f"your navigation task "
-                         f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
-                         f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p>"
-                         f"<a href='{url}'>Flight orders link</a><p>Regards, <br>The Airsports Live Tracking team",
-
+            f"your navigation task "
+            f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
+            f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p>"
+            f"<a href='{url}'>Flight orders link</a><p>{self.HTML_SIGNATURE}",
         )
 
 
 class EditableRoute(models.Model):
-    route_type = models.CharField(choices=NavigationTask.NAVIGATION_TASK_TYPES, default=NavigationTask.PRECISION,
-                                  max_length=200)
+    route_type = models.CharField(
+        choices=NavigationTask.NAVIGATION_TASK_TYPES, default=NavigationTask.PRECISION, max_length=200
+    )
     name = models.CharField(max_length=200, help_text="User-friendly name")
     route = MyPickledObjectField(default=dict)
 
@@ -2391,6 +2448,7 @@ class EditableRoute(models.Model):
     def create_precision_route(self, use_procedure_turns: bool) -> Route:
         from display.convert_flightcontest_gpx import build_waypoint
         from display.convert_flightcontest_gpx import create_precision_route_from_waypoint_list
+
         track = self._get_feature_type("track")
         waypoint_list = []
         coordinates = self._get_feature_coordinates(track)
@@ -2398,8 +2456,16 @@ class EditableRoute(models.Model):
         for index, (latitude, longitude) in enumerate(coordinates):
             item = track_points[index]
             waypoint_list.append(
-                build_waypoint(item["name"], latitude, longitude, item["gateType"], item["gateWidth"],
-                               item["timeCheck"], item["gateCheck"]))
+                build_waypoint(
+                    item["name"],
+                    latitude,
+                    longitude,
+                    item["gateType"],
+                    item["gateWidth"],
+                    item["timeCheck"],
+                    item["gateCheck"],
+                )
+            )
         route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns)
         self.extract_additional_features(route)
         return route
@@ -2407,6 +2473,7 @@ class EditableRoute(models.Model):
     def create_anr_route(self, rounded_corners: bool, corridor_width: float) -> Route:
         from display.convert_flightcontest_gpx import build_waypoint
         from display.convert_flightcontest_gpx import create_anr_corridor_route_from_waypoint_list
+
         track = self._get_feature_type("track")
         waypoint_list = []
         coordinates = self._get_feature_coordinates(track)
@@ -2414,8 +2481,8 @@ class EditableRoute(models.Model):
         for index, (latitude, longitude) in enumerate(coordinates):
             item = track_points[index]
             waypoint_list.append(
-                build_waypoint(f"Waypoint {index}", latitude, longitude, "secret", corridor_width,
-                               False, False))
+                build_waypoint(f"Waypoint {index}", latitude, longitude, "secret", corridor_width, False, False)
+            )
         waypoint_list[0].name = "SP"
         waypoint_list[0].type = "sp"
         waypoint_list[0].gate_check = True
@@ -2434,6 +2501,7 @@ class EditableRoute(models.Model):
 
     def extract_additional_features(self, route: Route):
         from display.convert_flightcontest_gpx import create_gate_from_line
+
         takeoff_gate = self._get_feature_type("to")
         if takeoff_gate is not None:
             takeoff_gate_line = self._get_feature_coordinates(takeoff_gate)
@@ -2453,8 +2521,12 @@ class EditableRoute(models.Model):
         for zone_type in ("info", "penalty", "prohibited"):
             for feature in self._get_features_type(zone_type):
                 logger.debug(feature)
-                Prohibited.objects.create(name=feature["name"], route=route,
-                                          path=self._get_feature_coordinates(feature, flip=True), type=zone_type)
+                Prohibited.objects.create(
+                    name=feature["name"],
+                    route=route,
+                    path=self._get_feature_coordinates(feature, flip=True),
+                    type=zone_type,
+                )
 
 
 # @receiver(post_save, sender=Task)
@@ -2663,10 +2735,10 @@ def remove_track_from_influx(sender, instance: NavigationTask, **kwargs):
 @receiver(post_save, sender=Contestant)
 def create_tracker_in_traccar(sender, instance: Contestant, **kwargs):
     if (
-            instance.tracking_service == TRACCAR
-            and instance.tracker_device_id
-            and len(instance.tracker_device_id) > 0
-            and instance.tracking_device == TRACKING_DEVICE
+        instance.tracking_service == TRACCAR
+        and instance.tracker_device_id
+        and len(instance.tracker_device_id) > 0
+        and instance.tracking_device == TRACKING_DEVICE
     ):
         traccar = get_traccar_instance()
         traccar.get_or_create_device(instance.tracker_device_id, instance.tracker_device_id)
@@ -2711,9 +2783,9 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         device, created = traccar.get_or_create_device(str(instance) + " simulator", instance.simulator_tracking_id)
         logger.info(f"Traccar device {device} was created: {created}")
         if (
-                created
-                and simulator_original_tracking_id is not None
-                and simulator_original_tracking_id != instance.simulator_tracking_id
+            created
+            and simulator_original_tracking_id is not None
+            and simulator_original_tracking_id != instance.simulator_tracking_id
         ):
             original_device = traccar.get_device(simulator_original_tracking_id)
             if original_device is not None:
