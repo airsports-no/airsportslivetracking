@@ -2324,7 +2324,7 @@ class EmailMapLink(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     HTML_SIGNATURE = """
-<h3><strong>Best Regards,</strong><br /><br /><span style="color: #000080;">
+<h3><strong>Best Regards,</strong><br /><span style="color: #000080;">
 <strong>Team&nbsp;Air Sports Live Tracking</strong>
 <strong>&nbsp;</strong>
 </span></h3>
@@ -2350,7 +2350,6 @@ documents. Thank you.</em></span></p>
 <p><span style="color: #999999;">____________________________________________________________</span></p>"""
 
     PLAINTEXT_SIGNATURE = """Best Regards,
-
 Team Air Sports Live Tracking 
 Flight Tracking and competition flying made easy! 
 
@@ -2392,7 +2391,7 @@ ____________________________________________________________
         tracking_start_time_string = self.contestant.tracker_start_time.strftime("%Y-%m-%d %H:%M:%S")
         send_mail(
             f"Flight orders for task {self.contestant.navigation_task.name}",
-            f"Hi {first_name},\n\nHere is the link to download the flight orders for your navigation task "
+            f"Hi {first_name},\n\nHere is the <a href='{url}'>link to download the flight orders</a> for your navigation task "
             + f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
             f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.\n\n{url}\n{self.PLAINTEXT_SIGNATURE}",
             None,  # Should default to system from email
