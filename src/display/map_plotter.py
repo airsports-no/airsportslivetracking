@@ -880,11 +880,11 @@ def plot_route(
     ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
     # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
     ax.set_aspect("auto")
-    if "precision" in task.scorecard.task_type:
+    if NavigationTask.PRECISION in task.scorecard.task_type or NavigationTask.POKER in task.scorecard.task_type:
         path = plot_precision_track(
             route, contestant, waypoints_only, annotations, line_width, colour
         )
-    elif "anr_corridor" in task.scorecard.task_type:
+    elif NavigationTask.ANR_CORRIDOR in task.scorecard.task_type:
         path = plot_anr_corridor_track(
             route, contestant, annotations, line_width, colour
         )
