@@ -2517,7 +2517,7 @@ class EditableRoute(models.Model):
             route.landing_gate.gate_line = landing_gate_line
         route.save()
         # Create prohibited zones
-        for zone_type in ("info", "penalty", "prohibited"):
+        for zone_type in ("info", "penalty", "prohibited", "gate"):
             for feature in self._get_features_type(zone_type):
                 logger.debug(feature)
                 Prohibited.objects.create(
