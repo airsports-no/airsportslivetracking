@@ -657,7 +657,7 @@ class ConnectedRouteEditor extends Component {
             maxZoom: 14,
             tms: true,
             // detectRetina: true,
-            subdomains: '12'
+            subdomains: '1'
         });
 
 
