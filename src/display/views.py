@@ -1720,7 +1720,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             )
         return form
 
-    def create_route(self) -> Tuple[Route, Optional[EditableRoute]]:
+    def create_route(self) -> Route:
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
         scorecard = Scorecard.objects.filter(task_type__contains=task_type).first()
         route = None
@@ -1749,6 +1749,10 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             contest = self.get_cleaned_data_for_step("contest_selection")["contest"]
         scorecard = Scorecard.objects.filter(task_type__contains=task_type).first()
         route = self.create_route()
+        route_location=route.get_location()
+        country_code = get_country_code_from_location(
+            *route_location
+        )
         navigation_task = NavigationTask.objects.create(
             name=task_name,
             contest=contest,
@@ -1757,7 +1761,9 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             scorecard=scorecard,
             start_time=contest.start_time,
             finish_time=contest.finish_time,
-            allow_self_management=True
+            allow_self_management=True,
+            default_map=country_code_to_map_source(country_code),
+            score_sorting_direction=contest.summary_score_sorting_direction
         )
         return HttpResponseRedirect(
             reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
