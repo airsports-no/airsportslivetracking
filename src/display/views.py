@@ -95,7 +95,10 @@ from display.forms import (
     LandingImportRouteForm,
     PNG,
     ShareForm,
-    SCALE_TO_FIT, GPXTrackImportForm, ContestSelectForm, ANRCorridorParametersForm,
+    SCALE_TO_FIT,
+    GPXTrackImportForm,
+    ContestSelectForm,
+    ANRCorridorParametersForm,
 )
 from display.generate_flight_orders import generate_flight_orders
 from display.map_plotter import (
@@ -229,9 +232,7 @@ class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 
 
 def frontend_view_map(request, pk):
-    my_contests = get_objects_for_user(
-        request.user, "display.view_contest", accept_global_perms=False
-    )
+    my_contests = get_objects_for_user(request.user, "display.view_contest", accept_global_perms=False)
     public_contests = Contest.objects.filter(is_public=True)
     try:
         navigation_task = NavigationTask.objects.get(
@@ -256,9 +257,7 @@ def frontend_view_map(request, pk):
 
 
 def frontend_playback_map(request, pk):
-    my_contests = get_objects_for_user(
-        request.user, "display.view_contest", accept_global_perms=False
-    )
+    my_contests = get_objects_for_user(request.user, "display.view_contest", accept_global_perms=False)
     public_contests = Contest.objects.filter(is_public=True)
     try:
         navigation_task = NavigationTask.objects.get(
@@ -340,10 +339,7 @@ def auto_complete_club(request):
         if request_number == 1:
             q = request.data.get("search", "")
             search_qs = Club.objects.filter(name__icontains=q)
-            result = [
-                {"label": "{} ({})".format(item.name, item.country), "value": item.name}
-                for item in search_qs
-            ]
+            result = [{"label": "{} ({})".format(item.name, item.country), "value": item.name} for item in search_qs]
             return Response(result)
         else:
             q = request.data.get("search", "")
@@ -458,11 +454,7 @@ def auto_complete_person_email(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_persons_for_signup(request):
-    return Response(
-        PersonSignUpSerialiser(
-            Person.objects.exclude(email=request.user.email), many=True
-        ).data
-    )
+    return Response(PersonSignUpSerialiser(Person.objects.exclude(email=request.user.email), many=True).data)
 
 
 def tracking_qr_code_view(request, pk):
@@ -483,29 +475,22 @@ def create_route_test(request, pk):
     return render(request, "display/route_creation_form.html", {"form": form})
 
 
-@guardian_permission_required(
-    "display.change_contest", (Contest, "navigationtask__contestant__pk", "pk")
-)
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def contestant_card_remove(request, pk, card_pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     PlayingCard.remove_contestant_card(contestant, card_pk)
     return redirect(reverse("contestant_cards_list", kwargs={"pk": contestant.pk}))
 
 
-@guardian_permission_required(
-    "display.change_contest", (Contest, "navigationtask__contestant__pk", "pk")
-)
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def contestant_cards_list(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
-    waypoint_names = [
-        waypoint.name for waypoint in contestant.navigation_task.route.waypoints
-    ]
+    waypoint_names = [waypoint.name for waypoint in contestant.navigation_task.route.waypoints]
 
     if request.method == "POST":
         form = AssignPokerCardForm(request.POST)
         form.fields["waypoint"].choices = [
-            (str(index), item.name)
-            for index, item in enumerate(contestant.navigation_task.route.waypoints)
+            (str(index), item.name) for index, item in enumerate(contestant.navigation_task.route.waypoints)
         ]
         if form.is_valid():
             waypoint_index = int(form.cleaned_data["waypoint"])
@@ -514,9 +499,7 @@ def contestant_cards_list(request, pk):
             random_card = card == "random"
             if random_card:
                 card = PlayingCard.get_random_unique_card(contestant)
-            PlayingCard.add_contestant_card(
-                contestant, card, waypoint_name, waypoint_index
-            )
+            PlayingCard.add_contestant_card(contestant, card, waypoint_name, waypoint_index)
     cards = contestant.playingcard_set.all().order_by("pk")
     for card in cards:
         print(card)
@@ -532,8 +515,7 @@ def contestant_cards_list(request, pk):
     print(next_waypoint_name)
     form = AssignPokerCardForm()
     form.fields["waypoint"].choices = [
-        (str(index), item.name)
-        for index, item in enumerate(contestant.navigation_task.route.waypoints)
+        (str(index), item.name) for index, item in enumerate(contestant.navigation_task.route.waypoints)
     ]
     if next_waypoint_name is not None:
         form.fields["waypoint"].initial = str(latest_waypoint_index + 1)
@@ -564,9 +546,7 @@ def share_contest(request, pk):
                 contest.make_unlisted()
             elif form.cleaned_data["publicity"] == ShareForm.PRIVATE:
                 contest.make_private()
-            return HttpResponseRedirect(
-                reverse("contest_details", kwargs={"pk": contest.pk})
-            )
+            return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": contest.pk}))
     if contest.is_public and contest.is_featured:
         initial = ShareForm.PUBLIC
     elif contest.is_public and not contest.is_featured:
@@ -574,14 +554,10 @@ def share_contest(request, pk):
     else:
         initial = ShareForm.PRIVATE
     form = ShareForm(initial={"publicity": initial})
-    return render(
-        request, "display/share_contest_form.html", {"form": form, "contest": contest}
-    )
+    return render(request, "display/share_contest_form.html", {"form": form, "contest": contest})
 
 
-@guardian_permission_required(
-    "display.change_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def share_navigation_task(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if request.method == "POST":
@@ -593,9 +569,7 @@ def share_navigation_task(request, pk):
                 navigation_task.make_unlisted()
             elif form.cleaned_data["publicity"] == ShareForm.PRIVATE:
                 navigation_task.make_private()
-            return HttpResponseRedirect(
-                reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
-            )
+            return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
     if navigation_task.is_public and navigation_task.is_featured:
         initial = ShareForm.PUBLIC
     elif navigation_task.is_public and not navigation_task.is_featured:
@@ -612,9 +586,7 @@ def share_navigation_task(request, pk):
 
 # @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
 # def view_cards(request, pk):
-@guardian_permission_required(
-    "display.change_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def refresh_editable_route_navigation_task(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     try:
@@ -622,14 +594,10 @@ def refresh_editable_route_navigation_task(request, pk):
         messages.success(request, "Route refreshed")
     except ValidationError as e:
         messages.error(request, str(e))
-    return HttpResponseRedirect(
-        reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
-    )
+    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__contestant__pk", "pk")
-)
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_rules(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     return render(
@@ -642,9 +610,7 @@ def get_contestant_rules(request, pk):
     )
 
 
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__contestant__pk", "pk")
-)
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_map(request, pk):
     if request.method == "POST":
         form = ContestantMapForm(request.POST)
@@ -675,9 +641,7 @@ def get_contestant_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__contestant__pk", "pk")
-)
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_default_map(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     waypoint = contestant.navigation_task.route.waypoints[0]  # type: Waypoint
@@ -718,9 +682,7 @@ def get_contestant_email_flying_orders_link(request, pk):
     return response
 
 
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def broadcast_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestants = navigation_task.contestant_set.filter(
@@ -740,14 +702,10 @@ def broadcast_navigation_task_orders(request, pk):
         request,
         f"Started generating flight orders for {contestants.count()} contestants",
     )
-    return HttpResponseRedirect(
-        reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
-    )
+    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_navigation_task_map(request, pk):
     if request.method == "POST":
         form = MapForm(request.POST)
@@ -777,9 +735,7 @@ def get_navigation_task_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
-@guardian_permission_required(
-    "display.change_contest", (Contest, "navigationtask__contestant__pk", "pk")
-)
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def upload_gpx_track_for_contesant(request, pk):
     """
     Consumes a FC GPX file that contains the GPS track of a contestant.
@@ -792,9 +748,7 @@ def upload_gpx_track_for_contesant(request, pk):
             track_file = request.FILES["track_file"]
             import_gpx_track.apply_async((contestant.pk, track_file.read().decode("utf-8")))
             messages.success(request, "Started loading track")
-            return HttpResponseRedirect(
-                reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
-            )
+            return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
     else:
         form = GPXTrackImportForm()
     return render(request, "display/upload_gpx_form.html", {"form": form, "contestant": contestant})
@@ -879,33 +833,23 @@ class ContestList(PermissionRequiredMixin, ListView):
     def get_queryset(self):
         print(self.request.user)
         # Important not to accept global permissions, otherwise any content creator can view everything
-        objects = get_objects_for_user(
-            self.request.user, "display.view_contest", accept_global_perms=False
-        )
+        objects = get_objects_for_user(self.request.user, "display.view_contest", accept_global_perms=False)
         print(list(objects))
         return objects
 
 
-@guardian_permission_required(
-    "display.change_contest", (Contest, "navigationtask__contestant__pk", "pk")
-)
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def terminate_contestant_calculator(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     contestant.request_calculator_termination()
     messages.success(request, "Calculator termination requested")
-    return HttpResponseRedirect(
-        reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
-    )
+    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
 
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def view_navigation_task_rules(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    return render(
-        request, "display/navigationtask_rules.html", {"object": navigation_task}
-    )
+    return render(request, "display/navigationtask_rules.html", {"object": navigation_task})
 
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
@@ -913,9 +857,7 @@ def clear_results_service(request, pk):
     contest = get_object_or_404(Contest, pk=pk)
     contest.task_set.all().delete()
     contest.contestsummary_set.all().delete()
-    messages.success(
-        request, "Successfully cleared contest results from results service"
-    )
+    messages.success(request, "Successfully cleared contest results from results service")
     return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": pk}))
 
 
@@ -926,12 +868,8 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
-        instance.start_time = instance.time_zone.localize(
-            instance.start_time.replace(tzinfo=None)
-        )
-        instance.finish_time = instance.time_zone.localize(
-            instance.finish_time.replace(tzinfo=None)
-        )
+        instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
+        instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
         instance.save()
         assign_perm("delete_contest", self.request.user, instance)
         assign_perm("view_contest", self.request.user, instance)
@@ -944,16 +882,12 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
         return reverse("contest_details", kwargs={"pk": self.object.pk})
 
 
-class ContestDetailView(
-    ContestTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView
-):
+class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = Contest
     permission_required = ("display.view_contest",)
 
 
-class ContestUpdateView(
-    ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView
-):
+class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = Contest
     permission_required = ("display.change_contest",)
     form_class = ContestForm
@@ -975,9 +909,7 @@ class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object()
 
 
-class NavigationTaskDetailView(
-    NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView
-):
+class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = NavigationTask
     permission_required = ("display.view_contest",)
 
@@ -985,9 +917,7 @@ class NavigationTaskDetailView(
         return self.get_object().contest
 
 
-class NavigationTaskUpdateView(
-    NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView
-):
+class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = NavigationTask
     permission_required = ("display.change_contest",)
     form_class = NavigationTaskForm
@@ -1033,23 +963,17 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
 def delete_score_item(request, pk):
     entry = get_object_or_404(ScoreLogEntry, pk=pk)
     contestant = entry.contestant
-    contestant.contestanttrack.update_score(
-        contestant.contestanttrack.score - entry.points
-    )
+    contestant.contestanttrack.update_score(contestant.contestanttrack.score - entry.points)
     entry.delete()
     # Push the updated data so that it is reflected on the contest track
     wf = WebsocketFacade()
     wf.transmit_score_log_entry(contestant)
     wf.transmit_annotations(contestant)
     wf.transmit_basic_information(contestant)
-    return HttpResponseRedirect(
-        reverse("contestant_gate_times", kwargs={"pk": contestant.pk})
-    )
+    return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
 
 
-class ContestantGateTimesView(
-    ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView
-):
+class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = Contestant
     permission_required = ("display.view_contest",)
     template_name = "display/contestant_gate_times.html"
@@ -1077,9 +1001,7 @@ class ContestantGateTimesView(
         return context
 
 
-class ContestantUpdateView(
-    ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView
-):
+class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     form_class = ContestantForm
     model = Contestant
     permission_required = ("display.change_contest",)
@@ -1090,9 +1012,7 @@ class ContestantUpdateView(
         return arguments
 
     def get_success_url(self):
-        return reverse(
-            "navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk}
-        )
+        return reverse("navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk})
 
     def get_permission_object(self):
         return self.get_object().navigation_task.contest
@@ -1104,9 +1024,7 @@ class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     template_name = "model_delete.html"
 
     def get_success_url(self):
-        return reverse(
-            "navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk}
-        )
+        return reverse("navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk})
 
     def get_permission_object(self):
         return self.get_object().navigation_task.contest
@@ -1119,9 +1037,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
-        self.navigation_task = get_object_or_404(
-            NavigationTask, pk=self.kwargs.get("navigationtask_pk")
-        )
+        self.navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
         timezone.activate(self.navigation_task.contest.time_zone)
 
     def get_context_data(self, **kwargs):
@@ -1135,9 +1051,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         return arguments
 
     def get_success_url(self):
-        return reverse(
-            "navigationtask_detail", kwargs={"pk": self.kwargs.get("navigationtask_pk")}
-        )
+        return reverse("navigationtask_detail", kwargs={"pk": self.kwargs.get("navigationtask_pk")})
 
     def get_permission_object(self):
         return self.navigation_task.contest
@@ -1150,9 +1064,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
 
 @api_view(["GET"])
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_contestant_schedule(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     columns = [
@@ -1177,9 +1089,7 @@ def get_contestant_schedule(request, pk):
     return Response({"cols": columns, "rows": rows})
 
 
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def render_contestants_timeline(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     return render(
@@ -1189,23 +1099,17 @@ def render_contestants_timeline(request, pk):
     )
 
 
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def clear_future_contestants(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     now = datetime.datetime.now(datetime.timezone.utc)
-    candidates = (
-        navigation_task.contestant_set.all()
-    )  # filter(takeoff_time__gte=now + datetime.timedelta(minutes=15))
+    candidates = navigation_task.contestant_set.all()  # filter(takeoff_time__gte=now + datetime.timedelta(minutes=15))
     messages.success(request, f"{candidates.count()} contestants have been deleted")
     candidates.delete()
     return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
-@guardian_permission_required(
-    "display.change_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def add_contest_teams_to_navigation_task(request, pk):
     """
     Add all teams registered for a contest to a task. If the team is already assigned as a contestant, ignore it.
@@ -1218,20 +1122,19 @@ def add_contest_teams_to_navigation_task(request, pk):
     if request.method == "POST":
         form = ContestTeamOptimisationForm(request.POST)
         form.fields["contest_teams"].choices = [
-            (str(item.pk), str(item))
-            for item in navigation_task.contest.contestteam_set.all()
+            (str(item.pk), str(item)) for item in navigation_task.contest.contestteam_set.all()
         ]
         if form.is_valid():
             try:
                 if not schedule_and_create_contestants(
-                        navigation_task,
-                        [int(item) for item in form.cleaned_data["contest_teams"]],
-                        form.cleaned_data["tracker_lead_time_minutes"],
-                        form.cleaned_data["minutes_for_aircraft_switch"],
-                        form.cleaned_data["minutes_for_tracker_switch"],
-                        form.cleaned_data["minutes_between_contestants"],
-                        form.cleaned_data["minutes_for_crew_switch"],
-                        optimise=form.cleaned_data.get("optimise", False),
+                    navigation_task,
+                    [int(item) for item in form.cleaned_data["contest_teams"]],
+                    form.cleaned_data["tracker_lead_time_minutes"],
+                    form.cleaned_data["minutes_for_aircraft_switch"],
+                    form.cleaned_data["minutes_for_tracker_switch"],
+                    form.cleaned_data["minutes_between_contestants"],
+                    form.cleaned_data["minutes_for_crew_switch"],
+                    optimise=form.cleaned_data.get("optimise", False),
                 ):
                     messages.error(request, "Optimisation failed")
                 else:
@@ -1253,9 +1156,7 @@ def add_contest_teams_to_navigation_task(request, pk):
         #         minutes=TIME_LOCK_MINUTES) > now:
         #     selected = True
         try:
-            contest_team = navigation_task.contest.contestteam_set.get(
-                team=contestant.team
-            )
+            contest_team = navigation_task.contest.contestteam_set.get(team=contestant.team)
         except ObjectDoesNotExist:
             contest_team = ContestTeam.objects.create(
                 team=contestant.team,
@@ -1265,26 +1166,18 @@ def add_contest_teams_to_navigation_task(request, pk):
                 tracker_device_id=contestant.tracker_device_id,
                 tracking_service=contestant.tracking_service,
             )
-        selected_existing.append(
-            (contest_team, f"{contest_team} (at {contestant.takeoff_time})", selected)
-        )
+        selected_existing.append((contest_team, f"{contest_team} (at {contestant.takeoff_time})", selected))
         used_contest_teams.add(contest_team.pk)
     selected_existing.extend(
         [
             (item, str(item), False)
-            for item in navigation_task.contest.contestteam_set.exclude(
-            pk__in=used_contest_teams
-        )
+            for item in navigation_task.contest.contestteam_set.exclude(pk__in=used_contest_teams)
         ]
     )
     # initial = navigation_task.contest.contestteam_set.filter(
     #     team__in=[item.team for item in navigation_task.contestant_set.all()])
-    form.fields["contest_teams"].choices = [
-        (str(item[0].pk), item[1]) for item in selected_existing
-    ]
-    form.fields["contest_teams"].initial = [
-        str(item[0].pk) for item in selected_existing if item[2]
-    ]
+    form.fields["contest_teams"].choices = [(str(item[0].pk), item[1]) for item in selected_existing]
+    form.fields["contest_teams"].initial = [str(item[0].pk) for item in selected_existing if item[2]]
     return render(
         request,
         "display/contestteam_optimisation_form.html",
@@ -1292,9 +1185,7 @@ def add_contest_teams_to_navigation_task(request, pk):
     )
 
 
-@guardian_permission_required(
-    "display.change_contest", (Contest, "navigationtask__pk", "pk")
-)
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def navigation_task_score_override_view(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if NavigationTask.PRECISION in navigation_task.scorecard.task_type:
@@ -1302,8 +1193,9 @@ def navigation_task_score_override_view(request, pk):
     elif NavigationTask.ANR_CORRIDOR in navigation_task.scorecard.task_type:
         form_class = ANRCorridorScoreOverrideForm
     else:
-        messages.error(request,
-                       f"{navigation_task.scorecard.get_task_type_display()} has no scoring parameters to override")
+        messages.error(
+            request, f"{navigation_task.scorecard.get_task_type_display()} has no scoring parameters to override"
+        )
         return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
     if request.method == "POST":
         form = form_class(request.POST)
@@ -1333,25 +1225,19 @@ def _generate_data(contestant_pk):
     LIMIT = None
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
     from_time_datetime = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
-    result_set = influx.get_positions_for_contestant(
-        contestant_pk, from_time_datetime, limit=LIMIT
-    )
+    result_set = influx.get_positions_for_contestant(contestant_pk, from_time_datetime, limit=LIMIT)
     logger.info("Completed fetching positions for {}".format(contestant.pk))
     position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
     if len(position_data) > 0:
         global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
     else:
         global_latest_time = from_time_datetime
-    annotations = TrackAnnotationSerialiser(
-        contestant.trackannotation_set.all(), many=True
-    ).data
+    annotations = TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data
     reduced_data = []
     progress = 0
     for index, item in enumerate(position_data):
         if index % 30 == 0:
-            progress = contestant.calculate_progress(
-                dateutil.parser.parse(item["time"]), ignore_finished=True
-            )
+            progress = contestant.calculate_progress(dateutil.parser.parse(item["time"]), ignore_finished=True)
         reduced_data.append(
             {
                 "latitude": item["latitude"],
@@ -1373,15 +1259,9 @@ def _generate_data(contestant_pk):
         "positions": positions,
         "annotations": annotations,
         "progress": route_progress,
-        "score_log_entries": ScoreLogEntrySerialiser(
-            contestant.scorelogentry_set.all(), many=True
-        ).data,
-        "gate_scores": GateCumulativeScoreSerialiser(
-            contestant.gatecumulativescore_set.all(), many=True
-        ).data,
-        "playing_cards": PlayingCardSerialiser(
-            contestant.playingcard_set.all(), many=True
-        ).data,
+        "score_log_entries": ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data,
+        "gate_scores": GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
+        "playing_cards": PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
         "contestant_track": contestant_track,
     }
     return data
@@ -1391,13 +1271,13 @@ def _generate_data(contestant_pk):
 def show_route_definition_step(wizard):
     cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}
     return (
-            not cleaned_data.get("internal_route")
-            and cleaned_data.get("file_type") == FILE_TYPE_KML
-            and wizard.get_cleaned_data_for_step("task_type").get("task_type")
-            in (
-                NavigationTask.PRECISION,
-                NavigationTask.POKER,
-            )
+        not cleaned_data.get("internal_route")
+        and cleaned_data.get("file_type") == FILE_TYPE_KML
+        and wizard.get_cleaned_data_for_step("task_type").get("task_type")
+        in (
+            NavigationTask.PRECISION,
+            NavigationTask.POKER,
+        )
     )
 
 
@@ -1409,15 +1289,11 @@ def show_precision_path(wizard):
 
 
 def show_anr_path(wizard):
-    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
-        NavigationTask.ANR_CORRIDOR,
-    )
+    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (NavigationTask.ANR_CORRIDOR,)
 
 
 def show_landing_path(wizard):
-    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
-        NavigationTask.LANDING,
-    )
+    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (NavigationTask.LANDING,)
 
 
 class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
@@ -1441,9 +1317,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         ("precision_override", PrecisionScoreOverrideForm),
         ("anr_corridor_override", ANRCorridorScoreOverrideForm),
     ]
-    file_storage = FileSystemStorage(
-        location=os.path.join(settings.MEDIA_ROOT, "importedroutes")
-    )
+    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
     condition_dict = {
         "anr_route_import": show_anr_path,
         "precision_route_import": show_precision_path,
@@ -1473,9 +1347,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             from django.contrib import messages
 
             messages.error(self.request, str(e))
-            return self.render_revalidation_failure(
-                "task_type", self.get_form_instance("task_type"), **kwargs
-            )
+            return self.render_revalidation_failure("task_type", self.get_form_instance("task_type"), **kwargs)
 
     def create_route(self) -> Tuple[Route, Optional[EditableRoute]]:
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
@@ -1483,58 +1355,37 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         route = None
         if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
             initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
-            use_procedure_turns = self.get_cleaned_data_for_step("task_content")[
-                "scorecard"
-            ].use_procedure_turns
+            use_procedure_turns = self.get_cleaned_data_for_step("task_content")["scorecard"].use_procedure_turns
             if initial_step_data["internal_route"]:
-                route = initial_step_data["internal_route"].create_precision_route(
-                    use_procedure_turns
-                )
+                route = initial_step_data["internal_route"].create_precision_route(use_procedure_turns)
                 editable_route = initial_step_data["internal_route"]
             elif initial_step_data["file_type"] == FILE_TYPE_CSV:
-                data = [
-                    item.decode(encoding="UTF-8")
-                    for item in initial_step_data["file"].readlines()
-                ]
-                route = create_precision_route_from_csv(
-                    "route", data[1:], use_procedure_turns
-                )
+                data = [item.decode(encoding="UTF-8") for item in initial_step_data["file"].readlines()]
+                route = create_precision_route_from_csv("route", data[1:], use_procedure_turns)
             elif initial_step_data["file_type"] == FILE_TYPE_FLIGHTCONTEST_GPX:
                 try:
-                    route = create_precision_route_from_gpx(
-                        initial_step_data["file"].read(), use_procedure_turns
-                    )
+                    route = create_precision_route_from_gpx(initial_step_data["file"].read(), use_procedure_turns)
                 except Exception as e:
-                    raise ValidationError(
-                        "Failed building route from provided GPX: {}".format(e)
-                    )
+                    raise ValidationError("Failed building route from provided GPX: {}".format(e))
             else:
                 second_step_data = self.get_cleaned_data_for_step("waypoint_definition")
                 if initial_step_data["file_type"] == FILE_TYPE_KML:
-                    data = self.get_cleaned_data_for_step("precision_route_import")[
-                        "file"
-                    ]
+                    data = self.get_cleaned_data_for_step("precision_route_import")["file"]
                     data.seek(0)
                 else:
                     data = None
-                route = create_precision_route_from_formset(
-                    "route", second_step_data, use_procedure_turns, data
-                )
+                route = create_precision_route_from_formset("route", second_step_data, use_procedure_turns, data)
         elif task_type == NavigationTask.ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_route_import")
             rounded_corners = initial_step_data["rounded_corners"]
             corridor_width = initial_step_data["corridor_width"]
             if initial_step_data["internal_route"]:
-                route = initial_step_data["internal_route"].create_anr_route(
-                    rounded_corners, corridor_width
-                )
+                route = initial_step_data["internal_route"].create_anr_route(rounded_corners, corridor_width)
                 editable_route = initial_step_data["internal_route"]
             else:
                 data = self.get_cleaned_data_for_step("anr_route_import")["file"]
                 data.seek(0)
-                route = create_anr_corridor_route_from_kml(
-                    "route", data, corridor_width, rounded_corners
-                )
+                route = create_anr_corridor_route_from_kml("route", data, corridor_width, rounded_corners)
         elif task_type == NavigationTask.LANDING:
             initial_step_data = self.get_cleaned_data_for_step("landing_route_import")
             if initial_step_data["internal_route"]:
@@ -1560,21 +1411,13 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         )
         # Build score overrides
         if task_type == NavigationTask.PRECISION:
-            kwargs["form_dict"].get("precision_override").build_score_override(
-                navigation_task
-            )
+            kwargs["form_dict"].get("precision_override").build_score_override(navigation_task)
         elif task_type == NavigationTask.ANR_CORRIDOR:
-            kwargs["form_dict"].get("anr_corridor_override").build_score_override(
-                navigation_task
-            )
+            kwargs["form_dict"].get("anr_corridor_override").build_score_override(navigation_task)
         print(navigation_task.track_score_override)
         # Update contest location if necessary
-        self.contest.update_position_if_not_set(
-            *route.get_location()
-        )
-        return HttpResponseRedirect(
-            reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
-        )
+        self.contest.update_position_if_not_set(*route.get_location())
+        return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
@@ -1582,10 +1425,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             context["helper"] = WaypointFormHelper()
             context["track_image"] = base64.b64encode(
                 get_basic_track(
-                    [
-                        (item["latitude"], item["longitude"])
-                        for item in self.get_form_initial("waypoint_definition")
-                    ]
+                    [(item["latitude"], item["longitude"]) for item in self.get_form_initial("waypoint_definition")]
                 ).getvalue()
             ).decode("utf-8")
         if self.steps.current == "task_content":
@@ -1598,17 +1438,10 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             # form.fields["default_map"].initial = country_code_to_map_source(country_code)
             useful_cards = []
             for scorecard in Scorecard.objects.all():
-                if (
-                        self.get_cleaned_data_for_step("task_type")["task_type"]
-                        in scorecard.task_type
-                ):
+                if self.get_cleaned_data_for_step("task_type")["task_type"] in scorecard.task_type:
                     useful_cards.append(scorecard.pk)
-            form.fields["scorecard"].queryset = Scorecard.objects.filter(
-                pk__in=useful_cards
-            )
-            form.fields["scorecard"].initial = Scorecard.objects.filter(
-                pk__in=useful_cards
-            ).first()
+            form.fields["scorecard"].queryset = Scorecard.objects.filter(pk__in=useful_cards)
+            form.fields["scorecard"].initial = Scorecard.objects.filter(pk__in=useful_cards).first()
         return context
 
     def get_form(self, step=None, data=None, files=None):
@@ -1616,9 +1449,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         if step == "waypoint_definition":
             print(len(form))
         if step in (
-                "anr_route_import",
-                "precision_route_import",
-                "landing_route_import",
+            "anr_route_import",
+            "precision_route_import",
+            "landing_route_import",
         ):
             form.fields["internal_route"].queryset = get_objects_for_user(
                 self.request.user,
@@ -1654,18 +1487,12 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 return initial
         if step == "anr_corridor_override":
             scorecard = self.get_cleaned_data_for_step("task_content")["scorecard"]
-            return ANRCorridorScoreOverrideForm.extract_default_values_from_scorecard(
-                scorecard
-            )
+            return ANRCorridorScoreOverrideForm.extract_default_values_from_scorecard(scorecard)
         if step == "precision_override":
             scorecard = self.get_cleaned_data_for_step("task_content")["scorecard"]
-            return PrecisionScoreOverrideForm.extract_default_values_from_scorecard(
-                scorecard
-            )
+            return PrecisionScoreOverrideForm.extract_default_values_from_scorecard(scorecard)
         if step == "task_content":
-            country_code = get_country_code_from_location(
-                self.contest.latitude, self.contest.longitude
-            )
+            country_code = get_country_code_from_location(self.contest.latitude, self.contest.longitude)
             print(country_code)
             return {
                 "default_map": country_code_to_map_source(country_code),
@@ -1684,9 +1511,7 @@ def anr_task_type(wizard):
 
 class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     permission_required = ("display.change_editableroute",)
-    file_storage = FileSystemStorage(
-        location=os.path.join(settings.MEDIA_ROOT, "unneeded")
-    )
+    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "unneeded"))
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
@@ -1698,17 +1523,14 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     form_list = [
         ("contest_selection", ContestSelectForm),
         ("anr_parameters", ANRCorridorParametersForm),
-        ("contest_creation", ContestForm)
+        ("contest_creation", ContestForm),
     ]
 
-    condition_dict = {
-        "contest_creation": contest_not_chosen,
-        "anr_parameters": anr_task_type
-    }
+    condition_dict = {"contest_creation": contest_not_chosen, "anr_parameters": anr_task_type}
     templates = {
         "contest_selection": "display/navigationtaskwizardform.html",
         "anr_parameters": "display/navigationtaskwizardform.html",
-        "contest_creation": "display/navigationtaskwizardform.html"
+        "contest_creation": "display/navigationtaskwizardform.html",
     }
 
     def get_template_names(self):
@@ -1752,10 +1574,8 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             contest = self.get_cleaned_data_for_step("contest_selection")["contest"]
         scorecard = Scorecard.objects.filter(task_type__contains=task_type).first()
         route = self.create_route()
-        route_location=route.get_location()
-        country_code = get_country_code_from_location(
-            *route_location
-        )
+        route_location = route.get_location()
+        country_code = get_country_code_from_location(*route_location)
         navigation_task = NavigationTask.objects.create(
             name=task_name,
             contest=contest,
@@ -1766,11 +1586,9 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             finish_time=contest.finish_time,
             allow_self_management=True,
             default_map=country_code_to_map_source(country_code),
-            score_sorting_direction=contest.summary_score_sorting_direction
+            score_sorting_direction=contest.summary_score_sorting_direction,
         )
-        return HttpResponseRedirect(
-            reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
-        )
+        return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
 class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
@@ -1784,9 +1602,7 @@ class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
     form_class = TrackingDataForm
 
     def get_success_url(self):
-        return reverse_lazy(
-            "contest_team_list", kwargs={"contest_pk": self.kwargs["contest_pk"]}
-        )
+        return reverse_lazy("contest_team_list", kwargs={"contest_pk": self.kwargs["contest_pk"]})
 
 
 class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
@@ -1800,9 +1616,7 @@ class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
     form_class = TeamForm
 
     def get_success_url(self):
-        return reverse_lazy(
-            "contest_team_list", kwargs={"contest_pk": self.kwargs["contest_pk"]}
-        )
+        return reverse_lazy("contest_team_list", kwargs={"contest_pk": self.kwargs["contest_pk"]})
 
 
 def create_new_pilot(wizard):
@@ -1812,10 +1626,7 @@ def create_new_pilot(wizard):
 
 def create_new_copilot(wizard):
     cleaned = wizard.get_post_data_for_step("member2search") or {}
-    return (
-            cleaned.get("use_existing_copilot") is None
-            and cleaned.get("skip_copilot") is None
-    )
+    return cleaned.get("use_existing_copilot") is None and cleaned.get("skip_copilot") is None
 
 
 class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
@@ -1829,9 +1640,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         "member1create": create_new_pilot,
         "member2create": create_new_copilot,
     }
-    file_storage = FileSystemStorage(
-        location=os.path.join(settings.MEDIA_ROOT, "teams")
-    )
+    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "teams"))
     form_list = [
         ("member1search", Member1SearchForm),
         ("member1create", PersonForm),
@@ -1864,9 +1673,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             from django.contrib import messages
 
             messages.error(self.request, str(e))
-            return self.render_revalidation_failure(
-                "tracking", self.get_form_instance("tracking"), **kwargs
-            )
+            return self.render_revalidation_failure("tracking", self.get_form_instance("tracking"), **kwargs)
 
     def post(self, *args, **kwargs):
         if "my_post_data" not in self.request.session:
@@ -1894,9 +1701,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         use_existing1 = member_one_search.get("use_existing_pilot") is not None
         if use_existing1:
             existing_member_one_data = self.get_cleaned_data_for_step("member1search")
-            member1 = get_object_or_404(
-                Person, pk=existing_member_one_data["person_id"]
-            )
+            member1 = get_object_or_404(Person, pk=existing_member_one_data["person_id"])
         else:
             member1 = form_dict["member1create"].save()
             member1.validated = True
@@ -1907,9 +1712,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         if not member_two_skip:
             use_existing2 = member_two_search.get("use_existing_copilot") is not None
             if use_existing2:
-                existing_member_two_data = self.get_cleaned_data_for_step(
-                    "member2search"
-                )
+                existing_member_two_data = self.get_cleaned_data_for_step("member2search")
                 member2 = Person.objects.get(pk=existing_member_two_data["person_id"])
             else:
                 member2 = form_dict["member2create"].save()
@@ -1931,20 +1734,14 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         club_data = self.get_cleaned_data_for_step("club")
         club_data.pop("logo_display_field")
         club_data.pop("country_flag_display_field")
-        club, _ = Club.objects.get_or_create(
-            name=club_data.get("name"), defaults=club_data
-        )
+        club, _ = Club.objects.get_or_create(name=club_data.get("name"), defaults=club_data)
         if club_data["logo"] is not None:
             club.logo = club_data["logo"]
         club.country = club_data["country"]
         club.save()
-        team, created_team = Team.objects.get_or_create(
-            crew=crew, aeroplane=aeroplane, club=club
-        )
+        team, created_team = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
         contest.replace_team(original_team, team, tracking_data)
-        return HttpResponseRedirect(
-            reverse("contest_team_list", kwargs={"contest_pk": contest_pk})
-        )
+        return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
     def get_form_prefix(self, step=None, form=None):
         return ""
@@ -2046,9 +1843,7 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["contest"] = get_object_or_404(
-            Contest, pk=self.kwargs.get("contest_pk")
-        )
+        context["contest"] = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
         return context
 
 
@@ -2080,9 +1875,7 @@ def remove_team_from_contest(request, contest_pk, team_pk):
     contest = get_object_or_404(Contest, pk=contest_pk)
     team = get_object_or_404(Team, pk=team_pk)
     ContestTeam.objects.filter(contest=contest, team=team).delete()
-    return HttpResponseRedirect(
-        reverse("contest_team_list", kwargs={"contest_pk": contest_pk})
-    )
+    return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
 
 class UserPersonViewSet(GenericViewSet):
@@ -2108,8 +1901,7 @@ class UserPersonViewSet(GenericViewSet):
             email=self.request.user.email,
             defaults={
                 "first_name": self.request.user.first_name
-                if self.request.user.first_name
-                   and len(self.request.user.first_name) > 0
+                if self.request.user.first_name and len(self.request.user.first_name) > 0
                 else "",
                 "last_name": self.request.user.last_name
                 if self.request.user.last_name and len(self.request.user.last_name) > 0
@@ -2141,22 +1933,17 @@ class UserPersonViewSet(GenericViewSet):
         print(self.get_object())
         contest_teams = (
             ContestTeam.objects.filter(
-                Q(team__crew__member1=self.get_object())
-                | Q(team__crew__member2=self.get_object()),
+                Q(team__crew__member1=self.get_object()) | Q(team__crew__member2=self.get_object()),
                 contest__in=available_contests,
             )
-                .order_by("contest__start_time")
-                .distinct()
+            .order_by("contest__start_time")
+            .distinct()
         )
         teams = []
         for team in contest_teams:
             team.can_edit = team.team.crew.member1 == self.get_object()
             teams.append(team)
-        return Response(
-            ContestTeamManagementSerialiser(
-                teams, many=True, context={"request": request}
-            ).data
-        )
+        return Response(ContestTeamManagementSerialiser(teams, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
@@ -2177,9 +1964,7 @@ class UserPersonViewSet(GenericViewSet):
         )
         if not contestant:
             raise Http404
-        return Response(
-            NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data
-        )
+        return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
 
     @action(detail=False, methods=["get"])
     def get_current_app_navigation_task(self, request, *args, **kwargs):
@@ -2189,9 +1974,7 @@ class UserPersonViewSet(GenericViewSet):
         )
         if not contestant:
             raise Http404
-        return Response(
-            NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data
-        )
+        return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
 
     @action(detail=False, methods=["put", "patch"])
     def update_profile(self, request, *args, **kwargs):
@@ -2251,22 +2034,20 @@ class ContestViewSet(ModelViewSet):
     default_serialiser_class = ContestSerialiser
     lookup_url_kwarg = "pk"
 
-    permission_classes = [
-        ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)
-    ]
+    permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_queryset(self):
         return (
-                get_objects_for_user(
-                    self.request.user,
-                    "display.view_contest",
-                    klass=self.queryset,
-                    accept_global_perms=False,
-                )
-                | self.queryset.filter(is_public=True, is_featured=True)
+            get_objects_for_user(
+                self.request.user,
+                "display.view_contest",
+                klass=self.queryset,
+                accept_global_perms=False,
+            )
+            | self.queryset.filter(is_public=True, is_featured=True)
         )
 
     @action(detail=True, methods=["get"])
@@ -2275,11 +2056,7 @@ class ContestViewSet(ModelViewSet):
         Return the current time for the appropriate time zone
         """
         contest = self.get_object()
-        return Response(
-            datetime.datetime.now(datetime.timezone.utc)
-                .astimezone(contest.time_zone)
-                .strftime("%H:%M:%S")
-        )
+        return Response(datetime.datetime.now(datetime.timezone.utc).astimezone(contest.time_zone).strftime("%H:%M:%S"))
 
     @action(detail=True, methods=["put"])
     def share(self, request, *args, **kwargs):
@@ -2299,15 +2076,11 @@ class ContestViewSet(ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def ongoing_navigation(self, request, *args, **kwargs):
-        navigation_tasks = NavigationTask.get_visible_navigation_tasks(
-            self.request.user
-        ).filter(
+        navigation_tasks = NavigationTask.get_visible_navigation_tasks(self.request.user).filter(
             contestant__contestanttrack__calculator_started=True,
             contestant__contestanttrack__calculator_finished=False,
         )
-        data = self.get_serializer_class()(
-            navigation_tasks, many=True, context={"request": self.request}
-        ).data
+        data = self.get_serializer_class()(navigation_tasks, many=True, context={"request": self.request}).data
         return Response(data)
 
     @action(detail=True, methods=["get"])
@@ -2316,9 +2089,7 @@ class ContestViewSet(ModelViewSet):
         Retrieve the full list of contest summaries, tasks summaries, and individual test results for the contest
         """
         contest = self.get_object()
-        contest.permission_change_contest = request.user.has_perm(
-            "display.change_contest", contest
-        )
+        contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
         serialiser = ContestResultsDetailsSerialiser(contest)
         return Response(serialiser.data)
 
@@ -2389,9 +2160,7 @@ class ContestViewSet(ModelViewSet):
     @action(
         detail=True,
         methods=["POST", "PUT"],
-        permission_classes=[
-            permissions.IsAuthenticated & ContestPublicModificationPermissions
-        ],
+        permission_classes=[permissions.IsAuthenticated & ContestPublicModificationPermissions],
     )
     def signup(self, request, *args, **kwargs):
         contest = self.get_object()
@@ -2403,16 +2172,12 @@ class ContestViewSet(ModelViewSet):
         serialiser = self.get_serializer(instance=contest, data=request.data)
         serialiser.is_valid(True)
         contest_team = serialiser.save()
-        return Response(
-            ContestTeamSerialiser(contest_team).data, status=status.HTTP_201_CREATED
-        )
+        return Response(ContestTeamSerialiser(contest_team).data, status=status.HTTP_201_CREATED)
 
     @action(
         detail=True,
         methods=["DELETE"],
-        permission_classes=[
-            permissions.IsAuthenticated & ContestPublicModificationPermissions
-        ],
+        permission_classes=[permissions.IsAuthenticated & ContestPublicModificationPermissions],
     )
     def withdraw(self, request, *args, **kwargs):
         contest = self.get_object()
@@ -2459,13 +2224,7 @@ class ContestTeamViewSet(ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         try:
-            context.update(
-                {
-                    "contest": get_object_or_404(
-                        Contest, pk=self.kwargs.get("contest_pk")
-                    )
-                }
-            )
+            context.update({"contest": get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))})
         except Http404:
             # This has to be handled where we retrieve the context
             pass
@@ -2496,8 +2255,7 @@ class NavigationTaskViewSet(ModelViewSet):
     lookup_url_kwarg = "pk"
 
     permission_classes = [
-        NavigationTaskPublicPermissions
-        | (permissions.IsAuthenticated & NavigationTaskContestPermissions)
+        NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)
     ]
 
     http_method_names = ["get", "post", "delete", "put"]
@@ -2508,13 +2266,7 @@ class NavigationTaskViewSet(ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         try:
-            context.update(
-                {
-                    "contest": get_object_or_404(
-                        Contest, pk=self.kwargs.get("contest_pk")
-                    )
-                }
-            )
+            context.update({"contest": get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))})
         except Http404:
             # This has to be handled where we retrieve the context
             pass
@@ -2560,22 +2312,14 @@ class NavigationTaskViewSet(ModelViewSet):
             serialiser.is_valid(True)
             contest_team = serialiser.validated_data["contest_team"]
             if contest_team.team.crew.member1.email != request.user.email:
-                raise ValidationError(
-                    "You cannot add a team where you are not the pilot"
-                )
-            starting_point_time = serialiser.validated_data[
-                "starting_point_time"
-            ].astimezone(
+                raise ValidationError("You cannot add a team where you are not the pilot")
+            starting_point_time = serialiser.validated_data["starting_point_time"].astimezone(
                 navigation_task.contest.time_zone
             )  # type: datetime
-            takeoff_time = starting_point_time - datetime.timedelta(
-                minutes=navigation_task.minutes_to_starting_point
-            )
+            takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
             existing_contestants = navigation_task.contestant_set.all()
             if existing_contestants.exists():
-                contestant_number = (
-                        max([item.contestant_number for item in existing_contestants]) + 1
-                )
+                contestant_number = max([item.contestant_number for item in existing_contestants]) + 1
             else:
                 contestant_number = 1
             adaptive_start = serialiser.validated_data["adaptive_start"]
@@ -2602,13 +2346,13 @@ class NavigationTaskViewSet(ModelViewSet):
             if adaptive_start:
                 # Properly account for how final time is created when adaptive start is active
                 final_time = (
-                        starting_point_time
-                        + datetime.timedelta(hours=1)
-                        + datetime.timedelta(
-                    hours=final_time.hour,
-                    minutes=final_time.minute,
-                    seconds=final_time.second,
-                )
+                    starting_point_time
+                    + datetime.timedelta(hours=1)
+                    + datetime.timedelta(
+                        hours=final_time.hour,
+                        minutes=final_time.minute,
+                        seconds=final_time.second,
+                    )
                 )
             logger.debug(f"Take-off time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")
@@ -2621,9 +2365,7 @@ class NavigationTaskViewSet(ModelViewSet):
             logger.debug("Updated contestant")
             # mail_link = EmailMapLink.objects.create(contestant=contestant)
             # mail_link.send_email(request.user.email, request.user.first_name)
-            generate_and_notify_flight_order.apply_async(
-                (contestant.pk, request.user.email, request.user.first_name)
-            )
+            generate_and_notify_flight_order.apply_async((contestant.pk, request.user.email, request.user.first_name))
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
             # Delete all contestants that have not started yet where I am the pilot
@@ -2644,10 +2386,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
                 team__crew__member1__email=request.user.email,
                 contestanttrack__calculator_started=True,
-            ).update(
-                finished_by_time=datetime.datetime.now(datetime.timezone.utc)
-                                 - datetime.timedelta(minutes=1)
-            )
+            ).update(finished_by_time=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=1))
             for contestant in ongoing:
                 contestant.request_calculator_termination()
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -2694,8 +2433,7 @@ class ClubViewSet(ModelViewSet):
 class ContestantTeamIdViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     permission_classes = [
-        ContestantPublicPermissions
-        | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)
+        ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)
     ]
     serializer_classes = {}
     default_serialiser_class = ContestantSerialiser
@@ -2722,9 +2460,7 @@ class ContestantTeamIdViewSet(ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         try:
-            navigation_task = get_object_or_404(
-                NavigationTask, pk=self.kwargs.get("navigationtask_pk")
-            )
+            navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
             context.update({"navigation_task": navigation_task})
         except Http404:
             # This has to be handled where we retrieve the context
@@ -2735,8 +2471,7 @@ class ContestantTeamIdViewSet(ModelViewSet):
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     permission_classes = [
-        ContestantPublicPermissions
-        | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)
+        ContestantPublicPermissions | (permissions.IsAuthenticated & ContestantNavigationTaskContestPermissions)
     ]
     serializer_classes = {
         "track": ContestantTrackWithTrackPointsSerialiser,
@@ -2767,9 +2502,7 @@ class ContestantViewSet(ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         try:
-            navigation_task = get_object_or_404(
-                NavigationTask, pk=self.kwargs.get("navigationtask_pk")
-            )
+            navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
             context.update({"navigation_task": navigation_task})
         except Http404:
             # This has to be handled where we retrieve the context
@@ -2786,9 +2519,7 @@ class ContestantViewSet(ModelViewSet):
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         partial = kwargs.pop("partial", False)
-        serialiser = self.get_serializer(
-            instance=instance, data=request.data, partial=partial
-        )
+        serialiser = self.get_serializer(instance=instance, data=request.data, partial=partial)
         if serialiser.is_valid():
             serialiser.save()
             return Response(serialiser.data)
@@ -2803,17 +2534,11 @@ class ContestantViewSet(ModelViewSet):
         """
         Returns the GPS track for the contestant
         """
-        contestant = (
-            self.get_object()
-        )  # This is important, this is where the object permissions are checked
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
         contestant_track = contestant.contestanttrack
-        result_set = influx.get_positions_for_contestant(
-            pk, contestant.tracker_start_time
-        )
+        result_set = influx.get_positions_for_contestant(pk, contestant.tracker_start_time)
         logger.info("Completed fetching positions for {}".format(contestant.pk))
-        position_data = list(
-            result_set.get_points(tags={"contestant": str(contestant.pk)})
-        )
+        position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
         contestant_track.track = position_data
         serialiser = ContestantTrackWithTrackPointsSerialiser(contestant_track)
         return Response(serialiser.data)
@@ -2823,16 +2548,14 @@ class ContestantViewSet(ModelViewSet):
         """
         Consumes a FC GPX file that contains the GPS track of a contestant.
         """
-        contestant = (
-            self.get_object()
-        )  # This is important, this is where the object permissions are checked
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
         contestant.reset_track_and_score()
         # Not required, covered by delete above
         # influx.clear_data_for_contestant(contestant.pk)
         track_file = request.data.get("track_file", None)
         if not track_file:
             raise ValidationError("Missing track_file")
-        import_gpx_track.apply_async((contestant.pk, base64.decodebytes(track_file).decode('utf-8')))
+        import_gpx_track.apply_async((contestant.pk, base64.decodebytes(track_file).decode("utf-8")))
         return Response({}, status=status.HTTP_201_CREATED)
 
 
@@ -2849,9 +2572,7 @@ class ImportFCNavigationTask(ModelViewSet):
 
     queryset = NavigationTask.objects.all()
     serializer_class = ExternalNavigationTaskNestedTeamSerialiser
-    permission_classes = [
-        permissions.IsAuthenticated & NavigationTaskContestPermissions
-    ]
+    permission_classes = [permissions.IsAuthenticated & NavigationTaskContestPermissions]
 
     metadata_class = ShowChoicesMetadata
 
@@ -2908,10 +2629,7 @@ def view_token(request):
 ########## Results service ##########
 class TaskViewSet(ModelViewSet):
     queryset = Task.objects.all()
-    permission_classes = [
-        TaskContestPublicPermissions
-        | permissions.IsAuthenticated & TaskContestPermissions
-    ]
+    permission_classes = [TaskContestPublicPermissions | permissions.IsAuthenticated & TaskContestPermissions]
     serializer_class = TaskSerialiser
 
     def get_queryset(self):
@@ -2921,10 +2639,7 @@ class TaskViewSet(ModelViewSet):
 
 class TaskTestViewSet(ModelViewSet):
     queryset = TaskTest.objects.all()
-    permission_classes = [
-        TaskTestContestPublicPermissions
-        | permissions.IsAuthenticated & TaskTestContestPermissions
-    ]
+    permission_classes = [TaskTestContestPublicPermissions | permissions.IsAuthenticated & TaskTestContestPermissions]
     serializer_class = TaskTestSerialiser
 
     def get_queryset(self):
