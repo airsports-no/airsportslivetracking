@@ -2440,6 +2440,8 @@ class EditableRoute(models.Model):
     def create_landing_route(self):
         route = Route.objects.create(name="", waypoints=[], use_procedure_turns=False)
         self.extract_additional_features(route)
+        if route.landing_gate is None:
+            raise ValidationError("Route must have a landing gate")
         route.waypoints = [route.landing_gate]
         route.save()
         return route

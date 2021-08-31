@@ -109,7 +109,7 @@ const slides = [
         background: bgcolor
     }, {
         title: "Saving",
-        description: "At any time, give the route a name and click save at the bottom of the map. This will validate that the rout is set up correctly and save it for later editing and use.",
+        description: "At any time, give the route a name and click save at the bottom of the map. This will validate that the route is set up correctly and save it for later editing and use.",
         image: "/static/img/tutorial/8.png",
         background: bgcolor
     }, {
@@ -352,7 +352,7 @@ class ConnectedRouteEditor extends Component {
                 }
             }
         }
-        if (layer.featureType === "to" || layer.featureType === "to") {
+        if (layer.featureType === "to" || layer.featureType === "ldg") {
             if (layer.getLatLngs().length !== 2) {
                 errors.push(layer.name + ": Must be exactly 2 points")
             }

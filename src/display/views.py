@@ -1536,9 +1536,14 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                     "route", data, corridor_width, rounded_corners
                 )
         elif task_type == NavigationTask.LANDING:
-            data = self.get_cleaned_data_for_step("landing_route_import")["file"]
-            data.seek(0)
-            route = create_landing_line_from_kml("route", data)
+            initial_step_data = self.get_cleaned_data_for_step("landing_route_import")
+            if initial_step_data["internal_route"]:
+                route = initial_step_data["internal_route"].create_landing_route()
+                editable_route = initial_step_data["internal_route"]
+            else:
+                data = initial_step_data["landing_route_import"]["file"]
+                data.seek(0)
+                route = create_landing_line_from_kml("route", data)
         # Check for gate polygons that do not match a turning point
         route.validate_gate_polygons()
         return route, editable_route
