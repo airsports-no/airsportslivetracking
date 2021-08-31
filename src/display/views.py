@@ -1738,8 +1738,6 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             corridor_width = initial_step_data["corridor_width"]
             route = self.editable_route.create_anr_route(rounded_corners, corridor_width)
         elif task_type == NavigationTask.LANDING:
-            data = self.get_cleaned_data_for_step("landing_route_import")["file"]
-            data.seek(0)
             route = self.editable_route.create_landing_route()
         # Check for gate polygons that do not match a turning point
         route.validate_gate_polygons()
