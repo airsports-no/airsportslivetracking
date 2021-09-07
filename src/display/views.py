@@ -203,6 +203,7 @@ from display.tasks import import_gpx_track, generate_and_notify_flight_order
 from display.traccar_factory import get_traccar_instance
 from influx_facade import InfluxFacade
 from live_tracking_map import settings
+from live_tracking_map.settings import REDIS_HOST
 from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
@@ -1208,10 +1209,10 @@ def navigation_task_score_override_view(request, pk):
     return render(request, "display/score_override_form.html", {"form": form, "navigation_task": navigation_task})
 
 
-if settings.PRODUCTION:
-    connection = Redis(unix_socket_path="/tmp/docker/redis.sock")
-else:
-    connection = Redis("redis")
+# if settings.PRODUCTION:
+#     connection = Redis(unix_socket_path="/tmp/docker/redis.sock")
+# else:
+connection = Redis(REDIS_HOST)
 
 
 def cached_generate_data(contestant_pk) -> Dict:

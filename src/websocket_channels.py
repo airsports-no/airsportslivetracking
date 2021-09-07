@@ -24,7 +24,7 @@ from display.serialisers import (
     PlayingCardSerialiser,
 )
 from live_tracking_map import settings
-from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY
+from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST
 
 logger = logging.getLogger(__name__)
 
@@ -74,10 +74,10 @@ def generate_contestant_data_block(
 class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
-        if settings.PRODUCTION:
-            self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
-        else:
-            self.redis = StrictRedis("redis")
+        # if settings.PRODUCTION:
+        #     self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
+        # else:
+        self.redis = StrictRedis(REDIS_HOST)
 
     # def cull_cache(self):
     #     cached = self.redis.hgetall(REDIS_GLOBAL_POSITIONS_KEY)

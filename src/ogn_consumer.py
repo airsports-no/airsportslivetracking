@@ -13,7 +13,6 @@ from opensky_api import OpenSkyApi
 from redis import StrictRedis
 from requests import ReadTimeout
 
-from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY
 
 sentry_sdk.init(
     "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
@@ -30,6 +29,7 @@ if __name__ == "__main__":
 
     django.setup()
 
+from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST
 from websocket_channels import WebsocketFacade
 
 logging.basicConfig(level=logging.INFO,
@@ -121,7 +121,8 @@ def process_beacon(raw_message):
 
 
 if __name__ == "__main__":
-    redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
+    redis = StrictRedis(REDIS_HOST)
+    # redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
     redis.delete(REDIS_GLOBAL_POSITIONS_KEY)
     client = AprsClient(aprs_user='N0CALL')
     client.connect()

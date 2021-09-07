@@ -42,7 +42,7 @@ SERVER_ROOT = "https://airsports.no"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("MODE") == "dev"
 ALLOWED_HOSTS = ["*"]
-
+REDIS_HOST = "redis"
 REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
 # Application definition
 
@@ -299,7 +299,8 @@ CACHES = {
     "default": {
         "BACKEND": "redis_cache.RedisCache",
         "LOCATION": [
-            "/tmp/docker/redis.sock" if PRODUCTION else "redis:6379",
+            f"{REDIS_HOST}:6379",
+            # "/tmp/docker/redis.sock" if PRODUCTION else "redis:6379",
         ],
         "TIMEOUT": None,
         "OPTIONS": {
@@ -317,7 +318,8 @@ CACHES = {
 }
 
 # celery
-CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
+# CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:6379"
 CELERY_RESULT_BACKEND = "django-db"
 
 # CELERY_ACCEPT_CONTENT = ["application/json"]
@@ -334,7 +336,8 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": ["unix:/tmp/docker/redis.sock" if PRODUCTION else ("redis", 6379)],
+            # "hosts": ["unix:/tmp/docker/redis.sock" if PRODUCTION else ("redis", 6379)],
+            "hosts": [(REDIS_HOST, 6379)],
             "capacity": 100,  # default 100
             "expiry": 30,  # default 60
         },
