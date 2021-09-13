@@ -33,6 +33,7 @@ services:
 
   tracker_web:
     container_name: tracker_web
+    image: airsportsacr.azurecr.io/tracker_web
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
       - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
@@ -67,6 +68,8 @@ services:
   tracker_daphne:
 
     container_name: tracker_daphne
+    image: airsportsacr.azurecr.io/tracker_daphne
+
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
       - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
@@ -100,6 +103,8 @@ services:
   tracker_celery:
 
     container_name: tracker_celery
+    image: airsportsacr.azurecr.io/tracker_celery
+
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
       - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
@@ -132,6 +137,8 @@ services:
 
   tracker_processor:
     container_name: tracker_processor
+    image: airsportsacr.azurecr.io/tracker_processor
+
     restart: unless-stopped
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
@@ -160,6 +167,8 @@ services:
 
   opensky_consumer:
     container_name: opensky_consumer
+    image: airsportsacr.azurecr.io/opensky_consumer
+
     restart: unless-stopped
     environment:
       - OPEN_SKY_USERNAME=${OPEN_SKY_USERNAME}
@@ -179,6 +188,8 @@ services:
 
   ogn_consumer:
     container_name: ogn_consumer
+    image: airsportsacr.azurecr.io/ogn_consumer
+
     restart: unless-stopped
     build:
       context: .
