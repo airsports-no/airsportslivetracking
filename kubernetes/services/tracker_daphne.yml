@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: tracker_daphne
+  namespace: production
+  name: tracker_daphne
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: tracker_daphne
+  template:
+    metadata:
+      labels:
+        service: tracker_daphne
+    spec:
+      containers:
+      - image: airsportsacr.azurecr.io/tracker_daphne
+        name: tracker_daphne
+        envFrom:
+          - configMapRef:
+              name: envs-production-django
+          - configMapRef:
+              name: envs-production-postgres
+          - secretRef:
+              name: secrets-production-django
+          - secretRef:
+              name: secrets-production-postgres
+        resources: {}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9000
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 9000
+          initialDelaySeconds: 20
+          timeoutSeconds: 5
+        ports:
+        - containerPort: 9000
+        restartPolicy: Always
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: tracker_daphne_service
+spec:
+  selector:
+    app: tracker_daphne
+  ports:
+  - protocol: TCP
+    port: 9000
+    targetPort: 9000
+  type: NodePort

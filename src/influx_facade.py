@@ -9,17 +9,11 @@ from influxdb.resultset import ResultSet
 from display.models import Contestant
 from websocket_channels import WebsocketFacade
 
-host = "influx"
-port = 8086
-user = "airsport"
-dbname = "airsport"
-password = "notsecret"
-
 logger = logging.getLogger(__name__)
 
 
 class InfluxFacade:
-    def __init__(self):
+    def __init__(self, host="influx", port=8086, user="airsports", password="notsecret", dbname="airsports"):
         self.client = InfluxDBClient(host, port, user, password, dbname)
         self.websocket_facade = WebsocketFacade()
 

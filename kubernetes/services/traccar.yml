@@ -1,0 +1,1401 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traccar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      traccar
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: traccar
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: "alpine:3.6"
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z -w 2 {{ include "traccar.fullname" . }}-mysql 3306 && echo mysql ok;
+                do sleep 2;
+              done
+      containers:
+        - name: traccar
+          image: traccar/traccar
+          command: ["java", "-Xms512m", "-Xmx512m", "-Djava.net.preferIPv4Stack=true"]
+          args: ["-jar", "tracker-server.jar", "conf/traccar.xml"]
+          ports:
+            - name: http
+              containerPort: 8082
+              protocol: TCP
+            - name: gps103
+              containerPort: 5001
+              protocol: TCP
+            - name: tk103
+              containerPort: 5002
+              protocol: TCP
+            - name: gl100
+              containerPort: 5003
+              protocol: TCP
+            - name: gl200
+              containerPort: 5004
+              protocol: TCP
+            - name: t55
+              containerPort: 5005
+              protocol: TCP
+            - name: xexun
+              containerPort: 5006
+              protocol: TCP
+            - name: totem
+              containerPort: 5007
+              protocol: TCP
+            - name: enfora
+              containerPort: 5008
+              protocol: TCP
+            - name: meiligao
+              containerPort: 5009
+              protocol: TCP
+            - name: trv
+              containerPort: 5010
+              protocol: TCP
+            - name: suntech
+              containerPort: 5011
+              protocol: TCP
+            - name: progress
+              containerPort: 5012
+              protocol: TCP
+            - name: h02
+              containerPort: 5013
+              protocol: TCP
+            - name: jt600
+              containerPort: 5014
+              protocol: TCP
+            - name: huabao
+              containerPort: 5015
+              protocol: TCP
+            - name: v680
+              containerPort: 5016
+              protocol: TCP
+            - name: pt502
+              containerPort: 5017
+              protocol: TCP
+            - name: tr20
+              containerPort: 5018
+              protocol: TCP
+            - name: navis
+              containerPort: 5019
+              protocol: TCP
+            - name: meitrack
+              containerPort: 5020
+              protocol: TCP
+            - name: skypatrol
+              containerPort: 5021
+              protocol: TCP
+            - name: gt02
+              containerPort: 5022
+              protocol: TCP
+            - name: gt06
+              containerPort: 5023
+              protocol: TCP
+            - name: megastek
+              containerPort: 5024
+              protocol: TCP
+            - name: navigil
+              containerPort: 5025
+              protocol: TCP
+            - name: gpsgate
+              containerPort: 5026
+              protocol: TCP
+            - name: teltonika
+              containerPort: 5027
+              protocol: TCP
+            - name: mta6
+              containerPort: 5028
+              protocol: TCP
+            - name: tzone
+              containerPort: 5029
+              protocol: TCP
+            - name: tlt2h
+              containerPort: 5030
+              protocol: TCP
+            - name: taip
+              containerPort: 5031
+              protocol: TCP
+            - name: wondex
+              containerPort: 5032
+              protocol: TCP
+            - name: cellocator
+              containerPort: 5033
+              protocol: TCP
+            - name: galileo
+              containerPort: 5034
+              protocol: TCP
+            - name: ywt
+              containerPort: 5035
+              protocol: TCP
+            - name: intellitrac
+              containerPort: 5037
+              protocol: TCP
+            - name: gpsmta
+              containerPort: 5038
+              protocol: TCP
+            - name: wialon
+              containerPort: 5039
+              protocol: TCP
+            - name: carscop
+              containerPort: 5040
+              protocol: TCP
+            - name: apel
+              containerPort: 5041
+              protocol: TCP
+            - name: manpower
+              containerPort: 5042
+              protocol: TCP
+            - name: globalsat
+              containerPort: 5043
+              protocol: TCP
+            - name: atrack
+              containerPort: 5044
+              protocol: TCP
+            - name: pt3000
+              containerPort: 5045
+              protocol: TCP
+            - name: ruptela
+              containerPort: 5046
+              protocol: TCP
+            - name: topflytech
+              containerPort: 5047
+              protocol: TCP
+            - name: laipac
+              containerPort: 5048
+              protocol: TCP
+            - name: aplicom
+              containerPort: 5049
+              protocol: TCP
+            - name: gotop
+              containerPort: 5050
+              protocol: TCP
+            - name: sanav
+              containerPort: 5051
+              protocol: TCP
+            - name: gator
+              containerPort: 5052
+              protocol: TCP
+            - name: noran
+              containerPort: 5053
+              protocol: TCP
+            - name: m2m
+              containerPort: 5054
+              protocol: TCP
+            - name: osmand
+              containerPort: 5055
+              protocol: TCP
+            - name: easytrack
+              containerPort: 5056
+              protocol: TCP
+            - name: gpsmaker
+              containerPort: 5057
+              protocol: TCP
+            - name: khd
+              containerPort: 5058
+              protocol: TCP
+            - name: piligrim
+              containerPort: 5059
+              protocol: TCP
+            - name: stl060
+              containerPort: 5060
+              protocol: TCP
+            - name: cartrack
+              containerPort: 5061
+              protocol: TCP
+            - name: minifinder
+              containerPort: 5062
+              protocol: TCP
+            - name: haicom
+              containerPort: 5063
+              protocol: TCP
+            - name: eelink
+              containerPort: 5064
+              protocol: TCP
+            - name: box
+              containerPort: 5065
+              protocol: TCP
+            - name: freedom
+              containerPort: 5066
+              protocol: TCP
+            - name: telic
+              containerPort: 5067
+              protocol: TCP
+            - name: trackbox
+              containerPort: 5068
+              protocol: TCP
+            - name: visiontek
+              containerPort: 5069
+              protocol: TCP
+            - name: orion
+              containerPort: 5070
+              protocol: TCP
+            - name: riti
+              containerPort: 5071
+              protocol: TCP
+            - name: ulbotech
+              containerPort: 5072
+              protocol: TCP
+            - name: tramigo
+              containerPort: 5073
+              protocol: TCP
+            - name: tr900
+              containerPort: 5074
+              protocol: TCP
+            - name: ardi01
+              containerPort: 5075
+              protocol: TCP
+            - name: xt013
+              containerPort: 5076
+              protocol: TCP
+            - name: autofon
+              containerPort: 5077
+              protocol: TCP
+            - name: gosafe
+              containerPort: 5078
+              protocol: TCP
+            - name: bce
+              containerPort: 5080
+              protocol: TCP
+            - name: xirgo
+              containerPort: 5081
+              protocol: TCP
+            - name: calamp
+              containerPort: 5082
+              protocol: TCP
+            - name: mtx
+              containerPort: 5083
+              protocol: TCP
+            - name: tytan
+              containerPort: 5084
+              protocol: TCP
+            - name: avl301
+              containerPort: 5085
+              protocol: TCP
+            - name: castel
+              containerPort: 5086
+              protocol: TCP
+            - name: mxt
+              containerPort: 5087
+              protocol: TCP
+            - name: cityeasy
+              containerPort: 5088
+              protocol: TCP
+            - name: aquila
+              containerPort: 5089
+              protocol: TCP
+            - name: flextrack
+              containerPort: 5090
+              protocol: TCP
+            - name: blackkite
+              containerPort: 5091
+              protocol: TCP
+            - name: adm
+              containerPort: 5092
+              protocol: TCP
+            - name: watch
+              containerPort: 5093
+              protocol: TCP
+            - name: t800x
+              containerPort: 5094
+              protocol: TCP
+            - name: upro
+              containerPort: 5095
+              protocol: TCP
+            - name: auro
+              containerPort: 5096
+              protocol: TCP
+            - name: disha
+              containerPort: 5097
+              protocol: TCP
+            - name: thinkrace
+              containerPort: 5098
+              protocol: TCP
+            - name: pathaway
+              containerPort: 5099
+              protocol: TCP
+            - name: arnavi
+              containerPort: 5100
+              protocol: TCP
+            - name: nvs
+              containerPort: 5101
+              protocol: TCP
+            - name: kenji
+              containerPort: 5102
+              protocol: TCP
+            - name: astra
+              containerPort: 5103
+              protocol: TCP
+            - name: homtecs
+              containerPort: 5104
+              protocol: TCP
+            - name: fox
+              containerPort: 5105
+              protocol: TCP
+            - name: gnx
+              containerPort: 5106
+              protocol: TCP
+            - name: arknav
+              containerPort: 5107
+              protocol: TCP
+            - name: supermate
+              containerPort: 5108
+              protocol: TCP
+            - name: appello
+              containerPort: 5109
+              protocol: TCP
+            - name: idpl
+              containerPort: 5110
+              protocol: TCP
+            - name: huahsheng
+              containerPort: 5111
+              protocol: TCP
+            - name: granit
+              containerPort: 5112
+              protocol: TCP
+            - name: granit-2
+              containerPort: 5113
+              protocol: TCP
+            - name: carcell
+              containerPort: 5114
+              protocol: TCP
+            - name: raveon
+              containerPort: 5117
+              protocol: TCP
+            - name: cradlepoint
+              containerPort: 5118
+              protocol: TCP
+            - name: arknavx8
+              containerPort: 5119
+              protocol: TCP
+            - name: autograde
+              containerPort: 5120
+              protocol: TCP
+            - name: oigo
+              containerPort: 5121
+              protocol: TCP
+            - name: jpkorjar
+              containerPort: 5122
+              protocol: TCP
+            - name: cguard
+              containerPort: 5123
+              protocol: TCP
+            - name: fifotrack
+              containerPort: 5124
+              protocol: TCP
+            - name: extremtrac
+              containerPort: 5126
+              protocol: TCP
+            - name: trakmate
+              containerPort: 5127
+              protocol: TCP
+            - name: at2000
+              containerPort: 5128
+              protocol: TCP
+            - name: maestro
+              containerPort: 5129
+              protocol: TCP
+            - name: ais
+              containerPort: 5130
+              protocol: TCP
+            - name: gt30
+              containerPort: 5131
+              protocol: TCP
+            - name: tmg
+              containerPort: 5132
+              protocol: TCP
+            - name: pretrace
+              containerPort: 5133
+              protocol: TCP
+            - name: pricol
+              containerPort: 5134
+              protocol: TCP
+            - name: siwi
+              containerPort: 5135
+              protocol: TCP
+            - name: starlink
+              containerPort: 5136
+              protocol: TCP
+            - name: dmt
+              containerPort: 5137
+              protocol: TCP
+            - name: xt2400
+              containerPort: 5138
+              protocol: TCP
+            - name: dmthttp
+              containerPort: 5139
+              protocol: TCP
+            - name: alematics
+              containerPort: 5140
+              protocol: TCP
+            - name: gps056
+              containerPort: 5141
+              protocol: TCP
+            - name: flexcomm
+              containerPort: 5142
+              protocol: TCP
+            - name: vt200
+              containerPort: 5143
+              protocol: TCP
+            - name: owntracks
+              containerPort: 5144
+              protocol: TCP
+            - name: vtfms
+              containerPort: 5145
+              protocol: TCP
+            - name: tlv
+              containerPort: 5146
+              protocol: TCP
+            - name: esky
+              containerPort: 5147
+              protocol: TCP
+            - name: genx
+              containerPort: 5148
+              protocol: TCP
+            - name: flespi
+              containerPort: 5149
+              protocol: TCP
+            - name: dway
+              containerPort: 5150
+              protocol: TCP
+            - name: recoda
+              containerPort: 5151
+              protocol: TCP
+            - name: oko
+              containerPort: 5152
+              protocol: TCP
+            - name: ivt401
+              containerPort: 5153
+              protocol: TCP
+            - name: sigfox
+              containerPort: 5154
+              protocol: TCP
+            - name: t57
+              containerPort: 5155
+              protocol: TCP
+            - name: spot
+              containerPort: 5156
+              protocol: TCP
+            - name: m2c
+              containerPort: 5157
+              protocol: TCP
+            - name: globekeeper
+              containerPort: 5158
+              protocol: TCP
+            - name: opengts
+              containerPort: 5159
+              protocol: TCP
+            - name: cautela
+              containerPort: 5160
+              protocol: TCP
+            - name: continental
+              containerPort: 5161
+              protocol: TCP
+            - name: egts
+              containerPort: 5162
+              protocol: TCP
+            - name: robotrack
+              containerPort: 5163
+              protocol: TCP
+            - name: pt60
+              containerPort: 5164
+              protocol: TCP
+            - name: telemax
+              containerPort: 5165
+              protocol: TCP
+            - name: sabertek
+              containerPort: 5166
+              protocol: TCP
+            - name: retranslator
+              containerPort: 5167
+              protocol: TCP
+            - name: svias
+              containerPort: 5168
+              protocol: TCP
+            - name: eseal
+              containerPort: 5169
+              protocol: TCP
+            - name: freematics
+              containerPort: 5170
+              protocol: TCP
+            - name: avema
+              containerPort: 5171
+              protocol: TCP
+            - name: autotrack
+              containerPort: 5172
+              protocol: TCP
+            - name: tek
+              containerPort: 5173
+              protocol: TCP
+            - name: wristband
+              containerPort: 5174
+              protocol: TCP
+            - name: milesmate
+              containerPort: 5176
+              protocol: TCP
+            - name: anytrek
+              containerPort: 5177
+              protocol: TCP
+            - name: smartsole
+              containerPort: 5178
+              protocol: TCP
+            - name: its
+              containerPort: 5179
+              protocol: TCP
+            - name: xrb28
+              containerPort: 5180
+              protocol: TCP
+            - name: c2stek
+              containerPort: 5181
+              protocol: TCP
+            - name: nyitech
+              containerPort: 5182
+              protocol: TCP
+            - name: neos
+              containerPort: 5183
+              protocol: TCP
+            - name: satsol
+              containerPort: 5184
+              protocol: TCP
+            - name: globalstar
+              containerPort: 5185
+              protocol: TCP
+            - name: sanul
+              containerPort: 5186
+              protocol: TCP
+            - name: minifinder2
+              containerPort: 5187
+              protocol: TCP
+            - name: radar
+              containerPort: 5188
+              protocol: TCP
+            - name: techtlt
+              containerPort: 5189
+              protocol: TCP
+            - name: starcom
+              containerPort: 5190
+              protocol: TCP
+            - name: mictrack
+              containerPort: 5191
+              protocol: TCP
+            - name: plugin
+              containerPort: 5192
+              protocol: TCP
+            - name: leafspy
+              containerPort: 5193
+              protocol: TCP
+            - name: naviset
+              containerPort: 5194
+              protocol: TCP
+            - name: racedynamics
+              containerPort: 5195
+              protocol: TCP
+            - name: rst
+              containerPort: 5196
+              protocol: TCP
+            - name: pt215
+              containerPort: 5197
+              protocol: TCP
+            - name: pacifictrack
+              containerPort: 5198
+              protocol: TCP
+            - name: topin
+              containerPort: 5199
+              protocol: TCP
+            - name: outsafe
+              containerPort: 5200
+              protocol: TCP
+            - name: solarpowered
+              containerPort: 5201
+              protocol: TCP
+            - name: motor
+              containerPort: 5202
+              protocol: TCP
+            - name: omnicomm
+              containerPort: 5203
+              protocol: TCP
+            - name: s168
+              containerPort: 5204
+              protocol: TCP
+            - name: vnet
+              containerPort: 5205
+              protocol: TCP
+            - name: blue
+              containerPort: 5206
+              protocol: TCP
+            - name: pst
+              containerPort: 5207
+              protocol: TCP
+            - name: dingtek
+              containerPort: 5208
+              protocol: TCP
+            - name: wli
+              containerPort: 5209
+              protocol: TCP
+            - name: niot
+              containerPort: 5210
+              protocol: TCP
+            - name: portman
+              containerPort: 5211
+              protocol: TCP
+            - name: moovbox
+              containerPort: 5212
+              protocol: TCP
+            - name: futureway
+              containerPort: 5213
+              protocol: TCP
+            - name: polte
+              containerPort: 5214
+              protocol: TCP
+            - name: net
+              containerPort: 5215
+              protocol: TCP
+            - name: mobilogix
+              containerPort: 5216
+              protocol: TCP
+            - name: swiftech
+              containerPort: 5217
+              protocol: TCP
+            - name: iotm
+              containerPort: 5218
+              protocol: TCP
+            - name: dolphin
+              containerPort: 5219
+              protocol: TCP
+            - name: ennfu
+              containerPort: 5220
+              protocol: TCP
+            - name: navtelecom
+              containerPort: 5221
+              protocol: TCP
+            - name: startek
+              containerPort: 5222
+              protocol: TCP
+            - name: gs100
+              containerPort: 5223
+              protocol: TCP
+            - name: mavlink2
+              containerPort: 5224
+              protocol: TCP
+            - name: uux
+              containerPort: 5225
+              protocol: TCP
+            - name: r12w
+              containerPort: 5226
+              protocol: TCP
+            - name: flexiblereport
+              containerPort: 5227
+              protocol: TCP
+            - name: thinkpower
+              containerPort: 5228
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/server
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            failureThreshold: 2
+          readinessProbe:
+            httpGet:
+              path: /api/server?force=true
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            failureThreshold: 1
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+          - name: "config"
+            subPath: "traccar.xml"
+            mountPath: "/opt/traccar/conf/traccar.xml"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tracker_web_service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8082
+    targetPort: http
+    protocol: TCP
+    name: http
+  - name: gps103
+    port: 5001
+    targetPort: gps103
+  - name: tk103
+    port: 5002
+    targetPort: tk103
+  - name: gl100
+    port: 5003
+    targetPort: gl100
+  - name: gl200
+    port: 5004
+    targetPort: gl200
+  - name: t55
+    port: 5005
+    targetPort: t55
+  - name: xexun
+    port: 5006
+    targetPort: xexun
+  - name: totem
+    port: 5007
+    targetPort: totem
+  - name: enfora
+    port: 5008
+    targetPort: enfora
+  - name: meiligao
+    port: 5009
+    targetPort: meiliago
+  - name: trv
+    port: 5010
+    targetPort: trv
+  - name: suntech
+    port: 5011
+    targetPort: suntech
+  - name: progress
+    port: 5012
+    targetPort: progress
+  - name: h02
+    port: 5013
+    targetPort: h02
+  - name: jt600
+    port: 5014
+    targetPort: jt600
+  - name: huabao
+    port: 5015
+    targetPort: huabao
+  - name: v680
+    port: 5016
+    targetPort: v680
+  - name: pt502
+    port: 5017
+    targetPort: pt502
+  - name: tr20
+    port: 5018
+    targetPort: tr20
+  - name: navis
+    port: 5019
+    targetPort: navis
+  - name: meitrack
+    port: 5020
+    targetPort: meitrack
+  - name: skypatrol
+    port: 5021
+    targetPort: skypatrol
+  - name: gt02
+    port: 5022
+    targetPort: gt02
+  - name: gt06
+    port: 5023
+    targetPort: gt06
+  - name: megastek
+    port: 5024
+    targetPort: megastek
+  - name: navigil
+    port: 5025
+    targetPort: navigil
+  - name: gpsgate
+    port: 5026
+    targetPort: gpsgate
+  - name: teltonika
+    port: 5027
+    targetPort: teltonika
+  - name: mta6
+    port: 5028
+    targetPort: mta6
+  - name: tzone
+    port: 5029
+    targetPort: tzone
+  - name: tlt2h
+    port: 5030
+    targetPort: tlt2h
+  - name: taip
+    port: 5031
+    targetPort: taip
+  - name: wondex
+    port: 5032
+    targetPort: wondex
+  - name: cellocator
+    port: 5033
+    targetPort: cellocator
+  - name: galileo
+    port: 5034
+    targetPort: galileo
+  - name: ywt
+    port: 5035
+    targetPort: ywt
+  - name: intellitrac
+    port: 5037
+    targetPort: intellitrac
+  - name: gpsmta
+    port: 5038
+    targetPort: gpsmta
+  - name: wialon
+    port: 5039
+    targetPort: wialon
+  - name: carscop
+    port: 5040
+    targetPort: carscop
+  - name: apel
+    port: 5041
+    targetPort: apel
+  - name: manpower
+    port: 5042
+    targetPort: manpower
+  - name: globalsat
+    port: 5043
+    targetPort: globalsat
+  - name: atrack
+    port: 5044
+    targetPort: atrack
+  - name: pt3000
+    port: 5045
+    targetPort: pt3000
+  - name: ruptela
+    port: 5046
+    targetPort: ruptela
+  - name: topflytech
+    port: 5047
+    targetPort: topflytech
+  - name: laipac
+    port: 5048
+    targetPort: laipac
+  - name: aplicom
+    port: 5049
+    targetPort: aplicom
+  - name: gotop
+    port: 5050
+    targetPort: gotop
+  - name: sanav
+    port: 5051
+    targetPort: sannav
+  - name: gator
+    port: 5052
+    targetPort: gator
+  - name: noran
+    port: 5053
+    targetPort: noran
+  - name: m2m
+    port: 5054
+    targetPort: m2m
+  - name: osmand
+    port: 5055
+    targetPort: osmand
+  - name: easytrack
+    port: 5056
+    targetPort: easytrack
+  - name: gpsmaker
+    port: 5057
+    targetPort: gpsmaker
+  - name: khd
+    port: 5058
+    targetPort: khd
+  - name: piligrim
+    port: 5059
+    targetPort: pilgrim
+  - name: stl060
+    port: 5060
+    targetPort: stl060
+  - name: cartrack
+    port: 5061
+    targetPort: cartrack
+  - name: minifinder
+    port: 5062
+    targetPort: minifinder
+  - name: haicom
+    port: 5063
+    targetPort: haicom
+  - name: eelink
+    port: 5064
+    targetPort: eelink
+  - name: box
+    port: 5065
+    targetPort: box
+  - name: freedom
+    port: 5066
+    targetPort: freedom
+  - name: telic
+    port: 5067
+    targetPort: telic
+  - name: trackbox
+    port: 5068
+    targetPort: trackbox
+  - name: visiontek
+    port: 5069
+    targetPort: visiontek
+  - name: orion
+    port: 5070
+    targetPort: orion
+  - name: riti
+    port: 5071
+    targetPort: riti
+  - name: ulbotech
+    port: 5072
+    targetPort: ulbotech
+  - name: tramigo
+    port: 5073
+    targetPort: tramigo
+  - name: tr900
+    port: 5074
+    targetPort: tr900
+  - name: ardi01
+    port: 5075
+    targetPort: ardi01
+  - name: xt013
+    port: 5076
+    targetPort: xt013
+  - name: autofon
+    port: 5077
+    targetPort: autofon
+  - name: gosafe
+    port: 5078
+    targetPort: gosafe
+  - name: bce
+    port: 5080
+    targetPort: bce
+  - name: xirgo
+    port: 5081
+    targetPort: xirgo
+  - name: calamp
+    port: 5082
+    targetPort: calamp
+  - name: mtx
+    port: 5083
+    targetPort: mtx
+  - name: tytan
+    port: 5084
+    targetPort: tytan
+  - name: avl301
+    port: 5085
+    targetPort: avl301
+  - name: castel
+    port: 5086
+    targetPort: castel
+  - name: mxt
+    port: 5087
+    targetPort: mxt
+  - name: cityeasy
+    port: 5088
+    targetPort: cityeasy
+  - name: aquila
+    port: 5089
+    targetPort: aquila
+  - name: flextrack
+    port: 5090
+    targetPort: flextrack
+  - name: blackkite
+    port: 5091
+    targetPort: blackkite
+  - name: adm
+    port: 5092
+    targetPort: adm
+  - name: watch
+    port: 5093
+    targetPort: watch
+  - name: t800x
+    port: 5094
+    targetPort: t800x
+  - name: upro
+    port: 5095
+    targetPort: upro
+  - name: auro
+    port: 5096
+    targetPort: auro
+  - name: disha
+    port: 5097
+    targetPort: disha
+  - name: thinkrace
+    port: 5098
+    targetPort: thinkrace
+  - name: pathaway
+    port: 5099
+    targetPort: pathaway
+  - name: arnavi
+    port: 5100
+    targetPort: arnavi
+  - name: nvs
+    port: 5101
+    targetPort: nvs
+  - name: kenji
+    port: 5102
+    targetPort: kenji
+  - name: astra
+    port: 5103
+    targetPort: astra
+  - name: homtecs
+    port: 5104
+    targetPort: homtecs
+  - name: fox
+    port: 5105
+    targetPort: fox
+  - name: gnx
+    port: 5106
+    targetPort: gnx
+  - name: arknav
+    port: 5107
+    targetPort: arknav
+  - name: supermate
+    port: 5108
+    targetPort: supermate
+  - name: appello
+    port: 5109
+    targetPort: appello
+  - name: idpl
+    port: 5110
+    targetPort: idpl
+  - name: huahsheng
+    port: 5111
+    targetPort: huahsheng
+  - name: granit
+    port: 5112
+    targetPort: granit
+  - name: granit-2
+    port: 5113
+    targetPort: granit-2
+  - name: carcell
+    port: 5114
+    targetPort: carcell
+  - name: raveon
+    port: 5117
+    targetPort: raveon
+  - name: cradlepoint
+    port: 5118
+    targetPort: cradlepoint
+  - name: arknavx8
+    port: 5119
+    targetPort: arknavx8
+  - name: autograde
+    port: 5120
+    targetPort: autograde
+  - name: oigo
+    port: 5121
+    targetPort: oigo
+  - name: jpkorjar
+    port: 5122
+    targetPort: jpkorjar
+  - name: cguard
+    port: 5123
+    targetPort: cguard
+  - name: fifotrack
+    port: 5124
+    targetPort: fifotrack
+  - name: extremtrac
+    port: 5126
+    targetPort: extremtrac
+  - name: trakmate
+    port: 5127
+    targetPort: trakmate
+  - name: at2000
+    port: 5128
+    targetPort: at2000
+  - name: maestro
+    port: 5129
+    targetPort: maestro
+  - name: ais
+    port: 5130
+    targetPort: ais
+  - name: gt30
+    port: 5131
+    targetPort: gt30
+  - name: tmg
+    port: 5132
+    targetPort: tmg
+  - name: pretrace
+    port: 5133
+    targetPort: pretrace
+  - name: pricol
+    port: 5134
+    targetPort: pricol
+  - name: siwi
+    port: 5135
+    targetPort: siwi
+  - name: starlink
+    port: 5136
+    targetPort: starlink
+  - name: dmt
+    port: 5137
+    targetPort: dmt
+  - name: xt2400
+    port: 5138
+    targetPort: xt2400
+  - name: dmthttp
+    port: 5139
+    targetPort: dmthttp
+  - name: alematics
+    port: 5140
+    targetPort: alematics
+  - name: gps056
+    port: 5141
+    targetPort: gps056
+  - name: flexcomm
+    port: 5142
+    targetPort: flexcomm
+  - name: vt200
+    port: 5143
+    targetPort: vt200
+  - name: owntracks
+    port: 5144
+    targetPort: owntracks
+  - name: vtfms
+    port: 5145
+    targetPort: vtfms
+  - name: tlv
+    port: 5146
+    targetPort: tlv
+  - name: esky
+    port: 5147
+    targetPort: esky
+  - name: genx
+    port: 5148
+    targetPort: genx
+  - name: flespi
+    port: 5149
+    targetPort: flespi
+  - name: dway
+    port: 5150
+    targetPort: dway
+  - name: recoda
+    port: 5151
+    targetPort: recoda
+  - name: oko
+    port: 5152
+    targetPort: oko
+  - name: ivt401
+    port: 5153
+    targetPort: ivt401
+  - name: sigfox
+    port: 5154
+    targetPort: sigfox
+  - name: t57
+    port: 5155
+    targetPort: t57
+  - name: spot
+    port: 5156
+    targetPort: spot
+  - name: m2c
+    port: 5157
+    targetPort: m2c
+  - name: globekeeper
+    port: 5158
+    targetPort: globekeeper
+  - name: opengts
+    port: 5159
+    targetPort: opengts
+  - name: cautela
+    port: 5160
+    targetPort: cautela
+  - name: continental
+    port: 5161
+    targetPort: continental
+  - name: egts
+    port: 5162
+    targetPort: egts
+  - name: robotrack
+    port: 5163
+    targetPort: robotrack
+  - name: pt60
+    port: 5164
+    targetPort: pt60
+  - name: telemax
+    port: 5165
+    targetPort: telemax
+  - name: sabertek
+    port: 5166
+    targetPort: sabertek
+  - name: retranslator
+    port: 5167
+    targetPort: retranslator
+  - name: svias
+    port: 5168
+    targetPort: svias
+  - name: eseal
+    port: 5169
+    targetPort: eseal
+  - name: freematics
+    port: 5170
+    targetPort: freematics
+  - name: avema
+    port: 5171
+    targetPort: avema
+  - name: autotrack
+    port: 5172
+    targetPort: autotrack
+  - name: tek
+    port: 5173
+    targetPort: tek
+  - name: wristband
+    port: 5174
+    targetPort: wristband
+  - name: milesmate
+    port: 5176
+    targetPort: milesmate
+  - name: anytrek
+    port: 5177
+    targetPort: anytrek
+  - name: smartsole
+    port: 5178
+    targetPort: smartsole
+  - name: its
+    port: 5179
+    targetPort: its
+  - name: xrb28
+    port: 5180
+    targetPort: xrb28
+  - name: c2stek
+    port: 5181
+    targetPort: c2stek
+  - name: nyitech
+    port: 5182
+    targetPort: nyitech
+  - name: neos
+    port: 5183
+    targetPort: neos
+  - name: satsol
+    port: 5184
+    targetPort: satsol
+  - name: globalstar
+    port: 5185
+    targetPort: globalstar
+  - name: sanul
+    port: 5186
+    targetPort: sanul
+  - name: minifinder2
+    port: 5187
+    targetPort: minifinder2
+  - name: radar
+    port: 5188
+    targetPort: radar
+  - name: techtlt
+    port: 5189
+    targetPort: techtlt
+  - name: starcom
+    port: 5190
+    targetPort: starcom
+  - name: mictrack
+    port: 5191
+    targetPort: mictrack
+  - name: plugin
+    port: 5192
+    targetPort: plugin
+  - name: leafspy
+    port: 5193
+    targetPort: leafspy
+  - name: naviset
+    port: 5194
+    targetPort: naviset
+  - name: racedynamics
+    port: 5195
+    targetPort: racedynamics
+  - name: rst
+    port: 5196
+    targetPort: rst
+  - name: pt215
+    port: 5197
+    targetPort: pt215
+  - name: pacifictrack
+    port: 5198
+    targetPort: pacifictrack
+  - name: topin
+    port: 5199
+    targetPort: topin
+  - name: outsafe
+    port: 5200
+    targetPort: outsafe
+  - name: solarpowered
+    port: 5201
+    targetPort: solarpowered
+  - name: motor
+    port: 5202
+    targetPort: motor
+  - name: omnicomm
+    port: 5203
+    targetPort: omnicom
+  - name: s168
+    port: 5204
+    targetPort: s168
+  - name: vnet
+    port: 5205
+    targetPort: vnet
+  - name: blue
+    port: 5206
+    targetPort: blue
+  - name: pst
+    port: 5207
+    targetPort: pst
+  - name: dingtek
+    port: 5208
+    targetPort: dingtek
+  - name: wli
+    port: 5209
+    targetPort: wli
+  - name: niot
+    port: 5210
+    targetPort: niot
+  - name: portman
+    port: 5211
+    targetPort: portman
+  - name: moovbox
+    port: 5212
+    targetPort: moovbox
+  - name: futureway
+    port: 5213
+    targetPort: futureway
+  - name: polte
+    port: 5214
+    targetPort: polte
+  - name: net
+    port: 5215
+    targetPort: net
+  - name: mobilogix
+    port: 5216
+    targetPort: mobilogix
+  - name: swiftech
+    port: 5217
+    targetPort: swiftech
+  - name: iotm
+    port: 5218
+    targetPort: iotm
+  - name: dolphin
+    port: 5219
+    targetPort: dolphin
+  - name: ennfu
+    port: 5220
+    targetPort: ennfu
+  - name: navtelecom
+    port: 5221
+    targetPort: navtelecom
+  - name: startek
+    port: 5222
+    targetPort: startek
+  - name: gs100
+    port: 5223
+    targetPort: gs100
+  - name: mavlink2
+    port: 5224
+    targetPort: mavlink2
+  - name: uux
+    port: 5225
+    targetPort: uux
+  - name: r12w
+    port: 5226
+    targetPort: r12w
+  - name: flexiblereport
+    port: 5227
+    targetPort: flexiblereport
+  - name: thinkpower
+    port: 5228
+    targetPort: thinkpower
+  selector:
+    service: traccar

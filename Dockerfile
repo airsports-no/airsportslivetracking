@@ -1,9 +1,12 @@
-FROM ubuntu:20.04
+FROM ubuntu:20.04 as tracker_base
 ENV PYTHONUNBUFFERED 1
 
 ###### SETUP BASE INFRASTRUCTURE ######
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 python3-dev python3-pip curl build-essential vim libproj-dev proj-data proj-bin libgeos-dev libgdal-dev  redis-server daphne libcliquer1 libgsl23 libgslcblas0 libtbb2 libboost-program-options1.71.0
 RUN curl -sL https://deb.nodesource.com/setup_10.x -o nodesource_setup.sh && bash nodesource_setup.sh && apt-get update && apt-get install -y nodejs && rm nodesource_setup.sh
+
+RUN addgroup --system django \
+    && adduser --system --ingroup django -u 200 django
 
 RUN pip3 install -U pip
 COPY opensky-api /opensky-api
@@ -23,7 +26,7 @@ RUN pip3 install shapely cartopy --no-binary shapely --no-binary cartopy
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 COPY config /config
-COPY wait-for-it.sh config/gunicorn.sh config/daphne.sh config/gunicorn_uvicorn.sh /
+COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh config/gunicorn_uvicorn.sh /
 RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /gunicorn_uvicorn.sh
 
 
@@ -33,9 +36,9 @@ RUN npm install
 
 
 ###### INSTALL APPLICATION ######
-COPY reactjs /reactjs
+COPY --chown=django:django reactjs /reactjs
 #RUN cd / && npm run webpack
-COPY src /src
+COPY --chown=django:django src /src
 # Need to download new version for Ubuntu 20.04
 #COPY scip /scip
 #RUN apt install /scip/SCIPOptSuite-7.0.2-Linux-ubuntu.deb
@@ -44,3 +47,22 @@ WORKDIR /src
 ###### LABEL THE CURRENT IMAGE ######
 ARG GIT_COMMIT_HASH
 LABEL GIT_COMMIT_HASH=$GIT_COMMIT_HASH
+
+FROM tracker_base as tracker_web
+CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py runserver 0.0.0.0:8002" ]
+
+FROM tracker_base as tracker_daphne
+CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "/daphne.sh" ]
+
+FROM tracker_base as tracker_celery
+CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log" ]
+
+FROM tracker_base as tracker_processor
+CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "traccar:8082", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "python3 position_processor.py" ]
+
+FROM tracker_base as opensky_consumer
+COPY --chown=django:django aircraft_database /aircraft_database
+CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "traccar:8082", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "python3 opensky_consumer.py" ]
+
+FROM tracker_base as ogn_consumer
+CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "traccar:8082", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "python3 ogn_consumer.py" ]

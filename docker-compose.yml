@@ -32,11 +32,6 @@ services:
     restart: unless-stopped
 
   tracker_web:
-    #    command: [ "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && python3 manage.py runserver 0.0.0.0:8000" ]
-    command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
-                "bash", "-c", "python3 manage.py migrate && cd / && npm run webpack && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py collectstatic --noinput && bash -c /gunicorn.sh" ]
-
     container_name: tracker_web
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
@@ -49,9 +44,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: tracker_web
     volumes:
       - ./secret:/secret
-      - ./django-rest-authemail:/django-rest-authemail
       - ./static:/static
       - ./assets:/assets/
       - ./src:/src/
@@ -70,10 +65,6 @@ services:
       - traccar
 
   tracker_daphne:
-    command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
-               #"bash", "-c", "/gunicorn_uvicorn.sh" ]
-               "bash", "-c", "/daphne.sh" ]
 
     container_name: tracker_daphne
     environment:
@@ -86,6 +77,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: tracker_daphne
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
@@ -106,9 +98,6 @@ services:
 
 
   tracker_celery:
-    command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log" ]
 
     container_name: tracker_celery
     environment:
@@ -121,6 +110,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: tracker_celery
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
@@ -139,44 +129,8 @@ services:
       - redis
 
 
-  tracker_beat:
-    command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "celery -A live_tracking_map beat -l DEBUG -f /logs/celery.log" ]
-
-    container_name: tracker_beat
-    environment:
-      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
-      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
-      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
-      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
-      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
-      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - ./secret:/secret
-      - ./django-rest-authemail:/django-rest-authemail
-      - ./static:/static
-      - ./assets:/assets/
-      - ./src:/src/
-      - ./reactjs:/reactjs/
-      - ./data:/data/
-      - ./celerylog:/logs/
-    volumes_from:
-      - tmp
-    depends_on:
-      - mysql
-      - influx
-      - redis
-
 
   tracker_processor:
-    command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "/wait-for-it.sh", "traccar:8082", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "python3 position_processor.py" ]
     container_name: tracker_processor
     restart: unless-stopped
     environment:
@@ -189,6 +143,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: tracker_processor
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
@@ -204,10 +159,6 @@ services:
 
 
   opensky_consumer:
-    command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "/wait-for-it.sh", "traccar:8082", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "python3 opensky_consumer.py $OPEN_SKY_USERNAME $OPEN_SKY_PASSWORD" ]
     container_name: opensky_consumer
     restart: unless-stopped
     environment:
@@ -216,26 +167,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: opensky_consumer
     volumes:
       - ./secret:/secret
       - ./src:/src/
       - ./openskyconsumerlogs:/logs/
-      - ./aircraft_database:/aircraft_database
     volumes_from:
       - tmp
     depends_on:
       - redis
 
   ogn_consumer:
-    command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "/wait-for-it.sh", "traccar:8082", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
-               "bash", "-c", "python3 ogn_consumer.py" ]
     container_name: ogn_consumer
     restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
+      target: ogn_consumer
     volumes:
       - ./secret:/secret
       - ./src:/src/

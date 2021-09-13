@@ -12,7 +12,7 @@ Log in to container registry:
 > az acr login --name airsportsacr
 
 Fetch the name of the login server: 
-> az acr list --resource-group myResourceGroup --query "[].{acrLoginServer:loginServer}" --output table
+> az acr list --resource-group airsports_group --query "[].{acrLoginServer:loginServer}" --output table
 
 Gives the server address
 > airsportsacr.azurecr.io

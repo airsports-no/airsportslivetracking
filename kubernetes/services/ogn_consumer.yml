@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: ogn_consumer
+  namespace: production
+  name: ogn_consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: ogn_consumer
+  template:
+    metadata:
+      labels:
+        service: ogn_consumer
+    spec:
+      containers:
+      - image: airsportsacr.azurecr.io/ogn_consumer
+        name: ogn_consumer
+        envFrom:
+          - configMapRef:
+              name: envs-production-django
+          - configMapRef:
+              name: envs-production-postgres
+          - secretRef:
+              name: secrets-production-django
+          - secretRef:
+              name: secrets-production-postgres
+        resources: {}
+      restartPolicy: Always

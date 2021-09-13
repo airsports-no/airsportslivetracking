@@ -15,6 +15,7 @@ if __name__ == "__main__":
 
     django.setup()
 
+from live_tracking_map import settings
 from traccar_facade import Traccar
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
@@ -41,7 +42,10 @@ if __name__ == "__main__":
     traccar = Traccar.create_from_configuration(configuration)
     devices = traccar.get_device_map()
     websocket_facade = WebsocketFacade()
-influx = InfluxFacade()
+
+influx = InfluxFacade(
+    settings.INFLUX_HOST, settings.INFLUX_PORT, settings.INFLUX_USER, settings.INFLUX_PASSWORD, settings.INFLUX_DB_NAME
+)
 processes = {}
 calculator_lock = threading.Lock()
 
@@ -78,9 +82,7 @@ def cleanup_calculators():
             processes.pop(key)
 
 
-def map_positions_to_contestants(
-    traccar: Traccar, positions: List
-) -> Dict[Contestant, List[Dict]]:
+def map_positions_to_contestants(traccar: Traccar, positions: List) -> Dict[Contestant, List[Dict]]:
     if len(positions) == 0:
         return {}
     # logger.info("Received {} positions".format(len(positions)))
@@ -95,9 +97,7 @@ def map_positions_to_contestants(
             try:
                 device_name = traccar.device_map[position_data["deviceId"]]
             except KeyError:
-                logger.error(
-                    "Could not find device {}.".format(position_data["deviceId"])
-                )
+                logger.error("Could not find device {}.".format(position_data["deviceId"]))
                 continue
         device_time = dateutil.parser.parse(position_data["deviceTime"])
         # Store this so that we do not have to parse the datetime string again
@@ -107,19 +107,13 @@ def map_positions_to_contestants(
         if (now - device_time).total_seconds() > 30:
             # Only check the cache if the position is old
             last_seen = cache.get(last_seen_key)
-            if last_seen == device_time or device_time < now - datetime.timedelta(
-                hours=14
-            ):
+            if last_seen == device_time or device_time < now - datetime.timedelta(hours=14):
                 # If we have seen it or it is really old, ignore it
-                logger.info(
-                    f"Received repeated position, disregarding: {device_name} {device_time}"
-                )
+                logger.info(f"Received repeated position, disregarding: {device_name} {device_time}")
                 continue
         cache.set(last_seen_key, device_time)
         # print(device_time)
-        contestant, is_simulator = Contestant.get_contestant_for_device_at_time(
-            device_name, device_time
-        )
+        contestant, is_simulator = Contestant.get_contestant_for_device_at_time(device_name, device_time)
         if contestant:
             try:
                 received_tracks[contestant].append(position_data)
@@ -135,9 +129,7 @@ def map_positions_to_contestants(
                 )
             )
         else:
-            global_map_queue.put(
-                (PERSON_TYPE, device_name, position_data, device_time, is_simulator)
-            )
+            global_map_queue.put((PERSON_TYPE, device_name, position_data, device_time, is_simulator))
     return received_tracks
 
 
@@ -195,8 +187,7 @@ def live_position_transmitter_process(queue):
         if (
             global_tracking_name is not None
             and not is_simulator
-            and now
-            < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
+            and now < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
         ):
             websocket_facade.transmit_global_position_data(
                 global_tracking_name,
@@ -210,9 +201,7 @@ def live_position_transmitter_process(queue):
 def build_and_push_position_data(data):
     # logger.info("Received data")
     with calculator_lock:
-        received_positions = map_positions_to_contestants(
-            traccar, data.get("positions", [])
-        )
+        received_positions = map_positions_to_contestants(traccar, data.get("positions", []))
         for contestant, positions in received_positions.items():
             # logger.info("Positions for {}".format(contestant))
             add_positions_to_calculator(contestant, positions)

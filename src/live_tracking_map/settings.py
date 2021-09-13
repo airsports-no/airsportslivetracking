@@ -42,7 +42,28 @@ SERVER_ROOT = "https://airsports.no"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("MODE") == "dev"
 ALLOWED_HOSTS = ["*"]
-REDIS_HOST = "redis"
+
+REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
+REDIS_PORT = os.environ.get("REDIS_PORT", 6379)
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
+
+INFLUX_HOST = os.environ.get("INFLUX_HOST", "influx")
+INFLUX_PORT = os.environ.get("INFLUX_PORT", 8086)
+INFLUX_USER = os.environ.get("INFLUX_USER", "airsport")
+INFLUX_PASSWORD = os.environ.get("INFLUX_PASSWORD", "notsecret")
+INFLUX_DB_NAME = os.environ.get("INFLUX_DB_NAME", "airsport")
+
+TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
+TRACCAR_PORT = os.environ.get("TRACCAR_PORT", 8082)
+TRACCAR_PROTOCOL = os.environ.get("TRACCAR_PROTOCOL", "http")
+TRACCAR_TOKEN = os.environ.get("TRACCAR_TOKEN", "")
+
+MYSQL_HOST = os.environ.get("MYSQL_HOST", "mysql")
+MYSQL_PORT = os.environ.get("MYSQL_PORT", 3306)
+MYSQL_USER = os.environ.get("MYSQL_USER", "tracker")
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "tracker")
+MYSQL_DB_NAME = os.environ.get("MYSQL_DB_NAME", "tracker")
+
 REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
 # Application definition
 
@@ -102,6 +123,7 @@ DRF_FIREBASE_AUTH = {
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -113,6 +135,8 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "live_tracking_map.urls"
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 CELERY_IMPORTS = "google_analytics.tasks"
 LOGOUT_REDIRECT_URL = "/"
@@ -299,7 +323,7 @@ CACHES = {
     "default": {
         "BACKEND": "redis_cache.RedisCache",
         "LOCATION": [
-            f"{REDIS_HOST}:6379",
+            f"{REDIS_HOST}:{REDIS_PORT}",
             # "/tmp/docker/redis.sock" if PRODUCTION else "redis:6379",
         ],
         "TIMEOUT": None,
@@ -319,7 +343,7 @@ CACHES = {
 
 # celery
 # CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
-CELERY_BROKER_URL = f"redis://{REDIS_HOST}:6379"
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 CELERY_RESULT_BACKEND = "django-db"
 
 # CELERY_ACCEPT_CONTENT = ["application/json"]
@@ -337,7 +361,7 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             # "hosts": ["unix:/tmp/docker/redis.sock" if PRODUCTION else ("redis", 6379)],
-            "hosts": [(REDIS_HOST, 6379)],
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
             "capacity": 100,  # default 100
             "expiry": 30,  # default 60
         },

@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: tracker_celery
+  namespace: production
+  name: tracker_celery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: tracker_celery
+  template:
+    metadata:
+      labels:
+        service: tracker_celery
+    spec:
+      containers:
+        - image: airsportsacr.azurecr.io/tracker_celery
+          name: tracker_celery
+          envFrom:
+            - configMapRef:
+                name: envs-production-django
+            - configMapRef:
+                name: envs-production-postgres
+            - secretRef:
+                name: secrets-production-django
+            - secretRef:
+                name: secrets-production-postgres
+          resources: {}
+          volumeMounts:
+            - mountPath: /mapfiles
+              name: maps-azurefile
+            - mountPath: /media
+              name: media-azurefile
+          readinessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - celery inspect ping -A live_tracking_map -d celery@$HOSTNAME
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            successThreshold: 10
+      restartPolicy: Always
+      volumes:
+        - name: maps-azurefile
+          persistentVolumeClaim:
+            claimName: maps-azurefile
+        - name: media-azurefile
+          persistentVolumeClaim:
+            claimName: media-azurefile
