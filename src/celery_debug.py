@@ -4,4 +4,4 @@ generate_and_notify_flight_order.apply_async((2, "frankose@ifi.uio.no", "Frank O
 
 
 from display.tasks import generate_and_notify_flight_order
-generate_and_notify_flight_order(2, "frankose@ifi.uio.no", "Frank Olaf")
+generate_and_notify_flight_order(2238, "frankose@ifi.uio.no", "Frank Olaf")
