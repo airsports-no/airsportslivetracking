@@ -2382,6 +2382,9 @@ ____________________________________________________________
 ____________________________________________________________    
 """
 
+    def __str__(self):
+        return str(self.contestant)
+
     def send_email(self, email_address: str, first_name: str):
         url = "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
         starting_point_time = self.contestant.takeoff_time + datetime.timedelta(
