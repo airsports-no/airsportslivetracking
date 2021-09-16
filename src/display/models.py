@@ -2320,7 +2320,7 @@ class EmailMapLink(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
-    orders = MyPickledObjectField(null=True, blank=True)
+    orders = models.BinaryField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
