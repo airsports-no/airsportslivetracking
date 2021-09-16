@@ -2323,6 +2323,9 @@ class EmailMapLink(models.Model):
     orders = MyPickledObjectField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ("created_at", )
+
     HTML_SIGNATURE = """
 <h3><strong>Best Regards,</strong><br /><span style="color: #000080;">
 <strong>Team&nbsp;Air Sports Live Tracking</strong>
@@ -2386,6 +2389,7 @@ ____________________________________________________________
         return str(self.contestant) + " " + str(self.contestant.navigation_task)
 
     def send_email(self, email_address: str, first_name: str):
+        logger.info(f"Sending sending email to {email_address}")
         url = "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
         starting_point_time = self.contestant.takeoff_time + datetime.timedelta(
             minutes=self.contestant.navigation_task.minutes_to_starting_point
