@@ -153,8 +153,8 @@ class Gatekeeper(ABC):
                 self.notify_termination()
                 continue
             buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
-            for position in buffered_positions:
-                data = self.contestant.generate_position_block_for_contestant(position, position["device_time"])
+            for buffered_position in buffered_positions:
+                data = self.contestant.generate_position_block_for_contestant(buffered_position, buffered_position["device_time"])
 
                 p = Position(data["time"], **data["fields"])
                 if len(self.track) > 0 and (
