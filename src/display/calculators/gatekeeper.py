@@ -119,8 +119,8 @@ class Gatekeeper(ABC):
             # Get positions in between
             logger.info(
                 f"{self.contestant}: Position time difference is more than 3 seconds ({current_time.strftime('%H:%M:%S')}-{self.latest_position_report.strftime('%H:%M:%S')} = {(current_time - self.latest_position_report).total_seconds()}), so fetching missing data from traccar.")
-            positions = self.traccar.get_positions_for_device_id(position_data["deviceId"], self.latest_position_report,
-                                                                 datetime.datetime.now(datetime.timezone.utc))
+            positions = self.traccar.get_positions_for_device_id(position_data["deviceId"], self.latest_position_report + datetime.timedelta(seconds=1),
+                                                                 current_time-datetime.timedelta(seconds=1))
             for item in positions:
                 item["device_time"] = dateutil.parser.parse(item["deviceTime"])
             logger.info(f"{self.contestant}: Retrieved {len(positions)} additional positions")
