@@ -126,7 +126,6 @@ class Gatekeeper(ABC):
             logger.info(f"{self.contestant}: Retrieved {len(positions)} additional positions")
             if len(positions)>0:
                 logger.info(f"{self.contestant}: For the interval {positions[0]['device_time'].strftime('%H:%M:%S')} - {positions[-1]['device_time'].strftime('%H:%M:%S')}")
-            logger.debug(positions)
             return [position_data] + positions
         return [position_data]
 
