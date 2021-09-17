@@ -122,7 +122,7 @@ class Gatekeeper(ABC):
             positions = self.traccar.get_positions_for_device_id(position_data["deviceId"], self.latest_position_report,
                                                                  datetime.datetime.now(datetime.timezone.utc))
             for item in positions:
-                item["device_time"] = dateutil.parser.parse(position_data["deviceTime"])
+                item["device_time"] = dateutil.parser.parse(item["deviceTime"])
             logger.info(f"{self.contestant}: Retrieved {len(positions)} additional positions")
             if len(positions) > 0:
                 logger.info(
