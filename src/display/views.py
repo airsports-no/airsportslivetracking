@@ -2079,7 +2079,7 @@ class ContestViewSet(ModelViewSet):
         navigation_tasks = NavigationTask.get_visible_navigation_tasks(self.request.user).filter(
             contestant__contestanttrack__calculator_started=True,
             contestant__contestanttrack__calculator_finished=False,
-        )
+        ).distinct()
         data = self.get_serializer_class()(navigation_tasks, many=True, context={"request": self.request}).data
         return Response(data)
 
