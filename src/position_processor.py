@@ -79,7 +79,7 @@ def cleanup_calculators():
 
 
 def map_positions_to_contestants(
-    traccar: Traccar, positions: List
+        traccar: Traccar, positions: List
 ) -> Dict[Contestant, List[Dict]]:
     if len(positions) == 0:
         return {}
@@ -108,7 +108,7 @@ def map_positions_to_contestants(
             # Only check the cache if the position is old
             last_seen = cache.get(last_seen_key)
             if last_seen == device_time or device_time < now - datetime.timedelta(
-                hours=14
+                    hours=14
             ):
                 # If we have seen it or it is really old, ignore it
                 logger.info(
@@ -158,6 +158,8 @@ def live_position_transmitter_process(queue):
         if data_type == PERSON_TYPE:
             try:
                 person = Person.objects.get(app_tracking_id=person_or_contestant)
+                person.last_seen = device_time
+                person.save(update_fields=["last_seen"])
                 global_tracking_name = person.app_aircraft_registration
                 if person.is_public:
                     person_data = PersonLtdSerialiser(person).data
@@ -173,8 +175,8 @@ def live_position_transmitter_process(queue):
             try:
                 contestant = (
                     Contestant.objects.filter(pk=person_or_contestant)
-                    .select_related("navigation_task", "team", "team__aeroplane")
-                    .first()
+                        .select_related("navigation_task", "team", "team__aeroplane")
+                        .first()
                 )
                 if contestant is not None:
                     global_tracking_name = contestant.team.aeroplane.registration
@@ -193,10 +195,10 @@ def live_position_transmitter_process(queue):
                 connection.connect()
         now = datetime.datetime.now(datetime.timezone.utc)
         if (
-            global_tracking_name is not None
-            and not is_simulator
-            and now
-            < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
+                global_tracking_name is not None
+                and not is_simulator
+                and now
+                < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
         ):
             websocket_facade.transmit_global_position_data(
                 global_tracking_name,
@@ -235,7 +237,7 @@ def on_error(ws, error):
     print(error)
 
 
-def on_close(ws):
+def on_close(ws, *args, **kwargs):
     print("### closed ###")
 
 

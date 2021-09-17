@@ -257,6 +257,11 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "websocket": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "asyncio": {
             "handlers": ["file", "console"],
             "level": "WARNING",

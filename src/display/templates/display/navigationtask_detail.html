@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load tz %}
 {% load guardian_tags %}
+{% load static %}
 {% block content %}
     {% get_obj_perms request.user for object.contest as "contest_permissions" %}
     <H1>Navigation task {{ object.name }} in contest {{ object.contest.name }}</H1>
@@ -21,7 +22,7 @@
                        title="Remove all scheduled contestants">Remove
                         contestants</a>
                     <a class="dropdown-item" href="{% url 'navigationtask_updatescorecardoverride' object.pk %}"
-                       title = "Update scoring parameters">Update scoring parameters</a>
+                       title="Update scoring parameters">Update scoring parameters</a>
                     {% if object.editable_route %}
                         <a class="dropdown-item" href="{% url 'navigationtask_refresheditableroute' object.pk %}"
                            title="If the task is generated from a route built in the route editor, click this link to refresh the task if changes have been made to the route.">Reload
@@ -50,7 +51,13 @@
        title="A page with a QR code to share the navigation task link. Can be printed and posted at the venue, for instance.">QR</a>
     |
     <a href="{% url 'navigationtask_map' object.pk %}" title="Generate navigation map">Navigation map</a>
-
+    <p>
+        To verify that tracking will work, switch on the Airsports app for the contestants and reload this page. If
+        there is a
+        green light next to the tracking email, then tracking is set up correctly. If there is an * next to the email,
+        then this user is not set up the Airsports app correctly (for instance using a different email address). The email
+        address listed in the tracking column must exactly match the email address used to log into the Airsports app.
+    </p>
     <table class="table table-condensed">
         <thead>
         <tr>
@@ -78,6 +85,9 @@
                     {% for tracker in contestant.tracker_id_display %}
                         {{ tracker.tracker }}{% if not tracker.has_user %}<a href="#" data-toggle="tooltip"
                                                                              title="The user for the tracker is not registered. This probably means that the user has not downloaded and logged into the app.">*</a>
+                        {% endif %}
+                        {% if tracker.is_active %}
+                            <img src="{% static "img/green_light.png" %}" alt="User is active" style="width: 50px"/>
                         {% endif %}
                         <br/>
                     {% endfor %}
@@ -143,7 +153,7 @@
                                 {% endif %}
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item"
-                                        href="{% url 'contestant_delete' contestant.pk %}">Delete
+                                   href="{% url 'contestant_delete' contestant.pk %}">Delete
                                 </a>
                             {% endif %}
                         </div>

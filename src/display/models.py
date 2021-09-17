@@ -248,6 +248,12 @@ class Person(models.Model):
         default=False,
         help_text="If true, the person's name will be displayed together with the callsign on the global map",
     )
+    last_seen = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def is_tracking_active(self):
+        return self.last_seen and (
+                datetime.datetime.now(datetime.timezone.utc) - self.last_seen).total_seconds() < 10 * 60
 
     @property
     def phone_country_prefix(self):
@@ -1778,6 +1784,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 {
                     "tracker": self.team.crew.member1.email,
                     "has_user": get_user_model().objects.filter(email=self.team.crew.member1.email).exists(),
+                    "is_active": self.team.crew.member1.is_tracking_active
                 }
             )
         if (
@@ -1788,6 +1795,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 {
                     "tracker": self.team.crew.member2.email,
                     "has_user": get_user_model().objects.filter(email=self.team.crew.member2.email).exists(),
+                    "is_active": self.team.crew.member2.is_tracking_active
                 }
             )
         return devices
@@ -1860,6 +1868,8 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 contestanttrack__calculator_finished=False,
                 tracking_device__in=(TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT),
             )
+            contestant.team.crew.member1.last_seen = stamp
+            contestant.team.crew.member1.save(update_fields=["last_seen"])
             return (
                 contestant,
                 contestant.team.crew.member1.simulator_tracking_id == device,
@@ -1877,6 +1887,8 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 contestanttrack__calculator_finished=False,
                 tracking_device__in=(TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT),
             )
+            contestant.team.crew.member2.last_seen = stamp
+            contestant.team.crew.member2.save(update_fields=["last_seen"])
             return (
                 contestant,
                 contestant.team.crew.member2.simulator_tracking_id == device,
@@ -2324,7 +2336,7 @@ class EmailMapLink(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ("created_at", )
+        ordering = ("created_at",)
 
     HTML_SIGNATURE = """
 <h3><strong>Best Regards,</strong><br /><span style="color: #000080;">

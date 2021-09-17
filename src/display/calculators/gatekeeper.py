@@ -4,8 +4,9 @@ import threading
 from abc import abstractmethod, ABC
 from multiprocessing.queues import Queue
 from queue import Empty
-from typing import List, TYPE_CHECKING, Optional, Callable, Tuple
+from typing import List, TYPE_CHECKING, Optional, Callable, Tuple, Dict
 
+import dateutil
 import pytz
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
@@ -15,10 +16,11 @@ from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
     calculate_fractional_distance_point_lat_lon
-from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry
+from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry, TraccarCredentials
 from display.waypoint import Waypoint
 
 from influx_facade import InfluxFacade
+from traccar_facade import Traccar
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,9 @@ class Gatekeeper(ABC):
     def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
                  live_processing: bool = True):
         super().__init__()
+        configuration = TraccarCredentials.objects.get()
+        self.traccar = Traccar.create_from_configuration(configuration)
+
         self.live_processing = live_processing
         self.track_terminated = False
         self.contestant = contestant
@@ -106,6 +111,23 @@ class Gatekeeper(ABC):
         positions.append(position)
         return positions
 
+    def check_for_buffered_data_if_necessary(self, position_data: Dict) -> List[Dict]:
+        if len(self.track) == 0:
+            return [position_data]
+        last_time = self.track[0].time
+        current_time = position_data["device_time"]
+        if (current_time - last_time).total_seconds() > 3:
+            # Get positions in between
+            logger.info(
+                f"Position time difference is more than 3 seconds ({(current_time - last_time).total_seconds()}), so fetching missing data from traccar.")
+            positions = self.traccar.get_positions_for_device_id(position_data["deviceId"], last_time, current_time)
+            for item in positions:
+                item["device_time"] = dateutil.parser.parse(position_data["deviceTime"])
+            logger.info(f"Retrieved {len(positions)} additional positions")
+            logger.debug(positions)
+            return [position_data] + positions
+        return [position_data]
+
     def run(self):
         logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
@@ -130,20 +152,23 @@ class Gatekeeper(ABC):
                 # Signal the track processor that this is the end, and perform the track calculation
                 self.notify_termination()
                 continue
-            data = self.contestant.generate_position_block_for_contestant(position_data, position_data["device_time"])
+            buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
+            for position in buffered_positions:
+                data = self.contestant.generate_position_block_for_contestant(position, position["device_time"])
 
-            p = Position(data["time"], **data["fields"])
-            if len(self.track) > 0 and (
-                    (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude) or self.track[
-                -1].time >= p.time):
-                # Old or duplicate position, ignoring
-                continue
-            if self.live_processing:
-                self.influx.put_position_data_for_contestant(self.contestant, [data])
-            for position in self.interpolate_track(p):
-                self.track.append(position)
-                if len(self.track) > 1:
-                    self.calculate_score()
+                p = Position(data["time"], **data["fields"])
+                if len(self.track) > 0 and (
+                        (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude) or
+                        self.track[
+                            -1].time >= p.time):
+                    # Old or duplicate position, ignoring
+                    continue
+                if self.live_processing:
+                    self.influx.put_position_data_for_contestant(self.contestant, [data])
+                for position in self.interpolate_track(p):
+                    self.track.append(position)
+                    if len(self.track) > 1:
+                        self.calculate_score()
         self.contestant.contestanttrack.set_calculator_finished()
         while not self.position_queue.empty():
             self.position_queue.get_nowait()
