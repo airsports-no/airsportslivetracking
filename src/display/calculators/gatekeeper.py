@@ -1,6 +1,7 @@
 import datetime
 import logging
 import threading
+import time
 from abc import abstractmethod, ABC
 from multiprocessing.queues import Queue
 from queue import Empty
@@ -116,18 +117,21 @@ class Gatekeeper(ABC):
             return [position_data]
         current_time = position_data["device_time"]
         if (current_time - self.latest_position_report).total_seconds() > 3:
+            time.sleep(2)
             # Get positions in between
             logger.info(
                 f"{self.contestant}: Position time difference is more than 3 seconds ({current_time.strftime('%H:%M:%S')}-{self.latest_position_report.strftime('%H:%M:%S')} = {(current_time - self.latest_position_report).total_seconds()}), so fetching missing data from traccar.")
-            positions = self.traccar.get_positions_for_device_id(position_data["deviceId"], self.latest_position_report + datetime.timedelta(seconds=1),
-                                                                 current_time-datetime.timedelta(seconds=1))
+            positions = self.traccar.get_positions_for_device_id(position_data["deviceId"],
+                                                                 self.latest_position_report + datetime.timedelta(
+                                                                     seconds=1),
+                                                                 datetime.datetime.now(datetime.timezone.utc))
             for item in positions:
                 item["device_time"] = dateutil.parser.parse(item["deviceTime"])
             logger.info(f"{self.contestant}: Retrieved {len(positions)} additional positions")
             if len(positions) > 0:
                 logger.info(
                     f"{self.contestant}: For the interval {positions[0]['device_time'].strftime('%H:%M:%S')} - {positions[-1]['device_time'].strftime('%H:%M:%S')}")
-            return [position_data] + positions
+            return positions + [position_data]
         return [position_data]
 
     def run(self):
