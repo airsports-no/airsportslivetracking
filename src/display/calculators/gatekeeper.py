@@ -116,15 +116,17 @@ class Gatekeeper(ABC):
         if self.latest_position_report is None:
             return [position_data]
         current_time = position_data["device_time"]
-        if (current_time - self.latest_position_report).total_seconds() > 3:
-            time.sleep(2)
+        time_difference = (current_time - self.latest_position_report).total_seconds()
+        if time_difference > 3:
+            # Wait for some time to have intermediate positions ready in the database
+            time.sleep(min(time_difference, 15))
             # Get positions in between
             logger.info(
-                f"{self.contestant}: Position time difference is more than 3 seconds ({current_time.strftime('%H:%M:%S')}-{self.latest_position_report.strftime('%H:%M:%S')} = {(current_time - self.latest_position_report).total_seconds()}), so fetching missing data from traccar.")
+                f"{self.contestant}: Position time difference is more than 3 seconds ({self.latest_position_report.strftime('%H:%M:%S')} to {current_time.strftime('%H:%M:%S')} = {time_difference}), so fetching missing data from traccar.")
             positions = self.traccar.get_positions_for_device_id(position_data["deviceId"],
                                                                  self.latest_position_report + datetime.timedelta(
                                                                      seconds=1),
-                                                                 datetime.datetime.now(datetime.timezone.utc))
+                                                                 current_time - datetime.timedelta(seconds=1))
             for item in positions:
                 item["device_time"] = dateutil.parser.parse(item["deviceTime"])
             logger.info(f"{self.contestant}: Retrieved {len(positions)} additional positions")
