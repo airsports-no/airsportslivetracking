@@ -269,7 +269,7 @@ if __name__ == "__main__":
     )
     cache.clear()
     while True:
-        websocket.enableTrace(True)
+        websocket.enableTrace(False)
         cookies = traccar.session.cookies.get_dict()
         ws = websocket.WebSocketApp(
             "ws://{}/api/socket".format(configuration.address),
