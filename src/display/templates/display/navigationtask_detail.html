@@ -55,7 +55,8 @@
         To verify that tracking will work, switch on the Airsports app for the contestants and reload this page. If
         there is a
         green light next to the tracking email, then tracking is set up correctly. If there is an * next to the email,
-        then this user is not set up the Airsports app correctly (for instance using a different email address). The email
+        then this user is not set up the Airsports app correctly (for instance using a different email address). The
+        email
         address listed in the tracking column must exactly match the email address used to log into the Airsports app.
     </p>
     <table class="table table-condensed">
@@ -87,7 +88,9 @@
                                                                              title="The user for the tracker is not registered. This probably means that the user has not downloaded and logged into the app.">*</a>
                         {% endif %}
                         {% if tracker.is_active %}
-                            <img src="{% static "img/green_light.png" %}" alt="User is active" style="width: 30px"/>
+                            <img src="{% static "img/green_light.png" %}" alt="User is active" style="width: 18px"/>
+                        {% else %}
+                            <img src="{% static "img/red_light.png" %}" alt="User is inactive" style="width: 18px"/>
                         {% endif %}
                         <br/>
                     {% endfor %}
