@@ -56,7 +56,7 @@ class Gatekeeper(ABC):
         super().__init__()
         configuration = TraccarCredentials.objects.get()
         self.traccar = Traccar.create_from_configuration(configuration)
-
+        self.latest_position_report = None
         self.live_processing = live_processing
         self.track_terminated = False
         self.contestant = contestant
@@ -112,20 +112,21 @@ class Gatekeeper(ABC):
         return positions
 
     def check_for_buffered_data_if_necessary(self, position_data: Dict) -> List[Dict]:
-        if len(self.track) == 0:
+        if self.latest_position_report is None:
             return [position_data]
-        last_time = self.track[-1].time
         current_time = position_data["device_time"]
-        if (current_time - last_time).total_seconds() > 3:
+        if (current_time - self.latest_position_report).total_seconds() > 3:
             # Get positions in between
             logger.info(
-                f"{self.contestant}: Position time difference is more than 3 seconds ({current_time.strftime('%H:%M:%S')}-{last_time.strftime('%H:%M:%S')} = {(current_time - last_time).total_seconds()}), so fetching missing data from traccar.")
-            positions = self.traccar.get_positions_for_device_id(position_data["deviceId"], last_time, datetime.datetime.now(datetime.timezone.utc))
+                f"{self.contestant}: Position time difference is more than 3 seconds ({current_time.strftime('%H:%M:%S')}-{self.latest_position_report.strftime('%H:%M:%S')} = {(current_time - last_time).total_seconds()}), so fetching missing data from traccar.")
+            positions = self.traccar.get_positions_for_device_id(position_data["deviceId"], self.latest_position_report,
+                                                                 datetime.datetime.now(datetime.timezone.utc))
             for item in positions:
                 item["device_time"] = dateutil.parser.parse(position_data["deviceTime"])
             logger.info(f"{self.contestant}: Retrieved {len(positions)} additional positions")
-            if len(positions)>0:
-                logger.info(f"{self.contestant}: For the interval {positions[0]['device_time'].strftime('%H:%M:%S')} - {positions[-1]['device_time'].strftime('%H:%M:%S')}")
+            if len(positions) > 0:
+                logger.info(
+                    f"{self.contestant}: For the interval {positions[0]['device_time'].strftime('%H:%M:%S')} - {positions[-1]['device_time'].strftime('%H:%M:%S')}")
             return [position_data] + positions
         return [position_data]
 
@@ -155,9 +156,14 @@ class Gatekeeper(ABC):
                 continue
             buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
             for buffered_position in buffered_positions:
-                data = self.contestant.generate_position_block_for_contestant(buffered_position, buffered_position["device_time"])
+                data = self.contestant.generate_position_block_for_contestant(buffered_position,
+                                                                              buffered_position["device_time"])
 
                 p = Position(data["time"], **data["fields"])
+                if self.latest_position_report is None:
+                    self.latest_position_report = p.time
+                else:
+                    self.latest_position_report = max(self.latest_position_report, p.time)
                 if len(self.track) > 0 and (
                         (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude) or
                         self.track[
