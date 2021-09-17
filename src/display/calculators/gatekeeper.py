@@ -114,7 +114,7 @@ class Gatekeeper(ABC):
     def check_for_buffered_data_if_necessary(self, position_data: Dict) -> List[Dict]:
         if len(self.track) == 0:
             return [position_data]
-        last_time = self.track[0].time
+        last_time = self.track[-1].time
         current_time = position_data["device_time"]
         if (current_time - last_time).total_seconds() > 3:
             # Get positions in between
