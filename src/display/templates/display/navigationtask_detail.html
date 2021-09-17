@@ -51,14 +51,7 @@
        title="A page with a QR code to share the navigation task link. Can be printed and posted at the venue, for instance.">QR</a>
     |
     <a href="{% url 'navigationtask_map' object.pk %}" title="Generate navigation map">Navigation map</a>
-    <p>
-        To verify that tracking will work, switch on the Airsports app for the contestants and reload this page. If
-        there is a
-        green light next to the tracking email, then tracking is set up correctly. If there is an * next to the email,
-        then this user is not set up the Airsports app correctly (for instance using a different email address). The
-        email
-        address listed in the tracking column must exactly match the email address used to log into the Airsports app.
-    </p>
+
     <table class="table table-condensed">
         <thead>
         <tr>
@@ -165,6 +158,16 @@
             </tr>
         {% endfor %}
     </table>
+    <hr/>
+    <p>
+        To verify that tracking will work, switch on the Airsports app for the contestants and reload this page. If
+        there is a
+        green light next to the tracking email, then tracking is set up correctly. If there is an * next to the email,
+        then this user is not set up the Airsports app correctly (for instance using a different email address). The
+        email
+        address listed in the tracking column must exactly match the email address used to log into the Airsports app.
+    </p>
+    <hr/>
     <a href="{% url 'contestant_create' object.pk %}">New contestant</a>
 
 {% endblock %}
