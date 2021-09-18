@@ -1,11 +1,13 @@
 import datetime
 import logging
 import threading
+import time
 from abc import abstractmethod, ABC
 from multiprocessing.queues import Queue
 from queue import Empty
-from typing import List, TYPE_CHECKING, Optional, Callable, Tuple
+from typing import List, TYPE_CHECKING, Optional, Callable, Tuple, Dict
 
+import dateutil
 import pytz
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
@@ -15,10 +17,11 @@ from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
     calculate_fractional_distance_point_lat_lon
-from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry
+from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry, TraccarCredentials
 from display.waypoint import Waypoint
 
 from influx_facade import InfluxFacade
+from traccar_facade import Traccar
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +55,9 @@ class Gatekeeper(ABC):
     def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
                  live_processing: bool = True):
         super().__init__()
+        configuration = TraccarCredentials.objects.get()
+        self.traccar = Traccar.create_from_configuration(configuration)
+        self.latest_position_report = None
         self.live_processing = live_processing
         self.track_terminated = False
         self.contestant = contestant
@@ -106,6 +112,30 @@ class Gatekeeper(ABC):
         positions.append(position)
         return positions
 
+    def check_for_buffered_data_if_necessary(self, position_data: Dict) -> List[Dict]:
+        if self.latest_position_report is None:
+            return [position_data]
+        current_time = position_data["device_time"]
+        time_difference = (current_time - self.latest_position_report).total_seconds()
+        if time_difference > 3:
+            # Wait for some time to have intermediate positions ready in the database
+            time.sleep(min(time_difference, 15))
+            # Get positions in between
+            logger.info(
+                f"{self.contestant}: Position time difference is more than 3 seconds ({self.latest_position_report.strftime('%H:%M:%S')} to {current_time.strftime('%H:%M:%S')} = {time_difference}), so fetching missing data from traccar.")
+            positions = self.traccar.get_positions_for_device_id(position_data["deviceId"],
+                                                                 self.latest_position_report + datetime.timedelta(
+                                                                     seconds=1),
+                                                                 current_time - datetime.timedelta(seconds=1))
+            for item in positions:
+                item["device_time"] = dateutil.parser.parse(item["deviceTime"])
+            logger.info(f"{self.contestant}: Retrieved {len(positions)} additional positions")
+            if len(positions) > 0:
+                logger.info(
+                    f"{self.contestant}: For the interval {positions[0]['device_time'].strftime('%H:%M:%S')} - {positions[-1]['device_time'].strftime('%H:%M:%S')}")
+            return positions + [position_data]
+        return [position_data]
+
     def run(self):
         logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
@@ -130,20 +160,28 @@ class Gatekeeper(ABC):
                 # Signal the track processor that this is the end, and perform the track calculation
                 self.notify_termination()
                 continue
-            data = self.contestant.generate_position_block_for_contestant(position_data, position_data["device_time"])
+            buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
+            for buffered_position in buffered_positions:
+                data = self.contestant.generate_position_block_for_contestant(buffered_position,
+                                                                              buffered_position["device_time"])
 
-            p = Position(data["time"], **data["fields"])
-            if len(self.track) > 0 and (
-                    (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude) or self.track[
-                -1].time >= p.time):
-                # Old or duplicate position, ignoring
-                continue
-            if self.live_processing:
-                self.influx.put_position_data_for_contestant(self.contestant, [data])
-            for position in self.interpolate_track(p):
-                self.track.append(position)
-                if len(self.track) > 1:
-                    self.calculate_score()
+                p = Position(data["time"], **data["fields"])
+                if self.latest_position_report is None:
+                    self.latest_position_report = p.time
+                else:
+                    self.latest_position_report = max(self.latest_position_report, p.time)
+                if len(self.track) > 0 and (
+                        (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude) or
+                        self.track[
+                            -1].time >= p.time):
+                    # Old or duplicate position, ignoring
+                    continue
+                if self.live_processing:
+                    self.influx.put_position_data_for_contestant(self.contestant, [data])
+                for position in self.interpolate_track(p):
+                    self.track.append(position)
+                    if len(self.track) > 1:
+                        self.calculate_score()
         self.contestant.contestanttrack.set_calculator_finished()
         while not self.position_queue.empty():
             self.position_queue.get_nowait()

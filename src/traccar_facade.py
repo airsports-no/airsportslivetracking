@@ -32,6 +32,16 @@ class Traccar:
             raise Exception("Failed authenticating session: {}".format(response.text))
         return session
 
+    def get_positions_for_device_id(self, device_id: int, start_time: datetime.datetime,
+                                    finish_time: datetime.datetime) -> List[Dict]:
+        response = self.session.get(self.base + "/api/positions",
+                                    params={"deviceId": device_id, "from": start_time.isoformat(),
+                                            "to": finish_time.isoformat()})
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logger.error(f"Failed fetching positions for device {device_id}, {response.text}")
+
     def update_and_get_devices(self) -> List:
         return self.session.get(self.base + "/api/devices").json()
 
