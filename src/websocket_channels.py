@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import os
 from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
 
 import dateutil
@@ -23,8 +22,7 @@ from display.serialisers import (
     GateCumulativeScoreSerialiser,
     PlayingCardSerialiser,
 )
-from live_tracking_map import settings
-from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST
+from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +75,8 @@ class WebsocketFacade:
         # if settings.PRODUCTION:
         #     self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
         # else:
-        self.redis = StrictRedis(REDIS_HOST)
+        self.redis = StrictRedis(REDIS_HOST, REDIS_PORT, password=REDIS_PASSWORD)
+
 
     # def cull_cache(self):
     #     cached = self.redis.hgetall(REDIS_GLOBAL_POSITIONS_KEY)

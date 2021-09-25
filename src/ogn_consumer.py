@@ -1,17 +1,12 @@
 import datetime
-import json
-import sys
 import time
 import logging
 import os
 
 import asyncio
 
-import redis
 import sentry_sdk
-from opensky_api import OpenSkyApi
 from redis import StrictRedis
-from requests import ReadTimeout
 
 
 sentry_sdk.init(
@@ -29,7 +24,7 @@ if __name__ == "__main__":
 
     django.setup()
 
-from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST
+from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST, REDIS_PASSWORD, REDIS_PORT
 from websocket_channels import WebsocketFacade
 
 logging.basicConfig(level=logging.INFO,
@@ -40,7 +35,6 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 FETCH_INTERVAL = datetime.timedelta(seconds=5)
 
-from display.consumers import DateTimeEncoder
 from ogn.client import AprsClient
 from ogn.parser import parse, ParseError
 
@@ -121,7 +115,7 @@ def process_beacon(raw_message):
 
 
 if __name__ == "__main__":
-    redis = StrictRedis(REDIS_HOST)
+    redis = StrictRedis(REDIS_HOST, REDIS_PORT, password=REDIS_PASSWORD)
     # redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
     redis.delete(REDIS_GLOBAL_POSITIONS_KEY)
     client = AprsClient(aprs_user='N0CALL')

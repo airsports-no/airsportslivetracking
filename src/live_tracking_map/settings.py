@@ -202,10 +202,10 @@ IS_UNIT_TESTING = any(s in sys.argv for s in ("test", "jenkins"))
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "tracker",
-        "USER": "tracker",
-        "PASSWORD": "tracker",
-        "HOST": "mysql",
+        "NAME": MYSQL_DB_NAME,
+        "USER": MYSQL_USER,
+        "PASSWORD": MYSQL_PASSWORD,
+        "HOST": MYSQL_HOST,
     }
 }
 
@@ -266,7 +266,7 @@ LOGGING = {
         "file": {
             "level": "DEBUG",
             "class": "logging.handlers.WatchedFileHandler",
-            "filename": "/logs/airports.log",
+            "filename": "/logs/airsports.log",
             "formatter": "standard",
         },
     },
@@ -324,6 +324,11 @@ LOGGING = {
     },
 }
 
+# celery
+# CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
+CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}"
+CELERY_RESULT_BACKEND = "django-db"
+
 CACHES = {
     "default": {
         "BACKEND": "redis_cache.RedisCache",
@@ -334,6 +339,7 @@ CACHES = {
         "TIMEOUT": None,
         "OPTIONS": {
             "DB": 1,
+            "PASSWORD": REDIS_PASSWORD,
             "PARSER_CLASS": "redis.connection.HiredisParser",
             "CONNECTION_POOL_CLASS": "redis.BlockingConnectionPool",
             "CONNECTION_POOL_CLASS_KWARGS": {
@@ -345,11 +351,6 @@ CACHES = {
         },
     },
 }
-
-# celery
-# CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
-CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
-CELERY_RESULT_BACKEND = "django-db"
 
 # CELERY_ACCEPT_CONTENT = ["application/json"]
 # CELERY_RESULT_SERIALIZER = "json"
@@ -366,7 +367,7 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             # "hosts": ["unix:/tmp/docker/redis.sock" if PRODUCTION else ("redis", 6379)],
-            "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "hosts": [CELERY_BROKER_URL],
             "capacity": 100,  # default 100
             "expiry": 30,  # default 60
         },

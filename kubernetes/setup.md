@@ -22,3 +22,12 @@ Get ACR credentials
 Login ACR
 
 > az acr login --name airsportsacr
+
+Fix AKS ACR authentication issue
+
+> az aks update -n airsports -g airsports_group --attach-acr airsportsacr
+
+Get access to a node
+
+> kubectl get nodes -o wide
+> kubectl debug node/aks-agentpool-42549294-vmss000000 -it --image=mcr.microsoft.com/aks/fundamental/base-ubuntu:v0.0.11

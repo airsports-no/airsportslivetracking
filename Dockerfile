@@ -39,6 +39,9 @@ RUN npm install
 COPY --chown=django:django reactjs /reactjs
 #RUN cd / && npm run webpack
 COPY --chown=django:django src /src
+
+RUN mkdir /logs
+RUN chown django /logs
 # Need to download new version for Ubuntu 20.04
 #COPY scip /scip
 #RUN apt install /scip/SCIPOptSuite-7.0.2-Linux-ubuntu.deb
@@ -47,22 +50,26 @@ WORKDIR /src
 ###### LABEL THE CURRENT IMAGE ######
 ARG GIT_COMMIT_HASH
 LABEL GIT_COMMIT_HASH=$GIT_COMMIT_HASH
+WORKDIR /
+RUN npm run webpack
+WORKDIR /src
+RUN python3 manage.py collectstatic --noinput
 
 FROM tracker_base as tracker_web
-CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py runserver 0.0.0.0:8002" ]
+CMD [ "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD FLUSHALL && python3 manage.py runserver 0.0.0.0:8002" ]
 
 FROM tracker_base as tracker_daphne
-CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "/daphne.sh" ]
+CMD [ "bash", "-c", "/daphne.sh" ]
 
 FROM tracker_base as tracker_celery
-CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log" ]
+CMD [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log" ]
 
 FROM tracker_base as tracker_processor
-CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "traccar:8082", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "python3 position_processor.py" ]
+CMD [ "bash", "-c", "python3 position_processor.py" ]
 
 FROM tracker_base as opensky_consumer
 COPY --chown=django:django aircraft_database /aircraft_database
-CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "traccar:8082", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "python3 opensky_consumer.py" ]
+CMD [ "bash", "-c", "python3 opensky_consumer.py $OPEN_SKY_USERNAME $OPEN_SKY_PASSWORD" ]
 
 FROM tracker_base as ogn_consumer
-CMD [ "/wait-for-it.sh", "mysql:3306", "--","/wait-for-it.sh", "traccar:8082", "--","/wait-for-it.sh", "influx:8086", "--","bash", "-c", "python3 ogn_consumer.py" ]
+CMD [ "bash", "-c", "python3 ogn_consumer.py" ]

@@ -17,7 +17,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Q
 from django.forms import formset_factory
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
@@ -207,6 +207,19 @@ from live_tracking_map.settings import REDIS_HOST
 from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
+
+
+def healthz(request):
+    return HttpResponse(status=status.HTTP_200_OK)
+
+
+def readyz(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return HttpResponse(status=200)
+    except Exception as ex:
+        return HttpResponse(str(ex).encode("utf-8"), status=500)
 
 
 class ContestantTimeZoneMixin:
@@ -1128,14 +1141,14 @@ def add_contest_teams_to_navigation_task(request, pk):
         if form.is_valid():
             try:
                 if not schedule_and_create_contestants(
-                    navigation_task,
-                    [int(item) for item in form.cleaned_data["contest_teams"]],
-                    form.cleaned_data["tracker_lead_time_minutes"],
-                    form.cleaned_data["minutes_for_aircraft_switch"],
-                    form.cleaned_data["minutes_for_tracker_switch"],
-                    form.cleaned_data["minutes_between_contestants"],
-                    form.cleaned_data["minutes_for_crew_switch"],
-                    optimise=form.cleaned_data.get("optimise", False),
+                        navigation_task,
+                        [int(item) for item in form.cleaned_data["contest_teams"]],
+                        form.cleaned_data["tracker_lead_time_minutes"],
+                        form.cleaned_data["minutes_for_aircraft_switch"],
+                        form.cleaned_data["minutes_for_tracker_switch"],
+                        form.cleaned_data["minutes_between_contestants"],
+                        form.cleaned_data["minutes_for_crew_switch"],
+                        optimise=form.cleaned_data.get("optimise", False),
                 ):
                     messages.error(request, "Optimisation failed")
                 else:
@@ -1209,12 +1222,6 @@ def navigation_task_score_override_view(request, pk):
     return render(request, "display/score_override_form.html", {"form": form, "navigation_task": navigation_task})
 
 
-# if settings.PRODUCTION:
-#     connection = Redis(unix_socket_path="/tmp/docker/redis.sock")
-# else:
-connection = Redis(REDIS_HOST)
-
-
 def cached_generate_data(contestant_pk) -> Dict:
     return _generate_data(contestant_pk)
 
@@ -1272,13 +1279,13 @@ def _generate_data(contestant_pk):
 def show_route_definition_step(wizard):
     cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}
     return (
-        not cleaned_data.get("internal_route")
-        and cleaned_data.get("file_type") == FILE_TYPE_KML
-        and wizard.get_cleaned_data_for_step("task_type").get("task_type")
-        in (
-            NavigationTask.PRECISION,
-            NavigationTask.POKER,
-        )
+            not cleaned_data.get("internal_route")
+            and cleaned_data.get("file_type") == FILE_TYPE_KML
+            and wizard.get_cleaned_data_for_step("task_type").get("task_type")
+            in (
+                NavigationTask.PRECISION,
+                NavigationTask.POKER,
+            )
     )
 
 
@@ -1450,9 +1457,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         if step == "waypoint_definition":
             print(len(form))
         if step in (
-            "anr_route_import",
-            "precision_route_import",
-            "landing_route_import",
+                "anr_route_import",
+                "precision_route_import",
+                "landing_route_import",
         ):
             form.fields["internal_route"].queryset = get_objects_for_user(
                 self.request.user,
@@ -1937,8 +1944,8 @@ class UserPersonViewSet(GenericViewSet):
                 Q(team__crew__member1=self.get_object()) | Q(team__crew__member2=self.get_object()),
                 contest__in=available_contests,
             )
-            .order_by("contest__start_time")
-            .distinct()
+                .order_by("contest__start_time")
+                .distinct()
         )
         teams = []
         for team in contest_teams:
@@ -2042,13 +2049,13 @@ class ContestViewSet(ModelViewSet):
 
     def get_queryset(self):
         return (
-            get_objects_for_user(
-                self.request.user,
-                "display.view_contest",
-                klass=self.queryset,
-                accept_global_perms=False,
-            )
-            | self.queryset.filter(is_public=True, is_featured=True)
+                get_objects_for_user(
+                    self.request.user,
+                    "display.view_contest",
+                    klass=self.queryset,
+                    accept_global_perms=False,
+                )
+                | self.queryset.filter(is_public=True, is_featured=True)
         )
 
     @action(detail=True, methods=["get"])
@@ -2347,13 +2354,13 @@ class NavigationTaskViewSet(ModelViewSet):
             if adaptive_start:
                 # Properly account for how final time is created when adaptive start is active
                 final_time = (
-                    starting_point_time
-                    + datetime.timedelta(hours=1)
-                    + datetime.timedelta(
-                        hours=final_time.hour,
-                        minutes=final_time.minute,
-                        seconds=final_time.second,
-                    )
+                        starting_point_time
+                        + datetime.timedelta(hours=1)
+                        + datetime.timedelta(
+                    hours=final_time.hour,
+                    minutes=final_time.minute,
+                    seconds=final_time.second,
+                )
                 )
             logger.debug(f"Take-off time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")
