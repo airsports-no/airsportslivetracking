@@ -72,21 +72,7 @@ def generate_contestant_data_block(
 class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
-        # if settings.PRODUCTION:
-        #     self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
-        # else:
         self.redis = StrictRedis(REDIS_HOST, REDIS_PORT, password=REDIS_PASSWORD)
-
-
-    # def cull_cache(self):
-    #     cached = self.redis.hgetall(REDIS_GLOBAL_POSITIONS_KEY)
-    #     now = datetime.datetime.now(datetime.timezone.utc)
-    #     for key, value in cached.items():
-    #         data = pickle.loads(value)
-    #         stamp = data["time"]
-    #         if now - stamp > GLOBAL_TRAFFIC_MAXIMUM_AGE:
-    #             self.redis.hdel(REDIS_GLOBAL_POSITIONS_KEY, key)
-    #             continue
 
     def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
@@ -123,31 +109,6 @@ class WebsocketFacade:
     def transmit_basic_information(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         channel_data = generate_contestant_data_block(contestant, include_contestant_track=True)
-        async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
-        )
-
-    def transmit_navigation_task_position_data(self, contestant: "Contestant", data: List[Dict]):
-        if len(data) == 0:
-            return
-        position_data = []
-        for item in data:
-            position_data.append(
-                {
-                    "latitude": item["fields"]["latitude"],
-                    "longitude": item["fields"]["longitude"],
-                    "speed": item["fields"]["speed"],
-                    "course": item["fields"]["course"],
-                    "altitude": item["fields"]["altitude"],
-                    "time": item["time"],
-                }
-            )
-        channel_data = generate_contestant_data_block(
-            contestant,
-            positions=position_data,
-            latest_time=dateutil.parser.parse(position_data[-1]["time"]),
-        )
-        group_key = "tracking_{}".format(contestant.navigation_task.pk)
         async_to_sync(self.channel_layer.group_send)(
             group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )

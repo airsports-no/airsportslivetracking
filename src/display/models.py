@@ -1805,21 +1805,13 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
 
     def generate_position_block_for_contestant(self, position_data: Dict, device_time: datetime.datetime) -> Dict:
         return {
-            "measurement": "device_position",
-            "tags": {
-                "contestant": self.pk,
-                "navigation_task": self.navigation_task_id,
-                "device_id": position_data["deviceId"],
-            },
-            "time": device_time.isoformat(),
-            "fields": {
-                "latitude": float(position_data["latitude"]),
-                "longitude": float(position_data["longitude"]),
-                "altitude": float(position_data["altitude"]),
-                "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
-                "speed": float(position_data["speed"]),
-                "course": float(position_data["course"]),
-            },
+            "time": device_time,
+            "latitude": float(position_data["latitude"]),
+            "longitude": float(position_data["longitude"]),
+            "altitude": float(position_data["altitude"]),
+            "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
+            "speed": float(position_data["speed"]),
+            "course": float(position_data["course"]),
         }
 
     @classmethod
@@ -1974,7 +1966,8 @@ class ScoreLogEntry(models.Model):
 class TrackAnnotation(models.Model):
     ANOMALY = "anomaly"
     INFORMATION = "information"
-    TYPES = [(ANOMALY, "Anomaly"), (INFORMATION, "Information")]
+    DEBUG = "debug"
+    TYPES = [(ANOMALY, "Anomaly"), (INFORMATION, "Information"), (DEBUG, "Debug")]
     time = models.DateTimeField()
     contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
     score_log_entry = models.ForeignKey(ScoreLogEntry, on_delete=models.CASCADE)

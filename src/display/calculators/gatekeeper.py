@@ -163,7 +163,7 @@ class Gatekeeper(ABC):
                 data = self.contestant.generate_position_block_for_contestant(buffered_position,
                                                                               buffered_position["device_time"])
 
-                p = Position(data["time"], **data["fields"])
+                p = Position(**data)
                 if self.latest_position_report is None:
                     self.latest_position_report = p.time
                 else:

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class Position:
     def __init__(self, time, latitude, longitude, altitude, speed, course, battery_level):
-        self.time = dateutil.parser.parse(time)
+        self.time = time
         self.latitude = latitude
         self.longitude = longitude
         self.altitude = altitude
