@@ -9,6 +9,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from redis import StrictRedis
 
+from display.calculators.positions_and_gates import Position
 from display.models import Contestant, ContestTeam, Task, TaskTest, MyUser, Team
 from display.serialisers import (
     ContestantTrackSerialiser,
@@ -20,7 +21,7 @@ from display.serialisers import (
     TrackAnnotationSerialiser,
     ScoreLogEntrySerialiser,
     GateCumulativeScoreSerialiser,
-    PlayingCardSerialiser,
+    PlayingCardSerialiser, PositionSerialiser,
 )
 from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 
@@ -109,6 +110,20 @@ class WebsocketFacade:
     def transmit_basic_information(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         channel_data = generate_contestant_data_block(contestant, include_contestant_track=True)
+        async_to_sync(self.channel_layer.group_send)(
+            group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
+        )
+
+    def transmit_navigation_task_position_data(self, contestant: "Contestant", positions: List["Position"]):
+        if len(positions) == 0:
+            return
+        position_data = PositionSerialiser(instance=positions, many=True).data
+        channel_data = generate_contestant_data_block(
+            contestant,
+            positions=position_data,
+            latest_time=position_data.time,
+        )
+        group_key = "tracking_{}".format(contestant.navigation_task.pk)
         async_to_sync(self.channel_layer.group_send)(
             group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )

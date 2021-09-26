@@ -11,6 +11,7 @@ import dateutil
 import pytz
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+from websocket_channels import WebsocketFacade
 
 from display.calculators.calculator_utilities import round_time, distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
@@ -82,6 +83,7 @@ class Gatekeeper(ABC):
         self.projector = Projector(self.gates[0].latitude, self.gates[0].longitude)
         self.in_range_of_gate = None
         self.calculators = []
+        self.websocket_facade = WebsocketFacade()
         for calculator in calculators:
             self.calculators.append(
                 calculator(self.contestant, self.scorecard, self.gates, self.contestant.navigation_task.route,
@@ -159,11 +161,13 @@ class Gatekeeper(ABC):
                 self.notify_termination()
                 continue
             buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
+            all_positions = []
             for buffered_position in buffered_positions:
                 data = self.contestant.generate_position_block_for_contestant(buffered_position,
                                                                               buffered_position["device_time"])
 
                 p = Position(**data)
+                all_positions.append(p)
                 if self.latest_position_report is None:
                     self.latest_position_report = p.time
                 else:
@@ -178,6 +182,7 @@ class Gatekeeper(ABC):
                     self.track.append(position)
                     if len(self.track) > 1:
                         self.calculate_score()
+            self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
         self.contestant.contestanttrack.set_calculator_finished()
         while not self.position_queue.empty():
             self.position_queue.get_nowait()
