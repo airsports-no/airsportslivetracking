@@ -20,6 +20,7 @@ class Position:
         self.speed = speed
         self.course = course
         self.battery_level = battery_level
+        self.progress = 0
 
     def __str__(self):
         return f"{self.time}: {self.latitude}, {self.longitude}"

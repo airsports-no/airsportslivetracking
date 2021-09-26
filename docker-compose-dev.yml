@@ -6,7 +6,6 @@ services:
 
   tracker_web:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
                "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py runserver 0.0.0.0:8002" ]
 #               "bash",  "-c", "sleep 100m" ]
 
@@ -37,7 +36,6 @@ services:
 
   tracker_celery:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
                "bash", "-c", "celery -A live_tracking_map worker -E -l DEBUG -f /logs/celery.log" ]
 #               "bash",  "-c", "sleep 100m" ]
 
@@ -66,7 +64,6 @@ services:
   tracker_processor:
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "/wait-for-it.sh", "traccar:8082", "--",
-               "/wait-for-it.sh", "influx:8086", "--",
                "bash", "-c", "python3 position_processor.py" ]
     container_name: tracker_processor
     restart: unless-stopped

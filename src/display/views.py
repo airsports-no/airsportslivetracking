@@ -203,7 +203,7 @@ from display.tasks import import_gpx_track, generate_and_notify_flight_order
 from display.traccar_factory import get_traccar_instance
 from live_tracking_map import settings
 from live_tracking_map.settings import REDIS_HOST
-from websocket_channels import WebsocketFacade
+from websocket_channels import WebsocketFacade, generate_contestant_data_block
 
 logger = logging.getLogger(__name__)
 
@@ -1225,10 +1225,7 @@ def cached_generate_data(contestant_pk) -> Dict:
     return _generate_data(contestant_pk)
 
 
-
-
 def _generate_data(contestant_pk):
-    LIMIT = None
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
     from_time_datetime = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
     position_data = contestant.get_track()
@@ -1237,37 +1234,22 @@ def _generate_data(contestant_pk):
     else:
         global_latest_time = from_time_datetime
     annotations = TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data
-    reduced_data = []
     progress = 0
     for index, item in enumerate(position_data):
         if index % 30 == 0:
             progress = contestant.calculate_progress(dateutil.parser.parse(item["time"]), ignore_finished=True)
-        reduced_data.append(
-            {
-                "latitude": item["latitude"],
-                "longitude": item["longitude"],
-                "time": item["time"],
-                "progress": progress,
-            }
-        )
-    route_progress = contestant.calculate_progress(global_latest_time)
-    positions = reduced_data
-    if hasattr(contestant, "contestanttrack"):
-        contestant_track = ContestantTrackSerialiser(contestant.contestanttrack).data
-    else:
-        contestant_track = None
+        item.progress = progress
     logger.info("Completed generating data {}".format(contestant.pk))
-    data = {
-        "contestant_id": contestant.pk,
-        "latest_time": global_latest_time,
-        "positions": positions,
-        "annotations": annotations,
-        "progress": route_progress,
-        "score_log_entries": ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data,
-        "gate_scores": GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
-        "playing_cards": PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
-        "contestant_track": contestant_track,
-    }
+    data = generate_contestant_data_block(
+        contestant,
+        positions=position_data,
+        annotations=annotations,
+        log_entries=ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data,
+        latest_time=global_latest_time,
+        gate_scores=GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
+        playing_cards=PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
+        include_contestant_track=True
+    )
     return data
 
 

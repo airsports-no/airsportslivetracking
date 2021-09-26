@@ -73,7 +73,7 @@ class Traccar:
         else:
             logger.error(f"Failed fetching positions for device {device_id}, {response.text}")
 
-    def get_device_ids_for_contestant(self, contestant: Contestant) -> List[int]:
+    def get_device_ids_for_contestant(self, contestant: "Contestant") -> List[int]:
         devices = []
         for name in contestant.get_tracker_ids():
             try:

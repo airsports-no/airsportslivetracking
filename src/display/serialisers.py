@@ -561,6 +561,7 @@ class PositionSerialiser(serializers.Serializer):
     longitude = serializers.FloatField()
     altitude = serializers.FloatField()
     time = serializers.DateTimeField()
+    progress = serializers.FloatField()
 
 
 class GpxTrackSerialiser(serializers.Serializer):

@@ -1905,10 +1905,10 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             return False
         return True
 
-    def get_track(self) -> List[Dict]:
+    def get_track(self) -> List["Position"]:
         traccar = Traccar.create_from_configuration(TraccarCredentials.get_solo())
         device_ids = traccar.get_device_ids_for_contestant(self)
-        tracks = [traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time) for
+        tracks = [[Position(**item) for item in traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time)] for
                   device_id in device_ids]
         return merge_tracks(tracks)
 
