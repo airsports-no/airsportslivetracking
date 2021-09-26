@@ -61,7 +61,6 @@ services:
       - "8002:8000"
     depends_on:
       - mysql
-      - influx
       - redis
       - traccar
 
@@ -95,7 +94,6 @@ services:
       - tmp
     depends_on:
       - mysql
-      - influx
       - redis
 
 
@@ -130,7 +128,6 @@ services:
       - tmp
     depends_on:
       - mysql
-      - influx
       - redis
 
 
@@ -159,7 +156,6 @@ services:
     volumes_from:
       - tmp
     depends_on:
-      - influx
       - traccar
       - mysql
       - redis
@@ -204,19 +200,6 @@ services:
     depends_on:
       - redis
 
-  influx:
-    image: influxdb
-    restart: always
-    volumes:
-      - influxdb:/var/lib/influxdb
-    environment:
-      - INFLUXDB_DB=airsport
-      - INFLUXDB_USER=airsport
-      - INFLUXDB_USER_PASSWORD=notsecret
-  grafana:
-    image: grafana/grafana
-    ports:
-      - "3000:3000"
 
   traccar:
     image: traccar/traccar
@@ -266,6 +249,5 @@ services:
 
 
 volumes:
-  influxdb:
   mysqldata:
   traccar-db:

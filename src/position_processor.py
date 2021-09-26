@@ -25,7 +25,6 @@ from display.serialisers import PersonSerialiser, PersonLtdSerialiser
 from websocket_channels import WebsocketFacade
 
 import websocket
-from influx_facade import InfluxFacade
 from display.models import Contestant, TraccarCredentials, Person
 from display.calculators.calculator_factory import calculator_factory
 
@@ -43,9 +42,6 @@ if __name__ == "__main__":
     devices = traccar.get_device_map()
     websocket_facade = WebsocketFacade()
 
-influx = InfluxFacade(
-    settings.INFLUX_HOST, settings.INFLUX_PORT, settings.INFLUX_USER, settings.INFLUX_PASSWORD, settings.INFLUX_DB_NAME
-)
 processes = {}
 calculator_lock = threading.Lock()
 

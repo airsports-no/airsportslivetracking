@@ -6,7 +6,7 @@ import requests
 from requests import Session
 
 if TYPE_CHECKING:
-    from display.models import TraccarCredentials
+    from display.models import TraccarCredentials, Contestant
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,8 @@ class Traccar:
         self.token = token
         self.base = "{}://{}".format(self.protocol, self.address)
         self.session = self.get_authenticated_session()
-        self.device_map = None
+        self.device_map = {}
+        self.unique_id_map = {}
 
     @classmethod
     def create_from_configuration(cls, configuration: "TraccarCredentials") -> "Traccar":
@@ -32,15 +33,58 @@ class Traccar:
             raise Exception("Failed authenticating session: {}".format(response.text))
         return session
 
-    def get_positions_for_device_id(self, device_id: int, start_time: datetime.datetime,
-                                    finish_time: datetime.datetime) -> List[Dict]:
-        response = self.session.get(self.base + "/api/positions",
-                                    params={"deviceId": device_id, "from": start_time.isoformat(),
-                                            "to": finish_time.isoformat()})
+    def get_positions_for_device_id(
+            self, device_id: int, start_time: datetime.datetime, finish_time: datetime.datetime
+    ) -> List[Dict]:
+        """
+         {
+        "id": 4565767,
+        "attributes":
+        {
+            "batteryLevel": 53.0,
+            "distance": 80.05,
+            "totalDistance": 355900.28,
+            "motion": true
+        },
+        "deviceId": 11942,
+        "type": null,
+        "protocol": "osmand",
+        "serverTime": "2021-09-17T10:56:54.000+00:00",
+        "deviceTime": "2021-09-17T10:55:03.000+00:00",
+        "fixTime": "2021-09-17T10:55:03.000+00:00",
+        "outdated": false,
+        "valid": true,
+        "latitude": 52.82202,
+        "longitude": 8.7318365,
+        "altitude": 455.001,
+        "speed": 77.2231,
+        "course": 214.099,
+        "address": null,
+        "accuracy": 5.599999904632568,
+        "network": null
+        }
+        """
+        response = self.session.get(
+            self.base + "/api/positions",
+            params={"deviceId": device_id, "from": start_time.isoformat(), "to": finish_time.isoformat()},
+        )
         if response.status_code == 200:
             return response.json()
         else:
             logger.error(f"Failed fetching positions for device {device_id}, {response.text}")
+
+    def get_device_ids_for_contestant(self, contestant: Contestant) -> List[int]:
+        devices = []
+        for name in contestant.get_tracker_ids():
+            try:
+                devices.append(self.unique_id_map[name])
+            except KeyError:
+                self.get_device_map()
+                try:
+                    devices.append(self.unique_id_map[name])
+                except KeyError:
+                    logger.error(f"Failed to find device ID for unique ID {name}")
+        return devices
 
     def update_and_get_devices(self) -> List:
         return self.session.get(self.base + "/api/devices").json()
@@ -69,16 +113,19 @@ class Traccar:
         return self.create_group("GlobalDevices")["id"]
 
     def create_device(self, device_name, identifier):
-        response = self.session.post(self.base + "/api/devices", json={"uniqueId": identifier, "name": device_name,
-                                                                       "groupId": self.get_shared_group_id()})
+        response = self.session.post(
+            self.base + "/api/devices",
+            json={"uniqueId": identifier, "name": device_name, "groupId": self.get_shared_group_id()},
+        )
         print(response)
         print(response.text)
         if response.status_code == 200:
             return response.json()
 
     def add_device_to_shared_group(self, deviceId):
-        response = self.session.put(self.base + f"/api/devices/{deviceId}/",
-                                    json={"groupId": self.get_shared_group_id(), "id": deviceId})
+        response = self.session.put(
+            self.base + f"/api/devices/{deviceId}/", json={"groupId": self.get_shared_group_id(), "id": deviceId}
+        )
         if response.status_code == 200:
             return True
 
@@ -99,8 +146,9 @@ class Traccar:
             logger.warning("Failed fetching assumed to be existing device {}".format(identifier))
             return False
         key = existing_device["id"]
-        response = self.session.put(self.base + f"/api/devices/{key}/",
-                                    json={"name": device_name, "id": key, "uniqueId": identifier})
+        response = self.session.put(
+            self.base + f"/api/devices/{key}/", json={"name": device_name, "id": key, "uniqueId": identifier}
+        )
         if response.status_code != 200:
             logger.error(f"Failed updating device name because of: {response.status_code} {response.text}")
             return False
@@ -121,4 +169,5 @@ class Traccar:
 
     def get_device_map(self) -> Dict:
         self.device_map = {item["id"]: item["uniqueId"] for item in self.update_and_get_devices()}
+        self.unique_id_map = {value: key for key, value in self.device_map.items()}
         return self.device_map

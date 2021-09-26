@@ -40,12 +40,15 @@ from display.coordinate_utilities import bearing_difference
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.my_pickled_object_field import MyPickledObjectField
 from display.poker_cards import PLAYING_CARDS
+from display.track_merger import merge_tracks
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
 from live_tracking_map.settings import SERVER_ROOT
 
 from phonenumbers.phonenumber import PhoneNumber
+
+from traccar_facade import Traccar
 
 TRACCAR = "traccar"
 TRACKING_SERVICES = ((TRACCAR, "Traccar"),)
@@ -1572,7 +1575,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         # Validate single-use tracker
         overlapping_trackers = Contestant.objects.filter(
             tracking_service=self.tracking_service,
-            tracker_device_id=self.get_tracker_id(),
+            tracker_device_id__in=self.get_tracker_ids(),
             tracker_start_time__lte=self.finished_by_time,
             finished_by_time__gte=self.tracker_start_time,
         ).exclude(pk=self.pk)
@@ -1762,17 +1765,17 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 return item
         return None
 
-    def get_tracker_id(self) -> str:
+    def get_tracker_ids(self) -> List[str]:
         if self.tracking_device == TRACKING_DEVICE:
-            return self.tracker_device_id
+            return [self.tracker_device_id]
         if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
-            return self.team.crew.member1.app_tracking_id
+            return [self.team.crew.member1.app_tracking_id, self.team.crew.member2.app_tracking_id]
         if self.tracking_device == TRACKING_COPILOT:
-            return self.team.crew.member2.app_tracking_id
+            return [self.team.crew.member2.app_tracking_id]
         logger.error(
             f"Contestant {self.team} for navigation task {self.navigation_task} does not have a tracker ID for tracking device {self.tracking_device}"
         )
-        return ""
+        return [""]
 
     @property
     def tracker_id_display(self) -> List[Dict]:
@@ -1910,14 +1913,16 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             return False
         return True
 
-    def get_latest_position(self) -> Optional[Dict]:
-        from influx_facade import InfluxFacade
+    def get_track(self) -> List[Dict]:
+        traccar = Traccar.create_from_configuration(TraccarCredentials.get_solo())
+        device_ids = traccar.get_device_ids_for_contestant(self)
+        tracks = [traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time) for
+                  device_id in device_ids]
+        return merge_tracks(tracks)
 
-        influx = InfluxFacade()
-        result_set = influx.get_latest_position_for_contestant(self.pk)
-        position_data = list(result_set.get_points(tags={"contestant": str(self.pk)}))
+    def get_latest_position(self) -> Optional[Dict]:
         try:
-            return position_data[0]
+            return self.get_track()[-1]
         except IndexError:
             return None
 
@@ -2742,14 +2747,6 @@ def clear_navigation_task_results_service_test(sender, instance: NavigationTask,
                 # Must be explicitly called for the signal to recalculate summary to be called.
                 task_summary.delete()
             task.delete()
-
-
-@receiver(post_delete, sender=Contestant)
-def remove_track_from_influx(sender, instance: NavigationTask, **kwargs):
-    from influx_facade import InfluxFacade
-
-    influx = InfluxFacade()
-    influx.clear_data_for_contestant(instance.pk)
 
 
 @receiver(post_save, sender=Contestant)

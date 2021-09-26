@@ -1,4 +1,3 @@
-import base64
 import datetime
 import json
 from queue import Queue
@@ -21,9 +20,7 @@ from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestan
     Contest, Person, TrackScoreOverride, GateScoreOverride
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 from display.views import create_precision_route_from_csv
-from influx_facade import InfluxFacade
 from mock_utilities import TraccarMock
-from playback_tools import insert_gpx_file
 
 
 def load_track_points(filename):
@@ -81,7 +78,6 @@ class TestFullTrack(TransactionTestCase):
     def test_correct_scoring_correct_track_precision(self, patch):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in positions:
             i["deviceId"] = ""
@@ -147,7 +143,6 @@ class TestFullTrack(TransactionTestCase):
         self.contestant.save()
         self.contestant.gate_score_override.add(gate_override)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in positions:
             i["deviceId"] = ""
@@ -178,7 +173,6 @@ class TestFullTrack(TransactionTestCase):
                                                wind_direction=165, wind_speed=8)
         positions = load_track_points("display/calculators/tests/Helge.gpx")
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(contestant, q, live_processing=False)
         for i in positions:
             i["deviceId"] = ""
@@ -195,7 +189,6 @@ class TestFullTrack(TransactionTestCase):
     def test_correct_scoring_bad_track_precision(self, patch):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in positions:
             i["deviceId"] = ""
@@ -213,7 +206,6 @@ class TestFullTrack(TransactionTestCase):
     def test_missed_procedure_turn(self, patch):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in positions:
             i["deviceId"] = ""
@@ -277,7 +269,6 @@ class Test2017WPFC(TransactionTestCase):
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=18)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -323,9 +314,6 @@ class TestScoreverride(TransactionTestCase):
         with open("display/calculators/tests/bugs_with_gate_score_overrides_track.json", "r") as file:
             track_data = json.load(file)
         contestant = self.navigation_task.contestant_set.first()
-        influx = InfluxFacade()
-        influx.client = Mock()
-        insert_gpx_file(contestant, base64.decodebytes(track_data["track_file"].encode("utf-8")), influx)
 
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
 
@@ -373,7 +361,6 @@ class TestNM2019(TransactionTestCase):
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -402,7 +389,6 @@ class TestNM2019(TransactionTestCase):
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -460,7 +446,6 @@ class TestHamar23March2021(TransactionTestCase):
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -488,7 +473,6 @@ class TestHamar23March2021(TransactionTestCase):
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -516,7 +500,6 @@ class TestHamar23March2021(TransactionTestCase):
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -544,7 +527,6 @@ class TestHamar23March2021(TransactionTestCase):
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""

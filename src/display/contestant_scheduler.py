@@ -161,7 +161,7 @@ class Solver:
             return np.amax([
                 next_crew_available.get(team.member1, earliest_slot),
                 next_crew_available.get(team.member2, earliest_slot),
-                next_tracker_available.get(team.get_tracker_id(), earliest_slot),
+                next_tracker_available.get(team.get_tracker_ids(), earliest_slot),
                 next_aircraft_available.get(team.aircraft_registration, earliest_slot),
                 earliest_slot
             ])

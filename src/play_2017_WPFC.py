@@ -17,11 +17,9 @@ from display.convert_flightcontest_gpx import create_precision_route_from_gpx
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, Person, \
     ContestTeam, TRACCAR
-from influx_facade import InfluxFacade
 from display.calculators.calculator_factory import calculator_factory
 from playback_tools import insert_gpx_file
 
-influx = InfluxFacade()
 
 server = 'traccar:5055'
 # server = 'localhost:5055'
@@ -97,5 +95,3 @@ for file in glob.glob("../data/demo_contests/2017_WPFC/*_Results_*.gpx"):
                                                   air_speed=speed,
                                                   wind_direction=160, wind_speed=18)
     print(navigation_task.pk)
-    with open(file, "r") as i:
-        insert_gpx_file(contestant_object, i, influx)

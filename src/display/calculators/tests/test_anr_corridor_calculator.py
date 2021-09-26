@@ -1,7 +1,6 @@
 import datetime
 import threading
 from multiprocessing import Queue
-from typing import List, Tuple
 from unittest.mock import Mock, patch, call
 
 import dateutil
@@ -16,7 +15,6 @@ from display.calculators.tests.utilities import load_traccar_track
 from display.convert_flightcontest_gpx import create_anr_corridor_route_from_kml
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Person, Team, Contestant, ContestantTrack, \
     TrackScoreOverride
-from influx_facade import InfluxFacade
 from mock_utilities import TraccarMock
 
 
@@ -64,7 +62,6 @@ class TestANRPerLeg(TransactionTestCase):
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -103,7 +100,6 @@ class TestANRPerLeg(TransactionTestCase):
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=True)
         for i in track:
             i["deviceId"] = ""
@@ -144,7 +140,6 @@ class TestANRPerLeg(TransactionTestCase):
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=True)
         for i in track:
             i["deviceId"] = ""
@@ -173,7 +168,6 @@ class TestANRPerLeg(TransactionTestCase):
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -239,7 +233,6 @@ class TestANR(TransactionTestCase):
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -271,7 +264,6 @@ class TestANR(TransactionTestCase):
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -472,7 +464,6 @@ class TestANRPolygon(TransactionTestCase):
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=0)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -528,7 +519,6 @@ class TestANRBergenBacktracking(TransactionTestCase):
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=18)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""
@@ -586,7 +576,6 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
                                                     air_speed=speed, wind_direction=340,
                                                     wind_speed=15)
         q = Queue()
-        influx = InfluxFacade()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
             i["deviceId"] = ""

@@ -1,14 +1,10 @@
 import datetime
-import glob
 import os
 import time
-from collections import OrderedDict
 from urllib.parse import urlencode
 
-import gpxpy
 import requests
 
-from display.calculators.calculator_utilities import load_track_points_traccar_csv
 from display.calculators.tests.utilities import load_traccar_track
 
 if __name__ == "__main__":
@@ -17,14 +13,9 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.convert_flightcontest_gpx import create_precision_route_from_csv
-from traccar_facade import Traccar
-from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
     TraccarCredentials, Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE, TRACKING_PILOT
-from influx_facade import InfluxFacade
 
-influx = InfluxFacade()
 server = 'traccar:5055'
 
 NUMBER_OF_CONTESTANTS = 50

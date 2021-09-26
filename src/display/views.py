@@ -201,7 +201,6 @@ from display.serialisers import (
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track, generate_and_notify_flight_order
 from display.traccar_factory import get_traccar_instance
-from influx_facade import InfluxFacade
 from live_tracking_map import settings
 from live_tracking_map.settings import REDIS_HOST
 from websocket_channels import WebsocketFacade
@@ -1226,16 +1225,13 @@ def cached_generate_data(contestant_pk) -> Dict:
     return _generate_data(contestant_pk)
 
 
-influx = InfluxFacade()
 
 
 def _generate_data(contestant_pk):
     LIMIT = None
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
     from_time_datetime = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
-    result_set = influx.get_positions_for_contestant(contestant_pk, from_time_datetime, limit=LIMIT)
-    logger.info("Completed fetching positions for {}".format(contestant.pk))
-    position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
+    position_data = contestant.get_track()
     if len(position_data) > 0:
         global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
     else:
@@ -2544,9 +2540,8 @@ class ContestantViewSet(ModelViewSet):
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         contestant_track = contestant.contestanttrack
-        result_set = influx.get_positions_for_contestant(pk, contestant.tracker_start_time)
-        logger.info("Completed fetching positions for {}".format(contestant.pk))
-        position_data = list(result_set.get_points(tags={"contestant": str(contestant.pk)}))
+
+        position_data = contestant.get_track()
         contestant_track.track = position_data
         serialiser = ContestantTrackWithTrackPointsSerialiser(contestant_track)
         return Response(serialiser.data)
@@ -2558,8 +2553,6 @@ class ContestantViewSet(ModelViewSet):
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         contestant.reset_track_and_score()
-        # Not required, covered by delete above
-        # influx.clear_data_for_contestant(contestant.pk)
         track_file = request.data.get("track_file", None)
         if not track_file:
             raise ValidationError("Missing track_file")

@@ -16,8 +16,6 @@ from display.coordinate_utilities import line_intersect, fraction_of_leg, Projec
 from display.models import ContestantTrack, Contestant
 from display.waypoint import Waypoint
 
-if TYPE_CHECKING:
-    from influx_facade import InfluxFacade
 
 logger = logging.getLogger(__name__)
 

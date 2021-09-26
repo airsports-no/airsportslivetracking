@@ -110,19 +110,22 @@ def process_beacon(raw_message):
                                                               aircraft_type=beacon["aircraft_type"]))
         # print('Received {aprs_type}: {raw_message}'.format(**beacon))
         # print('Received {beacon_type} from {name}'.format(**beacon))
-    except ParseError as e:
+    except (ParseError, AttributeError) as e:
         logger.exception("Parse error")
 
 
 if __name__ == "__main__":
+    logger.info("OGN consumer starting")
     redis = StrictRedis(REDIS_HOST, REDIS_PORT, password=REDIS_PASSWORD)
     # redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
     redis.delete(REDIS_GLOBAL_POSITIONS_KEY)
     client = AprsClient(aprs_user='N0CALL')
     client.connect()
+    logger.info("OGN consumer connected client")
 
     try:
         client.run(callback=process_beacon, autoreconnect=True)
     except KeyboardInterrupt:
         print('\nStop ogn gateway')
         client.disconnect()
+    logger.info("OGN consumer terminating")

@@ -7,12 +7,10 @@ from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
 
 from display.generate_flight_orders import generate_flight_orders
-from influx_facade import InfluxFacade
 from display.models import Contestant, EmailMapLink, MyUser
 from live_tracking_map.celery import app
 from playback_tools import insert_gpx_file
 
-influx = InfluxFacade()
 logger = logging.getLogger(__name__)
 
 
@@ -38,7 +36,7 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
     except ObjectDoesNotExist:
         logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
         return
-    insert_gpx_file(contestant, gpx_file.encode("utf-8"), influx)
+    insert_gpx_file(contestant, gpx_file.encode("utf-8"))
 
 
 @app.task

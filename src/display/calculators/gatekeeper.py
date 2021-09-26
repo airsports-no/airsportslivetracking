@@ -20,7 +20,6 @@ from display.coordinate_utilities import line_intersect, fraction_of_leg, Projec
 from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry, TraccarCredentials
 from display.waypoint import Waypoint
 
-from influx_facade import InfluxFacade
 from traccar_facade import Traccar
 
 logger = logging.getLogger(__name__)
@@ -66,7 +65,6 @@ class Gatekeeper(ABC):
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.position_queue = position_queue
         self.last_termination_command_check = None
-        self.influx = InfluxFacade()
         self.track = []  # type: List[Position]
         self.score = 0
         self.has_passed_finishpoint = False
@@ -176,8 +174,6 @@ class Gatekeeper(ABC):
                             -1].time >= p.time):
                     # Old or duplicate position, ignoring
                     continue
-                if self.live_processing:
-                    self.influx.put_position_data_for_contestant(self.contestant, [data])
                 for position in self.interpolate_track(p):
                     self.track.append(position)
                     if len(self.track) > 1:

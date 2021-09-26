@@ -4,7 +4,6 @@ import glob
 import os
 import time
 from collections import OrderedDict
-from urllib.parse import urlencode
 
 import gpxpy
 import requests
@@ -16,14 +15,12 @@ if __name__ == "__main__":
     django.setup()
 
 from display.convert_flightcontest_gpx import create_precision_route_from_csv
-from playback_tools import build_traccar_track, load_data_traccar, insert_gpx_file
+from playback_tools import build_traccar_track, load_data_traccar
 from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
     TraccarCredentials, Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE
-from influx_facade import InfluxFacade
 
-influx = InfluxFacade()
 
 maximum_index = 0
 tracks = {}
@@ -68,9 +65,6 @@ name = "Demo contest"
 scorecard = get_default_scorecard()
 original_contest = Contest.objects.filter(name=name).first()
 if original_contest:
-    for contestant in Contestant.objects.filter(navigation_task__contest=original_contest):
-        influx.clear_data_for_contestant(contestant.pk)
-
     original_contest.delete()
 aeroplane, _ = Aeroplane.objects.get_or_create(registration="LN-YDB")
 today = datetime.datetime.now(datetime.timezone.utc)

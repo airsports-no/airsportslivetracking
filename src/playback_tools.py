@@ -11,7 +11,6 @@ import requests
 import gpxpy
 
 from display.calculators.calculator_factory import calculator_factory
-from influx_facade import InfluxFacade
 
 if TYPE_CHECKING:
     from display.models import Contestant
@@ -79,7 +78,7 @@ def load_data_traccar(tracks, offset=30, leadtime=0, round_sleep=0.2):
             break
 
 
-def insert_gpx_file(contestant_object: "Contestant", file, influx: InfluxFacade):
+def insert_gpx_file(contestant_object: "Contestant", file):
     gpx = gpxpy.parse(file)
     positions = []
     for track in gpx.tracks:
