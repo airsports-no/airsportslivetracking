@@ -2,11 +2,9 @@ import logging
 from datetime import timedelta, datetime
 from typing import Tuple, List, Optional
 
-import dateutil
-
-from display.convert_flightcontest_gpx import Waypoint
 from display.coordinate_utilities import line_intersect, fraction_of_leg, calculate_bearing, nv_intersect, \
     Projector, bearing_difference
+from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
 

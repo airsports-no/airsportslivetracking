@@ -36,6 +36,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from solo.models import SingletonModel
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
+from display.calculators.positions_and_gates import Position
 from display.coordinate_utilities import bearing_difference
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.my_pickled_object_field import MyPickledObjectField
@@ -1769,7 +1770,10 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         if self.tracking_device == TRACKING_DEVICE:
             return [self.tracker_device_id]
         if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
-            return [self.team.crew.member1.app_tracking_id, self.team.crew.member2.app_tracking_id]
+            trackers = [self.team.crew.member1.app_tracking_id]
+            if self.team.crew.member2 is not None:
+                trackers.append(self.team.crew.member2.app_tracking_id)
+            return trackers
         if self.tracking_device == TRACKING_COPILOT:
             return [self.team.crew.member2.app_tracking_id]
         logger.error(
@@ -1912,7 +1916,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                   device_id in device_ids]
         return merge_tracks(tracks)
 
-    def get_latest_position(self) -> Optional[Dict]:
+    def get_latest_position(self) -> Optional[Position]:
         try:
             return self.get_track()[-1]
         except IndexError:
@@ -2185,8 +2189,8 @@ class PlayingCard(models.Model):
         longitude = 0
         latitude = 0
         if pos:
-            latitude = pos["latitude"]
-            longitude = pos["longitude"]
+            latitude = pos.latitude
+            longitude = pos.longitude
         TrackAnnotation.create_and_push(
             contestant=contestant,
             latitude=latitude,

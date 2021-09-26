@@ -196,7 +196,7 @@ from display.serialisers import (
     SharingSerialiser,
     SelfManagementSerialiser,
     OngoingNavigationSerialiser,
-    EditableRouteSerialiser,
+    EditableRouteSerialiser, PositionSerialiser,
 )
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track, generate_and_notify_flight_order
@@ -1227,23 +1227,21 @@ def cached_generate_data(contestant_pk) -> Dict:
 
 def _generate_data(contestant_pk):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
-    from_time_datetime = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
     position_data = contestant.get_track()
     if len(position_data) > 0:
-        global_latest_time = dateutil.parser.parse(position_data[-1]["time"])
+        global_latest_time = position_data[-1].time
     else:
-        global_latest_time = from_time_datetime
-    annotations = TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data
+        global_latest_time = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
     progress = 0
     for index, item in enumerate(position_data):
         if index % 30 == 0:
-            progress = contestant.calculate_progress(dateutil.parser.parse(item["time"]), ignore_finished=True)
+            progress = contestant.calculate_progress(item.time, ignore_finished=True)
         item.progress = progress
-    logger.info("Completed generating data {}".format(contestant.pk))
+    logger.info("Completed generating data {} with {} positions".format(contestant.pk, len(position_data)))
     data = generate_contestant_data_block(
         contestant,
-        positions=position_data,
-        annotations=annotations,
+        positions=PositionSerialiser(position_data, many=True).data,
+        annotations=TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data,
         log_entries=ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data,
         latest_time=global_latest_time,
         gate_scores=GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
