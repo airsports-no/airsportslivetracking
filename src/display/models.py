@@ -2408,7 +2408,7 @@ ____________________________________________________________
         return str(self.contestant) + " " + str(self.contestant.navigation_task)
 
     def send_email(self, email_address: str, first_name: str):
-        logger.info(f"Sending sending email to {email_address}")
+        logger.info(f"Sending email to {email_address}")
         url = "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
         starting_point_time = self.contestant.takeoff_time + datetime.timedelta(
             minutes=self.contestant.navigation_task.minutes_to_starting_point
