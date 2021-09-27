@@ -20,5 +20,30 @@ functionality is to be done. Web interface with map generation will work without
   1. Log into your local tracker instance, localhost:8082, by creating a new user.
   2. Click on the cog in the upper right-hand corner and select account.
   3. Click permissions and copy the token present in the "Token" field.
-  4. Go to your mom, admin interface at localhost:8002/admin and click Traccar credentials.
+  4. Go to your management interface at localhost:8002/admin and click Traccar credentials.
   5. Enter the copied token into the "Token" field and click save
+
+## Backup databases
+docker exec -it mysql bash
+mysqldump -p tracker>tracker.sql
+mysqldump -p traccar>traccar.sql
+exit
+
+## Restore databases
+kubectl port-forward --address 0.0.0.0 my-test5-mysql 3306:3306 &>/dev/null
+kubectl cp db_20210927.tar.gz my-test5-mysql-0:/tmp/db.tar.gz -c mysql
+kubectl exec -it my-test5-mysql-0 -c mysql bash
+
+mysql -h localhost -u root -p --protocol tcp
+mysql -u root -p
+drop database tracker;
+create database tracker;
+
+drop database traccar;
+create database traccar;
+
+set global net_buffer_length=10000000; 
+set global max_allowed_packet=10000000000;
+
+mysql -u root -p --max_allowed_packet=2000M tracker < tracker.sql
+mysql -u root -p --max_allowed_packet=2000M traccar < traccar.sql

@@ -1,3 +1,4 @@
+import dateutil.parser
 import rest_framework.exceptions as drf_exceptions
 import datetime
 import logging
@@ -1807,7 +1808,8 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             )
         return devices
 
-    def generate_position_block_for_contestant(self, position_data: Dict, device_time: datetime.datetime) -> Dict:
+    @staticmethod
+    def generate_position_block_for_contestant(position_data: Dict, device_time: datetime.datetime) -> Dict:
         return {
             "time": device_time,
             "latitude": float(position_data["latitude"]),
@@ -1912,8 +1914,11 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
     def get_track(self) -> List["Position"]:
         traccar = Traccar.create_from_configuration(TraccarCredentials.get_solo())
         device_ids = traccar.get_device_ids_for_contestant(self)
-        tracks = [[Position(**item) for item in traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time)] for
-                  device_id in device_ids]
+
+        tracks = [
+            [Position(**self.generate_position_block_for_contestant(item, dateutil.parser.parse(item["deviceTime"]))) for
+             item in traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time)] for
+            device_id in device_ids]
         return merge_tracks(tracks)
 
     def get_latest_position(self) -> Optional[Position]:

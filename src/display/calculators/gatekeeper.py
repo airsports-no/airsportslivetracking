@@ -167,7 +167,6 @@ class Gatekeeper(ABC):
                                                                               buffered_position["device_time"])
 
                 p = Position(**data)
-                all_positions.append(p)
                 if self.latest_position_report is None:
                     self.latest_position_report = p.time
                 else:
@@ -178,6 +177,7 @@ class Gatekeeper(ABC):
                             -1].time >= p.time):
                     # Old or duplicate position, ignoring
                     continue
+                all_positions.append(p)
                 for position in self.interpolate_track(p):
                     self.track.append(position)
                     if len(self.track) > 1:

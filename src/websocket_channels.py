@@ -117,11 +117,11 @@ class WebsocketFacade:
     def transmit_navigation_task_position_data(self, contestant: "Contestant", positions: List["Position"]):
         if len(positions) == 0:
             return
-        position_data = PositionSerialiser(instance=positions, many=True).data
+        position_data = PositionSerialiser(positions, many=True).data
         channel_data = generate_contestant_data_block(
             contestant,
             positions=position_data,
-            latest_time=position_data.time,
+            latest_time=positions[-1].time,
         )
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         async_to_sync(self.channel_layer.group_send)(

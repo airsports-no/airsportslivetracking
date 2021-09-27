@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class Position:
-    def __init__(self, time, latitude, longitude, altitude, speed, course, battery_level):
+    def __init__(self, time, latitude, longitude, altitude, speed, course, battery_level, **kwargs):
         self.time = time
         self.latitude = latitude
         self.longitude = longitude

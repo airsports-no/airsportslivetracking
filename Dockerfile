@@ -40,6 +40,8 @@ COPY --chown=django:django reactjs /reactjs
 #RUN cd / && npm run webpack
 COPY --chown=django:django src /src
 
+COPY --chown=django:django data /data
+
 RUN mkdir /logs
 RUN chown django /logs
 # Need to download new version for Ubuntu 20.04

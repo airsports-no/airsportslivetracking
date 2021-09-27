@@ -4,8 +4,6 @@ from queue import Queue
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
-import dateutil
-from django.core.cache import cache
 
 import requests
 import gpxpy
@@ -15,7 +13,9 @@ from display.calculators.calculator_factory import calculator_factory
 if TYPE_CHECKING:
     from display.models import Contestant
 
-server = "traccar:5055"
+import os
+TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
+server = f"{TRACCAR_HOST}:5055"
 
 
 # server = 'localhost:5055'

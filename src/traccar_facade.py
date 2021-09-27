@@ -72,6 +72,7 @@ class Traccar:
             return response.json()
         else:
             logger.error(f"Failed fetching positions for device {device_id}, {response.text}")
+            return []
 
     def get_device_ids_for_contestant(self, contestant: "Contestant") -> List[int]:
         devices = []

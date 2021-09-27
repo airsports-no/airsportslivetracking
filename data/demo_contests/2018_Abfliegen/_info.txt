@@ -1,7 +1,0 @@
-Competition: Abfliegen 2018
-
-Legs: 7
-Procedure turns: Yes (4)
-Curved legs: No
-Secret check points: Yes (5)
-
