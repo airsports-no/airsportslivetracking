@@ -68,12 +68,12 @@ class Solver:
 
         self.__create_obvious_solution()
         self.problem.writeLP("problem.lp")
-        logger.info("Running solve")
+        logger.debug("Running solve")
         # status = self.problem.solve(pulp.SCIP_CMD(timeLimit=600))
         status = self.problem.solve(pulp.PULP_CBC_CMD(maxSeconds=600, warmStart=True))
         status = pulp.LpStatusOptimal
-        logger.info("Solver executed, solution status {}, {}".format(status, pulp.LpStatus[status]))
-        logger.info(f"Objective function value: {pulp.value(self.problem.objective)}")
+        logger.debug("Solver executed, solution status {}, {}".format(status, pulp.LpStatus[status]))
+        logger.debug(f"Objective function value: {pulp.value(self.problem.objective)}")
         if status == pulp.LpStatusOptimal:
             return self.__generate_takeoff_times_from_solution()
         return []
@@ -90,12 +90,12 @@ class Solver:
     def dump_solution(self):
         teams = sorted(self.teams, key=lambda t: t.start_slot if t.start_slot else -1)
         for team in teams:
-            logger.info(f"Team {team} will start in slot {team.start_slot} at {team.start_time}")
+            logger.debug(f"Team {team} will start in slot {team.start_slot} at {team.start_time}")
 
 
 
     def __initiate_problem(self):
-        logger.info("Initiating problem")
+        logger.debug("Initiating problem")
         self.problem = pulp.LpProblem("Minimise contest time", pulp.LpMinimize)
         self.start_slot_numbers = pulp.LpVariable.dicts(
             "start_slot_numbers",
@@ -209,7 +209,7 @@ class Solver:
         self.__initialise_extra_variables(latest_finish)
 
     def __nonoverlapping_aircraft(self):
-        logger.info("Nonoverlapping aircraft")
+        logger.debug("Nonoverlapping aircraft")
         overlapping_aircraft = {}
         for team in self.teams:
             if team.aircraft_registration not in overlapping_aircraft:
@@ -267,7 +267,7 @@ class Solver:
                 self.tracker_team_variables[name].setInitialValue(1)
 
     def __nonoverlapping_trackers(self):
-        logger.info("Nonoverlapping trackers")
+        logger.debug("Nonoverlapping trackers")
         overlapping_trackers = {}
         for team in self.teams:
             if team.aircraft_registration not in overlapping_trackers:
@@ -300,7 +300,7 @@ class Solver:
                                                 f"{team.pk}_{other_team.pk}"]) <= 0, f"other_use_tracker_before_team_{team.pk}_{other_team.pk}"
 
     def __minimum_interval_between_teams(self):
-        logger.info("Minimum interval between teams")
+        logger.debug("Minimum interval between teams")
         for index in range(len(self.teams)):
             team = self.teams[index]
             for other_index in range(index + 1, len(self.teams)):

@@ -417,7 +417,6 @@ class SignupSerialiser(serializers.Serializer):
 
         contest_team = validated_data["contest_team"]
         original_team = contest_team.team
-        logger.info(f"Updating contest team {contest_team.pk} {contest_team}")
         teams = ContestTeam.objects.filter(
             Q(team__crew__member1=request.user.pk) | Q(team__crew__member2=request.user.pk), contest=contest
         ).exclude(pk=contest_team.pk)
@@ -443,21 +442,17 @@ class SignupSerialiser(serializers.Serializer):
             validated_data["club_name"],
         )
         new_contest_team = contest.replace_team(original_team, team, {"air_speed": validated_data["airspeed"]})
-        logger.info(f"Updated contest team {new_contest_team.pk} {new_contest_team}")
 
         return new_contest_team
 
     def create(self, validated_data):
         request = self.context["request"]
-        print(validated_data["copilot_id"])
         team = Team.get_or_create_from_signup(
             self.context["request"].user,
             validated_data["copilot_id"],
             validated_data["aircraft_registration"],
             validated_data["club_name"],
         )
-        print(team)
-        logger.info(f"Creating new contest team for team {team}")
 
         contest = self.context["contest"]
         if ContestTeam.objects.filter(contest=contest, team=team).exists():

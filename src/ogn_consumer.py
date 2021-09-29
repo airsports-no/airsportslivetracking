@@ -79,12 +79,12 @@ def process_beacon(raw_message):
     global message_count, count_timestamp
     message_count += 1
     now = time.time()
-    if now>count_timestamp + 10:
+    if now>count_timestamp + 60:
         logger.info(f"Messages per second: {message_count/(now-count_timestamp)}")
         message_count = 0
         count_timestamp = now
     if raw_message[0] == '#':
-        logger.info('Server Status: {}'.format(raw_message))
+        # logger.info('Server Status: {}'.format(raw_message))
         return
 
     try:

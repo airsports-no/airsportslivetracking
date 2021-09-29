@@ -140,8 +140,8 @@ def live_position_transmitter_process(queue):
 
 def on_message(ws, message):
     data = json.loads(message)
-    for item in data.get("positions", []):
-        logger.debug(f"Received position ID {item['id']} for device ID {item['deviceId']}")
+    # for item in data.get("positions", []):
+    #     logger.debug(f"Received position ID {item['id']} for device ID {item['deviceId']}")
     processing_queue.put(data)
 
 

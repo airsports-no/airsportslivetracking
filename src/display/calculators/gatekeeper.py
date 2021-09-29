@@ -121,7 +121,7 @@ class Gatekeeper(ABC):
             # Wait for some time to have intermediate positions ready in the database
             time.sleep(min(time_difference, 15))
             # Get positions in between
-            logger.info(
+            logger.debug(
                 f"{self.contestant}: Position time difference is more than 3 seconds ({self.latest_position_report.strftime('%H:%M:%S')} to {current_time.strftime('%H:%M:%S')} = {time_difference}), so fetching missing data from traccar.")
             positions = self.traccar.get_positions_for_device_id(position_data["deviceId"],
                                                                  self.latest_position_report + datetime.timedelta(
@@ -129,9 +129,9 @@ class Gatekeeper(ABC):
                                                                  current_time - datetime.timedelta(seconds=1))
             for item in positions:
                 item["device_time"] = dateutil.parser.parse(item["deviceTime"])
-            logger.info(f"{self.contestant}: Retrieved {len(positions)} additional positions")
+            logger.debug(f"{self.contestant}: Retrieved {len(positions)} additional positions")
             if len(positions) > 0:
-                logger.info(
+                logger.debug(
                     f"{self.contestant}: For the interval {positions[0]['device_time'].strftime('%H:%M:%S')} - {positions[-1]['device_time'].strftime('%H:%M:%S')}")
             return positions + [position_data]
         return [position_data]
@@ -160,7 +160,7 @@ class Gatekeeper(ABC):
                 # Signal the track processor that this is the end, and perform the track calculation
                 self.notify_termination()
                 continue
-            logger.debug(f"Processing position ID {position_data['id']} for device ID {position_data['deviceId']}")
+            # logger.debug(f"Processing position ID {position_data['id']} for device ID {position_data['deviceId']}")
 
             buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
             all_positions = []
@@ -183,7 +183,7 @@ class Gatekeeper(ABC):
                 for position in self.interpolate_track(p):
                     self.track.append(position)
                     if len(self.track) > 1:
-                        logger.debug(f"Calculating score for position ID {position.position_id} for device ID {position.device_id}")
+                        # logger.debug(f"Calculating score for position ID {position.position_id} for device ID {position.device_id}")
                         self.calculate_score()
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
         self.contestant.contestanttrack.set_calculator_finished()

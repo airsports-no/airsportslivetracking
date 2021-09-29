@@ -11,7 +11,7 @@ import gpxpy
 from display.calculators.calculator_factory import calculator_factory
 
 if TYPE_CHECKING:
-    from display.models import Contestant
+    from display.models import Contestant, ContestantUploadedTrack
 
 import os
 TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
@@ -97,6 +97,11 @@ def insert_gpx_file(contestant_object: "Contestant", file):
                             "device_time": point.time,
                         }
                     )
+    try:
+        contestant_object.contestantuploadedtrack.delete()
+    except:
+        pass
+    ContestantUploadedTrack.objects.create(contestant = contestant_object, track = positions)
     # generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
     # influx.put_position_data_for_contestant(contestant_object, positions)
     q = Queue()

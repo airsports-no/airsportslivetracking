@@ -42,7 +42,7 @@ class TrackingConsumer(WebsocketConsumer):
     def connect(self):
         self.navigation_task_pk = self.scope["url_route"]["kwargs"]["navigation_task"]
         self.navigation_task_group_name = "tracking_{}".format(self.navigation_task_pk)
-        logger.info(f"Current user {self.scope.get('user')}")
+        logger.debug(f"Current user {self.scope.get('user')}")
         async_to_sync(self.channel_layer.group_add)(self.navigation_task_group_name, self.channel_name)
         self.groups.append(self.navigation_task_group_name)
         try:
@@ -68,7 +68,6 @@ class TrackingConsumer(WebsocketConsumer):
 
     def receive(self, text_data, **kwargs):
         message = json.loads(text_data)
-        logger.info(message)
 
     def tracking_data(self, event):
         data = event["data"]
@@ -108,7 +107,6 @@ class GlobalConsumer(WebsocketConsumer):
             self.safe_sky_timer.cancel()
 
     def receive(self, text_data, **kwargs):
-        logger.info(text_data)
         message = json.loads(text_data)
         message_type = message.get("type")
         if message_type == "location":
@@ -119,7 +117,7 @@ class GlobalConsumer(WebsocketConsumer):
             ):
                 self.location = (message.get("latitude"), message.get("longitude"))
                 self.range = message.get("range") * 1000
-                logger.info(f"Setting position to {self.location} with range {self.range}")
+                logger.debug(f"Setting position to {self.location} with range {self.range}")
                 self.bounding_box = calculate_bounding_box(self.location, self.range)
             else:
                 self.location = None
@@ -155,7 +153,7 @@ class ContestResultsConsumer(WebsocketConsumer):
 
     def receive(self, text_data, **kwargs):
         message = json.loads(text_data)
-        logger.info(message)
+        logger.debug(message)
 
     def contestresults(self, event):
         self.send(text_data=json.dumps(event["content"], cls=DateTimeEncoder))

@@ -68,7 +68,7 @@ class Traccar:
             self.base + "/api/positions",
             params={"deviceId": device_id, "from": start_time.isoformat(), "to": finish_time.isoformat()},
         )
-        logger.info(f"Fetching data from traccar: {response.url}")
+        logger.debug(f"Fetching data from traccar: {response.url}")
         if response.status_code == 200:
             return response.json()
         else:
@@ -143,7 +143,7 @@ class Traccar:
 
     def update_device_name(self, device_name: str, identifier: str) -> bool:
         existing_device = self.get_device(identifier)
-        logger.info(f" Found existing device {existing_device}")
+        logger.debug(f" Found existing device {existing_device}")
         if existing_device is None:
             logger.warning("Failed fetching assumed to be existing device {}".format(identifier))
             return False
@@ -154,7 +154,7 @@ class Traccar:
         if response.status_code != 200:
             logger.error(f"Failed updating device name because of: {response.status_code} {response.text}")
             return False
-        logger.info(f"Updated device name for {identifier} to {device_name}")
+        logger.debug(f"Updated device name for {identifier} to {device_name}")
         return True
 
     def get_or_create_device(self, device_name, identifier) -> Tuple[Dict, bool]:

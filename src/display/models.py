@@ -1920,6 +1920,8 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         return True
 
     def get_track(self) -> List["Position"]:
+        if hasattr(self, "contestantuploadedtrack"):
+            return [Position(**item) for item in self.contestantuploadedtrack.track]
         traccar = Traccar.create_from_configuration(TraccarCredentials.get_solo())
         device_ids = traccar.get_device_ids_for_contestant(self)
 
@@ -1928,7 +1930,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
              for
              item in traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time)] for
             device_id in device_ids]
-        logger.info(f"Returned {len(tracks)} with lengths {', '.join([str(len(item)) for item in tracks])}")
+        logger.debug(f"Returned {len(tracks)} with lengths {', '.join([str(len(item)) for item in tracks])}")
         return merge_tracks(tracks)
 
     def get_latest_position(self) -> Optional[Position]:
@@ -1955,6 +1957,11 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         self.actualgatetime_set.all().delete()
         self.contestanttrack.delete()
         ContestantTrack.objects.create(contestant=self)
+
+
+class ContestantUploadedTrack(models.Model):
+    contestant = models.OneToOneField(Contestant, on_delete=models.CASCADE)
+    track = MyPickledObjectField(default=list, help_text="List of traccar position reports (Dict)")
 
 
 class ScoreLogEntry(models.Model):
@@ -2795,22 +2802,22 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         while existing:
             app_random_string = generate_random_string(28)
             simulator_random_string = generate_random_string(28)
-            logger.info(f"Generated random string {app_random_string} for person {instance}")
+            logger.debug(f"Generated random string {app_random_string} for person {instance}")
             existing = Person.objects.filter(
                 Q(app_tracking_id=app_random_string) | Q(simulator_tracking_id=simulator_random_string)
             ).exists()
         instance.app_tracking_id = app_random_string
         instance.simulator_tracking_id = simulator_random_string
-        logger.info(f"Assigned random string {instance.app_tracking_id} to person {instance}")
+        logger.debug(f"Assigned random string {instance.app_tracking_id} to person {instance}")
         device, created = traccar.get_or_create_device(str(instance), instance.app_tracking_id)
-        logger.info(f"Traccar device {device} was created: {created}")
+        logger.debug(f"Traccar device {device} was created: {created}")
         if created and original_tracking_id is not None and original_tracking_id != instance.app_tracking_id:
             original_device = traccar.get_device(original_tracking_id)
             if original_device is not None:
-                logger.info(f"Clearing original device {original_device}")
+                logger.debug(f"Clearing original device {original_device}")
                 traccar.delete_device(original_device["id"])
         device, created = traccar.get_or_create_device(str(instance) + " simulator", instance.simulator_tracking_id)
-        logger.info(f"Traccar device {device} was created: {created}")
+        logger.debug(f"Traccar device {device} was created: {created}")
         if (
                 created
                 and simulator_original_tracking_id is not None
@@ -2818,7 +2825,7 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         ):
             original_device = traccar.get_device(simulator_original_tracking_id)
             if original_device is not None:
-                logger.info(f"Clearing original device {original_device}")
+                logger.debug(f"Clearing original device {original_device}")
                 traccar.delete_device(original_device["id"])
     else:
         original = Person.objects.get(pk=instance.pk)

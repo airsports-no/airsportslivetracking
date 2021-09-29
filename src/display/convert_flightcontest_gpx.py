@@ -146,7 +146,7 @@ def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
                 # print('Point {3} at ({0},{1}) -> {2}'.format(point.latitude, point.longitude, point.elevation,
                 #                                              point.name))
                 route_name = route.name
-                logger.info("Loading GPX route {}".format(route_name))
+                logger.debug("Loading GPX route {}".format(route_name))
                 for point in route.points:
                     waypoint_map[point.name] = Waypoint(point.name)
                     waypoints.append(waypoint_map[point.name])

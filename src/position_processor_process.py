@@ -102,7 +102,7 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
             p.start()
     queue = processes[key][0]  # type: Queue
     for position in positions:
-        logger.debug(f"Adding position ID {position['id']} for device ID {position['deviceId']} to calculator")
+        # logger.debug(f"Adding position ID {position['id']} for device ID {position['deviceId']} to calculator")
         queue.put(position)
 
 
@@ -138,7 +138,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
             last_seen = cache.get(last_seen_key)
             if last_seen == device_time or device_time < now - datetime.timedelta(hours=14):
                 # If we have seen it or it is really old, ignore it
-                logger.info(f"Received repeated position, disregarding: {device_name} {device_time}")
+                logger.debug(f"Received repeated position, disregarding: {device_name} {device_time}")
                 continue
         cache.set(last_seen_key, device_time)
         # print(device_time)
@@ -150,9 +150,9 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
             contestant = None
             is_simulator = True
         if contestant:
-            logger.debug(
-                f"Mapped position ID {position_data['id']} for device ID {position_data['deviceId']} to contestant {contestant}"
-            )
+            # logger.debug(
+            #     f"Mapped position ID {position_data['id']} for device ID {position_data['deviceId']} to contestant {contestant}"
+            # )
 
             try:
                 received_tracks[contestant].append(position_data)

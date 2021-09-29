@@ -1228,7 +1228,7 @@ def cached_generate_data(contestant_pk) -> Dict:
 
 def _generate_data(contestant_pk):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
-    logger.info("Fetching track for {} {}".format(contestant.pk, contestant))
+    logger.debug("Fetching track for {} {}".format(contestant.pk, contestant))
     position_data = contestant.get_track()
     if len(position_data) > 0:
         global_latest_time = position_data[-1].time
@@ -1239,7 +1239,7 @@ def _generate_data(contestant_pk):
         if index % 30 == 0:
             progress = contestant.calculate_progress(item.time, ignore_finished=True)
         item.progress = progress
-    logger.info(
+    logger.debug(
         "Completed generating data {} {} with {} positions".format(contestant.pk, contestant, len(position_data)))
     data = generate_contestant_data_block(
         contestant,
@@ -2152,10 +2152,7 @@ class ContestViewSet(ModelViewSet):
     def signup(self, request, *args, **kwargs):
         contest = self.get_object()
         if request.method == "POST":
-            logger.info(f"POSTING new contest team {request.data}")
             contest = None
-        else:
-            logger.info(f"UPDATING existing contest team {request.data}")
         serialiser = self.get_serializer(instance=contest, data=request.data)
         serialiser.is_valid(True)
         contest_team = serialiser.save()
