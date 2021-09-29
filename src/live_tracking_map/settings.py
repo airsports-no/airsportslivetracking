@@ -123,7 +123,7 @@ DRF_FIREBASE_AUTH = {
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -136,7 +136,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "live_tracking_map.urls"
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 CELERY_IMPORTS = "google_analytics.tasks"
 LOGOUT_REDIRECT_URL = "/"
@@ -262,7 +262,7 @@ LOGGING = {
         },
     },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "standard"},
+        "console": {"level": "INFO", "class": "logging.StreamHandler", "formatter": "standard"},
         "file": {
             "level": "DEBUG",
             "class": "logging.handlers.WatchedFileHandler",
@@ -358,8 +358,7 @@ CACHES = {
 CELERY_TIMEZONE = UTC
 CELERY_ENABLE_UTC = True
 CELERY_TASK_ACKS_LATE = False
-CELERY_BEAT_SCHEDULE = {
-}
+CELERY_BEAT_SCHEDULE = {}
 
 ASGI_APPLICATION = "live_tracking_map.asgi.application"
 CHANNEL_LAYERS = {
