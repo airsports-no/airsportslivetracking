@@ -52,13 +52,16 @@ WORKDIR /src
 ###### LABEL THE CURRENT IMAGE ######
 ARG GIT_COMMIT_HASH
 LABEL GIT_COMMIT_HASH=$GIT_COMMIT_HASH
+
+FROM tracker_base as tracker_init
+CMD [ "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD FLUSHALL" ]
+
+FROM tracker_base as tracker_web
 WORKDIR /
 RUN npm run webpack
 WORKDIR /src
 RUN python3 manage.py collectstatic --noinput
-
-FROM tracker_base as tracker_web
-CMD [ "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD FLUSHALL && python3 manage.py runserver 0.0.0.0:8002" ]
+CMD [ "bash", "-c", "/gunicorn.sh" ]
 
 FROM tracker_base as tracker_daphne
 CMD [ "bash", "-c", "/daphne.sh" ]

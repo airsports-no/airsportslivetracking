@@ -68,6 +68,7 @@ class Traccar:
             self.base + "/api/positions",
             params={"deviceId": device_id, "from": start_time.isoformat(), "to": finish_time.isoformat()},
         )
+        logger.info(f"Fetching data from traccar: {response.url}")
         if response.status_code == 200:
             return response.json()
         else:

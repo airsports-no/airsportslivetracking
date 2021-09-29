@@ -707,7 +707,7 @@ class NavigationTask(models.Model):
             route = self.editable_route.create_precision_route(self.route.use_procedure_turns)
         elif self.scorecard.calculator == Scorecard.ANR_CORRIDOR:
             route = self.editable_route.create_anr_route(
-                self.route.rounded_corners, self.scorecard.get_corridor_width(None)
+                self.route.rounded_corners, self.route.corridor_width
             )
         if route:
             old_route = self.route
@@ -1163,12 +1163,18 @@ class Scorecard(models.Model):
 
     ### ANR Corridor
     def get_corridor_width(self, contestant: "Contestant"):
+        """
+        contestant is not optional
+
+        :param contestant: not optional
+        :return:
+        """
         if contestant:
             override = contestant.get_track_score_override()
             if override:
                 if override.corridor_width is not None:
                     return override.corridor_width
-        return self.corridor_width
+            return contestant.navigation_task.route.corridor_width
 
     def get_corridor_grace_time(self, contestant: "Contestant"):
         if contestant:
@@ -1812,6 +1818,8 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
     def generate_position_block_for_contestant(position_data: Dict, device_time: datetime.datetime) -> Dict:
         return {
             "time": device_time,
+            "position_id": position_data["id"],
+            "device_id": position_data["deviceId"],
             "latitude": float(position_data["latitude"]),
             "longitude": float(position_data["longitude"]),
             "altitude": float(position_data["altitude"]),
@@ -1916,9 +1924,11 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         device_ids = traccar.get_device_ids_for_contestant(self)
 
         tracks = [
-            [Position(**self.generate_position_block_for_contestant(item, dateutil.parser.parse(item["deviceTime"]))) for
+            [Position(**self.generate_position_block_for_contestant(item, dateutil.parser.parse(item["deviceTime"])))
+             for
              item in traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time)] for
             device_id in device_ids]
+        logger.info(f"Returned {len(tracks)} with lengths {', '.join([str(len(item)) for item in tracks])}")
         return merge_tracks(tracks)
 
     def get_latest_position(self) -> Optional[Position]:

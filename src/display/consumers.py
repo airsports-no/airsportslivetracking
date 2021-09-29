@@ -50,8 +50,6 @@ class TrackingConsumer(WebsocketConsumer):
         except ObjectDoesNotExist:
             return
         self.accept()
-        for contestant in self.navigation_task.contestant_set.all():
-            self.send(json.dumps(cached_generate_data(contestant.pk), cls=DateTimeEncoder))
         self.transmit_current_time()
 
     def transmit_current_time(self):

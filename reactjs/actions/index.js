@@ -41,7 +41,7 @@ import {
     TOGGLE_SECRET_GATES,
     TOGGLE_BACKGROUND_MAP,
     FETCH_EDITABLE_ROUTE_SUCCESSFUL,
-    FETCH_EDITABLE_ROUTE
+    FETCH_EDITABLE_ROUTE, FETCH_INITIAL_TRACKS, FETCH_INITIAL_TRACKS_SUCCESS
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -225,4 +225,15 @@ export const fetchMyParticipatingContests = () => (dispatch) => {
 
 export const toggleDisplayOpenAip = () => (dispatch) => {
     dispatch({type: TOGGLE_OPEN_AIP})
+}
+
+export const fetchInitialTracks = (contestId, navigationTaskId, contestantId) => (dispatch) => {
+    dispatch({type: FETCH_INITIAL_TRACKS})
+    $.ajax({
+        url: "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/contestants/" + contestantId + "/initial_track_data/",
+        datatype: 'json',
+        cache: false,
+        success: value => dispatch({type: FETCH_INITIAL_TRACKS_SUCCESS, payload: value, contestantId: contestantId}),
+        error: error => console.log(error)
+    });
 }

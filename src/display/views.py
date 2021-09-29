@@ -1,5 +1,6 @@
 import base64
 import datetime
+import json
 import os
 from typing import Optional, Dict, Tuple
 
@@ -203,7 +204,7 @@ from display.tasks import import_gpx_track, generate_and_notify_flight_order
 from display.traccar_factory import get_traccar_instance
 from live_tracking_map import settings
 from live_tracking_map.settings import REDIS_HOST
-from websocket_channels import WebsocketFacade, generate_contestant_data_block
+from websocket_channels import WebsocketFacade, generate_contestant_data_block, DateTimeEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -1227,6 +1228,7 @@ def cached_generate_data(contestant_pk) -> Dict:
 
 def _generate_data(contestant_pk):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
+    logger.info("Fetching track for {} {}".format(contestant.pk, contestant))
     position_data = contestant.get_track()
     if len(position_data) > 0:
         global_latest_time = position_data[-1].time
@@ -1237,7 +1239,8 @@ def _generate_data(contestant_pk):
         if index % 30 == 0:
             progress = contestant.calculate_progress(item.time, ignore_finished=True)
         item.progress = progress
-    logger.info("Completed generating data {} with {} positions".format(contestant.pk, len(position_data)))
+    logger.info(
+        "Completed generating data {} {} with {} positions".format(contestant.pk, contestant, len(position_data)))
     data = generate_contestant_data_block(
         contestant,
         positions=PositionSerialiser(position_data, many=True).data,
@@ -2512,6 +2515,14 @@ class ContestantViewSet(ModelViewSet):
     @action(detail=True, methods=["put", "patch"])
     def update_without_team(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
+
+    @action(detail=True, methods=["get"])
+    def initial_track_data(self, request, *args, **kwargs):
+        """
+        Used by the front end to load initial data
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        return Response(cached_generate_data(contestant.pk))
 
     @action(detail=True, methods=["get"])
     def track(self, request, pk=None, **kwargs):

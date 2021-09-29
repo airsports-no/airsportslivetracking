@@ -141,6 +141,9 @@ class ConnectedContestantTrack extends Component {
             if (this.props.contestantData !== undefined) {
                 if (previousProps.contestantData === undefined || this.props.contestantData.latest_time !== previousProps.contestantData.latest_time) {
                     if (this.props.contestantData.positions.length > 0) {
+                        this.props.contestantData.positions.map((position) => {
+                            console.log(new Date() + "Received position ID " + position.position_id + " for device ID " + position.device_id)
+                        })
                         const p = this.props.contestantData.positions.map((position) => {
                             return {
                                 latitude: position.latitude,

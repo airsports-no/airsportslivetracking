@@ -2,14 +2,12 @@ import React, {Component} from "react";
 import {
     displayAllTracks,
     expandTrackingTable,
-    fetchNavigationTask,
+    fetchInitialTracks,
     setDisplay,
     shrinkTrackingTable,
     hideLowerThirds, dispatchContestantData
 } from "../../actions";
 import {connect} from "react-redux";
-import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
-// import 'leaflet/dist/leaflet.css';
 import ContestantTrack from "../contestantTrack";
 import distinctColors from "distinct-colors";
 import {compareContestantNumber} from "../../utilities";
@@ -48,6 +46,7 @@ const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{
     accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
 });
 export const mapStateToProps = (state, props) => ({
+    initialTracks: state.initialTracks,
     navigationTask: state.navigationTask,
     currentDisplay: state.currentDisplay,
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
@@ -62,7 +61,8 @@ export const mapDispatchToProps = {
     displayAllTracks,
     expandTrackingTable,
     shrinkTrackingTable,
-    hideLowerThirds
+    hideLowerThirds,
+    fetchInitialTracks
 }
 
 class ConnectedNavigationTask extends Component {
@@ -76,6 +76,9 @@ class ConnectedNavigationTask extends Component {
         this.weTimeOut = 1000
         this.tracklist = []
         this.playbackSecond = -90
+        this.waitingInitialLoading = []
+        this.completedLoadingInitialTracks = false
+        this.remainingTracks = 999999
     }
 
 
@@ -90,6 +93,10 @@ class ConnectedNavigationTask extends Component {
             return contestant.id === data.contestant_id
         }).gate_times[this.props.navigationTask.route.waypoints[0].name])
         this.tracklist.push(data)
+    }
+
+    cacheDataWhileLoading(data){
+        this.waitingInitialLoading.push(data)
     }
 
     playBackData() {
@@ -164,7 +171,11 @@ class ConnectedNavigationTask extends Component {
             if (this.props.playback) {
                 this.storePlaybackData(data)
             } else {
-                this.props.dispatchContestantData(data)
+                if (!this.completedLoadingInitialTracks) {
+                    this.cacheDataWhileLoading(data)
+                } else {
+                    this.props.dispatchContestantData(data)
+                }
             }
         };
         this.client.onclose = (e) => {
@@ -229,8 +240,23 @@ class ConnectedNavigationTask extends Component {
             if (this.props.displayMap && !this.rendered) {
                 this.rendered = true;
                 this.initiateSession()
-
+                this.remainingTracks = 0
+                this.props.navigationTask.contestant_set.map((contestant, index) => {
+                    this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
+                    this.remainingTracks++
+                })
             }
+        }
+        if (this.props.initialTracks !== previousProps.initialTracks) {
+            this.props.dispatchContestantData(this.props.initialTracks)
+            this.remainingTracks--
+        }
+        if (this.remainingTracks === 0){
+            for (let data of this.waitingInitialLoading) {
+                this.props.dispatchContestantData(data)
+            }
+            this.completedLoadingInitialTracks = true
+            this.remainingTracks = 9999
         }
         if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map || this.props.displayBackgroundMap !== previousProps.displayBackgroundMap) {
             this.fixMapBackground()

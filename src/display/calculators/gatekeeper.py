@@ -108,7 +108,7 @@ class Gatekeeper(ABC):
                 positions.append(
                     Position((initial_time + datetime.timedelta(seconds=step)).isoformat(), new_position[0],
                              new_position[1],
-                             position.altitude, position.speed, position.course, position.battery_level))
+                             position.altitude, position.speed, position.course, position.battery_level, 0, 0))
         positions.append(position)
         return positions
 
@@ -160,6 +160,8 @@ class Gatekeeper(ABC):
                 # Signal the track processor that this is the end, and perform the track calculation
                 self.notify_termination()
                 continue
+            logger.debug(f"Processing position ID {position_data['id']} for device ID {position_data['deviceId']}")
+
             buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
             all_positions = []
             for buffered_position in buffered_positions:
@@ -181,6 +183,7 @@ class Gatekeeper(ABC):
                 for position in self.interpolate_track(p):
                     self.track.append(position)
                     if len(self.track) > 1:
+                        logger.debug(f"Calculating score for position ID {position.position_id} for device ID {position.device_id}")
                         self.calculate_score()
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
         self.contestant.contestanttrack.set_calculator_finished()

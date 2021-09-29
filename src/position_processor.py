@@ -2,12 +2,9 @@ import datetime
 import json
 import logging
 import os
-import threading
 from multiprocessing import Process, Queue
-from typing import List, TYPE_CHECKING, Dict, Optional
-import sentry_sdk
 
-import dateutil
+import sentry_sdk
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -15,126 +12,64 @@ if __name__ == "__main__":
 
     django.setup()
 
-from live_tracking_map import settings
 from traccar_facade import Traccar
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import connections, close_old_connections, OperationalError, connection
-from display.serialisers import PersonSerialiser, PersonLtdSerialiser
+from django.db import connections, OperationalError, connection
+from display.serialisers import PersonLtdSerialiser
 
 from websocket_channels import WebsocketFacade
 
+from position_processor_process import initial_processor, PERSON_TYPE
+
 import websocket
 from display.models import Contestant, TraccarCredentials, Person
-from display.calculators.calculator_factory import calculator_factory
 
 logger = logging.getLogger(__name__)
 
 PURGE_GLOBAL_MAP_INTERVAL = 60
 
-CONTESTANT_TYPE = 0
-PERSON_TYPE = 1
-
-configuration = TraccarCredentials.objects.get()
-
 if __name__ == "__main__":
-    traccar = Traccar.create_from_configuration(configuration)
-    devices = traccar.get_device_map()
     websocket_facade = WebsocketFacade()
 
-processes = {}
-calculator_lock = threading.Lock()
-
 global_map_queue = Queue()
-
-
-def calculator_process(contestant_pk: int, position_queue: Queue):
-    """
-    To be run in a separate process
-    """
-    django.db.connections.close_all()
-    contestant = Contestant.objects.get(pk=contestant_pk)
-    calculator = calculator_factory(contestant, position_queue, live_processing=True)
-    calculator.run()
-
-
-def add_positions_to_calculator(contestant: Contestant, positions: List):
-    global processes
-    key = contestant.pk
-    if key not in processes:
-        q = Queue()
-        django.db.connections.close_all()
-        p = Process(target=calculator_process, args=(key, q), daemon=True)
-        processes[key] = (q, p)
-        p.start()
-    queue = processes[key][0]  # type: Queue
-    for position in positions:
-        queue.put(position)
-
-
-def cleanup_calculators():
-    for key, (queue, process) in dict(processes).items():
-        if not process.is_alive():
-            processes.pop(key)
-
-
-def map_positions_to_contestants(
-        traccar: Traccar, positions: List
-) -> Dict[Contestant, List[Dict]]:
-    if len(positions) == 0:
-        return {}
-    # logger.info("Received {} positions".format(len(positions)))
-    received_tracks = {}
-    for position_data in positions:
-        global_tracking_name = ""
-        # logger.info("Incoming position: {}".format(position_data))
-        try:
-            device_name = traccar.device_map[position_data["deviceId"]]
-        except KeyError:
-            traccar.get_device_map()
-            try:
-                device_name = traccar.device_map[position_data["deviceId"]]
-            except KeyError:
-                logger.error("Could not find device {}.".format(position_data["deviceId"]))
-                continue
-        device_time = dateutil.parser.parse(position_data["deviceTime"])
-        # Store this so that we do not have to parse the datetime string again
-        position_data["device_time"] = device_time
-        now = datetime.datetime.now(datetime.timezone.utc)
-        last_seen_key = f"last_seen_{position_data['deviceId']}"
-        if (now - device_time).total_seconds() > 30:
-            # Only check the cache if the position is old
-            last_seen = cache.get(last_seen_key)
-            if last_seen == device_time or device_time < now - datetime.timedelta(
-                    hours=14
-            ):
-                # If we have seen it or it is really old, ignore it
-                logger.info(f"Received repeated position, disregarding: {device_name} {device_time}")
-                continue
-        cache.set(last_seen_key, device_time)
-        # print(device_time)
-        contestant, is_simulator = Contestant.get_contestant_for_device_at_time(device_name, device_time)
-        if contestant:
-            try:
-                received_tracks[contestant].append(position_data)
-            except KeyError:
-                received_tracks[contestant] = [position_data]
-            global_map_queue.put(
-                (
-                    CONTESTANT_TYPE,
-                    contestant.pk,
-                    position_data,
-                    device_time,
-                    is_simulator,
-                )
-            )
-        else:
-            global_map_queue.put((PERSON_TYPE, device_name, position_data, device_time, is_simulator))
-    return received_tracks
+processing_queue = Queue()
+RESET_INTERVAL = 300
 
 
 def live_position_transmitter_process(queue):
     django.db.connections.close_all()
+    person_cache = {}
+    contestant_cache = {}
+    last_reset = datetime.datetime.now()
+
+    def fetch_person(person_or_contestant):
+        try:
+            person = person_cache[person_or_contestant]
+        except KeyError:
+            person = Person.objects.get(app_tracking_id=person_or_contestant)
+            person_cache[person_or_contestant] = person
+        return person
+
+    def fetch_contestant(person_or_contestant):
+        try:
+            contestant = contestant_cache[person_or_contestant]
+        except KeyError:
+            contestant = (
+                Contestant.objects.filter(pk=person_or_contestant)
+                    .select_related(
+                    "navigation_task",
+                    "team",
+                    "team__crew",
+                    "team__crew__member1",
+                    "team__crew__member2",
+                    "team__aeroplane",
+                )
+                    .first()
+            )
+            contestant_cache[person_or_contestant] = contestant
+        return contestant
+
     while True:
         (
             data_type,
@@ -143,13 +78,16 @@ def live_position_transmitter_process(queue):
             device_time,
             is_simulator,
         ) = queue.get()
+        if (datetime.datetime.now() - last_reset).total_seconds() > RESET_INTERVAL:
+            person_cache = {}
+            contestant_cache = {}
 
         navigation_task_id = None
         global_tracking_name = None
         person_data = None
         if data_type == PERSON_TYPE:
             try:
-                person = Person.objects.get(app_tracking_id=person_or_contestant)
+                person = fetch_person(person_or_contestant)
                 person.last_seen = device_time
                 person.save(update_fields=["last_seen"])
                 global_tracking_name = person.app_aircraft_registration
@@ -162,18 +100,18 @@ def live_position_transmitter_process(queue):
                     f"Error when fetching person for app_tracking_id '{person_or_contestant}'. Attempting to reconnect"
                 )
                 connection.connect()
+            except Exception:
+                logger.exception(f"Something failed when trying to update person {person_or_contestant}")
 
         else:
             try:
-                contestant = (
-                    Contestant.objects.filter(pk=person_or_contestant)
-                        .select_related("navigation_task", "team", "team__aeroplane")
-                        .first()
-                )
+                contestant = fetch_contestant(person_or_contestant)
                 if contestant is not None:
                     global_tracking_name = contestant.team.aeroplane.registration
                     try:
                         person = contestant.team.crew.member1
+                        person.last_seen = device_time
+                        person.save(update_fields=["last_seen"])
                         if person.is_public:
                             person_data = PersonLtdSerialiser(person).data
                     except:
@@ -189,8 +127,7 @@ def live_position_transmitter_process(queue):
         if (
                 global_tracking_name is not None
                 and not is_simulator
-                and now
-                < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
+                and now < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
         ):
             websocket_facade.transmit_global_position_data(
                 global_tracking_name,
@@ -201,26 +138,11 @@ def live_position_transmitter_process(queue):
             )
 
 
-def build_and_push_position_data(data):
-    # logger.info("Received data")
-    with calculator_lock:
-        received_positions = map_positions_to_contestants(traccar, data.get("positions", []))
-        for contestant, positions in received_positions.items():
-            # logger.info("Positions for {}".format(contestant))
-            add_positions_to_calculator(contestant, positions)
-            # logger.info("Positions to calculator for {}".format(contestant))
-        cleanup_calculators()
-
-
-def clean_db_positions():
-    for c in connections.all():
-        c.close_if_unusable_or_obsolete()
-
-
 def on_message(ws, message):
-    clean_db_positions()
     data = json.loads(message)
-    build_and_push_position_data(data)
+    for item in data.get("positions", []):
+        logger.debug(f"Received position ID {item['id']} for device ID {item['deviceId']}")
+    processing_queue.put(data)
 
 
 def on_error(ws, error):
@@ -250,6 +172,14 @@ if __name__ == "__main__":
         name="live_position_transmitter",
     )
     p.start()
+    for index in range(1):
+        logger.info(f"Creating initial processor number {index}")
+        Process(
+            target=initial_processor,
+            args=(processing_queue, global_map_queue),
+            daemon=False,
+            name="initial_processor_{}".format(index),
+        ).start()
     sentry_sdk.init(
         "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
         # Set traces_sample_rate to 1.0 to capture 100%
@@ -258,6 +188,8 @@ if __name__ == "__main__":
         traces_sample_rate=1.0,
     )
     cache.clear()
+    configuration = TraccarCredentials.objects.get()
+    traccar = Traccar.create_from_configuration(configuration)
     while True:
         websocket.enableTrace(False)
         cookies = traccar.session.cookies.get_dict()

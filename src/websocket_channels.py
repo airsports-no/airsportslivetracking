@@ -124,6 +124,9 @@ class WebsocketFacade:
             latest_time=positions[-1].time,
         )
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        for position in positions:
+            logger.debug(f"Transmitting position ID {position.position_id} for device ID {position.device_id}")
+
         async_to_sync(self.channel_layer.group_send)(
             group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )

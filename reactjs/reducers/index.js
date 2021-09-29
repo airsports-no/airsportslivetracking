@@ -35,7 +35,7 @@ import {
     GET_ONGOING_NAVIGATION_SUCCESSFUL,
     TOGGLE_SECRET_GATES,
     TOGGLE_BACKGROUND_MAP,
-    FETCH_EDITABLE_ROUTE_SUCCESSFUL, FETCH_EDITABLE_ROUTE
+    FETCH_EDITABLE_ROUTE_SUCCESSFUL, FETCH_EDITABLE_ROUTE, FETCH_INITIAL_TRACKS_SUCCESS
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -87,7 +87,8 @@ const initialState = {
     displaySecretGates: true,
     displayBackgroundMap: true,
     editableRoutes: {},
-    fetchingEditableRoute: false
+    fetchingEditableRoute: false,
+    initialTracks: null
 };
 
 function rootReducer(state = initialState, action) {
@@ -140,6 +141,12 @@ function rootReducer(state = initialState, action) {
                 ...state.initialLoadingContestantData,
                 [action.contestantId]: true
             }
+        })
+    }
+    if (action.type === FETCH_INITIAL_TRACKS_SUCCESS) {
+        return Object.assign({}, state, {
+            ...state,
+            initialTracks: action.payload
         })
     }
     if (action.type === INITIAL_LOADING_COMPLETE) {

@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 import requests
 
 from display.calculators.tests.utilities import load_traccar_track
+from traccar_facade import Traccar
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -16,16 +17,26 @@ if __name__ == "__main__":
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
     TraccarCredentials, Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE, TRACKING_PILOT
 
-server = 'traccar:5055'
+import os
+TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
+server = f"{TRACCAR_HOST}:5055"
 
 NUMBER_OF_CONTESTANTS = 50
 TIME_OFFSET = datetime.timedelta(seconds=20)
 tracks = {}
 
 
+configuration = TraccarCredentials.objects.get()
+
+traccar = Traccar.create_from_configuration(configuration)
+
+traccar.get_device_map()
+
 def create_contestant(index, start_time, navigation_task):
     person, _ = Person.objects.get_or_create(first_name=f"test_person_{index}", last_name=f"test_person_{index}",
                                              email=f"test_{index}@email.com")
+    traccar.delete_device(traccar.unique_id_map.get(person.app_tracking_id))
+    traccar.create_device(person.first_name, person.app_tracking_id)
     aircraft = Aeroplane.objects.get(registration="LN-YDB")
     club, _ = Club.objects.get_or_create(name="Kjeller Sportsflyklubb")
     crew, _ = Crew.objects.get_or_create(member1=person)
@@ -72,6 +83,7 @@ def load_data_traccar(tracks, offset=30, leadtime=0):
 
 
 navigation_task = NavigationTask.objects.get(pk=314)
+navigation_task.contestant_set.all().delete()
 track = load_traccar_track("/data/tracks/espen_poker.csv")
 actual_start_time = datetime.datetime.now(datetime.timezone.utc)
 current_start_time = track[0][0]
@@ -90,4 +102,4 @@ for number in range(NUMBER_OF_CONTESTANTS):
     current_offset += TIME_OFFSET
 for item in tracks.values():
     print(item[0][0])
-load_data_traccar(tracks, offset=60, leadtime=90)
+load_data_traccar(tracks, offset=60)
