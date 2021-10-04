@@ -3,8 +3,8 @@
 {% load tz %}
 {% block content %}
     <H1>{{ object.name }} ({{ object.share_string }})</H1>
-    {{ object.start_time|timezone:object.time_zone|date:"Y-m-d H:i:s e" }} -
-    {{ object.finish_time|timezone:object.time_zone|date:"Y-m-d H:i:s e" }}
+    {{ object.start_time|date:"Y-m-d H:i:s e" }} -
+    {{ object.finish_time|date:"Y-m-d H:i:s e" }}
     <p>
         {% get_obj_perms request.user for contest as "contest_permissions" %}
 
@@ -49,9 +49,9 @@
                     ({{ navigation_task.share_string }})
                 </td>
                 <td>
-                    {{ navigation_task.start_time|timezone:contest.time_zone|date:"Y-m-d H:i:s e" }}
+                    {{ navigation_task.start_time|date:"Y-m-d H:i:s e" }}
                 </td>
-                <td>{{ navigation_task.finish_time|timezone:contest.time_zone|date:"Y-m-d H:i:s e" }}</td>
+                <td>{{ navigation_task.finish_time|date:"Y-m-d H:i:s e" }}</td>
                 <td>{{ navigation_task.scorecard }}</td>
             </tr>
         {% endfor %}

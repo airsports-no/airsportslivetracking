@@ -5,8 +5,8 @@
 {% block content %}
     {% get_obj_perms request.user for object.contest as "contest_permissions" %}
     <H1>Navigation task {{ object.name }} in contest {{ object.contest.name }}</H1>
-    {{ object.start_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }} -
-    {{ object.finish_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s e" }} ({{ object.share_string }})
+    {{ object.start_time|date:"Y-m-d H:i:s e" }} -
+    {{ object.finish_time|date:"Y-m-d H:i:s e" }} ({{ object.share_string }})
     <p>
         {% if "change_contest" in contest_permissions %}
             <div class="btn-group float-right">
@@ -93,7 +93,7 @@
                         <tbody>
                         <tr>
                             <td class="no-wrap" style="padding-right: .2rem">Tracking</td>
-                            <td class="no-wrap"> {{ contestant.tracker_start_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s" }}</td>
+                            <td class="no-wrap"> {{ contestant.tracker_start_time|date:"Y-m-d H:i:s" }}</td>
                         </tr>
                         <tr>
                             <td>Takeoff</td>
@@ -101,13 +101,13 @@
                                 {% if contestant.adaptive_start %}
                                     Adaptive
                                 {% else %}
-                                    {{ contestant.takeoff_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s" }}
+                                    {{ contestant.takeoff_time|date:"Y-m-d H:i:s" }}
                                 {% endif %}
                             </td>
                         </tr>
                         <tr>
                             <td class="no-wrap">Finished</td>
-                            <td class="no-wrap">{{ contestant.finished_by_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s" }}</td>
+                            <td class="no-wrap">{{ contestant.finished_by_time|date:"Y-m-d H:i:s" }}</td>
                         </tr>
                         </tbody>
                     </table>

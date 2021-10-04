@@ -875,6 +875,7 @@ def terminate_contestant_calculator(request, pk):
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def view_navigation_task_rules(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    timezone.activate(navigation_task.contest.time_zone)
     return render(request, "display/navigationtask_rules.html", {"object": navigation_task})
 
 
