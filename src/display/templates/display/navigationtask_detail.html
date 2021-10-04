@@ -21,7 +21,7 @@
                     <a class="dropdown-item" href="{% url 'navigationtask_removecontestants' object.pk %}"
                        title="Remove all scheduled contestants">Remove
                         contestants</a>
-                    <a class="dropdown-item" href="{% url 'navigationtask_updatescorecardoverride' object.pk %}"
+                    <a class="dropdown-item" href="{% url 'navigationtask_upgiscorecardoverride' object.pk %}"
                        title="Update scoring parameters">Update scoring parameters</a>
                     {% if object.editable_route %}
                         <a class="dropdown-item" href="{% url 'navigationtask_refresheditableroute' object.pk %}"
@@ -93,7 +93,7 @@
                         <tbody>
                         <tr>
                             <td class="no-wrap" style="padding-right: .2rem">Tracking</td>
-                            <td class="no-wrap"> {{ contestant.tracker_start_time|date:"Y-m-d H:i:s" }}</td>
+                            <td class="no-wrap"> {{ contestant.tracker_start_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s" }}</td>
                         </tr>
                         <tr>
                             <td>Takeoff</td>
@@ -101,13 +101,13 @@
                                 {% if contestant.adaptive_start %}
                                     Adaptive
                                 {% else %}
-                                    {{ contestant.takeoff_time|date:"Y-m-d H:i:s" }}
+                                    {{ contestant.takeoff_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s" }}
                                 {% endif %}
                             </td>
                         </tr>
                         <tr>
                             <td class="no-wrap">Finished</td>
-                            <td class="no-wrap">{{ contestant.finished_by_time|date:"Y-m-d H:i:s" }}</td>
+                            <td class="no-wrap">{{ contestant.finished_by_time|timezone:object.contest.time_zone|date:"Y-m-d H:i:s" }}</td>
                         </tr>
                         </tbody>
                     </table>
@@ -138,6 +138,8 @@
                                 <a class="dropdown-item" href="{% url 'contestant_uploadgpxtrack' contestant.pk %}"
                                    title="Upload a GPX track for scoring. This will delete any existing track for the contestant.">Upload
                                     gpx</a>
+                                <a class="dropdown-item" href="{% url 'contestant_recalculatetraccartrack' contestant.pk %}"
+                                   title="Recalculate original data. This will delete any uploaded tracks">Recalculate original</a>
                                 <a class="dropdown-item" href="{% url 'contestant_stop_calculator' contestant.pk %}"
                                    title="Terminates the running scoring of the contestant. This cannot be restarted."
                                    onclick="return confirm('Are you sure you want to stop the calculator?')">Stop

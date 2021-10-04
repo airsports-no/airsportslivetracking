@@ -557,7 +557,7 @@ class PositionSerialiser(serializers.Serializer):
     altitude = serializers.FloatField()
     time = serializers.DateTimeField()
     progress = serializers.FloatField()
-    device_id = serializers.IntegerField()
+    device_id = serializers.CharField()
     position_id = serializers.IntegerField()
 
 

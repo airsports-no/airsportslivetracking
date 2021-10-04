@@ -9,7 +9,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from display.generate_flight_orders import generate_flight_orders
 from display.models import Contestant, EmailMapLink, MyUser
 from live_tracking_map.celery import app
-from playback_tools import insert_gpx_file
+from playback_tools import insert_gpx_file, recalculate_traccar
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +25,25 @@ def setup_periodic_tasks(sender, **kwargs):
         10, debug.s()
     )
 
+
 @app.task
 def debug():
     print(debug)
+
+
+@app.task
+def revert_gpx_track_to_traccar(contestant_pk: int):
+    try:
+        contestant = Contestant.objects.get(pk=contestant_pk)
+    except ObjectDoesNotExist:
+        logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
+        return
+    logger.debug(f"{contestant}: About recalculate traccar track")
+    try:
+        recalculate_traccar(contestant)
+    except:
+        logger.exception("Exception in revert_gpx_track_to_traccar")
+
 
 @app.task
 def import_gpx_track(contestant_pk: int, gpx_file: str):
@@ -36,21 +52,28 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
     except ObjectDoesNotExist:
         logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
         return
-    insert_gpx_file(contestant, gpx_file.encode("utf-8"))
+    logger.debug(f"{contestant}: About to insert GPX file")
+    try:
+        insert_gpx_file(contestant, gpx_file.encode("utf-8"))
+    except:
+        logger.exception("Exception in import_gpx_track")
 
 
 @app.task
 def generate_and_notify_flight_order(contestant_pk: int, email: str, first_name: str):
     try:
-        contestant = Contestant.objects.get(pk=contestant_pk)
-    except ObjectDoesNotExist:
-        logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
-        return
-    orders = generate_flight_orders(contestant)
-    for c in connections.all():
-        c.close_if_unusable_or_obsolete()
-    mail_link = EmailMapLink.objects.create(contestant=contestant, orders=bytes(orders))
-    mail_link.send_email(email, first_name)
+        try:
+            contestant = Contestant.objects.get(pk=contestant_pk)
+        except ObjectDoesNotExist:
+            logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
+            return
+        orders = generate_flight_orders(contestant)
+        for c in connections.all():
+            c.close_if_unusable_or_obsolete()
+        mail_link = EmailMapLink.objects.create(contestant=contestant, orders=bytes(orders))
+        mail_link.send_email(email, first_name)
+    except:
+        logger.exception("Exception in generate_and_notify_flight_order")
 
 
 @app.task

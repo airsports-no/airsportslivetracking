@@ -4,30 +4,32 @@ from queue import Queue
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
-
+import logging
 import requests
 import gpxpy
 
 from display.calculators.calculator_factory import calculator_factory
 
-if TYPE_CHECKING:
-    from display.models import Contestant, ContestantUploadedTrack
+from display.models import Contestant, ContestantUploadedTrack
 
 import os
+
 TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
 server = f"{TRACCAR_HOST}:5055"
+
+logger = logging.getLogger(__name__)
 
 
 # server = 'localhost:5055'
 
 
 def build_traccar_track(
-    filename,
-    today: datetime.datetime,
-    start_index: int = 0,
-    starting_time: datetime.datetime = None,
-    leadtime_seconds: int = 0,
-    time_offset: datetime.timedelta = datetime.timedelta(minutes=0),
+        filename,
+        today: datetime.datetime,
+        start_index: int = 0,
+        starting_time: datetime.datetime = None,
+        leadtime_seconds: int = 0,
+        time_offset: datetime.timedelta = datetime.timedelta(minutes=0),
 ):
     with open(filename, "r") as i:
         gpx = gpxpy.parse(i)
@@ -78,30 +80,60 @@ def load_data_traccar(tracks, offset=30, leadtime=0, round_sleep=0.2):
             break
 
 
-def insert_gpx_file(contestant_object: "Contestant", file):
-    gpx = gpxpy.parse(file)
-    positions = []
-    for track in gpx.tracks:
-        for segment in track.segments:
-            for point in segment.points:
-                if point.time:
-                    positions.append(
-                        {
-                            "deviceId": contestant_object.tracker_device_id,
-                            "latitude": point.latitude,
-                            "longitude": point.longitude,
-                            "altitude": point.elevation if point.elevation else 0,
-                            "attributes": {"batteryLevel": 1.0},
-                            "speed": 0.0,
-                            "course": 0.0,
-                            "device_time": point.time,
-                        }
-                    )
+def recalculate_traccar(contestant: "Contestant"):
     try:
-        contestant_object.contestantuploadedtrack.delete()
+        contestant.contestantuploadedtrack.delete()
+        logger.debug("Deleted existing uploaded track")
     except:
         pass
-    ContestantUploadedTrack.objects.create(contestant = contestant_object, track = positions)
+    track = contestant.get_traccar_track()
+    q = Queue()
+    for i in track:
+        q.put(i)
+    q.put(None)
+    calculator = calculator_factory(contestant, q, live_processing=False)
+    calculator.run()
+    while not q.empty():
+        q.get_nowait()
+
+
+def insert_gpx_file(contestant_object: "Contestant", file):
+    try:
+        gpx = gpxpy.parse(file)
+        logger.debug("Successfully parsed GPX file")
+    except:
+        logger.exception("Failed parsing GPX file")
+        return
+    positions = []
+    index = 0
+    try:
+        for track in gpx.tracks:
+            for segment in track.segments:
+                for point in segment.points:
+                    if point.time:
+                        positions.append(
+                            {
+                                "deviceId": contestant_object.tracker_device_id,
+                                "id": index,
+                                "latitude": float(point.latitude),
+                                "longitude": float(point.longitude),
+                                "altitude": float(point.elevation) if point.elevation else 0,
+                                "attributes": {"batteryLevel": 1.0},
+                                "speed": 0.0,
+                                "course": 0.0,
+                                "device_time": point.time,
+                            }
+                        )
+                        index += 1
+    except:
+        logger.exception("Something bad happened when building position list")
+    try:
+        contestant_object.contestantuploadedtrack.delete()
+        logger.debug("Deleted existing uploaded track")
+    except:
+        pass
+    ContestantUploadedTrack.objects.create(contestant=contestant_object, track=positions)
+    logger.debug("Created new uploaded track")
     # generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
     # influx.put_position_data_for_contestant(contestant_object, positions)
     q = Queue()

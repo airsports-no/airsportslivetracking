@@ -54,7 +54,7 @@ def get_country_code_from_location(latitude: float, longitude: float):
         geolocator = Nominatim(user_agent="airsports.no")
         location = geolocator.reverse(f"{latitude}, {longitude}")
         return location.raw["address"]["country_code"]
-    except (KeyError, AttributeError):
+    except:
         logger.exception(f"Failed fetching country for location {latitude}, {longitude}")
         return "xxx"
 

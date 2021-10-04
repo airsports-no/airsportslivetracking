@@ -61,7 +61,7 @@ urlpatterns = [
     path("firebase_login/", firebase_token_login),
     path("docs/", docs.with_ui()),
     re_path("djga/", include("google_analytics.urls")),
-    url(r"^api/v1/", include(api.urlpatters)),
+    path("api/v1/", include(api.urlpatters)),
     url(r"^.?", global_map, name="globalmap"),
 ]
 

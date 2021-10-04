@@ -64,6 +64,11 @@ MYSQL_USER = os.environ.get("MYSQL_USER", "tracker")
 MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "tracker")
 MYSQL_DB_NAME = os.environ.get("MYSQL_DB_NAME", "tracker")
 
+STORAGE_ACCOUNT_KEY = os.environ.get("STORAGE_ACCOUNT_KEY", "")
+STORAGE_ACCOUNT_SECRET = os.environ.get("STORAGE_ACCOUNT_SECRET", "")
+AZURE_ACCOUNT_NAME = os.environ.get("AZURE_ACCOUNT_NAME", "")
+MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
+
 REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
 # Application definition
 
@@ -95,6 +100,7 @@ INSTALLED_APPS = [
     "display.apps.DisplayConfig",
     "firebase.apps.FirebaseConfig",
     "multiselectfield",
+    'storages'
 ]
 if os.environ.get("MODE") != "dev":
     INSTALLED_APPS.append("drf_firebase_auth")
@@ -135,8 +141,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "live_tracking_map.urls"
-
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 CELERY_IMPORTS = "google_analytics.tasks"
 LOGOUT_REDIRECT_URL = "/"
@@ -179,13 +183,13 @@ GOOGLE_ANALYTICS = {
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ],
     "EXCEPTION_HANDLER": "live_tracking_map.django_exception_handler.exception_handler",
 }
 if os.environ.get("MODE") != "dev":
-    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].append("drf_firebase_auth.authentication.FirebaseAuthentication")
+    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(0, "drf_firebase_auth.authentication.FirebaseAuthentication")
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
@@ -243,8 +247,15 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-MEDIA_URL = "/media/"
+DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
+MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{MEDIA_LOCATION}/'
+AZURE_ACCOUNT_KEY = STORAGE_ACCOUNT_SECRET
+AZURE_CONTAINER = MEDIA_LOCATION
+
+MEDIA_ROOT = "/media"  # Required for temporary storage
+# MEDIA_URL = "/media/"
 
 STATIC_URL = "/static/"
 STATIC_ROOT = "/static"
@@ -275,7 +286,7 @@ LOGGING = {
             "handlers": ["console", "file"],
             "level": "DEBUG",
         },
-        "": {"handlers": ["console", "file"], "level": "DEBUG", "propagate": True},
+        "": {"handlers": ["console", "file"], "level": "DEBUG"},
         "celery": {
             "handlers": ["file", "console"],
             "level": "INFO",

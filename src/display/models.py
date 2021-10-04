@@ -115,7 +115,7 @@ class Aeroplane(models.Model):
     registration = models.CharField(max_length=20)
     colour = models.CharField(max_length=40, blank=True)
     type = models.CharField(max_length=50, blank=True)
-    picture = models.ImageField(upload_to="images/aircraft/", null=True, blank=True)
+    picture = models.ImageField(null=True, blank=True)
 
     def __str__(self):
         return self.registration
@@ -246,7 +246,7 @@ class Person(models.Model):
         blank=True,
         help_text="The display name of person positions on the global tracking map (should be an aircraft registration",
     )
-    picture = models.ImageField(upload_to="images/people/", null=True, blank=True)
+    picture = models.ImageField(null=True, blank=True)
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
     is_public = models.BooleanField(
@@ -335,7 +335,7 @@ class Crew(models.Model):
 class Club(models.Model):
     name = models.CharField(max_length=200)
     country = CountryField(blank=True)
-    logo = models.ImageField(upload_to="images/clubs/", null=True, blank=True)
+    logo = models.ImageField(null=True, blank=True)
 
     # class Meta:
     #     unique_together = ("name", "country")
@@ -357,7 +357,7 @@ class Club(models.Model):
 class Team(models.Model):
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.PROTECT)
     crew = models.ForeignKey(Crew, on_delete=models.PROTECT)
-    logo = models.ImageField(upload_to="images/teams/", null=True, blank=True)
+    logo = models.ImageField(null=True, blank=True)
     country = CountryField(blank=True)
     club = models.ForeignKey(Club, on_delete=models.SET_NULL, null=True, blank=True)
 
@@ -487,13 +487,11 @@ class Contest(models.Model):
     )
     contest_website = models.CharField(help_text="URL to contest website", blank=True, default="", max_length=300)
     header_image = models.ImageField(
-        upload_to="images/contests/",
         null=True,
         blank=True,
         help_text="Nice image that is shown on top of the event information on the map.",
     )
     logo = models.ImageField(
-        upload_to="images/contestlogos/",
         null=True,
         blank=True,
         help_text="Quadratic logo that is shown next to the event in the event list",
@@ -1919,19 +1917,27 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             return False
         return True
 
-    def get_track(self) -> List["Position"]:
-        if hasattr(self, "contestantuploadedtrack"):
-            return [Position(**item) for item in self.contestantuploadedtrack.track]
+    def get_traccar_track(self) -> List[Dict]:
         traccar = Traccar.create_from_configuration(TraccarCredentials.get_solo())
         device_ids = traccar.get_device_ids_for_contestant(self)
 
-        tracks = [
-            [Position(**self.generate_position_block_for_contestant(item, dateutil.parser.parse(item["deviceTime"])))
-             for
-             item in traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time)] for
-            device_id in device_ids]
+        tracks = []
+        for device_id in device_ids:
+            track = traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time)
+            for item in track:
+                item["device_time"] = dateutil.parser.parse(item["deviceTime"])
+            tracks.append(track)
         logger.debug(f"Returned {len(tracks)} with lengths {', '.join([str(len(item)) for item in tracks])}")
         return merge_tracks(tracks)
+
+    def get_track(self) -> List["Position"]:
+        try:
+            logger.debug(f"{self}: Fetching data from uploaded track")
+            track = self.contestantuploadedtrack.track
+        except:
+            logger.debug(f"{self}: There is no uploaded track, fetching data from taccar")
+            track = self.get_traccar_track()
+        return [Position(**self.generate_position_block_for_contestant(item, item["device_time"])) for item in track]
 
     def get_latest_position(self) -> Optional[Position]:
         try:

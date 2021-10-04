@@ -200,7 +200,7 @@ from display.serialisers import (
     EditableRouteSerialiser, PositionSerialiser,
 )
 from display.show_slug_choices import ShowChoicesMetadata
-from display.tasks import import_gpx_track, generate_and_notify_flight_order
+from display.tasks import import_gpx_track, generate_and_notify_flight_order, revert_gpx_track_to_traccar
 from display.traccar_factory import get_traccar_instance
 from live_tracking_map import settings
 from live_tracking_map.settings import REDIS_HOST
@@ -768,6 +768,18 @@ def upload_gpx_track_for_contesant(request, pk):
     return render(request, "display/upload_gpx_form.html", {"form": form, "contestant": contestant})
 
 
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
+def revert_uploaded_gpx_track_for_contestant(request, pk):
+    """
+    Consumes a FC GPX file that contains the GPS track of a contestant.
+    """
+    contestant = get_object_or_404(Contestant, pk=pk)
+    contestant.reset_track_and_score()
+    revert_gpx_track_to_traccar.apply_async((contestant.pk, ))
+    messages.success(request, "Started loading track")
+    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
+
+
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def list_contest_permissions(request, pk):
     contest = get_object_or_404(Contest, pk=pk)
@@ -882,9 +894,9 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
-        instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
-        instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
-        instance.save()
+        # instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
+        # instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
+        # instance.save()
         assign_perm("delete_contest", self.request.user, instance)
         assign_perm("view_contest", self.request.user, instance)
         assign_perm("add_contest", self.request.user, instance)
@@ -905,6 +917,12 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
     model = Contest
     permission_required = ("display.change_contest",)
     form_class = ContestForm
+
+    # def form_valid(self, form):
+    #     instance = form.save(commit=False)  # type: Contest
+    #     instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
+    #     instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
+    #     instance.save()
 
     def get_permission_object(self):
         return self.get_object()

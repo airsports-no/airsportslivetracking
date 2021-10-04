@@ -19,7 +19,7 @@ from display.views import frontend_view_map, \
     get_contestant_email_flight_orders_link, EditableRouteList, EditableRouteDeleteView, \
     refresh_editable_route_navigation_task, \
     get_contestant_email_flying_orders_link, broadcast_navigation_task_orders, upload_gpx_track_for_contesant, \
-    navigation_task_score_override_view, RouteToTaskWizard, healthz, readyz
+    navigation_task_score_override_view, RouteToTaskWizard, healthz, readyz, revert_uploaded_gpx_track_for_contestant
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -75,6 +75,7 @@ urlpatterns = [
     path('contestant/<int:pk>/update/', ContestantUpdateView.as_view(), name="contestant_update"),
     path('contestant/<int:pk>/delete/', ContestantDeleteView.as_view(), name="contestant_delete"),
     path('contestant/<int:pk>/uploadgpxtrack/', upload_gpx_track_for_contesant, name="contestant_uploadgpxtrack"),
+    path('contestant/<int:pk>/recalculatetraccartrack/', revert_uploaded_gpx_track_for_contestant, name="contestant_recalculatetraccartrack"),
     # path('contestant/<int:pk>/downloadgpxtrack/', download_gpx_track_for_contesant, name="contestant_downloadgpxtrack"),
     path('contestant/remove_score_item/<int:pk>/', delete_score_item, name="contestant_remove_score_item"),
     path('contestant/<int:pk>/gates/', ContestantGateTimesView.as_view(), name="contestant_gate_times"),

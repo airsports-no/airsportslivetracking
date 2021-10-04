@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% load guardian_tags %}
+{% load tz %}
+
 {% block content %}
     {% get_obj_perms request.user for object.navigation_task.contest as "contest_permissions" %}
     <H1>Gate times for {{ object }}</H1>
@@ -18,10 +20,10 @@
             {% if object.navigation_task.route.takeoff_gate %}
                 <tr>
                     <td>{{ object.navigation_task.route.takeoff_gate.name }}</td>
-                    <td>{{ gate_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}</td>
+                    <td>{{ gate_times|dict_key:object.navigation_task.route.takeoff_gate.name|timezone:object.navigation_task.contest.time_zone|date:"H:i:s e" }}</td>
                     <td>
                         {% if actual_times|dict_key:object.navigation_task.route.takeoff_gate.name %}
-                            {{ actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|date:"H:i:s e" }}{% else %}
+                            {{ actual_times|dict_key:object.navigation_task.route.takeoff_gate.name|timezone:object.navigation_task.contest.time_zone|date:"H:i:s e" }}{% else %}
                             --{% endif %}</td>
                     <td>{{ object|gate_time_offset:object.navigation_task.route.takeoff_gate.name }}</td>
                     <td>
@@ -39,9 +41,9 @@
             {% for gate in object.navigation_task.route.waypoints %}
                 <tr>
                     <td>{{ gate.name }}</td>
-                    <td>{{ gate_times|dict_key:gate.name|date:"H:i:s e" }}</td>
+                    <td>{{ gate_times|dict_key:gate.name|timezone:object.navigation_task.contest.time_zone|date:"H:i:s e" }}</td>
                     <td>{% if actual_times|dict_key:gate.name %}
-                        {{ actual_times|dict_key:gate.name|date:"H:i:s e" }}{% else %}
+                        {{ actual_times|dict_key:gate.name|timezone:object.navigation_task.contest.time_zone|date:"H:i:s e" }}{% else %}
                         --{% endif %}</td>
                     <td>{{ object|gate_time_offset:gate.name }}</td>
                     <td>
@@ -59,10 +61,10 @@
             {% if object.navigation_task.route.landing_gate %}
                 <tr>
                     <td>{{ object.navigation_task.route.landing_gate.name }}</td>
-                    <td>{{ gate_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}</td>
+                    <td>{{ gate_times|dict_key:object.navigation_task.route.landing_gate.name|timezone:object.navigation_task.contest.time_zone|date:"H:i:s e" }}</td>
                     <td>
                         {% if actual_times|dict_key:object.navigation_task.route.landing_gate.name %}
-                            {{ actual_times|dict_key:object.navigation_task.route.landing_gate.name|date:"H:i:s e" }}{% else %}
+                            {{ actual_times|dict_key:object.navigation_task.route.landing_gate.name|timezone:object.navigation_task.contest.time_zone|date:"H:i:s e" }}{% else %}
                             --{% endif %}</td>
                     <td>{{ object|gate_time_offset:object.navigation_task.route.landing_gate.name }}</td>
                     <td>

@@ -106,7 +106,7 @@ class Gatekeeper(ABC):
                     (self.track[-1].latitude, self.track[-1].longitude), (position.latitude, position.longitude),
                     step * fraction)
                 positions.append(
-                    Position((initial_time + datetime.timedelta(seconds=step)).isoformat(), new_position[0],
+                    Position((initial_time + datetime.timedelta(seconds=step)), new_position[0],
                              new_position[1],
                              position.altitude, position.speed, position.course, position.battery_level, 0, 0))
         positions.append(position)
@@ -162,7 +162,10 @@ class Gatekeeper(ABC):
                 continue
             # logger.debug(f"Processing position ID {position_data['id']} for device ID {position_data['deviceId']}")
 
-            buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
+            if self.live_processing:
+                buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
+            else:
+                buffered_positions = [position_data]
             all_positions = []
             for buffered_position in buffered_positions:
                 data = self.contestant.generate_position_block_for_contestant(buffered_position,

@@ -159,8 +159,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     qr_file.seek(0)
 
     if contestant.navigation_task.contest.logo:
-        logo = f"/src/media/{contestant.navigation_task.contest.logo}"
-        # pdf.image(f"/src/media/{contestant.navigation_task.contest.logo}", x=170, y=10, w=30)
+        logo = f"/media/{contestant.navigation_task.contest.logo}"
     else:
         logo = "static/img/airsports_no_text.png"
         # pdf.image("static/img/airsports_no_text.png", x=170, y=10, w=30)
