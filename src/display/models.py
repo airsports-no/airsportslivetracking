@@ -225,7 +225,7 @@ class Person(models.Model):
         default=True,
         help_text="Usually true, but set to false for persons created automatically during "
                   "app API login. This is used to signify that the user profile must be "
-                  "updatedfocus of. If this remains false for more than a few days, the person "
+                  "updated. If this remains false for more than a few days, the person "
                   "object and corresponding user will be deleted from the system.  This "
                   "must therefore be set to True when submitting an updated profile from "
                   "the app.",
@@ -275,6 +275,10 @@ class Person(models.Model):
         if self.country:
             return self.country.flag
         return None
+
+    @property
+    def has_user(self):
+        return MyUser.objects.filter(email=self.email).exists()
 
     def __str__(self):
         return "{} {}".format(self.first_name, self.last_name)

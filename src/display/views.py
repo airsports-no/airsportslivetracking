@@ -894,9 +894,9 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
-        # instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
-        # instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
-        # instance.save()
+        instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
+        instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
+        instance.save()
         assign_perm("delete_contest", self.request.user, instance)
         assign_perm("view_contest", self.request.user, instance)
         assign_perm("add_contest", self.request.user, instance)
@@ -917,12 +917,6 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
     model = Contest
     permission_required = ("display.change_contest",)
     form_class = ContestForm
-
-    # def form_valid(self, form):
-    #     instance = form.save(commit=False)  # type: Contest
-    #     instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
-    #     instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
-    #     instance.save()
 
     def get_permission_object(self):
         return self.get_object()

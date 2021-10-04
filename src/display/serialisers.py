@@ -409,6 +409,10 @@ class ContestTeamSerialiser(serializers.ModelSerializer):
         model = ContestTeam
         fields = "__all__"
 
+    def validate_team(self, team: Team):
+        if not team.crew.member1.has_user and (not team.crew.member2 or not team.crew.member2.has_user):
+            raise ValidationError(f"The team {team} is not tied to any registered user")
+
 
 class SignupSerialiser(serializers.Serializer):
     def update(self, instance, validated_data):

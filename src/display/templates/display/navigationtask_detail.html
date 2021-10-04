@@ -21,7 +21,7 @@
                     <a class="dropdown-item" href="{% url 'navigationtask_removecontestants' object.pk %}"
                        title="Remove all scheduled contestants">Remove
                         contestants</a>
-                    <a class="dropdown-item" href="{% url 'navigationtask_upgiscorecardoverride' object.pk %}"
+                    <a class="dropdown-item" href="{% url 'navigationtask_updatescorecardoverride' object.pk %}"
                        title="Update scoring parameters">Update scoring parameters</a>
                     {% if object.editable_route %}
                         <a class="dropdown-item" href="{% url 'navigationtask_refresheditableroute' object.pk %}"

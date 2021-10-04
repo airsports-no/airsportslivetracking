@@ -589,8 +589,12 @@ class ContestForm(forms.ModelForm):
         )
 
     def clean_finish_time(self):
+        start_time = self.cleaned_data.get("start_time")
         finish_time = self.cleaned_data.get("finish_time")
-        return finish_time + datetime.timedelta(days=1)
+        if start_time == finish_time:
+            return finish_time + datetime.timedelta(days=1)
+        else:
+            return finish_time
 
 
 class PictureWidget(forms.widgets.Widget):
