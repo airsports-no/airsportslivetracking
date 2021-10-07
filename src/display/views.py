@@ -1317,7 +1317,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         ("precision_override", PrecisionScoreOverrideForm),
         ("anr_corridor_override", ANRCorridorScoreOverrideForm),
     ]
-    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "importedroutes"))
+    file_storage = FileSystemStorage(location=os.path.join(settings.TEMPORARY_FOLDER, "importedroutes"))
     condition_dict = {
         "anr_route_import": show_anr_path,
         "precision_route_import": show_precision_path,
@@ -1511,7 +1511,7 @@ def anr_task_type(wizard):
 
 class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     permission_required = ("display.change_editableroute",)
-    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "unneeded"))
+    file_storage = FileSystemStorage(location=os.path.join(settings.TEMPORARY_FOLDER, "unneeded"))
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
@@ -1640,7 +1640,7 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         "member1create": create_new_pilot,
         "member2create": create_new_copilot,
     }
-    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, "teams"))
+    file_storage = FileSystemStorage(location=os.path.join(settings.TEMPORARY_FOLDER, "teams"))
     form_list = [
         ("member1search", Member1SearchForm),
         ("member1create", PersonForm),

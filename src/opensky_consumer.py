@@ -104,8 +104,6 @@ class AircraftDatabase:
         return self.DEFAULT_TYPE
 
 
-aircraft_database = AircraftDatabase()
-print(f"Type: {aircraft_database.get_aircraft_type('478745')}")
 
 
 async def transmit_states(states):
@@ -125,6 +123,8 @@ async def transmit_states(states):
                                                                                   state.icao24.lower()))
 
 if __name__ == "__main__":
+    aircraft_database = AircraftDatabase()
+    print(f"Type: {aircraft_database.get_aircraft_type('478745')}")
     username, password = sys.argv[1:]
     websocket_facade = WebsocketFacade()
     api = OpenSkyApi(username, password)

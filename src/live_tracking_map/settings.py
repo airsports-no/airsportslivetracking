@@ -249,13 +249,13 @@ USE_TZ = True
 
 DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
 AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
 MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{MEDIA_LOCATION}/'
 AZURE_ACCOUNT_KEY = STORAGE_ACCOUNT_SECRET
 AZURE_CONTAINER = MEDIA_LOCATION
 
-MEDIA_ROOT = "/media"  # Required for temporary storage
-# MEDIA_URL = "/media/"
+TEMPORARY_FOLDER = "/tmp"
 
 STATIC_URL = "/static/"
 STATIC_ROOT = "/static"
@@ -274,61 +274,61 @@ LOGGING = {
     },
     "handlers": {
         "console": {"level": "INFO", "class": "logging.StreamHandler", "formatter": "standard"},
-        "file": {
-            "level": "DEBUG",
-            "class": "logging.handlers.WatchedFileHandler",
-            "filename": "/logs/airsports.log",
-            "formatter": "standard",
-        },
+        # "file": {
+        #     "level": "DEBUG",
+        #     "class": "logging.handlers.WatchedFileHandler",
+        #     "filename": "/logs/airsports.log",
+        #     "formatter": "standard",
+        # },
     },
     "loggers": {
         "root": {
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "level": "DEBUG",
         },
-        "": {"handlers": ["console", "file"], "level": "DEBUG"},
+        "": {"handlers": ["console"], "level": "DEBUG"},
         "celery": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
         "websocket": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
         "asyncio": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "WARNING",
             "propagate": False,
         },
         "aioredis": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "WARNING",
             "propagate": False,
         },
         "channels_redis": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "WARNING",
             "propagate": False,
         },
         "daphne": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
         "urllib3": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
         "matplotlib": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
         "shapely": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },

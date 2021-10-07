@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  namespace: production
-  name: envs-production-redis
-data:
-  REDIS_HOST: redis
-  TRACCAR_PORT: "6379"

@@ -23,7 +23,7 @@ def folder_map_name(folder: str) -> str:
     return " ".join([item.capitalize() for item in elements])
 
 
-MAP_FOLDERS = glob.glob("/maptiles/*")
+MAP_FOLDERS = ['/maptiles/Norway_N250']  # glob.glob("/maptiles/*")
 MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [
     ("osm", "OSM"),
     ("fc", "Flight Contest"),

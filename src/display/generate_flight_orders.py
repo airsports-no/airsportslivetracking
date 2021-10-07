@@ -159,7 +159,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     qr_file.seek(0)
 
     if contestant.navigation_task.contest.logo:
-        logo = f"/media/{contestant.navigation_task.contest.logo}"
+        logo = f"https://airsportsstorage2.blob.core.windows.net/media/{contestant.navigation_task.contest.logo}"
     else:
         logo = "static/img/airsports_no_text.png"
         # pdf.image("static/img/airsports_no_text.png", x=170, y=10, w=30)
