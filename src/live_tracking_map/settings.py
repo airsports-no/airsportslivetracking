@@ -107,6 +107,8 @@ if os.environ.get("MODE") != "dev":
 
 PRODUCTION = os.environ.get("MODE") != "dev"
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 GUARDIAN_MONKEY_PATCH = False
 AUTH_USER_MODEL = "display.MyUser"
@@ -189,7 +191,8 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "live_tracking_map.django_exception_handler.exception_handler",
 }
 if os.environ.get("MODE") != "dev":
-    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(0, "drf_firebase_auth.authentication.FirebaseAuthentication")
+    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(0,
+                                                            "drf_firebase_auth.authentication.FirebaseAuthentication")
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
@@ -273,7 +276,7 @@ LOGGING = {
         },
     },
     "handlers": {
-        "console": {"level": "INFO", "class": "logging.StreamHandler", "formatter": "standard"},
+        "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "standard"},
         # "file": {
         #     "level": "DEBUG",
         #     "class": "logging.handlers.WatchedFileHandler",

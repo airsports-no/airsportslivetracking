@@ -1,6 +1,7 @@
 import datetime
 from unittest.mock import Mock, patch
 
+import dateutil.parser
 from django.test import TransactionTestCase
 
 from display.calculators.gatekeeper import Gatekeeper
@@ -11,9 +12,12 @@ from display.models import Aeroplane, NavigationTask, Contest, Crew, Contestant,
 from mock_utilities import TraccarMock
 
 
+@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestInterpolation(TransactionTestCase):
+    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, patch):
+    def setUp(self, patch, p2):
         with open("display/calculators/tests/NM.csv", "r") as file:
             route = create_precision_route_from_csv("navigation_task", file.readlines()[1:], True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
@@ -47,22 +51,20 @@ class TestInterpolation(TransactionTestCase):
                                                     air_speed=speed,
                                                     wind_direction=165, wind_speed=8)
 
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def test_no_interpolation(self, p):
+    def test_no_interpolation(self, p, p2):
         gatekeeper = GatekeeperRoute(self.contestant, Mock(), [])
-        start_position = Position("2020-01-01T00:00:00Z", 60, 11, 0, 0, 0, 0)
+        start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
-        next_position = Position("2020-01-01T00:00:02Z", 60, 12, 0, 0, 0, 0)
+        next_position = Position(dateutil.parser.parse("2020-01-01T00:00:02Z"), 60, 12, 0, 0, 0, 0, 0, 0)
         interpolated = gatekeeper.interpolate_track(next_position)
         self.assertEqual(1, len(interpolated))
         self.assertEqual(next_position, interpolated[0])
 
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def test_interpolation(self, p):
+    def test_interpolation(self, p, p2):
         gatekeeper = GatekeeperRoute(self.contestant, Mock(), [])
-        start_position = Position("2020-01-01T00:00:00Z", 60, 11, 0, 0, 0, 0)
+        start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
-        next_position = Position("2020-01-01T00:00:05Z", 60, 12, 0, 0, 0, 0)
+        next_position = Position(dateutil.parser.parse("2020-01-01T00:00:05Z"), 60, 12, 0, 0, 0, 0, 0, 0)
         interpolated = gatekeeper.interpolate_track(next_position)
         expected = [
             ('2020-01-01 00:00:01+00:00', 60.00060459825317, 11.199996344505323),

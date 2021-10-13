@@ -3,7 +3,7 @@ ENV PYTHONUNBUFFERED 1
 
 ###### SETUP BASE INFRASTRUCTURE ######
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 python3-dev python3-pip curl build-essential vim libproj-dev proj-data proj-bin libgeos-dev libgdal-dev  redis-server daphne libcliquer1 libgsl23 libgslcblas0 libtbb2 libboost-program-options1.71.0
-RUN curl -sL https://deb.nodesource.com/setup_10.x -o nodesource_setup.sh && bash nodesource_setup.sh && apt-get update && apt-get install -y nodejs && rm nodesource_setup.sh
+RUN curl -sL https://deb.nodesource.com/setup_16.x -o nodesource_setup.sh && bash nodesource_setup.sh && apt-get update && apt-get install -y nodejs && rm nodesource_setup.sh
 
 RUN addgroup --system django \
     && adduser --system --ingroup django -u 200 django

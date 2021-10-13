@@ -72,7 +72,7 @@ class TestTeamApi(APITestCase):
         result = self.client.get(reverse("teams-list"))
         print(result)
         print(result.json())
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_fetch_team_list_as_user_with_privileges(self, p):
         result = self.client.get(reverse("teams-list"))

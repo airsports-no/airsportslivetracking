@@ -167,7 +167,7 @@ class TestContestantGatesCalculation(APITestCase):
         result = self.client.put(url, data=data, format="json")
         print(result)
         print(result.content)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_my_participation(self, p):
         with open("display/tests/NM.csv", "r") as file:

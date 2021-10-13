@@ -8,20 +8,21 @@ from queue import Empty
 from typing import List, TYPE_CHECKING, Optional, Callable, Tuple, Dict
 
 import dateutil
-import pytz
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+
+from timed_queue import TimedQueue, TimedOut
 from websocket_channels import WebsocketFacade
+
+from display.traccar_factory import get_traccar_instance
 
 from display.calculators.calculator_utilities import round_time, distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
     calculate_fractional_distance_point_lat_lon
-from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry, TraccarCredentials
+from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry
 from display.waypoint import Waypoint
-
-from traccar_facade import Traccar
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +56,7 @@ class Gatekeeper(ABC):
     def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
                  live_processing: bool = True):
         super().__init__()
-        configuration = TraccarCredentials.objects.get()
-        self.traccar = Traccar.create_from_configuration(configuration)
+        self.traccar = get_traccar_instance()
         self.latest_position_report = None
         self.live_processing = live_processing
         self.track_terminated = False
@@ -84,6 +84,7 @@ class Gatekeeper(ABC):
         self.in_range_of_gate = None
         self.calculators = []
         self.websocket_facade = WebsocketFacade()
+        self.timed_queue = TimedQueue()
         for calculator in calculators:
             self.calculators.append(
                 calculator(self.contestant, self.scorecard, self.gates, self.contestant.navigation_task.route,
@@ -136,10 +137,25 @@ class Gatekeeper(ABC):
             return positions + [position_data]
         return [position_data]
 
+    def enqueue_positions(self):
+        while not self.track_terminated:
+            try:
+                position_data = self.position_queue.get(timeout=30)
+                if position_data is not None:
+                    release_time = position_data["device_time"] + datetime.timedelta(
+                        minutes=self.contestant.navigation_task.calculation_delay_minutes)
+                else:
+                    release_time = datetime.datetime.now(datetime.timezone.utc)
+                self.timed_queue.put(position_data, release_time)
+            except Empty:
+                self.check_termination()
+
     def run(self):
         logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
         self.contestant.contestanttrack.set_calculator_started()
+        threading.Thread(target=self.enqueue_positions).start()
+        number_of_positions = 0
         while not self.track_terminated:
             now = datetime.datetime.now(datetime.timezone.utc)
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
@@ -151,17 +167,18 @@ class Gatekeeper(ABC):
                     break
                 self.last_contestant_refresh = now
             try:
-                position_data = self.position_queue.get(timeout=30)
-            except Empty:
+                position_data = self.timed_queue.get(timeout=30)
+            except TimedOut:
                 # We have not received anything for 60 seconds, check if we should terminate
                 self.check_termination()
                 continue
             if position_data is None:
                 # Signal the track processor that this is the end, and perform the track calculation
+                logger.debug(f"End of position list after {number_of_positions} positions")
                 self.notify_termination()
                 continue
             # logger.debug(f"Processing position ID {position_data['id']} for device ID {position_data['deviceId']}")
-
+            number_of_positions += 1
             if self.live_processing:
                 buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
             else:
@@ -189,6 +206,7 @@ class Gatekeeper(ABC):
                         # logger.debug(f"Calculating score for position ID {position.position_id} for device ID {position.device_id}")
                         self.calculate_score()
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
+            self.check_termination()
         self.contestant.contestanttrack.set_calculator_finished()
         while not self.position_queue.empty():
             self.position_queue.get_nowait()
@@ -295,14 +313,12 @@ class Gatekeeper(ABC):
         self.track_terminated = True
 
     def check_termination(self):
-        if not self.track_terminated:
-            self.track_terminated = self.is_termination_commanded()
-            if self.track_terminated:
-                self.notify_termination()
-                self.update_score(self.last_gate or self.gates[0], 0, "manually terminated",
-                                  self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
-                                  self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,
-                                  "information", "")
+        if not self.track_terminated and self.is_termination_commanded():
+            self.update_score(self.last_gate or self.gates[0], 0, "manually terminated",
+                              self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
+                              self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,
+                              "information", "")
+            self.notify_termination()
 
     def is_termination_commanded(self) -> bool:
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -330,7 +346,6 @@ class Gatekeeper(ABC):
                 calculator.calculate_enroute(self.track, self.last_gate, self.in_range_of_gate)
             else:
                 calculator.calculate_outside_route(self.track, self.last_gate)
-        self.check_termination()
 
     def get_speed(self):
         previous_index = min(5, len(self.track))

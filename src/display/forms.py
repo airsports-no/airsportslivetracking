@@ -443,7 +443,7 @@ class NavigationTaskForm(forms.ModelForm):
         fields = ("name", "start_time", "finish_time", "display_background_map", "display_secrets", "scorecard",
                   "minutes_to_starting_point",
                   "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
-                  "score_sorting_direction", "default_map", "default_line_width")
+                  "score_sorting_direction", "default_map", "default_line_width", "calculation_delay_minutes")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -472,6 +472,7 @@ class NavigationTaskForm(forms.ModelForm):
                 "Display control",
                 "display_background_map",
                 "display_secrets",
+                "calculation_delay_minutes",
                 "default_map",
                 "default_line_width"
             ),

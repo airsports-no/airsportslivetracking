@@ -646,6 +646,8 @@ class NavigationTask(models.Model):
     )
     default_map = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=200)
     default_line_width = models.FloatField(default=1)
+    calculation_delay_minutes = models.FloatField(default=0, validators=[MinValueValidator(0)],
+                                                  help_text="Number of minutes processions and scores should be delayed before they are made available on the tracking map.")
 
     @classmethod
     def get_visible_navigation_tasks(cls, user: User):

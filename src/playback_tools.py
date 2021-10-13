@@ -133,7 +133,7 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     except:
         pass
     ContestantUploadedTrack.objects.create(contestant=contestant_object, track=positions)
-    logger.debug("Created new uploaded track")
+    logger.debug("Created new uploaded track with {} positions".format(len(positions)))
     # generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
     # influx.put_position_data_for_contestant(contestant_object, positions)
     q = Queue()

@@ -143,7 +143,7 @@ if __name__ == "__main__":
             logger.debug("Done")
             elapsed = datetime.datetime.now() - last_fetch
             sleep_interval = (FETCH_INTERVAL - elapsed).total_seconds()
-            logger.debug(f"Elapsed {elapsed.total_seconds()}, sleeping {sleep_interval}")
+            logger.info(f"Elapsed {elapsed.total_seconds()}, sleeping {sleep_interval}")
             if sleep_interval > 0:
                 time.sleep(sleep_interval)
         else:

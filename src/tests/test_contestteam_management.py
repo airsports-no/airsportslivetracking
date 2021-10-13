@@ -9,7 +9,7 @@ from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from display.models import Contest, Person, Aeroplane, Crew, Team
+from display.models import Contest, Person, Aeroplane, Crew, Team, MyUser
 from mock_utilities import TraccarMock
 
 CONTEST_TEAM_DATA = lambda team, contest: {
@@ -41,7 +41,6 @@ class TestContestTeamApi(APITestCase):
                                   data={"name": "TestContest", "is_public": False, "time_zone": "Europe/Oslo",
                                         "start_time": datetime.datetime.now(datetime.timezone.utc),
                                         "finish_time": datetime.datetime.now(datetime.timezone.utc)})
-        print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
         self.different_user_with_object_permissions = get_user_model().objects.create(email="objectpermissions")
@@ -54,9 +53,9 @@ class TestContestTeamApi(APITestCase):
         assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
-
+        MyUser.objects.create(email="test@test.com")
         aeroplane = Aeroplane.objects.create(registration="registration")
-        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot", email="test@test.com"))
         self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
 
     def test_fetch_contestteam_list_without_login(self, p):
@@ -64,7 +63,7 @@ class TestContestTeamApi(APITestCase):
         result = self.client.get(reverse("contestteams-list", kwargs={"contest_pk": self.contest.pk}))
         print(result)
         print(result.json())
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_fetch_contestteam_list_as_user_with_privileges(self, p):
         result = self.client.get(reverse("contestteams-list", kwargs={"contest_pk": self.contest.pk}))
@@ -100,6 +99,8 @@ class TestContestTeamApi(APITestCase):
     def test_get_specific_team_with_privileges(self, p):
         result = self.client.post(reverse("contestteams-list", kwargs={"contest_pk": self.contest.pk}),
                                   CONTEST_TEAM_DATA(self.team.pk, self.contest.pk), format="json")
+        print(result)
+        print(result.json())
         result = self.client.get(
             reverse("contestteams-detail", kwargs={"contest_pk": self.contest.pk, "pk": result.json()["id"]}))
         print(result)

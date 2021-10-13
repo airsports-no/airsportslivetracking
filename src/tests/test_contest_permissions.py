@@ -27,7 +27,7 @@ class TestCreateContest(APITestCase):
                                                        "start_time": datetime.datetime.now(datetime.timezone.utc),
                                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_contest_without_privileges(self):
         self.client.force_login(user=self.user_without_permissions)
@@ -143,7 +143,7 @@ class TestAccessContest(APITestCase):
         result = self.client.put(reverse("contests-detail", kwargs={'pk': self.contest_id}),
                                  data={"name": "TestContest2"})
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_modify_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
@@ -186,13 +186,13 @@ class TestAccessContest(APITestCase):
         self.contest.save()
         result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_delete_contest_without_login(self, patch):
         self.client.logout()
         result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
         print(result)
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_delete_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)

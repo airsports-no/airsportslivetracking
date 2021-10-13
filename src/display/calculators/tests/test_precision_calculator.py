@@ -3,6 +3,7 @@ import json
 from queue import Queue
 from unittest.mock import Mock, patch
 
+import base64
 import dateutil
 import gpxpy
 from django.contrib.auth.models import User
@@ -21,6 +22,7 @@ from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestan
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 from display.views import create_precision_route_from_csv
 from mock_utilities import TraccarMock
+from playback_tools import insert_gpx_file
 
 
 def load_track_points(filename):
@@ -39,9 +41,11 @@ def load_track_points(filename):
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 class TestFullTrack(TransactionTestCase):
+    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, patch):
+    def setUp(self, patch, p2):
         with open("display/calculators/tests/NM.csv", "r") as file:
             route = create_precision_route_from_csv("navigation_task", file.readlines()[1:], True)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
@@ -75,11 +79,12 @@ class TestFullTrack(TransactionTestCase):
                                                     air_speed=speed,
                                                     wind_direction=165, wind_speed=8)
 
-    def test_correct_scoring_correct_track_precision(self, patch):
+    def test_correct_scoring_correct_track_precision(self, patch, p2):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in positions:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -92,7 +97,7 @@ class TestFullTrack(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(150.0, contestant_track.score)
 
-    def test_secret_score_no_override(self, patch):
+    def test_secret_score_no_override(self, patch, p2):
         expected_time = datetime.datetime(2017, 1, 1, tzinfo=datetime.timezone.utc)
         actual_time = datetime.datetime(2017, 1, 1, 0, 1, tzinfo=datetime.timezone.utc)
         waypoint = self.contestant.navigation_task.route.waypoints[1]
@@ -106,7 +111,7 @@ class TestFullTrack(TransactionTestCase):
         print([str(item) for item in self.navigation_task.route.waypoints])
         self.assertEqual(100, score)
 
-    def test_secret_score_override(self, patch):
+    def test_secret_score_override(self, patch, p2):
         gate_override = GateScoreOverride.objects.create(
             for_gate_types=["secret"],
             checkpoint_penalty_per_second=0,
@@ -127,7 +132,7 @@ class TestFullTrack(TransactionTestCase):
         print([str(item) for item in self.navigation_task.route.waypoints])
         self.assertEqual(0, score)
 
-    def test_score_override(self, patch):
+    def test_score_override(self, patch, p2):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
         track_override = TrackScoreOverride.objects.create()
         gate_override = GateScoreOverride.objects.create(
@@ -145,6 +150,7 @@ class TestFullTrack(TransactionTestCase):
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in positions:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -157,7 +163,7 @@ class TestFullTrack(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(12, contestant_track.score)
 
-    def test_helge_track_precision(self, patch):
+    def test_helge_track_precision(self, patch, p2):
         start_time, speed = datetime.datetime(2020, 8, 1, 10, 55, tzinfo=datetime.timezone.utc), 75
         crew = Crew.objects.create(
             member1=Person.objects.create(first_name="Misters", last_name="Pilot", email="a@gg.com"))
@@ -175,6 +181,7 @@ class TestFullTrack(TransactionTestCase):
         q = Queue()
         calculator = calculator_factory(contestant, q, live_processing=False)
         for i in positions:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -186,11 +193,12 @@ class TestFullTrack(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
         self.assertEqual(471, contestant_track.score)
 
-    def test_correct_scoring_bad_track_precision(self, patch):
+    def test_correct_scoring_bad_track_precision(self, patch, p2):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in positions:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -203,11 +211,12 @@ class TestFullTrack(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1800, contestant_track.score)
 
-    def test_missed_procedure_turn(self, patch):
+    def test_missed_procedure_turn(self, patch, p2):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in positions:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -230,6 +239,7 @@ class TestFullTrack(TransactionTestCase):
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 class Test2017WPFC(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
@@ -256,7 +266,7 @@ class Test2017WPFC(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_101(self, p):
+    def test_101(self, p, p2):
         track = load_track_points(
             "display/tests/demo_contests/2017_WPFC/101_-_Aircraft-039_-_1._Nav._-_Navigation_Flight_Results_(Edition_2).gpx")
         start_time, speed = datetime.datetime(2015, 1, 1, 7, 30, tzinfo=datetime.timezone.utc), 80
@@ -271,6 +281,7 @@ class Test2017WPFC(TransactionTestCase):
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -286,9 +297,11 @@ class Test2017WPFC(TransactionTestCase):
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 class TestScoreverride(TransactionTestCase):
+    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    def setUp(self, p, p2):
         with open("display/calculators/tests/bugs_with_gate_score_overrides.json", "r") as file:
             task_data = json.load(file)
         from display.default_scorecards import default_scorecard_fai_precision_2020
@@ -310,10 +323,11 @@ class TestScoreverride(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_4(self, p):
+    def test_4(self, p, p2):
         with open("display/calculators/tests/bugs_with_gate_score_overrides_track.json", "r") as file:
             track_data = json.load(file)
         contestant = self.navigation_task.contestant_set.first()
+        insert_gpx_file(contestant, base64.decodebytes(track_data["track_file"].encode("utf-8")))
 
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
 
@@ -322,6 +336,7 @@ class TestScoreverride(TransactionTestCase):
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 class TestNM2019(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
@@ -348,7 +363,7 @@ class TestNM2019(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_arild(self, patch):
+    def test_arild(self, patch, p2):
         track = load_track_points(
             "display/calculators/tests/arild2019.gpx")
         start_time, speed = datetime.datetime(2015, 1, 1, 14, 25, tzinfo=datetime.timezone.utc), 54
@@ -363,6 +378,7 @@ class TestNM2019(TransactionTestCase):
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -376,7 +392,7 @@ class TestNM2019(TransactionTestCase):
         self.assertEqual(875,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
-    def test_fredrik(self, patch):
+    def test_fredrik(self, patch, p2):
         track = load_track_points(
             "display/calculators/tests/fredrik2019.gpx")
         start_time, speed = datetime.datetime(2015, 1, 1, 12, 45, tzinfo=datetime.timezone.utc), 90
@@ -391,6 +407,7 @@ class TestNM2019(TransactionTestCase):
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -406,9 +423,11 @@ class TestNM2019(TransactionTestCase):
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 class TestHamar23March2021(TransactionTestCase):
+    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    def setUp(self, p, p2):
         with open("display/calculators/tests/hamartest.kml", "r") as file:
             route = create_precision_default_route_from_kml(file)
         navigation_task_start_time = datetime.datetime(2021, 3, 23, 6, 0, 0).astimezone()
@@ -432,7 +451,7 @@ class TestHamar23March2021(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_kolaf(self, patch):
+    def test_kolaf(self, patch, p2):
         track = load_track_points(
             "display/calculators/tests/hamar_kolaf.gpx")
         start_time, speed = datetime.datetime(2021, 3, 23, 14, 25, tzinfo=datetime.timezone.utc), 70
@@ -448,6 +467,7 @@ class TestHamar23March2021(TransactionTestCase):
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -460,7 +480,7 @@ class TestHamar23March2021(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(204, contestant_track.score)  # 3 points more than website
 
-    def test_vjoycar(self, patch):
+    def test_vjoycar(self, patch, p2):
         track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/vjoycarhamar.csv"))
         start_time, speed = datetime.datetime(2021, 3, 23, 14, 25, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
@@ -475,6 +495,7 @@ class TestHamar23March2021(TransactionTestCase):
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -487,7 +508,7 @@ class TestHamar23March2021(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(204, contestant_track.score)
 
-    def test_lt03(self, patch):
+    def test_lt03(self, patch, p2):
         track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/lt03_hamar.csv"))
         start_time, speed = datetime.datetime(2021, 3, 23, 14, 25, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
@@ -502,6 +523,7 @@ class TestHamar23March2021(TransactionTestCase):
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
@@ -514,7 +536,7 @@ class TestHamar23March2021(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(207, contestant_track.score)
 
-    def test_kolaf_trackar(self, patch):
+    def test_kolaf_trackar(self, patch, p2):
         track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/kolaf_hamar.csv"))
         start_time, speed = datetime.datetime(2021, 3, 23, 14, 25, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(navigation_task=self.navigation_task, team=self.team,
@@ -529,6 +551,7 @@ class TestHamar23March2021(TransactionTestCase):
         q = Queue()
         calculator = calculator_factory(self.contestant, q, live_processing=False)
         for i in track:
+            i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])

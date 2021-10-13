@@ -107,6 +107,9 @@ def live_position_transmitter_process(queue):
             try:
                 contestant = fetch_contestant(person_or_contestant)
                 if contestant is not None:
+                    # Check for delayed tracking, do not push global positions if there is delay
+                    if contestant.navigation_task.calculation_delay_minutes != 0:
+                        continue
                     global_tracking_name = contestant.team.aeroplane.registration
                     try:
                         person = contestant.team.crew.member1

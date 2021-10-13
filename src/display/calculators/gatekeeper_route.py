@@ -16,7 +16,6 @@ from display.coordinate_utilities import line_intersect, fraction_of_leg, Projec
 from display.models import ContestantTrack, Contestant
 from display.waypoint import Waypoint
 
-
 logger = logging.getLogger(__name__)
 
 LOOP_TIME = 60
@@ -230,7 +229,8 @@ class GatekeeperRoute(Gatekeeper):
 
     def notify_termination(self):
         super().notify_termination()
-        logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
+        logger.info(
+            f"{self.contestant}: {'Live processing and past' if self.live_processing else 'Past'} finish time, terminating")
         self.miss_outstanding_gates()
         self.calculate_gate_score()
 
