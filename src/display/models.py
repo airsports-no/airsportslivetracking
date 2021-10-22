@@ -1805,7 +1805,6 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         )
         return [""]
 
-
     @property
     def tracker_id_display(self) -> List[Dict]:
         devices = []
@@ -1955,6 +1954,9 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             logger.debug(f"{self}: Fetching data from uploaded track")
             track = self.contestantuploadedtrack.track
         except:
+            p = self.contestantreceivedposition.objects.all()
+            if p.count() > 0:
+                return ContestantReceivedPosition.convert_to_traccar(p)
             logger.debug(f"{self}: There is no uploaded track, fetching data from traccar")
             track = self.get_traccar_track()
         return [Position(**self.generate_position_block_for_contestant(item, item["device_time"])) for item in track]
@@ -1988,6 +1990,35 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
 class ContestantUploadedTrack(models.Model):
     contestant = models.OneToOneField(Contestant, on_delete=models.CASCADE)
     track = MyPickledObjectField(default=list, help_text="List of traccar position reports (Dict)")
+
+
+class ContestantReceivedPosition(models.Model):
+    contestant = models.OneToOneField(Contestant, on_delete=models.CASCADE)
+    time = models.DateTimeField()
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    course = models.FloatField()
+
+    class Meta:
+        ordering = ('time',)
+
+    @staticmethod
+    def convert_to_traccar(positions: List["ContestantReceivedPosition"]) -> List[Position]:
+        try:
+            contestant = positions[0].contestant
+        except IndexError:
+            return []
+        return [Position(**contestant.generate_position_block_for_contestant({
+            "deviceId": contestant.tracker_device_id,
+            "id": index,
+            "latitude": float(point.latitude),
+            "longitude": float(point.longitude),
+            "altitude": 0,
+            "attributes": {"batteryLevel": 1.0},
+            "speed": 0.0,
+            "course": point.course,
+            "device_time": point.time,
+        }, point.time)) for index, point in enumerate(positions)]
 
 
 class ScoreLogEntry(models.Model):

@@ -21,7 +21,7 @@ from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
     calculate_fractional_distance_point_lat_lon
-from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry
+from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry, ContestantReceivedPosition
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -150,6 +150,11 @@ class Gatekeeper(ABC):
             except Empty:
                 self.check_termination()
 
+    def refresh_scores(self):
+        self.websocket_facade.transmit_score_log_entry(self.contestant)
+        self.websocket_facade.transmit_annotations(self.contestant)
+        self.websocket_facade.transmit_basic_information(self.contestant)
+
     def run(self):
         logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
@@ -159,6 +164,7 @@ class Gatekeeper(ABC):
         while not self.track_terminated:
             now = datetime.datetime.now(datetime.timezone.utc)
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
+                self.refresh_scores()
                 try:
                     self.contestant.refresh_from_db()
                 except ObjectDoesNotExist:
@@ -201,6 +207,9 @@ class Gatekeeper(ABC):
                     continue
                 all_positions.append(p)
                 for position in self.interpolate_track(p):
+                    ContestantReceivedPosition.objects.create(contestant=self.contestant, time=position.time,
+                                                              latitude=position.latitude, longitude=position.longitude,
+                                                              course=position.course)
                     self.track.append(position)
                     if len(self.track) > 1:
                         # logger.debug(f"Calculating score for position ID {position.position_id} for device ID {position.device_id}")

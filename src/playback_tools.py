@@ -86,6 +86,7 @@ def recalculate_traccar(contestant: "Contestant"):
         logger.debug("Deleted existing uploaded track")
     except:
         pass
+    contestant.contestantreceivedposition.objects.all().delete()
     track = contestant.get_traccar_track()
     q = Queue()
     for i in track:
