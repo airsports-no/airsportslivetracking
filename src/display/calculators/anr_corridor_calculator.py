@@ -11,6 +11,7 @@ import cartopy.crs as ccrs
 
 from display.calculators.calculator import Calculator
 from display.calculators.positions_and_gates import Position, Gate
+from display.coordinate_utilities import utm_from_lat_lon
 from display.models import Contestant, Scorecard, Route
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,8 @@ class AnrCorridorCalculator(Calculator):
         self.crossed_outside_position = None
         self.crossed_outside_gate = None
         self.pc = ccrs.PlateCarree()
-        self.epsg = ccrs.epsg(3857)
+        waypoint = self.contestant.navigation_task.route.waypoints[0]
+        self.utm = utm_from_lat_lon(waypoint.latitude, waypoint.longitude)
         self.track_polygon = self.build_polygon()
         self.plot_polygon()
 
@@ -65,23 +67,23 @@ class AnrCorridorCalculator(Calculator):
         points = np.array(points)
         print(points.shape)
         print(points)
-        transformed_points = self.epsg.transform_points(self.pc, points[:, 1], points[:, 0])
+        transformed_points = self.utm.transform_points(self.pc, points[:, 1], points[:, 0])
         return Polygon(transformed_points)
 
     def plot_polygon(self):
         # imagery = OSM()
-        ax = plt.axes(projection=self.epsg)
+        ax = plt.axes(projection=self.utm)
         # ax.add_image(imagery, 8)
         ax.set_aspect("auto")
         ax.plot(self.track_polygon.boundary.xy[0], self.track_polygon.boundary.xy[1])
-        ax.add_geometries([self.track_polygon], crs=self.epsg, facecolor="blue", alpha=0.4)
+        ax.add_geometries([self.track_polygon], crs=self.utm, facecolor="blue", alpha=0.4)
         plt.savefig("polygon.png", dpi=100)
 
     def _check_inside_polygon(self, latitude, longitude) -> bool:
         """
         Returns true if the point lies inside the corridor
         """
-        x, y = self.epsg.transform_point(longitude, latitude, self.pc)
+        x, y = self.utm.transform_point(longitude, latitude, self.pc)
         p = Point(x, y)
         return self.track_polygon.contains(p)
 

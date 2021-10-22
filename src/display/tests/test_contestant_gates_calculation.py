@@ -71,16 +71,29 @@ class TestContestantGatesCalculation(TestCase):
                 print("{} Matches!".format(gate))
 
     def test_calculate_and_get_relative_gate_times(self):
+        def chop_microseconds(delta):
+            return delta - datetime.timedelta(microseconds=delta.microseconds)
+
         times = calculate_and_get_relative_gate_times(self.navigation_task.route, 75, 8, 165)
-        expected_times = [('SP', datetime.timedelta(0)), ('SC 1/1', datetime.timedelta(0, 104, 606172)),
-                          ('TP1', datetime.timedelta(0, 405, 953623)), ('SC 2/1', datetime.timedelta(0, 585, 504090)),
-                          ('TP2', datetime.timedelta(0, 738, 235839)), ('SC 3/1', datetime.timedelta(0, 847, 104080)),
-                          ('SC 3/2', datetime.timedelta(0, 1005, 69764)), ('TP3', datetime.timedelta(0, 1288, 421177)),
-                          ('TP4', datetime.timedelta(0, 1545, 321030)), ('SC 5/1', datetime.timedelta(0, 1784, 8036)),
-                          ('TP5', datetime.timedelta(0, 2041, 35476)), ('SC 6/1', datetime.timedelta(0, 2244, 13203)),
-                          ('TP6', datetime.timedelta(0, 2659, 112258)), ('SC 7/1', datetime.timedelta(0, 2817, 307225)),
-                          ('SC 7/2', datetime.timedelta(0, 3046, 131105)), ('FP', datetime.timedelta(0, 3268, 33269))]
+        expected_times = [('SP', datetime.timedelta(0)),
+                          ('SC 1/1', datetime.timedelta(seconds=104, microseconds=981691)),
+                          ('TP1', datetime.timedelta(seconds=407, microseconds=411176)),
+                          ('SC 2/1', datetime.timedelta(seconds=587, microseconds=331999)),
+                          ('TP2', datetime.timedelta(seconds=740, microseconds=537499)),
+                          ('SC 3/1', datetime.timedelta(seconds=849, microseconds=796023)),
+                          ('SC 3/2', datetime.timedelta(seconds=1008, microseconds=328113)),
+                          ('TP3', datetime.timedelta(seconds=1292, microseconds=695841)),
+                          ('TP4', datetime.timedelta(seconds=1550, microseconds=440154)),
+                          ('SC 5/1', datetime.timedelta(seconds=1789, microseconds=511703)),
+                          ('TP5', datetime.timedelta(seconds=2047, microseconds=89828)),
+                          ('SC 6/1', datetime.timedelta(seconds=2250, microseconds=438729)),
+                          ('TP6', datetime.timedelta(seconds=2666, microseconds=290646)),
+                          ('SC 7/1', datetime.timedelta(seconds=2824, microseconds=756831)),
+                          ('SC 7/2', datetime.timedelta(seconds=3054, microseconds=214214)),
+                          ('FP', datetime.timedelta(seconds=3276, microseconds=732726))]
         print(times)
+        times = [(item[0], chop_microseconds(item[1])) for item in times]
+        expected_times = [(item[0], chop_microseconds(item[1])) for item in expected_times]
         self.assertListEqual(expected_times, times)
 
 
@@ -116,9 +129,11 @@ class TestContestantGatesCalculationANRRounded(TestCase):
 
     def test_calculate_and_get_relative_gate_times(self):
         times = calculate_and_get_relative_gate_times(self.navigation_task.route, 75, 8, 165)
-        expected_times = [('SP', datetime.timedelta(0)), ('Waypoint 1', datetime.timedelta(0, 125, 42535)),
-                          ('Waypoint 2', datetime.timedelta(0, 345, 912307)),
-                          ('Waypoint 3', datetime.timedelta(0, 450, 779638)), ('FP', datetime.timedelta(0, 634, 67374))]
+        expected_times = [('SP', datetime.timedelta(0)),
+                          ('Waypoint 1', datetime.timedelta(seconds=125, microseconds=316889)),
+                          ('Waypoint 2', datetime.timedelta(seconds=344, microseconds=438413)),
+                          ('Waypoint 3', datetime.timedelta(seconds=447, microseconds=97335)),
+                          ('FP', datetime.timedelta(seconds=630, microseconds=52853))]
         print(times)
         for item in times:
             print(item[1].total_seconds())

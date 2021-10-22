@@ -2,34 +2,29 @@
 
 version: '2'
 services:
-  tmp:
-    image: busybox
-    command: chmod -R 777 /tmp/docker
-    volumes:
-      - /tmp/docker/
-  swag:
-    image: ghcr.io/linuxserver/swag
-    container_name: swag
-    cap_add:
-      - NET_ADMIN
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - ONLY_SUBDOMAINS=false
-      - URL=airsports.no
-      - SUBDOMAINS=tracking,traccar,traccarclient,www
-      - EMAIL=frankose@ifi.uio.no
-      - VALIDATION=http
-    volumes:
-      - ./swag/config:/config
-      - ./assets:/assets/
-      - ./src/media:/media
-      - ./static:/static
-    ports:
-      - 443:443
-      - 80:80 # Required for certificate validation
-    restart: unless-stopped
+#  swag:
+#    image: ghcr.io/linuxserver/swag
+#    container_name: swag
+#    cap_add:
+#      - NET_ADMIN
+#    environment:
+#      - PUID=1000
+#      - PGID=1000
+#      - TZ=Europe/London
+#      - ONLY_SUBDOMAINS=false
+#      - URL=airsports.no
+#      - SUBDOMAINS=tracking,traccar,traccarclient,www
+#      - EMAIL=frankose@ifi.uio.no
+#      - VALIDATION=http
+#    volumes:
+#      - ./swag/config:/config
+#      - ./assets:/assets/
+#      - ./src/media:/media
+#      - ./static:/static
+#    ports:
+#      - 443:443
+#      - 80:80 # Required for certificate validation
+#    restart: unless-stopped
 
   tracker_web:
     container_name: tracker_web
@@ -41,7 +36,7 @@ services:
       - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
       - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
       - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
-      - MODE=production
+      - MODE=dev
     build:
       context: .
       dockerfile: Dockerfile
@@ -55,8 +50,6 @@ services:
       - ./data:/data/
       - ./weblog:/logs/
       - ./mapserver:/maptiles
-    volumes_from:
-      - tmp
     ports:
       - "8002:8000"
     depends_on:
@@ -88,8 +81,6 @@ services:
       - ./data:/data/
       - ./weblog:/logs/
       - ./mapserver:/maptiles
-    volumes_from:
-      - tmp
     ports:
       - "8002:8000"
     depends_on:
@@ -123,8 +114,6 @@ services:
       - ./data:/data/
       - ./daphnelog:/logs/
       - ./mapserver:/maptiles
-    volumes_from:
-      - tmp
     depends_on:
       - mysql
       - redis
@@ -157,8 +146,6 @@ services:
       - ./data:/data/
       - ./celerylog:/logs/
       - ./mapserver:/maptiles
-    volumes_from:
-      - tmp
     depends_on:
       - mysql
       - redis
@@ -186,8 +173,6 @@ services:
       - ./django-rest-authemail:/django-rest-authemail
       - ./src:/src/
       - ./processorlog:/logs/
-    volumes_from:
-      - tmp
     depends_on:
       - traccar
       - mysql
@@ -210,8 +195,6 @@ services:
       - ./secret:/secret
       - ./src:/src/
       - ./openskyconsumerlogs:/logs/
-    volumes_from:
-      - tmp
     depends_on:
       - redis
 
@@ -228,8 +211,6 @@ services:
       - ./secret:/secret
       - ./src:/src/
       - ./ognconsumerlogs:/logs/
-    volumes_from:
-      - tmp
     depends_on:
       - redis
 
@@ -262,12 +243,11 @@ services:
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
 
   redis:
-    build:
-      context: .
-      dockerfile: Dockerfile.redis
+    image: redis
+#    build:
+#      context: .
+#      dockerfile: Dockerfile.redis
     container_name: redis
-    volumes_from:
-      - tmp
   logrotate:
     image: blacklabelops/logrotate
     volumes:

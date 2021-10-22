@@ -34,7 +34,8 @@ class PenaltyZoneCalculator(Calculator):
         self.crossed_outside_time = None
         self.last_outside_penalty = None
         self.crossed_outside_position = None
-        self.polygon_helper = PolygonHelper()
+        waypoint = self.contestant.navigation_task.route.waypoints[0]
+        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
         self.zone_polygons = {}
         self.inside_times = {}
         zones = route.prohibited_set.filter(type="penalty")

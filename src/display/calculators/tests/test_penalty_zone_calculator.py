@@ -4,7 +4,8 @@ from unittest.mock import Mock
 from django.test import TransactionTestCase
 
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
-from display.models import Prohibited, Route
+from display.models import Prohibited, Route, TrackScoreOverride
+from display.waypoint import Waypoint
 
 
 class TestPenaltyZoneCalculator(TransactionTestCase):
@@ -15,7 +16,17 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
                                   type="penalty")
         from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
         self.update_score = Mock()
-        self.calculator = PenaltyZoneCalculator(None, get_default_scorecard(), [], self.route, self.update_score)
+        self.contestant = Mock()
+        waypoint = Waypoint("")
+        waypoint.latitude = 60
+        waypoint.longitude = 11
+        self.contestant.navigation_task.route.waypoints = [waypoint]
+        self.calculator = PenaltyZoneCalculator(self.contestant, get_default_scorecard(), [], self.route,
+                                                self.update_score)
+        self.calculator.scorecard.get_penalty_zone_grace_time = lambda c: 3
+        self.calculator.scorecard.get_penalty_zone_penalty_per_second = lambda c: 3
+        self.calculator.scorecard.get_penalty_zone_maximum = lambda c: 200
+
 
     def test_inside_enroute(self):
         position = Mock()

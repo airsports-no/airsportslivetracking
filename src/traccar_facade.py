@@ -77,7 +77,7 @@ class Traccar:
 
     def get_device_ids_for_contestant(self, contestant: "Contestant") -> List[int]:
         devices = []
-        for name in contestant.get_tracker_ids():
+        for name in contestant.get_tracker_ids() + contestant.get_simulator_tracker_ids():
             try:
                 devices.append(self.unique_id_map[name])
             except KeyError:

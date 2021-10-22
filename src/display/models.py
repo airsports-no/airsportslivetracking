@@ -1792,6 +1792,20 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         )
         return [""]
 
+    def get_simulator_tracker_ids(self) -> List[str]:
+        if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
+            trackers = [self.team.crew.member1.simulator_tracking_id]
+            if self.team.crew.member2 is not None:
+                trackers.append(self.team.crew.member2.simulator_tracking_id)
+            return trackers
+        if self.tracking_device == TRACKING_COPILOT:
+            return [self.team.crew.member2.simulator_tracking_id]
+        logger.error(
+            f"Contestant {self.team} for navigation task {self.navigation_task} does not have a simulator tracker ID for tracking device {self.tracking_device}"
+        )
+        return [""]
+
+
     @property
     def tracker_id_display(self) -> List[Dict]:
         devices = []
@@ -1941,7 +1955,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             logger.debug(f"{self}: Fetching data from uploaded track")
             track = self.contestantuploadedtrack.track
         except:
-            logger.debug(f"{self}: There is no uploaded track, fetching data from taccar")
+            logger.debug(f"{self}: There is no uploaded track, fetching data from traccar")
             track = self.get_traccar_track()
         return [Position(**self.generate_position_block_for_contestant(item, item["device_time"])) for item in track]
 
@@ -2485,11 +2499,14 @@ class EditableRoute(models.Model):
         :param feature:
         :return:
         """
-        coordinates = feature["geojson"]["geometry"]["coordinates"]
-        if feature["geojson"]["geometry"]["type"] == "Polygon":
-            coordinates = coordinates[0]
-        if flip:
-            return [tuple(reversed(item)) for item in coordinates]
+        try:
+            coordinates = feature["geojson"]["geometry"]["coordinates"]
+            if feature["geojson"]["geometry"]["type"] == "Polygon":
+                coordinates = coordinates[0]
+            if flip:
+                return [tuple(reversed(item)) for item in coordinates]
+        except KeyError as e:
+            raise ValidationError(f"Malformed internal route: {e}")
         return coordinates
 
     def create_landing_route(self):

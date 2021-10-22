@@ -5,7 +5,7 @@ import datetime
 from typing import Tuple, List, Dict
 
 from display.coordinate_utilities import cross_track_distance, along_track_distance, calculate_distance_lat_lon, \
-    calculate_bearing
+    calculate_bearing, utm_from_lat_lon
 
 
 def cross_track_gate(gate1, gate2, position) -> float:
@@ -56,21 +56,21 @@ def round_time(dt=None, round_to=60):
 
 
 class PolygonHelper:
-    def __init__(self):
+    def __init__(self, latitude, longitude):
         self.pc = ccrs.PlateCarree()
-        self.epsg = ccrs.epsg(3857)
+        self.utm = utm_from_lat_lon(latitude, longitude)
 
     def build_polygon(self, zone):
         line = []
         for element in zone.path:
-            line.append(self.epsg.transform_point(*list(reversed(element)), ccrs.PlateCarree()))
+            line.append(self.utm.transform_point(*list(reversed(element)), self.pc))
         return Polygon(line)
 
     def check_inside_polygons(self, polygons: Dict[str, Polygon], latitude, longitude) -> List[str]:
         """
         Returns a list of names of the prohibited zone is the position is inside
         """
-        x, y = self.epsg.transform_point(longitude, latitude, self.pc)
+        x, y = self.utm.transform_point(longitude, latitude, self.pc)
         p = Point(x, y)
         incursions = []
         for name, zone in polygons.items():

@@ -30,10 +30,6 @@ COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh co
 RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /gunicorn_uvicorn.sh
 
 
-###### INSTALL JAVASCRIPT PACKAGES ######
-COPY package*.json /
-RUN npm install
-
 
 ###### INSTALL APPLICATION ######
 COPY --chown=django:django reactjs /reactjs
@@ -57,7 +53,11 @@ FROM tracker_base as tracker_init
 CMD [ "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD FLUSHALL" ]
 
 FROM tracker_base as tracker_web
+###### INSTALL JAVASCRIPT PACKAGES ######
 WORKDIR /
+COPY package*.json /
+RUN npm install
+
 RUN npm run webpack
 WORKDIR /src
 RUN python3 manage.py collectstatic --noinput

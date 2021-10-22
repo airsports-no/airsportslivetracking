@@ -253,8 +253,8 @@ USE_TZ = True
 DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
-MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{MEDIA_LOCATION}/'
+# AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
+# MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{MEDIA_LOCATION}/'
 AZURE_ACCOUNT_KEY = STORAGE_ACCOUNT_SECRET
 AZURE_CONTAINER = MEDIA_LOCATION
 

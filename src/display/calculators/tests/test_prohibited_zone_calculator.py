@@ -4,6 +4,7 @@ from django.test import TransactionTestCase
 
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 from display.models import Prohibited, Route
+from display.waypoint import Waypoint
 
 
 class TestProhibitedZoneCalculator(TransactionTestCase):
@@ -14,7 +15,13 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
                                   type="prohibited")
         from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
         self.update_score = Mock()
-        self.calculator = ProhibitedZoneCalculator(None, get_default_scorecard(), [], self.route, self.update_score)
+        self.contestant = Mock()
+        waypoint = Waypoint("")
+        waypoint.latitude = 60
+        waypoint.longitude = 11
+        self.contestant.navigation_task.route.waypoints = [waypoint]
+        self.calculator = ProhibitedZoneCalculator(self.contestant, get_default_scorecard(), [], self.route,
+                                                   self.update_score)
 
     def test_inside_enroute(self):
         position = Mock()
@@ -22,7 +29,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         position.longitude = 11.5
         gate = Mock()
         self.calculator.calculate_enroute([position], gate, gate)
-        self.update_score.assert_called_with(gate, 0, 'entered prohibited zone test', 60.5, 11.5, 'anomaly',
+        self.update_score.assert_called_with(gate, self.calculator.scorecard.get_prohibited_zone_penalty(self.contestant), 'entered prohibited zone test', 60.5, 11.5, 'anomaly',
                                              'inside_prohibited_zone')
 
     def test_inside_outside_route(self):
@@ -31,7 +38,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         position.longitude = 11.5
         gate = Mock()
         self.calculator.calculate_outside_route([position], gate)
-        self.update_score.assert_called_with(gate, 0, 'entered prohibited zone test', 60.5, 11.5, 'anomaly',
+        self.update_score.assert_called_with(gate, self.calculator.scorecard.get_prohibited_zone_penalty(self.contestant), 'entered prohibited zone test', 60.5, 11.5, 'anomaly',
                                              'inside_prohibited_zone')
 
     def test_outside_enroute(self):

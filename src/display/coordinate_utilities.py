@@ -2,6 +2,8 @@ import cartopy.crs as ccrs
 import logging
 import math
 from typing import Tuple, Optional, List
+
+import utm
 from geopy.distance import geodesic, great_circle
 import nvector as nv
 import numpy as np
@@ -9,6 +11,44 @@ import numpy as np
 R = 6371000  # metres
 
 logger = logging.getLogger(__name__)
+
+
+def utm_from_lon(lon):
+    """
+    utm_from_lon - UTM zone for a longitude
+    Not right for some polar regions (Norway, Svalbard, Antartica)
+    :param float lon: longitude
+    :return: UTM zone number
+    :rtype: int
+    """
+
+    return np.floor((lon + 180) / 6) + 1
+
+
+def utm_from_lat_lon(lat, lon) -> ccrs.CRS:
+    """
+    utm_from_lon - UTM zone for a longitude
+    Not right for some polar regions (Norway, Svalbard, Antartica)
+    :param float lon: longitude
+    :return: UTM zone number
+    :rtype: int
+    """
+    _, _, zone, letter = utm.from_latlon(lat, lon)
+    print(zone)
+    print(letter)
+    return ccrs.UTM(zone, southern_hemisphere=lat < 0)
+
+
+class UtmXy:
+    def __init__(self, lat, lon):
+        self.utm = utm_from_lat_lon(lat, lon)
+        self.proj = ccrs.PlateCarree()
+
+    def to_xy(self, lat, lon) -> Tuple[float, float]:
+        return self.utm.transform_point(lon, lat, self.proj)
+
+    def to_lat_lon(self, x, y) -> Tuple[float, float]:
+        return tuple(reversed(self.proj.transform_point(x, y, self.utm)))
 
 
 def to_rad(value) -> float:
@@ -58,7 +98,7 @@ def bearing_difference(bearing1, bearing2) -> float:
 
 
 def equirectangular_distance(
-    start: Tuple[float, float], finish: Tuple[float, float]
+        start: Tuple[float, float], finish: Tuple[float, float]
 ) -> float:
     """
 
@@ -73,7 +113,7 @@ def equirectangular_distance(
 
 
 def calculate_distance_lat_lon(
-    start: Tuple[float, float], finish: Tuple[float, float]
+        start: Tuple[float, float], finish: Tuple[float, float]
 ) -> float:
     """
 
@@ -81,8 +121,8 @@ def calculate_distance_lat_lon(
     :param finish: degrees
     :return: Distance in metres
     """
-    # return geodesic(start, finish).km * 1000  # This is the most correct
-    return great_circle(start, finish).km * 1000  # This is closer to flight contest
+    return geodesic(start, finish).km * 1000  # This is the most correct
+    # return great_circle(start, finish).km * 1000  # This is closer to flight contest
     # This is what flight contest uses
     # latitude_difference = finish[0] - start[0]
     # longitude_difference = finish[1] - start[1]
@@ -105,7 +145,7 @@ def calculate_bearing(start: Tuple[float, float], finish: Tuple[float, float]) -
 
 
 def calculate_fractional_distance_point_lat_lon(
-    start: Tuple[float, float], finish: Tuple[float, float], fraction: float
+        start: Tuple[float, float], finish: Tuple[float, float], fraction: float
 ) -> Tuple[float, float]:
     R = 6371000  # metres
     la1 = start[0] * math.pi / 180
@@ -125,7 +165,7 @@ def calculate_fractional_distance_point_lat_lon(
 
 
 def get_centre_of_line_lat_lon(
-    start: Tuple[float, float], finish: Tuple[float, float]
+        start: Tuple[float, float], finish: Tuple[float, float]
 ) -> Tuple[float, float]:
     return calculate_fractional_distance_point_lat_lon(start, finish, 0.5)
 
@@ -141,7 +181,7 @@ def normalise_longitude(longitude: np.ndarray) -> np.ndarray:
 
 
 def project_position_lat_lon(
-    start: Tuple[float, float], bearing: float, distance: float
+        start: Tuple[float, float], bearing: float, distance: float
 ) -> Tuple[float, float]:
     """
 
@@ -171,7 +211,7 @@ def project_position_lat_lon(
 
 
 def extend_line(
-    start: Tuple[float, float], finish: Tuple[float, float], distance: float
+        start: Tuple[float, float], finish: Tuple[float, float], distance: float
 ) -> Optional[Tuple[Tuple[float, float], Tuple[float, float]]]:
     """
 
@@ -296,10 +336,10 @@ def cross_track_distance(lat1, lon1, lat2, lon2, lat, lon) -> float:
     first_bearing = calculate_bearing((lat1, lon1), (lat, lon)) * math.pi / 180
     second_bearing = calculate_bearing((lat1, lon1), (lat2, lon2)) * math.pi / 180
     return (
-        math.asin(
-            math.sin(angular_distance13) * math.sin(first_bearing - second_bearing)
-        )
-        * R
+            math.asin(
+                math.sin(angular_distance13) * math.sin(first_bearing - second_bearing)
+            )
+            * R
     )
 
 
@@ -307,8 +347,8 @@ def along_track_distance(lat1, lon1, lat, lon, cross_track_distance):
     angular_distance13 = calculate_distance_lat_lon((lat1, lon1), (lat, lon)) / R
     try:
         return (
-            math.acos(math.cos(angular_distance13) / math.cos(cross_track_distance / R))
-            * R
+                math.acos(math.cos(angular_distance13) / math.cos(cross_track_distance / R))
+                * R
         )
     except:
         # try:
@@ -321,7 +361,7 @@ def along_track_distance(lat1, lon1, lat, lon, cross_track_distance):
 
 
 def get_procedure_turn_track(
-    latitude, longitude, bearing_in, bearing_out, turn_radius
+        latitude, longitude, bearing_in, bearing_out, turn_radius
 ) -> List[Tuple[float, float]]:
     """
 
@@ -375,9 +415,9 @@ def rotate_vector_angle(x, y, degrees):
 
 
 def create_rounded_corridor_corner(
-    bisecting_line: Tuple[Tuple[float, float], Tuple[float, float]],
-    corridor_width: float,
-    corner_degrees: float,
+        bisecting_line: Tuple[Tuple[float, float], Tuple[float, float]],
+        corridor_width: float,
+        corner_degrees: float,
 ) -> Tuple[List[Tuple[float, float]], List[Tuple[float, float]]]:
     """
     Create a rounded line for the left and right corridor walls for the turn described by the bisecting line
@@ -385,7 +425,7 @@ def create_rounded_corridor_corner(
     :param left_turn: If left turn, the first coordinate of the bisecting line is the inside corner, otherwise the
     second coordinate is the inside corner
     :param corridor_width: The width of the corridor NM
-    :paramcorner_degrees: The number of degrees for the turn
+    :param corner_degrees: The number of degrees for the turn
     :param bisecting_line: The line that bisects the middle of the turn
     :return: List of points that make up the left-hand corridor line, list of points that make up the right-hand corridor line (lon, lat)
     """
@@ -406,9 +446,9 @@ def create_rounded_corridor_corner(
         circle_perimeter = bisecting_line[0]
     initial_offset = -1 * turn_degrees / 2
     pc = ccrs.PlateCarree()
-    epsg = ccrs.epsg(3857)
-    centre = np.array(epsg.transform_point(*reversed(circle_centre), pc))
-    perimeter = np.array(epsg.transform_point(*reversed(circle_perimeter), pc))
+    utm = utm_from_lat_lon(*circle_centre)
+    centre = np.array(utm.transform_point(*reversed(circle_centre), pc))
+    perimeter = np.array(utm.transform_point(*reversed(circle_perimeter), pc))
 
     unit_circle = perimeter - centre
     bisection_length = len_v(unit_circle)
@@ -422,8 +462,8 @@ def create_rounded_corridor_corner(
     turn_radius = 0
 
     new_centre = (
-        norm_v(rotate_vector_angle(unit_circle[0], unit_circle[1], 180)) * turn_radius
-    ) + centre
+                         norm_v(rotate_vector_angle(unit_circle[0], unit_circle[1], 180)) * turn_radius
+                 ) + centre
 
     track_point = unit_circle
 
@@ -438,8 +478,8 @@ def create_rounded_corridor_corner(
         )
         outer_edge.append(
             (
-                rotated
-                * (turn_radius + bisection_corridor_difference + corridor_width_metres)
+                    rotated
+                    * (turn_radius + bisection_corridor_difference + corridor_width_metres)
             )
             + new_centre
         )
@@ -454,8 +494,8 @@ def create_rounded_corridor_corner(
         left_edge = np.array(outer_edge)
     print(f"left_edge: {left_edge}")
     print(f"left_edge.shape: {left_edge.shape}")
-    left_edge_lonlat = pc.transform_points(epsg, left_edge[:, 0], left_edge[:, 1])
-    right_edge_lonlat = pc.transform_points(epsg, right_edge[:, 0], right_edge[:, 1])
+    left_edge_lonlat = pc.transform_points(utm, left_edge[:, 0], left_edge[:, 1])
+    right_edge_lonlat = pc.transform_points(utm, right_edge[:, 0], right_edge[:, 1])
     left_edge_lonlat[:, [0, 1]] = left_edge_lonlat[:, [1, 0]]
     right_edge_lonlat[:, [0, 1]] = right_edge_lonlat[:, [1, 0]]
     print(f"left_edge_lonlat: {left_edge_lonlat}")
@@ -475,21 +515,20 @@ def create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length):
     :param length: metres
     :return:
     """
-    pc = ccrs.PlateCarree()
-    epsg = ccrs.epsg(3857)
-    x1, y1 = epsg.transform_point(x1, y1, pc)
-    x2, y2 = epsg.transform_point(x2, y2, pc)
-    x3, y3 = epsg.transform_point(x3, y3, pc)
+    transformer = UtmXy(y2,x2)
+    x1, y1 = transformer.to_xy(y1,x1)
+    x2, y2 = transformer.to_xy(y2,x2)
+    x3, y3 = transformer.to_xy(y3,x3)
     d1 = norm_v(np.array([x2 - x1, y2 - y1])) * length / 2
     d2 = norm_v(np.array([x2 - x3, y2 - y3])) * length / 2
     dx, dy = d1[0] + d2[0], d1[1] + d2[1]
-    x1, y1 = pc.transform_point(x2 + dx, y2 + dy, epsg)
-    x2, y2 = pc.transform_point(x2 - dx, y2 - dy, epsg)
+    y1, x1 = transformer.to_lat_lon(x2 + dx, y2 + dy)
+    y2, x2 = transformer.to_lat_lon(x2 - dx, y2 - dy)
     return [[x1, y1], [x2, y2]]
 
 
 def create_bisecting_line_between_segments_corridor_width_lonlat(
-    x1, y1, x2, y2, x3, y3, corridor_width
+        x1, y1, x2, y2, x3, y3, corridor_width
 ):
     """
 
@@ -505,24 +544,24 @@ def create_bisecting_line_between_segments_corridor_width_lonlat(
     b1 = calculate_bearing((y1, x1), (y2, x2))
     b2 = calculate_bearing((y2, x2), (y3, x3))
     diff = bearing_difference(b1, b2)
-    pc = ccrs.PlateCarree()
-    epsg = ccrs.epsg(3857)
-    x1, y1 = epsg.transform_point(x1, y1, pc)
-    x2, y2 = epsg.transform_point(x2, y2, pc)
-    x3, y3 = epsg.transform_point(x3, y3, pc)
+    transformer = UtmXy(y2,x2)
+    x1, y1 = transformer.to_xy(y1,x1)
+    x2, y2 = transformer.to_xy(y2,x2)
+    x3, y3 = transformer.to_xy(y3,x3)
     s, f = create_bisecting_line_between_segments_corridor_width_xy(
         x1, y1, x2, y2, x3, y3, corridor_width
     )
-    x1, y1 = pc.transform_point(s[0], s[1], epsg)
-    x2, y2 = pc.transform_point(f[0], f[1], epsg)
+    y1, x1 = transformer.to_lat_lon(*s)
+    y2, x2 = transformer.to_lat_lon(*f)
     line = [[x1, y1], [x2, y2]]
     if diff < 0:
         line.reverse()
     return line
 
 
+
 def create_bisecting_line_between_segments_corridor_width_xy(
-    x1, y1, x2, y2, x3, y3, corridor_width
+        x1, y1, x2, y2, x3, y3, corridor_width
 ):
     """
 
@@ -563,13 +602,12 @@ def create_perpendicular_line_at_end_lonlat(x1, y1, x2, y2, length):
     :param length: metres
     :return:
     """
-    pc = ccrs.PlateCarree()
-    epsg = ccrs.epsg(3857)
-    x1, y1 = epsg.transform_point(x1, y1, pc)
-    x2, y2 = epsg.transform_point(x2, y2, pc)
+    transformer = UtmXy(y1,x1)
+    x1, y1 = transformer.to_xy(y1,x1)
+    x2, y2 = transformer.to_xy(y2,x2)
     l1, l2 = create_perpendicular_line_at_end_xy(x1, y1, x2, y2, length)
-    x1, y1 = pc.transform_point(*l1, epsg)
-    x2, y2 = pc.transform_point(*l2, epsg)
+    y1, x1 = transformer.to_lat_lon(*l1)
+    y2, x2 = transformer.to_lat_lon(*l2)
     return [[x1, y1], [x2, y2]]
 
 
@@ -598,7 +636,7 @@ def create_perpendicular_line_at_end_xy(x1, y1, x2, y2, length):
 
 
 def calculate_bounding_box(
-    centre: Tuple[float, float], radius: float
+        centre: Tuple[float, float], radius: float
 ) -> Tuple[float, float, float, float]:
     """
 

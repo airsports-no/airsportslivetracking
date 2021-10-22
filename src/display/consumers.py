@@ -56,9 +56,10 @@ class TrackingConsumer(WebsocketConsumer):
         self.send(
             json.dumps(
                 {
-                    "current_time": datetime.datetime.now(datetime.timezone.utc)
-                    .astimezone(self.navigation_task.contest.time_zone)
-                    .strftime("%H:%M:%S")
+                    "current_time": datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=2,
+                                                                                                      minutes=self.navigation_task.calculation_delay_minutes)
+                        .astimezone(self.navigation_task.contest.time_zone)
+                        .strftime("%H:%M:%S")
                 }
             )
         )
@@ -111,9 +112,9 @@ class GlobalConsumer(WebsocketConsumer):
         message_type = message.get("type")
         if message_type == "location":
             if (
-                type(message.get("latitude")) in (float, int)
-                and type(message.get("longitude")) in (float, int)
-                and type(message.get("range")) in (float, int)
+                    type(message.get("latitude")) in (float, int)
+                    and type(message.get("longitude")) in (float, int)
+                    and type(message.get("range")) in (float, int)
             ):
                 self.location = (message.get("latitude"), message.get("longitude"))
                 self.range = message.get("range") * 1000

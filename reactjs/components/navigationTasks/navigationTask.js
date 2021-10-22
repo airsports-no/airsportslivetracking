@@ -242,8 +242,8 @@ class ConnectedNavigationTask extends Component {
                 this.initiateSession()
                 this.remainingTracks = 0
                 this.props.navigationTask.contestant_set.map((contestant, index) => {
-                    this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
                     this.remainingTracks++
+                    this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
                 })
             }
         }

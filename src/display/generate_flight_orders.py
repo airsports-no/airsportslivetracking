@@ -11,11 +11,14 @@ from cartopy.io.img_tiles import GoogleTiles
 from fpdf import FPDF, HTMLMixin
 from shapely.geometry import Polygon
 
+from display.coordinate_utilities import utm_from_lat_lon
 from display.map_plotter import plot_route, A4
-from display.map_plotter_shared_utilities import qr_code_image, utm_from_lat_lon
+from display.map_plotter_shared_utilities import qr_code_image
 from display.models import Scorecard
 from display.waypoint import Waypoint
 import cartopy.crs as ccrs
+
+from live_tracking_map.settings import AZURE_ACCOUNT_NAME
 
 
 class MyFPDF(FPDF, HTMLMixin):
@@ -159,7 +162,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     qr_file.seek(0)
 
     if contestant.navigation_task.contest.logo:
-        logo = f"https://airsportsstorage2.blob.core.windows.net/media/{contestant.navigation_task.contest.logo}"
+        logo = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/media/{contestant.navigation_task.contest.logo}"
     else:
         logo = "static/img/airsports_no_text.png"
         # pdf.image("static/img/airsports_no_text.png", x=170, y=10, w=30)
@@ -170,7 +173,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     <thead><tr><th width="20%"></th><th width="60%"></th><th width="20%"></td></tr></thead>
     <tbody>
     <tr><td>&nbsp;</td><td align="center"><font size=14>Welcome to</font></td><td rowspan=3><img src="{logo}" width=80 /></td></tr>
-    <tr><td>&nbsp;</td><td align="center"><font color="#00FF00" size=16>{contestant.navigation_task.contest.name}</font></td></tr>
+    <tr><td>&nbsp;</td><td align="center"><font color="#000000" size=20 font-weight="bold">{contestant.navigation_task.contest.name}</font></td></tr>
     <tr><td>&nbsp;</td><td align="center"><font color="#FF0000" size=16>{contestant.navigation_task.name}</font></td></tr>
     </tbody>
     </table>

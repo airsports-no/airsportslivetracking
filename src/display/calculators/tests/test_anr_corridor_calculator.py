@@ -81,15 +81,19 @@ class TestANRPerLeg(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
-        self.assertListEqual(['Takeoff: 0.0 points missing gate\nplanned: 20:30:00\nactual: --',
-                              'SP: 200.0 points missing gate\nplanned: 20:37:00\nactual: --',
-                              'SP: 50.0 points outside corridor (82 seconds) (capped)',
-                              'Waypoint 1: 200.0 points backtracking',
-                              'Waypoint 1: 50.0 points outside corridor (157 seconds) (capped)',
-                              'Waypoint 1: 0 points entering corridor',
-                              'Waypoint 2: 50.0 points outside corridor (175 seconds) (capped)',
-                              'Waypoint 3: 50.0 points outside corridor (175 seconds) (capped)',
-                              'FP: 200.0 points passing gate (-778 s)\nplanned: 20:48:09\nactual: 20:35:11'],
+        expected = ['Takeoff: 0.0 points missing gate\nplanned: 20:30:00\nactual: --',
+                    'SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53',
+                    'SP: 50.0 points outside corridor (41 seconds) (capped)', 'SP: 0 points entering corridor',
+                    'Waypoint 1: 0 points passing gate (no time check) (-407 s)\nplanned: 20:39:00\nactual: 20:32:13',
+                    'Waypoint 1: 200.0 points backtracking',
+                    'Waypoint 1: 50.0 points outside corridor (116 seconds) (capped)',
+                    'Waypoint 1: 0 points entering corridor',
+                    'Waypoint 2: 50.0 points outside corridor (158 seconds) (capped)',
+                    'Waypoint 3: 50.0 points outside corridor (158 seconds) (capped)',
+                    'FP: 200.0 points passing gate (-779 s)\nplanned: 20:48:10\nactual: 20:35:11',
+                    'Landing: 50.0 points outside corridor (169 seconds) (capped)',
+                    'Landing: 0.0 points missing gate\nplanned: 22:31:00\nactual: --']
+        self.assertListEqual(expected,
                              strings)
         self.assertEqual(800, contestant_track.score)
 
@@ -121,10 +125,10 @@ class TestANRPerLeg(TransactionTestCase):
         fixed_strings[1] = fixed_strings[1][:10]
         self.assertListEqual(['Takeoff: 0.0 points missing gate',
                               'SP: 200.0 ',
-                              'SP: 50.0 points outside corridor (53 seconds) (capped)',
+                              'SP: 50.0 points outside corridor (26 seconds) (capped)',
                               'Waypoint 1: 42.0 points outside corridor (19 seconds)',
                               'Waypoint 1: 0 points entering corridor', 'Waypoint 1: 200.0 points backtracking',
-                              'Waypoint 1: 8.0 points outside corridor (231 seconds) (capped)',
+                              'Waypoint 1: 8.0 points outside corridor (228 seconds) (capped)',
                               'Waypoint 2: 50.0 points outside corridor (5 seconds) (capped)',
                               'Waypoint 3: 50.0 points outside corridor (5 seconds) (capped)',
                               'FP: 200.0 points missing gate',
@@ -160,7 +164,7 @@ class TestANRPerLeg(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
 
         print(strings)
-        self.assertEqual('Waypoint 1: 0 points manually terminated', strings[-1])
+        self.assertTrue('Waypoint 1: 0 points manually terminated' in strings)
         # self.assertEqual(492, contestant_track.score)
 
     def test_anr_miss_start_and_finish(self, p, p2):
@@ -188,15 +192,11 @@ class TestANRPerLeg(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
-        expected = ['SP: 200.0 points missing gate\nplanned: 14:17:00\nactual: --',
-                    'SP: 3.0 points outside corridor (6 seconds)', 'SP: 0 points entering corridor',
-                    'Waypoint 1: 0 points passing gate (no time check) (-56 s)\nplanned: 14:18:59\nactual: 14:18:03',
-                    'Waypoint 2: 0 points passing gate (no time check) (-167 s)\nplanned: 14:22:33\nactual: 14:19:46',
-                    'Waypoint 2: 24.0 points outside corridor (13 seconds)', 'Waypoint 2: 0 points entering corridor',
-                    'Waypoint 3: 0 points passing gate (no time check) (-220 s)\nplanned: 14:24:31\nactual: 14:20:51',
-                    'Waypoint 3: 21.0 points outside corridor (12 seconds)',
-                    'FP: 200.0 points missing gate\nplanned: 14:28:09\nactual: --',
-                    'Landing: 9.0 points outside corridor (8 seconds)', 'Landing: 0 points entering corridor',
+        expected = ['SP: 9.0 points passing gate (+4 s)\nplanned: 14:17:00\nactual: 14:17:04',
+                    'Waypoint 1: 0 points passing gate (no time check) (-57 s)\nplanned: 14:19:00\nactual: 14:18:03',
+                    'Waypoint 2: 0 points passing gate (no time check) (-168 s)\nplanned: 14:22:34\nactual: 14:19:46',
+                    'Waypoint 3: 0 points passing gate (no time check) (-221 s)\nplanned: 14:24:32\nactual: 14:20:51',
+                    'FP: 200.0 points passing gate (-319 s)\nplanned: 14:28:10\nactual: 14:22:51',
                     'Landing: 0.0 points missing gate\nplanned: 15:06:30\nactual: --']
         self.assertListEqual(expected, strings)
         self.assertEqual(448, contestant_track.score)

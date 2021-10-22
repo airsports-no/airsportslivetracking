@@ -26,9 +26,8 @@ from display.coordinate_utilities import (
     calculate_fractional_distance_point_lat_lon,
     get_heading_difference,
     project_position_lat_lon,
-    create_perpendicular_line_at_end_lonlat,
+    create_perpendicular_line_at_end_lonlat, utm_from_lat_lon,
 )
-from display.map_plotter_shared_utilities import utm_from_lat_lon
 from display.wind_utilities import (
     calculate_ground_speed_combined,
     calculate_wind_correction_angle,

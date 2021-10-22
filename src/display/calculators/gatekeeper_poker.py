@@ -16,7 +16,8 @@ class GatekeeperPoker(Gatekeeper):
         super().__init__(contestant, position_queue, calculators, live_processing)
         logger.info(f"Starting the GatekeeperPoker for contestant {self.contestant}")
         self.gate_polygons = {}
-        self.polygon_helper = PolygonHelper()
+        waypoint = self.contestant.navigation_task.route.waypoints[0]
+        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
         self.waypoint_names = [gate.name for gate in self.contestant.navigation_task.route.waypoints]
         gates = self.contestant.navigation_task.route.prohibited_set.filter(type="gate")
         for gate in gates:

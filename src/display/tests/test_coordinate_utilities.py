@@ -55,27 +55,38 @@ class TestCoordinateUtilities(TestCase):
 
     @parameterized.expand([
         (60, 11, 61, 12, 60, 13, 4000,
-         [[61.02512527923508, 11.999977210482253], [60.97487472076492, 12.000022789515828]]),
-        (0, 0, 1, 1, 0, 2, 100000, [[1.6351403163589633, 0.99995163007045], [0.3648596836410364, 1.000048369928833]]),
-        (-1, 0, 0, 1, 1, 0, 100000, [[0.0, 1.6350497624591975], [0.0, 0.36482735393853044]])
+         [[61.02575201875014, 11.999928937568916],
+          [60.9742483571518, 12.000068688483383]]),
+        (0, 0, 1, 1, 0, 2, 100000, [[1.637083750580045, 0.9997903743814506],
+                                    [0.36316505969385054, 1.0000849611230602]]),
+        (-1, 0, 0, 1, 1, 0, 100000, [[-0.00047352373326729416, 1.6366904936504425],
+                                     [0.0001050748926301264, 0.3633070315440604]])
     ])
     def test_create_bisecting_line_between_segments(self, x1, y1, x2, y2, x3, y3, length, expected):
         gate_line = create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length)
         self.assertListEqual(expected, gate_line)
 
     @parameterized.expand([
-        (11, 60, 12, 61, 13, 60, 4000, [[12.0, 61.019712123094045], [12.0, 60.98027563463931]]),
+        (11, 60, 12, 61, 13, 60, 4000, [[11.999980965968211, 61.03996494242797],
+                                        [12.000017532502676, 60.960034851144506]]),
         # (60, 11, 61, 12, 60, 13, 4000, [[61.03537209933487, 11.999967291682234], [60.96462790066512, 12.000032708312075]]),
         (0, 0, 1, 1, 2, 0, 100000,
-         [[0.9999999999999998, 1.635049763277604], [0.9999999999999998, 0.36482735311980713]]),
+         [[0.9996841346197733, 1.6371936642071834],
+          [1.0000699719117443, 0.36280385453663494]]),
         # (0, 0, 1, 1, 0, 2, 100000,  [[1.9041833503535694, 0.9999297505358952], [0.09581664964643055, 1.0000702494357498]]),
         (0, -1, 1, 0, 0, 1, 100000,
-         [[0.36481129569824106, -1.5458619852858521e-15], [1.6351887043017588, 1.5458619852858521e-15]])
+         [[0.36481129569824106, -1.5458619852858521e-15],
+          [1.6351887043017588, 1.5458619852858521e-15]])
         # (-1, 0, 0, 1, 1, 0, 100000, [[0.0, 1.8980610511265397], [0.0, 0.10168989378111135]])
     ])
     def test_create_bisecting_line_between_segments_corridor_width(self, x1, y1, x2, y2, x3, y3, length, expected):
         gate_line = create_bisecting_line_between_segments_corridor_width_lonlat(x1, y1, x2, y2, x3, y3, length)
         self.assertListEqual(expected, gate_line)
+
+    def test_create_bisecting_line_between_segments_corridor_width_correct_length(self):
+        gate_line = create_bisecting_line_between_segments_corridor_width_lonlat(11, 60, 11, 61, 11, 62, 1000)
+        calculated_length = calculate_distance_lat_lon(*[reversed(item) for item in gate_line])
+        self.assertAlmostEquals(1000.2567, calculated_length, 4)
 
     @parameterized.expand([
         (0, 0, 1, 1, 2, 0, 1, [[1.0, 1.7071067811865475], [1.0, 0.2928932188134524]]),
@@ -89,7 +100,7 @@ class TestCoordinateUtilities(TestCase):
         ((60, 11), (61, 11), 111194.92664455874)
     ])
     def test_equirectangular_distance(self, start, finish, actual):
-        print(calculate_distance_lat_lon( start, finish))
+        print(calculate_distance_lat_lon(start, finish))
         self.assertEqual(actual, equirectangular_distance(start, finish))
 
 
