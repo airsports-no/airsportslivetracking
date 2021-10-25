@@ -1954,7 +1954,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             logger.debug(f"{self}: Fetching data from uploaded track")
             track = self.contestantuploadedtrack.track
         except:
-            p = self.contestantreceivedposition.objects.all()
+            p = ContestantReceivedPosition.objects.filter(contestant=self)
             if p.count() > 0:
                 return ContestantReceivedPosition.convert_to_traccar(p)
             logger.debug(f"{self}: There is no uploaded track, fetching data from traccar")
@@ -1993,7 +1993,7 @@ class ContestantUploadedTrack(models.Model):
 
 
 class ContestantReceivedPosition(models.Model):
-    contestant = models.OneToOneField(Contestant, on_delete=models.CASCADE)
+    contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
     time = models.DateTimeField()
     latitude = models.FloatField()
     longitude = models.FloatField()

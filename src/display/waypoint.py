@@ -84,11 +84,14 @@ class Waypoint:
         :param waypoint2:
         :return: Each waypoint is represented in a returned list of track segments
         """
-        if self.right_corridor_line is None or len(self.right_corridor_line) == 0:
-            return [(self.latitude, self.longitude)]
-        else:
-            track = []
-            for index in range(len(self.right_corridor_line)):
-                track.append(get_centre_of_line_lat_lon(self.left_corridor_line[index], self.right_corridor_line[index]))
-            return track
-    
+        return [(self.latitude, self.longitude)]
+        # Handling the centre track through a curve is not working correctly. We need to only deal with the actual
+        # waypoint position. This is made evident from testing by Yago.
+        # if self.right_corridor_line is None or len(self.right_corridor_line) == 0:
+        #     return [(self.latitude, self.longitude)]
+        # else:
+        #     track = []
+        #     for index in range(len(self.right_corridor_line)):
+        #         track.append(get_centre_of_line_lat_lon(self.left_corridor_line[index], self.right_corridor_line[index]))
+        #     return track
+        #

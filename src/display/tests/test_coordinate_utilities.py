@@ -75,8 +75,7 @@ class TestCoordinateUtilities(TestCase):
           [1.0000699719117443, 0.36280385453663494]]),
         # (0, 0, 1, 1, 0, 2, 100000,  [[1.9041833503535694, 0.9999297505358952], [0.09581664964643055, 1.0000702494357498]]),
         (0, -1, 1, 0, 0, 1, 100000,
-         [[0.36481129569824106, -1.5458619852858521e-15],
-          [1.6351887043017588, 1.5458619852858521e-15]])
+         [[0.36320183376533177, 0.0], [1.6370470810913813, 0.0]])
         # (-1, 0, 0, 1, 1, 0, 100000, [[0.0, 1.8980610511265397], [0.0, 0.10168989378111135]])
     ])
     def test_create_bisecting_line_between_segments_corridor_width(self, x1, y1, x2, y2, x3, y3, length, expected):
@@ -103,6 +102,11 @@ class TestCoordinateUtilities(TestCase):
         print(calculate_distance_lat_lon(start, finish))
         self.assertEqual(actual, equirectangular_distance(start, finish))
 
+    @parameterized.expand([
+        ((39.45034771486001,-0.934335433471053),(39.42032520123871,-0.9223165368370068), 3490.129978346527)
+        ])
+    def test_distance(self,b,e,expected):
+        self.assertEqual(expected, calculate_distance_lat_lon(b,e))
 
 class TestProcedureTurnPoints(TestCase):
     def test_simple(self):

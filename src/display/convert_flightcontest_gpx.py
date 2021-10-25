@@ -438,7 +438,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
             turn_degrees = bearing_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
             waypoint.left_corridor_line, waypoint.right_corridor_line = create_rounded_corridor_corner(
                 waypoint.gate_line, waypoint.width, turn_degrees)
-    correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
+        # correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
     instance.rounded_corners = rounded_corners
     instance.save()
@@ -477,7 +477,11 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
 def correct_distance_and_bearing_for_rounded_corridor(waypoints: List[Waypoint]):
     """
     Correct distance to next and the bearing to next to take into account the additional distance caused by rounded
-    corners
+    corners.
+
+    TODO: This is currently not working correctly. I think the problem lies within get_sent_the_track_segments, but I
+    am not sure. The best solution for now is to simply only deal with waypoint positions and not care about the curve.
+    This is how the Spanish are doing it, anyway, so maybe we can disregard this altogether.
     """
     centre_tracks = []
     for waypoint in waypoints:

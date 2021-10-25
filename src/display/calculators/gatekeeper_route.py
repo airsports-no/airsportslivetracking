@@ -160,6 +160,7 @@ class GatekeeperRoute(Gatekeeper):
                     # Starting point and starting line are the same place, so if we have not passed the starting point
                     # within a few seconds of intersection time, then the starting point gate is missed.
                     self.outstanding_gates[0].maybe_missed_time = intersection_time
+                    self.outstanding_gates[0].maybe_missed_position = self.track[-1]
                     # Recalculate gate times if adaptive
                     if self.contestant.adaptive_start:
                         self.recalculate_gates_times_from_start_time(round_time(intersection_time))
@@ -214,6 +215,7 @@ class GatekeeperRoute(Gatekeeper):
                                                                                                      intersection_time,
                                                                                                      extended_next_gate))
                     extended_next_gate.maybe_missed_time = self.track[-1].time
+                    extended_next_gate.maybe_missed_position = self.track[-1]
         if len(self.outstanding_gates) > 0:
             gate = self.outstanding_gates[0]
             time_limit = 5
@@ -265,7 +267,7 @@ class GatekeeperRoute(Gatekeeper):
                     previous_gate = self.gates[self.last_gate_index + gate_index - 1]
                 else:
                     previous_gate = None
-                self.missed_gate(previous_gate, gate, current_position)
+                self.missed_gate(previous_gate, gate, gate.maybe_missed_position or current_position)
                 index += 1
                 if gate.gate_check:
                     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,

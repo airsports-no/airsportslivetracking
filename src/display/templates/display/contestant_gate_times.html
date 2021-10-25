@@ -41,7 +41,7 @@
             {% for gate in object.navigation_task.route.waypoints %}
                 <tr>
                     <td>{{ gate.name }}</td>
-                    <td>{{ gate.distance_previous|stringformat:".2f" }}</td>
+                    <td>{{ gate.distance_previous|stringformat:".2f" }} m</td>
                     <td>{{ gate_times|dict_key:gate.name|date:"H:i:s e" }}</td>
                     <td>{% if actual_times|dict_key:gate.name %}
                         {{ actual_times|dict_key:gate.name|date:"H:i:s e" }}{% else %}
@@ -81,6 +81,7 @@
                     </td>
                 </tr>
             {% endif %}
+            <tr><td></td><td>{{ total_distance|stringformat:".f" }} m</td><td></td><td></td><td></td><td></td></tr>
         {% endwith %}
     </table>
     <a href="{% url 'navigationtask_detail' object.navigation_task.pk %}">Back to {{ object.navigation_task }}</a>

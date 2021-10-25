@@ -1012,9 +1012,12 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         context = super().get_context_data(**kwargs)
         log = {}
         distances = {}
+        total_distance = 0
         for waypoint in self.object.navigation_task.route.waypoints:  # type: Waypoint
             distances[waypoint.name] = waypoint.distance_previous
+            total_distance += waypoint.distance_previous if waypoint.distance_previous>0 else 0
         context["distances"] = distances
+        context["total_distance"] = total_distance
         for item in self.object.scorelogentry_set.all():  # type: ScoreLogEntry
             if item.gate not in log:
                 log[item.gate] = []

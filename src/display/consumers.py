@@ -56,8 +56,8 @@ class TrackingConsumer(WebsocketConsumer):
         self.send(
             json.dumps(
                 {
-                    "current_time": datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=2,
-                                                                                                      minutes=self.navigation_task.calculation_delay_minutes)
+                    "current_time": (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=2,
+                                                                                                      minutes=self.navigation_task.calculation_delay_minutes))
                         .astimezone(self.navigation_task.contest.time_zone)
                         .strftime("%H:%M:%S")
                 }

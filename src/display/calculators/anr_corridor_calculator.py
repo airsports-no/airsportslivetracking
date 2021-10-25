@@ -46,6 +46,7 @@ class AnrCorridorCalculator(Calculator):
         self.previous_last_gate = None
         self.crossed_outside_position = None
         self.crossed_outside_gate = None
+        self.corridor_grace_time = self.scorecard.get_corridor_grace_time(self.contestant)
         self.pc = ccrs.PlateCarree()
         waypoint = self.contestant.navigation_task.route.waypoints[0]
         self.utm = utm_from_lat_lon(waypoint.latitude, waypoint.longitude)
@@ -110,7 +111,7 @@ class AnrCorridorCalculator(Calculator):
         if self.crossed_outside_time is None:
             return
         outside_time = (position.time - self.crossed_outside_time).total_seconds()
-        penalty_time = outside_time - self.scorecard.get_corridor_grace_time(self.contestant)
+        penalty_time = outside_time - self.corridor_grace_time
         if penalty_time > 0 or apply_maximum_penalty:
             penalty_time = np.round(penalty_time)
             score = self.scorecard.get_corridor_outside_penalty(self.contestant) * penalty_time
@@ -130,10 +131,12 @@ class AnrCorridorCalculator(Calculator):
                                   "entering corridor",
                                   position.latitude, position.longitude,
                                   "information", f"entering_corridor")
+                self.crossed_outside_time = None
+                self.corridor_grace_time = self.scorecard.get_corridor_grace_time(self.contestant)
             elif self.corridor_state != self.INSIDE_CORRIDOR:
                 self.crossed_outside_position = position
-                self.crossed_outside_time = position.time - datetime.timedelta(
-                    seconds=self.scorecard.get_corridor_grace_time(self.contestant))
+                self.crossed_outside_time = position.time
+                self.corridor_grace_time = 0
 
     def check_outside_corridor(self, track: List["Position"], last_gate: "Gate"):
         self.previous_corridor_state = self.corridor_state

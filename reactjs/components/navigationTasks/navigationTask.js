@@ -239,12 +239,12 @@ class ConnectedNavigationTask extends Component {
         if (this.props.navigationTask.route !== previousProps.navigationTask.route) {
             if (this.props.displayMap && !this.rendered) {
                 this.rendered = true;
-                this.initiateSession()
                 this.remainingTracks = 0
                 this.props.navigationTask.contestant_set.map((contestant, index) => {
                     this.remainingTracks++
                     this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
                 })
+                this.initiateSession()
             }
         }
         if (this.props.initialTracks !== previousProps.initialTracks) {

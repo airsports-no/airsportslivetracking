@@ -29,6 +29,8 @@ COPY config /config
 COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh config/gunicorn_uvicorn.sh /
 RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /gunicorn_uvicorn.sh
 
+COPY package*.json /
+RUN npm install
 
 
 ###### INSTALL APPLICATION ######
@@ -37,6 +39,8 @@ COPY --chown=django:django reactjs /reactjs
 COPY --chown=django:django src /src
 
 COPY --chown=django:django data /data
+
+
 
 RUN mkdir /logs
 RUN chown django /logs
@@ -55,8 +59,6 @@ CMD [ "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin &&
 FROM tracker_base as tracker_web
 ###### INSTALL JAVASCRIPT PACKAGES ######
 WORKDIR /
-COPY package*.json /
-RUN npm install
 
 RUN npm run webpack
 WORKDIR /src
