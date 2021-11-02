@@ -99,7 +99,7 @@ from display.forms import (
     SCALE_TO_FIT,
     GPXTrackImportForm,
     ContestSelectForm,
-    ANRCorridorParametersForm,
+    ANRCorridorParametersForm, AirsportsScoreOverrideForm, AirsportsParametersForm,
 )
 from display.generate_flight_orders import generate_flight_orders
 from display.map_plotter import (
@@ -755,6 +755,13 @@ def upload_gpx_track_for_contesant(request, pk):
     Consumes a FC GPX file that contains the GPS track of a contestant.
     """
     contestant = get_object_or_404(Contestant, pk=pk)
+    try:
+        if not contestant.contestanttrack.calculator_finished:
+            messages.error(request, "Calculator is running, terminate it or wait until it is terminated")
+            return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
+    except:
+        pass
+
     if request.method == "POST":
         form = GPXTrackImportForm(request.POST, request.FILES)
         if form.is_valid():
@@ -771,9 +778,15 @@ def upload_gpx_track_for_contesant(request, pk):
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def revert_uploaded_gpx_track_for_contestant(request, pk):
     """
-    Consumes a FC GPX file that contains the GPS track of a contestant.
+    Revert to traccar track
     """
     contestant = get_object_or_404(Contestant, pk=pk)
+    try:
+        if not contestant.contestanttrack.calculator_finished:
+            messages.error(request, "Calculator is running, terminate it or wait until it is terminated")
+            return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
+    except:
+        pass
     contestant.reset_track_and_score()
     revert_gpx_track_to_traccar.apply_async((contestant.pk, ))
     messages.success(request, "Started loading track")
@@ -1226,6 +1239,8 @@ def navigation_task_score_override_view(request, pk):
         form_class = PrecisionScoreOverrideForm
     elif NavigationTask.ANR_CORRIDOR in navigation_task.scorecard.task_type:
         form_class = ANRCorridorScoreOverrideForm
+    elif NavigationTask.AIRSPORTS in navigation_task.scorecard.task_type:
+        form_class = AirsportsScoreOverrideForm
     else:
         messages.error(
             request, f"{navigation_task.scorecard.get_task_type_display()} has no scoring parameters to override"
@@ -1515,6 +1530,9 @@ def contest_not_chosen(wizard):
 def anr_task_type(wizard):
     return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("task_type") == NavigationTask.ANR_CORRIDOR
 
+def airsports_task_type(wizard):
+    return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("task_type") == NavigationTask.AIRSPORTS
+
 
 class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     permission_required = ("display.change_editableroute",)
@@ -1530,13 +1548,15 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     form_list = [
         ("contest_selection", ContestSelectForm),
         ("anr_parameters", ANRCorridorParametersForm),
+        ("airsports_parameters", AirsportsParametersForm),
         ("contest_creation", ContestForm),
     ]
 
-    condition_dict = {"contest_creation": contest_not_chosen, "anr_parameters": anr_task_type}
+    condition_dict = {"contest_creation": contest_not_chosen, "anr_parameters": anr_task_type, "airsports_parameters": airsports_task_type}
     templates = {
         "contest_selection": "display/navigationtaskwizardform.html",
         "anr_parameters": "display/navigationtaskwizardform.html",
+        "airsports_parameters": "display/navigationtaskwizardform.html",
         "contest_creation": "display/navigationtaskwizardform.html",
     }
 
@@ -1566,6 +1586,10 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             rounded_corners = initial_step_data["rounded_corners"]
             corridor_width = initial_step_data["corridor_width"]
             route = self.editable_route.create_anr_route(rounded_corners, corridor_width)
+        elif task_type == Scorecard.AIRSPORTS:
+            initial_step_data = self.get_cleaned_data_for_step("airsports_parameters")
+            rounded_corners = initial_step_data["rounded_corners"]
+            route = self.editable_route.create_airsports_route(rounded_corners)
         elif task_type == NavigationTask.LANDING:
             route = self.editable_route.create_landing_route()
         # Check for gate polygons that do not match a turning point

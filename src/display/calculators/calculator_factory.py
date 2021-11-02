@@ -17,7 +17,7 @@ def calculator_factory(contestant: "Contestant", position_queue: Queue, live_pro
         return GatekeeperRoute(contestant, position_queue,
                                [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator],
                                live_processing=live_processing)
-    if contestant.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
+    if contestant.navigation_task.scorecard.calculator in (Scorecard.ANR_CORRIDOR, Scorecard.AIRSPORTS):
         return GatekeeperRoute(contestant, position_queue,
                                [BacktrackingAndProcedureTurnsCalculator, AnrCorridorCalculator,
                                 ProhibitedZoneCalculator, PenaltyZoneCalculator],

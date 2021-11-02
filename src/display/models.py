@@ -567,11 +567,13 @@ class Contest(models.Model):
 class NavigationTask(models.Model):
     PRECISION = "precision"
     ANR_CORRIDOR = "anr_corridor"
+    AIRSPORTS = "airsports"
     POKER = "poker"
     LANDING = "landing"
     NAVIGATION_TASK_TYPES = (
         (PRECISION, "Precision"),
         (ANR_CORRIDOR, "ANR Corridor"),
+        (AIRSPORTS, "Airsports"),
         (POKER, "Poker run"),
         (LANDING, "Landing"),
     )
@@ -713,6 +715,8 @@ class NavigationTask(models.Model):
             route = self.editable_route.create_anr_route(
                 self.route.rounded_corners, self.route.corridor_width
             )
+        elif self.scorecard.calculator == Scorecard.AIRSPORTS:
+            route = self.editable_route.create_airsports_route(self.route.rounded_corners)
         if route:
             old_route = self.route
             self.route = route
@@ -792,6 +796,7 @@ class NavigationTask(models.Model):
 class Scorecard(models.Model):
     PRECISION = "precision"
     ANR_CORRIDOR = "anr_corridor"
+    AIRSPORTS = "airsports"
     POKER = "poker"
     LANDING = "landing"
     CALCULATORS = (
@@ -799,6 +804,7 @@ class Scorecard(models.Model):
         (ANR_CORRIDOR, "ANR Corridor"),
         (POKER, "Poker run"),
         (LANDING, "Landing"),
+        (AIRSPORTS, "Airsports")
     )
 
     name = models.CharField(max_length=100, default="default", unique=True)
@@ -2600,6 +2606,31 @@ class EditableRoute(models.Model):
         route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners)
         route.corridor_width = corridor_width
         route.save()
+        self.extract_additional_features(route)
+        return route
+
+    def create_airsports_route(self, rounded_corners: bool) -> Route:
+        from display.convert_flightcontest_gpx import build_waypoint
+        from display.convert_flightcontest_gpx import create_anr_corridor_route_from_waypoint_list
+
+        track = self._get_feature_type("track")
+        waypoint_list = []
+        coordinates = self._get_feature_coordinates(track)
+        track_points = track["track_points"]
+        for index, (latitude, longitude) in enumerate(coordinates):
+            item = track_points[index]
+            waypoint_list.append(
+                build_waypoint(
+                    item["name"],
+                    latitude,
+                    longitude,
+                    item["gateType"],
+                    item["gateWidth"],
+                    item["timeCheck"],
+                    item["gateCheck"],
+                )
+            )
+        route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners)
         self.extract_additional_features(route)
         return route
 

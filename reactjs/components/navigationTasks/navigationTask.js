@@ -21,6 +21,7 @@ import AnrCorridorRenderer from "./anrCorridorRenderer";
 import ProhibitedRenderer from "./prohibitedRenderer";
 import LandingRenderer from "./landingRenderer";
 import ContestRankTable from "../contestRankTable";
+import AirsportsRenderer from "./airsportsRenderer";
 
 const L = window['L']
 const OpenAIP = L.tileLayer('http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}', {
@@ -314,6 +315,11 @@ class ConnectedNavigationTask extends Component {
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard_data.task_type.includes("precision") || this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
+                                                       currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
+                                                       handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
+                                                       displaySecretGates={this.props.displaySecretGates}/>
+                } else if (this.props.navigationTask.scorecard_data.task_type.includes("airsports") || this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
+                    routeRenderer = <AirsportsRenderer map={this.map} navigationTask={this.props.navigationTask}
                                                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
                                                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
                                                        displaySecretGates={this.props.displaySecretGates}/>

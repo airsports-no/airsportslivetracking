@@ -1,57 +1,11 @@
-import React, {Component} from "react";
-import {connect} from "react-redux";
-import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
-import {formatTime} from "../../utilities";
+import React from "react";
+import {polyline} from "leaflet";
+import GenericRenderer from "./genericRenderer";
 
 const L = window['L']
 
 
-export default class PrecisionRenderer extends Component {
-    componentDidMount() {
-        this.markers = []
-        this.lines = []
-        const route = this.renderRoute()
-        this.renderMarkers()
-        this.props.map.fitBounds(route.getBounds(), {padding: [50, 50]})
-    }
-
-    componentDidUpdate(prevProps, prevState) {
-        this.renderRoute()
-        this.renderMarkers()
-    }
-
-    renderMarkers() {
-        for (const marker of this.markers) {
-            marker.removeFrom(this.props.map)
-        }
-        this.markers = []
-
-        const currentContestant = this.props.navigationTask.contestant_set.find((contestant) => {
-            return contestant.id === this.props.currentHighlightedContestant
-        })
-        this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return (waypoint.gate_check || waypoint.time_check) && ((this.props.navigationTask.display_secrets && this.props.displaySecretGates) || waypoint.type !== "secret")
-        }).map((waypoint) => {
-            let waypointText = waypoint.name
-
-            if (currentContestant) {
-                const time = new Date(currentContestant.gate_times[waypoint.name])
-                waypointText = waypoint.name + "<br/>" + formatTime(time)
-            }
-            const m = marker([waypoint.latitude, waypoint.longitude], {
-                color: "blue",
-                icon: divIcon({
-                    html: '<i class="fas"><br/>' + waypointText + '</i>',
-                    iconSize: [60, 20],
-                    className: "myGateIcon"
-                })
-            }).on('click', () => {
-                this.props.handleMapTurningPointClick(waypoint.name)
-            }).addTo(this.props.map)
-            this.markers.push(m)
-        });
-    }
-
+export default class PrecisionRenderer extends GenericRenderer {
     renderRoute() {
         for (const line of this.lines) {
             line.removeFrom(this.props.map)
@@ -63,7 +17,6 @@ export default class PrecisionRenderer extends Component {
             this.lines.push(polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
                 color: "blue"
             }).addTo(this.props.map))
-            // }
         })
         let tracks = []
         let currentTrack = []
@@ -115,7 +68,8 @@ export default class PrecisionRenderer extends Component {
             }).addTo(this.props.map)
             this.lines.push(route)
         }
-        return route
+        this.props.map.fitBounds(route.getBounds(), {padding: [50, 50]})
+
 
     }
 
