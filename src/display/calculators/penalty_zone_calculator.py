@@ -38,6 +38,7 @@ class PenaltyZoneCalculator(Calculator):
         self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
         self.zone_polygons = {}
         self.inside_times = {}
+        self.existing_reference = None
         zones = route.prohibited_set.filter(type="penalty")
         for zone in zones:
             self.zone_polygons[zone.name] = self.polygon_helper.build_polygon(zone)
@@ -48,21 +49,24 @@ class PenaltyZoneCalculator(Calculator):
     def check_inside_prohibited_zone(self, track: List["Position"], last_gate: Optional["Gate"]):
         position = track[-1]
         currently_inside = self.polygon_helper.check_inside_polygons(self.zone_polygons, position.latitude,
-                                                                position.longitude)
+                                                                     position.longitude)
         for inside in currently_inside:
             if inside not in self.inside_times:
                 self.inside_times[inside] = position.time
-                self.update_score(last_gate or self.gates[0],
-                                  0,
-                                  "entered penalty zone {}".format(inside),
-                                  position.latitude, position.longitude,
-                                  "info", self.INSIDE_PENALTY_ZONE_PENALTY_TYPE)
+                self.existing_reference = self.update_score(last_gate or self.gates[0],
+                                                            0,
+                                                            "entered penalty zone {}".format(inside),
+                                                            position.latitude, position.longitude,
+                                                            "info", self.INSIDE_PENALTY_ZONE_PENALTY_TYPE,
+                                                            existing_reference=self.existing_reference)
 
         for zone, start_time in dict(self.inside_times).items():
             if zone not in currently_inside:
                 del self.inside_times[zone]
+                self.existing_reference = None
                 self.update_score(last_gate or self.gates[0],
-                                  self.scorecard.calculate_penalty_zone_score(self.contestant, start_time, position.time),
+                                  self.scorecard.calculate_penalty_zone_score(self.contestant, start_time,
+                                                                              position.time),
                                   "exited penalty zone {}".format(zone),
                                   position.latitude, position.longitude,
                                   "anomaly", self.INSIDE_PENALTY_ZONE_PENALTY_TYPE)

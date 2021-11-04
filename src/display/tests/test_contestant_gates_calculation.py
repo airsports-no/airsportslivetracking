@@ -10,6 +10,8 @@ from display.models import Aeroplane, NavigationTask, Team, Contestant, Crew, Co
 from display.views import create_precision_route_from_csv
 from mock_utilities import TraccarMock
 
+def chop_microseconds(delta):
+    return delta - datetime.timedelta(microseconds=delta.microseconds)
 
 class TestContestantGatesCalculation(TestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
@@ -130,11 +132,11 @@ class TestContestantGatesCalculationANRRounded(TestCase):
     def test_calculate_and_get_relative_gate_times(self):
         times = calculate_and_get_relative_gate_times(self.navigation_task.route, 75, 8, 165)
         expected_times = [('SP', datetime.timedelta(0)),
-                          ('Waypoint 1', datetime.timedelta(seconds=125, microseconds=316889)),
-                          ('Waypoint 2', datetime.timedelta(seconds=344, microseconds=438413)),
-                          ('Waypoint 3', datetime.timedelta(seconds=447, microseconds=97335)),
-                          ('FP', datetime.timedelta(seconds=630, microseconds=52853))]
+                          ('Waypoint 1', datetime.timedelta(seconds=125)),
+                          ('Waypoint 2', datetime.timedelta(seconds=348)),
+                          ('Waypoint 3', datetime.timedelta(seconds=456)),
+                          ('FP', datetime.timedelta(seconds=641))]
         print(times)
         for item in times:
             print(item[1].total_seconds())
-        self.assertListEqual(expected_times, times)
+        self.assertListEqual(expected_times, [(item[0],chop_microseconds(item[1])) for item in times])

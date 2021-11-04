@@ -81,19 +81,31 @@ class TestANRPerLeg(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
+        a = ['Takeoff: 0.0 points missing gate\nplanned: 20:30:00\nactual: --',
+             'SP: 200.0 points passiMister Kateng gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53',
+             'SP: 50.0 points outside corridor (40 seconds) (capped)',
+             'SP: 0 points entering corridor',
+             'Waypoint 1: 0 points passing gate (no time check) (-407 s)\nplanned: 20:39:00\nactual: 20:32:13',
+             'Waypoint 1: 50.0 points outside corridor (115 seconds) (capped)',
+             'Waypoint 1: 200.0 points backtracking',
+             'Waypoint 1: 0 points entering corridor',
+             'Waypoint 2: 50.0 points outside corridor (0 seconds) (capped)',
+             'FP: 200.0 points passiMister Kateng gate (-779 s)\nplanned: 20:48:10\nactual: 20:35:11',
+             'Landing: 0.0 points missing gate\nplanned: 22:31:00\nactual: --']
         expected = ['Takeoff: 0.0 points missing gate\nplanned: 20:30:00\nactual: --',
                     'SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53',
-                    'SP: 50.0 points outside corridor (41 seconds) (capped)', 'SP: 0 points entering corridor',
+                    'SP: 50.0 points outside corridor (40 seconds) (capped)', 'SP: 0 points entering corridor',
                     'Waypoint 1: 0 points passing gate (no time check) (-407 s)\nplanned: 20:39:00\nactual: 20:32:13',
+                    'Waypoint 1: 50.0 points outside corridor (115 seconds) (capped)',
                     'Waypoint 1: 200.0 points backtracking',
-                    'Waypoint 1: 50.0 points outside corridor (116 seconds) (capped)',
                     'Waypoint 1: 0 points entering corridor',
-                    'Waypoint 2: 50.0 points outside corridor (158 seconds) (capped)',
-                    'Waypoint 3: 50.0 points outside corridor (158 seconds) (capped)',
+                    'Waypoint 2: 50.0 points outside corridor (157 seconds) (capped)',
+                    'Waypoint 3: 50.0 points outside '
+                    'corridor (157 seconds) (capped)',
                     'FP: 200.0 points passing gate (-779 s)\nplanned: 20:48:10\nactual: 20:35:11',
-                    'Landing: 50.0 points outside corridor (169 seconds) (capped)',
+                    'Landing: 50.0 points outside corridor (168 seconds) (capped)',
                     'Landing: 0.0 points missing gate\nplanned: 22:31:00\nactual: --']
-        self.assertListEqual(expected,
+        self.assertListEqual(a,
                              strings)
         self.assertEqual(800, contestant_track.score)
 
@@ -123,19 +135,21 @@ class TestANRPerLeg(TransactionTestCase):
         print(strings)
         fixed_strings = [item.split("\n")[0] for item in strings]
         fixed_strings[1] = fixed_strings[1][:10]
+        fixed_strings[5] = fixed_strings[5][:20]
         self.assertListEqual(['Takeoff: 0.0 points missing gate',
                               'SP: 200.0 ',
-                              'SP: 50.0 points outside corridor (26 seconds) (capped)',
-                              'Waypoint 1: 42.0 points outside corridor (19 seconds)',
-                              'Waypoint 1: 0 points entering corridor', 'Waypoint 1: 200.0 points backtracking',
-                              'Waypoint 1: 8.0 points outside corridor (228 seconds) (capped)',
-                              'Waypoint 2: 50.0 points outside corridor (5 seconds) (capped)',
-                              'Waypoint 3: 50.0 points outside corridor (5 seconds) (capped)',
+                              'SP: 48.0 points outside corridor (21 seconds)',
+                              'Waypoint 1: 9.0 points outside corridor (3 seconds)',
+                              'Waypoint 1: 0 points entering corridor',
+                              'Waypoint 1: 41.0 poi',
+                              'Waypoint 1: 200.0 points backtracking',
+                              'Waypoint 2: 50.0 points outside corridor (0 seconds) (capped)',
+                              'Waypoint 3: 50.0 points outside corridor (0 seconds) (capped)',
                               'FP: 200.0 points missing gate',
-                              'FP: 50.0 points outside corridor (5 seconds) (capped)',
+                              'FP: 50.0 points outside corridor (0 seconds) (capped)',
                               'Landing: 0.0 points missing gate'],
                              fixed_strings)
-        self.assertEqual(850, contestant_track.score)
+        self.assertEqual(848, contestant_track.score)
 
     def test_manually_terminate_calculator(self, p, p2):
         cache.clear()
@@ -199,7 +213,7 @@ class TestANRPerLeg(TransactionTestCase):
                     'FP: 200.0 points passing gate (-319 s)\nplanned: 14:28:10\nactual: 14:22:51',
                     'Landing: 0.0 points missing gate\nplanned: 15:06:30\nactual: --']
         self.assertListEqual(expected, strings)
-        self.assertEqual(448, contestant_track.score)
+        self.assertEqual(209, contestant_track.score)
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
@@ -371,8 +385,18 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         gate = Mock()
         self.calculator.calculate_enroute([position], gate, gate)
         self.calculator.calculate_enroute([position2], gate, gate)
+        er = self.calculator.existing_reference
         self.calculator.calculate_enroute([position3], gate, gate)
-        self.update_score.assert_not_called()
+        self.update_score.assert_has_calls([
+            call(gate, 0, 'outside corridor (0 seconds)', 60.5, 11, 'anomaly',
+                 f"outside_corridor_{gate.name}",
+                 maximum_score=-1, existing_reference=None),
+            call(gate, 0, 'outside corridor (1 seconds)', 60.5, 11, 'anomaly',
+                 f"outside_corridor_{gate.name}",
+                 maximum_score=-1, existing_reference=er),
+            call(gate, 0, 'entering corridor', 60, 11.5, 'information',
+                 'entering_corridor')
+        ])
 
     def test_outside_20_seconds_enroute(self):
         position = Mock()
@@ -383,6 +407,10 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position2.latitude = 60.5
         position2.longitude = 11
         position2.time = datetime.datetime(2020, 1, 1, 0, 0, 1)
+        position2 = Mock()
+        position2.latitude = 60.5
+        position2.longitude = 11
+        position2.time = datetime.datetime(2020, 1, 1, 0, 0, 20)
         position3 = Mock()
         position3.latitude = 60
         position3.longitude = 11.5
@@ -391,9 +419,11 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         gate = Mock()
         self.calculator.calculate_enroute([position], gate, gate)
         self.calculator.calculate_enroute([position2], gate, gate)
+        er = self.calculator.existing_reference
         self.calculator.calculate_enroute([position3], gate, gate)
-        self.update_score.assert_has_calls([call(gate, 48.0, 'outside corridor (21 seconds)', 60.5, 11, 'anomaly',
-                                                 f'outside_corridor_{gate.name}', maximum_score=-1)])
+        self.update_score.assert_has_calls([call(gate, 45.0, 'outside corridor (20 seconds)', 60.5, 11, 'anomaly',
+                                                 f'outside_corridor_{gate.name}', maximum_score=-1,
+                                                 existing_reference=er)])
 
     def test_outside_20_seconds_until_finish(self):
         position = Mock()
@@ -413,8 +443,10 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position], gate, gate)
         self.calculator.calculate_enroute([position2], gate, gate)
         self.calculator.passed_finishpoint([position3], gate)
-        self.update_score.assert_called_with(gate, 48, 'outside corridor (21 seconds)', 60.5, 11, 'anomaly',
-                                             f'outside_corridor_{gate.name}', maximum_score=-1)
+        er = self.calculator.existing_reference
+
+        self.update_score.assert_called_with(gate, 48.0, 'outside corridor (21 seconds)', 60.5, 11, 'anomaly',
+                                             f'outside_corridor_{gate.name}', maximum_score=-1, existing_reference=er)
 
     def test_outside_20_seconds_outside_route(self):
         position = Mock()

@@ -112,6 +112,8 @@ class GatekeeperRoute(Gatekeeper):
         for item in self.outstanding_gates:
             logger.info(f"{self.contestant}: Missing outstanding gate {item}")
             item.missed = True
+            item.maybe_missed_time = None
+            item.maybe_missed_position = None
         self.outstanding_gates = []
 
     def check_intersections(self):
@@ -218,7 +220,7 @@ class GatekeeperRoute(Gatekeeper):
                     extended_next_gate.maybe_missed_position = self.track[-1]
         if len(self.outstanding_gates) > 0:
             gate = self.outstanding_gates[0]
-            time_limit = 5
+            time_limit = 0
             if gate.maybe_missed_time and (self.track[-1].time - gate.maybe_missed_time).total_seconds() > time_limit:
                 logger.info("{} {}: Did not cross {} within {} seconds of infinite crossing, so missing gate".format(
                     self.contestant, self.track[-1].time,
@@ -292,7 +294,7 @@ class GatekeeperRoute(Gatekeeper):
                                                                                     gate.expected_time,
                                                                                     gate.passing_time)
                     self.update_score(gate, gate_score,
-                                      "passing gate",
+                                      "passiMister Kateng gate",
                                       current_position.latitude, current_position.longitude, "information",
                                       self.GATE_SCORE_TYPE,
                                       planned=gate.expected_time, actual=gate.passing_time)

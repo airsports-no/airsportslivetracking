@@ -2043,12 +2043,21 @@ class ScoreLogEntry(models.Model):
         ordering = ("time", "pk")
 
     @classmethod
-    def create_and_push(cls, **kwargs):
-        entry = cls.objects.create(**kwargs)
+    def push(cls, entry):
         from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()
         ws.transmit_score_log_entry(entry.contestant)
+        return entry
+
+    @classmethod
+    def update(cls, pk: int, **kwargs):
+        cls.objects.filter(pk=pk).update(**kwargs)
+
+    @classmethod
+    def create_and_push(cls, **kwargs) -> "ScoreLogEntry":
+        entry = cls.objects.create(**kwargs)
+        cls.push(entry)
         return entry
 
 
@@ -2071,12 +2080,19 @@ class TrackAnnotation(models.Model):
         ordering = ("time",)
 
     @classmethod
-    def create_and_push(cls, **kwargs):
-        annotation = cls.objects.create(**kwargs)
-        from websocket_channels import WebsocketFacade
+    def update(cls, pk, **kwargs):
+        cls.objects.filter(pk=pk).update(**kwargs)
 
+    @classmethod
+    def push(cls, annotation):
+        from websocket_channels import WebsocketFacade
         ws = WebsocketFacade()
         ws.transmit_annotations(annotation.contestant)
+
+    @classmethod
+    def create_and_push(cls, **kwargs) -> "TrackAnnotation":
+        annotation = cls.objects.create(**kwargs)
+        cls.push(annotation)
         return annotation
 
 

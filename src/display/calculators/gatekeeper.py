@@ -31,18 +31,20 @@ class ScoreAccumulator:
     def __init__(self):
         self.related_score = {}
 
-    def set_and_update_score(self, score: float, score_type: str, maximum_score: Optional[float]) -> Tuple[float, bool]:
+    def set_and_update_score(self, score: float, score_type: str, maximum_score: Optional[float],
+                             previous_score: Optional[float] = 0) -> Tuple[float, bool]:
         """
         Returns the calculated score given the maximum limits. If there is no maximum limit, score is returned
         """
         capped = False
+        score -= previous_score
         current_score_for_type = self.related_score.setdefault(score_type, 0)
         if maximum_score is not None and maximum_score > -1:
             if current_score_for_type + score >= maximum_score:
                 score = maximum_score - current_score_for_type
                 capped = True
         self.related_score[score_type] += score
-        return score, capped
+        return score + previous_score, capped
 
 
 LOOP_TIME = 60
@@ -224,7 +226,9 @@ class Gatekeeper(ABC):
     def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,
                      annotation_type: str, score_type: str, maximum_score: Optional[float] = None,
                      planned: Optional[datetime.datetime] = None,
-                     actual: Optional[datetime.datetime] = None):
+                     actual: Optional[datetime.datetime] = None, existing_reference: Tuple[int, int, float] = None) -> \
+            Tuple[
+                int, int, float]:
         """
 
         :param gate: The last gate which indicates the current leg
@@ -239,7 +243,8 @@ class Gatekeeper(ABC):
         :param actual: The actual passing time if gate
         :return:
         """
-        score, capped = self.accumulated_scores.set_and_update_score(score, score_type, maximum_score)
+        score, capped = self.accumulated_scores.set_and_update_score(score, score_type, maximum_score,
+                                                                     existing_reference[2] if existing_reference else 0)
         if planned is not None and actual is not None:
             offset = (actual - planned).total_seconds()
             # Must use round, this is the same as used in the score calculation
@@ -262,22 +267,33 @@ class Gatekeeper(ABC):
             times_string = "planned: {}\nactual: --".format(planned_time)
         if len(times_string) > 0:
             string += f"\n{times_string}"
-        logger.info("UPDATE_SCORE {}: {}".format(self.contestant, string))
+        logger.info(
+            "UPDATE_SCORE {}: {}{}".format(self.contestant, "(voids earlier) " if existing_reference else "", string))
         # Take into account that external events may have changed the score
         self.contestant.contestanttrack.refresh_from_db()
         self.contestant.record_score_by_gate(gate.name, score)
         self.score = self.contestant.contestanttrack.score
-        self.score += score
-        entry = ScoreLogEntry.create_and_push(contestant=self.contestant, time=self.track[-1].time if len(
-            self.track) > 0 else self.contestant.navigation_task.start_time, gate=gate.name,
-                                              message=message, points=score, planned=planned, actual=actual,
-                                              offset_string=offset_string, string=string, times_string=times_string)
-        TrackAnnotation.create_and_push(contestant=self.contestant, latitude=latitude, longitude=longitude,
-                                        message=string, type=annotation_type, gate=gate.name, gate_type=gate.type,
-                                        time=self.track[-1].time if len(
-                                            self.track) > 0 else self.contestant.navigation_task.start_time,
-                                        score_log_entry=entry)
-        self.contestant.contestanttrack.update_score(self.score)
+        if existing_reference is None:
+            self.score += score
+            entry = ScoreLogEntry.create_and_push(contestant=self.contestant, time=self.track[-1].time if len(
+                self.track) > 0 else self.contestant.navigation_task.start_time, gate=gate.name,
+                                                  message=message, points=score, planned=planned, actual=actual,
+                                                  offset_string=offset_string, string=string, times_string=times_string)
+            annotation = TrackAnnotation.create_and_push(contestant=self.contestant, latitude=latitude,
+                                                         longitude=longitude,
+                                                         message=string, type=annotation_type, gate=gate.name,
+                                                         gate_type=gate.type,
+                                                         time=self.track[-1].time if len(
+                                                             self.track) > 0 else self.contestant.navigation_task.start_time,
+                                                         score_log_entry=entry)
+            self.contestant.contestanttrack.update_score(self.score)
+            return entry.pk, annotation.pk, score
+        else:
+            self.score = self.score - existing_reference[2] + score
+            ScoreLogEntry.update(existing_reference[0], message=message, points=score, string=string)
+            TrackAnnotation.update(existing_reference[1], message=string)
+            self.contestant.contestanttrack.update_score(self.score)
+            return existing_reference[:2] + (score,)
 
     def create_gates(self) -> List[Gate]:
         waypoints = self.contestant.navigation_task.route.waypoints
