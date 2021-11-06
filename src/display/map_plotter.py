@@ -665,9 +665,10 @@ def plot_anr_corridor_track(
             inner_track.extend(waypoint.left_corridor_line)
             outer_track.extend(waypoint.right_corridor_line)
         else:
-            plt.plot(
-                xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width
-            )
+            if waypoint.type not in ('secret',):
+                plt.plot(
+                    xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width
+                )
             inner_track.append(waypoint.gate_line[0])
             outer_track.append(waypoint.gate_line[1])
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:

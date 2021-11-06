@@ -1520,7 +1520,7 @@ class Contestant(models.Model):
 
     def request_calculator_termination(self):
         logger.info(f"Signalling manual termination for contestant {self}")
-        cache.set(self.termination_request_key, True, timeout=3600)
+        cache.set(self.termination_request_key, True, timeout=600)
 
     def save(self, **kwargs):
         self.tracker_device_id = self.tracker_device_id.strip() if self.tracker_device_id else ""

@@ -756,7 +756,7 @@ def upload_gpx_track_for_contesant(request, pk):
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
-        if not contestant.contestanttrack.calculator_finished:
+        if not contestant.contestanttrack.calculator_finished and contestant.contestanttrack.calculator_finished:
             messages.error(request, "Calculator is running, terminate it or wait until it is terminated")
             return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
     except:
@@ -782,7 +782,7 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
-        if not contestant.contestanttrack.calculator_finished:
+        if not contestant.contestanttrack.calculator_finished and contestant.contestanttrack.calculator_finished:
             messages.error(request, "Calculator is running, terminate it or wait until it is terminated")
             return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
     except:
