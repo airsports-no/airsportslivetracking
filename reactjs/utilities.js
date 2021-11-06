@@ -25,7 +25,7 @@ export function getBearing(lat1, lon1, lat2, lon2) {
     const x = Math.cos(lat1) * Math.sin(lat2) -
         Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
     const Theta = Math.atan2(y, x);
-    return (Theta * 180 / Math.PI + 360) % 360; // in degrees
+    return ((Theta * 180 / Math.PI) + 360) % 360; // in degrees
 }
 
 
