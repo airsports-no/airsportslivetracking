@@ -156,8 +156,7 @@ from display.permissions import (
     OrganiserPermission,
     ContestTeamContestPermissions,
     NavigationTaskSelfManagementPermissions,
-    NavigationTaskPublicPutPermissions,
-    EditableRoutePermission,
+    EditableRoutePermission, NavigationTaskPublicPutDeletePermissions,
 )
 from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import (
@@ -2330,7 +2329,7 @@ class NavigationTaskViewSet(ModelViewSet):
         permission_classes=[
             permissions.IsAuthenticated
             & NavigationTaskSelfManagementPermissions
-            & (NavigationTaskPublicPutPermissions | NavigationTaskContestPermissions)
+            & (NavigationTaskPublicPutDeletePermissions | NavigationTaskContestPermissions)
         ],
     )
     def contestant_self_registration(self, request, *args, **kwargs):

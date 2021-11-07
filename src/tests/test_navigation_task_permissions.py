@@ -1,4 +1,5 @@
 import datetime
+from unittest.mock import patch
 
 from django.contrib.auth.models import User, Permission
 from django.contrib.auth import get_user_model
@@ -9,7 +10,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Contest, NavigationTask
+from display.models import Contest, NavigationTask, Contestant
+from mock_utilities import TraccarMock
 
 line = {
     "name": "land",
@@ -131,6 +133,47 @@ class TestAccessNavigationTask(APITestCase):
         assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
+
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    def test_delete_self_registration(self, p):
+        self.generic_user = get_user_model().objects.create(email="name@domain.com")
+        self.navigation_task.allow_self_management = True
+        self.navigation_task.save()
+        self.navigation_task.make_public()
+        CONTESTANT_DATA = {
+            "team": {
+                "aeroplane": {
+                    "registration": "LN-YDB2"
+                },
+                "crew": {
+                    "member1": {
+                        "first_name": "first_name",
+                        "last_name": "last_name",
+                        "email": "name@domain.com"
+                    }
+                },
+                "country": "NO"
+            },
+            "gate_times": {},
+            "takeoff_time": datetime.datetime.now(datetime.timezone.utc),
+            "minutes_to_starting_point": 5,
+            "finished_by_time": datetime.datetime.now(datetime.timezone.utc),
+            "air_speed": 70,
+            "contestant_number": 1,
+            "tracker_device_id": "tracker",
+            "tracker_start_time": datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1),
+            "wind_speed": 10,
+            "wind_direction": 0
+        }
+        result = self.client.post(reverse("contestants-list", kwargs={"contest_pk": self.contest_id,
+                                                                      "navigationtask_pk": self.navigation_task.pk}),
+                                  data=CONTESTANT_DATA, format="json")
+        print("Contestant result: {}".format(result.content))
+        self.contestant = Contestant.objects.get(pk=result.json()["id"])
+        self.client.force_login(self.generic_user)
+        result = self.client.delete(
+            f"/api/v1/contests/{self.contest.pk}/navigationtasks/{self.navigation_task.pk}/contestant_self_registration/")
+        self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_view_navigation_task_from_other_user_with_permissions(self):
         self.client.force_login(user=self.different_user_with_object_permissions)

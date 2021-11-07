@@ -10,6 +10,7 @@ from typing import List, TYPE_CHECKING, Optional, Callable, Tuple, Dict
 import dateutil
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import send_mail
 
 from timed_queue import TimedQueue, TimedOut
 from websocket_channels import WebsocketFacade
@@ -160,6 +161,14 @@ class Gatekeeper(ABC):
     def run(self):
         logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
+        try:
+            send_mail(f"Calculator started for {self.contestant}",
+                      f"<a href='{self.contestant.navigation_task.tracking_link}'>{self.contestant.navigation_task}</a>",
+                      None, ["frankose@ifi.uio.no", "espengronstad@gmail.com"],
+                      html_message=f"<a href='https://airsports.no{self.contestant.navigation_task.tracking_link}'>{self.contestant.navigation_task}</a>")
+        except:
+            logger.exception("Failed sending emails")
+
         self.contestant.contestanttrack.set_calculator_started()
         threading.Thread(target=self.enqueue_positions).start()
         number_of_positions = 0
@@ -351,6 +360,8 @@ class Gatekeeper(ABC):
                 seconds=15):
             self.last_termination_command_check = now
             termination_requested = cache.get(self.contestant.termination_request_key)
+            if termination_requested:
+                cache.set(self.contestant.termination_request_key, False, timeout=1)
             return termination_requested is not None
         return False
 

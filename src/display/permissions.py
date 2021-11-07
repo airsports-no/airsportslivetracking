@@ -120,12 +120,12 @@ class NavigationTaskPublicPermissions(permissions.BasePermission):
         return False
 
 
-class NavigationTaskPublicPutPermissions(permissions.BasePermission):
+class NavigationTaskPublicPutDeletePermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         return True
 
     def has_object_permission(self, request, view, obj):
-        if request.method in ['GET', "PUT"]:
+        if request.method in ['GET', "PUT", "DELETE"]:
             return obj.is_public and obj.contest.is_public
         return False
 
