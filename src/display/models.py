@@ -1501,6 +1501,27 @@ class Contestant(models.Model):
         unique_together = ("navigation_task", "contestant_number")
         ordering = ("takeoff_time",)
 
+    @property
+    def starting_point_time_local(self) -> datetime.datetime:
+        starting_point_time = self.takeoff_time + datetime.timedelta(
+            minutes=self.navigation_task.minutes_to_starting_point
+        )
+        return starting_point_time.astimezone(
+            self.navigation_task.contest.time_zone
+        )
+
+    @property
+    def tracker_start_time_local(self) -> datetime.datetime:
+        return self.tracker_start_time.astimezone(
+            self.navigation_task.contest.time_zone
+        )
+
+    @property
+    def finished_by_time_local(self) -> datetime.datetime:
+        return self.finished_by_time.astimezone(
+            self.navigation_task.contest.time_zone
+        )
+
     def get_final_gate_time(self) -> Optional[datetime.datetime]:
         final_gate = self.navigation_task.route.landing_gate or self.navigation_task.route.waypoints[-1]
         return self.gate_times.get(final_gate.name)
@@ -2504,11 +2525,9 @@ ____________________________________________________________
     def send_email(self, email_address: str, first_name: str):
         logger.info(f"Sending email to {email_address}")
         url = "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
-        starting_point_time = self.contestant.takeoff_time + datetime.timedelta(
-            minutes=self.contestant.navigation_task.minutes_to_starting_point
-        )
-        starting_point_time_string = starting_point_time.strftime("%Y-%m-%d %H:%M:%S")
-        tracking_start_time_string = self.contestant.tracker_start_time.strftime("%Y-%m-%d %H:%M:%S")
+
+        starting_point_time_string = self.contestant.starting_point_time_local.strftime("%Y-%m-%d %H:%M:%S")
+        tracking_start_time_string = self.contestant.tracker_start_time_local.strftime("%Y-%m-%d %H:%M:%S")
         send_mail(
             f"Flight orders for task {self.contestant.navigation_task.name}",
             f"Hi {first_name},\n\nHere is the <a href='{url}'>link to download the flight orders</a> for your navigation task "

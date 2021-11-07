@@ -140,18 +140,9 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     """
     from display.forms import SCALE_TO_FIT
 
-    starting_point_time = contestant.takeoff_time + datetime.timedelta(
-        minutes=contestant.navigation_task.minutes_to_starting_point
-    )
-    starting_point_time_string = starting_point_time.astimezone(
-        contestant.navigation_task.contest.time_zone
-    ).strftime("%Y-%m-%d %H:%M:%S")
-    tracking_start_time_string = contestant.tracker_start_time.astimezone(
-        contestant.navigation_task.contest.time_zone
-    ).strftime("%Y-%m-%d %H:%M:%S")
-    finish_tracking_time = contestant.finished_by_time.astimezone(
-        contestant.navigation_task.contest.time_zone
-    ).strftime("%Y-%m-%d %H:%M:%S")
+    starting_point_time_string = contestant.starting_point_time_local.strftime("%Y-%m-%d %H:%M:%S")
+    tracking_start_time_string = contestant.tracker_start_time_local.strftime("%Y-%m-%d %H:%M:%S")
+    finish_tracking_time = contestant.finished_by_time_local.strftime("%Y-%m-%d %H:%M:%S")
     facebook_share_url = "https://www.facebook.com/sharer/sharer.php?u="
     url = facebook_share_url + urllib.parse.quote(
         "https://airsports.no" + contestant.navigation_task.tracking_link
