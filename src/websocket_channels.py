@@ -10,7 +10,7 @@ from channels.layers import get_channel_layer
 from redis import StrictRedis
 
 from display.calculators.positions_and_gates import Position
-from display.models import Contestant, ContestTeam, Task, TaskTest, MyUser, Team
+from display.models import Contestant, ContestTeam, Task, TaskTest, MyUser, Team, ANOMALY
 from display.serialisers import (
     ContestantTrackSerialiser,
     ContestTeamNestedSerialiser,
@@ -85,7 +85,9 @@ class WebsocketFacade:
 
     def transmit_score_log_entry(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        log_entries = ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data
+        # Only push anomalous score logs to the GUI. Everything will be visible as annotations or on the contestant
+        # table administration page.
+        log_entries = ScoreLogEntrySerialiser(contestant.scorelogentry_set.filter(type=ANOMALY), many=True).data
         channel_data = generate_contestant_data_block(contestant, log_entries=log_entries)
         async_to_sync(self.channel_layer.group_send)(
             group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}

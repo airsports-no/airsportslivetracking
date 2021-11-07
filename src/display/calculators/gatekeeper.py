@@ -285,7 +285,7 @@ class Gatekeeper(ABC):
         if existing_reference is None:
             self.score += score
             entry = ScoreLogEntry.create_and_push(contestant=self.contestant, time=self.track[-1].time if len(
-                self.track) > 0 else self.contestant.navigation_task.start_time, gate=gate.name,
+                self.track) > 0 else self.contestant.navigation_task.start_time, gate=gate.name, type=annotation_type,
                                                   message=message, points=score, planned=planned, actual=actual,
                                                   offset_string=offset_string, string=string, times_string=times_string)
             annotation = TrackAnnotation.create_and_push(contestant=self.contestant, latitude=latitude,

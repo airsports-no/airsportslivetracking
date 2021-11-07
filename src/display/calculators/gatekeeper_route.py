@@ -295,7 +295,7 @@ class GatekeeperRoute(Gatekeeper):
                                                                                     gate.passing_time)
                     self.update_score(gate, gate_score,
                                       "passing gate",
-                                      current_position.latitude, current_position.longitude, "information",
+                                      current_position.latitude, current_position.longitude, "anomaly",
                                       self.GATE_SCORE_TYPE,
                                       planned=gate.expected_time, actual=gate.passing_time)
                 else:

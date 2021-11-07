@@ -2027,6 +2027,12 @@ class ContestantReceivedPosition(models.Model):
         }, point.time)) for index, point in enumerate(positions)]
 
 
+ANOMALY = "anomaly"
+INFORMATION = "information"
+DEBUG = "debug"
+ANNOTATION_TYPES = [(ANOMALY, "Anomaly"), (INFORMATION, "Information"), (DEBUG, "Debug")]
+
+
 class ScoreLogEntry(models.Model):
     time = models.DateTimeField()
     contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
@@ -2038,6 +2044,7 @@ class ScoreLogEntry(models.Model):
     actual = models.DateTimeField(blank=True, null=True)
     offset_string = models.CharField(max_length=200, default="")
     times_string = models.CharField(max_length=200, default="")
+    type = models.CharField(max_length=30, choices=ANNOTATION_TYPES, default=INFORMATION)
 
     class Meta:
         ordering = ("time", "pk")
@@ -2062,10 +2069,6 @@ class ScoreLogEntry(models.Model):
 
 
 class TrackAnnotation(models.Model):
-    ANOMALY = "anomaly"
-    INFORMATION = "information"
-    DEBUG = "debug"
-    TYPES = [(ANOMALY, "Anomaly"), (INFORMATION, "Information"), (DEBUG, "Debug")]
     time = models.DateTimeField()
     contestant = models.ForeignKey(Contestant, on_delete=models.CASCADE)
     score_log_entry = models.ForeignKey(ScoreLogEntry, on_delete=models.CASCADE)
@@ -2074,7 +2077,7 @@ class TrackAnnotation(models.Model):
     message = models.TextField()
     gate = models.CharField(max_length=30, blank=True, default="")
     gate_type = models.CharField(max_length=30, blank=True, default=TURNPOINT, choices=GATES_TYPES)
-    type = models.CharField(max_length=30, choices=TYPES)
+    type = models.CharField(max_length=30, choices=ANNOTATION_TYPES)
 
     class Meta:
         ordering = ("time",)
@@ -2276,6 +2279,7 @@ class PlayingCard(models.Model):
             gate=waypoint,
             message=message,
             points=relative_score,
+            type=ANOMALY,
             string="{}: {}".format(waypoint, message),
         )
 
@@ -2291,7 +2295,7 @@ class PlayingCard(models.Model):
             latitude=latitude,
             longitude=longitude,
             message=entry.string,
-            type=TrackAnnotation.INFORMATION,
+            type=ANOMALY,
             time=datetime.datetime.now(datetime.timezone.utc),
             score_log_entry=entry,
         )
