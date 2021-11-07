@@ -2144,19 +2144,13 @@ class ContestantTrack(models.Model):
         self.__push_change()
 
     def update_score(self, score):
-        self.refresh_from_db()
-        self.score = score
+        ContestantTrack.objects.filter(pk=self.pk).update(score=score)
         # Update task test score if it exists
-        try:
-            task_test = TaskTest.objects.get(navigation_task=self.contestant.navigation_task)
-            entry, _ = TeamTestScore.objects.get_or_create(
-                team=self.contestant.team, task_test=task_test, defaults={"points": 0}
+        if hasattr(self.contestant.navigation_task, "task_test"):
+            entry, _ = TeamTestScore.objects.update_or_create(
+                team=self.contestant.team, task_test=self.contestant.navigation_task.task_test,
+                defaults={"points": score}
             )
-            entry.points = score
-            entry.save()
-        except ObjectDoesNotExist:
-            pass
-        self.save()
         self.__push_change()
 
     def updates_current_state(self, state: str):

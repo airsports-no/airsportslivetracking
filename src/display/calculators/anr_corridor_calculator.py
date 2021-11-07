@@ -124,7 +124,7 @@ class AnrCorridorCalculator(Calculator):
         if self.corridor_state == self.OUTSIDE_CORRIDOR or apply_maximum_penalty:
             self.existing_reference = self.update_score(last_gate,
                                                         score,
-                                                        "outside corridor ({} seconds)".format(int(outside_time)),
+                                                        "outside corridor ({} s)".format(int(outside_time)),
                                                         self.crossed_outside_position.latitude,
                                                         self.crossed_outside_position.longitude,
                                                         "anomaly",

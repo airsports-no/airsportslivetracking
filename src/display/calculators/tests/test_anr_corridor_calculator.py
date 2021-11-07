@@ -82,7 +82,7 @@ class TestANRPerLeg(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
         a = ['Takeoff: 0.0 points missing gate\nplanned: 20:30:00\nactual: --',
-             'SP: 200.0 points passiMister Kateng gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53',
+             'SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53',
              'SP: 50.0 points outside corridor (40 seconds) (capped)',
              'SP: 0 points entering corridor',
              'Waypoint 1: 0 points passing gate (no time check) (-407 s)\nplanned: 20:39:00\nactual: 20:32:13',
