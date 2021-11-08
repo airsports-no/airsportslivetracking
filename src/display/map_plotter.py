@@ -599,7 +599,8 @@ def plot_waypoint_name(
 ):
     if not waypoint.time_check and not waypoint.gate_check:
         return
-    text = "{}".format(waypoint.name)
+    waypoint_name = "{}".format(waypoint.name)
+    timing = ""
     if contestant is not None and annotations:
         waypoint_time = contestant.gate_times.get(
             waypoint.name
@@ -608,13 +609,8 @@ def plot_waypoint_name(
             local_waypoint_time = waypoint_time.astimezone(
                 route.navigationtask.contest.time_zone
             )
-            text += " {}".format(local_waypoint_time.strftime("%H:%M:%S"))
-    # bearing_difference = get_heading_difference(
-    #     waypoint.bearing_from_previous, waypoint.bearing_next
-    # )
-    text = (
-            "\n" + " " * (len(text) + character_padding) + text
-    )
+            timing = " {}".format(local_waypoint_time.strftime("%H:%M:%S"))
+
     # if bearing_difference > 0:
     #     text = (
     #             "\n" + text + " " * len(text) + " " * character_padding
@@ -623,31 +619,53 @@ def plot_waypoint_name(
     #     text = (
     #             "\n" + " " * (len(text) + character_padding) + text
     #     )  # Padding to get things aligned correctly
-    position = []
+
+    name_position = []
+    timing_position = []
     rotation = -bearing
     if len(waypoint.gate_line):
+
         gate_line_bearing = calculate_bearing(waypoint.gate_line[0], waypoint.gate_line[1])
         waypoint_bearing = waypoint.bearing_from_previous if waypoint.bearing_from_previous >= 0 else waypoint.bearing_next
         right = (gate_line_bearing - waypoint_bearing) % 360.0 > 0
         if right:
-            position = waypoint.gate_line[1]
+            timing_position = waypoint.gate_line[1]
+            name_position = waypoint.gate_line[0]
             rotation = -gate_line_bearing + 90
         else:
-            position = waypoint.gate_line[0]
+            timing_position = waypoint.gate_line[0]
+            name_position = waypoint.gate_line[1]
             rotation = gate_line_bearing + 90
     if waypoints_only:
         rotation = 0
+    if len(timing):
+        timing=" "*(0+len(timing))+timing
+        plt.text(
+            timing_position[1] if len(timing_position) else waypoint.longitude,
+            timing_position[0] if len(timing_position) else waypoint.latitude,
+            timing,
+            verticalalignment="center",
+            color=colour,
+            horizontalalignment="center",
+            transform=ccrs.PlateCarree(),
+            fontsize=8,
+            rotation=rotation,
+            # linespacing=2,
+            family="monospace",
+            clip_on=True,
+        )
+    waypoint_name=waypoint_name+" "*(1+len(waypoint_name))
     plt.text(
-        position[1] if len(position) else waypoint.longitude,
-        position[0] if len(position) else waypoint.latitude,
-        text,
+        name_position[1] if len(name_position) else waypoint.longitude,
+        name_position[0] if len(name_position) else waypoint.latitude,
+        waypoint_name,
         verticalalignment="center",
         color=colour,
         horizontalalignment="center",
         transform=ccrs.PlateCarree(),
         fontsize=8,
         rotation=rotation,
-        linespacing=2,
+        # linespacing=2,
         family="monospace",
         clip_on=True,
     )
