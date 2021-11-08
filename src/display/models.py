@@ -2624,14 +2624,12 @@ class EditableRoute(models.Model):
         for index, (latitude, longitude) in enumerate(coordinates):
             item = track_points[index]
             waypoint_list.append(
-                build_waypoint(f"Waypoint {index}", latitude, longitude, "secret", corridor_width, False, False)
+                build_waypoint(item["name"], latitude, longitude, "secret", corridor_width, False, False)
             )
-        waypoint_list[0].name = "SP"
         waypoint_list[0].type = "sp"
         waypoint_list[0].gate_check = True
         waypoint_list[0].time_check = True
 
-        waypoint_list[-1].name = "FP"
         waypoint_list[-1].type = "fp"
         waypoint_list[-1].gate_check = True
         waypoint_list[-1].time_check = True
