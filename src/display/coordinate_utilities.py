@@ -418,7 +418,7 @@ def create_rounded_corridor_corner(
         bisecting_line: Tuple[Tuple[float, float], Tuple[float, float]],
         corridor_width: float,
         corner_degrees: float,
-) -> Tuple[List[Tuple[float, float]], List[Tuple[float, float]]]:
+) -> Tuple[List[Tuple[float, float]], List[Tuple[float, float]], Tuple[Tuple[float, float], Tuple[float, float]]]:
     """
     Create a rounded line for the left and right corridor walls for the turn described by the bisecting line
 
@@ -427,7 +427,7 @@ def create_rounded_corridor_corner(
     :param corridor_width: The width of the corridor NM
     :param corner_degrees: The number of degrees for the turn
     :param bisecting_line: The line that bisects the middle of the turn
-    :return: List of points that make up the left-hand corridor line, list of points that make up the right-hand corridor line (lon, lat)
+    :return: List of points that make up the left-hand corridor line, list of points that make up the right-hand corridor line (lon, lat), the new gate line
     """
     if corner_degrees == 0:
         return [bisecting_line[0]], [bisecting_line[1]]
@@ -444,6 +444,8 @@ def create_rounded_corridor_corner(
         bisection_bearing = calculate_bearing(*list(reversed(bisecting_line)))
         circle_centre = bisecting_line[1]
         circle_perimeter = bisecting_line[0]
+    corrected_gate_line_perimeter=calculate_fractional_distance_point_lat_lon(circle_centre, circle_perimeter, corridor_width_metres/calculate_distance_lat_lon(circle_centre, circle_perimeter))
+    corrected_gate_line=(circle_centre, corrected_gate_line_perimeter)
     initial_offset = -1 * turn_degrees / 2
     pc = ccrs.PlateCarree()
     utm = utm_from_lat_lon(*circle_centre)
@@ -500,7 +502,7 @@ def create_rounded_corridor_corner(
     right_edge_lonlat[:, [0, 1]] = right_edge_lonlat[:, [1, 0]]
     print(f"left_edge_lonlat: {left_edge_lonlat}")
     print(f"left_edge_lonlat.shape: {left_edge_lonlat.shape}")
-    return left_edge_lonlat[:, :2].tolist(), right_edge_lonlat[:, :2].tolist()
+    return left_edge_lonlat[:, :2].tolist(), right_edge_lonlat[:, :2].tolist(), corrected_gate_line
 
 
 def create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length):

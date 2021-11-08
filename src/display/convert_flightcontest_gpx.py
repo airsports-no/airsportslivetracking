@@ -436,8 +436,9 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
         for index in range(1, len(gates) - 1):
             waypoint = gates[index]  # type: Waypoint
             turn_degrees = bearing_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
-            waypoint.left_corridor_line, waypoint.right_corridor_line = create_rounded_corridor_corner(
+            waypoint.left_corridor_line, waypoint.right_corridor_line, waypoint.gate_line = create_rounded_corridor_corner(
                 waypoint.gate_line, waypoint.width, turn_degrees)
+
         # correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
     instance.rounded_corners = rounded_corners
