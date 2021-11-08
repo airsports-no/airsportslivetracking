@@ -140,6 +140,7 @@ def create_minute_lines_track(
         route_start_time: datetime.datetime,
         resolution_seconds: int = 60,
         line_width_nm=0.5,
+        corridor_width: Optional[float] = None
 ) -> List[
     Tuple[
         Tuple[Tuple[float, float], Tuple[float, float]],
@@ -160,6 +161,7 @@ def create_minute_lines_track(
     :param line_width_nm:
     :return:
     """
+    corridor_width = corridor_width or line_width_nm
     gate_start_elapsed = (gate_start_time - route_start_time).total_seconds()
     time_to_next_line = resolution_seconds - gate_start_elapsed % resolution_seconds
     if time_to_next_line == 0:
@@ -180,12 +182,15 @@ def create_minute_lines_track(
             line_position = calculate_fractional_distance_point_lat_lon(
                 start, finish, internal_leg_time / leg_time
             )
+            minute_mark = create_perpendicular_line_at_end_lonlat(
+                *reversed(start), *reversed(line_position), line_width_nm * 1852
+            )
+            text_position = extend_point_to_the_right(bearing, (
+                tuple(reversed(minute_mark[0])), tuple(reversed(minute_mark[1]))), 1852 * corridor_width / 2)
             lines.append(
                 (
-                    create_perpendicular_line_at_end_lonlat(
-                        *reversed(start), *reversed(line_position), line_width_nm * 1852
-                    ),
-                    line_position,
+                    minute_mark,
+                    text_position,
                     gate_start_time + datetime.timedelta(seconds=time_to_next_line),
                 )
             )
@@ -569,6 +574,18 @@ def plot_prohibited_zones(route: Route, target_projection, ax):
         plt.text(centre.x, centre.y, prohibited.name, horizontalalignment="center")
 
 
+def extend_point_to_the_right(track_bearing: float, line: Tuple[Tuple[float, float], Tuple[float, float]],
+                              distance: float) -> Tuple[float, float]:
+    gate_line_bearing = calculate_bearing(*line)
+    right = (gate_line_bearing - track_bearing) % 360.0 > 0
+    if not right:
+        line = reversed(line)
+        gate_line_bearing = (gate_line_bearing + 180) % 360
+    if distance == 0:
+        return line[1]
+    return project_position_lat_lon(line[1], gate_line_bearing, distance)
+
+
 def plot_waypoint_name(
         route: Route,
         waypoint: Waypoint,
@@ -642,14 +659,16 @@ def plot_anr_corridor_track(
         annotations,
         line_width: float,
         colour: str,
+        plot_center_line: bool
 ):
     inner_track = []
     outer_track = []
+    center_track = []
     for index, waypoint in enumerate(route.waypoints):
         ys, xs = np.array(waypoint.gate_line).T
         bearing = waypoint_bearing(waypoint, index)
 
-        if waypoint.type not in ("secret",):
+        if waypoint.type not in ("secret",) and waypoint.time_check:
             plot_waypoint_name(
                 route,
                 waypoint,
@@ -665,12 +684,13 @@ def plot_anr_corridor_track(
             inner_track.extend(waypoint.left_corridor_line)
             outer_track.extend(waypoint.right_corridor_line)
         else:
-            if waypoint.type not in ('secret',):
-                plt.plot(
-                    xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width
-                )
             inner_track.append(waypoint.gate_line[0])
             outer_track.append(waypoint.gate_line[1])
+        center_track.append((waypoint.latitude, waypoint.longitude))
+        if waypoint.type not in ('secret',) and waypoint.time_check:
+            plt.plot(
+                xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width
+            )
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
             plot_minute_marks(
                 waypoint,
@@ -679,8 +699,8 @@ def plot_anr_corridor_track(
                 index,
                 line_width,
                 colour,
-                mark_offset=4,
-                line_width_nm=0.4  # contestant.navigation_task.scorecard.get_corridor_width(contestant),
+                mark_offset=2,
+                line_width_nm=min(0.4, waypoint.width / 2)
             )
             plot_leg_bearing(
                 waypoint,
@@ -691,7 +711,12 @@ def plot_anr_corridor_track(
                 2,
                 12,
             )
-        # print(inner_track)
+    if plot_center_line:
+        path = np.array(center_track)
+        ys, xs = path.T
+        plt.plot(
+            xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width / 2
+        )
     path = np.array(inner_track)
     ys, xs = path.T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
@@ -731,8 +756,9 @@ def plot_minute_marks(
         gate_start_time,
         contestant.gate_times.get(track[0].name),
         line_width_nm=line_width_nm,
+        corridor_width=waypoint.width if waypoint.width < 1 else 0.7
     )
-    for mark_line, line_position, timestamp in minute_lines:
+    for mark_line, text_position, timestamp in minute_lines:
         xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat
         plt.plot(
             xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width
@@ -741,10 +767,10 @@ def plot_minute_marks(
         if timestamp.second != 0:
             time_format = "%M:%S"
         time_string = timestamp.strftime(time_format)
-        text = "\n" + " " * mark_offset + " " * len(time_string) + time_string
+        text = " " * mark_offset + time_string
         plt.text(
-            line_position[1],
-            line_position[0],
+            text_position[1],
+            text_position[0],
             text,
             verticalalignment="center",
             color=colour,
@@ -892,9 +918,13 @@ def plot_route(
         path = plot_precision_track(
             route, contestant, waypoints_only, annotations, line_width, colour
         )
-    elif NavigationTask.ANR_CORRIDOR in task.scorecard.task_type or NavigationTask.AIRSPORTS in task.scorecard.task_type:
+    elif NavigationTask.ANR_CORRIDOR in task.scorecard.task_type:
         path = plot_anr_corridor_track(
-            route, contestant, annotations, line_width, colour
+            route, contestant, annotations, line_width, colour, False
+        )
+    elif NavigationTask.AIRSPORTS in task.scorecard.task_type:
+        path = plot_anr_corridor_track(
+            route, contestant, annotations, line_width, colour, True
         )
     else:
         path = []

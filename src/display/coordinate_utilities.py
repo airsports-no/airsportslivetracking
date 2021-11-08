@@ -600,7 +600,7 @@ def create_perpendicular_line_at_end_lonlat(x1, y1, x2, y2, length):
     :param x2:
     :param y2:
     :param length: metres
-    :return:
+    :return: Line with coordinate order longitude, Latitude
     """
     transformer = UtmXy(y1,x1)
     x1, y1 = transformer.to_xy(y1,x1)
