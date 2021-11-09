@@ -10,7 +10,7 @@ import "leaflet-draw";
 // import "leaflet-draw-with-touch";
 import "../../pointInPolygon"
 import {Button, Container, Form, Modal, Row, Col, ToastContainer, Toast} from "react-bootstrap";
-import {divIcon, marker} from "leaflet";
+import {circle, divIcon, marker} from "leaflet";
 import {fetchEditableRoute} from "../../actions";
 import axios from "axios";
 import {Link, withRouter} from "react-router-dom";
@@ -217,9 +217,9 @@ class ConnectedRouteEditor extends Component {
             url += this.props.routeId + "/"
             if (this.state.routeName) {
                 name = this.state.routeName
-            } else if(this.state.routeName===null) {
+            } else if (this.state.routeName === null) {
                 name = this.props.route.name
-            }else {
+            } else {
                 errors.push("The route must have a name")
             }
         }
@@ -504,6 +504,17 @@ class ConnectedRouteEditor extends Component {
                         this.setState({selectedWaypoint: item.target.options.index})
                     }
                 })
+                if (track.trackPoints[index].timeCheck) {
+                    circle([p.lat, p.lng], {
+                        radius: track.trackPoints[index].gateWidth * 1852,
+                        color: "blue",
+                        opacity: 0.05
+                    }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
+                        if (this.state.globalEditingMode) {
+                            this.setState({selectedWaypoint: item.target.options.index})
+                        }
+                    })
+                }
                 index += 1
             }
         } else if (Object.keys(generalTypes).includes(track.featureType)) {
