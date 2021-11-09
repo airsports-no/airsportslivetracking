@@ -2607,7 +2607,7 @@ class EditableRoute(models.Model):
                     item["gateType"],
                     item["gateWidth"],
                     item["timeCheck"],
-                    item["gateCheck"],
+                    item["timeCheck"],  # We do not include gate check in GUI
                 )
             )
         route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns)

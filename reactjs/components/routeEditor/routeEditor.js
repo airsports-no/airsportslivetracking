@@ -131,7 +131,8 @@ class ConnectedRouteEditor extends Component {
             currentName: null,
             routeName: null,
             changesSaved: false,
-            displayTutorial: false
+            displayTutorial: false,
+            selectedWaypoint: null
         }
     }
 
@@ -192,7 +193,7 @@ class ConnectedRouteEditor extends Component {
                     layer_type: l.layerType,
                     track_points: l.trackPoints,
                     feature_type: l.featureType,
-                    geojson: l.toGeoJSON()
+                    geojson: l.toGeoJSON(),
                 })
             }
         }
@@ -240,16 +241,19 @@ class ConnectedRouteEditor extends Component {
         })
         layer.on("edit", (item) => {
             const layer = item.target
-            this.renderWaypointNames(layer)
+            if (layer.featureType === "track") {
+                // Editing already existing feature
+                this.updateWaypoints(layer)
+                this.renderWaypointNames(layer)
+            }
         })
         layer.setStyle(featureStyles[featureType])
-        if (!created) {
-            this.renderWaypointNames(layer)
-        }
+        this.renderWaypointNames(layer)
     }
 
     renderRoute() {
         this.drawnItems.clearLayers()
+        console.log('renderRoute')
         console.log(this.props.route)
         let zoomed = false
         for (let r of this.props.route.route) {
@@ -271,8 +275,10 @@ class ConnectedRouteEditor extends Component {
                     onEachFeature: (feature, layer) => {
                         if (r.feature_type === "track") {
                             zoomed = true
+                            this.trackLayer = layer
                             this.map.fitBounds(layer.getBounds(), {padding: [50, 50]})
                         }
+                        layer.editing.enable()
                         this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points, false)
                     }
                 }
@@ -400,6 +406,7 @@ class ConnectedRouteEditor extends Component {
     }
 
     saveLayer() {
+        this.state.featureEditLayer.editing.enable()
         if (this.state.featureType) {
             this.state.featureEditLayer.featureType = this.state.featureType
         }
@@ -411,13 +418,11 @@ class ConnectedRouteEditor extends Component {
         if (this.state.currentName) {
             this.state.featureEditLayer.name = this.state.currentName
         }
-        let trackPoints = []
         if (this.state.featureEditLayer.featureType === "track") {
-            trackPoints = this.existingWaypointConfiguration
+            this.trackLayer = this.state.featureEditLayer
         }
         this.state.featureEditLayer.setStyle(featureStyles[this.state.featureEditLayer.featureType])
-        this.state.featureEditLayer.trackPoints = trackPoints
-        this.state.featureEditLayer.editing.disable()
+        // this.state.featureEditLayer.editing.disable()
         this.renderWaypointNames(this.state.featureEditLayer)
 
         console.log(this.state.featureEditLayer)
@@ -446,115 +451,24 @@ class ConnectedRouteEditor extends Component {
             for (let p of track.getLatLngs()) {
                 const m = marker([p.lat, p.lng], {
                     color: "blue",
+                    index: index,
                     icon: divIcon({
-                        html: '<i class="fas"">' + (track.trackPoints.length > index ? track.trackPoints[index].name : "Unknown") + '</i>',
+                        html: '<i class="fas"">' + track.trackPoints[index].name + '</i>',
                         iconSize: [20, 20],
                         iconAnchor: [10, -10],
                         className: "myGateIcon",
 
                     })
-                }).addTo(track.waypointNamesFeatureGroup)
+                }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
+                    this.setState({selectedWaypoint: item.target.options.index})
+                })
                 index += 1
             }
-        } else {
+        } else if (Object.keys(generalTypes).includes(track.featureType)) {
             track.bindTooltip(track.name, {permanent: true})
         }
     }
 
-    renderWaypointsForm() {
-        this.existingWaypointConfiguration = []
-        return <Form.Group>
-            {this.state.featureEditLayer.getLatLngs().map((position, index) => {
-                let defaultValue = {
-                    name: "TP " + (index),
-                    gateType: "tp",
-                    timeCheck: true,
-                    gateCheck: true,
-                    gateWidth: 1
-                }
-                if (index === 0) {
-                    defaultValue = {
-                        name: "SP",
-                        gateType: "sp",
-                        timeCheck: true,
-                        gateCheck: true,
-                        gateWidth: 1
-                    }
-                } else if (index === this.state.featureEditLayer.getLatLngs().length - 1) {
-                    defaultValue = {
-                        name: "FP",
-                        gateType: "fp",
-                        timeCheck: true,
-                        gateCheck: true,
-                        gateWidth: 1
-                    }
-                }
-                defaultValue = this.state.featureEditLayer && this.state.featureEditLayer.trackPoints && this.state.featureEditLayer.trackPoints.length > index ? this.state.featureEditLayer.trackPoints[index] : defaultValue
-                this.existingWaypointConfiguration.push(defaultValue)
-                return <div>
-                    <Row>
-                        <Form.Label>Waypoint {index + 1}</Form.Label>
-                    </Row>
-                    <Row key={"waypoint" + index}>
-                        <Col xs={"auto"}>
-                            <Form.Control type={"string"} placeholder={"Name"}
-                                          defaultValue={defaultValue.name}
-                                          onChange={
-                                              (e) => {
-                                                  this.existingWaypointConfiguration[index]["name"] = e.target.value
-                                              }
-                                          }/>
-                        </Col>
-                        <Col xs={"auto"}>
-                            <Form.Control as="select"
-                                          onChange={
-                                              (e) => {
-                                                  this.existingWaypointConfiguration[index]["gateType"] = e.target.value
-                                              }
-                                          }
-                                          defaultValue={defaultValue.gateType}>
-                                {gateTypes.map((item) => {
-                                    return <option key={item[1]} value={item[1]}>{item[0]}</option>
-                                })}
-                            </Form.Control>
-
-                        </Col>
-                        <Col xs={"auto"}>
-                            <Form.Control key={"gateCheck"} placeholder={"Width"}
-                                          type={"number"}
-                                          onChange={
-                                              (e) => {
-                                                  this.existingWaypointConfiguration[index]["gateWidth"] = e.target.value
-                                              }
-                                          }
-                                          defaultValue={defaultValue.gateWidth}/>
-                        </Col>
-                        <Col xs={"auto"}>
-                            <Form.Check inline key={"gateCheck"} name={"gateCheck"} label={"Gate check"}
-                                        type={"checkbox"}
-                                        onChange={
-                                            (e) => {
-                                                this.existingWaypointConfiguration[index]["gateCheck"] = e.target.value
-                                            }
-                                        }
-                                        defaultChecked={defaultValue.gateCheck}/>
-                        </Col>
-                        <Col xs={"auto"}>
-                            <Form.Check inline key={"timeCheck"} name={"timeCheck"} label={"Time check"}
-                                        type={"checkbox"}
-                                        onChange={
-                                            (e) => {
-                                                this.existingWaypointConfiguration[index]["timeCheck"] = e.target.value
-                                            }
-                                        }
-                                        defaultChecked={defaultValue.timeCheck}/>
-                        </Col>
-                    </Row>
-                    <hr/>
-                </div>
-            })}
-        </Form.Group>
-    }
 
     isFeatureSelectable(featureType, checked) {
         const usedFeatureTypes = this.existingFeatureTypes()
@@ -573,10 +487,6 @@ class ConnectedRouteEditor extends Component {
                                }
                                } disabled={!this.isFeatureSelectable(item[1], checked)} defaultChecked={checked}/>
         })
-        let extra = null
-        if (currentFeatureType === "track") {
-            extra = this.renderWaypointsForm()
-        }
         return <div>
             {layer.layerType !== "polyline" && currentFeatureType !== "gate" ?
                 <div>
@@ -588,7 +498,6 @@ class ConnectedRouteEditor extends Component {
                 </div> : null
             }
             {checkboxes}
-            {extra}
         </div>
 
     }
@@ -604,6 +513,79 @@ class ConnectedRouteEditor extends Component {
         </Form>
     }
 
+
+    waypointModal() {
+        let waypoint
+        if (this.trackLayer && this.state.selectedWaypoint !== null) {
+            waypoint = this.trackLayer.trackPoints[this.state.selectedWaypoint]
+        } else {
+            waypoint = {
+                name: "invalid",
+                gateType: "invalid",
+                gateWidth: -1,
+                timeCheck: false
+            }
+        }
+        return <Modal
+            show={this.state.selectedWaypoint !== null}
+            aria-labelledby="contained-modal-title-vcenter">
+            <Modal.Header closeButton={false}>
+                <Modal.Title id="contained-modal-title-vcenter">
+                    <h2>Edit feature</h2>
+                </Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="show-grid">
+                <Container>
+                    <Form>
+                        <Form.Label>Waypoint name:</Form.Label>&nbsp;
+                        <Form.Control type={"string"} placeholder={"Name"}
+                                      defaultValue={waypoint.name}
+                                      onChange={
+                                          (e) => {
+                                              waypoint["name"] = e.target.value
+                                          }
+                                      }/>
+                        <Form.Label>Waypoint type:</Form.Label>&nbsp;
+                        <Form.Control as="select"
+                                      onChange={
+                                          (e) => {
+                                              waypoint["gateType"] = e.target.value
+                                          }
+                                      }
+                                      defaultValue={waypoint.gateType}>
+                            {gateTypes.map((item) => {
+                                return <option key={item[1]} value={item[1]}>{item[0]}</option>
+                            })}
+                        </Form.Control>
+
+                        <Form.Label>Gate width:</Form.Label>&nbsp;
+                        <Form.Control key={"Width"} placeholder={"Width"}
+                                      type={"number"}
+                                      onChange={
+                                          (e) => {
+                                              waypoint["gateWidth"] = e.target.value
+                                          }
+                                      }
+                                      defaultValue={waypoint.gateWidth}/>
+                        <Form.Check inline key={"timeCheck"} name={"timeCheck"} label={"Time check"}
+                                    type={"checkbox"}
+                                    onChange={
+                                        (e) => {
+                                            waypoint["timeCheck"] = e.target.checked
+                                        }
+                                    }
+                                    defaultChecked={waypoint.timeCheck}/>
+                    </Form>
+                </Container>
+            </Modal.Body>
+            <Modal.Footer>
+                <Button onClick={() => {
+                    this.setState({selectedWaypoint: null})
+                    this.renderWaypointNames(this.trackLayer)
+                }}>Done</Button>
+            </Modal.Footer>
+        </Modal>
+    }
 
     featureEditModal() {
         return <Modal
@@ -626,11 +608,6 @@ class ConnectedRouteEditor extends Component {
                             this.clearFormData()
                             this.setState({featureEditLayer: null, validationErrors: null})
                         }}>Cancel</Button>
-                {this.state.featureEditLayer && !this.state.featureEditLayer.editing.enabled() ?
-                    <Button onClick={() => {
-                        this.state.featureEditLayer.editing.enable()
-                        this.setState({featureEditLayer: null})
-                    }}>Edit points</Button> : null}
                 <Button variant={"danger"} onClick={() => {
                     this.state.featureEditLayer.waypointNamesFeatureGroup.clearLayers()
                     this.drawnItems.removeLayer(this.state.featureEditLayer)
@@ -641,6 +618,64 @@ class ConnectedRouteEditor extends Component {
         </Modal>
     }
 
+    initialiseWaypoints(trackLayer) {
+        return trackLayer.getLatLngs().map((position, index) => {
+            let defaultValue = {
+                name: "TP " + (index),
+                gateType: "tp",
+                timeCheck: true,
+                gateWidth: 1,
+                position: position
+            }
+            if (index === 0) {
+                defaultValue = {
+                    name: "SP",
+                    gateType: "sp",
+                    timeCheck: true,
+                    gateWidth: 1,
+                    position: position
+                }
+            } else if (index === trackLayer.getLatLngs().length - 1) {
+                defaultValue = {
+                    name: "FP",
+                    gateType: "fp",
+                    timeCheck: true,
+                    gateWidth: 1,
+                    position: position
+                }
+            }
+            return defaultValue
+        })
+    }
+
+    updateWaypoints(trackLayer) {
+        const points = trackLayer.getLatLngs()
+        let newTrackPoints = []
+        let lastUsedPointIndex = 0
+
+        for (let i = 0; i < points.length; i++) {
+            let match = null
+            for (let j = lastUsedPointIndex; j < trackLayer.trackPoints.length; j++) {
+                if (points[i] === trackLayer.trackPoints[j].position) {
+                    match = trackLayer.trackPoints[j]
+                    lastUsedPointIndex = j
+                    break
+                }
+            }
+            if (!match) {
+                newTrackPoints.push({
+                    name: "NEW",
+                    gateType: "tp",
+                    timeCheck: true,
+                    gateWidth: 1,
+                    position: points[i]
+                })
+            } else {
+                newTrackPoints.push(match)
+            }
+        }
+        trackLayer.trackPoints = newTrackPoints
+    }
 
     initialiseMap() {
         const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
@@ -707,30 +742,34 @@ class ConnectedRouteEditor extends Component {
             }));
         })
 
-        this.map.on(L.Draw.Event.EDITED, (event) => {
+        this.map.on(L.Draw.Event.EDITVERTEX, (event) => {
+            console.log("editvertex")
             const layers = event.layers;
             layers.eachLayer((layer) => {
                 console.log(layer)
-                if (this.checkIfUpdateIsNeeded(layer)) {
-                    this.setState({featureEditLayer: layer})
-                    return
-                }
+                // if (layer.featureType === "track") {
+                //     this.updateWaypoints(layer)
+                // }
                 this.renderWaypointNames(layer)
             })
         })
         this.map.on(L.Draw.Event.CREATED, (event) => {
             console.log(event)
             const layer = event.layer;
+
             let featureType = null
+            let trackPoints = []
             if (this.isFeatureSelectable("track", false) && event.layerType === "polyline") {
                 featureType = "track"
-
+                trackPoints = this.initialiseWaypoints(layer)
             }
-            this.configureLayer(layer, null, event.layerType, featureType, [], true)
+            this.configureLayer(layer, null, event.layerType, featureType, trackPoints, true)
             this.setState({featureEditLayer: layer})
+
         });
 
     }
+
 
     renderValidationErrors() {
         if (this.state.validationErrors) {
@@ -767,6 +806,7 @@ class ConnectedRouteEditor extends Component {
             </a>
 
             {this.featureEditModal()}
+            {this.waypointModal()}
             <div id="routeSaveButton">
                 <Form.Control type={"string"} placeholder={"Route name"}
                               defaultValue={this.props.route ? this.props.route.name : ""}
