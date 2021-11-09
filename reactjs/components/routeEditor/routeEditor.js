@@ -392,7 +392,7 @@ class ConnectedRouteEditor extends Component {
             return ["Gate polygon must wrap exactly one turning point, currently wraps 0"]
         }
         if (candidateWaypoints.length > 1) {
-            return ["Gate polygon must wrap exactly one turning point, currently at wraps" + candidateWaypoints.length]
+            return ["Gate polygon must wrap exactly one turning point, currently it wraps" + candidateWaypoints.length]
         }
         // Here everything is in order, so that the same name
         layer.name = track.trackPoints[candidateWaypoints[0]].name
