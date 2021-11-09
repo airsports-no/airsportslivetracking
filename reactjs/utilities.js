@@ -28,6 +28,22 @@ export function getBearing(lat1, lon1, lat2, lon2) {
     return ((Theta * 180 / Math.PI) + 360) % 360; // in degrees
 }
 
+export function fractionalDistancePoint(lat1, lon1, lat2, lon2, fraction) {
+    const distance = getDistance(lat1, lon1, lat2, lon2)
+    lat1 *= Math.PI / 180
+    lon1 *= Math.PI / 180
+    lat2 *= Math.PI / 180
+    lon2 *= Math.PI / 180
+    const angularDistance = distance / R
+    const a = Math.sin((1 - fraction) * angularDistance) / Math.sin(angularDistance)
+    const b = Math.sin(fraction * angularDistance) / Math.sin(angularDistance)
+    const x = a * Math.cos(lat1) * Math.cos(lon1) + b * Math.cos(lat2) * Math.cos(lon2)
+    const y = a * Math.cos(lat1) * Math.sin(lon1) + b * Math.cos(lat2) * Math.sin(lon2)
+    const z = a * Math.sin(lat1) + b * Math.sin(lat2)
+    const finalLatitude = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI
+    const finalLongitude = Math.atan2(y, x) * 180 / Math.PI
+    return [finalLatitude, finalLongitude]
+}
 
 export function getHeadingDifference(heading1, heading2) {
     return (heading2 - heading1 + 540) % 360 - 180

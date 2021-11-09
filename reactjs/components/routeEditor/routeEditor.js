@@ -16,7 +16,7 @@ import axios from "axios";
 import {Link, withRouter} from "react-router-dom";
 import IntroSlider from "react-intro-slider";
 import Cookies from "universal-cookie";
-import {getBearing, getDistance, getHeadingDifference} from "../../utilities";
+import {fractionalDistancePoint, getBearing, getDistance, getHeadingDifference} from "../../utilities";
 
 const gateTypes = [
     ["Starting point", "sp"],
@@ -210,10 +210,6 @@ class ConnectedRouteEditor extends Component {
                 })
             }
         }
-        this.setState({validationErrors: errors})
-        if (errors.length > 0) {
-            return
-        }
         let method = "post", url = "/api/v1/editableroutes/"
         let name = this.state.routeName
         if (this.props.routeId) {
@@ -221,9 +217,18 @@ class ConnectedRouteEditor extends Component {
             url += this.props.routeId + "/"
             if (this.state.routeName) {
                 name = this.state.routeName
-            } else {
+            } else if(this.state.routeName===null) {
                 name = this.props.route.name
+            }else {
+                errors.push("The route must have a name")
             }
+        }
+        if (!name || name === "") {
+            errors.push("The route must have a name")
+        }
+        this.setState({validationErrors: errors})
+        if (errors.length > 0) {
+            return
         }
         axios({
             method: method,
@@ -470,16 +475,28 @@ class ConnectedRouteEditor extends Component {
                     const nextPosition = track.getLatLngs()[index + 1]
                     distanceNext = getDistance(p.lat, p.lng, nextPosition.lat, nextPosition.lng) / 1852
                     bearingNext = getBearing(p.lat, p.lng, nextPosition.lat, nextPosition.lng)
-                    waypointText += '<br>To "' + track.trackPoints[index + 1].name + '<br>' + distanceNext.toFixed(1) + 'NM, ' + bearingNext.toFixed(0) + ' degrees'
+                    const midway = fractionalDistancePoint(p.lat, p.lng, nextPosition.lat, nextPosition.lng, 0.5)
+                    const distanceText = distanceNext.toFixed(1) + 'NM, ' + bearingNext.toFixed(0) + '&deg;'
+                    marker(midway, {
+                        color: "blue",
+                        index: index,
+                        icon: divIcon({
+                            html: '<span>' + distanceText + '</span>',
+                            iconSize: [200, 20],
+                            iconAnchor: [100, -10],
+                            className: "myGateDistance",
+
+                        })
+                    }).addTo(track.waypointNamesFeatureGroup)
                 }
                 const m = marker([p.lat, p.lng], {
                     color: "blue",
                     index: index,
                     icon: divIcon({
                         html: '<span class="hover-underline"">' + waypointText + '</span>',
-                        iconSize: [200, 20],
-                        iconAnchor: [100, -10],
-                        className: "myGateIcon",
+                        iconSize: [20, 20],
+                        iconAnchor: [10, -10],
+                        className: "myGateLink",
 
                     })
                 }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {

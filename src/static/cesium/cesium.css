@@ -725,6 +725,20 @@ html, body {
     font-size: medium;
 }
 
+.myGateDistance {
+    text-align: center;
+    line-height: 18px;
+    font-size: small;
+}
+
+
+.myGateLink {
+    text-align: center;
+    line-height: 18px;
+    font-size: large;
+    color: blue;
+}
+
 .ReactTable {
     width: 100%;
 }
