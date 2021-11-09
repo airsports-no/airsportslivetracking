@@ -84,7 +84,7 @@ const slides = [
         background: bgcolor
     }, {
         title: "Track details",
-        description: "Select type of route. If it is a track, give each waypoint an appropriate name and type. Choose whether penalties should be given for missing gate or missing the time. Takeoff and landing gates should cross the runway, but not be crossed during taxi.",
+        description: "Select type of route. Takeoff and landing gates should cross the runway, but not be crossed during taxi.",
         image: "/static/img/tutorial/3.png",
         background: bgcolor
     }, {
@@ -99,7 +99,7 @@ const slides = [
         background: bgcolor
     }, {
         title: "Editing",
-        description: "To edit an existing track or area, click on it and select 'Edit points' at the bottom of the pop-up.",
+        description: "To edit an existing track or area, click on it and select 'Edit points' at the bottom of the pop-up. Click the waypoints to update the gates. Give each waypoint an appropriate name and type. Choose whether penalties should be given for missing gate or missing the time. ",
         image: "/static/img/tutorial/6.png",
         background: bgcolor
     }, {
