@@ -132,7 +132,8 @@ class ConnectedRouteEditor extends Component {
             routeName: null,
             changesSaved: false,
             displayTutorial: false,
-            selectedWaypoint: null
+            selectedWaypoint: null,
+            globalEditingMode: true
         }
     }
 
@@ -153,20 +154,28 @@ class ConnectedRouteEditor extends Component {
 
     reloadMap() {
         this.clearFormData()
-        this.setState({changesSaved: false, validationErrors: null, saveFailed: null})
+        this.setState({changesSaved: false, validationErrors: null, saveFailed: null, globalEditingMode: true})
         this.props.fetchEditableRoute(this.props.routeId)
     }
 
 
     componentDidUpdate(prevProps, prevState, snapshot) {
         console.log("routeId: " + this.props.routeId)
+
         if (this.props.route !== prevProps.route && this.props.route) {
             this.renderRoute()
+        }
+        for (let l of this.drawnItems.getLayers().filter((a) => a.layerType !== undefined)) {
+            if (this.state.globalEditingMode) {
+                l.editing.enable()
+            } else {
+                l.editing.disable()
+            }
         }
     }
 
     handleSaveSuccess(id) {
-        this.setState({changesSaved: true, saveFailed: null})
+        this.setState({changesSaved: true, saveFailed: null, globalEditingMode: false})
         this.props.history.push("/routeeditor/" + id + "/")
     }
 
@@ -183,6 +192,10 @@ class ConnectedRouteEditor extends Component {
     }
 
     saveRoute() {
+        if (!this.state.globalEditingMode) {
+            this.setState({globalEditingMode: true})
+            return
+        }
         let features = []
         let errors = []
         for (let l of this.drawnItems.getLayers().filter((a) => a.layerType !== undefined)) {
@@ -246,6 +259,7 @@ class ConnectedRouteEditor extends Component {
                 this.updateWaypoints(layer)
                 this.renderWaypointNames(layer)
             }
+            this.setState({changesSaved: false})
         })
         layer.setStyle(featureStyles[featureType])
         this.renderWaypointNames(layer)
@@ -452,7 +466,7 @@ class ConnectedRouteEditor extends Component {
                 let distanceNext
                 let bearingNext
                 let waypointText = track.trackPoints[index].name
-                if (index < track.getLatLngs().length-1) {
+                if (index < track.getLatLngs().length - 1) {
                     const nextPosition = track.getLatLngs()[index + 1]
                     distanceNext = getDistance(p.lat, p.lng, nextPosition.lat, nextPosition.lng) / 1852
                     bearingNext = getBearing(p.lat, p.lng, nextPosition.lat, nextPosition.lng)
@@ -825,7 +839,8 @@ class ConnectedRouteEditor extends Component {
                 <Form.Control type={"string"} placeholder={"Route name"}
                               defaultValue={this.props.route ? this.props.route.name : ""}
                               onChange={(e) => this.setState({routeName: e.target.value})}/>
-                <button className={"btn btn-primary"} onClick={() => this.saveRoute()}>Save</button>
+                <button className={"btn btn-primary"}
+                        onClick={() => this.saveRoute()}>{this.state.globalEditingMode ? "Save" : "Edit"}</button>
                 &nbsp;
                 <button id="routeCancelButton" className={"btn btn-danger"}
                         onClick={() => this.reloadMap()}>Cancel
