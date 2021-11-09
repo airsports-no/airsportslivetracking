@@ -470,7 +470,7 @@ class ConnectedRouteEditor extends Component {
                     const nextPosition = track.getLatLngs()[index + 1]
                     distanceNext = getDistance(p.lat, p.lng, nextPosition.lat, nextPosition.lng) / 1852
                     bearingNext = getBearing(p.lat, p.lng, nextPosition.lat, nextPosition.lng)
-                    waypointText += '<br>To ' + track.trackPoints[index + 1].name + '<br>' + distanceNext.toFixed(1) + 'NM, ' + bearingNext.toFixed(0) + ' degrees'
+                    waypointText += '<br>To "' + track.trackPoints[index + 1].name + '<br>' + distanceNext.toFixed(1) + 'NM, ' + bearingNext.toFixed(0) + ' degrees'
                 }
                 const m = marker([p.lat, p.lng], {
                     color: "blue",
@@ -483,7 +483,9 @@ class ConnectedRouteEditor extends Component {
 
                     })
                 }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
-                    this.setState({selectedWaypoint: item.target.options.index})
+                    if (this.state.globalEditingMode) {
+                        this.setState({selectedWaypoint: item.target.options.index})
+                    }
                 })
                 index += 1
             }
