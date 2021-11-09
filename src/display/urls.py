@@ -19,7 +19,8 @@ from display.views import frontend_view_map, \
     get_contestant_email_flight_orders_link, EditableRouteList, EditableRouteDeleteView, \
     refresh_editable_route_navigation_task, \
     get_contestant_email_flying_orders_link, broadcast_navigation_task_orders, upload_gpx_track_for_contesant, \
-    navigation_task_score_override_view, RouteToTaskWizard, healthz, readyz, revert_uploaded_gpx_track_for_contestant
+    navigation_task_score_override_view, RouteToTaskWizard, healthz, readyz, revert_uploaded_gpx_track_for_contestant, \
+    copy_editable_route
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -100,5 +101,6 @@ urlpatterns = [
     path('manifest/', manifest, name="tracking_manifest"),
     path('editableroute/', EditableRouteList.as_view(), name="editableroute_list"),
     path('editableroute/<int:pk>/delete/', EditableRouteDeleteView.as_view(), name="editableroute_delete"),
+    path('editableroute/<int:pk>/copy/', copy_editable_route, name="editableroute_copy"),
     path('editableroute/<int:pk>/createnavigationtask/', RouteToTaskWizard.as_view(), name="editableroute_createnavigationtask"),
 ]

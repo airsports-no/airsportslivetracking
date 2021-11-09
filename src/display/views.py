@@ -787,7 +787,7 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
     except:
         pass
     contestant.reset_track_and_score()
-    revert_gpx_track_to_traccar.apply_async((contestant.pk, ))
+    revert_gpx_track_to_traccar.apply_async((contestant.pk,))
     messages.success(request, "Started loading track")
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
@@ -1027,7 +1027,7 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         total_distance = 0
         for waypoint in self.object.navigation_task.route.waypoints:  # type: Waypoint
             distances[waypoint.name] = waypoint.distance_previous
-            total_distance += waypoint.distance_previous if waypoint.distance_previous>0 else 0
+            total_distance += waypoint.distance_previous if waypoint.distance_previous > 0 else 0
         context["distances"] = distances
         context["total_distance"] = total_distance
         for item in self.object.scorelogentry_set.all():  # type: ScoreLogEntry
@@ -1529,6 +1529,7 @@ def contest_not_chosen(wizard):
 def anr_task_type(wizard):
     return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("task_type") == NavigationTask.ANR_CORRIDOR
 
+
 def airsports_task_type(wizard):
     return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("task_type") == NavigationTask.AIRSPORTS
 
@@ -1551,7 +1552,8 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         ("contest_creation", ContestForm),
     ]
 
-    condition_dict = {"contest_creation": contest_not_chosen, "anr_parameters": anr_task_type, "airsports_parameters": airsports_task_type}
+    condition_dict = {"contest_creation": contest_not_chosen, "anr_parameters": anr_task_type,
+                      "airsports_parameters": airsports_task_type}
     templates = {
         "contest_selection": "display/navigationtaskwizardform.html",
         "anr_parameters": "display/navigationtaskwizardform.html",
@@ -1898,6 +1900,19 @@ class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):
 
     def get_permission_object(self):
         return self.get_object()
+
+
+@guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
+def copy_editable_route(request, pk):
+    editable_route = get_object_or_404(EditableRoute, pk=pk)
+    editable_route.pk = None
+    editable_route.id = None
+    editable_route.name += "_copy"
+    editable_route.save()
+    assign_perm(f"display.change_editableroute", request.user, editable_route)
+    assign_perm(f"display.delete_editableroute", request.user, editable_route)
+    assign_perm(f"display.view_editableroute", request.user, editable_route)
+    return HttpResponseRedirect(reverse("editableroute_list"))
 
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))

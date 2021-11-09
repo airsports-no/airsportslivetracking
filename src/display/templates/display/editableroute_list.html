@@ -15,6 +15,7 @@
         <td>{{ object.get_route_type_display }}</td>
         <td>
             <a href="{% url 'editableroute_createnavigationtask' object.pk %}">Create task</a> |
+            <a href="{% url 'editableroute_copy' object.pk %}">Copy</a> |
             <a href="{% url 'editableroute_delete' object.pk %}">Delete</a>
         </td>
     </tr>
