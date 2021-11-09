@@ -135,7 +135,7 @@ from display.models import (
     FINISHPOINT,
     ScoreLogEntry,
     EmailMapLink,
-    EditableRoute,
+    EditableRoute, ANOMALY,
 )
 from display.permissions import (
     ContestPermissions,
@@ -1279,7 +1279,7 @@ def _generate_data(contestant_pk):
         contestant,
         positions=PositionSerialiser(position_data, many=True).data,
         annotations=TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data,
-        log_entries=ScoreLogEntrySerialiser(contestant.scorelogentry_set.all(), many=True).data,
+        log_entries=ScoreLogEntrySerialiser(contestant.scorelogentry_set.filter(type=ANOMALY), many=True).data,
         latest_time=global_latest_time,
         gate_scores=GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
         playing_cards=PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
