@@ -652,11 +652,16 @@ class ConnectedRouteEditor extends Component {
         const points = trackLayer.getLatLngs()
         let newTrackPoints = []
         let lastUsedPointIndex = 0
-
+        if(points.length===trackLayer.trackPoints.length) {
+            for (let i = 0; i < points.length; i++) {
+                trackLayer.trackPoints[i].position = points[i]
+            }
+            return
+        }
         for (let i = 0; i < points.length; i++) {
             let match = null
             for (let j = lastUsedPointIndex; j < trackLayer.trackPoints.length; j++) {
-                if (points[i] === trackLayer.trackPoints[j].position) {
+                if (points[i].lat.toFixed(6) === trackLayer.trackPoints[j].position.lat.toFixed(6) && points[i].lng.toFixed(6) === trackLayer.trackPoints[j].position.lng.toFixed(6)) {
                     match = trackLayer.trackPoints[j]
                     lastUsedPointIndex = j
                     break
