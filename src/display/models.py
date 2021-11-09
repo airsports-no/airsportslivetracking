@@ -140,24 +140,25 @@ class Route(models.Model):
         return 0, 0
 
     def clean(self):
-        for index in range(len(self.waypoints) - 1):
-            waypoint = self.waypoints[index]  # type: Waypoint
-            if waypoint.distance_next < 1852 and self.rounded_corners:
-                raise ValidationError(
-                    f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 1 NM when using rounded corners. Perhaps there is an error in your route file."
-                )
-            if (
-                    waypoint.distance_next < 1852 / 2
-                    and self.waypoints[index + 1].type != "secret"
-                    and waypoint.type != "secret"
-            ):
-                raise ValidationError(
-                    f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 0.5 NM"
-                )
-            if waypoint.distance_next < 20:
-                raise ValidationError(
-                    f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} ({waypoint.distance_next}m) should be greater than 200m if not this or the next gate are secret"
-                )
+        return
+        # for index in range(len(self.waypoints) - 1):
+        #     waypoint = self.waypoints[index]  # type: Waypoint
+        #     if waypoint.distance_next < 1852 and self.rounded_corners:
+        #         raise ValidationError(
+        #             f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 1 NM when using rounded corners. Perhaps there is an error in your route file."
+        #         )
+        #     if (
+        #             waypoint.distance_next < 1852 / 2
+        #             and self.waypoints[index + 1].type != "secret"
+        #             and waypoint.type != "secret"
+        #     ):
+        #         raise ValidationError(
+        #             f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} should be greater than 0.5 NM"
+        #         )
+        #     if waypoint.distance_next < 20:
+        #         raise ValidationError(
+        #             f"Distance from {waypoint.name} to {self.waypoints[index + 1].name} ({waypoint.distance_next}m) should be greater than 200m if not this or the next gate are secret"
+        #         )
 
     def validate_gate_polygons(self):
         waypoint_names = [gate.name for gate in self.waypoints if gate.type != "secret"]
