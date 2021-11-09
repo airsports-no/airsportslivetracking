@@ -28,6 +28,9 @@ body {
     border-radius: 15px 15px 0 0;
 }
 
+.hover-underline:hover {
+    text-decoration: underline;
+}
 
 .globalMapBackdrop {
     transform-origin: top left;

@@ -2659,7 +2659,7 @@ class EditableRoute(models.Model):
                     item["gateType"],
                     item["gateWidth"],
                     item["timeCheck"],
-                    item["gateCheck"],
+                    item["timeCheck"],
                 )
             )
         route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners)

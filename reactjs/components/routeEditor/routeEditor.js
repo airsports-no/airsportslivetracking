@@ -16,7 +16,7 @@ import axios from "axios";
 import {Link, withRouter} from "react-router-dom";
 import IntroSlider from "react-intro-slider";
 import Cookies from "universal-cookie";
-import {getBearing, getHeadingDifference} from "../../utilities";
+import {getBearing, getDistance, getHeadingDifference} from "../../utilities";
 
 const gateTypes = [
     ["Starting point", "sp"],
@@ -449,13 +449,22 @@ class ConnectedRouteEditor extends Component {
             track.waypointNamesFeatureGroup.clearLayers()
             let index = 0
             for (let p of track.getLatLngs()) {
+                let distanceNext
+                let bearingNext
+                let waypointText = track.trackPoints[index].name
+                if (index < track.getLatLngs().length-1) {
+                    const nextPosition = track.getLatLngs()[index + 1]
+                    distanceNext = getDistance(p.lat, p.lng, nextPosition.lat, nextPosition.lng) / 1852
+                    bearingNext = getBearing(p.lat, p.lng, nextPosition.lat, nextPosition.lng)
+                    waypointText += '<br>To ' + track.trackPoints[index + 1].name + '<br>' + distanceNext.toFixed(1) + 'NM, ' + bearingNext.toFixed(0) + ' degrees'
+                }
                 const m = marker([p.lat, p.lng], {
                     color: "blue",
                     index: index,
                     icon: divIcon({
-                        html: '<i class="fas"">' + track.trackPoints[index].name + '</i>',
-                        iconSize: [20, 20],
-                        iconAnchor: [10, -10],
+                        html: '<span class="hover-underline"">' + waypointText + '</span>',
+                        iconSize: [200, 20],
+                        iconAnchor: [100, -10],
                         className: "myGateIcon",
 
                     })
@@ -652,7 +661,7 @@ class ConnectedRouteEditor extends Component {
         const points = trackLayer.getLatLngs()
         let newTrackPoints = []
         let lastUsedPointIndex = 0
-        if(points.length===trackLayer.trackPoints.length) {
+        if (points.length === trackLayer.trackPoints.length) {
             for (let i = 0; i < points.length; i++) {
                 trackLayer.trackPoints[i].position = points[i]
             }
