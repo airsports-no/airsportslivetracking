@@ -35,7 +35,7 @@ import {
     GET_ONGOING_NAVIGATION_SUCCESSFUL,
     TOGGLE_SECRET_GATES,
     TOGGLE_BACKGROUND_MAP,
-    FETCH_EDITABLE_ROUTE_SUCCESSFUL, FETCH_EDITABLE_ROUTE, FETCH_INITIAL_TRACKS_SUCCESS
+    FETCH_EDITABLE_ROUTE_SUCCESSFUL, FETCH_EDITABLE_ROUTE, FETCH_INITIAL_TRACKS_SUCCESS, TOGGLE_PROFILE_PICTURES
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -86,6 +86,7 @@ const initialState = {
     ongoingNavigation: [],
     displaySecretGates: true,
     displayBackgroundMap: true,
+    displayProfilePictures: true,
     editableRoutes: {},
     fetchingEditableRoute: false,
     initialTracks: null
@@ -341,6 +342,11 @@ function rootReducer(state = initialState, action) {
     if (action.type === TOGGLE_BACKGROUND_MAP) {
         return Object.assign({}, state, {
             displayBackgroundMap: action.visible,
+        })
+    }
+    if (action.type === TOGGLE_PROFILE_PICTURES) {
+        return Object.assign({}, state, {
+            displayProfilePictures: action.visible,
         })
     }
     if (action.type === GET_ONGOING_NAVIGATION_SUCCESSFUL) {

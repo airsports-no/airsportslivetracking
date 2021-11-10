@@ -41,7 +41,7 @@ import {
     TOGGLE_SECRET_GATES,
     TOGGLE_BACKGROUND_MAP,
     FETCH_EDITABLE_ROUTE_SUCCESSFUL,
-    FETCH_EDITABLE_ROUTE, FETCH_INITIAL_TRACKS, FETCH_INITIAL_TRACKS_SUCCESS
+    FETCH_EDITABLE_ROUTE, FETCH_INITIAL_TRACKS, FETCH_INITIAL_TRACKS_SUCCESS, TOGGLE_PROFILE_PICTURES
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -177,6 +177,9 @@ export const toggleSecretGates = (visible) => (dispatch) => {
 
 export const toggleBackgroundMap = (visible) => (dispatch) => {
     dispatch({type: TOGGLE_BACKGROUND_MAP, visible: visible})
+}
+export const toggleProfilePictures = (visible) => (dispatch) => {
+    dispatch({type: TOGGLE_PROFILE_PICTURES, visible: visible})
 }
 
 export const fetchContests = () => (dispatch) => {

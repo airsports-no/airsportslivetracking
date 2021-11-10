@@ -3,7 +3,7 @@ import {Button, Container, Form, Modal} from "react-bootstrap";
 import {connect} from "react-redux";
 import {
     displayAboutModal,
-    hideAboutModal, toggleBackgroundMap, toggleSecretGates,
+    hideAboutModal, toggleBackgroundMap, toggleProfilePictures, toggleSecretGates,
 } from "../actions";
 import {mdiInformation, mdiLogin, mdiMagnify} from "@mdi/js";
 import Icon from "@mdi/react";
@@ -16,7 +16,8 @@ const _ = require('lodash');
 const mapStateToPropsModal = (state, props) => ({
     navigationTask: state.navigationTask,
     displaySecretGates: state.displaySecretGates,
-    displayBackgroundMap: state.displayBackgroundMap
+    displayBackgroundMap: state.displayBackgroundMap,
+    displayProfilePictures: state.displayProfilePictures
 })
 
 const mapStateToProps = (state, props) => ({
@@ -37,6 +38,7 @@ class ConnectedAboutLogoModal extends Component {
         console.log(this.settings)
         this.props.toggleSecretGates(_.get(this.settings, ["displaySecretGates"], true))
         this.props.toggleBackgroundMap(_.get(this.settings, ["displayBackgroundMap"], true))
+        this.props.toggleProfilePictures(_.get(this.settings, ["displayProfilePictures"], true))
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
@@ -64,6 +66,12 @@ class ConnectedAboutLogoModal extends Component {
         this.settings.displayBackgroundMap = visible
         this.saveSettings()
         this.props.toggleBackgroundMap(visible)
+    }
+
+    toggleProfilePictures(visible) {
+        this.settings.displayProfilePictures = visible
+        this.saveSettings()
+        this.props.toggleProfilePictures(visible)
     }
 
     render() {
@@ -121,6 +129,10 @@ class ConnectedAboutLogoModal extends Component {
                                     this.toggleBackgroundMap(e.target.checked)
                                 }} checked={this.props.displayBackgroundMap} label={"Display background map"}
                                             disabled={!this.props.navigationTask.display_background_map}/>
+
+                                <Form.Check type={"checkbox"} onChange={(e) => {
+                                    this.toggleProfilePictures(e.target.checked)
+                                }} checked={this.props.displayProfilePictures} label={"Display profile pictures"}/>
                             </Form.Group>
                         </div>
                     </Container>
@@ -138,7 +150,8 @@ class ConnectedAboutLogoModal extends Component {
 
 const AboutLogoModal = connect(mapStateToPropsModal, {
     toggleSecretGates,
-    toggleBackgroundMap
+    toggleBackgroundMap,
+    toggleProfilePictures
 })(ConnectedAboutLogoModal)
 
 class ConnectedAboutLogoPopup extends Component {

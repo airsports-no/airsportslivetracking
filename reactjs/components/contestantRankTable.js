@@ -11,11 +11,12 @@ import {
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import "bootstrap/dist/css/bootstrap.min.css"
-import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
+import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
-    displayOnlyContestantTrack,
+    displayAllTracks,
+    displayOnlyContestantTrack, hideLowerThirds, highlightContestantTable,
 
-    highlightContestantTrack,
+    highlightContestantTrack, removeHighlightContestantTable,
     removeHighlightContestantTrack,
     setDisplay,
     showLowerThirds,
@@ -216,12 +217,24 @@ class ConnectedContestantRankTable extends Component {
 
     }
 
+    resetToAllContestants() {
+        this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        this.props.displayAllTracks();
+        this.props.hideLowerThirds();
+        for (let id of this.props.highlight) {
+            this.props.removeHighlightContestantTable(id)
+        }
+    }
 
     handleContestantLinkClick(contestantId) {
-        this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
-        this.props.displayOnlyContestantTrack(contestantId)
-        this.props.showLowerThirds(contestantId)
-        this.props.removeHighlightContestantTrack(contestantId)
+        // this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
+        this.resetToAllContestants()
+        if (!this.props.highlight.includes(contestantId)) {
+            this.props.displayOnlyContestantTrack(contestantId)
+            this.props.showLowerThirds(contestantId)
+            this.props.removeHighlightContestantTrack(contestantId)
+            this.props.highlightContestantTable(contestantId)
+        }
     }
 
 
@@ -314,9 +327,13 @@ class ConnectedContestantRankTable extends Component {
 const
     ContestantRankTable = connect(mapStateToProps, {
         setDisplay,
+        displayAllTracks,
         displayOnlyContestantTrack,
         showLowerThirds,
+        hideLowerThirds,
         highlightContestantTrack,
-        removeHighlightContestantTrack
-    })(throttle(1000)(ConnectedContestantRankTable))
+        removeHighlightContestantTrack,
+        highlightContestantTable,
+        removeHighlightContestantTable
+    })(throttle(500)(ConnectedContestantRankTable))
 export default ContestantRankTable

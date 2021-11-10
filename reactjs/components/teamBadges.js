@@ -3,6 +3,8 @@ import {connect} from "react-redux";
 import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
 import Hand from "../react-playing-cards-local/src/PlayingCard/Hand/Hand";
 import {teamLongForm} from "../utilities";
+import {setDisplay} from "../actions";
+import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 
 const question = "/static/img/questionmark.png"
 
@@ -13,7 +15,7 @@ export class TeamBadge extends Component {
                 <div className={"card-body row"}>
                     <div className={'col-8'}>
                         <TeamPicture team={this.props.team}
-                                        text={this.props.team.nation}/>
+                                     text={this.props.team.nation}/>
                     </div>
                     <div className={'col-4'}>
                         {/*<div className={"card-title"}>*/}
@@ -61,6 +63,8 @@ function clubDisplay(club) {
 
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestant.id],
+    displayProfilePictures: state.displayProfilePictures,
+    currentDisplay: state.currentDisplay,
 })
 
 
@@ -111,7 +115,7 @@ function ScoreAndNames(props) {
                 <div className={"row"}>
                     <div className={"text-center col-12"}>
                         <div className={"lower-thirds-current-score"}>
-                            {props.contestantData.contestant_track.score.toFixed(0)}
+                            <a onClick={props.toggleDetails}>{props.contestantData.contestant_track.score.toFixed(0)}</a>
                         </div>
                     </div>
                 </div>
@@ -146,6 +150,19 @@ function PlayingCards(props) {
 }
 
 class ConnectedLowerThirdTeam extends Component {
+    constructor(props) {
+        super(props);
+        this.toggleRankDetailsDisplay = this.toggleRankDetailsDisplay.bind(this)
+    }
+
+    toggleRankDetailsDisplay() {
+        console.log("Toggle")
+        if (this.props.currentDisplay.displayType !== SIMPLE_RANK_DISPLAY) {
+            this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        } else if (this.props.currentDisplay.displayType !== CONTESTANT_DETAILS_DISPLAY) {
+            this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: this.props.contestantId})
+        }
+    }
 
     singleCrew() {
         return this.props.contestant.team.crew.member2 == null
@@ -156,8 +173,9 @@ class ConnectedLowerThirdTeam extends Component {
         return <div className={"lowerThirdsScale"}>
             <div className={this.singleCrew() ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
                 <div className={"card-transparent"}>
-                    <CrewPictures contestant={this.props.contestant}/>
-                    <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}/>
+                    {this.props.displayProfilePictures ? <CrewPictures contestant={this.props.contestant}/> : null}
+                    <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}
+                                   toggleDetails={this.toggleRankDetailsDisplay}/>
                 </div>
             </div>
         </div>
@@ -183,7 +201,9 @@ class ConnectedLowerThirdTeam extends Component {
     }
 }
 
-export const LowerThirdTeam = connect(mapStateToProps)(ConnectedLowerThirdTeam)
+export const LowerThirdTeam = connect(mapStateToProps, {
+    setDisplay
+})(ConnectedLowerThirdTeam)
 
 export class TeamMembers
     extends Component {
@@ -212,13 +232,15 @@ export class LongAircraft extends Component {
 
 export class TeamPicture extends Component {
     render() {
-        if(this.props.team.picture){
+        if (this.props.team.picture) {
             return <ProfilePicture picture={this.props.team.picture} text={this.props.text}/>
-        }else {
+        } else {
 
             return <div>
-                {<ProfilePicture picture={this.props.team.crew.member1.picture} text={this.props.team.crew.member1.first_name+' '+this.props.team.crew.member1.last_name}/>}
-                {this.props.team.crew.member2?<ProfilePicture picture={this.props.team.crew.member2.picture} text={this.props.team.crew.member2.first_name+' '+this.props.team.crew.member2.last_name}/>:null}
+                {<ProfilePicture picture={this.props.team.crew.member1.picture}
+                                 text={this.props.team.crew.member1.first_name + ' ' + this.props.team.crew.member1.last_name}/>}
+                {this.props.team.crew.member2 ? <ProfilePicture picture={this.props.team.crew.member2.picture}
+                                                                text={this.props.team.crew.member2.first_name + ' ' + this.props.team.crew.member2.last_name}/> : null}
             </div>
         }
     }
@@ -228,7 +250,8 @@ export class ProfilePicture extends Component {
     render() {
         return <div className="profile-header-container">
             <div className="profile-header-img">
-                <img alt={this.props.text} className="img-fluid profile-header-img" src={this.props.picture?this.props.picture:question}/>
+                <img alt={this.props.text} className="img-fluid profile-header-img"
+                     src={this.props.picture ? this.props.picture : question}/>
                 <div className="rank-label-container">
                     <span className="label label-default rank-label">{this.props.text}</span>
                 </div>
