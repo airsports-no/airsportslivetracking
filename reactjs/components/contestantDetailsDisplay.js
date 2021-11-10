@@ -13,7 +13,7 @@ import "bootstrap/dist/css/bootstrap.min.css"
 import {Loading} from "./basicComponents";
 import {ProgressCircle} from "./contestantProgress";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
-import {displayAllTracks, hideLowerThirds, setDisplay} from "../actions";
+import {displayAllTracks, hideLowerThirds, removeHighlightContestantTable, setDisplay} from "../actions";
 import {mdiMagnify, mdiPagePrevious, mdiPagePreviousOutline} from "@mdi/js";
 import Icon from "@mdi/react";
 
@@ -79,6 +79,7 @@ class ConnectedContestantDetailsDisplay extends Component {
         this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
         this.props.displayAllTracks();
         this.props.hideLowerThirds();
+        this.props.removeHighlightContestantTable(this.props.contestantId)
     }
 
     render() {
@@ -198,6 +199,7 @@ class ConnectedContestantDetailsDisplay extends Component {
 const ContestantDetailsDisplay = connect(mapStateToProps, {
     setDisplay,
     displayAllTracks,
-    hideLowerThirds
+    hideLowerThirds,
+    removeHighlightContestantTable
 })(ConnectedContestantDetailsDisplay)
 export default ContestantDetailsDisplay
