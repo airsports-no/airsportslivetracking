@@ -96,7 +96,7 @@ class ConnectedNavigationTask extends Component {
         this.tracklist.push(data)
     }
 
-    cacheDataWhileLoading(data){
+    cacheDataWhileLoading(data) {
         this.waitingInitialLoading.push(data)
     }
 
@@ -252,7 +252,7 @@ class ConnectedNavigationTask extends Component {
             this.props.dispatchContestantData(this.props.initialTracks)
             this.remainingTracks--
         }
-        if (this.remainingTracks === 0){
+        if (this.remainingTracks === 0) {
             for (let data of this.waitingInitialLoading) {
                 this.props.dispatchContestantData(data)
             }
@@ -324,7 +324,8 @@ class ConnectedNavigationTask extends Component {
                                                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
                                                        displaySecretGates={this.props.displaySecretGates}/>
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
-                    routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}/>
+                    routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}
+                                                         currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}/>
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("landing")) {
                     routeRenderer = <LandingRenderer map={this.map} navigationTask={this.props.navigationTask}/>
                 }

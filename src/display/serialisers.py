@@ -324,6 +324,7 @@ class WaypointSerialiser(serializers.Serializer):
 
     left_corridor_line = serializers.JSONField(required=False)
     right_corridor_line = serializers.JSONField(required=False)
+    outer_corner_position = serializers.JSONField(required=False)
 
 
 class ProhibitedSerialiser(serializers.ModelSerializer):

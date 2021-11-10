@@ -5,6 +5,14 @@ import {formatTime} from "../../utilities";
 
 const L = window['L']
 
+function getTextWidth(text, font) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  context.font = font || getComputedStyle(document.body).font;
+
+  return context.measureText(text).width;
+}
 
 export default class GenericRenderer extends Component {
     constructor(props) {
@@ -25,6 +33,12 @@ export default class GenericRenderer extends Component {
         this.renderMarkers()
     }
 
+    filterWaypoints() {
+        return this.props.navigationTask.route.waypoints.filter((waypoint) => {
+            return (waypoint.gate_check || waypoint.time_check) && ((this.props.navigationTask.display_secrets && this.props.displaySecretGates) || waypoint.type !== "secret")
+        })
+    }
+
     renderMarkers() {
         for (const marker of this.markers) {
             marker.removeFrom(this.props.map)
@@ -34,25 +48,31 @@ export default class GenericRenderer extends Component {
         const currentContestant = this.props.navigationTask.contestant_set.find((contestant) => {
             return contestant.id === this.props.currentHighlightedContestant
         })
-        this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return (waypoint.gate_check || waypoint.time_check) && ((this.props.navigationTask.display_secrets && this.props.displaySecretGates) || waypoint.type !== "secret")
-        }).map((waypoint) => {
+        this.filterWaypoints().map((waypoint) => {
             let waypointText = waypoint.name
-
+            let time
             if (currentContestant) {
-                const time = new Date(currentContestant.gate_times[waypoint.name])
-                waypointText = waypoint.name + "<br/>" + formatTime(time)
+                time = new Date(currentContestant.gate_times[waypoint.name])
+                waypointText = waypoint.name + " " + formatTime(time)
             }
-            const m = marker([waypoint.latitude, waypoint.longitude], {
+            const m = marker(waypoint.outer_corner_position[0], {
                 color: "blue",
                 icon: divIcon({
-                    html: '<i class="fas"><br/>' + waypointText + '</i>',
-                    iconSize: [60, 20],
-                    className: "myGateIcon"
+                    html: '<i>' + waypointText + '</i>',
+                    iconSize: [50, 20],
+                    className: "myGateLink",
+                    iconAnchor: [waypoint.outer_corner_position[1]===1?0:50, waypoint.outer_corner_position[2]===1?0:20]
                 })
             }).on('click', () => {
                 this.props.handleMapTurningPointClick(waypoint.name)
             }).addTo(this.props.map)
+            // if (currentContestant) {
+            //     m.bindTooltip(formatTime(time), {
+            //         direction: "bottom",
+            //         offset: [0,25]
+            //         // opacity: 0.5
+            //     })
+            // }
             this.markers.push(m)
         });
     }
