@@ -258,11 +258,11 @@ class ConnectedContestantTrack extends Component {
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
         ).on('mouseover', (e) => {
-                this.props.highlightContestantTable(this.contestant.id)
+                // this.props.highlightContestantTable(this.contestant.id)
                 this.props.highlightContestantTrack(this.contestant.id)
             }
         ).on('mouseout', (e) => {
-                this.props.removeHighlightContestantTable(this.contestant.id)
+                // this.props.removeHighlightContestantTable(this.contestant.id)
                 this.props.removeHighlightContestantTrack(this.contestant.id)
             }
         )
@@ -271,11 +271,11 @@ class ConnectedContestantTrack extends Component {
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
         ).on('mouseover', (e) => {
-                this.props.highlightContestantTable(this.contestant.id)
+                // this.props.highlightContestantTable(this.contestant.id)
                 this.props.highlightContestantTrack(this.contestant.id)
             }
         ).on('mouseout', (e) => {
-                this.props.removeHighlightContestantTable(this.contestant.id)
+                // this.props.removeHighlightContestantTable(this.contestant.id)
                 this.props.removeHighlightContestantTrack(this.contestant.id)
             }
         )
@@ -284,11 +284,11 @@ class ConnectedContestantTrack extends Component {
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
         ).on('mouseover', (e) => {
-                this.props.highlightContestantTable(this.contestant.id)
+                // this.props.highlightContestantTable(this.contestant.id)
                 this.props.highlightContestantTrack(this.contestant.id)
             }
         ).on('mouseout', (e) => {
-                this.props.removeHighlightContestantTable(this.contestant.id)
+                // this.props.removeHighlightContestantTable(this.contestant.id)
                 this.props.removeHighlightContestantTrack(this.contestant.id)
             }
         )
