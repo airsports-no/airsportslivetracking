@@ -506,7 +506,7 @@ class ConnectedRouteEditor extends Component {
                 })
                 if (track.trackPoints[index].timeCheck) {
                     circle([p.lat, p.lng], {
-                        radius: track.trackPoints[index].gateWidth * 1852,
+                        radius: track.trackPoints[index].gateWidth * 1852 / 2,
                         color: "blue",
                         opacity: 0.05
                     }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
@@ -611,7 +611,7 @@ class ConnectedRouteEditor extends Component {
                             })}
                         </Form.Control>
 
-                        <Form.Label>Gate width:</Form.Label>&nbsp;
+                        <Form.Label>Gate width (NM):</Form.Label>&nbsp;
                         <Form.Control key={"Width"} placeholder={"Width"}
                                       type={"number"}
                                       onChange={
