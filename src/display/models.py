@@ -2260,7 +2260,7 @@ class PlayingCard(models.Model):
     @classmethod
     def get_relative_score(cls, contestant: Contestant) -> Tuple[float, str]:
         score, hand_type = cls.evaluate_hand(contestant)
-        return 100 * score / cls.maximum_score(), hand_type
+        return 10000 * score / cls.maximum_score(), hand_type
 
     @classmethod
     def remove_contestant_card(cls, contestant: Contestant, card_pk: int):

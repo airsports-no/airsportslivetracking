@@ -341,12 +341,12 @@ class ConnectedNavigationTask extends Component {
                                                 numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                 } else {
                     display = <ContestantRankTable colourMap={colourMap}
-                                                   scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker") ? 2 : 0}
+                                                   scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker") ? 0 : 0}
                                                    numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                 }
             } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                 display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}
-                                                    scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker") ? 2 : 0}/>
+                                                    scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker") ? 0 : 0}/>
                 this.props.shrinkTrackingTable();
             } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
                 display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}
