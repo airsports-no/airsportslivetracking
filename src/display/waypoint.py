@@ -11,6 +11,7 @@ class Waypoint:
         self.longitude = 0  # type: float
         self.elevation = 0  # type: float
         self.gate_line = []
+        self._original_gate_line = None
         self._gate_line_infinite = None
         self.gate_line_extended = None
         self.width = 0  # type: float
@@ -31,6 +32,26 @@ class Waypoint:
 
         self.inside_distance = 0
         self.outside_distance = 0
+
+    # @property
+    # def gate_line(self):
+    #     return self._gate_line
+    #
+    # @gate_line.setter
+    # def gate_line(self, value):
+    #     if self._original_gate_line is None and len(self._gate_line):
+    #         self._original_gate_line = self._gate_line
+    #     self._gate_line = value
+
+    @property
+    def original_gate_line(self):
+        if hasattr(self, "_original_gate_line"):
+            return self._original_gate_line or self.gate_line
+        return self.gate_line
+
+    @original_gate_line.setter
+    def original_gate_line(self, value):
+        self._original_gate_line = value
 
     ######## Required for backwards compatibility
     @property
@@ -95,6 +116,26 @@ class Waypoint:
         #         track.append(get_centre_of_line_lat_lon(self.left_corridor_line[index], self.right_corridor_line[index]))
         #     return track
         #
+
+    def is_gate_line_pointing_right(self, original: bool = False):
+        line = self.gate_line if not original else self.original_gate_line
+        gate_line_bearing = calculate_bearing(line[0], line[1])
+        waypoint_bearing = self.bearing_from_previous if self.bearing_from_previous >= 0 else self.bearing_next
+        return bearing_difference(waypoint_bearing, gate_line_bearing) > 0
+
+    def get_gate_position_right_of_track(self, original: bool = False):
+        line = self.gate_line if not original else self.original_gate_line
+        if self.is_gate_line_pointing_right(original):
+            return line[1]
+        else:
+            return line[0]
+
+    def get_gate_position_left_of_track(self, original: bool = False):
+        line = self.gate_line if not original else self.original_gate_line
+        if self.is_gate_line_pointing_right(original):
+            return line[0]
+        else:
+            return line[1]
 
     @property
     def is_left_turn(self) -> bool:

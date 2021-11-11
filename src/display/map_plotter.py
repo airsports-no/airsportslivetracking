@@ -23,7 +23,7 @@ from display.coordinate_utilities import (
     calculate_fractional_distance_point_lat_lon,
     get_heading_difference,
     project_position_lat_lon,
-    create_perpendicular_line_at_end_lonlat, utm_from_lat_lon,
+    create_perpendicular_line_at_end_lonlat, utm_from_lat_lon, bearing_difference,
 )
 from display.wind_utilities import (
     calculate_ground_speed_combined,
@@ -53,20 +53,6 @@ def get_country_code_from_location(latitude: float, longitude: float):
     except:
         logger.exception(f"Failed fetching country for location {latitude}, {longitude}")
         return "xxx"
-
-
-def get_course_position(
-        start: Tuple[float, float],
-        finish: Tuple[float, float],
-        left_side: bool,
-        distance_nm: float,
-) -> Tuple[float, float]:
-    centre = calculate_fractional_distance_point_lat_lon(start, finish, 0.5)
-    return centre
-    # positions = create_perpendicular_line_at_end(*reversed(start), *reversed(centre), distance_nm * 1852)
-    # if left_side:
-    #     return tuple(reversed(positions[0]))
-    # return tuple(reversed(positions[1]))
 
 
 def create_minute_lines(
@@ -502,6 +488,9 @@ def plot_leg_bearing(
         character_offset: int = 4,
         fontsize: int = 14,
 ):
+    left_of_leg_start = current_waypoint.get_gate_position_left_of_track(True)
+    left_of_leg_finish = next_waypoint.get_gate_position_left_of_track(True)
+
     bearing = current_waypoint.bearing_next
     wind_correction_angle = calculate_wind_correction_angle(
         bearing, air_speed, wind_speed, wind_direction
@@ -512,20 +501,16 @@ def plot_leg_bearing(
     bearing_difference_previous = get_heading_difference(
         current_waypoint.bearing_from_previous, current_waypoint.bearing_next
     )
-    course_position = get_course_position(
-        (current_waypoint.latitude, current_waypoint.longitude),
-        (next_waypoint.latitude, next_waypoint.longitude),
-        True,
-        3,
-    )
+    course_position = calculate_fractional_distance_point_lat_lon(left_of_leg_start, left_of_leg_finish, 0.5)
     course_text = "{:03.0f}".format(
         current_waypoint.bearing_next - wind_correction_angle
     )
+    label = course_text  + " " * (len(course_text)+1)
     # Try to keep it out of the way of the next leg
-    if bearing_difference_next > 60 or bearing_difference_previous > 60:  # leftSide
-        label = "" + course_text + " " * len(course_text) + " " * character_offset
-    else:  # Right-sided is preferred
-        label = "" + " " * len(course_text) + " " * character_offset + course_text
+    # if bearing_difference_next > 60 or bearing_difference_previous > 60:  # leftSide
+    #     label = "" + course_text + " " * len(course_text) + " " * character_offset
+    # else:  # Right-sided is preferred
+    #     label = "" + " " * len(course_text) + " " * character_offset + course_text
     plt.text(
         course_position[1],
         course_position[0],
@@ -536,7 +521,7 @@ def plot_leg_bearing(
         transform=ccrs.PlateCarree(),
         fontsize=fontsize,
         rotation=-bearing,
-        linespacing=2,
+        linespacing=1,
         family="monospace",
     )
 
@@ -609,37 +594,22 @@ def plot_waypoint_name(
             local_waypoint_time = waypoint_time.astimezone(
                 route.navigationtask.contest.time_zone
             )
-            timing = " {}".format(local_waypoint_time.strftime("%H:%M:%S"))
-
-    # if bearing_difference > 0:
-    #     text = (
-    #             "\n" + text + " " * len(text) + " " * character_padding
-    #     )  # Padding to get things aligned correctly
-    # else:
-    #     text = (
-    #             "\n" + " " * (len(text) + character_padding) + text
-    #     )  # Padding to get things aligned correctly
+            timing = " {}".format(local_waypoint_time.strftime("%M:%S"))
 
     name_position = []
     timing_position = []
     rotation = -bearing
+    logger.debug(f"Waypoint {waypoint.name}")
     if len(waypoint.gate_line):
+        timing_position = waypoint.get_gate_position_right_of_track()
+        name_position = waypoint.get_gate_position_left_of_track()
+        bearing_to_the_right = calculate_bearing(name_position, timing_position)
+        rotation = -bearing_to_the_right + 90
 
-        gate_line_bearing = calculate_bearing(waypoint.gate_line[0], waypoint.gate_line[1])
-        waypoint_bearing = waypoint.bearing_from_previous if waypoint.bearing_from_previous >= 0 else waypoint.bearing_next
-        right = (gate_line_bearing - waypoint_bearing) % 360.0 > 0
-        if right:
-            timing_position = waypoint.gate_line[1]
-            name_position = waypoint.gate_line[0]
-            rotation = -gate_line_bearing + 90
-        else:
-            timing_position = waypoint.gate_line[0]
-            name_position = waypoint.gate_line[1]
-            rotation = gate_line_bearing + 90
     if waypoints_only:
         rotation = 0
     if len(timing):
-        timing=" "*(0+len(timing))+timing
+        timing = " " * (0 + len(timing)) + timing
         plt.text(
             timing_position[1] if len(timing_position) else waypoint.longitude,
             timing_position[0] if len(timing_position) else waypoint.latitude,
@@ -654,7 +624,7 @@ def plot_waypoint_name(
             family="monospace",
             clip_on=True,
         )
-    waypoint_name=waypoint_name+" "*(2+len(waypoint_name))
+    waypoint_name = waypoint_name + " " * (2 + len(waypoint_name))
     plt.text(
         name_position[1] if len(name_position) else waypoint.longitude,
         name_position[0] if len(name_position) else waypoint.latitude,
@@ -695,7 +665,7 @@ def plot_anr_corridor_track(
                 False,
                 contestant,
                 line_width,
-                colour,
+                "red",
                 character_padding=1,
             )
         if route.rounded_corners and waypoint.left_corridor_line is not None:
@@ -847,7 +817,7 @@ def plot_precision_track(
                     waypoints_only,
                     contestant,
                     line_width,
-                    colour,
+                    "red",
                 )
                 if contestant is not None:
                     if index < len(track) - 1:

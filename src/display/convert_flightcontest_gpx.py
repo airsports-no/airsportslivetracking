@@ -313,7 +313,7 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
     waypoint_list[-1].time_check = True
     logger.debug(f"Created waypoints {waypoint_list}")
     route = create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners)
-    route.corridor_width=corridor_width
+    route.corridor_width = corridor_width
     route.save()
     extract_additional_features_from_kml_features(features, route)
     return route
@@ -435,6 +435,8 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
     if rounded_corners:
         for index in range(1, len(gates) - 1):
             waypoint = gates[index]  # type: Waypoint
+            # Backup original gate
+            waypoint.original_gate_line = waypoint.gate_line
             turn_degrees = bearing_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
             waypoint.left_corridor_line, waypoint.right_corridor_line, waypoint.gate_line = create_rounded_corridor_corner(
                 waypoint.gate_line, waypoint.width, turn_degrees)

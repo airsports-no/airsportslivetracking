@@ -59,9 +59,9 @@ export default class GenericRenderer extends Component {
                 color: "blue",
                 icon: divIcon({
                     html: '<i>' + waypointText + '</i>',
-                    iconSize: [50, 20],
+                    iconSize: [80, 40],
                     className: "myGateLink",
-                    iconAnchor: [waypoint.outer_corner_position[1]===1?0:50, waypoint.outer_corner_position[2]===1?0:20]
+                    iconAnchor: [waypoint.outer_corner_position[1]===1?0:80, waypoint.outer_corner_position[2]===1?0:40]
                 })
             }).on('click', () => {
                 this.props.handleMapTurningPointClick(waypoint.name)
