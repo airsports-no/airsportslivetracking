@@ -6,12 +6,24 @@ import {formatTime} from "../../utilities";
 const L = window['L']
 
 function getTextWidth(text, font) {
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
 
-  context.font = font || getComputedStyle(document.body).font;
+    context.font = font || getComputedStyle(document.body).font;
 
-  return context.measureText(text).width;
+    return context.measureText(text).width;
+}
+
+function textWidth(text, className) {
+    const o = $('<div class="' + className + '"></div>')
+        .text(text)
+        .css({'position': 'absolute', 'float': 'left', 'white-space': 'nowrap', 'visibility': 'hidden'})
+        .appendTo($('body'))
+    const w = o.width();
+
+    o.remove();
+
+    return w;
 }
 
 export default class GenericRenderer extends Component {
@@ -55,13 +67,15 @@ export default class GenericRenderer extends Component {
                 time = new Date(currentContestant.gate_times[waypoint.name])
                 waypointText = waypoint.name + " " + formatTime(time)
             }
+            const width = textWidth(waypointText, "myGateLink") + 10
+            const height = 20
             const m = marker(waypoint.outer_corner_position[0], {
                 color: "blue",
                 icon: divIcon({
-                    html: '<i>' + waypointText + '</i>',
-                    iconSize: [80, 40],
+                    html: waypointText,
+                    iconSize: [width, height],
                     className: "myGateLink",
-                    iconAnchor: [waypoint.outer_corner_position[1]===1?0:80, waypoint.outer_corner_position[2]===1?0:40]
+                    iconAnchor: [waypoint.outer_corner_position[1] === 1 ? -5 : width + 5, waypoint.outer_corner_position[2] === 1 ? -5 : height+5]
                 })
             }).on('click', () => {
                 this.props.handleMapTurningPointClick(waypoint.name)
