@@ -2416,21 +2416,17 @@ class NavigationTaskViewSet(ModelViewSet):
                 team__crew__member1__email=request.user.email,
                 contestanttrack__calculator_started=False,
             ).delete()
+
             # Terminate ongoing contestants
-            ongoing = list(
-                navigation_task.contestant_set.filter(
+            for c in navigation_task.contestant_set.filter(
                     finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
                     team__crew__member1__email=request.user.email,
                     contestanttrack__calculator_started=True,
-                )
-            )
-            navigation_task.contestant_set.filter(
-                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
-                team__crew__member1__email=request.user.email,
-                contestanttrack__calculator_started=True,
-            ).update(finished_by_time=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=1))
-            for contestant in ongoing:
-                contestant.request_calculator_termination()
+            ):
+                c.finished_by_time = max(c.takeoff_time + datetime.timedelta(seconds=1),
+                                         datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=1))
+                c.save()
+                c.request_calculator_termination()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["put"])

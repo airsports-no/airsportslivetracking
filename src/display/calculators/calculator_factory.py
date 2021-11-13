@@ -1,5 +1,7 @@
 from multiprocessing.queues import Queue
 
+from django.core.cache import cache
+
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.backtracking_and_procedure_turns import BacktrackingAndProcedureTurnsCalculator
 from display.calculators.gatekeeper import Gatekeeper
@@ -13,6 +15,7 @@ from display.models import Contestant, Scorecard
 
 
 def calculator_factory(contestant: "Contestant", position_queue: Queue, live_processing: bool = True) -> "Gatekeeper":
+    cache.set(contestant.termination_request_key, False, timeout=1)
     if contestant.navigation_task.scorecard.calculator == Scorecard.PRECISION:
         return GatekeeperRoute(contestant, position_queue,
                                [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator],
