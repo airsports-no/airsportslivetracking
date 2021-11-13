@@ -388,6 +388,17 @@ def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_pro
     return instance
 
 
+def correct_gate_directions_to_the_right(waypoints: List[Waypoint]):
+    """
+    Normalise the waypoint order for the gate lines so that they always point right of track
+
+    :param waypoints: List of the waypoints that make up the route
+    """
+    for waypoint in waypoints:
+        if not waypoint.is_gate_line_pointing_right():
+            waypoint.gate_line.reverse()
+
+
 def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners: bool) -> Route:
     if len(waypoint_list) < 2:
         raise ValidationError("A route must at least have a starting point and finish point")
@@ -430,6 +441,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
     # Calculate bearings and distances
     calculate_and_update_legs(waypoint_list, False)
     insert_gate_ranges(waypoint_list)
+    correct_gate_directions_to_the_right(waypoint_list)
 
     # All the gate lines are now in the correct direction, round corners if required
     if rounded_corners:

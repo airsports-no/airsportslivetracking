@@ -124,9 +124,10 @@ def create_minute_lines_track(
         wind_direction: float,
         gate_start_time: datetime.datetime,
         route_start_time: datetime.datetime,
+        start_offset: Optional[float] = None,
+        end_offset: Optional[float] = None,
         resolution_seconds: int = 60,
         line_width_nm=0.5,
-        corridor_width: Optional[float] = None
 ) -> List[
     Tuple[
         Tuple[Tuple[float, float], Tuple[float, float]],
@@ -137,6 +138,8 @@ def create_minute_lines_track(
     """
     Generates a track that goes through the centre of the route (or corridor if it exists)
 
+    :param end_offset: The distance from the centre of the track to place the minute number near the end of the track. If this is omitted, the start of that is used all the way.
+    :param start_offset: The distance from the centre of track to place the minute number (nm). If this is none, line width is used
     :param track: List of positions that represents the path between two gates
     :param air_speed:
     :param wind_speed:
@@ -147,7 +150,6 @@ def create_minute_lines_track(
     :param line_width_nm:
     :return:
     """
-    corridor_width = corridor_width or line_width_nm
     gate_start_elapsed = (gate_start_time - route_start_time).total_seconds()
     time_to_next_line = resolution_seconds - gate_start_elapsed % resolution_seconds
     if time_to_next_line == 0:
@@ -165,14 +167,24 @@ def create_minute_lines_track(
         leg_time = 3600 * length / ground_speed  # seconds
         while time_to_next_line < leg_time + accumulated_time:
             internal_leg_time = time_to_next_line - accumulated_time
+            fraction = internal_leg_time / leg_time
             line_position = calculate_fractional_distance_point_lat_lon(
-                start, finish, internal_leg_time / leg_time
+                start, finish, fraction
             )
             minute_mark = create_perpendicular_line_at_end_lonlat(
                 *reversed(start), *reversed(line_position), line_width_nm * 1852
             )
+            if start_offset is None:
+                number_distance = line_width_nm
+            elif end_offset is None:
+                number_distance = start_offset
+            else:
+                number_distance = start_offset + (fraction * (end_offset - start_offset))
+                if number_distance > 2:
+                    number_distance = line_width_nm
+
             text_position = extend_point_to_the_right(bearing, (
-                tuple(reversed(minute_mark[0])), tuple(reversed(minute_mark[1]))), 1852 * corridor_width / 2)
+                tuple(reversed(minute_mark[0])), tuple(reversed(minute_mark[1]))), 1852 * number_distance / 2)
             lines.append(
                 (
                     minute_mark,
@@ -505,7 +517,7 @@ def plot_leg_bearing(
     course_text = "{:03.0f}".format(
         current_waypoint.bearing_next - wind_correction_angle
     )
-    label = course_text  + " " * (len(course_text)+1)
+    label = course_text + " " * (len(course_text) + 1)
     # Try to keep it out of the way of the next leg
     # if bearing_difference_next > 60 or bearing_difference_previous > 60:  # leftSide
     #     label = "" + course_text + " " * len(course_text) + " " * character_offset
@@ -688,7 +700,8 @@ def plot_anr_corridor_track(
                 line_width,
                 colour,
                 mark_offset=2,
-                line_width_nm=min(0.4, waypoint.width / 2)
+                line_width_nm=0.5,
+                adaptive=True
             )
             plot_leg_bearing(
                 waypoint,
@@ -717,13 +730,28 @@ def plot_anr_corridor_track(
 def plot_minute_marks(
         waypoint: Waypoint,
         contestant: Contestant,
-        track,
+        track: List[Waypoint],
         index,
         line_width: float,
         colour: str,
         mark_offset=1,
         line_width_nm: float = 0.5,
+        adaptive: bool = False
 ):
+    """
+
+    :param waypoint:
+    :param contestant:
+    :param track:
+    :param index:
+    :param line_width:
+    :param colour:
+    :param mark_offset:
+    :param line_width_nm:
+    :param adaptive: If true, place the minute mark according to the gate width, otherwise use the static line width
+    :return:
+    """
+    next_waypoint = track[index + 1]
     gate_start_time = contestant.gate_times.get(waypoint.name)
     if waypoint.is_procedure_turn:
         gate_start_time += datetime.timedelta(minutes=1)
@@ -744,7 +772,8 @@ def plot_minute_marks(
         gate_start_time,
         contestant.gate_times.get(track[0].name),
         line_width_nm=line_width_nm,
-        corridor_width=waypoint.width if waypoint.width < 1 else 0.7
+        start_offset=waypoint.width if adaptive else line_width_nm,
+        end_offset=next_waypoint.width if adaptive else None
     )
     for mark_line, text_position, timestamp in minute_lines:
         xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat

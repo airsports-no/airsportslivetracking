@@ -1,6 +1,6 @@
 # Pure local development environment
 
-version: '2'
+version: '3.6'
 services:
 #  swag:
 #    image: ghcr.io/linuxserver/swag
@@ -44,11 +44,11 @@ services:
     volumes:
       - ./secret:/secret
       - ./static:/static
-      - ./assets:/assets/
-      - ./src:/src/
-      - ./reactjs:/reactjs/
-      - ./data:/data/
-      - ./weblog:/logs/
+      - ./assets:/assets
+      - ./src:/src
+      - ./reactjs:/reactjs
+      - ./data:/data
+      - ./weblog:/logs
       - ./mapserver:/maptiles
     ports:
       - "8002:8000"
@@ -75,11 +75,11 @@ services:
     volumes:
       - ./secret:/secret
       - ./static:/static
-      - ./assets:/assets/
-      - ./src:/src/
-      - ./reactjs:/reactjs/
-      - ./data:/data/
-      - ./weblog:/logs/
+      - ./assets:/assets
+      - ./src:/src
+      - ./reactjs:/reactjs
+      - ./data:/data
+      - ./weblog:/logs
       - ./mapserver:/maptiles
     ports:
       - "8002:8000"
@@ -108,11 +108,11 @@ services:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
       - ./static:/static
-      - ./assets:/assets/
-      - ./src:/src/
-      - ./reactjs:/reactjs/
-      - ./data:/data/
-      - ./daphnelog:/logs/
+      - ./assets:/assets
+      - ./src:/src
+      - ./reactjs:/reactjs
+      - ./data:/data
+      - ./daphnelog:/logs
       - ./mapserver:/maptiles
     depends_on:
       - mysql
@@ -140,11 +140,11 @@ services:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
       - ./static:/static
-      - ./assets:/assets/
-      - ./src:/src/
-      - ./reactjs:/reactjs/
-      - ./data:/data/
-      - ./celerylog:/logs/
+      - ./assets:/assets
+      - ./src:/src
+      - ./reactjs:/reactjs
+      - ./data:/data
+      - ./celerylog:/logs
       - ./mapserver:/maptiles
     depends_on:
       - mysql
@@ -171,8 +171,8 @@ services:
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
-      - ./src:/src/
-      - ./processorlog:/logs/
+      - ./src:/src
+      - ./processorlog:/logs
     depends_on:
       - traccar
       - mysql
@@ -193,8 +193,8 @@ services:
       target: opensky_consumer
     volumes:
       - ./secret:/secret
-      - ./src:/src/
-      - ./openskyconsumerlogs:/logs/
+      - ./src:/src
+      - ./openskyconsumerlogs:/logs
     depends_on:
       - redis
 
@@ -209,8 +209,8 @@ services:
       target: ogn_consumer
     volumes:
       - ./secret:/secret
-      - ./src:/src/
-      - ./ognconsumerlogs:/logs/
+      - ./src:/src
+      - ./ognconsumerlogs:/logs
     depends_on:
       - redis
 

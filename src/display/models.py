@@ -258,8 +258,10 @@ class Person(models.Model):
 
     @property
     def is_tracking_active(self):
-        return self.last_seen and (
+        return (
+                self.last_seen and (
                 datetime.datetime.now(datetime.timezone.utc) - self.last_seen).total_seconds() < 10 * 60
+        )
 
     @property
     def phone_country_prefix(self):
@@ -649,8 +651,11 @@ class NavigationTask(models.Model):
     )
     default_map = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=200)
     default_line_width = models.FloatField(default=1)
-    calculation_delay_minutes = models.FloatField(default=0, validators=[MinValueValidator(0)],
-                                                  help_text="Number of minutes processions and scores should be delayed before they are made available on the tracking map.")
+    calculation_delay_minutes = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Number of minutes processions and scores should be delayed before they are made available on the tracking map.",
+    )
 
     @classmethod
     def get_visible_navigation_tasks(cls, user: User):
@@ -713,9 +718,7 @@ class NavigationTask(models.Model):
         if self.scorecard.calculator in (Scorecard.PRECISION, Scorecard.POKER):
             route = self.editable_route.create_precision_route(self.route.use_procedure_turns)
         elif self.scorecard.calculator == Scorecard.ANR_CORRIDOR:
-            route = self.editable_route.create_anr_route(
-                self.route.rounded_corners, self.route.corridor_width
-            )
+            route = self.editable_route.create_anr_route(self.route.rounded_corners, self.route.corridor_width)
         elif self.scorecard.calculator == Scorecard.AIRSPORTS:
             route = self.editable_route.create_airsports_route(self.route.rounded_corners)
         if route:
@@ -805,7 +808,7 @@ class Scorecard(models.Model):
         (ANR_CORRIDOR, "ANR Corridor"),
         (POKER, "Poker run"),
         (LANDING, "Landing"),
-        (AIRSPORTS, "Airsports")
+        (AIRSPORTS, "Airsports"),
     )
 
     name = models.CharField(max_length=100, default="default", unique=True)
@@ -1507,21 +1510,15 @@ class Contestant(models.Model):
         starting_point_time = self.takeoff_time + datetime.timedelta(
             minutes=self.navigation_task.minutes_to_starting_point
         )
-        return starting_point_time.astimezone(
-            self.navigation_task.contest.time_zone
-        )
+        return starting_point_time.astimezone(self.navigation_task.contest.time_zone)
 
     @property
     def tracker_start_time_local(self) -> datetime.datetime:
-        return self.tracker_start_time.astimezone(
-            self.navigation_task.contest.time_zone
-        )
+        return self.tracker_start_time.astimezone(self.navigation_task.contest.time_zone)
 
     @property
     def finished_by_time_local(self) -> datetime.datetime:
-        return self.finished_by_time.astimezone(
-            self.navigation_task.contest.time_zone
-        )
+        return self.finished_by_time.astimezone(self.navigation_task.contest.time_zone)
 
     def get_final_gate_time(self) -> Optional[datetime.datetime]:
         final_gate = self.navigation_task.route.landing_gate or self.navigation_task.route.waypoints[-1]
@@ -1551,32 +1548,87 @@ class Contestant(models.Model):
             traccar.get_or_create_device(self.tracker_device_id, self.tracker_device_id)
         super().save(**kwargs)
 
-    def get_formatted_rules_description(self):
-        text = ""
+    def _prohibited_zone_text(self):
         scorecard = self.navigation_task.scorecard
-        if self.navigation_task.scorecard.calculator == Scorecard.PRECISION:
-            gate_sizes = [item.width for item in self.navigation_task.route.waypoints]
-            text = f"""For this task the turning point gate width is between {min(gate_sizes)} and {max(gate_sizes)} nm.
+        return f"""Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_prohibited_zone_penalty(self))} points."""
+
+    def _penalty_zone_text(self):
+        scorecard = self.navigation_task.scorecard
+        return f"""Entering a penalty area gives a penalty of {"{:.04}".format(scorecard.get_penalty_zone_penalty_per_second(self))} 
+points per second after the first {"{:.04}".format(scorecard.get_penalty_zone_grace_time(self))} seconds."""
+
+    def _precision_rule_description(self):
+        scorecard = self.navigation_task.scorecard
+        gate_sizes = [item.width for item in self.navigation_task.route.waypoints]
+        return f"""For this task the turning point gate width is between {min(gate_sizes)} and {max(gate_sizes)} nm.
  The penalty for 
-crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds.
-Crossing the extended starting line before start ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp", self)} nm) gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self)}.
-Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.get_backtracking_grace_time_seconds(self)} seconds
+crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} 
+per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds.
+Crossing the extended starting line before start ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp", self)} nm) 
+gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self)}.
+
+Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than 
+{scorecard.get_backtracking_grace_time_seconds(self)} seconds
 gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
-Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_prohibited_zone_penalty(self))} points.
+
+{self._prohibited_zone_text()} {self._penalty_zone_text()}
 {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
-            """
-        if self.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
-            text = f"""For this task the ANR corridor width is {"{:.1f}".format(self.navigation_task.scorecard.get_corridor_width(self))} nm. 
-Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of {"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second."""
-            if scorecard.get_corridor_maximum_penalty(self) != -1:
-                text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg."""
-            text += f""" Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_prohibited_zone_penalty(self))} points."""
+"""
+
+    def _anr_rule_description(self):
+        scorecard = self.navigation_task.scorecard
+        text = f"""For this task the corridor width is {"{:.1f}".format(self.navigation_task.scorecard.get_corridor_width(self))} nm. 
+Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of 
+{"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second."""
+        if scorecard.get_corridor_maximum_penalty(self) != -1:
+            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg."""
+        text += f"""
+{self._prohibited_zone_text()} {self._penalty_zone_text()} {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
+"""
         return text
+
+    def _air_sports_rule_description(self):
+        scorecard = self.navigation_task.scorecard
+        gate_sizes = [item.width for item in self.navigation_task.route.waypoints]
+        minimum_size=min(gate_sizes)
+        maximum_size=max(gate_sizes)
+        if maximum_size==minimum_size:
+            corridor_width_text=f"For this task the corridor with is {minimum_size} NM."
+        else:
+            corridor_width_text=f"For this task the corridor width is between {minimum_size} NM and {maximum_size} NM."
+        text=f"""
+{corridor_width_text} Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of 
+{"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second."""
+        if scorecard.get_corridor_maximum_penalty(self) != -1:
+            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg."""
+
+        text+=f"""
+There are timed gates on the track. The penalty for 
+crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} 
+per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds. 
+Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than 
+{scorecard.get_backtracking_grace_time_seconds(self)} seconds
+gives a penalty of {scorecard.get_backtracking_penalty(self)} points.        
+
+{self._prohibited_zone_text()} {self._penalty_zone_text()}
+{"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
+
+"""
+        return text
+
+    def get_formatted_rules_description(self):
+        if self.navigation_task.scorecard.calculator == Scorecard.PRECISION:
+            return self._precision_rule_description()
+        if self.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
+            return self._anr_rule_description()
+        if self.navigation_task.scorecard.calculator == Scorecard.AIRSPORTS:
+            return self._air_sports_rule_description()
 
     def __str__(self):
         return "{} - {}".format(self.contestant_number, self.team)
         # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.navigation_task.name, self.takeoff_time,
         #                                       self.finished_by_time)
+
 
     def calculate_progress(self, latest_time: datetime, ignore_finished: bool = False) -> float:
         if NavigationTask.POKER in self.navigation_task.scorecard.task_type:
@@ -1598,8 +1650,10 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             route_progress = 100 * route_duration_progress / route_duration
         return route_progress
 
+
     def get_groundspeed(self, bearing) -> float:
         return calculate_ground_speed_combined(bearing, self.air_speed, self.wind_speed, self.wind_direction)
+
 
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
@@ -1720,6 +1774,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                         f"Calculator has started for {self}, it is not possible to change minutes to starting point"
                     )
 
+
     def calculate_and_get_gate_times(self, start_point_override: Optional[datetime.datetime] = None) -> Dict:
         gates = self.navigation_task.route.waypoints  # type: List[Waypoint]
         if len(gates) == 0:
@@ -1752,6 +1807,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             )
         return crossing_times
 
+
     @property
     def gate_times(self) -> Dict:
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
@@ -1775,9 +1831,11 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             )
         return self.calculate_and_get_gate_times(zero_time)
 
+
     @gate_times.setter
     def gate_times(self, value):
         self.predefined_gate_times = value
+
 
     def get_gate_time_offset(self, gate_name):
         planned = self.gate_times.get(gate_name)
@@ -1791,10 +1849,12 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             return (actual.time - planned).total_seconds()
         return None
 
+
     def get_track_score_override(self) -> Optional[TrackScoreOverride]:
         if self.track_score_override is not None:
             return self.track_score_override
         return self.navigation_task.track_score_override
+
 
     def get_gate_score_override(self, gate_type: str) -> Optional[GateScoreOverride]:
         for item in self.gate_score_override.all():
@@ -1804,6 +1864,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             if gate_type in item.for_gate_types:
                 return item
         return None
+
 
     def get_tracker_ids(self) -> List[str]:
         if self.tracking_device == TRACKING_DEVICE:
@@ -1820,6 +1881,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         )
         return [""]
 
+
     def get_simulator_tracker_ids(self) -> List[str]:
         if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
             trackers = [self.team.crew.member1.simulator_tracking_id]
@@ -1833,6 +1895,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         )
         return [""]
 
+
     @property
     def tracker_id_display(self) -> List[Dict]:
         devices = []
@@ -1843,7 +1906,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 {
                     "tracker": self.team.crew.member1.email,
                     "has_user": get_user_model().objects.filter(email=self.team.crew.member1.email).exists(),
-                    "is_active": self.team.crew.member1.is_tracking_active
+                    "is_active": self.team.crew.member1.is_tracking_active,
                 }
             )
         if (
@@ -1854,10 +1917,11 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 {
                     "tracker": self.team.crew.member2.email,
                     "has_user": get_user_model().objects.filter(email=self.team.crew.member2.email).exists(),
-                    "is_active": self.team.crew.member2.is_tracking_active
+                    "is_active": self.team.crew.member2.is_tracking_active,
                 }
             )
         return devices
+
 
     @staticmethod
     def generate_position_block_for_contestant(position_data: Dict, device_time: datetime.datetime) -> Dict:
@@ -1872,6 +1936,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             "speed": float(position_data["speed"]),
             "course": float(position_data["course"]),
         }
+
 
     @classmethod
     def get_contestant_for_device_at_time(
@@ -1895,6 +1960,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                         return contestant, is_simulator
         return None, is_simulator
 
+
     @classmethod
     def _try_to_get_tracker_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[Optional["Contestant"], bool]:
         try:
@@ -1911,6 +1977,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             )
         except ObjectDoesNotExist:
             return None, False
+
 
     @classmethod
     def _try_to_get_pilot_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[Optional["Contestant"], bool]:
@@ -1931,6 +1998,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         except ObjectDoesNotExist:
             return None, False
 
+
     @classmethod
     def _try_to_get_copilot_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[Optional["Contestant"], bool]:
         try:
@@ -1950,6 +2018,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         except ObjectDoesNotExist:
             return None, False
 
+
     def is_currently_tracked_by_device(self, device_id: str) -> bool:
         """
         Returns true unless tracking_device is TRACKING_PILOT_AND_COPILOT. In this case the function returns true if we
@@ -1964,6 +2033,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             return False
         return True
 
+
     def get_traccar_track(self) -> List[Dict]:
         traccar = Traccar.create_from_configuration(TraccarCredentials.get_solo())
         device_ids = traccar.get_device_ids_for_contestant(self)
@@ -1977,6 +2047,7 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         logger.debug(f"Returned {len(tracks)} with lengths {', '.join([str(len(item)) for item in tracks])}")
         return merge_tracks(tracks)
 
+
     def get_track(self) -> List["Position"]:
         try:
             logger.debug(f"{self}: Fetching data from uploaded track")
@@ -1989,11 +2060,13 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
             track = self.get_traccar_track()
         return [Position(**self.generate_position_block_for_contestant(item, item["device_time"])) for item in track]
 
+
     def get_latest_position(self) -> Optional[Position]:
         try:
             return self.get_track()[-1]
         except IndexError:
             return None
+
 
     def record_actual_gate_time(self, gate_name: str, passing_time: datetime.datetime):
         try:
@@ -2001,10 +2074,12 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
         except IntegrityError:
             logger.exception(f"Contestant has already passed gate {gate_name}")
 
+
     def record_score_by_gate(self, gate_name: str, score: float):
         gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self)
         gate_score.points += score
         gate_score.save()
+
 
     def reset_track_and_score(self):
         self.scorelogentry_set.all().delete()
@@ -2028,7 +2103,7 @@ class ContestantReceivedPosition(models.Model):
     course = models.FloatField()
 
     class Meta:
-        ordering = ('time',)
+        ordering = ("time",)
 
     @staticmethod
     def convert_to_traccar(positions: List["ContestantReceivedPosition"]) -> List[Position]:
@@ -2036,17 +2111,25 @@ class ContestantReceivedPosition(models.Model):
             contestant = positions[0].contestant
         except IndexError:
             return []
-        return [Position(**contestant.generate_position_block_for_contestant({
-            "deviceId": contestant.tracker_device_id,
-            "id": index,
-            "latitude": float(point.latitude),
-            "longitude": float(point.longitude),
-            "altitude": 0,
-            "attributes": {"batteryLevel": 1.0},
-            "speed": 0.0,
-            "course": point.course,
-            "device_time": point.time,
-        }, point.time)) for index, point in enumerate(positions)]
+        return [
+            Position(
+                **contestant.generate_position_block_for_contestant(
+                    {
+                        "deviceId": contestant.tracker_device_id,
+                        "id": index,
+                        "latitude": float(point.latitude),
+                        "longitude": float(point.longitude),
+                        "altitude": 0,
+                        "attributes": {"batteryLevel": 1.0},
+                        "speed": 0.0,
+                        "course": point.course,
+                        "device_time": point.time,
+                    },
+                    point.time,
+                )
+            )
+            for index, point in enumerate(positions)
+        ]
 
 
 ANOMALY = "anomaly"
@@ -2111,6 +2194,7 @@ class TrackAnnotation(models.Model):
     @classmethod
     def push(cls, annotation):
         from websocket_channels import WebsocketFacade
+
         ws = WebsocketFacade()
         ws.transmit_annotations(annotation.contestant)
 
@@ -2173,8 +2257,9 @@ class ContestantTrack(models.Model):
         # Update task test score if it exists
         if hasattr(self.contestant.navigation_task, "task_test"):
             entry, _ = TeamTestScore.objects.update_or_create(
-                team=self.contestant.team, task_test=self.contestant.navigation_task.task_test,
-                defaults={"points": score}
+                team=self.contestant.team,
+                task_test=self.contestant.navigation_task.task_test,
+                defaults={"points": score},
             )
         self.__push_change()
 

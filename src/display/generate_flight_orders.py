@@ -140,9 +140,9 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     """
     from display.forms import SCALE_TO_FIT
 
-    starting_point_time_string = contestant.starting_point_time_local.strftime("%Y-%m-%d %H:%M:%S")
-    tracking_start_time_string = contestant.tracker_start_time_local.strftime("%Y-%m-%d %H:%M:%S")
-    finish_tracking_time = contestant.finished_by_time_local.strftime("%Y-%m-%d %H:%M:%S")
+    starting_point_time_string = f'{contestant.starting_point_time_local.strftime("%H:%M:%S")}'
+    tracking_start_time_string = f'{contestant.tracker_start_time_local.strftime("%H:%M:%S")}'
+    finish_tracking_time = f'{contestant.finished_by_time_local.strftime("%H:%M:%S")}'
     facebook_share_url = "https://www.facebook.com/sharer/sharer.php?u="
     url = facebook_share_url + urllib.parse.quote(
         "https://airsports.no" + contestant.navigation_task.tracking_link
@@ -151,6 +151,10 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     qr_file = NamedTemporaryFile(suffix=".png")
     qr.save(qr_file)
     qr_file.seek(0)
+
+    starting_point_text = starting_point_time_string
+    if contestant.adaptive_start:
+        starting_point_text = f"After {tracking_start_time_string}"
 
     if contestant.navigation_task.contest.logo:
         logo = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/media/{contestant.navigation_task.contest.logo}"
@@ -163,8 +167,10 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     <table width="100%">
     <thead><tr><th width="20%"></th><th width="60%"></th><th width="20%"></td></tr></thead>
     <tbody>
-    <tr><td>&nbsp;</td><td align="center"><font size=14>Welcome to</font></td><td rowspan=3><img src="{logo}" width=80 /></td></tr>
-    <tr><td>&nbsp;</td><td align="center"><font color="#000000" size=20 font-weight="bold">{contestant.navigation_task.contest.name}</font></td></tr>
+    <tr><td>&nbsp;</td><td align="center"><font size=18>Welcome to</font></td><td rowspan=5><img src="{logo}" width=80 /></td></tr>
+    <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+    <tr><td>&nbsp;</td><td align="center"><font color="#000000" size=24 font-weight="bold">{contestant.navigation_task.contest.name}</font></td></tr>
+    <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
     <tr><td>&nbsp;</td><td align="center"><font color="#FF0000" size=16>{contestant.navigation_task.name}</font></td></tr>
     </tbody>
     </table>
@@ -173,10 +179,12 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 <tbody>
 <tr><td><b>Contestant:</b></td><td>{contestant}</td><td rowspan=6><a href="{url}"><img src="{qr_file.name}" width=100 /></a></td></tr>
 <tr><td><b>Task type:</b></td><td>{contestant.navigation_task.scorecard.get_calculator_display()}</td><td></td></tr>
+<tr><td><b>Competition date:</b></td><td>{contestant.starting_point_time_local.strftime("%Y-%m-%d")}</td><td></td></tr>
 <tr><td><b>Airspeed:</b></td><td>{"{:.0f}".format(contestant.air_speed)} knots</td><td></td></tr>
 <tr><td><b>Task wind:</b></td><td>{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}</td><td></td></tr>
 <tr><td><b>Departure:</b></td><td>{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}</td><td></td></tr>
-<tr><td><b>Start point:</b></td><td>{starting_point_time_string if not contestant.adaptive_start else 'Adaptive start'}</td><td></td></tr>
+<tr><td><b>Start point:</b></td><td>{starting_point_text}</td><td></td></tr>
+<tr><td><b>Finish by:</b></td><td>{finish_tracking_time} (tracking will stop)</td><td></td></tr>
 </tbody>
 </table>{f"<p>Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
 <p><p><b>Rules</b><br/>{contestant.get_formatted_rules_description()}<p><center><h2>Good luck</h2></center>
@@ -189,7 +197,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 
     pdf.write_html(heading)
     pdf.set_text_color(0, 0, 255)
-    pdf.set_xy(136, 75)
+    pdf.set_xy(136, 90)
     pdf.write(10, "Share flight on Facebook", url)
     pdf.set_text_color(0, 0, 0)
     starting_point = generate_turning_point_image(
