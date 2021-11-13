@@ -93,13 +93,18 @@ def generate_turning_point_image(waypoints: List[Waypoint], index):
 
 def insert_turning_point_images(contestant, pdf: FPDF):
     navigation = contestant.navigation_task  # type: NavigationTask
-    waypoints = [
-        item
-        for item in navigation.route.waypoints
-        if item.type != "secret"
-    ]
+    accounted_waypoints = []
+    render_waypoints = []
+    for index, waypoint in enumerate(navigation.route.waypoints):
+        object = {
+            "waypoint": waypoint,
+            "index": index
+        }
+        accounted_waypoints.append(waypoint)
+        if waypoint.type != "secret" and (waypoint.gate_check or waypoint.time_check):
+            render_waypoints.append(object)
     rows_per_page = 3
-    number_of_images = len(waypoints)
+    number_of_images = len(render_waypoints)
     number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
     current_page = -1
     image_height = 230 / rows_per_page
@@ -107,9 +112,7 @@ def insert_turning_point_images(contestant, pdf: FPDF):
     row_step = image_height + title_offset
     row_start = 30
     for index in range(number_of_images):
-        waypoint=waypoints[index]
-        if not (waypoint.time_check or waypoint.gate_check):
-            continue
+        waypoint_object=render_waypoints[index]
         if index % (rows_per_page * 2) == 0:
             if index > 0:
                 pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
@@ -125,8 +128,8 @@ def insert_turning_point_images(contestant, pdf: FPDF):
             x = 118
         row_number = (index - (current_page * rows_per_page * 2)) // 2
         y = row_start + row_number * row_step
-        pdf.text(x, y, waypoints[index].name)
-        image = generate_turning_point_image(waypoints, index)
+        pdf.text(x, y, render_waypoints[index]["waypoint"].name)
+        image = generate_turning_point_image(accounted_waypoints,waypoint_object["index"])
         file = NamedTemporaryFile(suffix=".png")
         file.write(image.read())
         file.seek(0)
@@ -189,7 +192,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 <tr><td><b>Start point:</b></td><td>{starting_point_text}</td><td></td></tr>
 <tr><td><b>Finish by:</b></td><td>{finish_tracking_time} (tracking will stop)</td><td></td></tr>
 </tbody>
-</table>{f"<p>Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time. Total tracking period to complete the competition from {tracking_start_time_string} to {finish_tracking_time}" if contestant.adaptive_start else ""}
+</table>{f"<p>Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time." if contestant.adaptive_start else ""}
 <p><p><b>Rules</b><br/>{contestant.get_formatted_rules_description()}<p><center><h2>Good luck</h2></center>
 """
 

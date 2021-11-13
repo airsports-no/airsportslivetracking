@@ -1598,13 +1598,13 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 f"For this task the corridor width is between {minimum_size} NM and {maximum_size} NM."
             )
         text = f"""
-{corridor_width_text} Flying outside of the corridor for youmore than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of 
-{"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second. all"""
+{corridor_width_text} Flying outside of the corridor for more than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of 
+{"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second. """
         if scorecard.get_corridor_maximum_penalty(self) != -1:
             text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg."""
 
         text += f"""
-There are timed gates on the track. The penalty for youcrossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} point(s) per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds. 
+There are timed gates on the track. The penalty for crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} point(s) per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds. 
 Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.get_backtracking_grace_time_seconds(self)} seconds gives a penalty of {scorecard.get_backtracking_penalty(self)} points. 
 {self._prohibited_zone_text()} {self._penalty_zone_text()}
 {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
