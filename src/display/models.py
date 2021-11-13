@@ -225,11 +225,11 @@ class Person(models.Model):
     validated = models.BooleanField(
         default=True,
         help_text="Usually true, but set to false for persons created automatically during "
-                  "app API login. This is used to signify that the user profile must be "
-                  "updated. If this remains false for more than a few days, the person "
-                  "object and corresponding user will be deleted from the system.  This "
-                  "must therefore be set to True when submitting an updated profile from "
-                  "the app.",
+        "app API login. This is used to signify that the user profile must be "
+        "updated. If this remains false for more than a few days, the person "
+        "object and corresponding user will be deleted from the system.  This "
+        "must therefore be set to True when submitting an updated profile from "
+        "the app.",
     )
     app_tracking_id = models.CharField(
         max_length=28,
@@ -259,8 +259,7 @@ class Person(models.Model):
     @property
     def is_tracking_active(self):
         return (
-                self.last_seen and (
-                datetime.datetime.now(datetime.timezone.utc) - self.last_seen).total_seconds() < 10 * 60
+            self.last_seen and (datetime.datetime.now(datetime.timezone.utc) - self.last_seen).total_seconds() < 10 * 60
         )
 
     @property
@@ -288,11 +287,11 @@ class Person(models.Model):
 
     @classmethod
     def get_or_create(
-            cls,
-            first_name: Optional[str],
-            last_name: Optional[str],
-            phone: Optional[str],
-            email: Optional[str],
+        cls,
+        first_name: Optional[str],
+        last_name: Optional[str],
+        phone: Optional[str],
+        email: Optional[str],
     ) -> Optional["Person"]:
         possible_person = None
         if phone is not None and len(phone) > 0:
@@ -383,7 +382,7 @@ class Team(models.Model):
 
     @classmethod
     def get_or_create_from_signup(
-            cls, user: MyUser, copilot: Person, aircraft_registration: str, club_name: str
+        cls, user: MyUser, copilot: Person, aircraft_registration: str, club_name: str
     ) -> "Team":
         my_person = Person.objects.get(email=user.email)
         crew, _ = Crew.objects.get_or_create(member1=my_person, member2=copilot)
@@ -421,7 +420,7 @@ class ContestTeam(models.Model):
 
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
-                self.tracker_device_id is None or len(self.tracker_device_id) == 0
+            self.tracker_device_id is None or len(self.tracker_device_id) == 0
         ):
             raise ValidationError(
                 f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
@@ -643,7 +642,7 @@ class NavigationTask(models.Model):
     display_secrets = models.BooleanField(
         default=True,
         help_text="If checked secret gates will be displayed on the map. Otherwise the map will only include gates that"
-                  " are not secret, and also not display annotations related to the secret gates.",
+        " are not secret, and also not display annotations related to the secret gates.",
     )
     allow_self_management = models.BooleanField(
         default=False,
@@ -1088,11 +1087,11 @@ class Scorecard(models.Model):
         return self.prohibited_zone_penalty
 
     def get_gate_timing_score_for_gate_type(
-            self,
-            gate_type: str,
-            contestant: "Contestant",
-            planned_time: datetime.datetime,
-            actual_time: Optional[datetime.datetime],
+        self,
+        gate_type: str,
+        contestant: "Contestant",
+        planned_time: datetime.datetime,
+        actual_time: Optional[datetime.datetime],
     ) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.calculate_score(
@@ -1158,7 +1157,7 @@ class Scorecard(models.Model):
         return gate_score.extended_gate_width
 
     def get_backtracking_after_steep_gate_grace_period_seconds_for_gate_type(
-            self, gate_type: str, contestant: "Contestant"
+        self, gate_type: str, contestant: "Contestant"
     ) -> float:
         """
         The number of seconds after passing a gate with a steep turn (more than 90 degrees) where backtracking is not calculated
@@ -1167,7 +1166,7 @@ class Scorecard(models.Model):
         return gate_score.backtracking_after_steep_gate_grace_period_seconds
 
     def get_backtracking_after_gate_grace_period_nm_for_gate_type(
-            self, gate_type: str, contestant: "Contestant"
+        self, gate_type: str, contestant: "Contestant"
     ) -> float:
         """
         The number of NM around a gate where backtracking is not calculated
@@ -1279,10 +1278,10 @@ class GateScore(models.Model):
         return self.backtracking_after_gate_grace_period_nm
 
     def calculate_score(
-            self,
-            planned_time: datetime.datetime,
-            actual_time: Optional[datetime.datetime],
-            score_override: Optional["GateScoreOverride"],
+        self,
+        planned_time: datetime.datetime,
+        actual_time: Optional[datetime.datetime],
+        score_override: Optional["GateScoreOverride"],
     ) -> float:
         """
 
@@ -1590,26 +1589,23 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
     def _air_sports_rule_description(self):
         scorecard = self.navigation_task.scorecard
         gate_sizes = [item.width for item in self.navigation_task.route.waypoints]
-        minimum_size=min(gate_sizes)
-        maximum_size=max(gate_sizes)
-        if maximum_size==minimum_size:
-            corridor_width_text=f"For this task the corridor with is {minimum_size} NM."
+        minimum_size = min(gate_sizes)
+        maximum_size = max(gate_sizes)
+        if maximum_size == minimum_size:
+            corridor_width_text = f"For this task the corridor with is {minimum_size} NM."
         else:
-            corridor_width_text=f"For this task the corridor width is between {minimum_size} NM and {maximum_size} NM."
-        text=f"""
-{corridor_width_text} Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of 
-{"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second."""
+            corridor_width_text = (
+                f"For this task the corridor width is between {minimum_size} NM and {maximum_size} NM."
+            )
+        text = f"""
+{corridor_width_text} Flying outside of the corridor for youmore than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of 
+{"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second. all"""
         if scorecard.get_corridor_maximum_penalty(self) != -1:
             text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg."""
 
-        text+=f"""
-There are timed gates on the track. The penalty for 
-crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} 
-per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds. 
-Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than 
-{scorecard.get_backtracking_grace_time_seconds(self)} seconds
-gives a penalty of {scorecard.get_backtracking_penalty(self)} points.        
-
+        text += f"""
+There are timed gates on the track. The penalty for youcrossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} point(s) per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds. 
+Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.get_backtracking_grace_time_seconds(self)} seconds gives a penalty of {scorecard.get_backtracking_penalty(self)} points. 
 {self._prohibited_zone_text()} {self._penalty_zone_text()}
 {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
 
@@ -1629,7 +1625,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
         # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.navigation_task.name, self.takeoff_time,
         #                                       self.finished_by_time)
 
-
     def calculate_progress(self, latest_time: datetime, ignore_finished: bool = False) -> float:
         if NavigationTask.POKER in self.navigation_task.scorecard.task_type:
             return 100 * self.playingcard_set.all().count() / 5
@@ -1638,7 +1633,7 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             return 0
         route_progress = 100
         if len(self.navigation_task.route.waypoints) > 0 and (
-                not self.contestanttrack.calculator_finished or ignore_finished
+            not self.contestanttrack.calculator_finished or ignore_finished
         ):
             first_gate = self.navigation_task.route.waypoints[0]
             last_gate = self.navigation_task.route.waypoints[-1]
@@ -1650,14 +1645,12 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             route_progress = 100 * route_duration_progress / route_duration
         return route_progress
 
-
     def get_groundspeed(self, bearing) -> float:
         return calculate_ground_speed_combined(bearing, self.air_speed, self.wind_speed, self.wind_direction)
 
-
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
-                self.tracker_device_id is None or len(self.tracker_device_id) == 0
+            self.tracker_device_id is None or len(self.tracker_device_id) == 0
         ):
             raise ValidationError(
                 f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
@@ -1774,7 +1767,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
                         f"Calculator has started for {self}, it is not possible to change minutes to starting point"
                     )
 
-
     def calculate_and_get_gate_times(self, start_point_override: Optional[datetime.datetime] = None) -> Dict:
         gates = self.navigation_task.route.waypoints  # type: List[Waypoint]
         if len(gates) == 0:
@@ -1794,31 +1786,30 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
         for gate, relative in relative_crossing_times:
             crossing_times[gate] = crossing_time + relative
         if (
-                self.navigation_task.route.takeoff_gate is not None
-                and self.navigation_task.route.takeoff_gate.name not in crossing_times
+            self.navigation_task.route.takeoff_gate is not None
+            and self.navigation_task.route.takeoff_gate.name not in crossing_times
         ):
             crossing_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
         if (
-                self.navigation_task.route.landing_gate is not None
-                and self.navigation_task.route.landing_gate.name not in crossing_times
+            self.navigation_task.route.landing_gate is not None
+            and self.navigation_task.route.landing_gate.name not in crossing_times
         ):
             crossing_times[self.navigation_task.route.landing_gate.name] = self.finished_by_time + datetime.timedelta(
                 minutes=1
             )
         return crossing_times
 
-
     @property
     def gate_times(self) -> Dict:
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
             if (
-                    self.navigation_task.route.takeoff_gate is not None
-                    and self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times
+                self.navigation_task.route.takeoff_gate is not None
+                and self.navigation_task.route.takeoff_gate.name not in self.predefined_gate_times
             ):
                 self.predefined_gate_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
             if (
-                    self.navigation_task.route.landing_gate is not None
-                    and self.navigation_task.route.landing_gate.name not in self.predefined_gate_times
+                self.navigation_task.route.landing_gate is not None
+                and self.navigation_task.route.landing_gate.name not in self.predefined_gate_times
             ):
                 self.predefined_gate_times[
                     self.navigation_task.route.landing_gate.name
@@ -1831,11 +1822,9 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             )
         return self.calculate_and_get_gate_times(zero_time)
 
-
     @gate_times.setter
     def gate_times(self, value):
         self.predefined_gate_times = value
-
 
     def get_gate_time_offset(self, gate_name):
         planned = self.gate_times.get(gate_name)
@@ -1849,12 +1838,10 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             return (actual.time - planned).total_seconds()
         return None
 
-
     def get_track_score_override(self) -> Optional[TrackScoreOverride]:
         if self.track_score_override is not None:
             return self.track_score_override
         return self.navigation_task.track_score_override
-
 
     def get_gate_score_override(self, gate_type: str) -> Optional[GateScoreOverride]:
         for item in self.gate_score_override.all():
@@ -1864,7 +1851,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             if gate_type in item.for_gate_types:
                 return item
         return None
-
 
     def get_tracker_ids(self) -> List[str]:
         if self.tracking_device == TRACKING_DEVICE:
@@ -1881,7 +1867,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
         )
         return [""]
 
-
     def get_simulator_tracker_ids(self) -> List[str]:
         if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
             trackers = [self.team.crew.member1.simulator_tracking_id]
@@ -1894,7 +1879,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             f"Contestant {self.team} for navigation task {self.navigation_task} does not have a simulator tracker ID for tracking device {self.tracking_device}"
         )
         return [""]
-
 
     @property
     def tracker_id_display(self) -> List[Dict]:
@@ -1910,8 +1894,8 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
                 }
             )
         if (
-                self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
-                and self.team.crew.member2 is not None
+            self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
+            and self.team.crew.member2 is not None
         ):
             devices.append(
                 {
@@ -1921,7 +1905,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
                 }
             )
         return devices
-
 
     @staticmethod
     def generate_position_block_for_contestant(position_data: Dict, device_time: datetime.datetime) -> Dict:
@@ -1937,10 +1920,9 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             "course": float(position_data["course"]),
         }
 
-
     @classmethod
     def get_contestant_for_device_at_time(
-            cls, device: str, stamp: datetime.datetime
+        cls, device: str, stamp: datetime.datetime
     ) -> Tuple[Optional["Contestant"], bool]:
         """
         Retrieves the contestant that owns the tracking device for the time stamp. Returns an extra flag "is_simulator"
@@ -1960,7 +1942,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
                         return contestant, is_simulator
         return None, is_simulator
 
-
     @classmethod
     def _try_to_get_tracker_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[Optional["Contestant"], bool]:
         try:
@@ -1977,7 +1958,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             )
         except ObjectDoesNotExist:
             return None, False
-
 
     @classmethod
     def _try_to_get_pilot_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[Optional["Contestant"], bool]:
@@ -1998,7 +1978,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
         except ObjectDoesNotExist:
             return None, False
 
-
     @classmethod
     def _try_to_get_copilot_tracking(cls, device: str, stamp: datetime.datetime) -> Tuple[Optional["Contestant"], bool]:
         try:
@@ -2018,7 +1997,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
         except ObjectDoesNotExist:
             return None, False
 
-
     def is_currently_tracked_by_device(self, device_id: str) -> bool:
         """
         Returns true unless tracking_device is TRACKING_PILOT_AND_COPILOT. In this case the function returns true if we
@@ -2033,7 +2011,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             return False
         return True
 
-
     def get_traccar_track(self) -> List[Dict]:
         traccar = Traccar.create_from_configuration(TraccarCredentials.get_solo())
         device_ids = traccar.get_device_ids_for_contestant(self)
@@ -2047,7 +2024,6 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
         logger.debug(f"Returned {len(tracks)} with lengths {', '.join([str(len(item)) for item in tracks])}")
         return merge_tracks(tracks)
 
-
     def get_track(self) -> List["Position"]:
         try:
             logger.debug(f"{self}: Fetching data from uploaded track")
@@ -2060,13 +2036,11 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
             track = self.get_traccar_track()
         return [Position(**self.generate_position_block_for_contestant(item, item["device_time"])) for item in track]
 
-
     def get_latest_position(self) -> Optional[Position]:
         try:
             return self.get_track()[-1]
         except IndexError:
             return None
-
 
     def record_actual_gate_time(self, gate_name: str, passing_time: datetime.datetime):
         try:
@@ -2074,12 +2048,10 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
         except IntegrityError:
             logger.exception(f"Contestant has already passed gate {gate_name}")
 
-
     def record_score_by_gate(self, gate_name: str, score: float):
         gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self)
         gate_score.points += score
         gate_score.save()
-
 
     def reset_track_and_score(self):
         self.scorelogentry_set.all().delete()
@@ -2618,14 +2590,14 @@ ____________________________________________________________
             f"Flight orders for task {self.contestant.navigation_task.name}",
             f"Hi {first_name},\n\nHere is the <a href='{url}'>link to download the flight orders</a> for your navigation task "
             + f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
-              f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.\n\n{url}\n{self.PLAINTEXT_SIGNATURE}",
+            f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.\n\n{url}\n{self.PLAINTEXT_SIGNATURE}",
             None,  # Should default to system from email
             recipient_list=[email_address],
             html_message=f"Hi {first_name},<p>Here is the link to download the flight orders for  "
-                         f"your navigation task "
-                         f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
-                         f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p>"
-                         f"<a href='{url}'>Flight orders link</a><p>{self.HTML_SIGNATURE}",
+            f"your navigation task "
+            f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
+            f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p>"
+            f"<a href='{url}'>Flight orders link</a><p>{self.HTML_SIGNATURE}",
         )
 
 
@@ -2979,10 +2951,10 @@ def clear_navigation_task_results_service_test(sender, instance: NavigationTask,
 @receiver(post_save, sender=Contestant)
 def create_tracker_in_traccar(sender, instance: Contestant, **kwargs):
     if (
-            instance.tracking_service == TRACCAR
-            and instance.tracker_device_id
-            and len(instance.tracker_device_id) > 0
-            and instance.tracking_device == TRACKING_DEVICE
+        instance.tracking_service == TRACCAR
+        and instance.tracker_device_id
+        and len(instance.tracker_device_id) > 0
+        and instance.tracking_device == TRACKING_DEVICE
     ):
         traccar = get_traccar_instance()
         traccar.get_or_create_device(instance.tracker_device_id, instance.tracker_device_id)
@@ -3027,9 +2999,9 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         device, created = traccar.get_or_create_device(str(instance) + " simulator", instance.simulator_tracking_id)
         logger.debug(f"Traccar device {device} was created: {created}")
         if (
-                created
-                and simulator_original_tracking_id is not None
-                and simulator_original_tracking_id != instance.simulator_tracking_id
+            created
+            and simulator_original_tracking_id is not None
+            and simulator_original_tracking_id != instance.simulator_tracking_id
         ):
             original_device = traccar.get_device(simulator_original_tracking_id)
             if original_device is not None:

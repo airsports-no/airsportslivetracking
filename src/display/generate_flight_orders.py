@@ -96,7 +96,7 @@ def insert_turning_point_images(contestant, pdf: FPDF):
     waypoints = [
         item
         for item in navigation.route.waypoints
-        if item.type != "secret" and (item.gate_check or item.time_check)
+        if item.type != "secret"
     ]
     rows_per_page = 3
     number_of_images = len(waypoints)
@@ -107,6 +107,9 @@ def insert_turning_point_images(contestant, pdf: FPDF):
     row_step = image_height + title_offset
     row_start = 30
     for index in range(number_of_images):
+        waypoint=waypoints[index]
+        if not (waypoint.time_check or waypoint.gate_check):
+            continue
         if index % (rows_per_page * 2) == 0:
             if index > 0:
                 pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
