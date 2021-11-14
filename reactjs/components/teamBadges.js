@@ -115,7 +115,7 @@ function ScoreAndNames(props) {
                 <div className={"row"}>
                     <div className={"text-center col-12"}>
                         <div className={"lower-thirds-current-score"}>
-                            <a onClick={props.toggleDetails}>{props.contestantData.contestant_track.score.toFixed(0)}</a>
+                            <a href={"#"} onClick={props.toggleDetails}>{props.contestantData.contestant_track.score.toFixed(0)}</a>
                         </div>
                     </div>
                 </div>

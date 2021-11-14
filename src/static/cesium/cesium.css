@@ -258,6 +258,14 @@ tr.hidden {
     margin-top: -20px;
 }
 
+.lower-thirds-current-score a {
+    color: #e01b1c;
+}
+
+.lower-thirds-current-score a:hover {
+    color: #e01b1c;
+}
+
 .lower-thirds-current-score-text {
     font-size: 1rem;
     color: #e01b1c;
@@ -266,11 +274,11 @@ tr.hidden {
     margin-top: -10px;
 }
 .lower-thirds-current-score-text a {
-    font-size: 1rem;
     color: #e01b1c;
-    font-weight: bold;
-    text-shadow: 2px 2px 5px black;
-    margin-top: -10px;
+}
+
+.lower-thirds-current-score-text a:hover {
+    color: #e01b1c;
 }
 
 .lower-thirds-pilot-names {
