@@ -180,6 +180,7 @@ class Prohibited(models.Model):
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
     path = MyPickledObjectField(default=list)
     type = models.CharField(max_length=100, blank=True, default="")
+    tooltip_position=models.JSONField(null=True, blank=True)
 
 
 def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
@@ -2750,6 +2751,7 @@ class EditableRoute(models.Model):
                     route=route,
                     path=self._get_feature_coordinates(feature, flip=True),
                     type=zone_type,
+                    tooltip_position=feature.get("tooltip_position", [])
                 )
 
 

@@ -150,6 +150,8 @@ class ConnectedRouteEditor extends Component {
             featureEditLayer: null,
             featureType: null,
             currentName: null,
+            xOffset: 0,
+            yOffset: 0,
             routeName: null,
             changesSaved: false,
             displayTutorial: false,
@@ -227,6 +229,7 @@ class ConnectedRouteEditor extends Component {
                     layer_type: l.layerType,
                     track_points: l.trackPoints,
                     feature_type: l.featureType,
+                    tooltip_position: l.tooltipPosition,
                     geojson: l.toGeoJSON(),
                 })
             }
@@ -267,16 +270,19 @@ class ConnectedRouteEditor extends Component {
         })
     }
 
-    configureLayer(layer, name, layerType, featureType, trackPoints, created) {
+    configureLayer(layer, name, layerType, featureType, trackPoints, tooltipPosition) {
         layer.addTo(this.drawnItems);
         layer.name = name
         layer.layerType = layerType
         layer.featureType = featureType
         layer.trackPoints = trackPoints
+        layer.tooltipPosition = tooltipPosition
         layer.waypointNamesFeatureGroup = L.featureGroup().addTo(this.drawnItems);
         layer.on("click", (item) => {
             const layer = item.target
-            this.setState({featureEditLayer: layer})
+            if (this.state.globalEditingMode) {
+                this.setState({featureEditLayer: layer})
+            }
         })
         layer.on("edit", (item) => {
             const layer = item.target
@@ -323,7 +329,10 @@ class ConnectedRouteEditor extends Component {
                         } else {
                             layer.editing.disable()
                         }
-                        this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points, false)
+                        if (!r.tooltip_position) {
+                            r.tooltip_position = [0, 0]
+                        }
+                        this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points, r.tooltip_position)
                     }
                 }
             )
@@ -464,9 +473,11 @@ class ConnectedRouteEditor extends Component {
         if (this.state.currentName) {
             this.state.featureEditLayer.name = this.state.currentName
         }
+
         if (this.state.featureEditLayer.featureType === "track") {
             this.trackLayer = this.state.featureEditLayer
         }
+        this.state.featureEditLayer.tooltipPosition = [parseInt(this.state.xOffset), parseInt(this.state.yOffset)]
         this.state.featureEditLayer.setStyle(featureStyles[this.state.featureEditLayer.featureType])
         // this.state.featureEditLayer.editing.disable()
         this.renderWaypointNames(this.state.featureEditLayer)
@@ -483,6 +494,8 @@ class ConnectedRouteEditor extends Component {
         this.setState({
             featureEditLayer: null,
             featureType: null,
+            xOffset: 0,
+            yOffset: 0,
             currentName: null,
             changesSaved: false,
             validationErrors: []
@@ -545,7 +558,16 @@ class ConnectedRouteEditor extends Component {
                 index += 1
             }
         } else if (Object.keys(generalTypes).includes(track.featureType)) {
-            track.bindTooltip(track.name, {permanent: true})
+            let tooltipPosition = [0, 0]
+            if (track.tooltipPosition) {
+                tooltipPosition = track.tooltipPosition
+            }
+            track.bindTooltip(track.name, {
+                permanent: true,
+                direction: "center",
+                className: "prohibitedTooltip",
+                offset: tooltipPosition
+            })
         }
     }
 
@@ -574,6 +596,14 @@ class ConnectedRouteEditor extends Component {
                     <Form.Control name={"feature_name"} type={"string"} placeholder={"Name"}
                                   defaultValue={layer.name}
                                   onChange={(e) => this.setState({currentName: e.target.value})}
+                    />
+                    <Form.Label>Label offset X</Form.Label>&nbsp;
+                    <Form.Control name={"xOffset"} type={"number"} defaultValue={layer.tooltipPosition[0]}
+                                  onChange={(e) => this.setState({xOffset: e.target.value})}
+                    />
+                    <Form.Label>Label offset Y</Form.Label>&nbsp;
+                    <Form.Control name={"yOffset"} type={"number"} defaultValue={layer.tooltipPosition[1]}
+                                  onChange={(e) => this.setState({yOffset: e.target.value})}
                     />
                 </div> : null
             }
