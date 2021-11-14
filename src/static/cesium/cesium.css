@@ -265,6 +265,13 @@ tr.hidden {
     text-shadow: 2px 2px 5px black;
     margin-top: -10px;
 }
+.lower-thirds-current-score-text a {
+    font-size: 1rem;
+    color: #e01b1c;
+    font-weight: bold;
+    text-shadow: 2px 2px 5px black;
+    margin-top: -10px;
+}
 
 .lower-thirds-pilot-names {
     line-height: 1.3;

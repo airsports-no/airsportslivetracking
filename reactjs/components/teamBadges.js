@@ -122,7 +122,7 @@ function ScoreAndNames(props) {
                 <div className={"row"}>
                     <div className={"text-center col-12"}>
                         <div className={"lower-thirds-current-score-text"}>
-                            LIVE SCORE
+                            <a href={"#"} onClick={props.toggleDetails}>DETAILED SCORE</a>
                         </div>
                     </div>
                 </div>
