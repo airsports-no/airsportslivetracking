@@ -282,6 +282,7 @@ class ANRCorridorScoreOverrideForm(forms.Form):
             )
         )
 
+
 class AirsportsScoreOverrideForm(forms.Form):
     corridor_grace_time = forms.IntegerField(required=True,
                                              help_text="The number of seconds the contestant can stay outside the corridor before penalties start")
@@ -298,11 +299,11 @@ class AirsportsScoreOverrideForm(forms.Form):
                                          help_text="Penalty awarded when missing the regular gates entirely")
 
     secret_grace_time = forms.FloatField(required=True,
-                                       help_text="Grace time before and after secret gates")
+                                         help_text="Grace time before and after secret gates")
     secret_penalty_per_second = forms.FloatField(required=True,
-                                               help_text="Penalty per second time offset (beyond gate grace time) for secret gates")
+                                                 help_text="Penalty per second time offset (beyond gate grace time) for secret gates")
     secret_miss_penalty = forms.FloatField(required=True,
-                                         help_text="Penalty awarded when missing the secret gates entirely")
+                                           help_text="Penalty awarded when missing the secret gates entirely")
 
     prohibited_zone_penalty = forms.FloatField(required=True,
                                                help_text="This penalty is awarded whenever the contestant enters a prohibited zone")
@@ -352,17 +353,17 @@ class AirsportsScoreOverrideForm(forms.Form):
                                                                                      "gate_miss_penalty"]))
 
         navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["secret"],
-                                                                             checkpoint_grace_period_after=
-                                                                             self.cleaned_data[
-                                                                                 "secret_grace_time"],
-                                                                             checkpoint_grace_period_before=
-                                                                             self.cleaned_data[
-                                                                                 "secret_grace_time"],
-                                                                             checkpoint_penalty_per_second=
-                                                                             self.cleaned_data[
-                                                                                 "secret_penalty_per_second"],
-                                                                             checkpoint_not_found=self.cleaned_data[
-                                                                                 "secret_miss_penalty"]))
+                                                                                 checkpoint_grace_period_after=
+                                                                                 self.cleaned_data[
+                                                                                     "secret_grace_time"],
+                                                                                 checkpoint_grace_period_before=
+                                                                                 self.cleaned_data[
+                                                                                     "secret_grace_time"],
+                                                                                 checkpoint_penalty_per_second=
+                                                                                 self.cleaned_data[
+                                                                                     "secret_penalty_per_second"],
+                                                                                 checkpoint_not_found=self.cleaned_data[
+                                                                                     "secret_miss_penalty"]))
 
     @classmethod
     def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
@@ -635,6 +636,7 @@ rounded_corners_warning = HTML("""
 <p style ="color:red">Using rounded corners will not look good with sharp corners or short legs. Each leg should be at least three or four times long as the width of the corridor, and the turn should be not much more than 90 degrees, especially if the corridor is wide.</p>
 """)
 
+
 class ANRCorridorParametersForm(forms.Form):
     rounded_corners = forms.BooleanField(required=False, initial=False,
                                          help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
@@ -650,11 +652,11 @@ class ANRCorridorParametersForm(forms.Form):
                 "corridor_width"
             ),
             rounded_corners_warning,
-            kml_description,
             ButtonHolder(
                 Submit("submit", "Submit")
             )
         )
+
 
 class AirsportsParametersForm(forms.Form):
     rounded_corners = forms.BooleanField(required=False, initial=False,
@@ -669,7 +671,6 @@ class AirsportsParametersForm(forms.Form):
                 "rounded_corners",
             ),
             rounded_corners_warning,
-            kml_description,
             ButtonHolder(
                 Submit("submit", "Submit")
             )
