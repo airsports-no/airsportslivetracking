@@ -352,11 +352,11 @@ class ConnectedRouteEditor extends Component {
             errors = errors.concat(this.saveAndVerifyGatePolygons(layer))
         }
         if (layer.featureType === undefined || !layer.featureType) {
-            errors.push("Feature type has not been selected for the highlighted item")
+            errors.push("Feature type has not been selected for the highlighted (red) item")
             this.highlightLayer(layer)
         }
         if (layer.name === undefined || !layer.name || layer.name === "") {
-            errors.push("Highlighted layer is missing name")
+            errors.push("Highlighted  (red) layer is missing name")
             this.highlightLayer(layer)
         }
         if (layer.featureType === "track") {
@@ -521,8 +521,8 @@ class ConnectedRouteEditor extends Component {
                     index: index,
                     icon: divIcon({
                         html: '<span class="hover-underline"">' + waypointText + '</span>',
-                        iconSize: [20, 20],
-                        iconAnchor: [10, -10],
+                        iconSize: [200, 20],
+                        iconAnchor: [-15, 7],
                         className: "myGateLink",
 
                     })
