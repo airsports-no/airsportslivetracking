@@ -125,6 +125,27 @@ class ConnectedRouteEditor extends Component {
     constructor(props) {
         super(props)
         this.map = null
+        this.mapReady = false
+        this.drawControl = null
+        this.drawingEnabledOptions = {
+            marker: false,
+            rectangle: false,
+            circle: false,
+            polyline: true,
+            circlemarker: false,
+            polygon: {
+                allowIntersection: false,
+                showArea: true
+            }
+        }
+        this.drawingDisabledOptions = {
+            marker: false,
+            rectangle: false,
+            circle: false,
+            circlemarker: false,
+            polygon: false,
+            polyline: false
+        }
         this.state = {
             featureEditLayer: null,
             featureType: null,
@@ -133,7 +154,7 @@ class ConnectedRouteEditor extends Component {
             changesSaved: false,
             displayTutorial: false,
             selectedWaypoint: null,
-            globalEditingMode: true
+            globalEditingMode: false
         }
     }
 
@@ -154,7 +175,7 @@ class ConnectedRouteEditor extends Component {
 
     reloadMap() {
         this.clearFormData()
-        this.setState({changesSaved: false, validationErrors: null, saveFailed: null, globalEditingMode: true})
+        this.setState({changesSaved: false, validationErrors: null, saveFailed: null})
         this.props.fetchEditableRoute(this.props.routeId)
     }
 
@@ -297,7 +318,11 @@ class ConnectedRouteEditor extends Component {
                             this.trackLayer = layer
                             this.map.fitBounds(layer.getBounds(), {padding: [50, 50]})
                         }
-                        layer.editing.enable()
+                        if (this.state.globalEditingMode) {
+                            layer.editing.enable()
+                        } else {
+                            layer.editing.disable()
+                        }
                         this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points, false)
                     }
                 }
@@ -425,7 +450,9 @@ class ConnectedRouteEditor extends Component {
     }
 
     saveLayer() {
-        this.state.featureEditLayer.editing.enable()
+        if (this.state.globalEditingMode) {
+            this.state.featureEditLayer.editing.enable()
+        }
         if (this.state.featureType) {
             this.state.featureEditLayer.featureType = this.state.featureType
         }
@@ -779,25 +806,18 @@ class ConnectedRouteEditor extends Component {
         if (!this.props.routeId) {
             this.map.locate({setView: true, maxZoom: 7})
         }
+        this.drawControl = new L.Control.Draw({
+            // edit: {
+            //     featureGroup: this.drawnItems,
+            //     poly: {
+            //         allowIntersection: false
+            //     }
+            // },
+            draw: this.drawingDisabledOptions
+        })
         this.map.whenReady(() => {
-            this.map.addControl(new L.Control.Draw({
-                // edit: {
-                //     featureGroup: this.drawnItems,
-                //     poly: {
-                //         allowIntersection: false
-                //     }
-                // },
-                draw: {
-                    marker: false,
-                    rectangle: false,
-                    circle: false,
-                    circlemarker: false,
-                    polygon: {
-                        allowIntersection: false,
-                        showArea: true
-                    }
-                }
-            }));
+            this.map.addControl(this.drawControl);
+            this.mapReady = true
         })
 
         this.map.on(L.Draw.Event.EDITVERTEX, (event) => {
@@ -843,6 +863,15 @@ class ConnectedRouteEditor extends Component {
     }
 
     render() {
+        if (this.mapReady) {
+            if (this.state.globalEditingMode) {
+                this.drawControl.setDrawingOptions(this.drawingEnabledOptions);
+            } else {
+                this.drawControl.setDrawingOptions(this.drawingDisabledOptions);
+            }
+            this.map.removeControl(this.drawControl)
+            this.map.addControl(this.drawControl)
+        }
         return <div>
             <div className={"toastContainer"}>
                 {this.renderValidationErrors()}
