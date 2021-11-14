@@ -70,41 +70,47 @@ const slides = [
     {
         title: "Mouse required",
         description: "The route editor does unfortunately not work with touchscreen devices. Click next to continue the tutorial.",
-        image: "/static/img/tutorial/1.png",
+        image: "/static/img/tutorial/0.png",
         background: bgcolor
     }, {
+        title: "Enable editing",
+        description: "Click 'Edit' to enable editing. Cancel resets and changes, and route list returns you to the list of all your routes.",
+        image: "/static/img/tutorial/0.png",
+        background: bgcolor
+    },
+    {
         title: "Create route",
-        description: "Click icons to create a route or a zone (control zone, etc)",
+        description: "Click icons to create a route or a zone (penalty zone, etc)",
         image: "/static/img/tutorial/1.png",
         background: bgcolor
     }, {
         title: "Draw track",
-        description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created",
+        description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created.",
         image: "/static/img/tutorial/2.png",
         background: bgcolor
     }, {
         title: "Track details",
-        description: "Select type of route. Takeoff and landing gates should cross the runway, but not be crossed during taxi.",
+        description: "Select type of route. You always need a track. Takeoff and landing gates should cross the runway, but not be crossed during taxi.",
         image: "/static/img/tutorial/3.png",
+        background: bgcolor
+    }, {
+        title: "Edit waypoint details",
+        description: "Choose a waypoint name, the waypoint type, and the width of the gate. This will determine the size of the gate or the corridor. Time check controls whether the gate gives penalties, secret waypoints are not visible to the pilots. ",
+        image: "/static/img/tutorial/4.png",
         background: bgcolor
     }, {
         title: "Zones",
         description: "Optionally, create a prohibited zone (fixed penalty), penalty area (penalty per second), or information area. For certain types of tasks (poker run) you can create a gate area around a waypoint to represent the waypoint.",
-        image: "/static/img/tutorial/4.png",
-        background: bgcolor
-    }, {
-        title: "Zone details",
-        description: "Select the type of zone and give a name. The name will be displayed on the map.",
         image: "/static/img/tutorial/5.png",
         background: bgcolor
-    }, {
-        title: "Editing",
-        description: "To edit an existing track or area, click on it and select 'Edit points' at the bottom of the pop-up. Click the waypoints to update the gates. Give each waypoint an appropriate name and type. Choose whether penalties should be given for missing gate or missing the time. ",
+}, {
+        title: "Zone details",
+        description: "Select the type of zone and give a name. The name will be displayed on the map. Enter label x and y offset to control how the name is displayed. Make sure this looks good at multiple zoom levels.",
         image: "/static/img/tutorial/6.png",
         background: bgcolor
     }, {
         title: "Editing",
-        description: "Click and drag the available markers to the desired shape. When editing is complete, click the line and click 'Save' at the bottom of the pop-up",
+        description: "To edit an existing track or area, click and drag the available markers to the desired shape. Use the satellite view to pinpoint waypoint features.",
         image: "/static/img/tutorial/7.png",
         background: bgcolor
     }, {
@@ -113,8 +119,8 @@ const slides = [
         image: "/static/img/tutorial/8.png",
         background: bgcolor
     }, {
-        title: "Summary",
-        description: "There has to be one track, and zero or one takeoff and landing gates. You can have as many different zones as you wish. Gate zones have to encompass exactly one waypoint",
+        title: "Task creation",
+        description: "Once the route is saved, go back to the root list and click 'Create task'. This will guide you through the task creation process. Note that you already have to have created a contest.",
         image: "/static/img/tutorial/9.png",
         background: bgcolor
     },
@@ -871,7 +877,7 @@ class ConnectedRouteEditor extends Component {
                 featureType = "track"
                 trackPoints = this.initialiseWaypoints(layer)
             }
-            this.configureLayer(layer, null, event.layerType, featureType, trackPoints, true)
+            this.configureLayer(layer, null, event.layerType, featureType, trackPoints, [0, 0])
             this.setState({featureEditLayer: layer})
 
         });
@@ -936,7 +942,7 @@ class ConnectedRouteEditor extends Component {
                 </button>
                 &nbsp;
                 <button id="routeReturnButton" className={"btn btn-secondary"}
-                        onClick={() => window.location = "/display/editableroute/"}>Map list
+                        onClick={() => window.location = "/display/editableroute/"}>Route list
                 </button>
             </div>
             {/*<IntroSlider slides={slides} size="fullscreen" handleDone={() => this.setState({displayTutorial: false})}*/}
