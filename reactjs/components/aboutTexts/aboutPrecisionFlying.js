@@ -51,7 +51,7 @@ const aboutPrecisionFlying = (actualRules, waypoints) => {
         {/*{gateText(actualRules.gates, actualRules.track, "Turning point")}*/}
         {/*{gateText(actualRules.gates, actualRules.track, "Secret point")}*/}
         {/*{gateText(actualRules.gates, actualRules.track, "Finish point")}*/}
-        {getGate(actualRules.gates, "Takeoff gate") && getGateValue(actualRules.gates, "Takeoff gate", "Maximum timing penalty") > 0 ?
+        {getGate(waypoints, "Takeoff gate") && getGateValue(actualRules.gates, "Takeoff gate", "Maximum timing penalty") > 0 ?
             <p>
                 The route has a takeoff gate. If this is passed before the takeoff time or more than one minute after
                 the
@@ -59,7 +59,7 @@ const aboutPrecisionFlying = (actualRules, waypoints) => {
                 of {getGateValue(actualRules.gates, "Takeoff gate", "Maximum timing penalty")} points
                 is applied.
             </p> : null}
-        {getGate(actualRules.gates, "Landing gate") && getGateValue(actualRules.gates, "Landing gate", "Maximum timing penalty") > 0 ?
+        {getGate(waypoints, "Landing gate") && getGateValue(actualRules.gates, "Landing gate", "Maximum timing penalty") > 0 ?
             <p>
                 The route has a landing gate. If this is not passed by the finish time for the contestant, a penalty
                 of {getGateValue(actualRules.gates, "Landing gate", "Maximum timing penalty")} points is applied.
