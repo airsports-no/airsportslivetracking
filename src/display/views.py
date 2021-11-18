@@ -907,13 +907,7 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
-        instance.start_time = instance.time_zone.localize(instance.start_time.replace(tzinfo=None))
-        instance.finish_time = instance.time_zone.localize(instance.finish_time.replace(tzinfo=None))
-        instance.save()
-        assign_perm("delete_contest", self.request.user, instance)
-        assign_perm("view_contest", self.request.user, instance)
-        assign_perm("add_contest", self.request.user, instance)
-        assign_perm("change_contest", self.request.user, instance)
+        instance.initialise(self.request.user)
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
 
@@ -1564,16 +1558,18 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
     def get_template_names(self):
         return [self.templates[self.steps.current]]
 
-    def get_form(self, step=None, data=None, files=None):
-        form = super().get_form(step, data, files)
-        if step == "contest_selection":
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+        if self.steps.current == "contest_selection":
             form.fields["contest"].queryset = get_objects_for_user(
                 self.request.user,
-                "display.view_contest",
-                klass=Contest.objects.all(),
+                "display.change_contest",
                 accept_global_perms=False,
             )
-        return form
+        return context
+
+    # def get_form(self, step=None, data=None, files=None):
+    #     form = super().get_form(step, data, files)
 
     def create_route(self) -> Route:
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
@@ -1602,6 +1598,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         task_name = self.get_cleaned_data_for_step("contest_selection")["navigation_task_name"]
         if self.get_cleaned_data_for_step("contest_selection")["contest"] is None:
             contest = Contest.objects.create(**self.get_cleaned_data_for_step("contest_creation"))
+            contest.initialise(self.request.user)
         else:
             contest = self.get_cleaned_data_for_step("contest_selection")["contest"]
         scorecard = Scorecard.objects.filter(task_type__contains=task_type).first()
