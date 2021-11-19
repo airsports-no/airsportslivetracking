@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 import sys
 from pathlib import Path
+from django.core.cache import cache
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from pytz import UTC
@@ -366,6 +367,8 @@ CACHES = {
     },
 }
 
+if any(s in sys.argv for s in ("test", )):
+    cache.clear()
 # CELERY_ACCEPT_CONTENT = ["application/json"]
 # CELERY_RESULT_SERIALIZER = "json"
 # CELERY_TASK_SERIALIZER = "json"

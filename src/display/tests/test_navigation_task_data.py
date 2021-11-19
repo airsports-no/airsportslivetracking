@@ -551,6 +551,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(len(expected_route["waypoints"]), len(route["waypoints"]))
         print(route["waypoints"])
         for index, waypoint in enumerate(route["waypoints"]):
+            del waypoint["outer_corner_position"]
             self.assertDictEqual(expected_route["waypoints"][index], waypoint)
             self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])
 

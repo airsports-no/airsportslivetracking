@@ -19,7 +19,7 @@ line = {
     "longitude": 0,
     "elevation": 0,
     "width": 1,
-    "gate_line": [],
+    "gate_line": [[66,66],[66.1,66.1]],
     "end_curved": False,
     "is_procedure_turn": False,
     "time_check": True,

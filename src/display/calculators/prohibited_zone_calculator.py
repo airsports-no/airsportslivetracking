@@ -26,8 +26,15 @@ class ProhibitedZoneCalculator(Calculator):
 
     INSIDE_PROHIBITED_ZONE_PENALTY_TYPE = "inside_prohibited_zone"
 
-    def __init__(self, contestant: "Contestant", scorecard: "Scorecard", gates: List["Gate"], route: "Route",
-                 update_score: Callable, type_filter: str = None):
+    def __init__(
+        self,
+        contestant: "Contestant",
+        scorecard: "Scorecard",
+        gates: List["Gate"],
+        route: "Route",
+        update_score: Callable,
+        type_filter: str = None,
+    ):
         super().__init__(contestant, scorecard, gates, route, update_score)
         self.inside_zones = set()
         self.gates = gates
@@ -36,10 +43,10 @@ class ProhibitedZoneCalculator(Calculator):
         self.crossed_outside_position = None
         waypoint = self.contestant.navigation_task.route.waypoints[0]
         self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
-        self.zone_polygons = {}
+        self.zone_polygons = []
         zones = route.prohibited_set.filter(type="prohibited")
         for zone in zones:
-            self.zone_polygons[zone.name] = self.polygon_helper.build_polygon(zone)
+            self.zone_polygons.append((zone.name, self.polygon_helper.build_polygon(zone)))
 
     def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
         self.check_inside_prohibited_zone(track, last_gate)
@@ -47,13 +54,18 @@ class ProhibitedZoneCalculator(Calculator):
     def check_inside_prohibited_zone(self, track: List["Position"], last_gate: Optional["Gate"]):
         position = track[-1]
         inside_this_time = set()
-        for inside in self.polygon_helper.check_inside_polygons(self.zone_polygons, position.latitude,
-                                                                position.longitude):
+        for inside in self.polygon_helper.check_inside_polygons(
+            self.zone_polygons, position.latitude, position.longitude
+        ):
             inside_this_time.add(inside)
             if inside not in self.inside_zones:
-                self.update_score(last_gate or self.gates[0],
-                                  self.scorecard.get_prohibited_zone_penalty(self.contestant),
-                                  "entered prohibited zone {}".format(inside),
-                                  position.latitude, position.longitude,
-                                  "anomaly", self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE)
+                self.update_score(
+                    last_gate or self.gates[0],
+                    self.scorecard.get_prohibited_zone_penalty(self.contestant),
+                    "entered prohibited zone {}".format(inside),
+                    position.latitude,
+                    position.longitude,
+                    "anomaly",
+                    self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE,
+                )
         self.inside_zones = inside_this_time

@@ -66,14 +66,14 @@ class PolygonHelper:
             line.append(self.utm.transform_point(*list(reversed(element)), self.pc))
         return Polygon(line)
 
-    def check_inside_polygons(self, polygons: Dict[str, Polygon], latitude, longitude) -> List[str]:
+    def check_inside_polygons(self, polygons: List[Tuple[str, Polygon]], latitude, longitude) -> List[str]:
         """
         Returns a list of names of the prohibited zone is the position is inside
         """
         x, y = self.utm.transform_point(longitude, latitude, self.pc)
         p = Point(x, y)
         incursions = []
-        for name, zone in polygons.items():
+        for name, zone in polygons:
             if zone.contains(p):
                 incursions.append(name)
         return incursions

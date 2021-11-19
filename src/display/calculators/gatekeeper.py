@@ -300,10 +300,10 @@ class Gatekeeper(ABC):
             return entry.pk, annotation.pk, score
         else:
             self.score = self.score - existing_reference[2] + score
-            if - existing_reference[2] + score > 0:
-                ScoreLogEntry.update(existing_reference[0], message=message, points=score, string=string)
-                TrackAnnotation.update(existing_reference[1], message=string)
-                self.contestant.contestanttrack.update_score(self.score)
+            # if - existing_reference[2] + score > 0:
+            ScoreLogEntry.update(existing_reference[0], message=message, points=score, string=string)
+            TrackAnnotation.update(existing_reference[1], message=string)
+            self.contestant.contestanttrack.update_score(self.score)
             return existing_reference[:2] + (score,)
 
     def create_gates(self) -> List[Gate]:
@@ -363,8 +363,8 @@ class Gatekeeper(ABC):
             self.last_termination_command_check = now
             termination_requested = cache.get(self.contestant.termination_request_key)
             if termination_requested:
-                cache.set(self.contestant.termination_request_key, False, timeout=1)
-            return termination_requested is not None
+                cache.delete(self.contestant.termination_request_key)
+            return termination_requested is True
         return False
 
     @abstractmethod

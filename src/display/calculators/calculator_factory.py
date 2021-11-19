@@ -15,7 +15,7 @@ from display.models import Contestant, Scorecard
 
 
 def calculator_factory(contestant: "Contestant", position_queue: Queue, live_processing: bool = True) -> "Gatekeeper":
-    cache.set(contestant.termination_request_key, False, timeout=1)
+    cache.delete(contestant.termination_request_key)
     if contestant.navigation_task.scorecard.calculator == Scorecard.PRECISION:
         return GatekeeperRoute(contestant, position_queue,
                                [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator],
