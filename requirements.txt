@@ -68,3 +68,4 @@ django-celery-beat
 qrcode
 whitenoise
 django-storages[azure]
+html2text

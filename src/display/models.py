@@ -1,4 +1,5 @@
 import dateutil.parser
+import html2text as html2text
 import rest_framework.exceptions as drf_exceptions
 import datetime
 import logging
@@ -20,6 +21,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 
 from django.db import models, IntegrityError
 from django.db.models import Q
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django_use_email_as_username.models import BaseUser, BaseUserManager
@@ -109,6 +111,22 @@ class TraccarCredentials(SingletonModel):
 class MyUser(BaseUser, GuardianUserMixin):
     username = models.CharField(max_length=50, default="not_applicable")
     objects = BaseUserManager()
+
+    def send_welcome_email(self):
+        html = render_to_string("display/welcome_email.html",
+                                {"person": Person.objects.filter(email=self.email).first()})
+        converter = html2text.HTML2Text()
+        plaintext = converter.handle(html)
+        try:
+            send_mail(
+                f"Welcome to Air Sports Live Tracking",
+                plaintext,
+                None,  # Should default to system from email
+                recipient_list=[self.email],
+                html_message=html
+            )
+        except:
+            logger.error(f"Failed sending email to {self}")
 
 
 class Aeroplane(models.Model):
@@ -3026,6 +3044,12 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
             traccar = get_traccar_instance()
             traccar.update_device_name(str(instance), instance.app_tracking_id)
             traccar.update_device_name(str(instance) + " simulator", instance.simulator_tracking_id)
+    # Send welcome email if the person is validated, but previously was not
+    previous_person = Person.objects.filter(pk=instance.pk).first()
+    if previous_person and not previous_person.validated and instance.validated:
+        user = MyUser.objects.filter(email=instance.email).first()
+        if user:
+            user.send_welcome_email()
 
 
 @receiver(pre_delete, sender=Person)
@@ -3043,7 +3067,12 @@ def delete_personal_tracker(sender, instance: Person, **kwargs):
 
 
 @receiver(post_save, sender=MyUser)
-def create_random_password_for_user(sender, instance: MyUser, **kwargs):
+def create_random_password_for_user(sender, instance: MyUser, created: bool, **kwargs):
+    if created:
+        person = Person.objects.filter(email=instance.email).first()
+        if person and person.validated:
+            # This is a new user object for an already existing valid person. Send the welcome email.
+            instance.send_welcome_email()
     if not instance.has_usable_password():
         instance.set_password(MyUser.objects.make_random_password(length=20))
         instance.save()
