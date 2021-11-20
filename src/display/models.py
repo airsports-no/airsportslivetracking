@@ -122,7 +122,7 @@ class MyUser(BaseUser, GuardianUserMixin):
                 f"Welcome to Air Sports Live Tracking",
                 plaintext,
                 None,  # Should default to system from email
-                recipient_list=[self.email],
+                recipient_list=[self.email, "support@airsports.no"],
                 html_message=html
             )
         except:
@@ -139,7 +139,7 @@ class MyUser(BaseUser, GuardianUserMixin):
                 f"You have been granted contest creation privileges at Air Sports Live Tracking",
                 plaintext,
                 None,  # Should default to system from email
-                recipient_list=[self.email],
+                recipient_list=[self.email, "support@airsports.no"],
                 html_message=html
             )
         except:
