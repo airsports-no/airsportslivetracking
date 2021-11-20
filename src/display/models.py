@@ -13,7 +13,7 @@ from unittest.mock import Mock
 import eval7 as eval7
 from django import core
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.mail import send_mail
@@ -32,7 +32,7 @@ from six import text_type
 from timezone_field import TimeZoneField
 
 # Create your models here.
-from django.db.models.signals import post_save, pre_save, post_delete, pre_delete
+from django.db.models.signals import post_save, pre_save, post_delete, pre_delete, m2m_changed
 from django.dispatch import receiver
 from django_countries.fields import CountryField
 from phonenumber_field.modelfields import PhoneNumberField
@@ -112,14 +112,31 @@ class MyUser(BaseUser, GuardianUserMixin):
     username = models.CharField(max_length=50, default="not_applicable")
     objects = BaseUserManager()
 
-    def send_welcome_email(self):
+    def send_welcome_email(self, person: "Person"):
         html = render_to_string("display/welcome_email.html",
-                                {"person": Person.objects.filter(email=self.email).first()})
+                                {"person": person})
         converter = html2text.HTML2Text()
         plaintext = converter.handle(html)
         try:
             send_mail(
                 f"Welcome to Air Sports Live Tracking",
+                plaintext,
+                None,  # Should default to system from email
+                recipient_list=[self.email],
+                html_message=html
+            )
+        except:
+            logger.error(f"Failed sending email to {self}")
+
+    def send_contest_creator_email(self, person: "Person"):
+        html = render_to_string("display/contestmanagement_email.html",
+                                {"person": person})
+        converter = html2text.HTML2Text()
+        plaintext = converter.handle(html)
+        logger.debug(f'Sending welcome email to {person}')
+        try:
+            send_mail(
+                f"You have been granted contest creation privileges at Air Sports Live Tracking",
                 plaintext,
                 None,  # Should default to system from email
                 recipient_list=[self.email],
@@ -3049,7 +3066,7 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
     if previous_person and not previous_person.validated and instance.validated:
         user = MyUser.objects.filter(email=instance.email).first()
         if user:
-            user.send_welcome_email()
+            user.send_welcome_email(instance)
 
 
 @receiver(pre_delete, sender=Person)
@@ -3072,7 +3089,25 @@ def create_random_password_for_user(sender, instance: MyUser, created: bool, **k
         person = Person.objects.filter(email=instance.email).first()
         if person and person.validated:
             # This is a new user object for an already existing valid person. Send the welcome email.
-            instance.send_welcome_email()
+            instance.send_welcome_email(person)
     if not instance.has_usable_password():
         instance.set_password(MyUser.objects.make_random_password(length=20))
         instance.save()
+
+
+@receiver(signal=m2m_changed, sender=User.groups.through)
+def adjust_group_notifications(instance, action, reverse, model, pk_set, using, *args, **kwargs):
+    if model == Group and not reverse:
+        logger.info("User %s deleted their relation to groups «%s»", instance.username, pk_set)
+        if action == 'post_remove':
+            pass
+        elif action == 'post_add':
+            logger.info("User %s created a relation to groups «%s»", instance.username,
+                        ", ".join([str(i) for i in pk_set]))
+            group = Group.objects.filter(pk__in=pk_set, name="ContestCreator").first()
+            if group:
+                person = Person.objects.filter(email=instance.email).first()
+                if person:
+                    instance.send_contest_creator_email(person)
+    else:
+        logger.info("Group %s is modifying its relation to users «%s»", instance, pk_set)
