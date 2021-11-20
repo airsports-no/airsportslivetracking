@@ -7,18 +7,18 @@ import os
 import asyncio
 
 import requests
-import sentry_sdk
+# import sentry_sdk
 from requests import ReadTimeout
 
 if __name__ == "__main__":
-    sentry_sdk.init(
-        "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
-
-        # Set traces_sample_rate to 1.0 to capture 100%
-        # of transactions for performance monitoring.
-        # We recommend adjusting this value in production.
-        traces_sample_rate=1.0
-    )
+    # sentry_sdk.init(
+    #     "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
+    #
+    #     # Set traces_sample_rate to 1.0 to capture 100%
+    #     # of transactions for performance monitoring.
+    #     # We recommend adjusting this value in production.
+    #     traces_sample_rate=1.0
+    # )
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
 
