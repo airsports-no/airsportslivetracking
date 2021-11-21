@@ -778,7 +778,7 @@ class TestANRBergenBacktracking(TransactionTestCase):
         while not q.empty():
             q.get_nowait()
         # Incorrectly gets 200 points for prohibited zone at departure and arrival, actual score is 51.
-        self.assertEqual(406, self.contestant.contestanttrack.score)
+        self.assertEqual(206, self.contestant.contestanttrack.score)
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
@@ -862,6 +862,6 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         for s in strings:
             print(s)
-        self.assertEqual(747, self.contestant.contestanttrack.score)
+        self.assertEqual(547, self.contestant.contestanttrack.score)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertTrue("SP: 200.0 points circling start" in strings)

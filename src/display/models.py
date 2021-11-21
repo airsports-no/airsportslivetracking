@@ -2072,8 +2072,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     def get_track(self) -> List["Position"]:
         try:
-            logger.debug(f"{self}: Fetching data from uploaded track")
             track = self.contestantuploadedtrack.track
+            logger.debug(f"{self}: Fetching data from uploaded track")
         except:
             p = ContestantReceivedPosition.objects.filter(contestant=self)
             if p.count() > 0:

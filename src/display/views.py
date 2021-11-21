@@ -5,6 +5,7 @@ import os
 from typing import Optional, Dict, Tuple
 
 import dateutil
+import gpxpy
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import permission_required, login_required
@@ -772,6 +773,27 @@ def upload_gpx_track_for_contesant(request, pk):
     else:
         form = GPXTrackImportForm()
     return render(request, "display/upload_gpx_form.html", {"form": form, "contestant": contestant})
+
+
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
+def download_track_contesant(request, pk):
+    """
+    Produces a GPX file from whatever is recorded
+    """
+    contestant = get_object_or_404(Contestant, pk=pk)
+    recorded_track = contestant.get_track()
+    gpx = gpxpy.gpx.GPX()
+    track = gpxpy.gpx.GPXTrack()
+    gpx.tracks.append(track)
+    segment = gpxpy.gpx.GPXTrackSegment()
+    track.segments.append(segment)
+    for position in recorded_track:
+        segment.points.append(
+            gpxpy.gpx.GPXTrackPoint(position.latitude, position.longitude, elevation=position.altitude,
+                                    time=position.time))
+    response = HttpResponse(gpx.to_xml(), content_type="application/gpx+xml")
+    response["Content-Disposition"] = f"attachment; filename=track.gpx"
+    return response
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
