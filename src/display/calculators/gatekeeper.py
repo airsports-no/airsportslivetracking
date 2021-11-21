@@ -64,8 +64,6 @@ class Gatekeeper(ABC):
         self.live_processing = live_processing
         self.track_terminated = False
         self.contestant = contestant
-        self.contestant.calculator_started = True
-        self.contestant.save()
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.position_queue = position_queue
         self.last_termination_command_check = None
@@ -75,6 +73,7 @@ class Gatekeeper(ABC):
         self.last_gate_index = 0
         self.enroute = False
         self.process_event = threading.Event()
+        self.contestant.reset_track_and_score()
         _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
         self.scorecard = self.contestant.navigation_task.scorecard
         self.gates = self.create_gates()
@@ -118,17 +117,19 @@ class Gatekeeper(ABC):
 
     def check_for_buffered_data_if_necessary(self, position_data: Dict) -> List[Dict]:
         if self.latest_position_report is None:
-            return [position_data]
+            latest_position_time = self.contestant.tracker_start_time
+        else:
+            latest_position_time = self.latest_position_report
         current_time = position_data["device_time"]
-        time_difference = (current_time - self.latest_position_report).total_seconds()
+        time_difference = (current_time - latest_position_time).total_seconds()
         if time_difference > 3:
             # Wait for some time to have intermediate positions ready in the database
             time.sleep(min(time_difference, 15))
             # Get positions in between
             logger.debug(
-                f"{self.contestant}: Position time difference is more than 3 seconds ({self.latest_position_report.strftime('%H:%M:%S')} to {current_time.strftime('%H:%M:%S')} = {time_difference}), so fetching missing data from traccar.")
+                f"{self.contestant}: Position time difference is more than 3 seconds ({latest_position_time.strftime('%H:%M:%S')} to {current_time.strftime('%H:%M:%S')} = {time_difference}), so fetching missing data from traccar.")
             positions = self.traccar.get_positions_for_device_id(position_data["deviceId"],
-                                                                 self.latest_position_report + datetime.timedelta(
+                                                                 latest_position_time + datetime.timedelta(
                                                                      seconds=1),
                                                                  current_time - datetime.timedelta(seconds=1))
             for item in positions:
@@ -346,6 +347,7 @@ class Gatekeeper(ABC):
                 calculator.passed_finishpoint(self.track, self.last_gate)
 
     def notify_termination(self):
+        self.contestant.contestanttrack.set_calculator_finished()
         self.track_terminated = True
 
     def check_termination(self):

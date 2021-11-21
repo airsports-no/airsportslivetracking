@@ -86,8 +86,11 @@ def calculator_process(contestant_pk: int, position_queue: Queue):
     """
     connections.close_all()
     contestant = Contestant.objects.get(pk=contestant_pk)
-    calculator = calculator_factory(contestant, position_queue, live_processing=True)
-    calculator.run()
+    if not contestant.contestanttrack.calculator_finished:
+        calculator = calculator_factory(contestant, position_queue, live_processing=True)
+        calculator.run()
+    else:
+        logger.warning(f"Attempting to start new calculator for terminated contestant {contestant}")
 
 
 def add_positions_to_calculator(contestant: Contestant, positions: List):

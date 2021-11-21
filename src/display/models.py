@@ -2296,15 +2296,13 @@ class ContestantTrack(models.Model):
             self.__push_change()
 
     def set_calculator_finished(self):
-        self.refresh_from_db()
         self.calculator_finished = True
-        self.save()
+        self.save(update_fields=["calculator_finished"])
         self.__push_change()
 
     def set_calculator_started(self):
-        self.refresh_from_db()
         self.calculator_started = True
-        self.save()
+        self.save(update_fields=["calculator_started"])
         self.__push_change()
 
     def set_passed_starting_gate(self):
