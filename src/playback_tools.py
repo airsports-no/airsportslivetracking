@@ -14,6 +14,8 @@ from display.models import Contestant, ContestantUploadedTrack
 
 import os
 
+from redis_queue import RedisQueue
+
 TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
 server = f"{TRACCAR_HOST}:5055"
 
@@ -137,11 +139,11 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     logger.debug("Created new uploaded track with {} positions".format(len(positions)))
     # generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
     # influx.put_position_data_for_contestant(contestant_object, positions)
-    q = Queue()
+    q = RedisQueue(contestant_object.pk)
     for i in positions:
-        q.put(i)
-    q.put(None)
-    calculator = calculator_factory(contestant_object, q, live_processing=False)
+        q.append(i)
+    q.append(None)
+    calculator = calculator_factory(contestant_object, live_processing=False)
     calculator.run()
     while not q.empty():
-        q.get_nowait()
+        q.pop()

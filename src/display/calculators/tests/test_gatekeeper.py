@@ -52,7 +52,7 @@ class TestInterpolation(TransactionTestCase):
                                                     wind_direction=165, wind_speed=8)
 
     def test_no_interpolation(self, p, p2):
-        gatekeeper = GatekeeperRoute(self.contestant, Mock(), [])
+        gatekeeper = GatekeeperRoute(self.contestant, [])
         start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
         next_position = Position(dateutil.parser.parse("2020-01-01T00:00:02Z"), 60, 12, 0, 0, 0, 0, 0, 0)
@@ -61,7 +61,7 @@ class TestInterpolation(TransactionTestCase):
         self.assertEqual(next_position, interpolated[0])
 
     def test_interpolation(self, p, p2):
-        gatekeeper = GatekeeperRoute(self.contestant, Mock(), [])
+        gatekeeper = GatekeeperRoute(self.contestant,  [])
         start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
         next_position = Position(dateutil.parser.parse("2020-01-01T00:00:05Z"), 60, 12, 0, 0, 0, 0, 0, 0)

@@ -7,6 +7,7 @@ import gpxpy
 from requests.auth import HTTPBasicAuth
 import requests
 
+# 10977 Espen
 
 def load_config():
     with open('config.json') as f:
@@ -49,8 +50,8 @@ def create_gpx(positions):
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--from_time', default='2021-03-23')
-    argparser.add_argument('--to_time', default='2021-03-24')
+    argparser.add_argument('--from_time', default='2021-11-21')
+    argparser.add_argument('--to_time', default='2021-11-22')
     args = argparser.parse_args()
     from_time = datetime.strptime(args.from_time, '%Y-%m-%d')
     to_time = datetime.strptime(args.to_time, '%Y-%m-%d')

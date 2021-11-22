@@ -23,6 +23,22 @@ from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 from display.views import create_precision_route_from_csv
 from mock_utilities import TraccarMock
 from playback_tools import insert_gpx_file
+from redis_queue import RedisQueue
+
+
+def calculator_runner(contestant, track):
+    q = RedisQueue(contestant.pk)
+    calculator = calculator_factory(contestant, live_processing=False)
+    for i in track:
+        i["id"] = 0
+        i["deviceId"] = ""
+        i["attributes"] = {}
+        i["device_time"] = dateutil.parser.parse(i["time"])
+        q.append(i)
+    q.append(None)
+    calculator.run()
+    while not q.empty():
+        q.pop()
 
 
 def load_track_points(filename):
@@ -81,22 +97,10 @@ class TestFullTrack(TransactionTestCase):
 
     def test_correct_scoring_correct_track_precision(self, patch, p2):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in positions:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
-
+        calculator_runner( self.contestant, positions )
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(222, # 150.0,
-            contestant_track.score)
+        self.assertEqual(222,  # 150.0,
+                         contestant_track.score)
 
     def test_secret_score_no_override(self, patch, p2):
         expected_time = datetime.datetime(2017, 1, 1, tzinfo=datetime.timezone.utc)
@@ -148,19 +152,7 @@ class TestFullTrack(TransactionTestCase):
         self.contestant.track_score_override = track_override
         self.contestant.save()
         self.contestant.gate_score_override.add(gate_override)
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in positions:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
-
+        calculator_runner( self.contestant, positions )
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(21, contestant_track.score)
 
@@ -179,54 +171,19 @@ class TestFullTrack(TransactionTestCase):
                                                minutes_to_starting_point=6, air_speed=speed,
                                                wind_direction=165, wind_speed=8)
         positions = load_track_points("display/calculators/tests/Helge.gpx")
-        q = Queue()
-        calculator = calculator_factory(contestant, q, live_processing=False)
-        for i in positions:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
+        calculator_runner( contestant, positions )
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
         self.assertEqual(327, contestant_track.score)
 
     def test_correct_scoring_bad_track_precision(self, patch, p2):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in positions:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
-
+        calculator_runner( self.contestant, positions )
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1800, contestant_track.score)
 
     def test_missed_procedure_turn(self, patch, p2):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in positions:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
-
+        calculator_runner( self.contestant, positions )
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
 
         self.assertTrue("TP1: 200.0 points incorrect procedure turn" in strings)
@@ -279,21 +236,9 @@ class Test2017WPFC(TransactionTestCase):
                                                     minutes_to_starting_point=8,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=18)
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
-
+        calculator_runner( self.contestant, track )
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1065, # 1152,
+        self.assertEqual(1065,  # 1152,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
@@ -376,18 +321,7 @@ class TestNM2019(TransactionTestCase):
                                                     minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
+        calculator_runner( self.contestant, track )
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(838,
@@ -405,19 +339,7 @@ class TestNM2019(TransactionTestCase):
                                                     minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
-
+        calculator_runner( self.contestant, track )
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1200,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
@@ -465,18 +387,7 @@ class TestHamar23March2021(TransactionTestCase):
                                                     adaptive_start=True,
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
+        calculator_runner( self.contestant, track )
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(216, contestant_track.score)  # 15 points more than website
@@ -493,19 +404,7 @@ class TestHamar23March2021(TransactionTestCase):
                                                     adaptive_start=True,
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
-
+        calculator_runner( self.contestant, track )
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(213, contestant_track.score)
 
@@ -521,19 +420,7 @@ class TestHamar23March2021(TransactionTestCase):
                                                     adaptive_start=True,
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
-
+        calculator_runner( self.contestant, track )
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(213, contestant_track.score)
 
@@ -549,18 +436,6 @@ class TestHamar23March2021(TransactionTestCase):
                                                     adaptive_start=True,
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
-
+        calculator_runner( self.contestant, track )
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(213, contestant_track.score)  # same as website

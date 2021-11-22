@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 class GatekeeperPoker(Gatekeeper):
     def __init__(
-        self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable], live_processing: bool = True
+            self, contestant: "Contestant", calculators: List[Callable], live_processing: bool = True
     ):
-        super().__init__(contestant, position_queue, calculators, live_processing)
+        super().__init__(contestant, calculators, live_processing)
         logger.info(f"Starting the GatekeeperPoker for contestant {self.contestant}")
         self.gate_polygons = []
         waypoint = self.contestant.navigation_task.route.waypoints[0]

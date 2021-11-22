@@ -16,16 +16,15 @@ from display.coordinate_utilities import line_intersect, fraction_of_leg, Projec
 from display.models import ContestantTrack, Contestant
 from display.waypoint import Waypoint
 
-
 logger = logging.getLogger(__name__)
 
 LOOP_TIME = 60
 
 
 class GatekeeperLanding(Gatekeeper):
-    def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
+    def __init__(self, contestant: "Contestant", calculators: List[Callable],
                  live_processing: bool = True):
-        super().__init__(contestant, position_queue, calculators, live_processing)
+        super().__init__(contestant, calculators, live_processing)
         self.last_intersection = None
         self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
                                  datetime.datetime.min,

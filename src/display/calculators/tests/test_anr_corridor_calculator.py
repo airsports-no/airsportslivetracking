@@ -26,8 +26,24 @@ from display.models import (
     TrackScoreOverride,
 )
 from mock_utilities import TraccarMock
+from redis_queue import RedisQueue
 
 logger = logging.getLogger(__name__)
+
+
+def calculator_runner(contestant, track):
+    q = RedisQueue(contestant.pk)
+    calculator = calculator_factory(contestant, live_processing=False)
+    for i in track:
+        i["id"] = 0
+        i["deviceId"] = ""
+        i["attributes"] = {}
+        i["device_time"] = dateutil.parser.parse(i["time"])
+        q.append(i)
+    q.append(None)
+    calculator.run()
+    while not q.empty():
+        q.pop()
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
@@ -95,18 +111,7 @@ class TestANRPerLeg(TransactionTestCase):
             wind_direction=160,
             wind_speed=0,
         )
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
+        calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
@@ -145,15 +150,7 @@ class TestANRPerLeg(TransactionTestCase):
             wind_direction=160,
             wind_speed=0,
         )
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=True)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        calculator.run()
+        calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
@@ -198,14 +195,14 @@ class TestANRPerLeg(TransactionTestCase):
             wind_direction=160,
             wind_speed=0,
         )
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=True)
+        q = RedisQueue(self.contestant.pk)
+        calculator = calculator_factory(self.contestant, live_processing=True)
         for i in track:
             i["id"] = 0
             i["deviceId"] = ""
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
+            q.append(i)
         threading.Timer(
             1, lambda: self.contestant.request_calculator_termination()
         ).start()
@@ -241,16 +238,7 @@ class TestANRPerLeg(TransactionTestCase):
             wind_direction=160,
             wind_speed=0,
         )
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
+        calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
@@ -330,18 +318,7 @@ class TestANR(TransactionTestCase):
             wind_direction=160,
             wind_speed=0,
         )
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
+        calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(476, contestant_track.score)  # 971,  # 593,  # 2368,
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
@@ -372,18 +349,7 @@ class TestANR(TransactionTestCase):
             wind_direction=160,
             wind_speed=0,
         )
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
+        calculator_runner(self.contestant, track)
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(458, contestant_track.score)  # 953,  # 575,  # 2350,
@@ -399,8 +365,8 @@ class TestAnrCorridorCalculator(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
         with patch(
-            "display.convert_flightcontest_gpx.load_features_from_kml",
-            return_value={"route": [(60, 11), (60, 12), (61, 12), (61, 11)]},
+                "display.convert_flightcontest_gpx.load_features_from_kml",
+                return_value={"route": [(60, 11), (60, 12), (61, 12), (61, 11)]},
         ):
             self.route = create_anr_corridor_route_from_kml("test", Mock(), 0.5, False)
         from display.default_scorecards import default_scorecard_fai_anr_2017
@@ -686,18 +652,7 @@ class TestANRPolygon(TransactionTestCase):
             wind_direction=160,
             wind_speed=0,
         )
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
+        calculator_runner(self.contestant, track)
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
@@ -765,18 +720,7 @@ class TestANRBergenBacktracking(TransactionTestCase):
             wind_direction=220,
             wind_speed=18,
         )
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
+        calculator_runner(self.contestant, track)
         # Incorrectly gets 200 points for prohibited zone at departure and arrival, actual score is 51.
         self.assertEqual(206, self.contestant.contestanttrack.score)
 
@@ -845,19 +789,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
             wind_direction=340,
             wind_speed=15,
         )
-        q = Queue()
-        calculator = calculator_factory(self.contestant, q, live_processing=False)
-        logger.debug(f"Created track with {len(track)} points")
-        for i in track:
-            i["id"] = 0
-            i["deviceId"] = ""
-            i["attributes"] = {}
-            i["device_time"] = dateutil.parser.parse(i["time"])
-            q.put(i)
-        q.put(None)
-        calculator.run()
-        while not q.empty():
-            q.get_nowait()
+        calculator_runner(self.contestant, track)
         # Gets 200 unnecessary points for being inside prohibited zone at departure. Also 200 points for missing final gate. Actual score is 368
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         for s in strings:

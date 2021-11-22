@@ -776,7 +776,7 @@ def upload_gpx_track_for_contesant(request, pk):
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
-def download_track_contesant(request, pk):
+def download_gpx_track_contestant(request, pk):
     """
     Produces a GPX file from whatever is recorded
     """

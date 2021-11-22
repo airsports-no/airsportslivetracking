@@ -25,9 +25,9 @@ class GatekeeperRoute(Gatekeeper):
     GATE_SCORE_TYPE = "gate_score"
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
-    def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
+    def __init__(self, contestant: "Contestant", calculators: List[Callable],
                  live_processing: bool = True):
-        super().__init__(contestant, position_queue, calculators, live_processing)
+        super().__init__(contestant, calculators, live_processing)
         self.last_backwards = None
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
                                   calculate_extended_gate(self.gates[0].waypoint, self.scorecard,

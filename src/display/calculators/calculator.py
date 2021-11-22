@@ -1,8 +1,11 @@
+import logging
 from abc import abstractmethod
 from typing import List, Callable, Dict, Optional
 
 from display.calculators.positions_and_gates import Position, Gate
 from display.models import Contestant, Scorecard, Route
+
+logger = logging.getLogger(__name__)
 
 
 class Calculator:
@@ -17,6 +20,7 @@ class Calculator:
         self.gates = gates
         self.route = route
         self.update_score = update_score
+        logger.debug(f"{contestant}: Starting calculator {self}")
 
     @abstractmethod
     def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):

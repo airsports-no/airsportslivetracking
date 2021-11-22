@@ -12,6 +12,7 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 
+from redis_queue import RedisQueue, RedisEmpty
 from timed_queue import TimedQueue, TimedOut
 from websocket_channels import WebsocketFacade
 
@@ -56,7 +57,7 @@ class Gatekeeper(ABC):
     GATE_SCORE_TYPE = "gate_score"
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
-    def __init__(self, contestant: "Contestant", position_queue: Queue, calculators: List[Callable],
+    def __init__(self, contestant: "Contestant", calculators: List[Callable],
                  live_processing: bool = True):
         super().__init__()
         self.traccar = get_traccar_instance()
@@ -65,7 +66,7 @@ class Gatekeeper(ABC):
         self.track_terminated = False
         self.contestant = contestant
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
-        self.position_queue = position_queue
+        self.position_queue = RedisQueue(str(contestant.pk))
         self.last_termination_command_check = None
         self.track = []  # type: List[Position]
         self.score = 0
@@ -87,6 +88,14 @@ class Gatekeeper(ABC):
         self.calculators = []
         self.websocket_facade = WebsocketFacade()
         self.timed_queue = TimedQueue()
+        try:
+            send_mail(f"Calculator started for {self.contestant}",
+                      f"<a href='{self.contestant.navigation_task.tracking_link}'>{self.contestant.navigation_task}</a>",
+                      None, ["frankose@ifi.uio.no", "espengronstad@gmail.com"],
+                      html_message=f"<a href='https://airsports.no{self.contestant.navigation_task.tracking_link}'>{self.contestant.navigation_task}</a>")
+        except:
+            logger.exception("Failed sending emails")
+        logger.debug(f"{self.contestant}: Starting calculators")
         for calculator in calculators:
             self.calculators.append(
                 calculator(self.contestant, self.scorecard, self.gates, self.contestant.navigation_task.route,
@@ -145,14 +154,14 @@ class Gatekeeper(ABC):
     def enqueue_positions(self):
         while not self.track_terminated:
             try:
-                position_data = self.position_queue.get(timeout=30)
+                position_data = self.position_queue.pop(True, timeout=30)
                 if position_data is not None:
                     release_time = position_data["device_time"] + datetime.timedelta(
                         minutes=self.contestant.navigation_task.calculation_delay_minutes)
                 else:
                     release_time = datetime.datetime.now(datetime.timezone.utc)
                 self.timed_queue.put(position_data, release_time)
-            except Empty:
+            except RedisEmpty:
                 self.check_termination()
 
     def refresh_scores(self):
@@ -161,15 +170,8 @@ class Gatekeeper(ABC):
         self.websocket_facade.transmit_basic_information(self.contestant)
 
     def run(self):
-        logger.info("Started calculator for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
+        logger.info("Started gatekeeper for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
-        try:
-            send_mail(f"Calculator started for {self.contestant}",
-                      f"<a href='{self.contestant.navigation_task.tracking_link}'>{self.contestant.navigation_task}</a>",
-                      None, ["frankose@ifi.uio.no", "espengronstad@gmail.com"],
-                      html_message=f"<a href='https://airsports.no{self.contestant.navigation_task.tracking_link}'>{self.contestant.navigation_task}</a>")
-        except:
-            logger.exception("Failed sending emails")
 
         self.contestant.contestanttrack.set_calculator_started()
         threading.Thread(target=self.enqueue_positions).start()
@@ -232,7 +234,7 @@ class Gatekeeper(ABC):
             self.check_termination()
         self.contestant.contestanttrack.set_calculator_finished()
         while not self.position_queue.empty():
-            self.position_queue.get_nowait()
+            self.position_queue.pop()
         logger.info("Terminating calculator for {}".format(self.contestant))
 
     def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,

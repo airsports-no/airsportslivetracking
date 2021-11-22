@@ -10,6 +10,8 @@ import multiprocessing
 import datetime
 import dateutil
 
+from redis_queue import RedisQueue
+
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
@@ -87,7 +89,7 @@ def calculator_process(contestant_pk: int, position_queue: Queue):
     connections.close_all()
     contestant = Contestant.objects.get(pk=contestant_pk)
     if not contestant.contestanttrack.calculator_finished:
-        calculator = calculator_factory(contestant, position_queue, live_processing=True)
+        calculator = calculator_factory(contestant, live_processing=True)
         calculator.run()
     else:
         logger.warning(f"Attempting to start new calculator for terminated contestant {contestant}")
@@ -98,15 +100,15 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
     key = contestant.pk
     with calculator_lock:
         if key not in processes:
-            q = Queue()
+            q = RedisQueue(str(contestant.pk))
             connections.close_all()
-            p = Process(target=calculator_process, args=(key, q), daemon=True)
+            p = Process(target=calculator_process, args=(contestant.pk,), daemon=True)
             processes[key] = (q, p)
             p.start()
-    queue = processes[key][0]  # type: Queue
+    redis_queue = processes[key][0]
     for position in positions:
         # logger.debug(f"Adding position ID {position['id']} for device ID {position['deviceId']} to calculator")
-        queue.put(position)
+        redis_queue.append(position)
 
 
 def cleanup_calculators():
