@@ -134,6 +134,9 @@ class ConnectedAboutLogoModal extends Component {
                                     this.toggleProfilePictures(e.target.checked)
                                 }} checked={this.props.displayProfilePictures} label={"Display profile pictures"}/>
                             </Form.Group>
+                            <b>
+                                {this.props.navigationTask.calculation_delay_minutes === 0 ? "Data is live" : "Data is delayed by " + this.props.navigationTask.calculation_delay_minutes + " minutes"}
+                            </b>
                         </div>
                     </Container>
                 </Modal.Body>

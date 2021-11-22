@@ -19,3 +19,8 @@ c:\OSGeo4W64\apps\Python37\python.exe -z 5-13 c:\OSGeo4W64\apps\Python37\Scripts
 
 # Generate xyz.  There is a parallel version of this, but I do not have it installed
 gdal2tiles.py mosaic.vrt /maps/tiled
+
+# Inside WSL
+1. sudo apt install gdal-bin
+2. gdalbuildvrt -addalpha tiles.vrt *.tiff
+3. gdal2tiles.py tiles.vrt tiled
