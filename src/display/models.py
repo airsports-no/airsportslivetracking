@@ -2119,6 +2119,7 @@ class ContestantReceivedPosition(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     course = models.FloatField()
+    interpolated = models.BooleanField(default=False)
 
     class Meta:
         ordering = ("time",)
@@ -2144,7 +2145,7 @@ class ContestantReceivedPosition(models.Model):
                         "device_time": point.time,
                     },
                     point.time,
-                )
+                ), interpolated=point.interpolated
             )
             for index, point in enumerate(positions)
         ]

@@ -111,7 +111,8 @@ class Gatekeeper(ABC):
                 positions.append(
                     Position((initial_time + datetime.timedelta(seconds=step)), new_position[0],
                              new_position[1],
-                             position.altitude, position.speed, position.course, position.battery_level, 0, 0))
+                             position.altitude, position.speed, position.course, position.battery_level, 0, 0,
+                             interpolated=True))
         positions.append(position)
         return positions
 
@@ -221,7 +222,8 @@ class Gatekeeper(ABC):
                 for position in self.interpolate_track(p):
                     ContestantReceivedPosition.objects.create(contestant=self.contestant, time=position.time,
                                                               latitude=position.latitude, longitude=position.longitude,
-                                                              course=position.course)
+                                                              course=position.course,
+                                                              interpolated=position.interpolated)
                     self.track.append(position)
                     if len(self.track) > 1:
                         # logger.debug(f"Calculating score for position ID {position.position_id} for device ID {position.device_id}")

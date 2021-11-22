@@ -790,7 +790,7 @@ def download_track_contesant(request, pk):
     for position in recorded_track:
         segment.points.append(
             gpxpy.gpx.GPXTrackPoint(position.latitude, position.longitude, elevation=position.altitude,
-                                    time=position.time))
+                                    time=position.time, comment="Interpolated" if position.interpolated else ""))
     response = HttpResponse(gpx.to_xml(), content_type="application/gpx+xml")
     response["Content-Disposition"] = f"attachment; filename=track.gpx"
     return response
