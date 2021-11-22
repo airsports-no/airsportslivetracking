@@ -178,6 +178,9 @@ class Gatekeeper(ABC):
         number_of_positions = 0
         while not self.track_terminated:
             now = datetime.datetime.now(datetime.timezone.utc)
+            if self.live_processing and now > self.contestant.finished_by_time:
+                self.notify_termination()
+                break
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
                 self.refresh_scores()
                 try:
