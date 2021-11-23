@@ -69,3 +69,5 @@ qrcode
 whitenoise
 django-storages[azure]
 html2text
+kubernetes
+kubernetes-job

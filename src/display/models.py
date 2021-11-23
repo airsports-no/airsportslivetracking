@@ -1565,6 +1565,10 @@ class Contestant(models.Model):
     def finished_by_time_local(self) -> datetime.datetime:
         return self.finished_by_time.astimezone(self.navigation_task.contest.time_zone)
 
+    @property
+    def starting_gate_time(self) -> Optional[datetime.datetime]:
+        return self.gate_times.get(self.navigation_task.route.waypoints[0].name)
+
     def get_final_gate_time(self) -> Optional[datetime.datetime]:
         final_gate = self.navigation_task.route.landing_gate or self.navigation_task.route.waypoints[-1]
         return self.gate_times.get(final_gate.name)

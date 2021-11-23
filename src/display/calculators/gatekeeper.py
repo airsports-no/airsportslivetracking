@@ -60,6 +60,7 @@ class Gatekeeper(ABC):
     def __init__(self, contestant: "Contestant", calculators: List[Callable],
                  live_processing: bool = True):
         super().__init__()
+        logger.info(f"{contestant}: Created gatekeeper")
         self.traccar = get_traccar_instance()
         self.latest_position_report = None
         self.live_processing = live_processing
@@ -341,7 +342,7 @@ class Gatekeeper(ABC):
         logger.info(f"last_gate: {self.last_gate} {self.last_gate.type}")
         if self.enroute and self.last_gate is not None and self.last_gate.type in ["ldg", "ifp", "fp"]:
             self.enroute = False
-            logger.info("Switching to not enroute")
+            logger.info("thisSwitching to not enroute")
             return
         if not self.enroute and self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]:
             self.enroute = True
@@ -354,6 +355,7 @@ class Gatekeeper(ABC):
                 calculator.passed_finishpoint(self.track, self.last_gate)
 
     def notify_termination(self):
+        logger.info(f"{self.contestant}: Setting termination flag")
         self.contestant.contestanttrack.set_calculator_finished()
         self.track_terminated = True
 
@@ -372,6 +374,7 @@ class Gatekeeper(ABC):
             self.last_termination_command_check = now
             termination_requested = cache.get(self.contestant.termination_request_key)
             if termination_requested:
+                logger.info(f"{self.contestant}: Termination request received")
                 cache.delete(self.contestant.termination_request_key)
             return termination_requested is True
         return False

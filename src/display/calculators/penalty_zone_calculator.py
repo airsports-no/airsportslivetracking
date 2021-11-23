@@ -8,7 +8,7 @@ import cartopy.crs as ccrs
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import PolygonHelper
 from display.calculators.positions_and_gates import Position, Gate
-from display.models import Contestant, Scorecard, Route
+from display.models import Contestant, Scorecard, Route, INFORMATION, ANOMALY
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class PenaltyZoneCalculator(Calculator):
                     "exited penalty zone {}".format(zone),
                     position.latitude,
                     position.longitude,
-                    "anomaly",
+                    INFORMATION,
                     self.INSIDE_PENALTY_ZONE_PENALTY_TYPE,
                 )
                 del self.existing_reference[zone]
@@ -90,7 +90,7 @@ class PenaltyZoneCalculator(Calculator):
                     "inside penalty zone {}".format(zone),
                     position.latitude,
                     position.longitude,
-                    "info",
+                    ANOMALY,
                     self.INSIDE_PENALTY_ZONE_PENALTY_TYPE,
                     existing_reference=self.existing_reference.get(zone),
                 )

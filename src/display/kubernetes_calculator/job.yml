@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: calculator-job
+spec:
+  template:
+    metadata:
+      labels: {}
+    spec:
+      backoffLimit: 4
+      containers:
+      - image: airsportsacr.azurecr.io/tracker_processor:latest
+        requests:
+          cpu: 200m
+          memory: 200Mi
+        limits:
+          cpu: 400m
+          memory: 1Gi
+        name: calculator-job
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        volumeMounts:
+          - mountPath: /secret
+            readOnly: true
+            name: firebase
+      restartPolicy: Never  # OnFailure
+      volumes:
+        - name: firebase
+          secret:
+            secretName: firebase-secrets

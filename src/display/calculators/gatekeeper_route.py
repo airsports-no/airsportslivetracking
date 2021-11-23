@@ -240,6 +240,8 @@ class GatekeeperRoute(Gatekeeper):
 
 
     def calculate_gate_score(self):
+        if not len(self.track):
+            return
         index = 0
         finished = False
         current_position = self.track[-1]

@@ -67,8 +67,6 @@ class AnrCorridorCalculator(Calculator):
             else:
                 points.append(waypoint.gate_line[1])
         points = np.array(points)
-        print(points.shape)
-        print(points)
         transformed_points = self.utm.transform_points(self.pc, points[:, 1], points[:, 0])
         return Polygon(transformed_points)
 

@@ -26,6 +26,7 @@ services:
       - ./weblog:/logs
       - ./mapserver:/maptiles
       - ./aircraft_database:/aircraft_database
+      - ./src/display/kubernetes_calculator/ca.crt:/aks_certificate/ca.crt
     environment:
       - MODE=dev
     ports:

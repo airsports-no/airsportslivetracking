@@ -2387,6 +2387,7 @@ class NavigationTaskViewSet(ModelViewSet):
             tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
             if adaptive_start:
                 tracker_start_time = starting_point_time - datetime.timedelta(hours=1)
+                takeoff_time = tracker_start_time
             contestant = Contestant(
                 team=contest_team.team,
                 takeoff_time=takeoff_time,
@@ -2435,15 +2436,19 @@ class NavigationTaskViewSet(ModelViewSet):
                 team__crew__member1__email=request.user.email,
                 contestanttrack__calculator_started=False,
             ).delete()
-
-            # Terminate ongoing contestants
+            # If the contestant has not reached the takeoff time, delete the contestant
+            navigation_task.contestant_set.filter(
+                takeoff_time__gte=datetime.datetime.now(datetime.timezone.utc),
+                team__crew__member1__email=request.user.email,
+            ).delete()
+            # Terminate ongoing contestants where the time has passed the takeoff time
             for c in navigation_task.contestant_set.filter(
                     finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
                     team__crew__member1__email=request.user.email,
                     contestanttrack__calculator_started=True,
             ):
-                c.finished_by_time = max(c.takeoff_time + datetime.timedelta(seconds=1),
-                                         datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=1))
+                # We know the takeoff time is in the past, so we can freely set it to now.
+                c.finished_by_time = datetime.datetime.now(datetime.timezone.utc)
                 c.save()
                 c.request_calculator_termination()
             return Response(status=status.HTTP_204_NO_CONTENT)

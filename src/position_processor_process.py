@@ -9,7 +9,9 @@ import multiprocessing
 
 import datetime
 import dateutil
+from django.core.mail import send_mail
 
+from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
 from redis_queue import RedisQueue
 
 if __name__ == "__main__":
@@ -101,10 +103,25 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
     with calculator_lock:
         if key not in processes:
             q = RedisQueue(str(contestant.pk))
-            connections.close_all()
-            p = Process(target=calculator_process, args=(contestant.pk,), daemon=True)
-            processes[key] = (q, p)
-            p.start()
+            # Create kubernetes job for the calculator
+            creator = JobCreator()
+            processes[key] = (q, None)
+            try:
+                response = creator.spawn_calculator_job(contestant.pk)
+                logger.info(f"Successfully created calculator job for {contestant}")
+            except AlreadyExists:
+                logger.warning(
+                    f"Tried to start existing calculator job for contestant {contestant}. Ignoring the failure.")
+            except:
+                logger.exception(f"Failed starting kubernetes calculator job for {contestant}")
+                send_mail("Failed starting kubernetes calculator job",
+                          f"Failed starting job for contestant {contestant}. Falling back to internal calculator.",
+                          None, ["frankose@ifi.uio.no"])
+                # Create an internal process for the calculator
+                connections.close_all()
+                p = Process(target=calculator_process, args=(contestant.pk,), daemon=True)
+                p.start()
+                processes[key] = (q, p)
     redis_queue = processes[key][0]
     for position in positions:
         # logger.debug(f"Adding position ID {position['id']} for device ID {position['deviceId']} to calculator")
@@ -113,7 +130,7 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
 
 def cleanup_calculators():
     for key, (queue, process) in dict(processes).items():
-        if not process.is_alive():
+        if process and not process.is_alive():
             processes.pop(key)
 
 
