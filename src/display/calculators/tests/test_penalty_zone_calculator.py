@@ -1,5 +1,5 @@
 import datetime
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 from django.test import TransactionTestCase
 
@@ -27,23 +27,24 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         self.calculator.scorecard.get_penalty_zone_penalty_per_second = lambda c: 3
         self.calculator.scorecard.get_penalty_zone_maximum = lambda c: 200
 
-
     def test_inside_enroute(self):
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11.5
+        position.time = datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc)
         gate = Mock()
         self.calculator.calculate_enroute([position], gate, gate)
-        self.update_score.assert_called_with(gate, 0, 'entered penalty zone test', 60.5, 11.5, 'info',
+        self.update_score.assert_called_with(gate, 0, 'inside penalty zone test', 60.5, 11.5, 'info',
                                              'inside_penalty_zone', existing_reference=None)
 
     def test_inside_outside_route(self):
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11.5
+        position.time = datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc)
         gate = Mock()
         self.calculator.calculate_outside_route([position], gate)
-        self.update_score.assert_called_with(gate, 0, 'entered penalty zone test', 60.5, 11.5, 'info',
+        self.update_score.assert_called_with(gate, 0, 'inside penalty zone test', 60.5, 11.5, 'info',
                                              'inside_penalty_zone', existing_reference=None)
 
     def test_in_and_out_within_grace_time_enroute(self):
@@ -53,7 +54,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position.time = datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)
         gate = Mock()
         self.calculator.calculate_outside_route([position], gate)
-        self.update_score.assert_called_with(gate, 0, 'entered penalty zone test', 60.5, 11.5, 'info',
+        self.update_score.assert_called_with(gate, 0, 'inside penalty zone test', 60.5, 11.5, 'info',
                                              'inside_penalty_zone', existing_reference=None)
 
         position = Mock()
@@ -69,11 +70,31 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11.5
-        position.time = datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)
         gate = Mock()
-        self.calculator.calculate_outside_route([position], gate)
-        self.update_score.assert_called_with(gate, 0, 'entered penalty zone test', 60.5, 11.5, 'info',
-                                             'inside_penalty_zone', existing_reference=None)
+        for index in range(0, 30, 3):
+            position.time = datetime.datetime(2020, 1, 1, second=index, tzinfo=datetime.timezone.utc)
+            self.calculator.calculate_outside_route([position], gate)
+        expected_calls = [call(gate, 0, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=None),
+                          call(gate, 0, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=self.calculator.existing_reference["test"]),
+                          call(gate, 9, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=self.calculator.existing_reference["test"]),
+                          call(gate, 18, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=self.calculator.existing_reference["test"]),
+                          call(gate, 27, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=self.calculator.existing_reference["test"]),
+                          call(gate, 36, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=self.calculator.existing_reference["test"]),
+                          call(gate, 45, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=self.calculator.existing_reference["test"]),
+                          call(gate, 54, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=self.calculator.existing_reference["test"]),
+                          call(gate, 63, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=self.calculator.existing_reference["test"]),
+                          call(gate, 72, 'inside penalty zone test', 60.5, 11.5, 'info', 'inside_penalty_zone',
+                               existing_reference=self.calculator.existing_reference["test"])]
+        self.update_score.assert_has_calls(expected_calls)
 
         position = Mock()
         position.latitude = 59.5
@@ -81,7 +102,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position.time = datetime.datetime(2020, 1, 1, 0, 0, 10, tzinfo=datetime.timezone.utc)
         gate = Mock()
         self.calculator.calculate_outside_route([position], gate)
-        self.update_score.assert_called_with(gate, 21, 'exited penalty zone test', 59.5, 11.5, 'anomaly',
+        self.update_score.assert_called_with(gate, 0, 'exited penalty zone test', 59.5, 11.5, 'anomaly',
                                              'inside_penalty_zone')
 
     def test_outside_enroute(self):

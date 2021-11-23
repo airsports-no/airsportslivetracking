@@ -82,7 +82,7 @@ def build_and_push_position_data(data, traccar, global_map_queue):
     cleanup_calculators()
 
 
-def calculator_process(contestant_pk: int, position_queue: Queue):
+def calculator_process(contestant_pk: int):
     """
     To be run in a separate process
     """
