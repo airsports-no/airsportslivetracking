@@ -3,6 +3,7 @@ import aboutPrecisionFlying from "./aboutTexts/aboutPrecisionFlying";
 import aboutPilotPokerRun from "./aboutTexts/aboutPilotPokerRun";
 import aboutANR from "./aboutTexts/aboutANR";
 import AboutLogoPopup from "./aboutLogoPopup";
+import aboutAirsports from "./aboutTexts/aboutAirsports";
 
 export default class AboutTaskPopup extends Component {
     render() {
@@ -16,6 +17,9 @@ export default class AboutTaskPopup extends Component {
                     text = aboutPilotPokerRun
                 } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
                     text = aboutANR(this.props.navigationTask.actual_rules)
+                }else if (this.props.navigationTask.scorecard_data.task_type.includes("airsports")) {
+                    text = aboutAirsports(this.props.navigationTask.actual_rules, this.props.navigationTask.route.waypoints)
+                    displaySecretGatesToggle = true
                 }
             }
         }

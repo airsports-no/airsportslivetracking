@@ -46,4 +46,10 @@ Current cluster server is:
 https://airsports-dns-b66fdeca.hcp.northeurope.azmk8s.io:443
 ```
 
-For local configurations we need to set up the basic secrets
+# Controlling the auto scaler
+```shell
+az aks update \
+  --resource-group airsports_group \
+  --name airsports \
+  --cluster-autoscaler-profile max-graceful-termination-sec=7200
+```

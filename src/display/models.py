@@ -985,6 +985,8 @@ class Scorecard(models.Model):
             return self.__scores_display_precision(contestant)
         elif self.ANR_CORRIDOR in self.task_type:
             return self.__scores_display_anr(contestant)
+        elif self.AIRSPORTS in self.task_type:
+            return self.__scores_display_airsports(contestant)
         return []
 
     def scores_for_gate(self, contestant: "Contestant", gate: str) -> List[Dict]:
@@ -1042,6 +1044,36 @@ class Scorecard(models.Model):
                 {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
                 for item in GATES_TYPES
                 if item[0] in (STARTINGPOINT, FINISHPOINT)
+            ],
+        }
+        return scores
+
+
+    def __scores_display_airsports(self, contestant: "Contestant") -> List[Dict]:
+        scores = {
+            "track": [
+                self.__format_value("backtracking_penalty", contestant),
+                self.__format_value("backtracking_bearing_difference", contestant),
+                self.__format_value("backtracking_grace_time_seconds", contestant),
+                self.__format_value("backtracking_maximum_penalty", contestant),
+                self.__format_value("below_minimum_altitude_penalty", contestant),
+                self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
+                self.__format_value("prohibited_zone_penalty", contestant),
+                self.__format_value("corridor_grace_time", contestant),
+                self.__format_value("corridor_outside_penalty", contestant),
+                self.__format_value("corridor_maximum_penalty", contestant),
+                self.__format_value("penalty_zone_grace_time", contestant),
+                self.__format_value("penalty_zone_penalty_per_second", contestant),
+                self.__format_value("penalty_zone_maximum", contestant),
+                {
+                    "name": "corridor width",
+                    "value": contestant.navigation_task.route.corridor_width,
+                    "help_text": "The width of the corridor in nautical miles",
+                },
+            ],
+            "gates": [
+                {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
+                for item in GATES_TYPES
             ],
         }
         return scores
@@ -2109,7 +2141,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         self.gatecumulativescore_set.all().delete()
         self.actualgatetime_set.all().delete()
         self.contestanttrack.delete()
-        ContestantTrack.objects.create(contestant=self)
+        contestant_track = ContestantTrack.objects.create(contestant=self)
+        contestant_track.update_score(0)
 
 
 class ContestantUploadedTrack(models.Model):
