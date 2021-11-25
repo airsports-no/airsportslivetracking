@@ -26,7 +26,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django_use_email_as_username.models import BaseUser, BaseUserManager
 from guardian.mixins import GuardianUserMixin
-from guardian.shortcuts import get_objects_for_user, assign_perm
+from guardian.shortcuts import get_objects_for_user, assign_perm, get_users_with_perms
 from multiselectfield import MultiSelectField
 from six import text_type
 from timezone_field import TimeZoneField
@@ -112,6 +112,9 @@ class TraccarCredentials(SingletonModel):
 class MyUser(BaseUser, GuardianUserMixin):
     username = models.CharField(max_length=50, default="not_applicable")
     objects = BaseUserManager()
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} ({self.email})"
 
     def send_welcome_email(self, person: "Person"):
         html = render_to_string("display/welcome_email.html",
@@ -593,6 +596,8 @@ class Contest(models.Model):
         if self.latitude == 0 and self.longitude == 0:
             self.latitude = latitude
             self.longitude = longitude
+            if not self.country:
+                self.country = get_country_code_from_location(self.latitude, self.longitude)
             self.save()
 
     def make_public(self):
@@ -621,6 +626,11 @@ class Contest(models.Model):
     @property
     def contest_team_count(self):
         return self.contest_teams.all().count()
+
+    @property
+    def editors(self) -> List:
+        users = get_users_with_perms(self, attach_perms=True)
+        return [user for user, permissions in users.items() if "change_contest" in permissions]
 
 
 class NavigationTask(models.Model):

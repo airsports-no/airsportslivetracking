@@ -9,6 +9,7 @@
             <th>Task</th>
             <th>Start time</th>
             <th>Finish time</th>
+            <th>Editors</th>
         </tr>
         </thead>
 
@@ -24,6 +25,12 @@
                 </td>
                 <td>
                     {{ contest.finish_time|timezone:contest.time_zone|date:"Y-m-d" }}
+                </td>
+                <td>
+                {{ contest.editors|join:", " }}
+{#                    {% for user in contest.editors %}#}
+{#                        {{ user.first_name }} {{ user.last_name }} ({{ user.email }})#}
+{#                    {% endfor %}#}
                 </td>
             </tr>
         {% endfor %}
