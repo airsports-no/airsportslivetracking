@@ -722,7 +722,8 @@ class ContestForm(forms.ModelForm):
                 HTML(
                     "If no position is given, position will be extracted from the starting position of the first task added to the contest"),
                 "latitude",
-                "longitude"
+                "longitude",
+                "country"
             ),
             Fieldset(
                 "Publicity",

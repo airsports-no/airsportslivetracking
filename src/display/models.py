@@ -543,7 +543,7 @@ class Contest(models.Model):
         blank=True,
         help_text="Quadratic logo that is shown next to the event in the event list",
     )
-    country = CountryField(blank=True, null=True)
+    country = CountryField(blank=True, null=True, help_text="Optional, if omitted country will be inferred from latitude and longitude if they are provided.")
 
     @property
     def country_flag_url(self):
@@ -570,7 +570,7 @@ class Contest(models.Model):
     def initialise(self, user: MyUser):
         self.start_time = self.time_zone.localize(self.start_time.replace(tzinfo=None))
         self.finish_time = self.time_zone.localize(self.finish_time.replace(tzinfo=None))
-        if self.latitude != 0 and self.longitude != 0:
+        if self.latitude != 0 and self.longitude != 0 and (not self.country or self.country==""):
             self.country = get_country_code_from_location(self.latitude, self.longitude)
         self.save()
         assign_perm("delete_contest", user, self)
