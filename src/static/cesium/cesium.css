@@ -396,6 +396,12 @@ tr.hidden {
 
 .lowerThirdsProfileImage {
     align-self: flex-end; /* safari */
+    height: 280px;
+    width: auto;
+    margin-left: auto;
+    margin-right: auto;
+    object-fit: cover;
+    overflow: hidden;
 }
 
 .lowerThirdsTeamImage {

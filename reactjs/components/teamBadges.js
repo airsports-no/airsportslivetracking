@@ -34,11 +34,11 @@ export class TeamBadge extends Component {
 }
 
 function memberOnePicture(crew) {
-    return <img className={"lowerThirdsProfileImage img-fluid"} src={crew.member1.picture}/>
+    return <img className={"lowerThirdsProfileImage"} src={crew.member1.picture}/>
 }
 
 function memberTwoPicture(crew) {
-    return crew.member2 ? <img className={"lowerThirdsProfileImage  img-fluid"} src={crew.member2.picture}/> : null
+    return crew.member2 ? <img className={"lowerThirdsProfileImage"} src={crew.member2.picture}/> : null
 }
 
 function memberName(member) {
