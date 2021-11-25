@@ -553,6 +553,7 @@ class ConnectedRouteEditor extends Component {
                 if (track.trackPoints[index].timeCheck) {
                     circle([p.lat, p.lng], {
                         radius: track.trackPoints[index].gateWidth * 1852 / 2,
+                        index: index,
                         color: "blue",
                         opacity: 0.05
                     }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {

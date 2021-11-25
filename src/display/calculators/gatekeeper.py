@@ -76,7 +76,6 @@ class Gatekeeper(ABC):
         self.enroute = False
         self.process_event = threading.Event()
         self.contestant.reset_track_and_score()
-        _, _ = ContestantTrack.objects.get_or_create(contestant=self.contestant)
         self.scorecard = self.contestant.navigation_task.scorecard
         self.gates = self.create_gates()
         self.outstanding_gates = list(self.gates)
