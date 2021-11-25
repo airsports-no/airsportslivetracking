@@ -236,12 +236,14 @@ class NavigationTasksSummaryParticipationSerialiser(serializers.ModelSerializer)
         return serialiser.data
 
 
-class ContestSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
+class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(required=True)
     navigationtask_set = SerializerMethodField("get_visiblenavigationtasks")
     contestsummary_set = ContestSummaryNestedSerialiser(many=True, read_only=True)
     contest_team_count = serializers.IntegerField(read_only=True)
     share_string = serializers.CharField(read_only=True)
+    country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
+    country = CountryField(required=False)
 
     class Meta:
         model = Contest

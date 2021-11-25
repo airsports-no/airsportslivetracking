@@ -8,9 +8,7 @@ import EllipsisWithTooltip from "react-ellipsis-with-tooltip";
 export const mapStateToProps = (state, props) => ({
     zoomContest: state.zoomContest
 })
-export const mapDispatchToProps = {
-}
-
+export const mapDispatchToProps = {}
 
 
 class ConnectedContestItem extends Component {
@@ -34,11 +32,13 @@ class ConnectedContestItem extends Component {
                          <span className={"d-flex justify-content-between align-items-centre"}
                                style={{paddingLeft: "10px"}}>
                              <span>
-                                 <b>{this.props.contest.name}</b><br/>
+                                 <b>{this.props.contest.name}</b>
+                                 <br/>
                                  {new Date(this.props.contest.start_time).toLocaleDateString()} -
                                  {new Date(this.props.contest.finish_time).toLocaleDateString()}
                              </span>
                              {/*<i className={"mdi mdi-public"} style={{fontSize: "40px"}}/>*/}
+                             <img src={this.props.contest.country_flag_url} style={{height: "20px"}}/>
                     </span>
                     {/*{this.props.contest.latitude !== 0 && this.props.contest.longitude !== 0 ?*/}
                     {/*    <i className={"mdi mdi-zoom-in"} onClick={() => this.handleClick()}/> : null}*/}

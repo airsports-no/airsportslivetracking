@@ -45,6 +45,7 @@ from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.my_pickled_object_field import MyPickledObjectField
 from display.poker_cards import PLAYING_CARDS
 from display.track_merger import merge_tracks
+from display.utilities import get_country_code_from_location
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
@@ -539,6 +540,14 @@ class Contest(models.Model):
         blank=True,
         help_text="Quadratic logo that is shown next to the event in the event list",
     )
+    country = CountryField(blank=True, null=True)
+
+    @property
+    def country_flag_url(self):
+        print(f"Country: {self.country}")
+        if self.country:
+            return self.country.flag
+        return None
 
     @property
     def share_string(self):
@@ -558,6 +567,8 @@ class Contest(models.Model):
     def initialise(self, user: MyUser):
         self.start_time = self.time_zone.localize(self.start_time.replace(tzinfo=None))
         self.finish_time = self.time_zone.localize(self.finish_time.replace(tzinfo=None))
+        if self.latitude != 0 and self.longitude != 0:
+            self.country = get_country_code_from_location(self.latitude, self.longitude)
         self.save()
         assign_perm("delete_contest", user, self)
         assign_perm("view_contest", user, self)
@@ -1047,7 +1058,6 @@ class Scorecard(models.Model):
             ],
         }
         return scores
-
 
     def __scores_display_airsports(self, contestant: "Contestant") -> List[Dict]:
         scores = {

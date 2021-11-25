@@ -15,7 +15,6 @@ import cartopy.crs as ccrs
 from matplotlib import patheffects
 from shapely.geometry import Polygon
 
-from geopy.geocoders import Nominatim
 
 from display.coordinate_utilities import (
     calculate_distance_lat_lon,
@@ -45,14 +44,6 @@ LINEWIDTH = 0.5
 logger = logging.getLogger(__name__)
 
 
-def get_country_code_from_location(latitude: float, longitude: float):
-    try:
-        geolocator = Nominatim(user_agent="airsports.no")
-        location = geolocator.reverse(f"{latitude}, {longitude}")
-        return location.raw["address"]["country_code"]
-    except:
-        logger.exception(f"Failed fetching country for location {latitude}, {longitude}")
-        return "xxx"
 
 
 def create_minute_lines(

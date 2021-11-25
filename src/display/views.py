@@ -107,7 +107,6 @@ from display.map_plotter import (
     plot_route,
     get_basic_track,
     A4,
-    get_country_code_from_location,
     country_code_to_map_source,
 )
 from display.models import (
@@ -202,6 +201,7 @@ from display.serialisers import (
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import import_gpx_track, generate_and_notify_flight_order, revert_gpx_track_to_traccar
 from display.traccar_factory import get_traccar_instance
+from display.utilities import get_country_code_from_location
 from live_tracking_map import settings
 from live_tracking_map.settings import REDIS_HOST
 from websocket_channels import WebsocketFacade, generate_contestant_data_block, DateTimeEncoder
