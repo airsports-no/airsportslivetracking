@@ -549,7 +549,7 @@ class Contest(models.Model):
     def country_flag_url(self):
         print(f"Country: {self.country}")
         if self.country:
-            return self.country.flag
+            return "/static/flags/3x2/" + str(self.country) + ".svg"
         return None
 
     @property
