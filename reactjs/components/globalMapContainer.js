@@ -10,6 +10,7 @@ import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
 import {internalColour, ognColour, openSkyColour} from "./aircraft/aircraft";
 import {withRouter} from "react-router-dom";
 import OngoingNavigationTicker from "./contests/ongoingNavigationTicker";
+import WikiLogoPopup from "./wikiPopup";
 
 const mapStateToProps = (state, props) => ({})
 
@@ -46,6 +47,7 @@ class ConnectedGlobalMapContainer extends Component {
                         </div>
                         <Disclaimer/>
                         <AboutLogoPopup aboutText={aboutGlobalMap} size={2}/>
+                        <WikiLogoPopup size={2}/>
                         <div id="cesiumContainer"/>
                         <div className="ongoing-navigation-ticker"><OngoingNavigationTicker/></div>
                     </div>

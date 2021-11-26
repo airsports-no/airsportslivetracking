@@ -235,7 +235,7 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
     for name in features.keys():
         try:
             zone_type, zone_name = name.split("_")
-            if zone_type in ("prohibited", "info", "gate"):
+            if zone_type in ("prohibited", "info", "penalty", "gate"):
                 Prohibited.objects.create(name=zone_name, route=route, path=features[name], type=zone_type)
         except ValueError:
             pass

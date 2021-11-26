@@ -41,7 +41,11 @@ import {
     TOGGLE_SECRET_GATES,
     TOGGLE_BACKGROUND_MAP,
     FETCH_EDITABLE_ROUTE_SUCCESSFUL,
-    FETCH_EDITABLE_ROUTE, FETCH_INITIAL_TRACKS, FETCH_INITIAL_TRACKS_SUCCESS, TOGGLE_PROFILE_PICTURES
+    FETCH_EDITABLE_ROUTE,
+    FETCH_INITIAL_TRACKS,
+    FETCH_INITIAL_TRACKS_SUCCESS,
+    TOGGLE_PROFILE_PICTURES,
+    DISPLAY_WIKI_MODAL
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -168,6 +172,15 @@ export const displayAboutModal = () => (dispatch) => {
 
 export const hideAboutModal = () => (dispatch) => {
     dispatch({type: DISPLAY_ABOUT_MODAL, payload: false})
+}
+
+
+export const displayWikiModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_WIKI_MODAL, payload: true})
+}
+
+export const hideWikiModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_WIKI_MODAL, payload: false})
 }
 
 export const toggleSecretGates = (visible) => (dispatch) => {

@@ -1,7 +1,7 @@
 import gpxpy.gpx
 import numpy as np
 
-base = "espen_test"
+base = "espen_buss"
 
 sources = ["app", "traccar", "airsports"]
 
@@ -11,20 +11,23 @@ for source in sources:
     with open(f"{base}_{source}.gpx", "r") as file:
         gpx = gpxpy.parse(file)
         for position in gpx.tracks[0].segments[0].points:
+            post=""
+            if position.comment and "Interpolated" in position.comment:
+                post = "_interpolated"
             try:
-                tracks[position.time].append((source, position))
+                tracks[position.time].append((source+post, position))
             except KeyError:
-                tracks[position.time] = [(source, position)]
+                tracks[position.time] = [(source+post, position)]
 
 times = sorted(tracks.keys())
-fractional_digits=5
-previous_app= None
+fractional_digits = 6
+previous_app = None
 for stamp in times:
     present_sources = set(item[0] for item in tracks[stamp])
     position_differences = {}
     for source, position in tracks[stamp]:
-        if source=="app":
-            previous_app=position
+        if source == "app":
+            previous_app = position
         key = (np.around(position.latitude, fractional_digits), np.around(position.longitude, fractional_digits))
         try:
             position_differences[key].append(source)

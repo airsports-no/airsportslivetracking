@@ -1,34 +1,11 @@
 # Pure local development environment
 
-version: '3.6'
 services:
-#  swag:
-#    image: ghcr.io/linuxserver/swag
-#    container_name: swag
-#    cap_add:
-#      - NET_ADMIN
-#    environment:
-#      - PUID=1000
-#      - PGID=1000
-#      - TZ=Europe/London
-#      - ONLY_SUBDOMAINS=false
-#      - URL=airsports.no
-#      - SUBDOMAINS=tracking,traccar,traccarclient,www
-#      - EMAIL=frankose@ifi.uio.no
-#      - VALIDATION=http
-#    volumes:
-#      - ./swag/config:/config
-#      - ./assets:/assets/
-#      - ./src/media:/media
-#      - ./static:/static
-#    ports:
-#      - 443:443
-#      - 80:80 # Required for certificate validation
-#    restart: unless-stopped
-
   tracker_web:
     container_name: tracker_web
     image: airsportsacr.azurecr.io/tracker_web
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py runserver 0.0.0.0:8000" ]
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
       - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
@@ -37,6 +14,10 @@ services:
       - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
       - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
       - MODE=dev
+      - STORAGE_ACCOUNT_SECRET
+      - MEDIA_LOCATION
+      - AZURE_ACCOUNT_NAME
+
     build:
       context: .
       dockerfile: Dockerfile
@@ -226,7 +207,7 @@ services:
     ports:
       - 5000-5150:5000-5150
       - 5000-5150:5000-5150/udp
-#      - 8082:8082
+    #      - 8082:8082
     depends_on:
       - mysql
 
@@ -245,9 +226,9 @@ services:
 
   redis:
     image: redis
-#    build:
-#      context: .
-#      dockerfile: Dockerfile.redis
+    #    build:
+    #      context: .
+    #      dockerfile: Dockerfile.redis
     container_name: redis
   logrotate:
     image: blacklabelops/logrotate

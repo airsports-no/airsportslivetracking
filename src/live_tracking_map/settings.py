@@ -101,7 +101,24 @@ INSTALLED_APPS = [
     "display.apps.DisplayConfig",
     "firebase.apps.FirebaseConfig",
     "multiselectfield",
-    'storages'
+    'storages',
+    #### Wagtail
+    'wagtail.contrib.forms',
+    'wagtail.contrib.redirects',
+    'wagtail.embeds',
+    'wagtail.sites',
+    'wagtail.users',
+    'wagtail.snippets',
+    'wagtail.documents',
+    'wagtail.images',
+    'wagtail.search',
+    'wagtail.admin',
+    'wagtail.core',
+    'wagtail.api.v2',
+    'modelcluster',
+    'taggit',
+    ####
+    'wiki',
 ]
 if os.environ.get("MODE") != "dev":
     INSTALLED_APPS.append("drf_firebase_auth")
@@ -140,8 +157,17 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "live_tracking_map.middleware.HandleKnownExceptionsMiddleware",
+    'wagtail.contrib.redirects.middleware.RedirectMiddleware',
     # 'google_analytics.middleware.GoogleAnalyticsMiddleware',
 ]
+
+WAGTAIL_SITE_NAME = 'Airsports Live Tracking'
+
+WAGTAILSEARCH_BACKENDS = {
+    'default': {
+        'BACKEND': 'wagtail.search.backends.database',
+    }
+}
 
 ROOT_URLCONF = "live_tracking_map.urls"
 
@@ -367,7 +393,7 @@ CACHES = {
     },
 }
 
-if any(s in sys.argv for s in ("test", )):
+if any(s in sys.argv for s in ("test",)):
     cache.clear()
 # CELERY_ACCEPT_CONTENT = ["application/json"]
 # CELERY_RESULT_SERIALIZER = "json"
