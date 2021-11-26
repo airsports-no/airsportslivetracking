@@ -822,6 +822,27 @@ class Member2SearchForm(Member1SearchForm):
         )
 
 
+class PersonPictureForm(forms.ModelForm):
+    # picture = forms.ImageField(widget=ImagePreviewWidget)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+        self.helper.layout = Layout(
+            Fieldset(
+                "Upload picture",
+                "picture",
+            ),
+            ButtonHolder(
+                Submit("submit", "Upload")
+            )
+        )
+
+    class Meta:
+        model = Person
+        fields = ("picture",)
+
+
 class PersonForm(forms.ModelForm):
     # picture = forms.ImageField(widget=ImagePreviewWidget)
     def __init__(self, *args, **kwargs):

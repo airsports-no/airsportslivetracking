@@ -100,7 +100,7 @@ from display.forms import (
     SCALE_TO_FIT,
     GPXTrackImportForm,
     ContestSelectForm,
-    ANRCorridorParametersForm, AirsportsScoreOverrideForm, AirsportsParametersForm,
+    ANRCorridorParametersForm, AirsportsScoreOverrideForm, AirsportsParametersForm, PersonPictureForm,
 )
 from display.generate_flight_orders import generate_flight_orders
 from display.map_plotter import (
@@ -609,6 +609,41 @@ def refresh_editable_route_navigation_task(request, pk):
     except ValidationError as e:
         messages.error(request, str(e))
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
+
+
+@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
+def view_contest_team_images(request, pk):
+    contest = get_object_or_404(Contest, pk=pk)
+    return render(request, "display/contest_team_images.html",
+                  {"contest": contest, "object_list": Person.objects.filter(
+                      Q(crewmember_two__team__contest=contest) | Q(
+                          crewmember_one__team__contest=contest)).distinct().order_by(
+                      "last_name", "first_name")})
+
+
+@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
+def clear_profile_image_background(request, pk, person_pk):
+    contest = get_object_or_404(Contest, pk=pk)
+    person = get_object_or_404(Person, pk=person_pk)
+    result = person.remove_profile_picture_background()
+    if result is not None:
+        messages.error(request, f"Background removal failed for {person}: {result}")
+    else:
+        messages.success(request, f"Background removal successful for {person}")
+    return redirect(reverse("contest_team_images", kwargs={"pk": pk}))
+
+
+@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
+def upload_profile_picture(request, contest_pk, pk):
+    contest = get_object_or_404(Contest, pk=contest_pk)
+    person = get_object_or_404(Person, pk=pk)
+    if request.method == "POST":
+        form = PersonPictureForm(request.POST, request.FILES, instance=person)
+        if form.is_valid():
+            form.save()
+            return redirect(reverse("contest_team_images", kwargs={"pk": contest_pk}))
+    form = PersonPictureForm(instance=person)
+    return render(request, "display/person_upload_picture_form.html", {"form": form, "object": person})
 
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))

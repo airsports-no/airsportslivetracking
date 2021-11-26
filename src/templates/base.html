@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="{% static 'css/material-icons.css' %}">
     <link rel="stylesheet" href="{% static 'jquery-ui/jquery-ui.css' %}">
     <link rel="stylesheet" href="{% static 'css/jquery-ui-timepicker-addon.css' %}">
-    <link rel="stylesheet" href="{% static 'cesium/cesium.css' %}?rnd=23" media="screen">
+    <link rel="stylesheet" href="{% static 'cesium/cesium.css' %}?rnd=24" media="screen">
     <link rel="shortcut icon" type="image/png" href="{% static 'img/airsports_no_text.png' %}">
     <title>AirSports</title>
     {% block document_configuration %}
@@ -136,7 +136,7 @@
                     {% endif %}
                     {% if user.is_superuser  and user.is_staff %}
                         <li class="nav-item"><a class="nav-link" href="/admin/">Configuration</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/cms/">Wiki</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/cms/">CMS</a></li>
                     {% endif %}
                 </ul>
 

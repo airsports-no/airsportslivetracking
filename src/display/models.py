@@ -1,5 +1,6 @@
 import dateutil.parser
 import html2text as html2text
+import requests
 import rest_framework.exceptions as drf_exceptions
 import datetime
 import logging
@@ -16,6 +17,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User, Group
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.files import File
+from django.core.files.base import ContentFile
+from django.core.files.images import ImageFile
 from django.core.mail import send_mail
 from django.core.validators import MaxValueValidator, MinValueValidator
 
@@ -49,6 +53,7 @@ from display.utilities import get_country_code_from_location
 from display.waypoint import Waypoint
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
+from live_tracking_map import settings
 from live_tracking_map.settings import SERVER_ROOT
 
 from phonenumbers.phonenumber import PhoneNumber
@@ -348,6 +353,23 @@ class Person(models.Model):
             return Person.objects.create(phone=phone, email=email, first_name=first_name, last_name=last_name)
         return possible_person.first()
 
+    def remove_profile_picture_background(self):
+        print(f" authorisation key: {settings.REMOVE_BG_KEY}")
+        response = requests.post(
+            'https://api.remove.bg/v1.0/removebg',
+            data={
+                'image_url': self.picture.url,
+                'size': 'auto',
+                'crop': 'true'
+            },
+            headers={'X-Api-Key': settings.REMOVE_BG_KEY},
+        )
+        if response.status_code == requests.codes.ok:
+            self.picture.save("nobg_" + self.picture.name, ContentFile(response.content))
+            return None
+        logger.error("Error:", response.status_code, response.text)
+        return response.text
+
     def validate(self):
         if Person.objects.filter(email=self.email).exclude(pk=self.pk).exists():
             raise ValidationError("A person with this email already exists")
@@ -543,7 +565,8 @@ class Contest(models.Model):
         blank=True,
         help_text="Quadratic logo that is shown next to the event in the event list",
     )
-    country = CountryField(blank=True, null=True, help_text="Optional, if omitted country will be inferred from latitude and longitude if they are provided.")
+    country = CountryField(blank=True, null=True,
+                           help_text="Optional, if omitted country will be inferred from latitude and longitude if they are provided.")
 
     @property
     def country_flag_url(self):
@@ -570,7 +593,7 @@ class Contest(models.Model):
     def initialise(self, user: MyUser):
         self.start_time = self.time_zone.localize(self.start_time.replace(tzinfo=None))
         self.finish_time = self.time_zone.localize(self.finish_time.replace(tzinfo=None))
-        if self.latitude != 0 and self.longitude != 0 and (not self.country or self.country==""):
+        if self.latitude != 0 and self.longitude != 0 and (not self.country or self.country == ""):
             self.country = get_country_code_from_location(self.latitude, self.longitude)
         self.save()
         assign_perm("delete_contest", user, self)

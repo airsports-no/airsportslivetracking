@@ -70,6 +70,8 @@ STORAGE_ACCOUNT_SECRET = os.environ.get("STORAGE_ACCOUNT_SECRET", "")
 AZURE_ACCOUNT_NAME = os.environ.get("AZURE_ACCOUNT_NAME", "")
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 
+REMOVE_BG_KEY = os.environ.get("REMOVE_BG_KEY", "")
+
 REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
 # Application definition
 

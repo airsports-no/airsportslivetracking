@@ -17,7 +17,7 @@ services:
       - STORAGE_ACCOUNT_SECRET
       - MEDIA_LOCATION
       - AZURE_ACCOUNT_NAME
-
+      - REMOVE_BG_KEY
     build:
       context: .
       dockerfile: Dockerfile

@@ -20,7 +20,8 @@ from display.views import frontend_view_map, \
     refresh_editable_route_navigation_task, \
     get_contestant_email_flying_orders_link, broadcast_navigation_task_orders, upload_gpx_track_for_contesant, \
     navigation_task_score_override_view, RouteToTaskWizard, healthz, readyz, revert_uploaded_gpx_track_for_contestant, \
-    copy_editable_route, download_gpx_track_contestant
+    copy_editable_route, download_gpx_track_contestant, view_contest_team_images, clear_profile_image_background, \
+    upload_profile_picture
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -31,6 +32,11 @@ urlpatterns = [
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
     path('contest/<int:pk>/', ContestDetailView.as_view(), name="contest_details"),
     path('contest/<int:pk>/clear_results/', clear_results_service, name="contest_clear_results"),
+    path('contest/<int:pk>/contest_team_images/', view_contest_team_images, name="contest_team_images"),
+    path('contest/<int:pk>/remove_image_background/<int:person_pk>/', clear_profile_image_background,
+         name="clear_profile_image_background"),
+    path('contest/<int:contest_pk>/upload_profile_picture/<int:pk>/', upload_profile_picture,
+         name="upload_profile_picture"),
     path('contest/<int:pk>/permissions/', list_contest_permissions, name="contest_permissions_list"),
     path('contest/<int:pk>/permissions/add/', add_user_contest_permissions, name="contest_permissions_add"),
     path('contest/<int:pk>/permissions/<int:user_pk>/change/', change_user_contest_permissions,
@@ -42,7 +48,8 @@ urlpatterns = [
     path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),
     path('contest/<int:pk>/share/', share_contest, name="contest_share"),
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
-    path('navigationtask/<int:pk>/updatescorecardoverride/', navigation_task_score_override_view, name="navigationtask_updatescorecardoverride"),
+    path('navigationtask/<int:pk>/updatescorecardoverride/', navigation_task_score_override_view,
+         name="navigationtask_updatescorecardoverride"),
     path('navigationtask/<int:pk>/qr/', tracking_qr_code_view, name="navigationtask_qr"),
     path('navigationtask/<int:pk>/map/', get_navigation_task_map, name="navigationtask_map"),
     path('navigationtask/<int:pk>/rules/', view_navigation_task_rules, name="navigationtask_rules"),
@@ -77,7 +84,8 @@ urlpatterns = [
     path('contestant/<int:pk>/delete/', ContestantDeleteView.as_view(), name="contestant_delete"),
     path('contestant/<int:pk>/uploadgpxtrack/', upload_gpx_track_for_contesant, name="contestant_uploadgpxtrack"),
     path('contestant/<int:pk>/downloadgpxtrack/', download_gpx_track_contestant, name="contestant_downloadgpxtrack"),
-    path('contestant/<int:pk>/recalculatetraccartrack/', revert_uploaded_gpx_track_for_contestant, name="contestant_recalculatetraccartrack"),
+    path('contestant/<int:pk>/recalculatetraccartrack/', revert_uploaded_gpx_track_for_contestant,
+         name="contestant_recalculatetraccartrack"),
     # path('contestant/<int:pk>/downloadgpxtrack/', download_gpx_track_for_contesant, name="contestant_downloadgpxtrack"),
     path('contestant/remove_score_item/<int:pk>/', delete_score_item, name="contestant_remove_score_item"),
     path('contestant/<int:pk>/gates/', ContestantGateTimesView.as_view(), name="contestant_gate_times"),
@@ -103,5 +111,6 @@ urlpatterns = [
     path('editableroute/', EditableRouteList.as_view(), name="editableroute_list"),
     path('editableroute/<int:pk>/delete/', EditableRouteDeleteView.as_view(), name="editableroute_delete"),
     path('editableroute/<int:pk>/copy/', copy_editable_route, name="editableroute_copy"),
-    path('editableroute/<int:pk>/createnavigationtask/', RouteToTaskWizard.as_view(), name="editableroute_createnavigationtask"),
+    path('editableroute/<int:pk>/createnavigationtask/', RouteToTaskWizard.as_view(),
+         name="editableroute_createnavigationtask"),
 ]
