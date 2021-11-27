@@ -12,17 +12,23 @@
         {% for person in object_list %}
             <div class="p-2 card" style="width: 18rem">
                 {% if person.picture %}
-                    <img class="card-img-top profile-image-header" src="{{ person.picture.url }}"/><br/>
+                    <img class="card-img-top profile-image-header" src="{{ person.picture.url }}"/>
                 {% else %}
-                    <img class="card-img-top profile-image-header" src="{% static 'img/profile_missing.png' %}"/><br/>
+                    <div class="img-container">
+                        <img class="card-img-top profile-image-header img-attributed"
+                             src="{% static 'img/profile_missing.png' %}"/>
+                        <a href="https://commons.wikimedia.org/wiki/File:Missing_photo.svg" class="img-attribution">Wikimedia</a>
+                    </div>
                 {% endif %}
                 <div class="card-body">
-                    <div><a href="{% url 'upload_profile_picture' contest.pk person.pk %}"><svg style="float: right"
-                            xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                            class="bi bi-upload" viewBox="0 0 16 16">
-  <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-  <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
-                    </svg></a><h5>{{ person.first_name }} {{ person.last_name }}</h5></div>
+                    <div><a href="{% url 'upload_profile_picture' contest.pk person.pk %}">
+                        <svg style="float: right"
+                             xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                             class="bi bi-upload" viewBox="0 0 16 16">
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                            <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                        </svg>
+                    </a><h5>{{ person.first_name }} {{ person.last_name }}</h5></div>
                     {% if person.picture %}
                         <a href="{% url 'clear_profile_image_background' contest.pk person.pk %}">Autoremove
                             background</a>
@@ -32,9 +38,4 @@
             </div>
         {% endfor %}
     </div>
-    <footer class="footer">
-        <div class="container">
-            <span class="text-muted">https://commons.wikimedia.org/wiki/File:Missing_photo.svg</span>
-        </div>
-    </footer>
 {% endblock %}

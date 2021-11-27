@@ -621,19 +621,19 @@ def view_contest_team_images(request, pk):
                       "last_name", "first_name")})
 
 
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def clear_profile_image_background(request, pk, person_pk):
-    contest = get_object_or_404(Contest, pk=pk)
-    person = get_object_or_404(Person, pk=person_pk)
+@guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
+def clear_profile_image_background(request, contest_pk, pk):
+    contest = get_object_or_404(Contest, pk=contest_pk)
+    person = get_object_or_404(Person, pk=pk)
     result = person.remove_profile_picture_background()
     if result is not None:
         messages.error(request, f"Background removal failed for {person}: {result}")
     else:
         messages.success(request, f"Background removal successful for {person}")
-    return redirect(reverse("contest_team_images", kwargs={"pk": pk}))
+    return redirect(reverse("contest_team_images", kwargs={"pk": contest_pk}))
 
 
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
 def upload_profile_picture(request, contest_pk, pk):
     contest = get_object_or_404(Contest, pk=contest_pk)
     person = get_object_or_404(Person, pk=pk)

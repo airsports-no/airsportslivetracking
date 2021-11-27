@@ -33,7 +33,7 @@ urlpatterns = [
     path('contest/<int:pk>/', ContestDetailView.as_view(), name="contest_details"),
     path('contest/<int:pk>/clear_results/', clear_results_service, name="contest_clear_results"),
     path('contest/<int:pk>/contest_team_images/', view_contest_team_images, name="contest_team_images"),
-    path('contest/<int:pk>/remove_image_background/<int:person_pk>/', clear_profile_image_background,
+    path('contest/<int:contest_pk>/remove_image_background/<int:pk>/', clear_profile_image_background,
          name="clear_profile_image_background"),
     path('contest/<int:contest_pk>/upload_profile_picture/<int:pk>/', upload_profile_picture,
          name="upload_profile_picture"),

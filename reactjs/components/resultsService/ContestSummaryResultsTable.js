@@ -16,6 +16,14 @@ class ConnectedContestSummaryResultsTable extends Component {
         this.props.fetchContests()
     }
 
+    componentWillUnmount() {
+        document.body.classList.remove("results-table-background")
+    }
+
+    componentDidMount() {
+        document.body.classList.add("results-table-background")
+    }
+
     buildData() {
         return this.props.contests.map((contest) => {
             const orderedResults = contest.contestsummary_set.sort((a, b) => {
@@ -61,11 +69,16 @@ class ConnectedContestSummaryResultsTable extends Component {
             <div className={'row fill'}>
                 <div className={"col-12"}>
                     <BootstrapTable keyField={"contestId"} columns={columns} data={this.buildData()}
-                                    classes={"table-dark"}
-                                    wrapperClasses={"text-dark bg-dark"}
+                                    classes={"table-dark bg-dark-transparent"}
+                                    wrapperClasses={"text-dark"}
                                     bootstrap4 striped condensed
                                     rowEvents={rowEvents}/>
                 </div>
+            </div>
+            <div className={'text-muted'}>Photo by <a
+                href="https://unsplash.com/@tadeu?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Tadeu
+                Jnr</a> on <a
+                href="https://unsplash.com/s/photos/propeller-airplane?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
             </div>
         </div>
     }

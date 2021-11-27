@@ -70,7 +70,12 @@ class ConnectedTaskSummaryResultsTable extends Component {
         if (!this.client || this.client.readyState === WebSocket.CLOSED) this.initiateSession(); //check if websocket instance is closed, if so call `connect` function.
     };
 
+    componentWillUnmount() {
+        document.body.classList.remove("results-table-background")
+    }
+
     componentDidMount() {
+        document.body.classList.add("results-table-background")
         this.props.fetchContestResults(this.props.contestId)
         this.initiateSession()
     }
@@ -433,7 +438,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             text: "Σ",
             sort: true,
             editable: !this.props.contest.results.autosum_scores,
-            classes: !this.props.contest.results.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : "",
+            classes: "number-right "+(!this.props.contest.results.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
             csvType: "number",
             onSort: (field, order) => {
                 this.setState({
@@ -467,7 +472,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     headerClasses: "text-muted",
                     sort: true,
                     hidden: !this.props.visibleTaskDetails[task.id],
-                    classes: this.props.contest.results.permission_change_contest ? "editableCell" : "",
+                    classes: "number-right "+(this.props.contest.results.permission_change_contest ? "editableCell" : ""),
                     csvType: "number",
                     onSort: (field, order) => {
                         this.setState({
@@ -527,7 +532,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     sort: true,
                     columnType: "task",
                     editable: !task.autosum_scores,
-                    classes: !task.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : "",
+                    classes: "number-right "+(!task.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
                     task: task.id,
                     onSort: (field, order) => {
                         this.setState({
@@ -624,7 +629,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             blurToSave: true,
             afterSaveCell: (oldValue, newValue, row, column) => {
                 const teamId = row.team.id
-                if (newValue===undefined||newValue.length===0){
+                if (newValue === undefined || newValue.length === 0) {
                     newValue = 0
                 }
                 if (column.columnType === "contestSummary") {
@@ -644,7 +649,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     {
                         this.state.zoomedTask ?
                             <div><h2><a href={"#"}
-                                        onClick={() => this.collapseTask(this.state.zoomedTask)}>{this.props.contest.results.name}</a> ->
+                                        onClick={() => this.collapseTask(this.state.zoomedTask)}><b>{this.props.contest.results.name}</b></a> ->
                                 Tests
                                 for {this.state.zoomedTask.name}
                                 {this.props.contest.results.permission_change_contest ?
@@ -680,8 +685,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                             props => (
                                 <div>
                                     <BootstrapTable {...props.baseProps} sort={defaultSorted}
-                                                    classes={"table-dark"}
-                                                    wrapperClasses={"text-dark bg-dark"}
+                                                    classes={"table-dark bg-dark-transparent"}
+                                                    wrapperClasses={"text-dark"}
                                                     bootstrap4 striped condensed
                                                     cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
                                     />
@@ -691,6 +696,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
                             )
                         }
                     </ToolkitProvider>
+                </div>
+                <div className={'text-muted'}>Photo by <a
+                    href="https://unsplash.com/@tadeu?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Tadeu
+                    Jnr</a> on <a
+                    href="https://unsplash.com/s/photos/propeller-airplane?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
                 </div>
             </div>
             {this.newTaskModal()}
