@@ -72,13 +72,23 @@ class ConnectedTaskSummaryResultsTable extends Component {
     };
 
     componentWillUnmount() {
-        document.body.classList.remove("results-table-background")
+        document.body.classList.remove("results-table-, background")
+        try {
+            clearTimeout(this.timeout)
+        } catch (e) {
+
+        }
     }
 
     componentDidMount() {
         document.body.classList.add("results-table-background")
-        this.props.fetchContestResults(this.props.contestId)
+        this.periodicallyFetchResults()
         this.initiateSession()
+    }
+
+    periodicallyFetchResults() {
+        this.props.fetchContestResults(this.props.contestId)
+        this.timeout = setTimeout(() => this.periodicallyFetchResults(), 300000)
     }
 
     componentDidUpdate(prevProps) {
@@ -528,7 +538,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     columnType: "taskTest",
                     taskTest: taskTest.id,
                     headerFormatter: (column, colIndex, components) => {
-                        const header = <span>{components.sortElement} {taskTest.heading}</span>
+                        let header = <span>{components.sortElement} {taskTest.heading}</span>
+                        if (taskTest.navigation_task_link) {
+                            header =
+                                <a href={taskTest.navigation_task_link}>{components.sortElement} {taskTest.heading}</a>
+                        }
                         let privileged = null
                         let move = null
                         if (this.props.contest.results.permission_change_contest) {

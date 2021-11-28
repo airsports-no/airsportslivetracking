@@ -2570,6 +2570,12 @@ class TaskTest(models.Model):
         unique_together = ("name", "task")
         ordering = ("index",)
 
+    @property
+    def navigation_task_link(self) -> Optional[str]:
+        if self.navigation_task:
+            return self.navigation_task.tracking_link
+        return None
+
 
 class TaskSummary(models.Model):
     """

@@ -941,6 +941,7 @@ class TaskSummarySerialiser(serializers.ModelSerializer):
 
 class TaskTestNestedSerialiser(serializers.ModelSerializer):
     teamtestscore_set = TeamTestScoreSerialiser(many=True)
+    navigation_task_link = serializers.CharField()
 
     class Meta:
         model = TaskTest
@@ -1051,12 +1052,15 @@ class TaskWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
 
 
 class TaskSerialiser(serializers.ModelSerializer):
+
     class Meta:
         model = Task
         fields = "__all__"
 
 
 class TaskTestSerialiser(serializers.ModelSerializer):
+    navigation_task_link = serializers.CharField()
+
     class Meta:
         model = TaskTest
         fields = "__all__"
