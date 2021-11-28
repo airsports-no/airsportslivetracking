@@ -31,6 +31,7 @@ import {
     GET_TASKS_SUCCESSFUL
 } from "../../constants/resultsServiceActionTypes";
 import {sortCaret, sortFunc} from "../resultsTableUtilities";
+import {Loading} from "../basicComponents";
 
 const {ExportCSVButton} = CSVExport;
 
@@ -615,7 +616,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
     }
 
     render() {
-        if (!this.props.teams || !this.props.contest || !this.props.tasks || !this.props.taskTests) return null
+        if (!this.props.teams || !this.props.contest || !this.props.tasks || !this.props.taskTests) return <Loading/>
         const c = this.buildColumns()
         const d = this.buildData()
         let sortDirection = this.state.sortField ? this.state.sortDirection : this.props.contest.results.summary_score_sorting_direction
