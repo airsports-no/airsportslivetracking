@@ -71,10 +71,10 @@ class ConnectedContestSummaryResultsTable extends Component {
             }
         }
 
-        return <div className={'row fill results-table'}>
-            <div className={'row'}><h1>CONTEST RESULTS</h1></div>
-            <div className={'row fill'}>
-                <div className={"col-12"}>
+        return <div className={'results-table'}>
+            <div className={''}><h1>CONTEST RESULTS</h1></div>
+            <div className={''}>
+                <div className={""}>
                     <BootstrapTable keyField={"contestId"} columns={columns} data={this.buildData()}
                                     classes={"table-dark bg-dark-transparent"}
                                     wrapperClasses={"text-dark"}
@@ -82,7 +82,7 @@ class ConnectedContestSummaryResultsTable extends Component {
                                     rowEvents={rowEvents}/>
                 </div>
             </div>
-            <div className={'text-muted'}>Photo by <a
+            <div className={'text-dark'}>Photo by <a
                 href="https://unsplash.com/@tadeu?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Tadeu
                 Jnr</a> on <a
                 href="https://unsplash.com/s/photos/propeller-airplane?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>

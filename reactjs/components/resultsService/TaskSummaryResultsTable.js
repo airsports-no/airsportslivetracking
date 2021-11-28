@@ -438,7 +438,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             text: "Σ",
             sort: true,
             editable: !this.props.contest.results.autosum_scores,
-            classes: "number-right "+(!this.props.contest.results.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
+            classes: "number-right " + (!this.props.contest.results.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
             csvType: "number",
             onSort: (field, order) => {
                 this.setState({
@@ -472,7 +472,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     headerClasses: "text-muted",
                     sort: true,
                     hidden: !this.props.visibleTaskDetails[task.id],
-                    classes: "number-right "+(this.props.contest.results.permission_change_contest ? "editableCell" : ""),
+                    classes: "number-right " + (this.props.contest.results.permission_change_contest ? "editableCell" : ""),
                     csvType: "number",
                     onSort: (field, order) => {
                         this.setState({
@@ -532,7 +532,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     sort: true,
                     columnType: "task",
                     editable: !task.autosum_scores,
-                    classes: "number-right "+(!task.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
+                    classes: "number-right " + (!task.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
                     task: task.id,
                     onSort: (field, order) => {
                         this.setState({
@@ -648,7 +648,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 <div className={"col-12"}>
                     {
                         this.state.zoomedTask ?
-                            <div><h2><a href={"#"}
+                            <div><h2><a href={"#"} className={"text-dark"}
                                         onClick={() => this.collapseTask(this.state.zoomedTask)}><b>{this.props.contest.results.name}</b></a> ->
                                 Tests
                                 for {this.state.zoomedTask.name}
@@ -660,10 +660,10 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                             editMode: "new"
                                         })
                                     }
-                                    } style={{float: "right"}}>New test</Button> : null}</h2></div> :
+                                    } style={{float: "right", marginTop: "4px"}}>New test</Button> : null}</h2></div> :
                             <div><h2><b>{this.props.contest.results.name}</b>
                                 {this.props.contest.results.permission_change_contest ?
-                                    <Button style={{float: "right"}} onClick={(e) => {
+                                    <Button style={{float: "right", marginTop: "4px"}} onClick={(e) => {
                                         this.setState({
                                             displayNewTaskModal: true,
                                             editTask: this.defaultTask(),
@@ -673,8 +673,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     }
                 </div>
             </div>
-            <div className={"row results-table"}>
-                <div className={"col-12"}>
+            <div className={"results-table"}>
+                <div className={""}>
                     <ToolkitProvider
                         keyField="key"
                         data={d}
@@ -690,14 +690,13 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                                     bootstrap4 striped condensed
                                                     cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
                                     />
-                                    <hr/>
-                                    <ExportCSVButton {...props.csvProps}>Export CSV</ExportCSVButton>
+                                    <ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export CSV</ExportCSVButton>
                                 </div>
                             )
                         }
                     </ToolkitProvider>
                 </div>
-                <div className={'text-muted'}>Photo by <a
+                <div className={'text-dark'}>Photo by <a
                     href="https://unsplash.com/@tadeu?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Tadeu
                     Jnr</a> on <a
                     href="https://unsplash.com/s/photos/propeller-airplane?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
