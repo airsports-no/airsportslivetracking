@@ -1,7 +1,7 @@
 import React from "react";
 
 export const LoadingBar = () => <img className={"center"} src="/static/img/progress_circles.gif" alt="loading..."/>;
-export const Loading = () => <img className={"center"} src="/static/img/loading.gif" alt="loading..."/>;
+export const Loading = () => <img className={"center"} src="/static/img/loading_airplane.gif" alt="loading..."/>;
 
 
 export const ProgressBar = (props) => {

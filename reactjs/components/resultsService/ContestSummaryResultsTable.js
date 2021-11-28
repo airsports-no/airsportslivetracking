@@ -5,6 +5,7 @@ import BootstrapTable from 'react-bootstrap-table-next';
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Redirect, Link} from "react-router-dom";
 import {fetchContests} from "../../actions";
+import {Loading} from "../basicComponents";
 
 const mapStateToProps = (state, props) => ({
     contests: state.contests
@@ -40,17 +41,23 @@ class ConnectedContestSummaryResultsTable extends Component {
     }
 
     render() {
+        if (!this.props.contests || this.props.contests.length === 0) {
+            return <div>
+                <div className={'row'}><h1>CONTEST RESULTS</h1></div>
+                <div className={'row'}><Loading/></div>
+            </div>
+        }
         const columns = [
             {
                 dataField: "name",
                 text: "Contest",
                 formatter: (cell, row) => {
-                    return <Link to={row.contestId + "/taskresults/"}>{cell}</Link>
+                    return <Link className="results-table" to={row.contestId + "/taskresults/"}>{cell}</Link>
                 }
             },
             {
                 dataField: "first",
-                text: "Champion",
+                text: "Champions",
                 formatter: (cell, row) => {
                     return cell ? <div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div> : null
                     // return <TeamBadge team={cell}/>
@@ -64,8 +71,8 @@ class ConnectedContestSummaryResultsTable extends Component {
             }
         }
 
-        return <div className={'row fill'}>
-            <div className={'row'}><h1>Contest results service</h1></div>
+        return <div className={'row fill results-table'}>
+            <div className={'row'}><h1>CONTEST RESULTS</h1></div>
             <div className={'row fill'}>
                 <div className={"col-12"}>
                     <BootstrapTable keyField={"contestId"} columns={columns} data={this.buildData()}

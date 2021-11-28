@@ -644,7 +644,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
         });
 
         return <div>
-            <div className={"row"}>
+            <div className={"row results-table"}>
                 <div className={"col-12"}>
                     {
                         this.state.zoomedTask ?
@@ -661,7 +661,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                         })
                                     }
                                     } style={{float: "right"}}>New test</Button> : null}</h2></div> :
-                            <div><h2>{this.props.contest.results.name}
+                            <div><h2><b>{this.props.contest.results.name}</b>
                                 {this.props.contest.results.permission_change_contest ?
                                     <Button style={{float: "right"}} onClick={(e) => {
                                         this.setState({
@@ -673,7 +673,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     }
                 </div>
             </div>
-            <div className={"row"}>
+            <div className={"row results-table"}>
                 <div className={"col-12"}>
                     <ToolkitProvider
                         keyField="key"

@@ -108,10 +108,6 @@ body {
 }
 
 
-.editableCell {
-    color: deepskyblue;
-}
-
 .outerBackdropWide {
     right: 10px;
 }
@@ -1089,13 +1085,37 @@ div.ris-large {
 
 
 .bg-dark-transparent {
-    background-color: rgba(0, 0, 0, 0.5) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
 }
 
-.bg-transparent{
+.bg-transparent {
     background-color: transparent;
 }
 
-.number-right{
+.number-right {
     text-align: right;
+}
+
+.results-table a {
+    color: #c1d4ff;
+    /*color: #e01b1c*/
+}
+
+/*.results-table {*/
+/*    color: #ff7575;*/
+/*    !*color: #e3f1ff;*!*/
+/*}*/
+
+.results-table a:hover {
+    color: whitesmoke;
+}
+
+.editableCell {
+    color: #c1d4ff;
+    /*color: #e01b1c;*/
+}
+
+.editableCell:hover {
+    color: whitesmoke;
+    text-decoration: underline;
 }
