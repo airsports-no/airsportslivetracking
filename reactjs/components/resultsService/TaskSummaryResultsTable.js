@@ -20,7 +20,7 @@ import {Container, Modal, Button, Form} from "react-bootstrap";
 import {
     mdiArrowCollapseHorizontal,
     mdiArrowExpandHorizontal, mdiChevronDown, mdiChevronLeft, mdiChevronRight, mdiChevronUp,
-    mdiClose, mdiMagnifyMinus, mdiMagnifyPlus,
+    mdiClose, mdiMagnifyMinus, mdiMagnifyPlus, mdiDeleteForever,
     mdiPencilOutline, mdiPlusBox, mdiSort
 } from "@mdi/js";
 import Icon from "@mdi/react";
@@ -88,6 +88,22 @@ class ConnectedTaskSummaryResultsTable extends Component {
             })
             this.expandTask(task)
         }
+    }
+
+    deleteResultsTableLine(contestId, teamId) {
+        let url = "/api/v1/contests/" + contestId + "/team_results_delete/"
+        $.ajax({
+            url: url,
+            datatype: 'json',
+            data: {team_id: teamId},
+            method: "POST",
+            cache: false,
+            success: value => {
+                this.props.fetchContestResults(contestId)
+                // dispatch({type: DELETE_RESULTS_TABLE_TEAM_SUCCESSFUL, contestId: contestId, teamId: teamId})
+            },
+            error: error => alert(error)
+        });
     }
 
     initiateSession() {
@@ -365,7 +381,22 @@ class ConnectedTaskSummaryResultsTable extends Component {
 
     buildData() {
         let data = {}
-        // Make sure that each team has a row even if it is and think
+        // Make sure that each team has a row The gaps if it has any points, even if it is not registered
+        this.props.contest.results.contestsummary_set.map((summary) => {
+            let team = summary.team
+            data[team.id] = {
+                contestSummary: "-",
+                team: team,
+                key: team.id + "_" + this.props.contestId,
+            }
+            this.props.tasks.map((task) => {
+                data[team.id]["task_" + task.id.toFixed(0)] = "-"
+            })
+            this.props.taskTests.map((taskTest) => {
+                data[team.id]["test_" + taskTest.id.toFixed(0)] = "-"
+            })
+        })
+        // Handle all the teams that have been registered, but maybe not competed
         this.props.contest.results.contest_teams.map((team) => {
             data[team] = {
                 contestSummary: "-",
@@ -425,13 +456,24 @@ class ConnectedTaskSummaryResultsTable extends Component {
             dataField: "team",
             text: "Team",
             formatter: (cell, row) => {
-                return <div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div>
+                let clearButton = null
+                if (this.props.contest.results.permission_change_contest) {
+                    clearButton = <a href={"#"} style={{float: "right"}}
+                                     onClick={(e) => {
+                                         e.stopPropagation()
+                                         let confirmation = confirm("Are you sure you want to delete?")
+                                         if (confirmation) {
+                                             this.deleteResultsTableLine(this.props.contestId, cell.id)
+                                         }
+                                     }}><Icon
+                        path={mdiDeleteForever} title={"Edit"} size={0.7}/></a>
+                }
+                return <div className={"align-middle crew-name"}>{clearButton}{teamRankingTable(cell)}</div>
             },
             csvFormatter: (cell, row) => {
                 return teamLongFormText(cell)
             },
-            editable: false
-
+            editable: false,
         }
 
         const contestSummaryColumn = {
@@ -649,10 +691,10 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 <div className={"col-12"}>
                     {
                         this.state.zoomedTask ?
-                            <div><h2><a href={"#"} className={"text-dark"}
-                                        onClick={() => this.collapseTask(this.state.zoomedTask)}><b>{this.props.contest.results.name}</b></a> ->
+                            <div><h2 className={"results-table-contest-name"}><a href={"#"} className={"text-dark"}
+                                                                                 onClick={() => this.collapseTask(this.state.zoomedTask)}><b>{this.props.contest.results.name}</b></a> -
                                 Tests
-                                for {this.state.zoomedTask.name}
+                                for <i>{this.state.zoomedTask.name}</i>
                                 {this.props.contest.results.permission_change_contest ?
                                     <Button onClick={(e) => {
                                         this.setState({
@@ -661,10 +703,10 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                             editMode: "new"
                                         })
                                     }
-                                    } style={{float: "right", marginTop: "4px"}}>New test</Button> : null}</h2></div> :
-                            <div><h2><b>{this.props.contest.results.name}</b>
+                                    } style={{float: "right"}}>New test</Button> : null}</h2></div> :
+                            <div><h2 className={"results-table-contest-name"}><b>{this.props.contest.results.name}</b>
                                 {this.props.contest.results.permission_change_contest ?
-                                    <Button style={{float: "right", marginTop: "4px"}} onClick={(e) => {
+                                    <Button style={{float: "right"}} onClick={(e) => {
                                         this.setState({
                                             displayNewTaskModal: true,
                                             editTask: this.defaultTask(),
@@ -691,7 +733,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                                     bootstrap4 striped condensed
                                                     cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
                                     />
-                                    <ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export CSV</ExportCSVButton>
+                                    <ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export
+                                        CSV</ExportCSVButton>
                                 </div>
                             )
                         }
@@ -729,7 +772,7 @@ const
             tasksData,
             testsData,
             resultsData,
-            hideAllTaskDetails
+            hideAllTaskDetails,
         }
     )(ConnectedTaskSummaryResultsTable);
 export default TaskSummaryResultsTable;

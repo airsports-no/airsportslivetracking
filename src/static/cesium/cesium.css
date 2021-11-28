@@ -1119,3 +1119,7 @@ div.ris-large {
     color: whitesmoke;
     text-decoration: underline;
 }
+
+.results-table-contest-name{
+    margin-top: 8px;
+}

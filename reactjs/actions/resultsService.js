@@ -8,7 +8,11 @@ import {
     GET_TASKS_SUCCESSFUL,
     GET_TASK_TESTS_SUCCESSFUL,
     CREATE_TASK_SUCCESSFUL,
-    CREATE_TASK_TEST_SUCCESSFUL, DELETE_TASK_SUCCESSFUL, DELETE_TASK_TEST_SUCCESSFUL, PUT_TEST_RESULT_SUCCESSFUL
+    CREATE_TASK_TEST_SUCCESSFUL,
+    DELETE_TASK_SUCCESSFUL,
+    DELETE_TASK_TEST_SUCCESSFUL,
+    PUT_TEST_RESULT_SUCCESSFUL,
+    DELETE_RESULTS_TABLE_TEAM_SUCCESSFUL
 } from "../constants/resultsServiceActionTypes";
 
 export const teamsData = (data, contestId) => (dispatch) => dispatch({
@@ -72,6 +76,7 @@ export const fetchTaskTests = (contestId) => (dispatch) => {
         error: error => console.log(error)
     });
 }
+
 
 export const createOrUpdateTask = (contestId, task) => (dispatch) => {
     let url = "/api/v1/contests/" + contestId + "/tasks/"

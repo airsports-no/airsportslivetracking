@@ -44,7 +44,7 @@ import {
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
     CREATE_TASK_SUCCESSFUL,
-    CREATE_TASK_TEST_SUCCESSFUL,
+    CREATE_TASK_TEST_SUCCESSFUL, DELETE_RESULTS_TABLE_TEAM_SUCCESSFUL,
     DELETE_TASK_SUCCESSFUL,
     DELETE_TASK_TEST_SUCCESSFUL,
     GET_CONTEST_RESULTS_SUCCESSFUL,
@@ -444,6 +444,7 @@ function rootReducer(state = initialState, action) {
             }
         })
     }
+
     if (action.type === DELETE_TASK_TEST_SUCCESSFUL) {
         return Object.assign({}, state, {
             ...state,
@@ -585,16 +586,6 @@ function rootReducer(state = initialState, action) {
                 ...state.taskTests,
                 [action.contestId]: action.payload
             }
-        })
-    }
-    if (action.type === GET_CONTEST_TEAMS_LIST_SUCCESSFUL) {
-        let teamsMap = state.teams ? state.teams : {}
-        action.payload.map((team) => {
-            teamsMap[team.id] = team
-        })
-        return Object.assign({}, state, {
-            ...state,
-            teams: teamsMap,
         })
     }
     if (action.type === PUT_TEST_RESULT_SUCCESSFUL) {

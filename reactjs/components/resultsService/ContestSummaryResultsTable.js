@@ -27,7 +27,7 @@ class ConnectedContestSummaryResultsTable extends Component {
 
     buildData() {
         return this.props.contests.map((contest) => {
-            const orderedResults = contest.contestsummary_set.sort((a, b) => {
+            contest.contestsummary_set.sort((a, b) => {
                 if (a.points < b.points) return contest.summary_score_sorting_direction === "asc" ? -1 : 1;
                 if (a.points > b.points) return contest.summary_score_sorting_direction === "asc" ? 1 : -1;
                 return 0;
@@ -35,7 +35,7 @@ class ConnectedContestSummaryResultsTable extends Component {
             return {
                 name: contest.name,
                 contestId: contest.id,
-                first: orderedResults.length > 0 ? orderedResults[0].team : null
+                first: contest.contestsummary_set.length > 0 ? contest.contestsummary_set[0].team : null
             }
         })
     }
@@ -72,7 +72,7 @@ class ConnectedContestSummaryResultsTable extends Component {
         }
 
         return <div className={'results-table'}>
-            <div className={''}><h1>CONTEST RESULTS</h1></div>
+            <div className={''}><h1 className={"results-table-contest-name"}>CONTEST RESULTS</h1></div>
             <div className={''}>
                 <div className={""}>
                     <BootstrapTable keyField={"contestId"} columns={columns} data={this.buildData()}

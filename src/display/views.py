@@ -54,7 +54,7 @@ import rest_framework.exceptions as drf_exceptions
 from rest_framework.generics import RetrieveAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK
+from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 from rest_framework.viewsets import ModelViewSet, ViewSet, GenericViewSet
 
 from display.convert_flightcontest_gpx import (
@@ -2255,6 +2255,14 @@ class ContestViewSet(ModelViewSet):
         # contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
         # serialiser = ContestResultsDetailsSerialiser(contest)
         # return Response(serialiser.data)
+
+    @action(detail=True, methods=["post"])
+    def team_results_delete(self, request, *args, **kwargs):
+        contest = self.get_object()
+        team_id = request.data["team_id"]
+        ContestTeam.objects.filter(contest=contest, team__pk=team_id).delete()
+        ContestSummary.objects.filter(contest=contest, team__pk=team_id).delete()
+        return Response(status=HTTP_204_NO_CONTENT)
 
     @action(
         detail=True,
