@@ -2377,6 +2377,7 @@ class ContestantTrack(models.Model):
             self.__push_change()
 
     def set_calculator_finished(self):
+        self.updates_current_state("Finished")
         self.calculator_finished = True
         self.save(update_fields=["calculator_finished"])
         self.__push_change()

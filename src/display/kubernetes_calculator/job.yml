@@ -7,8 +7,9 @@ spec:
     metadata:
       labels: {}
     spec:
+      ttlSecondsAfterFinished: 100
       backoffLimit: 4
-      containers:
+      containers: 259200  # Three days
       - image: airsportsacr.azurecr.io/tracker_processor:latest
         requests:
           cpu: 200m

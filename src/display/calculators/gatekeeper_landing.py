@@ -13,7 +13,7 @@ from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
     calculate_fractional_distance_point_lat_lon
-from display.models import ContestantTrack, Contestant
+from display.models import ContestantTrack, Contestant, ANOMALY
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -41,14 +41,12 @@ class GatekeeperLanding(Gatekeeper):
         if self.landing_gate is not None:
             intersection_time = self.landing_gate.get_gate_intersection_time(self.projector, self.track)
             if intersection_time:
+                self.contestant.contestanttrack.updates_current_state("Tracking")
                 if self.last_intersection is None or intersection_time > self.last_intersection + datetime.timedelta(
                         seconds=30):
                     self.last_intersection = intersection_time
                     self.update_score(self.landing_gate, 1, "passed landing line", self.track[-1].latitude,
-                                      self.track[-1].longitude, "information", "landing_line")
-
-    def notify_termination(self):
-        logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
+                                      self.track[-1].longitude, ANOMALY, "landing_line")
 
     def check_termination(self):
         super().check_termination()
