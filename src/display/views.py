@@ -2262,6 +2262,11 @@ class ContestViewSet(ModelViewSet):
         team_id = request.data["team_id"]
         ContestTeam.objects.filter(contest=contest, team__pk=team_id).delete()
         ContestSummary.objects.filter(contest=contest, team__pk=team_id).delete()
+        # from websocket_channels import WebsocketFacade
+
+        ws = WebsocketFacade()
+        ws.transmit_contest_results(request.user,contest)
+        ws.transmit_teams(contest)
         return Response(status=HTTP_204_NO_CONTENT)
 
     @action(

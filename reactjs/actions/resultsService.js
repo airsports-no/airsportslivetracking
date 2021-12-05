@@ -63,7 +63,7 @@ export const fetchTasks = (contestId) => (dispatch) => {
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_TASKS_SUCCESSFUL, payload: value, contestId: contestId}),
-        error: error => console.log(error)
+        error: error => alert(JSON.stringify(error))
     });
 }
 
@@ -73,7 +73,7 @@ export const fetchTaskTests = (contestId) => (dispatch) => {
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_TASK_TESTS_SUCCESSFUL, payload: value, contestId: contestId}),
-        error: error => console.log(error)
+        error: error => alert(JSON.stringify(error))
     });
 }
 
@@ -95,7 +95,7 @@ export const createOrUpdateTask = (contestId, task) => (dispatch) => {
             console.log("Creating task success: " + value)
             dispatch({type: CREATE_TASK_SUCCESSFUL, contestId: contestId, payload: value})
         },
-        error: error => alert(error)
+        error: error => alert(JSON.stringify(error))
     });
 }
 
@@ -109,7 +109,7 @@ export const deleteTask = (contestId, taskId) => (dispatch) => {
             console.log("Deleting task success: " + value)
             dispatch({type: DELETE_TASK_SUCCESSFUL, contestId: contestId, payload: taskId})
         },
-        error: error => alert(error)
+        error: error => alert(JSON.stringify(error))
     });
 }
 
@@ -130,7 +130,7 @@ export const createOrUpdateTaskTest = (contestId, taskTest) => (dispatch) => {
             console.log("Creating task test success: " + value)
             dispatch({type: CREATE_TASK_TEST_SUCCESSFUL, contestId: contestId, payload: value})
         },
-        error: error => alert(error)
+        error: error => alert(JSON.stringify(error))
     });
 }
 
@@ -144,7 +144,7 @@ export const deleteTaskTest = (contestId, taskTestId) => (dispatch) => {
             console.log("Deleting task test success: " + value)
             dispatch({type: DELETE_TASK_TEST_SUCCESSFUL, contestId: contestId, payload: taskTestId})
         },
-        error: error => alert(error)
+        error: error => alert(JSON.stringify(error))
     });
 }
 
