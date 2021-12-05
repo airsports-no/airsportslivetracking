@@ -103,7 +103,7 @@ const slides = [
         description: "Optionally, create a prohibited zone (fixed penalty), penalty area (penalty per second), or information area. For certain types of tasks (poker run) you can create a gate area around a waypoint to represent the waypoint.",
         image: "/static/img/tutorial/5.png",
         background: bgcolor
-}, {
+    }, {
         title: "Zone details",
         description: "Select the type of zone and give a name. The name will be displayed on the map. Enter label x and y offset to control how the name is displayed. Make sure this looks good at multiple zoom levels.",
         image: "/static/img/tutorial/6.png",
@@ -276,7 +276,7 @@ class ConnectedRouteEditor extends Component {
         })
     }
 
-    configureLayer(layer, name, layerType, featureType, trackPoints, tooltipPosition) {
+    configureLayer(layer, name, layerType, featureType, trackPoints, tooltipPosition, created) {
         layer.addTo(this.drawnItems);
         layer.name = name
         layer.layerType = layerType
@@ -300,7 +300,9 @@ class ConnectedRouteEditor extends Component {
             this.setState({changesSaved: false})
         })
         layer.setStyle(featureStyles[featureType])
-        this.renderWaypointNames(layer)
+        if (!created) {
+            this.renderWaypointNames(layer)
+        }
     }
 
     renderRoute() {
@@ -338,7 +340,7 @@ class ConnectedRouteEditor extends Component {
                         if (!r.tooltip_position) {
                             r.tooltip_position = [0, 0]
                         }
-                        this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points, r.tooltip_position)
+                        this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points, r.tooltip_position, false)
                     }
                 }
             )
@@ -878,7 +880,7 @@ class ConnectedRouteEditor extends Component {
                 featureType = "track"
                 trackPoints = this.initialiseWaypoints(layer)
             }
-            this.configureLayer(layer, null, event.layerType, featureType, trackPoints, [0, 0])
+            this.configureLayer(layer, null, event.layerType, featureType, trackPoints, [0, 0], true)
             this.setState({featureEditLayer: layer})
 
         });
