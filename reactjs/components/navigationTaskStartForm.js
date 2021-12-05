@@ -122,18 +122,18 @@ class ConnectedSelfRegistrationForm extends Component {
                             </Form.Row>
                             <Form.Row>
                                 <Col>
-                                    <Form.Label>Wind speed</Form.Label>
-                                    <Form.Control name={"wind_speed"} type={"number"} placeholder={"Speed"}
-                                                  onChange={props.handleChange}
-                                                  defaultValue={props.initialValues.wind_speed}/>
-                                    <ErrorMessage name={"wind_speed"} component={"div"}/>
-                                </Col>
-                                <Col>
                                     <Form.Label>Wind direction</Form.Label>
                                     <Form.Control name={"wind_direction"} type={"number"} placeholder={"Direction"}
                                                   onChange={props.handleChange}
                                                   defaultValue={props.initialValues.wind_direction}/>
                                     <ErrorMessage name={"wind_direction"} component={"div"}/>
+                                </Col>
+                                <Col>
+                                    <Form.Label>Wind speed</Form.Label>
+                                    <Form.Control name={"wind_speed"} type={"number"} placeholder={"Speed"}
+                                                  onChange={props.handleChange}
+                                                  defaultValue={props.initialValues.wind_speed}/>
+                                    <ErrorMessage name={"wind_speed"} component={"div"}/>
                                 </Col>
                             </Form.Row>
                             <Form.Row>
