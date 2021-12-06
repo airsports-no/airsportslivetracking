@@ -172,6 +172,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             summary_score_sorting_direction: "asc",
             name: "",
             heading: "",
+            weight: 1.0,
             index: 0,
             autosum_scores: true
         }
@@ -184,6 +185,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             name: "",
             heading: "",
             index: 0,
+            weight: 1.0,
             task: task ? task : -1
         }
     }
@@ -245,6 +247,18 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                     }
                                 })
                             }} checked={this.state.editTask.autosum_scores}/>
+                            <Form.Label>Task weight</Form.Label>
+                            <Form.Control type={"number"} onChange={(e) => {
+                                this.setState({
+                                    editTask: {
+                                        ...this.state.editTask,
+                                        weight: parseFloat(e.target.value),
+                                    }
+                                })
+                            }}
+                                          value={this.state.editTask.weight}
+                                          step={0.1}
+                            />
                             <Form.Label>Score sorting direction</Form.Label>
                             <Form.Control as={"select"} onChange={(e) => {
                                 this.setState({
@@ -307,6 +321,17 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                 })
                             }}
                                           value={this.state.editTaskTest.name}
+                            /><Form.Label>Test weight</Form.Label>
+                            <Form.Control type={"number"} onChange={(e) => {
+                                this.setState({
+                                    editTaskTest: {
+                                        ...this.state.editTaskTest,
+                                        weight: parseFloat(e.target.value),
+                                    }
+                                })
+                            }}
+                                          value={this.state.editTaskTest.weight}
+                                          step={0.1}
                             />
                             <Form.Label>Score sorting direction</Form.Label>
                             <Form.Control as={"select"} onChange={(e) => {

@@ -61,8 +61,8 @@ def check_order(positions: List[Dict]):
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--from_time', default='2021-11-24')
-    argparser.add_argument('--to_time', default='2021-11-25')
+    argparser.add_argument('--from_time', default='2021-12-02')
+    argparser.add_argument('--to_time', default='2021-12-03')
     args = argparser.parse_args()
     from_time = datetime.strptime(args.from_time, '%Y-%m-%d')
     to_time = datetime.strptime(args.to_time, '%Y-%m-%d')

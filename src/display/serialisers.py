@@ -1059,7 +1059,7 @@ class TaskSerialiser(serializers.ModelSerializer):
 
 
 class TaskTestSerialiser(serializers.ModelSerializer):
-    navigation_task_link = serializers.CharField(required=False)
+    navigation_task_link = serializers.CharField(read_only=True)
 
     class Meta:
         model = TaskTest
