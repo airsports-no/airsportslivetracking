@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 class Position:
     def __init__(self, time, latitude, longitude, altitude, speed, course, battery_level, position_id, device_id,
-                 interpolated: bool = False,
+                 interpolated: bool = False, processor_received_time=None, calculator_received_time=None,
+                 server_time=None,
                  **kwargs):
         self.time = time
         self.latitude = latitude
@@ -24,6 +25,9 @@ class Position:
         self.device_id = device_id
         self.progress = 0
         self.interpolated = interpolated
+        self.processor_received_time = processor_received_time
+        self.calculator_received_time = calculator_received_time
+        self.server_time = server_time
 
     def __str__(self):
         return f"{self.time}: {self.latitude}, {self.longitude}, a: {self.altitude}, s: {self.speed}, c: {self.course}, bl: {self.battery_level}, pi: {self.position_id}, di: {self.device_id}, p: {self.progress}"

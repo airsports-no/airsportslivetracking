@@ -1,5 +1,8 @@
+from io import BytesIO
+
 import dateutil.parser
 import html2text as html2text
+import numpy as np
 import requests
 import rest_framework.exceptions as drf_exceptions
 import datetime
@@ -59,6 +62,8 @@ from live_tracking_map.settings import SERVER_ROOT
 from phonenumbers.phonenumber import PhoneNumber
 
 from traccar_facade import Traccar
+
+import matplotlib.pyplot as plt
 
 TRACCAR = "traccar"
 TRACKING_SERVICES = ((TRACCAR, "Traccar"),)
@@ -2043,6 +2048,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
             "speed": float(position_data["speed"]),
             "course": float(position_data["course"]),
+            "processor_received_time": position_data.get("processor_received_time"),
+            "calculator_received_time": position_data.get("calculator_received_time"),
+            "server_time": position_data.get("server_time")
         }
 
     @classmethod
@@ -2187,6 +2195,59 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         contestant_track = ContestantTrack.objects.create(contestant=self)
         contestant_track.update_score(0)
 
+    def generate_processing_statistics(self):
+        stored_positions = ContestantReceivedPosition.objects.filter(contestant=self)
+        total_delay = []
+        transmission_delay = []
+        processor_queueing_delay = []
+        calculator_queueing_delay = []
+        calculation_delay = []
+        elapsed = []
+        start_time = None
+        for position in stored_positions:
+            if start_time is None:
+                start_time = position.time
+            elapsed.append((start_time - position.time).total_seconds())
+            if position.websocket_transmitted_time:
+                total_delay.append((position.websocket_transmitted_time - position.time).total_seconds())
+            else:
+                total_delay.append(np.nan)
+            if position.server_time:
+                transmission_delay.append((position.server_time - position.time).total_seconds())
+            else:
+                transmission_delay.append(np.nan)
+            if position.websocket_transmitted_time and position.calculator_received_time:
+                calculation_delay.append(
+                    (position.websocket_transmitted_time - position.calculator_received_time).total_seconds())
+            else:
+                calculation_delay.append(np.nan)
+            if position.server_time and position.processor_received_time:
+                processor_queueing_delay.append(
+                    (position.processor_received_time - position.server_time).total_seconds())
+            else:
+                processor_queueing_delay.append(np.nan)
+            if position.processor_received_time and position.calculator_received_time:
+                calculator_queueing_delay.append(
+                    (position.calculator_received_time - position.processor_received_time).total_seconds())
+            else:
+                calculator_queueing_delay.append(np.nan)
+        plt.figure()
+        total_delay_line, = plt.plot(elapsed, total_delay, label="Total delay")
+        transmission_delay_line, = plt.plot(elapsed, transmission_delay, label="Transmission delay")
+        processor_queueing_delay_line, = plt.plot(elapsed, processor_queueing_delay, label="Processor queue delay")
+        calculator_queueing_delay_line, = plt.plot(elapsed, calculator_queueing_delay, label="Calculator queue delay")
+        calculation_delay_line, = plt.plot(elapsed, calculation_delay, label="Calculation delay")
+        plt.legend(handles=[total_delay_line, transmission_delay_line, processor_queueing_delay_line,
+                            calculator_queueing_delay_line, calculation_delay_line])
+        plt.ylabel("Delay (s)")
+        plt.xylabel("Time since start (s)")
+        plt.title(f"Processing delays for {self}")
+        figdata = BytesIO()
+        plt.savefig(figdata, format='png')
+        plt.close()
+        figdata.seek(0)
+        return figdata
+
 
 class ContestantUploadedTrack(models.Model):
     contestant = models.OneToOneField(Contestant, on_delete=models.CASCADE)
@@ -2200,6 +2261,10 @@ class ContestantReceivedPosition(models.Model):
     longitude = models.FloatField()
     course = models.FloatField()
     interpolated = models.BooleanField(default=False)
+    processor_received_time = models.DateTimeField(blank=True, null=True)
+    calculator_received_time = models.DateTimeField(blank=True, null=True)
+    websocket_transmitted_time = models.DateTimeField(blank=True, null=True)
+    server_time = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         ordering = ("time",)
@@ -2526,6 +2591,7 @@ class Task(models.Model):
         help_text="Whether the lowest (ascending) or highest (ascending) score is the best result",
         max_length=50,
     )
+    weight = models.FloatField(default=1)
     name = models.CharField(max_length=100)
     heading = models.CharField(max_length=100)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
@@ -2554,6 +2620,7 @@ class TaskTest(models.Model):
     SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE, blank=True, null=True)
+    weight = models.FloatField(default=1)
     name = models.CharField(max_length=100)
     heading = models.CharField(max_length=100)
     sorting = models.CharField(
@@ -2594,7 +2661,7 @@ class TaskSummary(models.Model):
         if self.task.autosum_scores:
             tests = TeamTestScore.objects.filter(team=self.team, task_test__task=self.task)
             if tests.exists():
-                total = sum([test.points for test in tests])
+                total = sum([test.points * test.task_test.weight for test in tests])
                 self.points = total
             else:
                 self.points = 0
@@ -2617,7 +2684,7 @@ class ContestSummary(models.Model):
         if self.contest.autosum_scores:
             tasks = TaskSummary.objects.filter(team=self.team, task__contest=self.contest)
             if tasks.exists():
-                total = sum([task.points for task in tasks])
+                total = sum([task.points * task.task.weight for task in tasks])
                 self.points = total
             else:
                 self.points = 0

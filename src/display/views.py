@@ -690,6 +690,15 @@ def get_contestant_map(request, pk):
     return render(request, "display/map_form.html", {"form": form})
 
 
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
+def get_contestant_processing_statistics(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    figure = contestant.generate_processing_statistics()
+    response = HttpResponse(
+        figure, content_type='image/png')
+    return response
+
+
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_default_map(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
@@ -2265,7 +2274,7 @@ class ContestViewSet(ModelViewSet):
         # from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()
-        ws.transmit_contest_results(request.user,contest)
+        ws.transmit_contest_results(request.user, contest)
         ws.transmit_teams(contest)
         return Response(status=HTTP_204_NO_CONTENT)
 

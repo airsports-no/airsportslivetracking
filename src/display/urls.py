@@ -21,7 +21,7 @@ from display.views import frontend_view_map, \
     get_contestant_email_flying_orders_link, broadcast_navigation_task_orders, upload_gpx_track_for_contesant, \
     navigation_task_score_override_view, RouteToTaskWizard, healthz, readyz, revert_uploaded_gpx_track_for_contestant, \
     copy_editable_route, download_gpx_track_contestant, view_contest_team_images, clear_profile_image_background, \
-    upload_profile_picture
+    upload_profile_picture, get_contestant_processing_statistics
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -74,6 +74,8 @@ urlpatterns = [
     path('maplink/<uuid:key>/', get_contestant_email_flight_orders_link, name='email_map_link'),
     path('mapreport/<int:pk>/', get_contestant_email_flying_orders_link, name='email_report_link'),
     path('contestant/<int:navigationtask_pk>/create/', ContestantCreateView.as_view(), name="contestant_create"),
+    path('contestant/<int:pk>/processingstatistics/', get_contestant_processing_statistics,
+         name="processingstatistics"),
     path('contestant/<int:pk>/map/', get_contestant_map, name="contestant_map"),
     path('contestant/<int:pk>/defaultmap/', get_contestant_default_map, name="contestant_default_map"),
     path('contestant/<int:pk>/rules/', get_contestant_rules, name="contestant_rules"),

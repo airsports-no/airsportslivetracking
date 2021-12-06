@@ -121,7 +121,7 @@ class Gatekeeper(ABC):
                     Position((initial_time + datetime.timedelta(seconds=step)), new_position[0],
                              new_position[1],
                              position.altitude, position.speed, position.course, position.battery_level, 0, 0,
-                             interpolated=True))
+                             interpolated=True, calculator_received_time=datetime.datetime.now(datetime.timezone.utc)))
         positions.append(position)
         return positions
 
@@ -144,6 +144,9 @@ class Gatekeeper(ABC):
                                                                  current_time - datetime.timedelta(seconds=1))
             for item in positions:
                 item["device_time"] = dateutil.parser.parse(item["deviceTime"])
+                item["server_time"] = dateutil.parser.parse(item["serverTime"])
+                item["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
+
             logger.debug(f"{self.contestant}: Retrieved {len(positions)} additional positions")
             if len(positions) > 0:
                 logger.debug(
@@ -202,6 +205,7 @@ class Gatekeeper(ABC):
                 self.notify_termination()
                 continue
             # logger.debug(f"Processing position ID {position_data['id']} for device ID {position_data['deviceId']}")
+            position_data["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
             number_of_positions += 1
             if self.live_processing:
                 buffered_positions = self.check_for_buffered_data_if_necessary(position_data)
@@ -225,14 +229,18 @@ class Gatekeeper(ABC):
                     continue
                 all_positions.append(p)
                 for position in self.interpolate_track(p):
+                    self.track.append(position)
+                    if len(self.track) > 1:
+                        self.calculate_score()
                     ContestantReceivedPosition.objects.create(contestant=self.contestant, time=position.time,
                                                               latitude=position.latitude, longitude=position.longitude,
                                                               course=position.course,
+                                                              processor_received_time=p.processor_received_time,
+                                                              calculator_received_time=p.calculator_received_time,
+                                                              websocket_transmitted_time=datetime.datetime.now(
+                                                                  datetime.timezone.utc), server_time=p.server_time,
                                                               interpolated=position.interpolated)
-                    self.track.append(position)
-                    if len(self.track) > 1:
-                        # logger.debug(f"Calculating score for position ID {position.position_id} for device ID {position.device_id}")
-                        self.calculate_score()
+
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
             self.check_termination()
         self.contestant.contestanttrack.set_calculator_finished()

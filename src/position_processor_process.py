@@ -153,6 +153,8 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
         device_time = dateutil.parser.parse(position_data["deviceTime"])
         # Store this so that we do not have to parse the datetime string again
         position_data["device_time"] = device_time
+        position_data["server_time"] = dateutil.parser.parse(position_data["serverTime"])
+        position_data["processor_received_time"] = datetime.datetime.now(datetime.timezone.utc)
         now = datetime.datetime.now(datetime.timezone.utc)
         last_seen_key = f"last_seen_{position_data['deviceId']}"
         if (now - device_time).total_seconds() > 30:
