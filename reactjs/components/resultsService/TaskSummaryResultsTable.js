@@ -72,7 +72,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
     };
 
     componentWillUnmount() {
-        document.body.classList.remove("results-table-, background")
+        document.body.classList.remove("results-table-background")
         try {
             clearTimeout(this.timeout)
         } catch (e) {
