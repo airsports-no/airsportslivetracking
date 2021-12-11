@@ -149,8 +149,8 @@ class ConnectedNavigationTask extends Component {
                 }
             }
         }
-        this.playbackSecond += this.tracklist.length / 2
-        setTimeout(() => this.playBackData(), 500)
+        this.playbackSecond += this.tracklist.length / 3
+        setTimeout(() => this.playBackData(), 300)
     }
 
     initiateSession() {
@@ -159,9 +159,6 @@ class ConnectedNavigationTask extends Component {
         if (getUrl.host.includes("localhost")) {
             protocol = "ws"
         }
-        if (this.props.playback) {
-            setTimeout(() => this.playBackData(), 1000)
-        }
         this.client = new W3CWebSocket(protocol + "://" + getUrl.host + "/ws/tracks/" + this.props.navigationTaskId + "/")
         this.client.onopen = () => {
             console.log("Client connected")
@@ -169,14 +166,10 @@ class ConnectedNavigationTask extends Component {
         };
         this.client.onmessage = (message) => {
             let data = JSON.parse(message.data);
-            if (this.props.playback) {
-                this.storePlaybackData(data)
+            if (!this.completedLoadingInitialTracks) {
+                this.cacheDataWhileLoading(data)
             } else {
-                if (!this.completedLoadingInitialTracks) {
-                    this.cacheDataWhileLoading(data)
-                } else {
-                    this.props.dispatchContestantData(data)
-                }
+                this.props.dispatchContestantData(data)
             }
         };
         this.client.onclose = (e) => {
@@ -248,16 +241,28 @@ class ConnectedNavigationTask extends Component {
                 this.initiateSession()
             }
         }
-        if (this.props.initialTracks !== previousProps.initialTracks) {
-            this.props.dispatchContestantData(this.props.initialTracks)
-            this.remainingTracks--
-        }
-        if (this.remainingTracks === 0) {
-            for (let data of this.waitingInitialLoading) {
-                this.props.dispatchContestantData(data)
+        if (this.props.playback) {
+            if (this.props.initialTracks !== previousProps.initialTracks) {
+                this.storePlaybackData(this.props.initialTracks)
+                this.remainingTracks--
             }
-            this.completedLoadingInitialTracks = true
-            this.remainingTracks = 9999
+            if (this.remainingTracks === 0) {
+                this.completedLoadingInitialTracks = true
+                this.remainingTracks = 9999
+                setTimeout(() => this.playBackData(), 1000)
+            }
+        } else {
+            if (this.props.initialTracks !== previousProps.initialTracks) {
+                this.props.dispatchContestantData(this.props.initialTracks)
+                this.remainingTracks--
+            }
+            if (this.remainingTracks === 0) {
+                for (let data of this.waitingInitialLoading) {
+                    this.props.dispatchContestantData(data)
+                }
+                this.completedLoadingInitialTracks = true
+                this.remainingTracks = 9999
+            }
         }
         if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map || this.props.displayBackgroundMap !== previousProps.displayBackgroundMap) {
             this.fixMapBackground()
