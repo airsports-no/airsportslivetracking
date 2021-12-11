@@ -50,6 +50,7 @@ def generate_contestant_data_block(
         gate_scores: List = None,
         playing_cards: List = None,
         include_contestant_track: bool = False,
+        gate_times: Dict = None
 ):
     if not hasattr(contestant, "contestanttrack"):
         include_contestant_track = False
@@ -61,6 +62,7 @@ def generate_contestant_data_block(
         "gate_scores": gate_scores,
         "playing_cards": playing_cards,
         "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "gate_times": gate_times,
         "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
         if include_contestant_track
         else None,

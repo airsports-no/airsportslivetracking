@@ -1343,7 +1343,8 @@ def _generate_data(contestant_pk):
         latest_time=global_latest_time,
         gate_scores=GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
         playing_cards=PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
-        include_contestant_track=True
+        include_contestant_track=True,
+        gate_times=contestant.gate_times
     )
     return data
 

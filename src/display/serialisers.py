@@ -728,6 +728,7 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
     """
 
     team = TeamNestedSerialiser()
+    gate_times = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Contestant
@@ -1052,7 +1053,6 @@ class TaskWithoutReferenceNestedSerialiser(serializers.ModelSerializer):
 
 
 class TaskSerialiser(serializers.ModelSerializer):
-
     class Meta:
         model = Task
         fields = "__all__"
