@@ -15,7 +15,6 @@ import cartopy.crs as ccrs
 from matplotlib import patheffects
 from shapely.geometry import Polygon
 
-
 from display.coordinate_utilities import (
     calculate_distance_lat_lon,
     calculate_bearing,
@@ -42,8 +41,6 @@ from display.waypoint import Waypoint
 LINEWIDTH = 0.5
 
 logger = logging.getLogger(__name__)
-
-
 
 
 def create_minute_lines(
@@ -538,10 +535,10 @@ def waypoint_bearing(waypoint, index) -> float:
 
 def plot_prohibited_zones(route: Route, target_projection, ax):
     PROHIBITED_COLOURS = {
-        "prohibited": "red",
-        "penalty": "orange",
-        "info": "lightblue",
-        "gate": "blue",
+        "prohibited": ("red", "darkred"),
+        "penalty": ("orange", "darkorange"),
+        "info": ("lightblue", "Lightskyblue"),
+        "gate": ("blue", "darkblue"),
     }
     for prohibited in route.prohibited_set.all():
         line = []
@@ -553,11 +550,14 @@ def plot_prohibited_zones(route: Route, target_projection, ax):
             )
         polygon = Polygon(line)
         centre = polygon.centroid
+        fill_colour, line_colour = PROHIBITED_COLOURS.get(prohibited.type, ("blue", "darkblue"))
         ax.add_geometries(
             [polygon],
             crs=target_projection,
-            facecolor=PROHIBITED_COLOURS.get(prohibited.type, "blue"),
+            facecolor=fill_colour,
             alpha=0.4,
+            linewidth=2,
+            edgecolor=line_colour
         )
         plt.text(centre.x, centre.y, prohibited.name, horizontalalignment="center")
 
