@@ -556,7 +556,7 @@ def plot_prohibited_zones(route: Route, target_projection, ax):
             crs=target_projection,
             facecolor=fill_colour,
             alpha=0.4,
-            linewidth=2,
+            # linewidth=2,
             edgecolor=line_colour
         )
         plt.text(centre.x, centre.y, prohibited.name, horizontalalignment="center")
