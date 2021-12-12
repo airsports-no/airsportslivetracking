@@ -149,7 +149,7 @@ class ConnectedNavigationTask extends Component {
                 }
             }
         }
-        this.playbackSecond += this.tracklist.length / 3
+        this.playbackSecond += Math.max(1,this.tracklist.length / 3)
         setTimeout(() => this.playBackData(), 300)
     }
 
@@ -214,6 +214,9 @@ class ConnectedNavigationTask extends Component {
     componentDidMount() {
         if (this.props.displayMap) {
             this.initialiseMap();
+        }
+        if(this.props.playback){
+            require('./playbackstyle.css')
         }
     }
 
