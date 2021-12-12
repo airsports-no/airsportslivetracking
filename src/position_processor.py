@@ -139,6 +139,12 @@ def live_position_transmitter_process(queue):
                 device_time,
                 navigation_task_id,
             )
+            websocket_facade.transmit_airsports_position_data(
+                global_tracking_name,
+                position_data,
+                device_time,
+                navigation_task_id,
+            )
 
 
 def on_message(ws, message):

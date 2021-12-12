@@ -135,6 +135,28 @@ class WebsocketFacade:
             group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )
 
+    def transmit_airsports_position_data(self, global_tracking_name: str,
+                                         position_data: Dict,
+                                         device_time: datetime.datetime,
+                                         navigation_task_id: Optional[int], ):
+        data = {
+            "name": global_tracking_name,
+            "time": device_time,
+            "latitude": float(position_data["latitude"]),
+            "longitude": float(position_data["longitude"]),
+            "altitude": float(position_data["altitude"]) * 3.28084,  # feet
+            "speed": float(position_data["speed"]),  # knots
+            "course": float(position_data["course"]),
+            "navigation_task_id": navigation_task_id,
+            "traffic_source": "airsports",
+        }
+        s = json.dumps(data, cls=DateTimeEncoder)
+        container = {
+            "type": "tracking.data",
+            "data": s,
+        }
+        async_to_sync(self.channel_layer.group_send)("tracking_airsports", container)
+
     def transmit_global_position_data(
             self,
             global_tracking_name: str,

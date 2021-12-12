@@ -57,7 +57,7 @@ class TrackingConsumer(WebsocketConsumer):
             json.dumps(
                 {
                     "current_time": (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=2,
-                                                                                                      minutes=self.navigation_task.calculation_delay_minutes))
+                                                                                                       minutes=self.navigation_task.calculation_delay_minutes))
                         .astimezone(self.navigation_task.contest.time_zone)
                         .strftime("%H:%M:%S")
                 }
@@ -130,6 +130,34 @@ class GlobalConsumer(WebsocketConsumer):
             if equirectangular_distance(position, self.location) > self.range:
                 return
         self.send(text_data=event["data"])
+
+
+class AirsportsPositionsConsumer(WebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.groups.append("tracking_airsports")
+
+    def tracking_data(self, event):
+        """
+        Example:
+        {
+          "name": "LN-YDB",  // Aircraft registration
+          "time": "2021-12-12T18:13:08.091000+00:00",  // Time the position was recorded (device time)
+          "latitude": 60.3857576,  // Degrees
+          "longitude": 11.2679698,  // Degrees
+          "altitude": 771.9816119506836,  // Feet (GPS)
+          "speed": 0.024247659386761485,  // Knots
+          "course": 285.223388671875,  // Degrees
+          "navigation_task_id": null,  // id of navigation negative task where the user is competing
+          "traffic_source": "airsports"  // 'airsports' is our app
+        }
+
+
+        :param event:
+        :return:
+        """
+        data = event["data"]
+        self.send(text_data=data)
 
 
 class ContestResultsConsumer(WebsocketConsumer):
