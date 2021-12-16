@@ -11,6 +11,8 @@ import {internalColour, ognColour, openSkyColour} from "./aircraft/aircraft";
 import {withRouter} from "react-router-dom";
 import OngoingNavigationTicker from "./contests/ongoingNavigationTicker";
 import WikiLogoPopup from "./wikiPopup";
+import { mdiAccountCheck } from "@mdi/js";
+import Icon from "@mdi/react";
 
 const mapStateToProps = (state, props) => ({})
 
@@ -48,6 +50,9 @@ class ConnectedGlobalMapContainer extends Component {
                         <Disclaimer/>
                         <AboutLogoPopup aboutText={aboutGlobalMap} size={2}/>
                         <WikiLogoPopup size={2}/>
+                        {document.configuration.authenticatedUser?<a href={"/participation/"} className={"participationLink"}>
+                            <Icon path={mdiAccountCheck} title={"Tracking"} size={1.7} color={"#e01b1c"}/>
+                        </a>:null}
                         <div id="cesiumContainer"/>
                         <div className="ongoing-navigation-ticker"><OngoingNavigationTicker/></div>
                     </div>

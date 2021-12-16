@@ -5,6 +5,7 @@ import {
 } from "react-device-detect";
 import Icon from "@mdi/react";
 import {mdiGoKartTrack} from "@mdi/js";
+
 import {internalColour, ognColour, openSkyColour} from "../aircraft/aircraft";
 
 const aboutGlobalMap = <div>
