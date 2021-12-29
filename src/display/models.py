@@ -1931,6 +1931,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @property
     def gate_times(self) -> Dict:
+        zero_time = None
+        if self.adaptive_start:
+            zero_time = self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+        calculated_times = self.calculate_and_get_gate_times(zero_time)
         if self.predefined_gate_times is not None and len(self.predefined_gate_times) > 0:
             if (
                     self.navigation_task.route.takeoff_gate is not None
@@ -1944,13 +1950,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 self.predefined_gate_times[
                     self.navigation_task.route.landing_gate.name
                 ] = self.finished_by_time + datetime.timedelta(minutes=1)
-            return self.predefined_gate_times
-        zero_time = None
-        if self.adaptive_start:
-            zero_time = self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
-        return self.calculate_and_get_gate_times(zero_time)
+        for gate, crossing_time in calculated_times.items():
+            if gate not in self.predefined_gate_times:
+                self.predefined_gate_times[gate] = crossing_time
+        return self.predefined_gate_times
 
     @gate_times.setter
     def gate_times(self, value):

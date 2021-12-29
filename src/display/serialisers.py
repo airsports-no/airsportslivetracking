@@ -639,7 +639,9 @@ class ContestantSerialiser(serializers.ModelSerializer):
     gate_score_override = GateScoreOverrideSerialiser(required=False, many=True)
     track_score_override = TrackScoreOverrideSerialiser(required=False)
     gate_times = serializers.JSONField(
-        help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the values are $date-time strings (with time zone)"
+        help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
+                  "values are $date-time strings (with time zone). Missing values will be populated from internal "
+                  "calculations."
     )
     default_map_url = SerializerMethodField("get_default_map_url")
 
