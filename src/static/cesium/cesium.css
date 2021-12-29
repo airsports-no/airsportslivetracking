@@ -584,20 +584,10 @@ tr.hidden {
     /*padding: 0 5px;*/
 }
 
-.participationLink {
-    top: 57px;
-    /*max-width: 400px;*/
-    /*min-width: 200px;*/
-    right: 12px;
-    position: fixed;
-    z-index: 2;
-    color: #e01b1c;
-}
-
 .wikiImage {
     /*height: 80px;*/
     /*width: 40vw;*/
-    top: 100px;
+    top: 60px;
     /*max-width: 400px;*/
     /*min-width: 200px;*/
     right: 10px;
