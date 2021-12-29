@@ -43,7 +43,8 @@ class TestContestantGatesCalculation(TestCase):
                                                     wind_direction=165,
                                                     wind_speed=8)
 
-    def test_gate_times(self):
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    def test_gate_times(self, p):
         gate_times = self.contestant.gate_times
         expected_times = [
             ("SP", 8, 11, 0),

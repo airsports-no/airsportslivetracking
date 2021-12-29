@@ -126,7 +126,7 @@ class TestANRPerLeg(TransactionTestCase):
             "Waypoint 1: 0 points entering corridor",
             "Waypoint 2: 50.0 points outside corridor (0 s) (capped)",
             "FP: 200.0 points passing gate (-779 s)\nplanned: 20:48:10\nactual: 20:35:11",
-            "Landing: 0.0 points missing gate\nplanned: 22:31:00\nactual: --",
+            "Landing: 0.0 points missing gate\nplanned: 22:29:00\nactual: --",
         ]
 
         self.assertListEqual(a, strings)
@@ -248,7 +248,7 @@ class TestANRPerLeg(TransactionTestCase):
             "Waypoint 2: 0 points passing gate (no time check) (-168 s)\nplanned: 14:22:34\nactual: 14:19:46",
             "Waypoint 3: 0 points passing gate (no time check) (-221 s)\nplanned: 14:24:32\nactual: 14:20:51",
             "FP: 200.0 points passing gate (-319 s)\nplanned: 14:28:10\nactual: 14:22:51",
-            "Landing: 0.0 points missing gate\nplanned: 15:06:30\nactual: --",
+            "Landing: 0.0 points missing gate\nplanned: 15:04:30\nactual: --",
         ]
         self.assertListEqual(expected, strings)
         self.assertEqual(209, contestant_track.score)

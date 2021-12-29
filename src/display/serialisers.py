@@ -641,7 +641,8 @@ class ContestantSerialiser(serializers.ModelSerializer):
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
                   "values are $date-time strings (with time zone). Missing values will be populated from internal "
-                  "calculations."
+                  "calculations.",
+        required=False
     )
     default_map_url = SerializerMethodField("get_default_map_url")
 
@@ -658,7 +659,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
         track_score_override_data = validated_data.pop("track_score_override", None)
         gate_score_override_data = validated_data.pop("gate_score_override", None)
         contestant = Contestant.objects.create(**validated_data)
-        contestant.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
+        contestant.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
         contestant.save()
         if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
             ContestTeam.objects.create(
@@ -685,7 +686,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
         gate_score_override_data = validated_data.pop("gate_score_override", None)
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()
-        instance.predefined_gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
+        instance.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
         instance.save()
 
         if not ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).exists():
@@ -730,7 +731,6 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
     """
 
     team = TeamNestedSerialiser()
-    gate_times = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Contestant
