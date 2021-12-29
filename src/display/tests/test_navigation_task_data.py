@@ -688,36 +688,27 @@ class TestImportFCNavigationTask(APITransactionTestCase):
             value = dateutil.parser.parse(value)
             self.assertEqual(contestant_gate_times[key], value, key)
 
-    # def test_put_input_with_the_gate_times(self):
-    #     new_times = {"NEW": datetime(2020, 1, 1, 8, 3, tzinfo=timezone.utc)}
-    #     internal_data = deepcopy(data_with_gate_times)
-    #     internal_data["contestant_set"][0]["gate_times"] = new_times
-    #     res = self.client.put(
-    #         "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data_with_gate_times, format="json")
-    #     self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
-    #     self.assertEqual(1, Contestant.objects.all().count())
-    #     contestant = Contestant.objects.all().first()
-    #     gate_times = new_times
-    #     contestant_gate_times = contestant.gate_times
-    #     for key, value in gate_times.items():
-    #         value = dateutil.parser.parse(value)
-    #         self.assertEqual(contestant_gate_times[key], value)
-    #
-    # def test_post_then_put_input_with_the_gate_times(self):
-    #     res = self.client.post(
-    #         "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data_with_gate_times, format="json")
-    #     self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
-    #     self.assertEqual(1, Contestant.objects.all().count())
-    #     new_times = {"NEW": datetime(2020, 1, 1, 8, 3, tzinfo=timezone.utc)}
-    #     internal_data = deepcopy(data_with_gate_times)
-    #     internal_data["contestant_set"][0]["gate_times"] = new_times
-    #     res = self.client.put(
-    #         "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data_with_gate_times, format="json")
-    #     self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
-    #     self.assertEqual(1, Contestant.objects.all().count())
-    #     contestant = Contestant.objects.all().first()
-    #     gate_times = new_times
-    #     contestant_gate_times = contestant.gate_times
-    #     for key, value in gate_times.items():
-    #         value = dateutil.parser.parse(value)
-    #         self.assertEqual(contestant_gate_times[key], value)
+    def test_post_input_with_partial_gate_times(self, patch):
+        partial_gate_times = deepcopy(data_with_gate_times)
+        partial_gate_times["contestant_set"][0]["gate_times"] = {"TP4": "2017-08-01T10:13:09Z"}
+        res = self.client.post(
+            "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), partial_gate_times, format="json")
+        self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
+        self.assertEqual(1, Contestant.objects.all().count())
+        contestant = Contestant.objects.all().first()
+        expected = {'SP': '2017-08-01T07:37:00+00:00', 'SC1': '2017-08-01T07:40:19.377990+00:00',
+                    'TP1': '2017-08-01T07:42:08.617910+00:00', 'SC2': '2017-08-01T07:45:13.083215+00:00',
+                    'SC3': '2017-08-01T07:48:32.411700+00:00', 'SC4': '2017-08-01T07:49:55.993784+00:00',
+                    'TP2': '2017-08-01T07:52:14.623446+00:00', 'SC5': '2017-08-01T07:54:48.315998+00:00',
+                    'SC6': '2017-08-01T07:59:42.947568+00:00', 'TP3': '2017-08-01T08:02:24.374430+00:00',
+                    'SC7': '2017-08-01T08:05:41.312181+00:00', 'SC8': '2017-08-01T08:11:14.450620+00:00',
+                    'TP4': '2017-08-01T10:13:09+00:00', 'SC9': '2017-08-01T10:18:57.352404+00:00',
+                    'SC10': '2017-08-01T10:21:31.507249+00:00', 'TP5': '2017-08-01T10:21:36.895598+00:00',
+                    'SC11': '2017-08-01T10:23:15.696831+00:00', 'TP6': '2017-08-01T10:29:00.278075+00:00',
+                    'TP7': '2017-08-01T10:35:01.860940+00:00', 'SC12': '2017-08-01T10:37:34.090899+00:00',
+                    'FP': '2017-08-01T10:39:55.881564+00:00', 'T/O': '2017-08-01T07:30:00+00:00',
+                    'LDG': '2017-08-01T08:52:23+00:00'}
+        gate_times = {name: item.isoformat() for name, item in contestant.gate_times.items()}
+        print(gate_times)
+        equal, reasons = compare_dictionaries(expected, gate_times, "expected", "actual")
+        self.assertTrue(equal, reasons)
