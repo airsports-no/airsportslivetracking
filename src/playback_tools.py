@@ -90,14 +90,15 @@ def recalculate_traccar(contestant: "Contestant"):
         pass
     contestant.contestantreceivedposition_set.all().delete()
     track = contestant.get_traccar_track()
-    q = Queue()
+    q = RedisQueue(str(contestant.pk))
     for i in track:
-        q.put(i)
-    q.put(None)
-    calculator = calculator_factory(contestant, q, live_processing=False)
+        q.append(i)
+    q.append(None)
+    logger.debug(f"Loaded {len(track)} positions")
+    calculator = calculator_factory(contestant, live_processing=False)
     calculator.run()
     while not q.empty():
-        q.get_nowait()
+        q.pop()
 
 
 def insert_gpx_file(contestant_object: "Contestant", file):
