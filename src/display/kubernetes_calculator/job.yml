@@ -7,6 +7,8 @@ spec:
     metadata:
       labels: {}
     spec:
+      imagePullSecrets:
+        - name: acr-pull-secret
       ttlSecondsAfterFinished: 259200  # Three days
       backoffLimit: 4
       containers:
