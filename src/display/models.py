@@ -1024,6 +1024,7 @@ class Scorecard(models.Model):
 
     def __format_value_gate(self, field, contestant, gate_type) -> Dict:
         return {
+            "key": field,
             "name": self.__format_title(field),
             "value": getattr(self, f"get_{field}_for_gate_type")(gate_type, contestant),
             "help_text": getattr(self, f"get_{field}_for_gate_type").__doc__,
@@ -1063,7 +1064,8 @@ class Scorecard(models.Model):
                 self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
                 self.__format_value("prohibited_zone_penalty", contestant),
             ],
-            "gates": [{"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])} for item in GATES_TYPES],
+            "gates": [{"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(contestant, item[0])} for
+                      item in GATES_TYPES],
         }
         return scores
 
@@ -1676,6 +1678,10 @@ class Contestant(models.Model):
             traccar = get_traccar_instance()
             traccar.get_or_create_device(self.tracker_device_id, self.tracker_device_id)
         super().save(**kwargs)
+
+    @property
+    def scorecard_rules(self):
+        return self.navigation_task.scorecard.scores_display(self)
 
     def _prohibited_zone_text(self):
         scorecard = self.navigation_task.scorecard

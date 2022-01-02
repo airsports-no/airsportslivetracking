@@ -536,6 +536,30 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class DangerLevelSerialiser(serializers.Serializer):
+    danger_level = serializers.FloatField()
+    accumulated_score = serializers.FloatField()
+
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+
+class GateScoreIfCrossedNowSerialiser(serializers.Serializer):
+    seconds = serializers.FloatField()
+    waypoint_name = serializers.CharField()
+    final = serializers.BooleanField(required=False)
+    missed = serializers.BooleanField(required=False)
+
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+
 class PositionSerialiser(serializers.Serializer):
     """
     {
@@ -644,6 +668,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
                   "calculations.",
         required=False
     )
+    scorecard_rules = serializers.JSONField(help_text="Dictionary with all rules", read_only=True)
     default_map_url = SerializerMethodField("get_default_map_url")
 
     def get_default_map_url(self, contestant):

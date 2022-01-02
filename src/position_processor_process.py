@@ -114,9 +114,12 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
                     f"Tried to start existing calculator job for contestant {contestant}. Ignoring the failure.")
             except:
                 logger.exception(f"Failed starting kubernetes calculator job for {contestant}")
-                send_mail("Failed starting kubernetes calculator job",
-                          f"Failed starting job for contestant {contestant}. Falling back to internal calculator.",
-                          None, ["frankose@ifi.uio.no"])
+                try:
+                    send_mail("Failed starting kubernetes calculator job",
+                              f"Failed starting job for contestant {contestant}. Falling back to internal calculator.",
+                              None, ["frankose@ifi.uio.no"])
+                except:
+                    logger.exception("Failed sending error email")
                 # Create an internal process for the calculator
                 connections.close_all()
                 p = Process(target=calculator_process, args=(contestant.pk,), daemon=True)

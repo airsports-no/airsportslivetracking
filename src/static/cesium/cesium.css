@@ -568,6 +568,13 @@ tr.hidden {
 }
 
 
+.gate-score-arrow{
+    bottom: 10px;
+    left: 300px;
+    position: fixed;
+    z-index: 2;
+}
+
 .logoImage {
     /*height: 80px;*/
     /*width: 40vw;*/

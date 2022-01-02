@@ -217,10 +217,33 @@ class GatekeeperRoute(Gatekeeper):
                     self.contestant, self.track[-1].time,
                     gate, time_limit))
                 gate.missed = True
+                if gate.time_check:
+                    self.transmit_gate_score_if_crossed_now(gate, True, True)
                 self.pop_gate(0, True)
         self.check_gate_in_range()
         if self.last_gate and self.last_gate.type == "fp":
             self.passed_finishpoint()
+
+    def check_and_transmit_gate_score_if_crossed_now(self, final: bool, missed: bool):
+        if len(self.track) > 0:
+            index = 0
+            while index < len(self.outstanding_gates) and not self.outstanding_gates[index].time_check:
+                index += 1
+            if index < len(self.outstanding_gates):
+                gate = self.outstanding_gates[index]
+                self.transmit_gate_score_if_crossed_now(gate, final, missed)
+
+    def transmit_gate_score_if_crossed_now(self, gate: Gate, final: bool, missed: bool):
+
+        # score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
+        #                                                            gate.expected_time, self.track[-1].time)
+        if gate.passing_time:
+            time_difference_seconds = (gate.passing_time - gate.expected_time).total_seconds()
+        else:
+            time_difference_seconds = (self.track[-1].time - gate.expected_time).total_seconds()
+        self.websocket_facade.transmit_gate_score_if_crossed_now(self.contestant, gate.name, time_difference_seconds,
+                                                                 final,
+                                                                 missed)
 
     def notify_termination(self):
         super().notify_termination()
@@ -228,7 +251,6 @@ class GatekeeperRoute(Gatekeeper):
             f"{self.contestant}: {'Live processing and past' if self.live_processing else 'Past'} finish time, terminating")
         self.miss_outstanding_gates()
         self.calculate_gate_score()
-
 
     def calculate_gate_score(self):
         if not len(self.track):
@@ -268,6 +290,7 @@ class GatekeeperRoute(Gatekeeper):
                     gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
                                                                                     gate.expected_time,
                                                                                     gate.passing_time)
+                    self.transmit_gate_score_if_crossed_now(gate, True, False)
                     self.update_score(gate, gate_score,
                                       "passing gate",
                                       current_position.latitude, current_position.longitude, "anomaly",
@@ -287,4 +310,9 @@ class GatekeeperRoute(Gatekeeper):
     def check_gates(self):
         self.check_intersections()
         self.calculate_gate_score()
+        next_timing_gates = filter(lambda k: k.time_check, self.outstanding_gates)
+        try:
+            self.transmit_gate_score_if_crossed_now(next(next_timing_gates), False, False)
+        except StopIteration:
+            pass
         self.check_gate_in_range()

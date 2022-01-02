@@ -123,6 +123,8 @@ function rootReducer(state = initialState, action) {
                 gate_scores: state.contestantData[contestant.id] ? state.contestantData[contestant.id].gate_scores : [],
                 more_data: true,
                 progress: state.contestantData[contestant.id] ? state.contestantData[contestant.id].progress : 0,
+                gate_score_if_crossed_now: state.contestantData[contestant.id] ? state.contestantData[contestant.id].gate_score_if_crossed_now : null,
+                danger_level: state.contestantData[contestant.id] ? state.contestantData[contestant.id].danger_level : null,
                 // contestant_track: contestant.contestanttrack
                 contestant_track: state.contestantData[contestant.id] ? state.contestantData[contestant.id].contestant_track : {
                     current_state: "Waiting...",
@@ -213,7 +215,9 @@ function rootReducer(state = initialState, action) {
                     progress: action.payload.progress !== undefined ? action.payload.progress : state.contestantData[action.payload.contestant_id].progress,
                     contestant_track: action.payload.contestant_track ? action.payload.contestant_track : state.contestantData[action.payload.contestant_id].contestant_track,
                     contestant_id: action.payload.contestant_id,
-                    latest_time: action.payload.latest_time
+                    latest_time: action.payload.latest_time,
+                    gate_score_if_crossed_now: action.payload.gate_score_if_crossed_now ? action.payload.gate_score_if_crossed_now : state.contestantData[action.payload.contestant_id].gate_score_if_crossed_now,
+                    danger_level: action.payload.danger_level ? action.payload.danger_level : state.contestantData[action.payload.contestant_id].danger_level,
                 }
             },
             isFetchingContestantData: {

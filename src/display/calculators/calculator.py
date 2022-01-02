@@ -22,6 +22,9 @@ class Calculator:
         self.update_score = update_score
         logger.debug(f"{contestant}: Starting calculator {self}")
 
+    def extrapolate_position_forward(self, track: List["Position"], seconds_ahead: float) -> "Position":
+        pass
+
     @abstractmethod
     def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
         pass
