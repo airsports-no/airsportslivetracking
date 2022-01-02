@@ -3,7 +3,7 @@ import {connect} from "react-redux";
 import GateScoreArrowRenderer from "./gateScoreArrowRenderer";
 
 const mapStateToProps = (state, props) => ({
-    arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_score_if_crossed_now : null,
+    // arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_score_if_crossed_now : null,
     rules: state.contestants[props.contestantId] !== undefined ? state.contestants[props.contestantId].scorecard_rules : null,
     waypoints: state.navigationTask.route.waypoints
 })
@@ -64,16 +64,17 @@ class ConnectedGateScoreArrow extends Component {
         if (this.props.arrowData && this.state.currentArrowData && (this.props.arrowData.missed || this.props.arrowData.final)) {
             // Gate change, delay
             if (!this.frozenTime) {
-                this.setState({currentArrowData: this.props.arrowData})
                 this.frozenTime = new Date()
+                this.setState({currentArrowData: this.props.arrowData})
             }
         }
         if (this.frozenTime && new Date().getTime() - this.frozenTime.getTime() < GATE_FREEZE_TIME * 1000) {
         } else if (this.props.arrowData !== this.state.currentArrowData) {
-            this.setState({currentArrowData: this.props.arrowData})
             this.frozenTime = null
+            this.setState({currentArrowData: this.props.arrowData})
         }
     }
+
 
     render() {
         if (this.props.arrowData && this.state.currentArrowData) {
@@ -85,6 +86,7 @@ class ConnectedGateScoreArrow extends Component {
                                            missedPenalty={this.getMissedPenalty()}
                                            seconds={this.state.currentArrowData.seconds}
                                            waypointName={this.state.currentArrowData.waypoint_name}
+                                           contestantId={this.props.contestantId}
                                            final={this.state.currentArrowData.final}
                                            missed={this.state.currentArrowData.missed}/>
         }

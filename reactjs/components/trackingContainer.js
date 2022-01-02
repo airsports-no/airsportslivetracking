@@ -33,6 +33,7 @@ const mapStateToProps = (state, props) => ({
     myParticipatingContests: state.myParticipatingContests
 })
 
+
 class ConnectedTrackingContainer extends Component {
     constructor(props) {
         super(props);
@@ -45,7 +46,14 @@ class ConnectedTrackingContainer extends Component {
         this.displayTable = document.configuration.displayTable;
         this.playback = document.configuration.playback;
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
+        this.state = {height: window.innerHeight, width: window.innerWidth}
+        window.addEventListener("resize", () => this.setState({height: window.innerHeight, width: window.innerWidth}))
     }
+
+    convertVwToPx(vw = 50) {
+        const oneVwInPx = this.state.width / 100;
+        return oneVwInPx * vw;
+    };
 
     fetchNavigationTask() {
         this.props.fetchNavigationTask(this.contestId, this.navigationTaskId);
@@ -178,8 +186,9 @@ class ConnectedTrackingContainer extends Component {
                                     {/*<TimeDisplay contestantId={this.props.displayLowerThirds} class={"pilotTime"}/>*/}
                                     <TimeDisplay class={"pilotTime"}/>
                                     <div className={"gate-score-arrow"}>
-                                        <GateScoreArrow contestantId={this.props.displayLowerThirds} width={400}
-                                                        height={120} arrowData={{
+                                        <GateScoreArrow contestantId={this.props.displayLowerThirds}
+                                                        width={this.convertVwToPx(40)}
+                                                        height={110} arrowData={{
                                             waypoint_name: "SP",
                                             seconds: 7,
                                             early: true,

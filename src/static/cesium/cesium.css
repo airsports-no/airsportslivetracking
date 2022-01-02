@@ -299,15 +299,19 @@ tr.hidden {
 
 @media (min-width: 1024px) and (max-width: 1300px) {
     .lowerThirdsDouble {
-        transform: scale(0.75);
+        transform: scale(0.6);
     }
 
     .lowerThirdsSingle {
-        transform: scale(0.75);
+        transform: scale(0.6);
+    }
+
+    .globalMapBackdrop {
+        transform: scale(0.9);
     }
 
     .scalable {
-        transform: scale(0.75);
+        transform: scale(0.7);
     }
 }
 
@@ -570,7 +574,7 @@ tr.hidden {
 
 .gate-score-arrow{
     bottom: 10px;
-    left: 300px;
+    left: 145px;
     position: fixed;
     z-index: 2;
 }
