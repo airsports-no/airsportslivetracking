@@ -46,7 +46,7 @@ class ProhibitedZoneCalculator(Calculator):
         self.zone_polygons = []
         zones = route.prohibited_set.filter(type="prohibited")
         for zone in zones:
-            self.zone_polygons.append((zone.name, self.polygon_helper.build_polygon(zone)))
+            self.zone_polygons.append((zone.name, self.polygon_helper.build_polygon(zone.path)))
 
     def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
         self.check_inside_prohibited_zone(track, last_gate)

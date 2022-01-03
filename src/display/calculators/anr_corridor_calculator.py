@@ -7,11 +7,10 @@ import numpy as np
 from cartopy.io.img_tiles import OSM
 from shapely.geometry import Polygon, Point
 
-import cartopy.crs as ccrs
 
 from display.calculators.calculator import Calculator
+from display.calculators.calculator_utilities import PolygonHelper
 from display.calculators.positions_and_gates import Position, Gate
-from display.coordinate_utilities import utm_from_lat_lon
 from display.models import Contestant, Scorecard, Route
 
 logger = logging.getLogger(__name__)
@@ -47,9 +46,8 @@ class AnrCorridorCalculator(Calculator):
         self.crossed_outside_position = None
         self.crossed_outside_gate = None
         self.corridor_grace_time = self.scorecard.get_corridor_grace_time(self.contestant)
-        self.pc = ccrs.PlateCarree()
         waypoint = self.contestant.navigation_task.route.waypoints[0]
-        self.utm = utm_from_lat_lon(waypoint.latitude, waypoint.longitude)
+        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
         self.track_polygon = self.build_polygon()
         self.existing_reference = None
         self.plot_polygon()
@@ -78,33 +76,31 @@ class AnrCorridorCalculator(Calculator):
             else:
                 points.append(waypoint.gate_line[1])
         points = np.array(points)
-        transformed_points = self.utm.transform_points(self.pc, points[:, 1], points[:, 0])
+        transformed_points = self.polygon_helper.utm.transform_points(self.polygon_helper.pc, points[:, 1],
+                                                                      points[:, 0])
         return Polygon(transformed_points)
 
     def plot_polygon(self):
         # imagery = OSM()
-        ax = plt.axes(projection=self.utm)
+        ax = plt.axes(projection=self.polygon_helper.utm)
         # ax.add_image(imagery, 8)
         ax.set_aspect("auto")
         ax.plot(self.track_polygon.boundary.xy[0], self.track_polygon.boundary.xy[1])
-        ax.add_geometries([self.track_polygon], crs=self.utm, facecolor="blue", alpha=0.4)
+        ax.add_geometries([self.track_polygon], crs=self.polygon_helper.utm, facecolor="blue", alpha=0.4)
         plt.savefig("polygon.png", dpi=100)
 
     def _check_inside_polygon(self, latitude: float, longitude: float) -> bool:
         """
         Returns true if the point lies inside the corridor
         """
-        x, y = self.utm.transform_point(longitude, latitude, self.pc)
-        p = Point(x, y)
-        return self.track_polygon.contains(p)
+        return "test" in self.polygon_helper.check_inside_polygons([("test", self.track_polygon)], latitude, longitude)
 
     def _distance_from_point_to_polygons(self, latitude: float, longitude: float) -> float:
         """
         :return: Distance to inside or outside the polygon (metres)
         """
-        x, y = self.utm.transform_point(longitude, latitude, self.pc)
-        p = Point(x, y)
-        return self.track_polygon.exterior.distance(p)
+        return self.polygon_helper.distance_from_point_to_polygons([("test", self.track_polygon)], latitude, longitude)[
+            "test"]
 
     def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
         self.check_outside_corridor(track, last_gate)

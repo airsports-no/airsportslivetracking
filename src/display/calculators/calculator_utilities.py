@@ -1,5 +1,5 @@
 import numpy as np
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Polygon, Point, LineString
 
 import cartopy.crs as ccrs
 import datetime
@@ -61,9 +61,9 @@ class PolygonHelper:
         self.pc = ccrs.PlateCarree()
         self.utm = utm_from_lat_lon(latitude, longitude)
 
-    def build_polygon(self, zone):
+    def build_polygon(self, path):
         line = []
-        for element in zone.path:
+        for element in path:
             line.append(self.utm.transform_point(*list(reversed(element)), self.pc))
         return Polygon(line)
 
@@ -87,6 +87,43 @@ class PolygonHelper:
         for name, polygon in polygons:
             distances[name] = polygon.exterior.distance(p)
         return distances
+
+    def time_to_intersection(self, polygons: List[Tuple[str, Polygon]], latitude: float, longitude: float,
+                             bearing: float, speed: float, turning_rate: float, lookahead_seconds: int,
+                             lookahead_step: int = 1) -> Dict[
+        str, float]:
+        """
+        Returns the number of seconds until a possible intersect of any polygon from the current position with projected speed and turning rate
+
+        :param polygons:
+        :param latitude:
+        :param longitude:
+        :param bearing: degrees
+        :param speed: knots
+        :param turning_rate: degrees per second
+        :param lookahead_seconds: How far ahead to extrapolate the trajectory
+        """
+        previous_longitude = longitude
+        previous_latitude = latitude
+        speed_per_second = speed / 3600  # nm/s
+        intersection_times = {}
+        for second in range(0, lookahead_seconds, lookahead_step):
+            projected_latitude, projected_longitude = project_position_lat_lon((previous_latitude, previous_longitude),
+                                                                               (bearing + second * turning_rate) % 360,
+                                                                               speed_per_second * lookahead_step)
+            line_string = LineString(
+                self.utm.transform_points(self.pc, np.array([previous_longitude, projected_longitude]),
+                                          np.array([previous_latitude, projected_latitude])))
+            previous_latitude = projected_latitude
+            previous_longitude = projected_longitude
+            for name, polygon in polygons:
+                if name not in intersection_times:
+                    if line_string.intersects(polygon):
+                        intersection_times[name] = second
+        for name, polygon in polygons:
+            if name not in intersection_times:
+                intersection_times[name] = None
+        return intersection_times
 
 
 def project_position(latitude: float, longitude: float, course: float, turning_rate: float, speed: float,

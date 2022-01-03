@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from display.calculators.calculator_utilities import project_position
+from display.calculators.calculator_utilities import project_position, PolygonHelper
 
 
 class TestProjectPosition(TestCase):
@@ -30,3 +30,12 @@ class TestProjectPosition(TestCase):
         destination = project_position(60, 11, 0, 0, 60, 3600)
         self.assertAlmostEqual(60.9982012, destination[0], 4)
         self.assertAlmostEqual(10.99999999, destination[1], 4)
+
+
+class TestPolygonHelper(TestCase):
+    def test_time_to_intersection(self):
+        helper = PolygonHelper(60, 11)
+        polygon = helper.build_polygon([(60, 11), (60, 12), (61, 12), (61, 11)])
+        intersection_times = helper.time_to_intersection([("test", polygon)], 59.999, 11.5, 0, 6000, 0, 600)
+        print(intersection_times)
+        self.assertEqual({'test': 130}, intersection_times)

@@ -22,7 +22,7 @@ class GatekeeperPoker(Gatekeeper):
         self.waypoint_names = [gate.name for gate in self.contestant.navigation_task.route.waypoints]
         gates = self.contestant.navigation_task.route.prohibited_set.filter(type="gate")
         for gate in gates:
-            self.gate_polygons.append((gate.name, self.polygon_helper.build_polygon(gate)))
+            self.gate_polygons.append((gate.name, self.polygon_helper.build_polygon(gate.path)))
         # Sort list of polygons according to list of waypoint names
         self.sorted_polygons = [
             (polygon_name, polygon, index)

@@ -62,6 +62,7 @@ class ConnectedGateScoreArrow extends Component {
 
 
     componentDidUpdate(prevProps) {
+        const frozen = this.frozenTime && new Date().getTime() - this.frozenTime.getTime() < GATE_FREEZE_TIME * 1000
         const unfreeze = this.frozenTime && new Date().getTime() - this.frozenTime.getTime() >= GATE_FREEZE_TIME * 1000
         if (this.props.arrowData && (this.props.arrowData.missed || this.props.arrowData.final)) {
             // Gate change, delay
@@ -71,10 +72,10 @@ class ConnectedGateScoreArrow extends Component {
             }
             // It is still final, but timed out. This means that we have not received any new gate data so we should simply hide the arrow
             if (unfreeze) {
-                this.setState({hidden: true})
+                this.setState({currentArrowData: this.props.arrowData, hidden: true})
+                return
             }
         }
-        const frozen = this.frozenTime && new Date().getTime() - this.frozenTime.getTime() < GATE_FREEZE_TIME * 1000
         if (!frozen && this.props.arrowData !== this.state.currentArrowData) {
             this.frozenTime = null
             this.setState({currentArrowData: this.props.arrowData, hidden: false})

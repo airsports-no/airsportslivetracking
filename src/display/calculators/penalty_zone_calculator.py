@@ -49,7 +49,7 @@ class PenaltyZoneCalculator(Calculator):
         zones = route.prohibited_set.filter(type="penalty")
         for zone in zones:
             self.zone_polygons.append(
-                (zone.name, self.polygon_helper.build_polygon(zone))
+                (zone.name, self.polygon_helper.build_polygon(zone.path))
             )
 
     def calculate_enroute(

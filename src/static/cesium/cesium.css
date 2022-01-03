@@ -228,7 +228,7 @@ tr.hidden {
     transform-origin: bottom right;
     position: fixed;
     width: 700px;
-    bottom: 20px;
+    bottom: 2px;
     right: 20px;
     z-index: 2;
     transform: scale(0.8);
@@ -239,7 +239,7 @@ tr.hidden {
     transform-origin: bottom right;
     position: fixed;
     width: 550px;
-    bottom: 20px;
+    bottom: 2px;
     right: 20px;
     z-index: 2;
     transform: scale(0.8);
@@ -573,7 +573,7 @@ tr.hidden {
 
 
 .gate-score-arrow{
-    bottom: 10px;
+    bottom: -4px;
     left: 145px;
     position: fixed;
     z-index: 2;
