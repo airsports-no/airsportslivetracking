@@ -161,40 +161,40 @@ services:
       - redis
 
 
-  opensky_consumer:
-    container_name: opensky_consumer
-    image: airsportsacr.azurecr.io/opensky_consumer
-
-    restart: unless-stopped
-    environment:
-      - OPEN_SKY_USERNAME=${OPEN_SKY_USERNAME}
-      - OPEN_SKY_PASSWORD=${OPEN_SKY_PASSWORD}
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: opensky_consumer
-    volumes:
-      - ./secret:/secret
-      - ./src:/src
-      - ./openskyconsumerlogs:/logs
-    depends_on:
-      - redis
-
-  ogn_consumer:
-    container_name: ogn_consumer
-    image: airsportsacr.azurecr.io/ogn_consumer
-
-    restart: unless-stopped
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: ogn_consumer
-    volumes:
-      - ./secret:/secret
-      - ./src:/src
-      - ./ognconsumerlogs:/logs
-    depends_on:
-      - redis
+#  opensky_consumer:
+#    container_name: opensky_consumer
+#    image: airsportsacr.azurecr.io/opensky_consumer
+#
+#    restart: unless-stopped
+#    environment:
+#      - OPEN_SKY_USERNAME=${OPEN_SKY_USERNAME}
+#      - OPEN_SKY_PASSWORD=${OPEN_SKY_PASSWORD}
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#      target: opensky_consumer
+#    volumes:
+#      - ./secret:/secret
+#      - ./src:/src
+#      - ./openskyconsumerlogs:/logs
+#    depends_on:
+#      - redis
+#
+#  ogn_consumer:
+#    container_name: ogn_consumer
+#    image: airsportsacr.azurecr.io/ogn_consumer
+#
+#    restart: unless-stopped
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#      target: ogn_consumer
+#    volumes:
+#      - ./secret:/secret
+#      - ./src:/src
+#      - ./ognconsumerlogs:/logs
+#    depends_on:
+#      - redis
 
 
   traccar:
