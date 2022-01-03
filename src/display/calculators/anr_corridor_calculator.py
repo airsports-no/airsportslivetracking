@@ -54,6 +54,17 @@ class AnrCorridorCalculator(Calculator):
         self.existing_reference = None
         self.plot_polygon()
 
+    def get_danger_level(self, position: "Position") -> float:
+        """
+        Danger level ranges from 0 to 100 where 100 is outside the corridor, and all other numbers represent half seconds
+        :param position:
+        :return:
+        """
+        if self.corridor_state == self.OUTSIDE_CORRIDOR:
+            return 100
+        return min([99, 2 * (self._distance_from_point_to_polygons(position.latitude,
+                                                                   position.longitude) / 1852) / position.speed])
+
     def build_polygon(self):
         points = []
         for waypoint in self.contestant.navigation_task.route.waypoints:
@@ -79,13 +90,21 @@ class AnrCorridorCalculator(Calculator):
         ax.add_geometries([self.track_polygon], crs=self.utm, facecolor="blue", alpha=0.4)
         plt.savefig("polygon.png", dpi=100)
 
-    def _check_inside_polygon(self, latitude, longitude) -> bool:
+    def _check_inside_polygon(self, latitude: float, longitude: float) -> bool:
         """
         Returns true if the point lies inside the corridor
         """
         x, y = self.utm.transform_point(longitude, latitude, self.pc)
         p = Point(x, y)
         return self.track_polygon.contains(p)
+
+    def _distance_from_point_to_polygons(self, latitude: float, longitude: float) -> float:
+        """
+        :return: Distance to inside or outside the polygon (metres)
+        """
+        x, y = self.utm.transform_point(longitude, latitude, self.pc)
+        p = Point(x, y)
+        return self.track_polygon.exterior.distance(p)
 
     def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
         self.check_outside_corridor(track, last_gate)
