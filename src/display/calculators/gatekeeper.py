@@ -133,8 +133,6 @@ class Gatekeeper(ABC):
         current_time = position_data["device_time"]
         time_difference = (current_time - latest_position_time).total_seconds()
         if time_difference > 3:
-            # Wait for some time to have intermediate positions ready in the database
-            time.sleep(min(time_difference, 15))
             # Get positions in between
             logger.debug(
                 f"{self.contestant}: Position time difference is more than 3 seconds ({latest_position_time.strftime('%H:%M:%S')} to {current_time.strftime('%H:%M:%S')} = {time_difference}), so fetching missing data from traccar.")
@@ -357,6 +355,7 @@ class Gatekeeper(ABC):
 
     def passed_finishpoint(self):
         if not self.has_passed_finishpoint:
+            self.contestant.contestanttrack.set_passed_finish_gate()
             self.has_passed_finishpoint = True
             for calculator in self.calculators:
                 calculator.passed_finishpoint(self.track, self.last_gate)

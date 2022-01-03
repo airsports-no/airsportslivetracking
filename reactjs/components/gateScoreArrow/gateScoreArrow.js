@@ -3,6 +3,7 @@ import {connect} from "react-redux";
 import GateScoreArrowRenderer from "./gateScoreArrowRenderer";
 
 const mapStateToProps = (state, props) => ({
+    contestantTrack: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
     arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_score_if_crossed_now : null,
     rules: state.contestants[props.contestantId] !== undefined ? state.contestants[props.contestantId].scorecard_rules : null,
     waypoints: state.navigationTask.route.waypoints
@@ -63,17 +64,11 @@ class ConnectedGateScoreArrow extends Component {
 
     componentDidUpdate(prevProps) {
         const frozen = this.frozenTime && new Date().getTime() - this.frozenTime.getTime() < GATE_FREEZE_TIME * 1000
-        const unfreeze = this.frozenTime && new Date().getTime() - this.frozenTime.getTime() >= GATE_FREEZE_TIME * 1000
         if (this.props.arrowData && (this.props.arrowData.missed || this.props.arrowData.final)) {
             // Gate change, delay
             if (!this.frozenTime) {
                 this.frozenTime = new Date()
                 this.setState({currentArrowData: this.props.arrowData})
-            }
-            // It is still final, but timed out. This means that we have not received any new gate data so we should simply hide the arrow
-            if (unfreeze) {
-                this.setState({currentArrowData: this.props.arrowData, hidden: true})
-                return
             }
         }
         if (!frozen && this.props.arrowData !== this.state.currentArrowData) {
@@ -84,7 +79,7 @@ class ConnectedGateScoreArrow extends Component {
 
 
     render() {
-        if (this.state.currentArrowData && !this.state.hidden) {
+        if (this.state.currentArrowData && this.props.contestantTrack && !this.props.contestantTrack.passed_finish_gate) {
             return <GateScoreArrowRenderer width={this.props.width} height={this.props.height}
                                            pointsPerSecond={this.getPointsPerSecond()}
                                            maximumTimingPenalty={this.getMaximumTimingPenalty()}
