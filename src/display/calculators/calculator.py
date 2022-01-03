@@ -4,6 +4,7 @@ from typing import List, Callable, Dict, Optional
 
 from display.calculators.positions_and_gates import Position, Gate
 from display.models import Contestant, Scorecard, Route
+from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class Calculator:
         self.gates = gates
         self.route = route
         self.update_score = update_score
+        self.websocket_facade = WebsocketFacade()
         logger.debug(f"{contestant}: Starting calculator {self}")
 
     def extrapolate_position_forward(self, track: List["Position"], seconds_ahead: float) -> "Position":

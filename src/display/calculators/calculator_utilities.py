@@ -107,6 +107,11 @@ class PolygonHelper:
         previous_latitude = latitude
         speed_per_second = speed / 3600  # nm/s
         intersection_times = {}
+        maximum_distance = speed_per_second * lookahead_seconds
+        distances = self.distance_from_point_to_polygons(polygons, latitude, longitude)
+        for name, distance in distances:
+            if distance > maximum_distance:
+                intersection_times[name] = None
         for second in range(0, lookahead_seconds, lookahead_step):
             projected_latitude, projected_longitude = project_position_lat_lon((previous_latitude, previous_longitude),
                                                                                (bearing + second * turning_rate) % 360,

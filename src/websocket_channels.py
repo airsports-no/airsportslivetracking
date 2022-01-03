@@ -151,7 +151,7 @@ class WebsocketFacade:
         )
 
     def transmit_danger_estimate_and_accumulated_penalty(self, contestant: "Contestant", danger_level: float,
-                                                         accumulated_score: float):
+                                                         accumulated_score: Dict[str, float]):
         channel_data = generate_contestant_data_block(contestant,
                                                       gate_score_if_crossed_now=DangerLevelSerialiser(
                                                           {"danger_level": danger_level,

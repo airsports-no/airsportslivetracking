@@ -8,9 +8,12 @@ import cartopy.crs as ccrs
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import PolygonHelper
 from display.calculators.positions_and_gates import Position, Gate
+from display.coordinate_utilities import bearing_difference
 from display.models import Contestant, Scorecard, Route, INFORMATION, ANOMALY
 
 logger = logging.getLogger(__name__)
+
+LOOKAHEAD_SECONDS = 30
 
 
 class PenaltyZoneCalculator(Calculator):
@@ -27,16 +30,17 @@ class PenaltyZoneCalculator(Calculator):
     INSIDE_PENALTY_ZONE_PENALTY_TYPE = "inside_penalty_zone"
 
     def __init__(
-        self,
-        contestant: "Contestant",
-        scorecard: "Scorecard",
-        gates: List["Gate"],
-        route: "Route",
-        update_score: Callable,
-        type_filter: str = None,
+            self,
+            contestant: "Contestant",
+            scorecard: "Scorecard",
+            gates: List["Gate"],
+            route: "Route",
+            update_score: Callable,
+            type_filter: str = None,
     ):
         super().__init__(contestant, scorecard, gates, route, update_score)
         self.inside_zones = set()
+        self.running_penalty = {}
         self.gates = gates
         self.crossed_outside_time = None
         self.last_outside_penalty = None
@@ -52,13 +56,32 @@ class PenaltyZoneCalculator(Calculator):
                 (zone.name, self.polygon_helper.build_polygon(zone.path))
             )
 
+    def calculate_danger_level(self, track: List["Position"]) -> float:
+        if len(track) > 0:
+            turning_rate = bearing_difference(track[-1].course, track[-3].course) / (
+                    track[-1].time - track[-3].time).total_seconds()
+            intersection_times = self.polygon_helper.time_to_intersection(self.zone_polygons, track[-1].latitude,
+                                                                          track[-1].longitude, track[-1].course,
+                                                                          track[-1].speed, turning_rate,
+                                                                          LOOKAHEAD_SECONDS)
+            shortest_time = min(list(intersection_times.values()))
+            return 99 * shortest_time / LOOKAHEAD_SECONDS
+        else:
+            return 0
+
+    def report_danger_level(self, track: List["Position"]):
+        danger_level = self.calculate_danger_level(track)
+        self.websocket_facade.transmit_danger_estimate_and_accumulated_penalty(self.contestant, danger_level,
+                                                                               self.running_penalty)
+
     def calculate_enroute(
-        self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"
+            self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"
     ):
         self.check_inside_prohibited_zone(track, last_gate)
+        self.report_danger_level(track)
 
     def check_inside_prohibited_zone(
-        self, track: List["Position"], last_gate: Optional["Gate"]
+            self, track: List["Position"], last_gate: Optional["Gate"]
     ):
         position = track[-1]
         currently_inside = self.polygon_helper.check_inside_polygons(
@@ -81,12 +104,14 @@ class PenaltyZoneCalculator(Calculator):
                     self.INSIDE_PENALTY_ZONE_PENALTY_TYPE,
                 )
                 del self.existing_reference[zone]
+                del self.running_penalty[zone]
             else:
+                self.running_penalty[zone] = self.scorecard.calculate_penalty_zone_score(
+                    self.contestant, start_time, position.time
+                )
                 self.existing_reference[zone] = self.update_score(
                     last_gate or self.gates[0],
-                    self.scorecard.calculate_penalty_zone_score(
-                        self.contestant, start_time, position.time
-                    ),
+                    self.running_penalty[zone],
                     "inside penalty zone {}".format(zone),
                     position.latitude,
                     position.longitude,
