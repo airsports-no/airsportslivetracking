@@ -187,7 +187,7 @@ class ConnectedTrackingContainer extends Component {
                                     <TimeDisplay class={"pilotTime"}/>
                                     <div className={"gate-score-arrow"}>
                                         <GateScoreArrow contestantId={this.props.displayLowerThirds}
-                                                        width={this.convertVwToPx(40)}
+                                                        width={this.convertVwToPx(45)}
                                                         height={110} arrowData={{
                                             waypoint_name: "SP",
                                             seconds: 7,

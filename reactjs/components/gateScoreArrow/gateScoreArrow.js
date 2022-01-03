@@ -16,7 +16,7 @@ class ConnectedGateScoreArrow extends Component {
         super(props)
         this.state = {
             currentArrowData: this.props.arrowData,
-            hidden: false
+            finished: {}
         }
         this.frozenTime = null
     }
@@ -75,11 +75,16 @@ class ConnectedGateScoreArrow extends Component {
             this.frozenTime = null
             this.setState({currentArrowData: this.props.arrowData, hidden: false})
         }
+        if (!this.state.finished[this.props.contestantId] && this.props.contestantTrack && this.props.contestantTrack.passed_finish_gate) {
+            setTimeout(() => {
+                this.setState({finished: {...this.state.finished, [this.props.contestantId]: true}})
+            }, GATE_FREEZE_TIME * 1000)
+        }
     }
 
 
     render() {
-        if (this.state.currentArrowData && this.props.contestantTrack && !this.props.contestantTrack.passed_finish_gate) {
+        if (this.state.currentArrowData && !this.state.finished[this.props.contestantId]) {
             return <GateScoreArrowRenderer width={this.props.width} height={this.props.height}
                                            pointsPerSecond={this.getPointsPerSecond()}
                                            maximumTimingPenalty={this.getMaximumTimingPenalty()}

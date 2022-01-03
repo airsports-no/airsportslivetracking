@@ -313,6 +313,11 @@ tr.hidden {
     .scalable {
         transform: scale(0.7);
     }
+
+    .gate-score-arrow {
+        transform: scale(0.8);
+    }
+
 }
 
 @media (min-width: 900px) and (max-width: 1024px) {
@@ -330,6 +335,10 @@ tr.hidden {
 
     .scalable {
         transform: scale(0.6);
+    }
+
+    .gate-score-arrow {
+        transform: scale(0.7);
     }
 
 }
@@ -353,6 +362,11 @@ tr.hidden {
         transform: scale(0.5);
     }
 
+    .gate-score-arrow {
+        transform: scale(0.6);
+    }
+
+
 }
 
 /* Landscape phone to portrait tablet */
@@ -373,6 +387,10 @@ tr.hidden {
         transform: scale(0.45);
     }
 
+    .gate-score-arrow {
+        transform: scale(0.5);
+    }
+
 }
 
 /* Landscape phones and down */
@@ -391,6 +409,10 @@ tr.hidden {
 
     .scalable {
         transform: scale(0.4);
+    }
+
+    .gate-score-arrow {
+        transform: scale(0.45);
     }
 
 }
@@ -572,11 +594,14 @@ tr.hidden {
 }
 
 
-.gate-score-arrow{
-    bottom: -4px;
+.gate-score-arrow {
+    bottom: 2px;
     left: 145px;
     position: fixed;
+    width: 600px;
+    height: 110px;
     z-index: 2;
+    transform-origin: bottom left;
 }
 
 .logoImage {
@@ -1131,6 +1156,6 @@ div.ris-large {
     text-decoration: underline;
 }
 
-.results-table-contest-name{
+.results-table-contest-name {
     margin-top: 8px;
 }
