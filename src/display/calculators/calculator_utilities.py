@@ -1,3 +1,4 @@
+import numpy as np
 from shapely.geometry import Polygon, Point
 
 import cartopy.crs as ccrs
@@ -5,7 +6,7 @@ import datetime
 from typing import Tuple, List, Dict
 
 from display.coordinate_utilities import cross_track_distance, along_track_distance, calculate_distance_lat_lon, \
-    calculate_bearing, utm_from_lat_lon
+    calculate_bearing, utm_from_lat_lon, project_position_lat_lon
 
 
 def cross_track_gate(gate1, gate2, position) -> float:
@@ -77,3 +78,38 @@ class PolygonHelper:
             if zone.contains(p):
                 incursions.append(name)
         return incursions
+
+    def distance_from_point_to_polygons(self, polygons: List[Tuple[str, Polygon]], latitude, longitude) -> Dict[
+        str, float]:
+        x, y = self.utm.transform_point(longitude, latitude, self.pc)
+        p = Point(x, y)
+        distances = {}
+        for name, polygon in polygons:
+            distances[name] = polygon.exterior.distance(p)
+        return distances
+
+
+def project_position(latitude: float, longitude: float, course: float, turning_rate: float, speed: float,
+                     seconds: float) -> Tuple[
+    float, float]:
+    """
+
+    :param seconds: Number of seconds into the future to project the position
+    :param latitude:
+    :param longitude:
+    :param turning_rate: degrees/second
+    :param speed: knots
+    :return: new position
+    """
+    speed_per_second = speed / 3600  # nm/s
+    if turning_rate == 0:
+        distance = speed_per_second * seconds  # nm
+        return project_position_lat_lon((latitude, longitude), course, distance * 1852)
+
+    total_angle = turning_rate * seconds  # degrees
+    circle_time = 360 / turning_rate  # seconds
+    circumference = speed_per_second * circle_time  # nm
+    circle_radius = circumference / (2 * np.pi)  # nm
+    distance = 2 * circle_radius * np.sin(np.deg2rad(total_angle / 2))  # nm
+    projected_heading = course + total_angle  # degrees
+    return project_position_lat_lon((latitude, longitude), projected_heading, distance * 1852)
