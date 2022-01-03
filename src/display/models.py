@@ -1092,7 +1092,7 @@ class Scorecard(models.Model):
                 },
             ],
             "gates": [
-                {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
+                {"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
                 for item in GATES_TYPES
                 if item[0] in (STARTINGPOINT, FINISHPOINT)
             ],
@@ -1122,7 +1122,7 @@ class Scorecard(models.Model):
                 },
             ],
             "gates": [
-                {"gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
+                {"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
                 for item in GATES_TYPES
             ],
         }
