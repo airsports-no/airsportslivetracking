@@ -196,7 +196,7 @@ export default class GateScoreArrowRenderer extends Component {
             this.animationStepNumber = ANIMATION_STEPS
             this.drawArrow()
         }
-        if (this.props.seconds !== prevProps.seconds) {
+        if (this.props.seconds !== prevProps.seconds || this.props.final !== prevProps.final || this.prop.missed !== prevProps.missed) {
             clearInterval(this.animationTimer)
             this.previousSeconds = prevProps.seconds
             this.animationStepNumber = 0

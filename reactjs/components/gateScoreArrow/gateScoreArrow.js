@@ -8,13 +8,14 @@ const mapStateToProps = (state, props) => ({
     waypoints: state.navigationTask.route.waypoints
 })
 
-const GATE_FREEZE_TIME = 20
+const GATE_FREEZE_TIME = 15
 
 class ConnectedGateScoreArrow extends Component {
     constructor(props) {
         super(props)
         this.state = {
-            currentArrowData: this.props.arrowData
+            currentArrowData: this.props.arrowData,
+            hidden: false
         }
         this.frozenTime = null
     }
@@ -61,23 +62,28 @@ class ConnectedGateScoreArrow extends Component {
 
 
     componentDidUpdate(prevProps) {
-        if (this.props.arrowData && this.state.currentArrowData && (this.props.arrowData.missed || this.props.arrowData.final)) {
+        const unfreeze = this.frozenTime && new Date().getTime() - this.frozenTime.getTime() >= GATE_FREEZE_TIME * 1000
+        if (this.props.arrowData && (this.props.arrowData.missed || this.props.arrowData.final)) {
             // Gate change, delay
             if (!this.frozenTime) {
                 this.frozenTime = new Date()
                 this.setState({currentArrowData: this.props.arrowData})
             }
+            // It is still final, but timed out. This means that we have not received any new gate data so we should simply hide the arrow
+            if (unfreeze) {
+                this.setState({hidden: true})
+            }
         }
-        if (this.frozenTime && new Date().getTime() - this.frozenTime.getTime() < GATE_FREEZE_TIME * 1000) {
-        } else if (this.props.arrowData !== this.state.currentArrowData) {
+        const frozen = this.frozenTime && new Date().getTime() - this.frozenTime.getTime() < GATE_FREEZE_TIME * 1000
+        if (!frozen && this.props.arrowData !== this.state.currentArrowData) {
             this.frozenTime = null
-            this.setState({currentArrowData: this.props.arrowData})
+            this.setState({currentArrowData: this.props.arrowData, hidden: false})
         }
     }
 
 
     render() {
-        if (this.props.arrowData && this.state.currentArrowData) {
+        if (this.state.currentArrowData && !this.state.hidden) {
             return <GateScoreArrowRenderer width={this.props.width} height={this.props.height}
                                            pointsPerSecond={this.getPointsPerSecond()}
                                            maximumTimingPenalty={this.getMaximumTimingPenalty()}

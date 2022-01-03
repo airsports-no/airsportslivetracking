@@ -29,6 +29,7 @@ class GatekeeperRoute(Gatekeeper):
                  live_processing: bool = True):
         super().__init__(contestant, calculators, live_processing)
         self.last_backwards = None
+        self.recalculation_completed = not self.contestant.adaptive_start
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
                                   calculate_extended_gate(self.gates[0].waypoint, self.scorecard,
                                                           self.contestant))
@@ -63,6 +64,7 @@ class GatekeeperRoute(Gatekeeper):
             item.expected_time = gate_times[item.name]
         if self.landing_gate is not None:
             self.landing_gate.expected_time = gate_times[self.landing_gate.name]
+        self.recalculation_completed = True
         self.contestant.save()
 
     def check_gate_in_range(self):
@@ -310,9 +312,10 @@ class GatekeeperRoute(Gatekeeper):
     def check_gates(self):
         self.check_intersections()
         self.calculate_gate_score()
-        next_timing_gates = filter(lambda k: k.time_check, self.outstanding_gates)
-        try:
-            self.transmit_gate_score_if_crossed_now(next(next_timing_gates), False, False)
-        except StopIteration:
-            pass
+        if self.recalculation_completed:
+            next_timing_gates = filter(lambda k: k.time_check, self.outstanding_gates)
+            try:
+                self.transmit_gate_score_if_crossed_now(next(next_timing_gates), False, False)
+            except StopIteration:
+                pass
         self.check_gate_in_range()
