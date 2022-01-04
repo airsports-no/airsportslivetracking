@@ -229,7 +229,7 @@ tr.hidden {
 
 .gate-arrow-shadow {
     box-shadow: 5px 10px 5px rgba(0, 0, 0, 0.6);
-    /*border-radius: 15px 15px 0 0;*/
+    border-radius: 15px 15px 0 0;
     height: 100px;
     width: 600px;
 }

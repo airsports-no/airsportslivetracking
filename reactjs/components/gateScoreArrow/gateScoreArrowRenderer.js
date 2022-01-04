@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 
 const ARROW_HEIGHT = 60, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 15, NUMBER_PADDING = 10, PADDING = 30,
-    ARROW_ICON_WIDTH = 50, BELOW_LINE_TEXT_POSITION = 40, BELOW_LINE_TEXT_X_OFFSET = 100, ANIMATION_STEPS = 10,
+    ARROW_ICON_WIDTH = 50, BELOW_LINE_TEXT_POSITION = 45, BELOW_LINE_TEXT_X_OFFSET = 100, ANIMATION_STEPS = 10,
     ANIMATION_TIME = 1000, ARROW_TOP_OFFSET = 0
 const ARROW_ICON_HEIGHT = ARROW_ICON_WIDTH * 1.3
 
@@ -76,10 +76,10 @@ export default class GateScoreArrowRenderer extends Component {
             //     context.fillStyle = "#000000"
             // }
             context.drawImage(imageObj, start, ARROW_TOP_OFFSET, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
-            context.font = "bold 18pt Roboto";
+            context.font = "18pt Verdana";
             let string = "" + Math.round(value)
             if (this.props.missed) {
-                context.font = "bold 12pt Roboto";
+                context.font = "bold 12pt Verdana";
                 string = "MISS"
             }
             context.fillText(string, x - context.measureText(string).width / 2, 35 + ARROW_TOP_OFFSET)
@@ -89,7 +89,7 @@ export default class GateScoreArrowRenderer extends Component {
     drawNumberAtPosition(context, x, value, length) {
         context.fillStyle = "#000000";
         // context.fillRect(x - 2, ARROW_HEIGHT - (length / 2) + HORIZONTAL_LINE_THICKNESS / 2, 2, HORIZONTAL_LINE_THICKNESS + length);
-        context.font = "16pt Roboto";
+        context.font = "16pt Verdana";
         const string = "" + Math.round(value)
         context.fillText(string, x - context.measureText(string).width / 2, ARROW_HEIGHT + length + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING)
     }
@@ -131,12 +131,12 @@ export default class GateScoreArrowRenderer extends Component {
         for (let i = -steps / 2; i < 1 + steps / 2; i++) {
             this.drawNumberAtPosition(context, this.secondsToPosition(i * stepDistanceSeconds), this.secondsToPoints(i * stepDistanceSeconds), VERTICAL_LINE_LENGTH)
         }
-        context.font = "bold 16pt Roboto";
-        context.fillText("Early", PADDING + BELOW_LINE_TEXT_X_OFFSET, BELOW_LINE_TEXT_POSITION)
+        context.font = "bold 16pt Verdana";
+        context.fillText("EARLY", PADDING + BELOW_LINE_TEXT_X_OFFSET, BELOW_LINE_TEXT_POSITION)
         const latex = this.props.width - context.measureText("Late").width - PADDING - BELOW_LINE_TEXT_X_OFFSET
-        context.fillText("Late", latex, BELOW_LINE_TEXT_POSITION)
-        context.font = "bold 18pt Roboto";
-        const waypointText = "Gate: " + this.props.waypointName
+        context.fillText("LATE", latex, BELOW_LINE_TEXT_POSITION)
+        context.font = "bold 18pt Verdana";
+        const waypointText = "GATE: " + this.props.waypointName
         const wpx = 10//this.props.width / 2 - context.measureText(waypointText).width / 2
         context.fillText(waypointText, wpx, 22)
     }
