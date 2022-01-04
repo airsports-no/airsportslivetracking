@@ -76,20 +76,21 @@ export default class GateScoreArrowRenderer extends Component {
             //     context.fillStyle = "#000000"
             // }
             context.drawImage(imageObj, start, ARROW_TOP_OFFSET, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
-            context.font = "18pt Verdana";
+            context.font = "bold 15pt Verdana";
             let string = "" + Math.round(value)
             if (this.props.missed) {
                 context.font = "bold 12pt Verdana";
                 string = "MISS"
             }
-            context.fillText(string, x - context.measureText(string).width / 2, 35 + ARROW_TOP_OFFSET)
+            context.fillText(string, x - context.measureText(string).width / 2, 33 + ARROW_TOP_OFFSET)
         })
     }
 
     drawNumberAtPosition(context, x, value, length) {
-        context.fillStyle = "#000000";
+        // context.fillStyle = "#000000";
+        context.fillStyle = "#343a40"
         // context.fillRect(x - 2, ARROW_HEIGHT - (length / 2) + HORIZONTAL_LINE_THICKNESS / 2, 2, HORIZONTAL_LINE_THICKNESS + length);
-        context.font = "16pt Verdana";
+        context.font = "14pt Verdana";
         const string = "" + Math.round(value)
         context.fillText(string, x - context.measureText(string).width / 2, ARROW_HEIGHT + length + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING)
     }
@@ -126,16 +127,18 @@ export default class GateScoreArrowRenderer extends Component {
         context.fillRect(PADDING, ARROW_HEIGHT, this.props.width - PADDING * 2, HORIZONTAL_LINE_THICKNESS);
         const steps = 4  // Must be Even
         const stepDistance = this.props.width / steps
-        const stepDistanceSeconds = 2 * maximumSeconds / steps
+        const stepDistanceSeconds = (this.props.pointsPerSecond + 2 * maximumSeconds) / steps
         this.drawGracePeriod(context)
         for (let i = -steps / 2; i < 1 + steps / 2; i++) {
             this.drawNumberAtPosition(context, this.secondsToPosition(i * stepDistanceSeconds), this.secondsToPoints(i * stepDistanceSeconds), VERTICAL_LINE_LENGTH)
         }
-        context.font = "bold 16pt Verdana";
+        context.font = "16pt Verdana";
+        context.fillStyle = "#343a40"
         context.fillText("EARLY", PADDING + BELOW_LINE_TEXT_X_OFFSET, BELOW_LINE_TEXT_POSITION)
         const latex = this.props.width - context.measureText("Late").width - PADDING - BELOW_LINE_TEXT_X_OFFSET
         context.fillText("LATE", latex, BELOW_LINE_TEXT_POSITION)
-        context.font = "bold 18pt Verdana";
+        context.font = "16pt Verdana";
+        context.fillStyle = "#000000";
         const waypointText = "GATE: " + this.props.waypointName
         const wpx = 10//this.props.width / 2 - context.measureText(waypointText).width / 2
         context.fillText(waypointText, wpx, 22)

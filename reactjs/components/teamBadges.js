@@ -182,7 +182,7 @@ class ConnectedLowerThirdTeam extends Component {
                             waypoint_name: "SP",
                             seconds: 7,
                             early: true,
-                            final: false,
+                            final: true,
                             missed: false
                         }}/>
                     </div>
