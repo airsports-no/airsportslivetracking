@@ -39,7 +39,7 @@ import {
     FETCH_EDITABLE_ROUTE,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL
+    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -66,6 +66,7 @@ const initialState = {
     isFetchingContestantData: {},
     initialLoadingContestantData: {},
     displayLowerThirds: null,
+    displayGateArrow: true,
     highlightContestantTrack: [],
     highlightContestantTable: [],
     explicitlyDisplayAllTracks: false,
@@ -378,6 +379,11 @@ function rootReducer(state = initialState, action) {
     if (action.type === DISPLAY_PAST_EVENTS_MODAL) {
         return Object.assign({}, state, {
             displayPastEventsModal: action.payload
+        })
+    }
+    if (action.type === TOGGLE_GATE_ARROW) {
+        return Object.assign({}, state, {
+            displayGateArrow: !state.displayGateArrow
         })
     }
     if (action.type === DISPLAY_DISCLAIMER_MODAL) {

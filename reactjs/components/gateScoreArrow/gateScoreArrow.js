@@ -4,9 +4,10 @@ import GateScoreArrowRenderer from "./gateScoreArrowRenderer";
 
 const mapStateToProps = (state, props) => ({
     contestantTrack: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
-    arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_score_if_crossed_now : null,
+    // arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_score_if_crossed_now : null,
     rules: state.contestants[props.contestantId] !== undefined ? state.contestants[props.contestantId].scorecard_rules : null,
-    waypoints: state.navigationTask.route.waypoints
+    waypoints: state.navigationTask.route.waypoints,
+    displayGateArrow: state.displayGateArrow
 })
 
 const GATE_FREEZE_TIME = 15
@@ -84,7 +85,7 @@ class ConnectedGateScoreArrow extends Component {
 
 
     render() {
-        if (this.state.currentArrowData && !this.state.finished[this.props.contestantId]) {
+        if (this.state.currentArrowData && !this.state.finished[this.props.contestantId] && this.props.displayGateArrow) {
             return <GateScoreArrowRenderer width={this.props.width} height={this.props.height}
                                            pointsPerSecond={this.getPointsPerSecond()}
                                            maximumTimingPenalty={this.getMaximumTimingPenalty()}
