@@ -538,7 +538,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
 
 class DangerLevelSerialiser(serializers.Serializer):
     danger_level = serializers.FloatField()
-    accumulated_score = serializers.JSONField()
+    accumulated_score = serializers.FloatField()
 
     def create(self, validated_data):
         pass

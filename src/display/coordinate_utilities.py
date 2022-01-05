@@ -1,3 +1,5 @@
+import datetime
+
 import cartopy.crs as ccrs
 import logging
 import math
@@ -129,6 +131,13 @@ def calculate_distance_lat_lon(
     # latitude_distance = 60 * latitude_difference
     # longitude_distance = 60 * longitude_difference * math.cos(to_rad((start[0] + finish[0]) / 2))
     # return math.sqrt(latitude_distance ** 2 + longitude_distance ** 2)*1852
+
+
+def calculate_speed_between_points(start: Tuple[float, float], finish: Tuple[float, float], time1: datetime.datetime,
+                                   time2: datetime.datetime) -> float:
+    distance = calculate_distance_lat_lon(start, finish) / 1852  # nm
+    hours = (time2 - time1).total_seconds() / 3600
+    return distance / hours
 
 
 def calculate_bearing(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
@@ -444,8 +453,10 @@ def create_rounded_corridor_corner(
         bisection_bearing = calculate_bearing(*list(reversed(bisecting_line)))
         circle_centre = bisecting_line[1]
         circle_perimeter = bisecting_line[0]
-    corrected_gate_line_perimeter=calculate_fractional_distance_point_lat_lon(circle_centre, circle_perimeter, corridor_width_metres/calculate_distance_lat_lon(circle_centre, circle_perimeter))
-    corrected_gate_line=(circle_centre, corrected_gate_line_perimeter)
+    corrected_gate_line_perimeter = calculate_fractional_distance_point_lat_lon(circle_centre, circle_perimeter,
+                                                                                corridor_width_metres / calculate_distance_lat_lon(
+                                                                                    circle_centre, circle_perimeter))
+    corrected_gate_line = (circle_centre, corrected_gate_line_perimeter)
     initial_offset = -1 * turn_degrees / 2
     pc = ccrs.PlateCarree()
     utm = utm_from_lat_lon(*circle_centre)
@@ -517,10 +528,10 @@ def create_bisecting_line_between_segments(x1, y1, x2, y2, x3, y3, length):
     :param length: metres
     :return:
     """
-    transformer = UtmXy(y2,x2)
-    x1, y1 = transformer.to_xy(y1,x1)
-    x2, y2 = transformer.to_xy(y2,x2)
-    x3, y3 = transformer.to_xy(y3,x3)
+    transformer = UtmXy(y2, x2)
+    x1, y1 = transformer.to_xy(y1, x1)
+    x2, y2 = transformer.to_xy(y2, x2)
+    x3, y3 = transformer.to_xy(y3, x3)
     d1 = norm_v(np.array([x2 - x1, y2 - y1])) * length / 2
     d2 = norm_v(np.array([x2 - x3, y2 - y3])) * length / 2
     dx, dy = d1[0] + d2[0], d1[1] + d2[1]
@@ -546,10 +557,10 @@ def create_bisecting_line_between_segments_corridor_width_lonlat(
     b1 = calculate_bearing((y1, x1), (y2, x2))
     b2 = calculate_bearing((y2, x2), (y3, x3))
     diff = bearing_difference(b1, b2)
-    transformer = UtmXy(y2,x2)
-    x1, y1 = transformer.to_xy(y1,x1)
-    x2, y2 = transformer.to_xy(y2,x2)
-    x3, y3 = transformer.to_xy(y3,x3)
+    transformer = UtmXy(y2, x2)
+    x1, y1 = transformer.to_xy(y1, x1)
+    x2, y2 = transformer.to_xy(y2, x2)
+    x3, y3 = transformer.to_xy(y3, x3)
     s, f = create_bisecting_line_between_segments_corridor_width_xy(
         x1, y1, x2, y2, x3, y3, corridor_width
     )
@@ -559,7 +570,6 @@ def create_bisecting_line_between_segments_corridor_width_lonlat(
     if diff < 0:
         line.reverse()
     return line
-
 
 
 def create_bisecting_line_between_segments_corridor_width_xy(
@@ -604,9 +614,9 @@ def create_perpendicular_line_at_end_lonlat(x1, y1, x2, y2, length):
     :param length: metres
     :return: Line with coordinate order longitude, Latitude
     """
-    transformer = UtmXy(y1,x1)
-    x1, y1 = transformer.to_xy(y1,x1)
-    x2, y2 = transformer.to_xy(y2,x2)
+    transformer = UtmXy(y1, x1)
+    x1, y1 = transformer.to_xy(y1, x1)
+    x2, y2 = transformer.to_xy(y2, x2)
     l1, l2 = create_perpendicular_line_at_end_xy(x1, y1, x2, y2, length)
     y1, x1 = transformer.to_lat_lon(*l1)
     y2, x2 = transformer.to_lat_lon(*l2)

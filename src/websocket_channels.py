@@ -151,9 +151,9 @@ class WebsocketFacade:
         )
 
     def transmit_danger_estimate_and_accumulated_penalty(self, contestant: "Contestant", danger_level: float,
-                                                         accumulated_score: Dict[str, float]):
+                                                         accumulated_score: 0):
         channel_data = generate_contestant_data_block(contestant,
-                                                      gate_score_if_crossed_now=DangerLevelSerialiser(
+                                                      danger_level=DangerLevelSerialiser(
                                                           {"danger_level": danger_level,
                                                            "accumulated_score": accumulated_score}).data)
         group_key = "tracking_{}".format(contestant.navigation_task.pk)

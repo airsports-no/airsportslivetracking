@@ -56,28 +56,24 @@ class PenaltyZoneCalculator(Calculator):
                 (zone.name, self.polygon_helper.build_polygon(zone.path))
             )
 
-    def get_danger_level(self, position: "Position") -> float:
-        """
-        Danger level ranges from 0 to 100 where 100 is outside the corridor, and all other numbers represent half seconds
-        :param position:
-        :return:
-        """
-        if self.corridor_state == self.OUTSIDE_CORRIDOR:
-            return 100
-        return min([99, 2 * (self._distance_from_point_to_polygons(position.latitude,
-                                                                   position.longitude) / 1852) / position.speed])
-
-    def calculate_danger_level(self, track: List["Position"]) -> float:
+    def _calculate_danger_level(self, track: List["Position"]) -> float:
         """
         Danger level ranges from 0 to 100 where 100 is inside a penalty zone
         """
         distance_danger = 0
         if len(track) > 0:
+            # Danger level is determined by distance to something dangerous as seconds at the current speed
             distances = self.polygon_helper.distance_from_point_to_polygons(self.zone_polygons, track[-1].latitude,
                                                                             track[-1].longitude)
             minimum_distance = min(list(distances.values()))
-            minimum_time = minimum_distance / (track[-1].speed * 1852)
-            distance_danger = min([50, 2 * minimum_time])
+            try:
+                minimum_time = 3600 * minimum_distance / (track[-1].speed * 1852)  # seconds
+            except ZeroDivisionError:
+                minimum_time = 100
+            MAXIMUM_DISTANCE = 50
+            distance_in_time = min([MAXIMUM_DISTANCE, minimum_time])
+
+            distance_danger = MAXIMUM_DISTANCE - distance_in_time
         if len(track) > 3:
             turning_rate = bearing_difference(track[-1].course, track[-3].course) / (
                     track[-1].time - track[-3].time).total_seconds()
@@ -85,23 +81,20 @@ class PenaltyZoneCalculator(Calculator):
                                                                           track[-1].longitude, track[-1].course,
                                                                           track[-1].speed, turning_rate,
                                                                           LOOKAHEAD_SECONDS)
-            shortest_time = min(list(intersection_times.values()))
-            distance_danger = max([distance_danger, 99 * shortest_time / LOOKAHEAD_SECONDS])
+            shortest_time = min([LOOKAHEAD_SECONDS] + list(intersection_times.values()))
+            distance_danger = max([distance_danger, 99 * (LOOKAHEAD_SECONDS - shortest_time) / LOOKAHEAD_SECONDS])
         return distance_danger
 
-    def report_danger_level(self, track: List["Position"]):
+    def get_danger_level_and_accumulated_score(self, track: List["Position"]):
         if len(self.entered_polygon_times) > 0:
-            danger_level = 100
+            return 100, sum([0] + list(self.running_penalty.values()))
         else:
-            danger_level = self.calculate_danger_level(track)
-        self.websocket_facade.transmit_danger_estimate_and_accumulated_penalty(self.contestant, danger_level,
-                                                                               self.running_penalty)
+            return self._calculate_danger_level(track), sum([0] + list(self.running_penalty.values()))
 
     def calculate_enroute(
             self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"
     ):
         self.check_inside_prohibited_zone(track, last_gate)
-        self.report_danger_level(track)
 
     def check_inside_prohibited_zone(
             self, track: List["Position"], last_gate: Optional["Gate"]

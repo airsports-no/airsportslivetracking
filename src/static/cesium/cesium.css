@@ -223,7 +223,7 @@ tr.hidden {
     font-size: 0.7rem
 }
 
-.gate-arrow-placeholder{
+.gate-arrow-placeholder {
     width: 604px;
 }
 
@@ -242,7 +242,7 @@ tr.hidden {
     right: 20px;
     z-index: 2;
     transform: scale(0.8);
-
+    pointer-events: none;
 }
 
 .lowerThirdsSingle {
@@ -253,6 +253,35 @@ tr.hidden {
     right: 20px;
     z-index: 2;
     transform: scale(0.8);
+    pointer-events: none;
+}
+
+.clickable {
+    pointer-events: all;
+}
+
+.danger-level-toggle {
+    width: 0;
+    position: relative;
+    right: 61px;
+    bottom: 54px;
+    z-index: 999;
+}
+
+.danger-level-accumulated-score-container {
+    position: relative;
+    width: 50px;
+    left: -1px;
+}
+
+.danger-level-accumulated-score {
+    color: white;
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: xx-large;
+    text-align: center;
+    width: 100%;
 }
 
 .lower-thirds-inner {
@@ -1172,4 +1201,22 @@ div.ris-large {
 
 .results-table-contest-name {
     margin-top: 8px;
+}
+
+
+/* React thermometer */
+.thermometer__percent-current {
+    display: none;
+}
+
+.thermometer__statistics {
+    display: none;
+}
+
+.thermometer {
+    width: 50px;
+}
+
+.thermometer--normal {
+    width: 50px;
 }

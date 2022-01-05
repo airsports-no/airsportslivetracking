@@ -3,9 +3,13 @@ import {connect} from "react-redux";
 import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
 import Hand from "../react-playing-cards-local/src/PlayingCard/Hand/Hand";
 import {teamLongForm} from "../utilities";
-import {setDisplay, toggleGateArrow} from "../actions";
+import {setDisplay, toggleDangerLevel, toggleGateArrow} from "../actions";
 import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import GateScoreArrow from "./gateScoreArrow/gateScoreArrow";
+import DangerLevel from "./danger_thermometer/dangerLevel";
+import Icon from "@mdi/react";
+import {mdiThermometer} from "@mdi/js";
+
 
 const question = "/static/img/questionmark.png"
 
@@ -66,6 +70,7 @@ const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestant.id],
     displayProfilePictures: state.displayProfilePictures,
     currentDisplay: state.currentDisplay,
+    displayDangerLevel: state.displayDangerLevel
 })
 
 
@@ -115,7 +120,7 @@ function ScoreAndNames(props) {
             <div className={"col-4"}>
                 <div className={"row"}>
                     <div className={"text-center col-12"}>
-                        <div className={"lower-thirds-current-score"}>
+                        <div className={"lower-thirds-current-score clickable"}>
                             <a href={"#"}
                                onClick={props.toggleDetails}>{props.contestantData.contestant_track.score.toFixed(0)}</a>
                         </div>
@@ -123,7 +128,7 @@ function ScoreAndNames(props) {
                 </div>
                 <div className={"row"}>
                     <div className={"text-center col-12"}>
-                        <div className={"lower-thirds-current-score-text"}>
+                        <div className={"lower-thirds-current-score-text clickable"}>
                             <a href={"#"} onClick={props.toggleDetails}>DETAILED SCORE</a>
                         </div>
                     </div>
@@ -186,7 +191,7 @@ class ConnectedLowerThirdTeam extends Component {
                             missed: false
                         }}/>
                     </div>
-                    <div className={"p-2"} style={{width: "30px"}}>
+                    <div className={"p-2 clickable"} style={{width: "30px"}}>
                         <img src={"/static/img/expand_arrow.gif"} onClick={() => this.props.toggleGateArrow()}/>
                     </div>
                     <div
@@ -196,6 +201,11 @@ class ConnectedLowerThirdTeam extends Component {
                         <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}
                                        toggleDetails={this.toggleRankDetailsDisplay}/>
                     </div>
+                    <div className={"clickable danger-level-toggle"}>
+                        <Icon path={mdiThermometer} size={2} color={"white"} onClick={()=>this.props.toggleDangerLevel()}/>
+                    </div>
+                    {this.props.displayDangerLevel ?
+                        <DangerLevel contestantId={this.props.contestant.id}/> : null}
                 </div>
             </div>
         </div>
@@ -223,7 +233,8 @@ class ConnectedLowerThirdTeam extends Component {
 
 export const LowerThirdTeam = connect(mapStateToProps, {
     setDisplay,
-    toggleGateArrow
+    toggleGateArrow,
+    toggleDangerLevel
 })(ConnectedLowerThirdTeam)
 
 export class TeamMembers

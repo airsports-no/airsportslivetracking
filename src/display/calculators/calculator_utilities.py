@@ -30,6 +30,8 @@ def distance_between_gates(gate1, gate2):
     return calculate_distance_lat_lon((gate1.latitude, gate1.longitude), (gate2.latitude, gate2.longitude))
 
 
+
+
 def bearing_between(gate1, gate2):
     return calculate_bearing((gate1.latitude, gate1.longitude), (gate2.latitude, gate2.longitude))
 
@@ -81,6 +83,13 @@ class PolygonHelper:
 
     def distance_from_point_to_polygons(self, polygons: List[Tuple[str, Polygon]], latitude, longitude) -> Dict[
         str, float]:
+        """
+
+        :param polygons:
+        :param latitude:
+        :param longitude:
+        :return:  distance in metres
+        """
         x, y = self.utm.transform_point(longitude, latitude, self.pc)
         p = Point(x, y)
         distances = {}
@@ -109,7 +118,7 @@ class PolygonHelper:
         intersection_times = {}
         maximum_distance = speed_per_second * lookahead_seconds
         distances = self.distance_from_point_to_polygons(polygons, latitude, longitude)
-        for name, distance in distances:
+        for name, distance in distances.items():
             if distance > maximum_distance:
                 intersection_times[name] = None
         for second in range(0, lookahead_seconds, lookahead_step):
@@ -125,9 +134,9 @@ class PolygonHelper:
                 if name not in intersection_times:
                     if line_string.intersects(polygon):
                         intersection_times[name] = second
-        for name, polygon in polygons:
-            if name not in intersection_times:
-                intersection_times[name] = None
+        for key in list(intersection_times.keys()):
+            if not intersection_times[key]:
+                del intersection_times[key]
         return intersection_times
 
 

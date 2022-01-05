@@ -98,6 +98,7 @@
     "react-select": "^3.0.8",
     "react-table": "^7.5.0",
     "react-table-scrollbar": "^0.1.9",
+    "react-thermometer-component": "^1.0.1",
     "react-throttle-render": "^2.0.0",
     "react-widgets": "^5.1.1",
     "redux": "^4.0.5",

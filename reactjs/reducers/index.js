@@ -39,7 +39,7 @@ import {
     FETCH_EDITABLE_ROUTE,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW
+    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -67,6 +67,7 @@ const initialState = {
     initialLoadingContestantData: {},
     displayLowerThirds: null,
     displayGateArrow: true,
+    displayDangerLevel: true,
     highlightContestantTrack: [],
     highlightContestantTable: [],
     explicitlyDisplayAllTracks: false,
@@ -384,6 +385,11 @@ function rootReducer(state = initialState, action) {
     if (action.type === TOGGLE_GATE_ARROW) {
         return Object.assign({}, state, {
             displayGateArrow: !state.displayGateArrow
+        })
+    }
+    if (action.type === TOGGLE_DANGER_LEVEL) {
+        return Object.assign({}, state, {
+            displayDangerLevel: !state.displayDangerLevel
         })
     }
     if (action.type === DISPLAY_DISCLAIMER_MODAL) {

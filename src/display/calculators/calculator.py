@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod
-from typing import List, Callable, Dict, Optional
+from typing import List, Callable, Dict, Optional, Tuple
 
 from display.calculators.positions_and_gates import Position, Gate
 from display.models import Contestant, Scorecard, Route
@@ -21,11 +21,13 @@ class Calculator:
         self.gates = gates
         self.route = route
         self.update_score = update_score
-        self.websocket_facade = WebsocketFacade()
         logger.debug(f"{contestant}: Starting calculator {self}")
 
     def extrapolate_position_forward(self, track: List["Position"], seconds_ahead: float) -> "Position":
         pass
+
+    def get_danger_level_and_accumulated_score(self, track: List["Position"])->Tuple[float, float]:
+        return 0, 0
 
     @abstractmethod
     def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):

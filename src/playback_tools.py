@@ -9,6 +9,7 @@ import requests
 import gpxpy
 
 from display.calculators.calculator_factory import calculator_factory
+from display.coordinate_utilities import calculate_distance_lat_lon, calculate_speed_between_points, calculate_bearing
 
 from display.models import Contestant, ContestantUploadedTrack
 
@@ -110,11 +111,21 @@ def insert_gpx_file(contestant_object: "Contestant", file):
         return
     positions = []
     index = 0
+    previous_point = None
     try:
         for track in gpx.tracks:
             for segment in track.segments:
                 for point in segment.points:
                     if point.time:
+                        speed = 0.0
+                        course = 0.0
+                        if previous_point:
+                            speed = calculate_speed_between_points(
+                                (previous_point["latitude"], previous_point["longitude"]),
+                                (point.latitude, point.longitude),
+                                previous_point["device_time"], point.time)
+                            course = calculate_bearing((previous_point["latitude"], previous_point["longitude"]),
+                                                       (point.latitude, point.longitude))
                         positions.append(
                             {
                                 "deviceId": contestant_object.tracker_device_id,
@@ -123,11 +134,12 @@ def insert_gpx_file(contestant_object: "Contestant", file):
                                 "longitude": float(point.longitude),
                                 "altitude": float(point.elevation) if point.elevation else 0,
                                 "attributes": {"batteryLevel": 1.0},
-                                "speed": 0.0,
-                                "course": 0.0,
+                                "speed": speed,
+                                "course": course,
                                 "device_time": point.time,
                             }
                         )
+                        previous_point = positions[-1]
                         index += 1
     except:
         logger.exception("Something bad happened when building position list")

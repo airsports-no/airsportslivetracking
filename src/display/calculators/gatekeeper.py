@@ -101,6 +101,18 @@ class Gatekeeper(ABC):
                 calculator(self.contestant, self.scorecard, self.gates, self.contestant.navigation_task.route,
                            self.update_score))
 
+    def report_calculator_danger_level(self):
+        danger_levels = [0]
+        accumulated_scores = [0]
+        for calculator in self.calculators:
+            danger_level, accumulated_score = calculator.get_danger_level_and_accumulated_score(self.track)
+            danger_levels.append(danger_level)
+            accumulated_scores.append(accumulated_score)
+        final_danger_level = max(danger_levels)
+        final_accumulated_score = sum(accumulated_scores)
+        self.websocket_facade.transmit_danger_estimate_and_accumulated_penalty(self.contestant, final_danger_level,
+                                                                               final_accumulated_score)
+
     def interpolate_track(self, position: Position) -> List[Position]:
         if len(self.track) == 0:
             return [position]
@@ -402,6 +414,7 @@ class Gatekeeper(ABC):
                 calculator.calculate_enroute(self.track, self.last_gate, self.in_range_of_gate)
             else:
                 calculator.calculate_outside_route(self.track, self.last_gate)
+        self.report_calculator_danger_level()
 
     def get_speed(self):
         previous_index = min(5, len(self.track))

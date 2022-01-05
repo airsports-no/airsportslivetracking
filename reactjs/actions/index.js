@@ -45,7 +45,7 @@ import {
     FETCH_INITIAL_TRACKS,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW
+    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -114,6 +114,10 @@ export function toggleExplicitlyDisplayAllTracks() {
 
 export function toggleGateArrow() {
     return {type: TOGGLE_GATE_ARROW}
+}
+
+export function toggleDangerLevel() {
+    return {type: TOGGLE_DANGER_LEVEL}
 }
 
 
