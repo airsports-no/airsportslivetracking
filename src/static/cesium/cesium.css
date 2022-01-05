@@ -274,8 +274,18 @@ tr.hidden {
     left: -1px;
 }
 
-.danger-level-accumulated-score {
+.danger-level-accumulated-score-white {
     color: white;
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: xx-large;
+    text-align: center;
+    width: 100%;
+}
+
+.danger-level-accumulated-score-black {
+    color: black;
     position: absolute;
     top: 0;
     left: 0;

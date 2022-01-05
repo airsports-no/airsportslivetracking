@@ -8,13 +8,34 @@ const mapStateToProps = (state, props) => ({
     dangerData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].danger_level : null,
     displayDangerLevel: state.displayDangerLevel
 })
+const GATE_FREEZE_TIME = 10
 
 class ConnectedDangerLevel extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            currentDangerData: this.props.dangerData,
+            frozenTime: null
+        }
+    }
+
+    componentDidUpdate(prevProps) {
+        let frozen = this.state.frozenTime && new Date().getTime() - this.state.frozenTime.getTime() < GATE_FREEZE_TIME * 1000
+        if (this.props.dangerData && prevProps.dangerData && this.props.dangerData.accumulated_score === 0 && this.state.currentDangerData.accumulated_score !== 0 && !this.state.frozenTime) {
+            this.setState({frozenTime: new Date()})
+            frozen = true
+        }
+        if ((!frozen && this.props.dangerData !== this.state.currentDangerData) || (frozen && this.props.dangerData.accumulated_score !== 0)) {
+            this.setState({currentDangerData: this.props.dangerData, frozenTime: null})
+        }
+    }
+
     render() {
         return <div style={{width: "29px"}}>
-            {/*{this.props.dangerData && this.props.dangerData.danger_level === 100 ?*/}
-            {/*    <AccumulatedScore value={this.props.dangerData.accumulated_score}/> : null}*/}
-            <AccumulatedScore value={50}/>
+            {this.state.currentDangerData && this.state.currentDangerData.danger_level === 100 ?
+                <AccumulatedScore value={this.state.currentDangerData.accumulated_score}
+                                  frozen={this.state.frozenTime != null}/> : null}
+            {/*<AccumulatedScore value={50} frozen={true}/>*/}
             <AirsportsThermometer value={this.props.dangerData ? this.props.dangerData.danger_level : 0}/>
         </div>
     }
