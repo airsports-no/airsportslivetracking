@@ -6,7 +6,8 @@ const mapStateToProps = (state, props) => ({
     contestantTrack: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
     arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_score_if_crossed_now : null,
     rules: state.contestants[props.contestantId] !== undefined ? state.contestants[props.contestantId].scorecard_rules : null,
-    waypoints: state.navigationTask.route.waypoints
+    waypoints: state.navigationTask.route.waypoints,
+    displayGateArrow: state.displayGateArrow
 })
 
 const GATE_FREEZE_TIME = 15
@@ -16,7 +17,7 @@ class ConnectedGateScoreArrow extends Component {
         super(props)
         this.state = {
             currentArrowData: this.props.arrowData,
-            hidden: false
+            finished: {}
         }
         this.frozenTime = null
     }
@@ -75,11 +76,16 @@ class ConnectedGateScoreArrow extends Component {
             this.frozenTime = null
             this.setState({currentArrowData: this.props.arrowData, hidden: false})
         }
+        if (!this.state.finished[this.props.contestantId] && this.props.contestantTrack && this.props.contestantTrack.passed_finish_gate) {
+            setTimeout(() => {
+                this.setState({finished: {...this.state.finished, [this.props.contestantId]: true}})
+            }, GATE_FREEZE_TIME * 1000)
+        }
     }
 
 
     render() {
-        if (this.state.currentArrowData && this.props.contestantTrack && !this.props.contestantTrack.passed_finish_gate) {
+        if (this.state.currentArrowData && !this.state.finished[this.props.contestantId] && this.props.displayGateArrow) {
             return <GateScoreArrowRenderer width={this.props.width} height={this.props.height}
                                            pointsPerSecond={this.getPointsPerSecond()}
                                            maximumTimingPenalty={this.getMaximumTimingPenalty()}

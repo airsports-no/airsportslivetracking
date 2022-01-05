@@ -3,8 +3,9 @@ import {connect} from "react-redux";
 import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
 import Hand from "../react-playing-cards-local/src/PlayingCard/Hand/Hand";
 import {teamLongForm} from "../utilities";
-import {setDisplay} from "../actions";
+import {setDisplay, toggleGateArrow} from "../actions";
 import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import GateScoreArrow from "./gateScoreArrow/gateScoreArrow";
 
 const question = "/static/img/questionmark.png"
 
@@ -110,12 +111,13 @@ function CrewNames(props) {
 
 function ScoreAndNames(props) {
     return <div className={"bg-dark text-light lower-thirds-name-box"} style={{position: "relative", zIndex: 99}}>
-        <div className={"row"}>
+        <div className={"row"} style={{marginLeft: "0px"}}>
             <div className={"col-4"}>
                 <div className={"row"}>
                     <div className={"text-center col-12"}>
                         <div className={"lower-thirds-current-score"}>
-                            <a href={"#"} onClick={props.toggleDetails}>{props.contestantData.contestant_track.score.toFixed(0)}</a>
+                            <a href={"#"}
+                               onClick={props.toggleDetails}>{props.contestantData.contestant_track.score.toFixed(0)}</a>
                         </div>
                     </div>
                 </div>
@@ -172,10 +174,28 @@ class ConnectedLowerThirdTeam extends Component {
         if (this.props.team === null) return null
         return <div className={"lowerThirdsScale"}>
             <div className={this.singleCrew() ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
-                <div className={"card-transparent"}>
-                    {this.props.displayProfilePictures ? <CrewPictures contestant={this.props.contestant}/> : null}
-                    <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}
-                                   toggleDetails={this.toggleRankDetailsDisplay}/>
+                <div className={"d-flex align-items-end justify-content-center"}>
+                    <div className={"p-2 gate-arrow-placeholder"} style={{marginBottom: "2px"}}>
+                        <GateScoreArrow contestantId={this.props.contestant.id}
+                                        width={600}
+                                        height={100} arrowData={{
+                            waypoint_name: "SP",
+                            seconds: 7,
+                            early: true,
+                            final: true,
+                            missed: false
+                        }}/>
+                    </div>
+                    <div className={"p-2"} style={{width: "30px"}}>
+                        <img src={"/static/img/expand_arrow.gif"} onClick={() => this.props.toggleGateArrow()}/>
+                    </div>
+                    <div
+                        className={"lower-thirds-inner card-transparent p-2"}
+                        style={{paddingLeft: "0px!important"}}>
+                        {this.props.displayProfilePictures ? <CrewPictures contestant={this.props.contestant}/> : null}
+                        <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}
+                                       toggleDetails={this.toggleRankDetailsDisplay}/>
+                    </div>
                 </div>
             </div>
         </div>
@@ -202,7 +222,8 @@ class ConnectedLowerThirdTeam extends Component {
 }
 
 export const LowerThirdTeam = connect(mapStateToProps, {
-    setDisplay
+    setDisplay,
+    toggleGateArrow
 })(ConnectedLowerThirdTeam)
 
 export class TeamMembers

@@ -45,7 +45,7 @@ import {
     FETCH_INITIAL_TRACKS,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL
+    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -110,6 +110,10 @@ export function removeHighlightContestantTable(contestantId) {
 
 export function toggleExplicitlyDisplayAllTracks() {
     return {type: EXPLICITLY_DISPLAY_ALL_TRACKS}
+}
+
+export function toggleGateArrow() {
+    return {type: TOGGLE_GATE_ARROW}
 }
 
 

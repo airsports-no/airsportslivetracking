@@ -223,11 +223,21 @@ tr.hidden {
     font-size: 0.7rem
 }
 
+.gate-arrow-placeholder{
+    width: 604px;
+}
+
+.gate-arrow-shadow {
+    box-shadow: 5px 10px 5px rgba(0, 0, 0, 0.6);
+    border-radius: 15px 15px 0 0;
+    height: 100px;
+    width: 600px;
+}
 
 .lowerThirdsDouble {
     transform-origin: bottom right;
     position: fixed;
-    width: 700px;
+    width: 1400px;
     bottom: 2px;
     right: 20px;
     z-index: 2;
@@ -238,11 +248,15 @@ tr.hidden {
 .lowerThirdsSingle {
     transform-origin: bottom right;
     position: fixed;
-    width: 550px;
+    width: 1250px;
     bottom: 2px;
     right: 20px;
     z-index: 2;
     transform: scale(0.8);
+}
+
+.lower-thirds-inner {
+    width: 100vw;
 }
 
 .lower-thirds-current-score {
@@ -313,6 +327,11 @@ tr.hidden {
     .scalable {
         transform: scale(0.7);
     }
+
+    .gate-score-arrow {
+        transform: scale(0.8);
+    }
+
 }
 
 @media (min-width: 900px) and (max-width: 1024px) {
@@ -330,6 +349,10 @@ tr.hidden {
 
     .scalable {
         transform: scale(0.6);
+    }
+
+    .gate-score-arrow {
+        transform: scale(0.7);
     }
 
 }
@@ -353,6 +376,11 @@ tr.hidden {
         transform: scale(0.5);
     }
 
+    .gate-score-arrow {
+        transform: scale(0.6);
+    }
+
+
 }
 
 /* Landscape phone to portrait tablet */
@@ -373,6 +401,10 @@ tr.hidden {
         transform: scale(0.45);
     }
 
+    .gate-score-arrow {
+        transform: scale(0.5);
+    }
+
 }
 
 /* Landscape phones and down */
@@ -391,6 +423,10 @@ tr.hidden {
 
     .scalable {
         transform: scale(0.4);
+    }
+
+    .gate-score-arrow {
+        transform: scale(0.45);
     }
 
 }
@@ -572,11 +608,14 @@ tr.hidden {
 }
 
 
-.gate-score-arrow{
-    bottom: -4px;
+.gate-score-arrow {
+    bottom: 2px;
     left: 145px;
     position: fixed;
+    width: 530px;
+    height: 110px;
     z-index: 2;
+    transform-origin: bottom left;
 }
 
 .logoImage {
@@ -1131,6 +1170,6 @@ div.ris-large {
     text-decoration: underline;
 }
 
-.results-table-contest-name{
+.results-table-contest-name {
     margin-top: 8px;
 }
