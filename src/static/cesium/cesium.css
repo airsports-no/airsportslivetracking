@@ -263,8 +263,8 @@ tr.hidden {
 .danger-level-toggle {
     width: 0;
     position: relative;
-    right: 61px;
-    bottom: 54px;
+    right: 48px;
+    bottom: 10px;
     z-index: 999;
 }
 
@@ -294,8 +294,12 @@ tr.hidden {
     width: 100%;
 }
 
-.lower-thirds-inner {
-    width: 100vw;
+.lower-thirds-inner-single {
+    width: 550px;
+}
+
+.lower-thirds-inner-double {
+    width: 700px;
 }
 
 .lower-thirds-current-score {

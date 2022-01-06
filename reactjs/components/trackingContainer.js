@@ -185,8 +185,6 @@ class ConnectedTrackingContainer extends Component {
                                                      contestantId={this.props.displayLowerThirds}/>
                                     {/*<TimeDisplay contestantId={this.props.displayLowerThirds} class={"pilotTime"}/>*/}
                                     <TimeDisplay class={"pilotTime"}/>
-                                    <div className={"gate-score-arrow"}>
-                                    </div>
                                 </div> : <TimeDisplay class={"pilotTime"}/>}
 
                         </div>

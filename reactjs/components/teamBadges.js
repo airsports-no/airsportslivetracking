@@ -179,7 +179,7 @@ class ConnectedLowerThirdTeam extends Component {
         if (this.props.team === null) return null
         return <div className={"lowerThirdsScale"}>
             <div className={this.singleCrew() ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
-                <div className={"d-flex align-items-end justify-content-center"}>
+                <div className={"d-flex align-items-end justify-content-end"}>
                     <div className={"p-2 gate-arrow-placeholder"} style={{marginBottom: "2px"}}>
                         <GateScoreArrow contestantId={this.props.contestant.id}
                                         width={600}
@@ -195,14 +195,15 @@ class ConnectedLowerThirdTeam extends Component {
                         <img src={"/static/img/expand_arrow.gif"} onClick={() => this.props.toggleGateArrow()}/>
                     </div>
                     <div
-                        className={"lower-thirds-inner card-transparent p-2"}
+                        className={(this.singleCrew() ? "lower-thirds-inner-single" : "lower-thirds-inner-double") + " card-transparent p-2"}
                         style={{paddingLeft: "0px!important"}}>
                         {this.props.displayProfilePictures ? <CrewPictures contestant={this.props.contestant}/> : null}
                         <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}
                                        toggleDetails={this.toggleRankDetailsDisplay}/>
                     </div>
                     <div className={"clickable danger-level-toggle"}>
-                        <Icon path={mdiThermometer} size={2} color={"white"} onClick={()=>this.props.toggleDangerLevel()}/>
+                        <Icon path={mdiThermometer} size={1.5} color={"white"}
+                              onClick={() => this.props.toggleDangerLevel()}/>
                     </div>
                     {this.props.displayDangerLevel ?
                         <DangerLevel contestantId={this.props.contestant.id}/> : null}
