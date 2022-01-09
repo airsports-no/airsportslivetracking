@@ -185,8 +185,9 @@ class ConnectedLowerThirdTeam extends Component {
                                         width={600}
                                         height={100} arrowData={{
                             waypoint_name: "SP",
-                            secondsToPlannedCrossing: 7,
-                            crossingOffsetEstimate: 5,
+                            seconds_to_planned_crossing: 7,
+                            estimated_crossing_offset: 5,
+                            estimated_score: 9,
                             final: true,
                             missed: false
                         }}/>

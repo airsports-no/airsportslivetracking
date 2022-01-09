@@ -226,30 +226,36 @@ class GatekeeperRoute(Gatekeeper):
         if self.last_gate and self.last_gate.type == "fp":
             self.passed_finishpoint()
 
-    def check_and_transmit_gate_score_if_crossed_now(self, final: bool, missed: bool):
-        if len(self.track) > 0:
-            index = 0
-            while index < len(self.outstanding_gates) and not self.outstanding_gates[index].time_check:
-                index += 1
-            if index < len(self.outstanding_gates):
-                gate = self.outstanding_gates[index]
-                self.transmit_second_to_crossing_time_and_crossing_estimate(gate, final, missed)
+    # def check_and_transmit_gate_score_if_crossed_now(self, final: bool, missed: bool):
+    #     if len(self.track) > 0:
+    #         index = 0
+    #         while index < len(self.outstanding_gates) and not self.outstanding_gates[index].time_check:
+    #             index += 1
+    #         if index < len(self.outstanding_gates):
+    #             gate = self.outstanding_gates[index]
+    #             self.transmit_second_to_crossing_time_and_crossing_estimate(gate, final, missed)
 
     def transmit_second_to_crossing_time_and_crossing_estimate(self, gate: Gate, final: bool, missed: bool):
-        estimated_time_to_crossing = self.estimate_crossing_time_offset(gate)
-        if estimated_time_to_crossing is None:
+        estimated_crossing_time = self.estimate_crossing_time(gate)
+        if estimated_crossing_time is None:
             return
         if gate.passing_time:
             planned_time_to_crossing = (gate.passing_time - gate.expected_time).total_seconds()
+            estimated_crossing_time = gate.passing_time
         else:
             planned_time_to_crossing = (self.track[-1].time - gate.expected_time).total_seconds()
-        self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_offset_estimate(self.contestant, gate.name,
-                                                                                             planned_time_to_crossing,
-                                                                                             estimated_time_to_crossing - planned_time_to_crossing,
-                                                                                             final,
-                                                                                             missed)
+        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
+                                                                   gate.expected_time, estimated_crossing_time)
 
-    def estimate_crossing_time_offset(self, gate: Gate, average_duration_seconds: int = 20) -> Optional[float]:
+        self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(self.contestant, gate.name,
+                                                                                      planned_time_to_crossing,
+                                                                                      (
+                                                                                                     gate.expected_time - estimated_crossing_time).total_seconds(),
+                                                                                      score,
+                                                                                      final,
+                                                                                      missed)
+
+    def estimate_crossing_time(self, gate: Gate, average_duration_seconds: int = 20) -> Optional[datetime.datetime]:
         """
         Returns the number of seconds (negative is early) from the planned crossing time the contestant is estimated to
         cross the next timed gate given the average speed over the past few seconds
@@ -273,7 +279,7 @@ class GatekeeperRoute(Gatekeeper):
             distance = calculate_distance_lat_lon((self.track[-1].latitude, self.track[-1].longitude),
                                                   (gate.latitude, gate.longitude)) / 1852  # NM
             time_to_intercept = distance / average_speed  # hours
-            return 3600 * time_to_intercept  # second
+            return self.track[-1].time + datetime.timedelta(hours=time_to_intercept)
         return None
 
     def notify_termination(self):

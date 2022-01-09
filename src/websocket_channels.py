@@ -139,14 +139,16 @@ class WebsocketFacade:
             group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )
 
-    def transmit_seconds_to_crossing_time_and_crossing_offset_estimate(self, contestant: "Contestant",
-                                                                       waypoint_name: str, second_to_planned_crossing: float,
-                                                                       crossing_offset_estimate: float,
-                                                                       final: bool, missed: bool):
+    def transmit_seconds_to_crossing_time_and_crossing_estimate(self, contestant: "Contestant",
+                                                                waypoint_name: str, seconds_to_planned_crossing: float,
+                                                                crossing_offset_estimate: float,
+                                                                score: float,
+                                                                final: bool, missed: bool):
         channel_data = generate_contestant_data_block(contestant,
                                                       gate_score_if_crossed_now=GateScoreIfCrossedNowSerialiser(
-                                                          {"second_to_planned_crossing": second_to_planned_crossing,
-                                                           "crossing_offset_estimate": crossing_offset_estimate,
+                                                          {"seconds_to_planned_crossing": seconds_to_planned_crossing,
+                                                           "estimated_crossing_offset": crossing_offset_estimate,
+                                                           "estimated_score": score,
                                                            "final": final, "missed": missed,
                                                            "waypoint_name": waypoint_name}).data)
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
