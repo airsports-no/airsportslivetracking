@@ -139,11 +139,15 @@ class WebsocketFacade:
             group_key, {"type": "tracking.data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}
         )
 
-    def transmit_gate_score_if_crossed_now(self, contestant: "Contestant", waypoint_name: str, seconds: float,
-                                           final: bool, missed: bool):
+    def transmit_seconds_to_crossing_time_and_crossing_offset_estimate(self, contestant: "Contestant",
+                                                                       waypoint_name: str, second_to_planned_crossing: float,
+                                                                       crossing_offset_estimate: float,
+                                                                       final: bool, missed: bool):
         channel_data = generate_contestant_data_block(contestant,
                                                       gate_score_if_crossed_now=GateScoreIfCrossedNowSerialiser(
-                                                          {"seconds": seconds, "final": final, "missed": missed,
+                                                          {"second_to_planned_crossing": second_to_planned_crossing,
+                                                           "crossing_offset_estimate": crossing_offset_estimate,
+                                                           "final": final, "missed": missed,
                                                            "waypoint_name": waypoint_name}).data)
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         async_to_sync(self.channel_layer.group_send)(

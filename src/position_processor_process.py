@@ -27,7 +27,7 @@ from display.calculators.calculator_factory import calculator_factory
 from display.models import TraccarCredentials, Contestant
 from traccar_facade import Traccar
 
-CACHE_TTL = 300
+CACHE_TTL = 180
 contestant_cache = {}
 
 logger = logging.getLogger(__name__)

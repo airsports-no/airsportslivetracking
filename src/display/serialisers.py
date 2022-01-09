@@ -548,7 +548,8 @@ class DangerLevelSerialiser(serializers.Serializer):
 
 
 class GateScoreIfCrossedNowSerialiser(serializers.Serializer):
-    seconds = serializers.FloatField()
+    second_to_planned_crossing = serializers.FloatField()
+    crossing_offset_estimate = serializers.FloatField()
     waypoint_name = serializers.CharField()
     final = serializers.BooleanField(required=False)
     missed = serializers.BooleanField(required=False)

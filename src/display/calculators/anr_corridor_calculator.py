@@ -8,8 +8,9 @@ from cartopy.io.img_tiles import OSM
 from shapely.geometry import Polygon, Point
 
 from display.calculators.calculator import Calculator
-from display.calculators.calculator_utilities import PolygonHelper
+from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Position, Gate
+from display.coordinate_utilities import bearing_difference
 from display.models import Contestant, Scorecard, Route
 
 logger = logging.getLogger(__name__)
@@ -28,8 +29,7 @@ class AnrCorridorCalculator(Calculator):
 
     def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
         self.enroute = False
-        self.accumulated_score=0
-
+        self.accumulated_score = 0
 
     INSIDE_CORRIDOR = 0
     OUTSIDE_CORRIDOR = 1
@@ -61,20 +61,22 @@ class AnrCorridorCalculator(Calculator):
         :param position:
         :return:
         """
+        if not self.enroute:
+            return 0, 0
+        LOOKAHEAD_SECONDS = 30
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
             return 100, self.accumulated_score
-        try:
+        distance_danger = 0
+        shortest_time = get_shortest_intersection_time(track, self.polygon_helper, [("test", self.track_polygon)],
+                                                       LOOKAHEAD_SECONDS, from_inside=True)
+        lookahead_danger = 99 * (LOOKAHEAD_SECONDS - shortest_time) / LOOKAHEAD_SECONDS
+        if len(track) > 0:
             position = track[-1]
-            if position.speed == 0:
-                return 0, self.accumulated_score
-            MAXIMUM_DISTANCE = 50
-            distance_in_time = min([MAXIMUM_DISTANCE, 3600 * self._distance_from_point_to_polygons(position.latitude,
-                                                                                                   position.longitude) / (
-                                                1852 * position.speed)])
-
-            return MAXIMUM_DISTANCE - distance_in_time, self.accumulated_score
-        except IndexError:
-            return 0, self.accumulated_score
+            MAXIMUM_DISTANCE = 1852  # m
+            polygon_distance = min([MAXIMUM_DISTANCE, self._distance_from_point_to_polygons(position.latitude,
+                                                                                            position.longitude)])
+            distance_danger = 30 * (MAXIMUM_DISTANCE - polygon_distance) / MAXIMUM_DISTANCE
+        return max([lookahead_danger, distance_danger]), self.accumulated_score
 
     def build_polygon(self):
         points = []
@@ -130,7 +132,7 @@ class AnrCorridorCalculator(Calculator):
         # Correct for any remaining grace time if we exited the corridor immediately before the gate
         self.corridor_grace_time = max(0, self.corridor_grace_time - outside_time)
         self.existing_reference = None
-        self.accumulated_score=0
+        self.accumulated_score = 0
         if position == self.last_gate_missed_position:
             # If we are at the same position as the last missed the gate it means that we are missing several gates
             # in a row. We need to apply maximum penalty for each leg

@@ -122,8 +122,9 @@ def insert_gpx_file(contestant_object: "Contestant", file):
                         if previous_point:
                             speed = calculate_speed_between_points(
                                 (previous_point["latitude"], previous_point["longitude"]),
-                                (point.latitude, point.longitude),
+                                (float(point.latitude), float(point.longitude)),
                                 previous_point["device_time"], point.time)
+                            logger.debug(f"speed: {speed}")
                             course = calculate_bearing((previous_point["latitude"], previous_point["longitude"]),
                                                        (point.latitude, point.longitude))
                         positions.append(
@@ -139,7 +140,8 @@ def insert_gpx_file(contestant_object: "Contestant", file):
                                 "device_time": point.time,
                             }
                         )
-                        previous_point = positions[-1]
+                        if len(positions)>2:
+                            previous_point = positions[-2]
                         index += 1
     except:
         logger.exception("Something bad happened when building position list")

@@ -17,6 +17,11 @@ class ConnectedDangerLevel extends Component {
             currentDangerData: this.props.dangerData,
             frozenTime: null
         }
+        this.restoreTimer = null
+    }
+
+    componentWillUnmount() {
+        clearTimeout(this.restoreTimer)
     }
 
     componentDidUpdate(prevProps) {
@@ -24,8 +29,14 @@ class ConnectedDangerLevel extends Component {
         if (this.props.dangerData && prevProps.dangerData && this.props.dangerData.accumulated_score === 0 && this.state.currentDangerData.accumulated_score !== 0 && !this.state.frozenTime) {
             this.setState({frozenTime: new Date()})
             frozen = true
+            // Make sure that we return to the latest props, even if we have stopped receiving props after freeze time
+            // this.restoreTimer = setTimeout(() => this.setState({
+            //     currentDangerData: this.props.dangerData,
+            //     frozenTime: null
+            // }), (GATE_FREEZE_TIME + 1) * 1000)
         }
         if ((!frozen && this.props.dangerData !== this.state.currentDangerData) || (frozen && this.props.dangerData.accumulated_score !== 0)) {
+            clearTimeout(this.restoreTimer)
             this.setState({currentDangerData: this.props.dangerData, frozenTime: null})
         }
     }

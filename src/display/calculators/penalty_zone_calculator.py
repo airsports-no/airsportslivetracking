@@ -6,14 +6,12 @@ from shapely.geometry import Polygon, Point
 import cartopy.crs as ccrs
 
 from display.calculators.calculator import Calculator
-from display.calculators.calculator_utilities import PolygonHelper
+from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Position, Gate
 from display.coordinate_utilities import bearing_difference
 from display.models import Contestant, Scorecard, Route, INFORMATION, ANOMALY
 
 logger = logging.getLogger(__name__)
-
-LOOKAHEAD_SECONDS = 30
 
 
 class PenaltyZoneCalculator(Calculator):
@@ -60,32 +58,13 @@ class PenaltyZoneCalculator(Calculator):
         """
         Danger level ranges from 0 to 100 where 100 is inside a penalty zone
         """
-        distance_danger = 0
-        if len(track) > 0:
-            # Danger level is determined by distance to something dangerous as seconds at the current speed
-            distances = self.polygon_helper.distance_from_point_to_polygons(self.zone_polygons, track[-1].latitude,
-                                                                            track[-1].longitude)
-            minimum_distance = min(list(distances.values()))
-            try:
-                minimum_time = 3600 * minimum_distance / (track[-1].speed * 1852)  # seconds
-            except ZeroDivisionError:
-                minimum_time = 100
-            MAXIMUM_DISTANCE = 50
-            distance_in_time = min([MAXIMUM_DISTANCE, minimum_time])
-
-            distance_danger = MAXIMUM_DISTANCE - distance_in_time
-        if len(track) > 3:
-            turning_rate = bearing_difference(track[-1].course, track[-3].course) / (
-                    track[-1].time - track[-3].time).total_seconds()
-            intersection_times = self.polygon_helper.time_to_intersection(self.zone_polygons, track[-1].latitude,
-                                                                          track[-1].longitude, track[-1].course,
-                                                                          track[-1].speed, turning_rate,
-                                                                          LOOKAHEAD_SECONDS)
-            shortest_time = min([LOOKAHEAD_SECONDS] + list(intersection_times.values()))
-            distance_danger = max([distance_danger, 99 * (LOOKAHEAD_SECONDS - shortest_time) / LOOKAHEAD_SECONDS])
-        return distance_danger
+        LOOKAHEAD_SECONDS = 40
+        shortest_time = get_shortest_intersection_time(track, self.polygon_helper, self.zone_polygons,
+                                                       LOOKAHEAD_SECONDS)
+        return 99 * (LOOKAHEAD_SECONDS - shortest_time) / LOOKAHEAD_SECONDS
 
     def get_danger_level_and_accumulated_score(self, track: List["Position"]):
+        # return 0, 0
         if len(self.entered_polygon_times) > 0:
             return 100, sum([0] + list(self.running_penalty.values()))
         else:

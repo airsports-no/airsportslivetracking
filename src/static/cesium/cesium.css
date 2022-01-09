@@ -263,7 +263,7 @@ tr.hidden {
 .danger-level-toggle {
     width: 0;
     position: relative;
-    right: 48px;
+    right: 40px;
     bottom: 10px;
     z-index: 999;
 }

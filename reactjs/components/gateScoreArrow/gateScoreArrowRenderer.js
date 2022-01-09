@@ -45,12 +45,12 @@ export default class GateScoreArrowRenderer extends Component {
         const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + this.props.maximumTimingPenalty / this.props.pointsPerSecond
         const canvas = document.getElementById("myCanvas");
         const context = canvas.getContext("2d");
-        const animationStep = (this.props.seconds - this.previousSeconds) / ANIMATION_STEPS
+        const animationStep = (this.props.secondsToPlannedCrossing - this.previousSeconds) / ANIMATION_STEPS
         let x, value
         if (this.animationStepNumber === ANIMATION_STEPS || this.props.final) {
-            x = this.secondsToPosition(Math.min(maximumSeconds, Math.max(-maximumSeconds, this.props.seconds)))
+            x = this.secondsToPosition(Math.min(maximumSeconds, Math.max(-maximumSeconds, this.props.secondsToPlannedCrossing)))
             this.previousPosition = x
-            value = this.secondsToPoints(this.props.seconds)
+            value = this.secondsToPoints(this.props.secondsToPlannedCrossing)
             clearInterval(this.animationTimer)
         } else {
             x = this.secondsToPosition(Math.min(maximumSeconds, Math.max(-maximumSeconds, this.previousSeconds + (this.animationStepNumber * animationStep))))
@@ -209,11 +209,11 @@ export default class GateScoreArrowRenderer extends Component {
             this.drawEverything()
         }
         const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + this.props.maximumTimingPenalty / this.props.pointsPerSecond
-        const x = this.secondsToPosition(Math.min(maximumSeconds, Math.max(-maximumSeconds, this.props.seconds)))
+        const x = this.secondsToPosition(Math.min(maximumSeconds, Math.max(-maximumSeconds, this.props.secondsToPlannedCrossing)))
 
         if (x !== this.previousPosition || this.props.final !== prevProps.final || this.props.missed !== prevProps.missed) {
             clearInterval(this.animationTimer)
-            this.previousSeconds = prevProps.seconds
+            this.previousSeconds = prevProps.secondsToPlannedCrossing
             this.animationStepNumber = ANIMATION_STEPS
             this.drawEverything()
             // this.animationTimer = setInterval(() => this.drawEverything(), ANIMATION_TIME / ANIMATION_STEPS)

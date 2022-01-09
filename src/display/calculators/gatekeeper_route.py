@@ -220,7 +220,7 @@ class GatekeeperRoute(Gatekeeper):
                     gate, time_limit))
                 gate.missed = True
                 if gate.time_check:
-                    self.transmit_gate_score_if_crossed_now(gate, True, True)
+                    self.transmit_second_to_crossing_time_and_crossing_estimate(gate, True, True)
                 self.pop_gate(0, True)
         self.check_gate_in_range()
         if self.last_gate and self.last_gate.type == "fp":
@@ -233,19 +233,48 @@ class GatekeeperRoute(Gatekeeper):
                 index += 1
             if index < len(self.outstanding_gates):
                 gate = self.outstanding_gates[index]
-                self.transmit_gate_score_if_crossed_now(gate, final, missed)
+                self.transmit_second_to_crossing_time_and_crossing_estimate(gate, final, missed)
 
-    def transmit_gate_score_if_crossed_now(self, gate: Gate, final: bool, missed: bool):
-
-        # score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
-        #                                                            gate.expected_time, self.track[-1].time)
+    def transmit_second_to_crossing_time_and_crossing_estimate(self, gate: Gate, final: bool, missed: bool):
+        estimated_time_to_crossing = self.estimate_crossing_time_offset(gate)
+        if estimated_time_to_crossing is None:
+            return
         if gate.passing_time:
-            time_difference_seconds = (gate.passing_time - gate.expected_time).total_seconds()
+            planned_time_to_crossing = (gate.passing_time - gate.expected_time).total_seconds()
         else:
-            time_difference_seconds = (self.track[-1].time - gate.expected_time).total_seconds()
-        self.websocket_facade.transmit_gate_score_if_crossed_now(self.contestant, gate.name, time_difference_seconds,
-                                                                 final,
-                                                                 missed)
+            planned_time_to_crossing = (self.track[-1].time - gate.expected_time).total_seconds()
+        self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_offset_estimate(self.contestant, gate.name,
+                                                                                             planned_time_to_crossing,
+                                                                                             estimated_time_to_crossing - planned_time_to_crossing,
+                                                                                             final,
+                                                                                             missed)
+
+    def estimate_crossing_time_offset(self, gate: Gate, average_duration_seconds: int = 20) -> Optional[float]:
+        """
+        Returns the number of seconds (negative is early) from the planned crossing time the contestant is estimated to
+        cross the next timed gate given the average speed over the past few seconds
+
+        :return: seconds
+        """
+        if not gate.time_check:
+            return None
+        if len(self.track) > 0:
+            speed = self.track[-1].speed
+            count = 1
+            initial_time = self.track[-1].time
+            index = len(self.track) - 2
+            while index >= 0:
+                count += 1
+                speed += self.track[index].speed
+                if (initial_time - self.track[index].time).total_seconds() > average_duration_seconds:
+                    break
+                index -= 1
+            average_speed = speed / count  # kt
+            distance = calculate_distance_lat_lon((self.track[-1].latitude, self.track[-1].longitude),
+                                                  (gate.latitude, gate.longitude)) / 1852  # NM
+            time_to_intercept = distance / average_speed  # hours
+            return 3600 * time_to_intercept  # second
+        return None
 
     def notify_termination(self):
         super().notify_termination()
@@ -292,7 +321,7 @@ class GatekeeperRoute(Gatekeeper):
                     gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
                                                                                     gate.expected_time,
                                                                                     gate.passing_time)
-                    self.transmit_gate_score_if_crossed_now(gate, True, False)
+                    self.transmit_second_to_crossing_time_and_crossing_estimate(gate, True, False)
                     self.update_score(gate, gate_score,
                                       "passing gate",
                                       current_position.latitude, current_position.longitude, "anomaly",
@@ -315,7 +344,7 @@ class GatekeeperRoute(Gatekeeper):
         if self.recalculation_completed:
             next_timing_gates = filter(lambda k: k.time_check, self.outstanding_gates)
             try:
-                self.transmit_gate_score_if_crossed_now(next(next_timing_gates), False, False)
+                self.transmit_second_to_crossing_time_and_crossing_estimate(next(next_timing_gates), False, False)
             except StopIteration:
                 pass
         self.check_gate_in_range()

@@ -1,10 +1,11 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import GateScoreArrowRenderer from "./gateScoreArrowRenderer";
+import GateCountdownTimer from "./gateCountdownTimer";
 
 const mapStateToProps = (state, props) => ({
     contestantTrack: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
-    arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_score_if_crossed_now : null,
+    arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_distance_and_estimate : null,
     rules: state.contestants[props.contestantId] !== undefined ? state.contestants[props.contestantId].scorecard_rules : null,
     waypoints: state.navigationTask.route.waypoints,
     displayGateArrow: state.displayGateArrow
@@ -86,17 +87,26 @@ class ConnectedGateScoreArrow extends Component {
 
     render() {
         if (this.state.currentArrowData && !this.state.finished[this.props.contestantId] && this.props.displayGateArrow) {
-            return <GateScoreArrowRenderer width={this.props.width} height={this.props.height}
-                                           pointsPerSecond={this.getPointsPerSecond()}
-                                           maximumTimingPenalty={this.getMaximumTimingPenalty()}
-                                           gracePeriodBefore={this.getGracePeriodBefore()}
-                                           gracePeriodAfter={this.getGracePeriodAfter()}
-                                           missedPenalty={this.getMissedPenalty()}
-                                           seconds={this.state.currentArrowData.seconds}
-                                           waypointName={this.state.currentArrowData.waypoint_name}
-                                           contestantId={this.props.contestantId}
-                                           final={this.state.currentArrowData.final}
-                                           missed={this.state.currentArrowData.missed}/>
+            return <div className={"gate-score-arrow"}>
+                <div className={"gate-score-next-gate"}>
+                    NEXT GATE: {this.state.currentArrowData.waypoint_name}
+                </div>
+                <GateCountdownTimer
+                    secondsToPlannedCrossing={this.state.currentArrowData.second_to_planned_crossing}
+                    crossingOffsetEstimate={this.state.currentArrowData.crossing_offset_estimate}/>
+                <GateScoreArrowRenderer width={this.props.width} height={this.props.height}
+                                        pointsPerSecond={this.getPointsPerSecond()}
+                                        maximumTimingPenalty={this.getMaximumTimingPenalty()}
+                                        gracePeriodBefore={this.getGracePeriodBefore()}
+                                        gracePeriodAfter={this.getGracePeriodAfter()}
+                                        missedPenalty={this.getMissedPenalty()}
+                                        secondsToPlannedCrossing={this.state.currentArrowData.second_to_planned_crossing}
+                                        crossingOffsetEstimate={this.state.currentArrowData.crossing_offset_estimate}
+                                        waypointName={this.state.currentArrowData.waypoint_name}
+                                        contestantId={this.props.contestantId}
+                                        final={this.state.currentArrowData.final}
+                                        missed={this.state.currentArrowData.missed}/>
+            </div>
         }
         return null
     }

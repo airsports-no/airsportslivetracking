@@ -5,8 +5,9 @@ import cartopy.crs as ccrs
 import datetime
 from typing import Tuple, List, Dict
 
+from display.calculators.positions_and_gates import Position
 from display.coordinate_utilities import cross_track_distance, along_track_distance, calculate_distance_lat_lon, \
-    calculate_bearing, utm_from_lat_lon, project_position_lat_lon
+    calculate_bearing, utm_from_lat_lon, project_position_lat_lon, bearing_difference
 
 
 def cross_track_gate(gate1, gate2, position) -> float:
@@ -28,8 +29,6 @@ def along_track_gate(gate1, cross_track_distance, position):
 
 def distance_between_gates(gate1, gate2):
     return calculate_distance_lat_lon((gate1.latitude, gate1.longitude), (gate2.latitude, gate2.longitude))
-
-
 
 
 def bearing_between(gate1, gate2):
@@ -99,11 +98,12 @@ class PolygonHelper:
 
     def time_to_intersection(self, polygons: List[Tuple[str, Polygon]], latitude: float, longitude: float,
                              bearing: float, speed: float, turning_rate: float, lookahead_seconds: int,
-                             lookahead_step: int = 1) -> Dict[
+                             lookahead_step: int = 2, from_inside: bool = False) -> Dict[
         str, float]:
         """
         Returns the number of seconds until a possible intersect of any polygon from the current position with projected speed and turning rate
 
+        :param reverse: If true, the searches performed backwards. This finds the last item that is within the polygon and can be used to find the intersection from inside a polygon looking out
         :param polygons:
         :param latitude:
         :param longitude:
@@ -114,14 +114,16 @@ class PolygonHelper:
         """
         previous_longitude = longitude
         previous_latitude = latitude
-        speed_per_second = speed / 3600  # nm/s
+        speed_per_second = 1852 * speed / 3600  # m/s
         intersection_times = {}
         maximum_distance = speed_per_second * lookahead_seconds
         distances = self.distance_from_point_to_polygons(polygons, latitude, longitude)
         for name, distance in distances.items():
             if distance > maximum_distance:
                 intersection_times[name] = None
-        for second in range(0, lookahead_seconds, lookahead_step):
+        for second in range(lookahead_step, lookahead_seconds, lookahead_step):
+            if len(intersection_times) == len(polygons):
+                break
             projected_latitude, projected_longitude = project_position_lat_lon((previous_latitude, previous_longitude),
                                                                                (bearing + second * turning_rate) % 360,
                                                                                speed_per_second * lookahead_step)
@@ -132,7 +134,8 @@ class PolygonHelper:
             previous_longitude = projected_longitude
             for name, polygon in polygons:
                 if name not in intersection_times:
-                    if line_string.intersects(polygon):
+                    if (not from_inside and line_string.intersects(polygon)) or (
+                            from_inside and not line_string.intersects(polygon)):
                         intersection_times[name] = second
         for key in list(intersection_times.keys()):
             if not intersection_times[key]:
@@ -164,3 +167,19 @@ def project_position(latitude: float, longitude: float, course: float, turning_r
     distance = 2 * circle_radius * np.sin(np.deg2rad(total_angle / 2))  # nm
     projected_heading = course + total_angle  # degrees
     return project_position_lat_lon((latitude, longitude), projected_heading, distance * 1852)
+
+
+def get_shortest_intersection_time(track: List["Position"], polygon_helper: PolygonHelper,
+                                   zone_polygons: List[Tuple[str, Polygon]], lookahead_seconds: int,
+                                   from_inside: bool = False) -> float:
+    if len(track) > 3:
+        turning_rate = bearing_difference(track[-3].course, track[-1].course) / (
+                track[-1].time - track[-3].time).total_seconds()
+        intersection_times = polygon_helper.time_to_intersection(zone_polygons, track[-1].latitude,
+                                                                 track[-1].longitude, track[-1].course,
+                                                                 track[-1].speed, turning_rate,
+                                                                 lookahead_seconds, from_inside=from_inside)
+        # for zone, distance in intersection_times.items():
+        #     logger.debug(f"{zone}:{distance}")
+        return min([lookahead_seconds] + list(intersection_times.values()))
+    return lookahead_seconds
