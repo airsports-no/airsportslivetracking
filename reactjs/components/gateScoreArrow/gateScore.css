@@ -1,0 +1,49 @@
+.gate-score-arrow {
+    width: 400px;
+    height: 150px;
+}
+
+.gate-score-next-gate {
+    font-weight: 700;
+}
+
+.gate-countdown-timer{
+    color: black;
+}
+
+.gate-remaining-seconds {
+    text-align: center;
+}
+
+.gate-countdown-label {
+    font-size: 8px;
+    width: 100vw;
+}
+
+.gate-estimated-crossing-offset {
+    text-align: center;
+}
+
+.gate-score-arrow {
+    /*bottom: 2px;*/
+    /*left: 145px;*/
+    /*position: fixed;*/
+    /*width: 530px;*/
+    /*height: 110px;*/
+    z-index: 2;
+    margin-bottom: -38px;
+}
+
+.gate-arrow-canvas {
+    margin-top: -42px;
+}
+
+.gate-arrow-shadow {
+    box-shadow: 5px 10px 5px rgba(0, 0, 0, 0.6);
+    border-radius: 15px 15px 0 0;
+    height: 80px;
+    width: 512px;
+    background: #f8f4f0;
+    color: #92d468;
+    border: solid;
+}

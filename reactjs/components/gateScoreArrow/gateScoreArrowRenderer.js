@@ -1,8 +1,8 @@
 import React, {Component} from "react";
 
-const ARROW_HEIGHT = 60, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 15, NUMBER_PADDING = 10, PADDING = 30,
-    ARROW_ICON_WIDTH = 50, BELOW_LINE_TEXT_POSITION = 45, BELOW_LINE_TEXT_X_OFFSET = 100, ANIMATION_STEPS = 10,
-    ANIMATION_TIME = 1000, ARROW_TOP_OFFSET = 0
+const ARROW_HEIGHT = 90, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 10, NUMBER_PADDING = 10, PADDING = 10,
+    ARROW_ICON_WIDTH = 70, BELOW_LINE_TEXT_POSITION = 75, BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
+    ANIMATION_TIME = 1000, ARROW_TOP_OFFSET = 0, TOP_OFFSET = 42
 const ARROW_ICON_HEIGHT = ARROW_ICON_WIDTH * 1.3
 
 export default class GateScoreArrowRenderer extends Component {
@@ -26,7 +26,7 @@ export default class GateScoreArrowRenderer extends Component {
         const context = canvas.getContext("2d");
         context.clearRect(0, 0, this.props.width, this.props.height)
         // this.drawBar(context)
-        this.drawBarLower(context)
+        // this.drawBarLower(context)
         this.drawNumberLine(context)
     }
 
@@ -67,30 +67,30 @@ export default class GateScoreArrowRenderer extends Component {
             imageObj.src = '/static/img/gate_score_arrow_red.gif';
         }
         imageObj.addEventListener('load', () => {
-            // if (this.previousArrowPosition) {
-            //     context.clearRect(this.previousArrowPosition - ARROW_ICON_WIDTH / 2, 0, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
-            // }
+            if (this.previousArrowPosition) {
+                context.clearRect(this.previousArrowPosition - ARROW_ICON_WIDTH / 2, 0, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
+            }
             // this.previousArrowPosition = x
             context.fillStyle = "#FFFFFF"
             // if (this.props.final) {
             //     context.fillStyle = "#000000"
             // }
             context.drawImage(imageObj, start, ARROW_TOP_OFFSET, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
-            context.font = "bold 15pt Verdana";
+            context.font = "bold 18pt Verdana";
             let string = "" + Math.round(value)
             if (this.props.missed) {
-                context.font = "bold 12pt Verdana";
+                context.font = "bold 13pt Verdana";
                 string = "MISS"
             }
-            context.fillText(string, x - context.measureText(string).width / 2, 33 + ARROW_TOP_OFFSET)
+            context.fillText(string, x - context.measureText(string).width / 2, 45 + ARROW_TOP_OFFSET)
         })
     }
 
     drawNumberAtPosition(context, x, value, length) {
         // context.fillStyle = "#000000";
-        context.fillStyle = "#343a40"
+        context.fillStyle = "#a6a6a6"
         // context.fillRect(x - 2, ARROW_HEIGHT - (length / 2) + HORIZONTAL_LINE_THICKNESS / 2, 2, HORIZONTAL_LINE_THICKNESS + length);
-        context.font = "14pt Verdana";
+        context.font = "10pt Verdana";
         const string = "" + Math.round(value)
         context.fillText(string, x - context.measureText(string).width / 2, ARROW_HEIGHT + length + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING)
     }
@@ -98,7 +98,14 @@ export default class GateScoreArrowRenderer extends Component {
     secondsToPosition(seconds) {
         const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + this.props.maximumTimingPenalty / this.props.pointsPerSecond
         const pixelsPerSecond = (this.props.width - PADDING * 2) / (maximumSeconds * 2)
-        return PADDING + (maximumSeconds + seconds) * pixelsPerSecond
+        const MULT = 22
+        if (seconds === 0) {
+            return PADDING + maximumSeconds * pixelsPerSecond
+        } else if (seconds < 0) {
+            return PADDING + (maximumSeconds - Math.log10(-seconds) * MULT) * pixelsPerSecond
+        } else {
+            return PADDING + (maximumSeconds + Math.log10(seconds) * MULT) * pixelsPerSecond
+        }
     }
 
     secondsToPoints(seconds) {
@@ -120,8 +127,7 @@ export default class GateScoreArrowRenderer extends Component {
     }
 
     drawNumberLine(context) {
-        const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + this.props.maximumTimingPenalty / this.props.pointsPerSecond
-        const pixelsPerSecond = (this.props.width - PADDING) / (maximumSeconds * 2)
+        const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + Math.ceil(this.props.maximumTimingPenalty / this.props.pointsPerSecond)
         // Mainline
         context.fillStyle = "#000000";
         context.fillRect(PADDING, ARROW_HEIGHT, this.props.width - PADDING * 2, HORIZONTAL_LINE_THICKNESS);
@@ -129,77 +135,30 @@ export default class GateScoreArrowRenderer extends Component {
         const stepDistance = this.props.width / steps
         const stepDistanceSeconds = (this.props.pointsPerSecond + 2 * maximumSeconds) / steps
         this.drawGracePeriod(context)
-        for (let i = -steps / 2; i < 1 + steps / 2; i++) {
-            this.drawNumberAtPosition(context, this.secondsToPosition(i * stepDistanceSeconds), this.secondsToPoints(i * stepDistanceSeconds), VERTICAL_LINE_LENGTH)
+        // this.drawNumberAtPosition(context, this.secondsToPosition(-maximumSeconds), this.secondsToPoints(-maximumSeconds), VERTICAL_LINE_LENGTH)
+        // this.drawNumberAtPosition(context, this.secondsToPosition(maximumSeconds), this.secondsToPoints(maximumSeconds), VERTICAL_LINE_LENGTH)
+        for (let i = maximumSeconds; i >= 1; i /= 10) {
+            this.drawNumberAtPosition(context, this.secondsToPosition(-i), this.secondsToPoints(-i), VERTICAL_LINE_LENGTH)
+            this.drawNumberAtPosition(context, this.secondsToPosition(i), this.secondsToPoints(i), VERTICAL_LINE_LENGTH)
         }
         context.font = "16pt Verdana";
-        context.fillStyle = "#343a40"
+        context.fillStyle = "#a6a6a6"
         context.fillText("EARLY", PADDING + BELOW_LINE_TEXT_X_OFFSET, BELOW_LINE_TEXT_POSITION)
         const latex = this.props.width - context.measureText("Late").width - PADDING - BELOW_LINE_TEXT_X_OFFSET
         context.fillText("LATE", latex, BELOW_LINE_TEXT_POSITION)
-        context.font = "16pt Verdana";
-        context.fillStyle = "#000000";
-        const waypointText = "GATE: " + this.props.waypointName
-        const wpx = 10//this.props.width / 2 - context.measureText(waypointText).width / 2
-        context.fillText(waypointText, wpx, 22)
+        context.font = "12pt Verdana";
+        context.fillStyle = "#262626"
+        const penaltytext = this.secondsToPosition(0) - context.measureText("PENALTY").width / 2
+        context.fillText("PENALTY", penaltytext, ARROW_HEIGHT + VERTICAL_LINE_LENGTH + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING)
     }
 
     drawGracePeriod(context) {
-        context.fillStyle = "#93ff9f";
+        context.fillStyle = "#92d468";
         const x = this.secondsToPosition(-this.props.gracePeriodBefore)
         const width = this.secondsToPosition(this.props.gracePeriodAfter) - x
-        context.fillRect(x - 1, ARROW_HEIGHT - (VERTICAL_LINE_LENGTH / 2) + HORIZONTAL_LINE_THICKNESS / 2, width, HORIZONTAL_LINE_THICKNESS + VERTICAL_LINE_LENGTH);
+        context.fillRect(x - 1, TOP_OFFSET, width, ARROW_ICON_HEIGHT - TOP_OFFSET - 1);
     }
 
-    drawBar(context) {
-        const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + this.props.maximumTimingPenalty / this.props.pointsPerSecond
-        const pixelsPerSecond = this.props.width / (maximumSeconds * 2)
-        const gracePixelsBefore = pixelsPerSecond * this.props.gracePeriodBefore
-        const gracePixelsAfter = pixelsPerSecond * this.props.gracePeriodAfter
-
-        const middle = this.props.width / 2
-
-        let earlyGradient = context.createLinearGradient(0, 0, middle, 0);
-        earlyGradient.addColorStop(0, "rgba(0, 0, 0, 0.5)");
-        earlyGradient.addColorStop(1, "rgba(255, 255, 255, 1.0)");
-
-        // earlyGradient.addColorStop(0, "red");
-        // earlyGradient.addColorStop(1, "white");
-        context.fillStyle = earlyGradient;
-        context.fillRect(0, 0, middle, this.props.height);
-
-        let lateGradient = context.createLinearGradient(middle, 0, this.props.width, 0);
-        lateGradient.addColorStop(1, "rgba(0, 0, 0, 0.5)");
-        lateGradient.addColorStop(0, "rgba(255, 255, 255, 0.5)");
-        // lateGradient.addColorStop(1, "red");
-        // lateGradient.addColorStop(0, "white");
-        context.fillStyle = lateGradient;
-        context.fillRect(middle, 0, this.props.width, this.props.height);
-    }
-
-    drawBarLower(context) {
-        const bottom = this.props.height
-        const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + this.props.maximumTimingPenalty / this.props.pointsPerSecond
-        const pixelsPerSecond = this.props.width / (maximumSeconds * 2)
-
-        const middle = this.props.width / 2
-        let earlyGradient = context.createLinearGradient(0, 0, middle, 0);
-        earlyGradient.addColorStop(0, "rgba(127, 127, 127, 1)");
-        earlyGradient.addColorStop(1, "rgba(255, 255, 255, 1)");
-
-        // earlyGradient.addColorStop(0, "red");
-        // earlyGradient.addColorStop(1, "white");
-        context.fillStyle = earlyGradient;
-        context.fillRect(0, 0, middle, bottom);
-
-        let lateGradient = context.createLinearGradient(middle, 0, this.props.width, 0);
-        lateGradient.addColorStop(1, "rgba(127, 127, 127, 1)");
-        lateGradient.addColorStop(0, "rgba(255, 255, 255, 1)");
-        // lateGradient.addColorStop(1, "red");
-        // lateGradient.addColorStop(0, "white");
-        context.fillStyle = lateGradient;
-        context.fillRect(middle, 0, middle, bottom);
-    }
 
     componentDidUpdate(prevProps) {
         if (this.props.width !== prevProps.width || ((this.props.contestantId !== prevProps.contestantId || this.props.waypointName !== prevProps.waypointName) && this.props.waypointName)) {
@@ -221,7 +180,7 @@ export default class GateScoreArrowRenderer extends Component {
     }
 
     render() {
-        return <div className={"gate-arrow-shadow"}>
+        return <div className={"gate-arrow-canvas"}>
             <canvas id="myCanvas" width={this.props.width} height={this.props.height}/>
         </div>
     }

@@ -223,16 +223,6 @@ tr.hidden {
     font-size: 0.7rem
 }
 
-.gate-arrow-placeholder {
-    width: 604px;
-}
-
-.gate-arrow-shadow {
-    box-shadow: 5px 10px 5px rgba(0, 0, 0, 0.6);
-    border-radius: 15px 15px 0 0;
-    height: 100px;
-    width: 600px;
-}
 
 .lowerThirdsDouble {
     transform-origin: bottom right;
@@ -650,16 +640,6 @@ tr.hidden {
     z-index: 2;
 }
 
-
-.gate-score-arrow {
-    bottom: 2px;
-    left: 145px;
-    position: fixed;
-    width: 530px;
-    height: 110px;
-    z-index: 2;
-    transform-origin: bottom left;
-}
 
 .logoImage {
     /*height: 80px;*/

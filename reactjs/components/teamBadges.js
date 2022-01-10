@@ -182,13 +182,13 @@ class ConnectedLowerThirdTeam extends Component {
                 <div className={"d-flex align-items-end justify-content-end"}>
                     <div className={"p-2 gate-arrow-placeholder"} style={{marginBottom: "2px"}}>
                         <GateScoreArrow contestantId={this.props.contestant.id}
-                                        width={600}
-                                        height={100} arrowData={{
+                                        width={400}
+                                        height={150} arrowData={{
                             waypoint_name: "SP",
                             seconds_to_planned_crossing: 7,
                             estimated_crossing_offset: 5,
                             estimated_score: 9,
-                            final: true,
+                            final: false,
                             missed: false
                         }}/>
                     </div>
