@@ -6,7 +6,7 @@ import './gateScore.css'
 
 const mapStateToProps = (state, props) => ({
     contestantTrack: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
-    // arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_distance_and_estimate : null,
+    arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_distance_and_estimate : null,
     rules: state.contestants[props.contestantId] !== undefined ? state.contestants[props.contestantId].scorecard_rules : null,
     waypoints: state.navigationTask.route.waypoints,
     displayGateArrow: state.displayGateArrow
@@ -74,9 +74,9 @@ class ConnectedGateScoreArrow extends Component {
                 this.setState({currentArrowData: this.props.arrowData})
             }
         }
-        if (!frozen && this.props.arrowData !== this.state.currentArrowData) {
+        if (!frozen && this.props.arrowData !== this.state.currentArrowData || this.props.contestantId!==prevProps.contestantId) {
             this.frozenTime = null
-            this.setState({currentArrowData: this.props.arrowData, hidden: false})
+            this.setState({currentArrowData: this.props.arrowData})
         }
         if (!this.state.finished[this.props.contestantId] && this.props.contestantTrack && this.props.contestantTrack.passed_finish_gate) {
             setTimeout(() => {
@@ -105,8 +105,8 @@ class ConnectedGateScoreArrow extends Component {
                                                 gracePeriodBefore={this.getGracePeriodBefore()}
                                                 gracePeriodAfter={this.getGracePeriodAfter()}
                             // missedPenalty={this.getMissedPenalty()}
-                                                secondsToPlannedCrossing={this.state.currentArrowData.seconds_to_planned_crossing}
-                            // crossingOffsetEstimate={this.state.currentArrowData.estimated_crossing_offset}
+                            //                     secondsToPlannedCrossing={this.state.currentArrowData.seconds_to_planned_crossing}
+                            crossingOffsetEstimate={this.state.currentArrowData.estimated_crossing_offset}
                                                 estimatedScore={this.state.currentArrowData.estimated_score}
                             // waypointName={this.state.currentArrowData.waypoint_name}
                                                 contestantId={this.props.contestantId}

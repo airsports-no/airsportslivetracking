@@ -51,7 +51,7 @@ def generate_contestant_data_block(
         playing_cards: List = None,
         include_contestant_track: bool = False,
         gate_times: Dict = None,
-        gate_score_if_crossed_now: Dict = None,
+        gate_distance_and_estimate: Dict = None,
         danger_level: Dict = None
 ):
     if not hasattr(contestant, "contestanttrack"):
@@ -65,7 +65,7 @@ def generate_contestant_data_block(
         "playing_cards": playing_cards,
         "latest_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "gate_times": gate_times,
-        "gate_score_if_crossed_now": gate_score_if_crossed_now,
+        "gate_distance_and_estimate": gate_distance_and_estimate,
         "danger_level": danger_level,
         "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
         if include_contestant_track
@@ -145,7 +145,7 @@ class WebsocketFacade:
                                                                 score: float,
                                                                 final: bool, missed: bool):
         channel_data = generate_contestant_data_block(contestant,
-                                                      gate_score_if_crossed_now=GateScoreIfCrossedNowSerialiser(
+                                                      gate_distance_and_estimate=GateScoreIfCrossedNowSerialiser(
                                                           {"seconds_to_planned_crossing": seconds_to_planned_crossing,
                                                            "estimated_crossing_offset": crossing_offset_estimate,
                                                            "estimated_score": score,

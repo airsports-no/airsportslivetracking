@@ -12,7 +12,7 @@ from display.calculators.gatekeeper import Gatekeeper
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
-    calculate_fractional_distance_point_lat_lon
+    calculate_fractional_distance_point_lat_lon, cross_track_distance
 from display.models import ContestantTrack, Contestant
 from display.waypoint import Waypoint
 
@@ -239,6 +239,8 @@ class GatekeeperRoute(Gatekeeper):
         estimated_crossing_time = self.estimate_crossing_time(gate)
         if estimated_crossing_time is None:
             return
+        if abs((estimated_crossing_time - self.track[-1].time)).total_seconds() < 20:
+            estimated_crossing_time = self.estimate_crossing_time(gate, average_duration_seconds=6)
         if gate.passing_time:
             planned_time_to_crossing = (gate.passing_time - gate.expected_time).total_seconds()
             estimated_crossing_time = gate.passing_time
@@ -249,8 +251,8 @@ class GatekeeperRoute(Gatekeeper):
 
         self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(self.contestant, gate.name,
                                                                                       planned_time_to_crossing,
-                                                                                      (
-                                                                                                     gate.expected_time - estimated_crossing_time).total_seconds(),
+                                                                                      round((
+                                                                                                    estimated_crossing_time - gate.expected_time).total_seconds()),
                                                                                       score,
                                                                                       final,
                                                                                       missed)
@@ -276,10 +278,14 @@ class GatekeeperRoute(Gatekeeper):
                     break
                 index -= 1
             average_speed = speed / count  # kt
-            distance = calculate_distance_lat_lon((self.track[-1].latitude, self.track[-1].longitude),
-                                                  (gate.latitude, gate.longitude)) / 1852  # NM
-            time_to_intercept = distance / average_speed  # hours
-            return self.track[-1].time + datetime.timedelta(hours=time_to_intercept)
+            distance = cross_track_distance(gate.gate_line[0][0], gate.gate_line[0][1], gate.gate_line[1][0],
+                                            gate.gate_line[1][1], self.track[-1].latitude,
+                                            self.track[-1].longitude) / 1852  # NM
+            # distance = calculate_distance_lat_lon((self.track[-1].latitude, self.track[-1].longitude),
+            #                                       (gate.latitude, gate.longitude)) / 1852  # NM
+            if average_speed > 0:
+                time_to_intercept = distance / average_speed  # hours
+                return self.track[-1].time + datetime.timedelta(hours=time_to_intercept)
         return None
 
     def notify_termination(self):

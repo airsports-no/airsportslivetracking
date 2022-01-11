@@ -159,8 +159,25 @@ function PlayingCards(props) {
 class ConnectedLowerThirdTeam extends Component {
     constructor(props) {
         super(props);
+        const score = 10 * (Math.random() - 0.5)
+        this.last=0
+        this.state = {
+            score: score,
+            crossing: score
+        }
         this.toggleRankDetailsDisplay = this.toggleRankDetailsDisplay.bind(this)
+        setInterval(() => {
+            // const score = 10 * (Math.random() - 0.5)
+            this.last+=1
+            this.last=this.last%20
+            const score=this.last-10
+            this.setState({
+                score: score,
+                crossing: score
+            })
+        }, 1000)
     }
+
 
     toggleRankDetailsDisplay() {
         console.log("Toggle")
@@ -183,14 +200,16 @@ class ConnectedLowerThirdTeam extends Component {
                     <div className={"p-2 gate-arrow-placeholder"} style={{marginBottom: "2px"}}>
                         <GateScoreArrow contestantId={this.props.contestant.id}
                                         width={400}
-                                        height={150} arrowData={{
+                                        height={150}
+                                        arrowData={{
                             waypoint_name: "SP",
                             seconds_to_planned_crossing: 7,
-                            estimated_crossing_offset: 5,
-                            estimated_score: 9,
+                            estimated_crossing_offset: this.state.crossing,
+                            estimated_score: this.state.score,
                             final: false,
                             missed: false
-                        }}/>
+                        }}
+                        />
                     </div>
                     <div className={"p-2 clickable"} style={{width: "30px"}}>
                         <img src={"/static/img/expand_arrow.gif"} onClick={() => this.props.toggleGateArrow()}/>

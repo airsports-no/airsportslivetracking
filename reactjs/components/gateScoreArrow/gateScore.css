@@ -1,5 +1,4 @@
 .gate-score-arrow {
-    width: 400px;
     height: 150px;
 }
 
@@ -9,10 +8,12 @@
 
 .gate-countdown-timer{
     color: black;
+    margin-top: 7px;
 }
 
 .gate-remaining-seconds {
     text-align: center;
+    font-size: x-large;
 }
 
 .gate-countdown-label {
@@ -22,6 +23,7 @@
 
 .gate-estimated-crossing-offset {
     text-align: center;
+    font-size: medium;
 }
 
 .gate-score-arrow {

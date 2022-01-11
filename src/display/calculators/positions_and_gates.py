@@ -38,7 +38,7 @@ class Gate:
                  gate_line_extended: Tuple[Tuple[float, float], Tuple[float, float]]):
         self.waypoint = gate
         self.name = gate.name
-        self.gate_line = gate.gate_line
+        self.gate_line = gate.gate_line  # [[lat,lon],[lat,lon]]?
         self.gate_line_infinite = gate.gate_line_infinite
         self.gate_line_extended = gate_line_extended
 

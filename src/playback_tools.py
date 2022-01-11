@@ -59,6 +59,7 @@ def load_data_traccar(tracks, offset=30, leadtime=0, round_sleep=0.2):
         requests.post("http://" + server + "/?" + urlencode(params))
 
     next_times = {}
+    previous_positions = {}
     index = 0
     for contestant_name, (positions, start_time) in tracks.items():
         next_times[contestant_name] = start_time - datetime.timedelta(seconds=index * offset + leadtime)
@@ -73,8 +74,17 @@ def load_data_traccar(tracks, offset=30, leadtime=0, round_sleep=0.2):
             while len(positions) > 0 and positions[0][0] < next_times[contestant_name]:
                 count += 1
                 stamp, latitude, longitude = positions.pop(0)
+                try:
+                    p_stamp, p_latitude, p_longitude = previous_positions[contestant_name]
+                    speed = calculate_speed_between_points(
+                        (p_latitude, p_longitude),
+                        (latitude, longitude),
+                        p_stamp, stamp)
+                except KeyError:
+                    speed = 0
+                previous_positions[contestant_name] = (stamp, latitude, longitude)
                 if not first_round:
-                    send(contestant_name, time.mktime(stamp.timetuple()), latitude, longitude, 0)
+                    send(contestant_name, time.mktime(stamp.timetuple()), latitude, longitude, speed)
             remaining = remaining or len(positions) > 0
         print(count)
         first_round = False
@@ -140,7 +150,7 @@ def insert_gpx_file(contestant_object: "Contestant", file):
                                 "device_time": point.time,
                             }
                         )
-                        if len(positions)>2:
+                        if len(positions) > 2:
                             previous_point = positions[-2]
                         index += 1
     except:
