@@ -6,7 +6,7 @@
     font-weight: 700;
 }
 
-.gate-countdown-timer{
+.gate-countdown-timer {
     color: black;
     margin-top: 7px;
 }
@@ -21,16 +21,23 @@
     width: 100vw;
 }
 
-.click-time-arrow{
+.click-time-arrow {
     position: relative;
+    width: 28px;
+    margin-left: 2px;
 }
-
-.time-text{
+.time-text {
     transform: rotate(-90deg);
     position: absolute;
     top: 47px;
     left: 7px;
     color: #e2f0d9;
+}
+
+.danger-level-gauge {
+    position: absolute;
+    right: 30px;
+    bottom: 66px;
 }
 
 .gate-estimated-crossing-offset {

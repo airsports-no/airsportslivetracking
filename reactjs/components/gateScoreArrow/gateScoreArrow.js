@@ -6,7 +6,7 @@ import './gateScore.css'
 
 const mapStateToProps = (state, props) => ({
     contestantTrack: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
-    arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_distance_and_estimate : null,
+    // arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_distance_and_estimate : null,
     rules: state.contestants[props.contestantId] !== undefined ? state.contestants[props.contestantId].scorecard_rules : null,
     waypoints: state.navigationTask.route.waypoints,
     displayGateArrow: state.displayGateArrow

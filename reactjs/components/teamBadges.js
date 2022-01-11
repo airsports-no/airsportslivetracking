@@ -77,20 +77,22 @@ const mapStateToProps = (state, props) => ({
 function CrewPictures(props) {
     if (props.contestant.team.crew.member2 != null) {
         return <div className={"row"}>
-            <div className={"col-4"}/>
+            <div className={"col-3"}/>
             <div className={"col-4 inheritDisplay"}>
                 {memberOnePicture(props.contestant.team.crew)}
             </div>
             <div className={"col-4 inheritDisplay"}>
                 {memberTwoPicture(props.contestant.team.crew)}
             </div>
+            <div className={"col-1"}/>
         </div>
     } else {
         return <div className={"row"}>
             <div className={"col-4"}/>
-            <div className={"col-8 inheritDisplay"}>
+            <div className={"col-7 inheritDisplay"}>
                 {memberOnePicture(props.contestant.team.crew)}
             </div>
+            <div className={"col-1"}/>
         </div>
     }
 }
@@ -117,7 +119,7 @@ function CrewNames(props) {
 function ScoreAndNames(props) {
     return <div className={"bg-dark text-light lower-thirds-name-box"} style={{position: "relative", zIndex: 99}}>
         <div className={"row"} style={{marginLeft: "0px"}}>
-            <div className={"col-4"}>
+            <div className={props.contestant.team.crew.member2 != null?"col-3":"col-4"}>
                 <div className={"row"}>
                     <div className={"text-center col-12"}>
                         <div className={"lower-thirds-current-score clickable"}>
@@ -136,13 +138,15 @@ function ScoreAndNames(props) {
                 {/*<img className={"lowerThirdsTeamImage img-fluid rounded"}*/}
                 {/*     src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>*/}
             </div>
-            <div className={"col-8"}>
+            <div className={props.contestant.team.crew.member2 != null?"col-8":"col-7"}>
                 <CrewNames contestant={props.contestant}/>
                 <div className={"row"}>
                     <div className={"col-12 text-center"}>
                         <h4>{clubDisplay(props.contestant.team.club)}</h4>
                     </div>
                 </div>
+            </div>
+            <div className={"col-1"}>
             </div>
         </div>
     </div>
@@ -160,7 +164,7 @@ class ConnectedLowerThirdTeam extends Component {
     constructor(props) {
         super(props);
         const score = 10 * (Math.random() - 0.5)
-        this.last=0
+        this.last = 0
         this.state = {
             score: score,
             crossing: score
@@ -168,9 +172,9 @@ class ConnectedLowerThirdTeam extends Component {
         this.toggleRankDetailsDisplay = this.toggleRankDetailsDisplay.bind(this)
         setInterval(() => {
             // const score = 10 * (Math.random() - 0.5)
-            this.last+=1
-            this.last=this.last%20
-            const score=this.last-10
+            this.last += 1
+            this.last = this.last % 20
+            const score = this.last - 10
             this.setState({
                 score: score,
                 crossing: score
@@ -202,16 +206,16 @@ class ConnectedLowerThirdTeam extends Component {
                                         width={400}
                                         height={150}
                                         arrowData={{
-                            waypoint_name: "SP",
-                            seconds_to_planned_crossing: 7,
-                            estimated_crossing_offset: this.state.crossing,
-                            estimated_score: this.state.score,
-                            final: false,
-                            missed: false
-                        }}
+                                            waypoint_name: "SP",
+                                            seconds_to_planned_crossing: 7,
+                                            estimated_crossing_offset: this.state.crossing,
+                                            estimated_score: this.state.score,
+                                            final: false,
+                                            missed: false
+                                        }}
                         />
                     </div>
-                    <div className={"p-2 clickable click-time-arrow"} style={{width: "30px"}}>
+                    <div className={"p-2 clickable click-time-arrow"}>
                         <div className={"time-text"}>TIME</div>
                         <img src={"/static/img/expand_arrow.gif"} onClick={() => this.props.toggleGateArrow()}/>
                     </div>
@@ -226,8 +230,10 @@ class ConnectedLowerThirdTeam extends Component {
                         <Icon path={mdiThermometer} size={1.5} color={"white"}
                               onClick={() => this.props.toggleDangerLevel()}/>
                     </div>
-                    {this.props.displayDangerLevel ?
-                        <DangerLevel contestantId={this.props.contestant.id}/> : null}
+                    <div className={"danger-level-gauge"}>
+                        {this.props.displayDangerLevel ?
+                            <DangerLevel contestantId={this.props.contestant.id}/> : null}
+                    </div>
                 </div>
             </div>
         </div>
