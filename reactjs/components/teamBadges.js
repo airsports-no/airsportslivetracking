@@ -119,7 +119,7 @@ function CrewNames(props) {
 function ScoreAndNames(props) {
     return <div className={"bg-dark text-light lower-thirds-name-box"} style={{position: "relative", zIndex: 99}}>
         <div className={"row"} style={{marginLeft: "0px"}}>
-            <div className={props.contestant.team.crew.member2 != null?"col-3":"col-4"}>
+            <div className={props.contestant.team.crew.member2 != null ? "col-3" : "col-4"}>
                 <div className={"row"}>
                     <div className={"text-center col-12"}>
                         <div className={"lower-thirds-current-score clickable"}>
@@ -138,7 +138,7 @@ function ScoreAndNames(props) {
                 {/*<img className={"lowerThirdsTeamImage img-fluid rounded"}*/}
                 {/*     src={this.props.contestant.team.logo ? this.props.contestant.team.logo : this.props.contestant.team.club && this.props.contestant.team.club.logo ? this.props.contestant.team.club.logo : ""}/>*/}
             </div>
-            <div className={props.contestant.team.crew.member2 != null?"col-8":"col-7"}>
+            <div className={props.contestant.team.crew.member2 != null ? "col-8" : "col-7"}>
                 <CrewNames contestant={props.contestant}/>
                 <div className={"row"}>
                     <div className={"col-12 text-center"}>
@@ -170,16 +170,16 @@ class ConnectedLowerThirdTeam extends Component {
             crossing: score
         }
         this.toggleRankDetailsDisplay = this.toggleRankDetailsDisplay.bind(this)
-        setInterval(() => {
-            // const score = 10 * (Math.random() - 0.5)
-            this.last += 1
-            this.last = this.last % 20
-            const score = this.last - 10
-            this.setState({
-                score: score,
-                crossing: score
-            })
-        }, 1000)
+        // setInterval(() => {
+        //     // const score = 10 * (Math.random() - 0.5)
+        //     this.last += 1
+        //     this.last = this.last % 20
+        //     const score = this.last - 10
+        //     this.setState({
+        //         score: score,
+        //         crossing: score
+        //     })
+        // }, 1000)
     }
 
 
@@ -232,7 +232,11 @@ class ConnectedLowerThirdTeam extends Component {
                     </div>
                     <div className={"danger-level-gauge"}>
                         {this.props.displayDangerLevel ?
-                            <DangerLevel contestantId={this.props.contestant.id}/> : null}
+                            <DangerLevel contestantId={this.props.contestant.id}
+                                         dangerData={{
+                                             accumulated_score: 8,
+                                             danger_level: 100
+                                         }}/> : null}
                     </div>
                 </div>
             </div>
