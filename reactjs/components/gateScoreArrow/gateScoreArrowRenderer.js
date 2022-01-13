@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 
-const ARROW_HEIGHT = 92, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 10, NUMBER_PADDING = 10, PADDING = 26,
+const ARROW_HEIGHT = 92, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 10, NUMBER_PADDING = 10, PADDING = 36,
     ARROW_ICON_WIDTH = 70, BELOW_LINE_TEXT_POSITION = 75, BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
     ANIMATION_TIME = 1000, ARROW_TOP_OFFSET = 0, TOP_OFFSET = 42
 const ARROW_ICON_HEIGHT = ARROW_ICON_WIDTH * 1.3
@@ -102,12 +102,12 @@ export default class GateScoreArrowRenderer extends Component {
 
     secondsToPosition(seconds) {
         const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + this.props.maximumTimingPenalty / this.props.pointsPerSecond
-        const pixelsPerSecond = (this.props.width - PADDING * 2) / (maximumSeconds * 2)
-        const MULT = 22
+        const sideLength = (this.props.width / 2) - PADDING
+        const offset = sideLength / Math.log10(maximumSeconds)
         if (seconds <= 0) {
-            return PADDING + (maximumSeconds - Math.log10(-seconds + 1) * MULT) * pixelsPerSecond
+            return this.props.width / 2 - Math.log10(-seconds + 1) * offset
         } else {
-            return PADDING + (maximumSeconds + Math.log10(seconds + 1) * MULT) * pixelsPerSecond
+            return this.props.width / 2 + Math.log10(seconds + 1) * offset
         }
     }
 

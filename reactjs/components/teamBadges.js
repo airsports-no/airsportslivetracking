@@ -167,7 +167,7 @@ class ConnectedLowerThirdTeam extends Component {
         this.last = 0
         this.state = {
             score: score,
-            crossing: score
+            crossing: -100
         }
         this.toggleRankDetailsDisplay = this.toggleRankDetailsDisplay.bind(this)
         // setInterval(() => {
