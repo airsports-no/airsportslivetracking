@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 
-const ARROW_HEIGHT = 92, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 10, NUMBER_PADDING = 10, PADDING = 36,
+const ARROW_HEIGHT = 92, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 10, NUMBER_PADDING = 5, PADDING = 36,
     ARROW_ICON_WIDTH = 70, BELOW_LINE_TEXT_POSITION = 75, BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
     ANIMATION_TIME = 1000, ARROW_TOP_OFFSET = 0, TOP_OFFSET = 42
 const ARROW_ICON_HEIGHT = ARROW_ICON_WIDTH * 1.3
@@ -140,14 +140,20 @@ export default class GateScoreArrowRenderer extends Component {
         this.drawGracePeriod(context)
         // this.drawNumberAtPosition(context, this.secondsToPosition(-maximumSeconds), this.secondsToPoints(-maximumSeconds), VERTICAL_LINE_LENGTH)
         // this.drawNumberAtPosition(context, this.secondsToPosition(maximumSeconds), this.secondsToPoints(maximumSeconds), VERTICAL_LINE_LENGTH)
-        for (let i = maximumSeconds; i > Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore); i /= 4) {
-            this.drawNumberAtPosition(context, this.secondsToPosition(-i), this.secondsToPoints(Math.floor(-i)), VERTICAL_LINE_LENGTH)
-            this.drawNumberAtPosition(context, this.secondsToPosition(i), this.secondsToPoints(Math.ceil(i)), VERTICAL_LINE_LENGTH)
-        }
         context.font = "10pt Verdana";
         context.fillStyle = "#262626"
-        const penaltytext = this.secondsToPosition(0) - context.measureText("PENALTY").width / 2
+        const textSize = context.measureText("PENALTY")
+        const penaltytext = this.secondsToPosition(0) - textSize.width / 2
         context.fillText("PENALTY", penaltytext, ARROW_HEIGHT + VERTICAL_LINE_LENGTH + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING)
+        for (let i = maximumSeconds; i > Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore); i /= 4) {
+            const leftPosition = this.secondsToPosition(-i)
+            const rightPosition = this.secondsToPosition(i)
+            if (leftPosition > penaltytext - 5 || rightPosition < penaltytext + textSize.width + 5) {
+                continue
+            }
+            this.drawNumberAtPosition(context, leftPosition, this.secondsToPoints(Math.floor(-i)), VERTICAL_LINE_LENGTH)
+            this.drawNumberAtPosition(context, rightPosition, this.secondsToPoints(Math.ceil(i)), VERTICAL_LINE_LENGTH)
+        }
     }
 
     drawRerenderedBackground(context) {
