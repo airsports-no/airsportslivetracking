@@ -22,9 +22,9 @@ const aboutAirsports = (actualRules, waypoints) => {
         return waypoint.width
     })
     return <div>
-        <h2>Airsports</h2>
+        <h2>Air Sports Race</h2>
         <p>
-            Airsports racing is a flying competition where the user is tasked with crossing a set of gates known and secret at specific
+            Air Sports Race is a flying competition where the user is tasked with crossing a set of gates known and secret at specific
             times while at the same time remaining within the corridor and avoiding any prohibited and penalty zones
             along the way. The only navigation tools available to the pilot is
             a paper map annotated with the prescribed route and the expected passing times for the gates.

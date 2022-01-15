@@ -670,7 +670,7 @@ class NavigationTask(models.Model):
     NAVIGATION_TASK_TYPES = (
         (PRECISION, "Precision"),
         (ANR_CORRIDOR, "ANR Corridor"),
-        (AIRSPORTS, "Airsports"),
+        (AIRSPORTS, "Air Sports Race"),
         (POKER, "Poker run"),
         (LANDING, "Landing"),
     )
