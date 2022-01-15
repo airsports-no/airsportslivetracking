@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% load guardian_tags %}
+{% load tz %}
+{% block content %}
+<h2>Users with contest creation privileges</h2>
+    {{ users_with_creation_privileges|join:", " }}
+<h2>All users</h2>
+    {{ all_users|join:", " }}
+{% endblock %}

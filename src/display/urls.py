@@ -21,7 +21,7 @@ from display.views import frontend_view_map, \
     get_contestant_email_flying_orders_link, broadcast_navigation_task_orders, upload_gpx_track_for_contesant, \
     navigation_task_score_override_view, RouteToTaskWizard, healthz, readyz, revert_uploaded_gpx_track_for_contestant, \
     copy_editable_route, download_gpx_track_contestant, view_contest_team_images, clear_profile_image_background, \
-    upload_profile_picture, get_contestant_processing_statistics
+    upload_profile_picture, get_contestant_processing_statistics, get_contest_creators_emails
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -29,6 +29,7 @@ urlpatterns = [
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
     path('task/<int:pk>/playbackmap/', frontend_playback_map, name="frontend_playback_map"),
     path('token/renew', renew_token, name="renewtoken"),
+    path('users/emails/', get_contest_creators_emails, name="user_emails"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
     path('contest/<int:pk>/', ContestDetailView.as_view(), name="contest_details"),
     path('contest/<int:pk>/clear_results/', clear_results_service, name="contest_clear_results"),

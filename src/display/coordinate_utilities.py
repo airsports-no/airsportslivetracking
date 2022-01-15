@@ -296,7 +296,7 @@ class Projector:
         return converted[1], converted[0]
 
 
-def nv_intersect(start1, stop1, start2, stop2):
+def nv_intersect(start1, stop1, start2, stop2, on_segments: bool = False):
     pointA1 = nv.GeoPoint(start1[0], start1[1], degrees=True)
     pointA2 = nv.GeoPoint(stop1[0], stop1[1], degrees=True)
     pointB1 = nv.GeoPoint(start2[0], start2[1], degrees=True)
@@ -309,7 +309,7 @@ def nv_intersect(start1, stop1, start2, stop2):
     c_geo = c.to_geo_point()
     m1 = (c_geo.latitude_deg - start1[0]) / (c_geo.longitude_deg - start1[1])
     m2 = (c_geo.latitude_deg - stop1[0]) / (c_geo.longitude_deg - stop1[1])
-    if m1 == m2:
+    if m1 == m2 or not on_segments:
         return c_geo.latitude_deg, c_geo.longitude_deg
     return None
 

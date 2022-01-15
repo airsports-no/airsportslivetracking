@@ -12,7 +12,7 @@ from display.calculators.gatekeeper import Gatekeeper
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
-    calculate_fractional_distance_point_lat_lon, cross_track_distance
+    calculate_fractional_distance_point_lat_lon, cross_track_distance, nv_intersect
 from display.models import ContestantTrack, Contestant
 from display.waypoint import Waypoint
 
@@ -256,6 +256,28 @@ class GatekeeperRoute(Gatekeeper):
                                                                                       score,
                                                                                       final,
                                                                                       missed)
+
+    def distance_to_gate_intersect(self, gate: Gate, average_duration_seconds: int = 10) -> Optional[float]:
+        """
+        Project a line from the current bearing (average over a few positions), calculate the intersection point with
+        the gate and return the distance. If there is no intersection, return None
+
+        :param gate:
+        :return: Distance in NM
+        """
+        if len(self.track) > 1:
+            index = len(self.track) - 2
+            initial_time = self.track[-1].time
+            while index >= 0:
+                if (initial_time - self.track[index].time).total_seconds() > average_duration_seconds:
+                    break
+                index -= 1
+            starting_point = (self.track[index].latitude, self.track[index].longitude)
+            finish_point = (self.track[-1].latitude, self.track[-1].longitude)
+            intersection = nv_intersect(starting_point, finish_point, *gate.gate_line)
+            if intersection:
+                return calculate_distance_lat_lon(finish_point, intersection)
+        return None
 
     def estimate_crossing_time(self, gate: Gate, average_duration_seconds: int = 20) -> Optional[datetime.datetime]:
         """
