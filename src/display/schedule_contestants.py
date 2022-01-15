@@ -70,7 +70,7 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
     # Remove contestants that are not selected:
     navigation_task.contestant_set.exclude(team__in=[item.team for item in selected_contest_teams]).delete()
 
-    for contest_team in selected_contest_teams:
+    for contest_team in selected_contest_teams:  # type: ContestTeam
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
 
@@ -88,7 +88,7 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
                                                            wind_speed, wind_direction)
         duration = datetime.timedelta(minutes=minutes_to_starting_point + minutes_to_landing) + gate_times[-1][1]
         team_data.append(
-            TeamDefinition(contest_team.pk, duration.total_seconds() / 60, contest_team.get_tracker_ids(),
+            TeamDefinition(contest_team.pk, duration.total_seconds() / 60, contest_team.get_tracker_id(),
                            contest_team.tracking_service, contest_team.team.aeroplane.registration,
                            contest_team.team.crew.member1.pk if contest_team.team.crew.member1 else None,
                            contest_team.team.crew.member2.pk if contest_team.team.crew.member2 else None))
