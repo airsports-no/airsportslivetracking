@@ -7,9 +7,8 @@ const L = window['L']
 
 export default class AirsportsRenderer extends GenericRenderer {
     renderRoute() {
-        this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return (waypoint.gate_check || waypoint.time_check) && ((this.props.navigationTask.display_secrets && this.props.displaySecretGates) || waypoint.type !== "secret")
-        }).map((gate) => {
+        this.lines = []
+        this.filterWaypoints().map((gate) => {
             this.lines.push(polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
                 color: "blue"
             }).addTo(this.props.map))

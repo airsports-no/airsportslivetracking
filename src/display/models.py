@@ -982,7 +982,10 @@ class Scorecard(models.Model):
         default=200,
         help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas",
     )
-
+    prohibited_zone_grace_time = models.FloatField(
+        default=3,
+        help_text="The number of seconds the contestant can be within the prohibited zone before getting penalty",
+    )
     penalty_zone_grace_time = models.FloatField(
         default=3,
         help_text="The number of seconds the contestant can be within the penalty zone before getting penalty",
@@ -1063,6 +1066,10 @@ class Scorecard(models.Model):
                 self.__format_value("below_minimum_altitude_penalty", contestant),
                 self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
                 self.__format_value("prohibited_zone_penalty", contestant),
+                self.__format_value("prohibited_zone_grace_time", contestant),
+                self.__format_value("penalty_zone_grace_time", contestant),
+                self.__format_value("penalty_zone_penalty_per_second", contestant),
+                self.__format_value("penalty_zone_maximum", contestant),
             ],
             "gates": [{"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(contestant, item[0])} for
                       item in GATES_TYPES],
@@ -1079,6 +1086,7 @@ class Scorecard(models.Model):
                 self.__format_value("below_minimum_altitude_penalty", contestant),
                 self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
                 self.__format_value("prohibited_zone_penalty", contestant),
+                self.__format_value("prohibited_zone_grace_time", contestant),
                 self.__format_value("corridor_grace_time", contestant),
                 self.__format_value("corridor_outside_penalty", contestant),
                 self.__format_value("corridor_maximum_penalty", contestant),
@@ -1109,6 +1117,7 @@ class Scorecard(models.Model):
                 self.__format_value("below_minimum_altitude_penalty", contestant),
                 self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
                 self.__format_value("prohibited_zone_penalty", contestant),
+                self.__format_value("prohibited_zone_grace_time", contestant),
                 self.__format_value("corridor_grace_time", contestant),
                 self.__format_value("corridor_outside_penalty", contestant),
                 self.__format_value("corridor_maximum_penalty", contestant),
@@ -1457,6 +1466,12 @@ class TrackScoreOverride(models.Model):
         blank=True,
         null=True,
         help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas",
+    )
+    prohibited_zone_grace_time = models.FloatField(
+        default=None,
+        blank=True,
+        null=True,
+        help_text="The number of seconds the contestant can be within the prohibited zone before getting penalty",
     )
     penalty_zone_grace_time = models.FloatField(
         default=3,

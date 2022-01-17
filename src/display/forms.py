@@ -17,7 +17,7 @@ from timezone_field import TimeZoneFormField
 from display.map_plotter import A4, A3
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES, EditableRoute
+    ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES, EditableRoute, Scorecard
 from display.poker_cards import PLAYING_CARDS
 
 FILE_TYPE_CSV = "csv"
@@ -109,6 +109,8 @@ class PrecisionScoreOverrideForm(forms.Form):
                                                        help_text="Penalty per second time offset (beyond regular_gate_grace_time) for regular and secret gates")
     prohibited_zone_penalty = forms.FloatField(required=True,
                                                help_text="This penalty is awarded whenever the contestant enters a prohibited zone")
+    prohibited_zone_grace_time = forms.FloatField(required=True,
+                                                  help_text="The number of seconds the contestant can be within the prohibited zone before getting penalties")
     penalty_zone_maximum = forms.FloatField(required=True,
                                             help_text="The maximum penalty achievable inside a single penalty zone")
     penalty_zone_grace_time = forms.FloatField(required=True,
@@ -121,6 +123,7 @@ class PrecisionScoreOverrideForm(forms.Form):
             navigation_task.track_score_override.delete()
         navigation_task.track_score_override = TrackScoreOverride.objects.create(
             bad_course_penalty=self.cleaned_data["backtracking_penalty"],
+            prohibited_zone_grace_time=self.cleaned_data["prohibited_zone_grace_time"],
             prohibited_zone_penalty=
             self.cleaned_data[
                 "prohibited_zone_penalty"],
@@ -150,6 +153,7 @@ class PrecisionScoreOverrideForm(forms.Form):
         return {
             "backtracking_penalty": scorecard.backtracking_penalty,
             "prohibited_zone_penalty": scorecard.prohibited_zone_penalty,
+            "prohibited_zone_grace_time": scorecard.prohibited_zone_grace_time,
             "penalty_zone_maximum": scorecard.penalty_zone_maximum,
             "penalty_zone_grace_time": scorecard.penalty_zone_grace_time,
             "penalty_zone_penalty_per_second": scorecard.penalty_zone_penalty_per_second,
@@ -168,11 +172,15 @@ class PrecisionScoreOverrideForm(forms.Form):
                 "regular_gate_penalty_per_second",
             ),
             Fieldset(
-                "Zones",
+                "Prohibited zone",
                 "prohibited_zone_penalty",
-                "penalty_zone_maximum",
-                "penalty_zone_grace_time",
+                "prohibitive_zone_grace_time",
+            ),
+            Fieldset(
+                "Penalty zone",
                 "penalty_zone_penalty_per_second"
+                "penalty_zone_grace_time",
+                "penalty_zone_maximum",
             ),
             ButtonHolder(
                 Submit("submit", "Submit")
@@ -197,6 +205,9 @@ class ANRCorridorScoreOverrideForm(forms.Form):
 
     prohibited_zone_penalty = forms.FloatField(required=True,
                                                help_text="This penalty is awarded whenever the contestant enters a prohibited zone")
+    prohibited_zone_grace_time = forms.FloatField(required=True,
+                                                  help_text="The number of seconds the contestant can be within the prohibited zone before getting penalties")
+
     penalty_zone_maximum = forms.FloatField(required=True,
                                             help_text="The maximum penalty achievable inside a single penalty zone")
     penalty_zone_grace_time = forms.FloatField(required=True,
@@ -219,6 +230,7 @@ class ANRCorridorScoreOverrideForm(forms.Form):
             prohibited_zone_penalty=
             self.cleaned_data[
                 "prohibited_zone_penalty"],
+            prohibited_zone_grace_time=self.cleaned_data["prohibited_zone_grace_time"],
             penalty_zone_maximum=self.cleaned_data[
                 "penalty_zone_maximum"],
             penalty_zone_grace_time=
@@ -226,7 +238,7 @@ class ANRCorridorScoreOverrideForm(forms.Form):
                 "penalty_zone_grace_time"],
             penalty_zone_penalty_per_second=
             self.cleaned_data[
-                "penalty_zone_penalty_per_second"]
+                "penalty_zone_penalty_per_second"],
         )
         navigation_task.save()
         navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["sp", "fp"],
@@ -252,6 +264,7 @@ class ANRCorridorScoreOverrideForm(forms.Form):
             "gate_penalty_per_second": scorecard.starting_point_gate_score.penalty_per_second,
             "gate_miss_penalty": scorecard.starting_point_gate_score.missed_penalty,
             "prohibited_zone_penalty": scorecard.prohibited_zone_penalty,
+            "prohibited_zone_grace_time": scorecard.prohibited_zone_grace_time,
             "penalty_zone_maximum": scorecard.penalty_zone_maximum,
             "penalty_zone_grace_time": scorecard.penalty_zone_grace_time,
             "penalty_zone_penalty_per_second": scorecard.penalty_zone_penalty_per_second
@@ -262,20 +275,27 @@ class ANRCorridorScoreOverrideForm(forms.Form):
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(
-                "If required, override default scorecard penalty points",
-                "corridor_grace_time",
+                "Corridor scoring",
                 "corridor_outside_penalty",
-                "corridor_maximum_penalty",
-                "gate_grace_time",
+                "corridor_grace_time",
+                "corridor_maximum_penalty"
+            ),
+            Fieldset(
+                "Start and finish gates",
                 "gate_penalty_per_second",
+                "gate_grace_time",
                 "gate_miss_penalty",
             ),
             Fieldset(
-                "Zones",
+                "Prohibited zone",
                 "prohibited_zone_penalty",
-                "penalty_zone_maximum",
-                "penalty_zone_grace_time",
+                "prohibitive_zone_grace_time",
+            ),
+            Fieldset(
+                "Penalty zone",
                 "penalty_zone_penalty_per_second"
+                "penalty_zone_grace_time",
+                "penalty_zone_maximum",
             ),
             ButtonHolder(
                 Submit("submit", "Submit")
@@ -292,11 +312,11 @@ class AirsportsScoreOverrideForm(forms.Form):
                                                 help_text="A value less than 0 means that there is no maximum penalty. "
                                                           "Otherwise the combined penalty applied for a single corridor exclusion along a single leg cannot exceed this.")
     gate_grace_time = forms.FloatField(required=True,
-                                       help_text="Grace time before and after regular gates")
+                                       help_text="Grace time before and after start, finish, and regular gates")
     gate_penalty_per_second = forms.FloatField(required=True,
-                                               help_text="Penalty per second time offset (beyond gate grace time) for regular gates")
+                                               help_text="Penalty per second time offset (beyond gate grace time) for start, finish, and regular gates")
     gate_miss_penalty = forms.FloatField(required=True,
-                                         help_text="Penalty awarded when missing the regular gates entirely")
+                                         help_text="Penalty awarded when missing the start, finish, and regular gates entirely")
 
     secret_grace_time = forms.FloatField(required=True,
                                          help_text="Grace time before and after secret gates")
@@ -307,6 +327,8 @@ class AirsportsScoreOverrideForm(forms.Form):
 
     prohibited_zone_penalty = forms.FloatField(required=True,
                                                help_text="This penalty is awarded whenever the contestant enters a prohibited zone")
+    prohibited_zone_grace_time = forms.FloatField(required=True,
+                                                  help_text="The number of seconds the contestant can be within the prohibited zone before getting penalties")
     penalty_zone_maximum = forms.FloatField(required=True,
                                             help_text="The maximum penalty achievable inside a single penalty zone")
     penalty_zone_grace_time = forms.FloatField(required=True,
@@ -329,6 +351,7 @@ class AirsportsScoreOverrideForm(forms.Form):
             prohibited_zone_penalty=
             self.cleaned_data[
                 "prohibited_zone_penalty"],
+            prohibited_zone_grace_time=self.cleaned_data["prohibited_zone_grace_time"],
             penalty_zone_maximum=self.cleaned_data[
                 "penalty_zone_maximum"],
             penalty_zone_grace_time=
@@ -336,7 +359,7 @@ class AirsportsScoreOverrideForm(forms.Form):
                 "penalty_zone_grace_time"],
             penalty_zone_penalty_per_second=
             self.cleaned_data[
-                "penalty_zone_penalty_per_second"]
+                "penalty_zone_penalty_per_second"],
         )
         navigation_task.save()
         navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["sp", "fp", "tp"],
@@ -378,6 +401,7 @@ class AirsportsScoreOverrideForm(forms.Form):
             "secret_penalty_per_second": scorecard.secret_gate_score.penalty_per_second,
             "secret_miss_penalty": scorecard.secret_gate_score.missed_penalty,
             "prohibited_zone_penalty": scorecard.prohibited_zone_penalty,
+            "prohibited_zone_grace_time": scorecard.prohibited_zone_grace_time,
             "penalty_zone_maximum": scorecard.penalty_zone_maximum,
             "penalty_zone_grace_time": scorecard.penalty_zone_grace_time,
             "penalty_zone_penalty_per_second": scorecard.penalty_zone_penalty_per_second
@@ -388,23 +412,33 @@ class AirsportsScoreOverrideForm(forms.Form):
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(
-                "If required, override default scorecard penalty points",
-                "corridor_grace_time",
+                "Corridor scoring",
                 "corridor_outside_penalty",
-                "corridor_maximum_penalty",
-                "gate_grace_time",
+                "corridor_grace_time",
+                "corridor_maximum_penalty"
+            ),
+            Fieldset(
+                "Regular gates",
                 "gate_penalty_per_second",
-                "gate_miss_penalty",
-                "secret_grace_time",
+                "gate_grace_time",
+                "gate_miss_penalty"
+            ),
+            Fieldset(
+                "Secret gates",
                 "secret_penalty_per_second",
+                "secret_grace_time",
                 "secret_miss_penalty",
             ),
             Fieldset(
-                "Zones",
+                "Prohibited zone",
                 "prohibited_zone_penalty",
-                "penalty_zone_maximum",
-                "penalty_zone_grace_time",
+                "prohibitive_zone_grace_time",
+            ),
+            Fieldset(
+                "Penalty zone",
                 "penalty_zone_penalty_per_second"
+                "penalty_zone_grace_time",
+                "penalty_zone_maximum",
             ),
             ButtonHolder(
                 Submit("submit", "Submit")

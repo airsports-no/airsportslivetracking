@@ -16,6 +16,10 @@
     font-size: x-large;
 }
 
+.gate-remaining-seconds-red {
+    color: #e50000;
+}
+
 .gate-countdown-label {
     font-size: 8px;
     width: 100vw;
