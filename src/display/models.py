@@ -1215,6 +1215,14 @@ class Scorecard(models.Model):
                     return override.bad_course_grace_time
         return self.backtracking_grace_time_seconds
 
+    def get_prohibited_zone_grace_time(self, contestant: "Contestant"):
+        if contestant:
+            override = contestant.get_track_score_override()
+            if override:
+                if override.prohibited_zone_grace_time is not None:
+                    return override.prohibited_zone_grace_time
+        return self.prohibited_zone_grace_time
+
     def get_prohibited_zone_penalty(self, contestant: "Contestant"):
         if contestant:
             override = contestant.get_track_score_override()

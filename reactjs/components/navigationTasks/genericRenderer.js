@@ -41,7 +41,7 @@ export default class GenericRenderer extends Component {
     }
 
     componentDidUpdate(prevProps, prevState) {
-        // this.renderRoute()
+        this.renderRoute()
         this.renderMarkers()
     }
 

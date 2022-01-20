@@ -2,6 +2,8 @@ from string import Template
 from typing import Dict
 
 import datetime
+from unittest.mock import Mock
+
 from crispy_forms.bootstrap import StrictButton
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Div, ButtonHolder, Submit, Button, Fieldset, Field, HTML
@@ -174,11 +176,11 @@ class PrecisionScoreOverrideForm(forms.Form):
             Fieldset(
                 "Prohibited zone",
                 "prohibited_zone_penalty",
-                "prohibitive_zone_grace_time",
+                "prohibited_zone_grace_time",
             ),
             Fieldset(
                 "Penalty zone",
-                "penalty_zone_penalty_per_second"
+                "penalty_zone_penalty_per_second",
                 "penalty_zone_grace_time",
                 "penalty_zone_maximum",
             ),
@@ -289,11 +291,11 @@ class ANRCorridorScoreOverrideForm(forms.Form):
             Fieldset(
                 "Prohibited zone",
                 "prohibited_zone_penalty",
-                "prohibitive_zone_grace_time",
+                "prohibited_zone_grace_time",
             ),
             Fieldset(
                 "Penalty zone",
-                "penalty_zone_penalty_per_second"
+                "penalty_zone_penalty_per_second",
                 "penalty_zone_grace_time",
                 "penalty_zone_maximum",
             ),
@@ -432,11 +434,11 @@ class AirsportsScoreOverrideForm(forms.Form):
             Fieldset(
                 "Prohibited zone",
                 "prohibited_zone_penalty",
-                "prohibitive_zone_grace_time",
+                "prohibited_zone_grace_time",
             ),
             Fieldset(
                 "Penalty zone",
-                "penalty_zone_penalty_per_second"
+                "penalty_zone_penalty_per_second",
                 "penalty_zone_grace_time",
                 "penalty_zone_maximum",
             ),

@@ -1513,6 +1513,8 @@ def navigation_task_score_override_view(request, pk):
             return redirect(
                 reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
             )
+        else:
+            messages.error(request,"Saving failed")
     initial = form_class.extract_default_values_from_scorecard(
         navigation_task.scorecard
     )
