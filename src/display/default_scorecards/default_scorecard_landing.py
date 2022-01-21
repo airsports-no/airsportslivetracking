@@ -1,35 +1,34 @@
 #
-from display.models import GateScore, Scorecard, NavigationTask
+from display.models import GateScore, Scorecard, NavigationTask, LANDING_GATE
 
 
 def get_default_scorecard():
-    scorecard, created = Scorecard.objects.get_or_create(name="Landing")
-    scorecard.backtracking_penalty = 0
-    scorecard.backtracking_grace_time_seconds = 5
-    scorecard.use_procedure_turns = False
-    scorecard.task_type = [NavigationTask.LANDING]
-    scorecard.calculator = Scorecard.LANDING
-    scorecard.prohibited_zone_penalty = 0
+    scorecard, created = Scorecard.objects.update_or_create(
+        name="Landing",
+        defaults={
+            "backtracking_penalty": 0,
+            "backtracking_grace_time_seconds": 5,
+            "use_procedure_turns": False,
+            "task_type": [NavigationTask.LANDING],
+            "calculator": Scorecard.LANDING,
+            "prohibited_zone_penalty": 0,
+        },
+    )
 
-
-    regular_gate_score = GateScore.objects.get_or_create(name=f"{scorecard.name}_regular")[0]
-    regular_gate_score.extended_gate_width = 6
-    regular_gate_score.bad_crossing_extended_gate_penalty = 0
-    regular_gate_score.graceperiod_before = 2
-    regular_gate_score.graceperiod_after = 2
-    regular_gate_score.maximum_penalty = 0
-    regular_gate_score.penalty_per_second = 0
-    regular_gate_score.missed_penalty = 0
-    regular_gate_score.missed_procedure_turn_penalty = 0
-    regular_gate_score.backtracking_after_steep_gate_grace_period_seconds = 0
-    regular_gate_score.save()
-
-    scorecard.turning_point_gate_score = regular_gate_score
-    scorecard.secret_gate_score = regular_gate_score
-    scorecard.finish_point_gate_score = regular_gate_score
-    scorecard.takeoff_gate_score = regular_gate_score
-    scorecard.landing_gate_score = regular_gate_score
-    scorecard.starting_point_gate_score = regular_gate_score
-    scorecard.save()
+    GateScore.objects.update_or_create(
+        scorecard=scorecard,
+        gate_type=LANDING_GATE,
+        defaults={
+            "extended_gate_width": 6,
+            "bad_crossing_extended_gate_penalty": 0,
+            "graceperiod_before": 2,
+            "graceperiod_after": 2,
+            "maximum_penalty": 0,
+            "penalty_per_second": 0,
+            "missed_penalty": 0,
+            "missed_procedure_turn_penalty": 0,
+            "backtracking_after_steep_gate_grace_period_seconds": 0,
+        },
+    )
 
     return scorecard

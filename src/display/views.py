@@ -1181,20 +1181,6 @@ class NavigationTaskUpdateView(
         return reverse("navigationtask_detail", kwargs={"pk": self.get_object().pk})
 
 
-# class BasicScoreOverrideUpdateView(GuardianPermissionRequiredMixin, UpdateView):
-#     model = BasicScoreOverride
-#     permission_required = ("display.change_contest",)
-#     form_class = BasicScoreOverrideForm
-#     success_url = reverse_lazy("contest_list")
-#
-#     def get_permission_object(self):
-#         return self.get_object().navigation_task.contest
-#
-#     def get_object(self, queryset=None):
-#         return self.model.objects.get_or_create(navigation_task_id=self.kwargs["pk"], defaults={
-#             "for_gate_types": [TURNPOINT, SECRETPOINT, STARTINGPOINT, FINISHPOINT]})[0]
-
-
 class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = NavigationTask
     permission_required = ("display.delete_contest",)
@@ -1651,8 +1637,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         ("landing_route_import", LandingImportRouteForm),
         ("waypoint_definition", formset_factory(WaypointForm, extra=0)),
         ("task_content", NavigationTaskForm),
-        # ("precision_override", PrecisionScoreOverrideForm),
-        # ("anr_corridor_override", ANRCorridorScoreOverrideForm),
     ]
     file_storage = FileSystemStorage(
         location=os.path.join(settings.TEMPORARY_FOLDER, "importedroutes")
@@ -1662,8 +1646,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         "precision_route_import": show_precision_path,
         "landing_route_import": show_landing_path,
         "waypoint_definition": show_route_definition_step,
-        "precision_override": show_precision_path,
-        "anr_corridor_override": show_anr_path,
     }
     templates = {
         "task_type": "display/navigationtaskwizardform.html",
@@ -1672,8 +1654,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         "precision_route_import": "display/navigationtaskwizardform.html",
         "waypoint_definition": "display/waypoints_form.html",
         "task_content": "display/navigationtaskwizardform.html",
-        "precision_override": "display/navigationtaskwizardform.html",
-        "anr_corridor_override": "display/navigationtaskwizardform.html",
     }
 
     def get_template_names(self):
@@ -1771,16 +1751,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             route=route,
             editable_route=ediable_route,
         )
-        # Build score overrides
-        if task_type == NavigationTask.PRECISION:
-            kwargs["form_dict"].get("precision_override").build_score_override(
-                navigation_task
-            )
-        elif task_type == NavigationTask.ANR_CORRIDOR:
-            kwargs["form_dict"].get("anr_corridor_override").build_score_override(
-                navigation_task
-            )
-        print(navigation_task.track_score_override)
         # Update contest location if necessary
         self.contest.update_position_if_not_set(*route.get_location())
         return HttpResponseRedirect(

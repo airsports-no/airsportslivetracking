@@ -6,32 +6,48 @@ from display.models import (
     NavigationTask,
     TURNPOINT,
     TAKEOFF_GATE,
-    LANDING_GATE, SECRETPOINT, FINISHPOINT, STARTINGPOINT,
+    LANDING_GATE,
+    SECRETPOINT,
+    FINISHPOINT,
+    STARTINGPOINT,
 )
 
 
 def get_default_scorecard():
-    scorecard, created = Scorecard.objects.update_or_create(name="Airsports", defaults={
-        "backtracking_penalty": 10,
-        "backtracking_grace_time_seconds": 5,
-        "backtracking_maximum_penalty": 100,
-        "use_procedure_turns": False,
-        "task_type": [NavigationTask.AIRSPORTS],
-        "calculator": Scorecard.AIRSPORTS,
-        "corridor_maximum_penalty": -1,
-        "corridor_outside_penalty": 1,  # verified
-        "corridor_grace_time": 5,  # verified
-        "below_minimum_altitude_penalty": 500,  # verified
-        "below_minimum_altitude_maximum_penalty": 500,  # verified
-        "prohibited_zone_penalty": 100,
-        "penalty_zone_grace_time": 0,
-        "penalty_zone_penalty_per_second": 1,
-        "penalty_zone_maximum": 100,
-        "included_fields": [["Prohibited zone", "prohibited_zone_penalty"], ["Penalty zone", "penalty_zone_grace_time",
-                                                                             "penalty_zone_penalty_per_second",
-                                                                             "penalty_zone_maximum"],
-                            ["Corridor penalties", "backtracking_penalty", "corridor_outside_penalty"]]
-    })
+    scorecard, created = Scorecard.objects.update_or_create(
+        name="Airsports",
+        defaults={
+            "backtracking_penalty": 10,
+            "backtracking_grace_time_seconds": 5,
+            "backtracking_maximum_penalty": 100,
+            "use_procedure_turns": False,
+            "task_type": [NavigationTask.AIRSPORTS],
+            "calculator": Scorecard.AIRSPORTS,
+            "corridor_maximum_penalty": -1,
+            "corridor_outside_penalty": 1,  # verified
+            "corridor_grace_time": 5,  # verified
+            "below_minimum_altitude_penalty": 500,  # verified
+            "below_minimum_altitude_maximum_penalty": 500,  # verified
+            "prohibited_zone_penalty": 100,
+            "penalty_zone_grace_time": 0,
+            "penalty_zone_penalty_per_second": 1,
+            "penalty_zone_maximum": 100,
+            "included_fields": [
+                ["Prohibited zone", "prohibited_zone_penalty"],
+                [
+                    "Penalty zone",
+                    "penalty_zone_grace_time",
+                    "penalty_zone_penalty_per_second",
+                    "penalty_zone_maximum",
+                ],
+                [
+                    "Corridor penalties",
+                    "backtracking_penalty",
+                    "corridor_outside_penalty",
+                ],
+            ],
+        },
+    )
 
     regular_gate_score = GateScore.objects.update_or_create(
         scorecard=scorecard,
@@ -47,8 +63,15 @@ def get_default_scorecard():
             "backtracking_after_steep_gate_grace_period_seconds": 0,
             "backtracking_after_gate_grace_period_nm": 0.5,
             "missed_procedure_turn_penalty": 0,
-            "included_fields": [["Penalties", "penalty_per_second", "maximum_penalty", "missed_penalty"],
-                                ["Time limits", "graceperiod_before", "graceperiod_after"]]
+            "included_fields": [
+                [
+                    "Penalties",
+                    "penalty_per_second",
+                    "maximum_penalty",
+                    "missed_penalty",
+                ],
+                ["Time limits", "graceperiod_before", "graceperiod_after"],
+            ],
         },
     )[0]
 
@@ -65,8 +88,10 @@ def get_default_scorecard():
             "penalty_per_second": 200,  # verified
             "missed_penalty": 0,
             "missed_procedure_turn_penalty": 0,
-            "included_fields": [["Penalties", "maximum_penalty", "missed_penalty"],
-                                ["Time limits", "graceperiod_before", "graceperiod_after"]]
+            "included_fields": [
+                ["Penalties", "maximum_penalty", "missed_penalty"],
+                ["Time limits", "graceperiod_before", "graceperiod_after"],
+            ],
         },
     )
 
@@ -84,8 +109,7 @@ def get_default_scorecard():
             "penalty_per_second": 0,
             "missed_penalty": 0,
             "missed_procedure_turn_penalty": 0,
-            "included_fields": [["Penalties", "maximum_penalty", "missed_penalty"]]
-
+            "included_fields": [["Penalties", "maximum_penalty", "missed_penalty"]],
         },
     )
 
@@ -103,10 +127,16 @@ def get_default_scorecard():
             "penalty_per_second": 2,  # verified
             "missed_penalty": 200,  # verified
             "missed_procedure_turn_penalty": 0,
-            "included_fields": [["Penalties", "penalty_per_second", "maximum_penalty", "missed_penalty",
-                                 "bad_crossing_extended_gate_penalty"],
-                                ["Time limits", "graceperiod_before", "graceperiod_after"]]
-
+            "included_fields": [
+                [
+                    "Penalties",
+                    "penalty_per_second",
+                    "maximum_penalty",
+                    "missed_penalty",
+                    "bad_crossing_extended_gate_penalty",
+                ],
+                ["Time limits", "graceperiod_before", "graceperiod_after"],
+            ],
         },
     )
     scorecard.gatescore_set.filter(gate_type__in=(SECRETPOINT, FINISHPOINT)).delete()
