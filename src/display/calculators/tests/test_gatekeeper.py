@@ -28,7 +28,7 @@ class TestInterpolation(TransactionTestCase):
 
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
-                                                             scorecard=self.scorecard,
+                                                             original_scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
@@ -97,7 +97,7 @@ class TestCrossingEstimate(TransactionTestCase):
 
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=self.route,
-                                                             scorecard=self.scorecard,
+                                                             original_scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),

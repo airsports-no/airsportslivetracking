@@ -29,8 +29,7 @@ class GatekeeperLanding(Gatekeeper):
         self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
                                  datetime.datetime.min,
                                  calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
-                                                         self.scorecard,
-                                                         self.contestant)) if self.contestant.navigation_task.route.landing_gate else None
+                                                         self.scorecard)) if self.contestant.navigation_task.route.landing_gate else None
         self.projector = Projector(self.landing_gate.latitude, self.landing_gate.longitude)
         for calculator in calculators:
             self.calculators.append(

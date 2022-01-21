@@ -31,19 +31,16 @@ class GatekeeperRoute(Gatekeeper):
         self.last_backwards = None
         self.recalculation_completed = not self.contestant.adaptive_start
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
-                                  calculate_extended_gate(self.gates[0].waypoint, self.scorecard,
-                                                          self.contestant))
+                                  calculate_extended_gate(self.gates[0].waypoint, self.scorecard))
         self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
         self.takeoff_gate = Gate(self.contestant.navigation_task.route.takeoff_gate,
                                  self.contestant.gate_times[self.contestant.navigation_task.route.takeoff_gate.name],
                                  calculate_extended_gate(self.contestant.navigation_task.route.takeoff_gate,
-                                                         self.scorecard,
-                                                         self.contestant)) if self.contestant.navigation_task.route.takeoff_gate else None
+                                                         self.scorecard)) if self.contestant.navigation_task.route.takeoff_gate else None
         self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
                                  self.contestant.gate_times[self.contestant.navigation_task.route.landing_gate.name],
                                  calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
-                                                         self.scorecard,
-                                                         self.contestant)) if self.contestant.navigation_task.route.landing_gate else None
+                                                         self.scorecard)) if self.contestant.navigation_task.route.landing_gate else None
         if self.landing_gate is not None:
             # If there is a landing gate we need to include this so that it can be scored and we do not terminate the
             # tracker until this has been passed.
@@ -284,8 +281,9 @@ class GatekeeperRoute(Gatekeeper):
                 return calculate_distance_lat_lon(finish_point, intersection)
         return None
 
-    def estimate_crossing_time_of_next_timed_gate(self, average_duration_seconds: int = 20) -> Optional[Tuple[Gate,
-                                                                                                              datetime.datetime]]:
+    def estimate_crossing_time_of_next_timed_gate(self, average_duration_seconds: int = 20) -> Tuple[Optional[Gate],
+                                                                                                     Optional[
+                                                                                                         datetime.datetime]]:
         """
         Calculate the distance to the next gate, and the distance between the gates until the first timed gate.
 
@@ -300,7 +298,7 @@ class GatekeeperRoute(Gatekeeper):
             estimated_crossing_time = self.estimate_crossing_time(gate,
                                                                   average_duration_seconds=average_duration_seconds)
             if estimated_crossing_time is None:
-                return
+                return None, None
             if abs((estimated_crossing_time - self.track[-1].time)).total_seconds() < 20:
                 estimated_crossing_time = self.estimate_crossing_time(gate, average_duration_seconds=6)
             if gate.time_check:
@@ -313,7 +311,7 @@ class GatekeeperRoute(Gatekeeper):
                     if gate.time_check:
                         return gate, estimated_crossing_time
                     previous_planned_time = gate.expected_time
-        return None
+        return None, None
 
     def estimate_crossing_time(self, gate: Gate, average_duration_seconds: int = 20) -> Optional[datetime.datetime]:
         """

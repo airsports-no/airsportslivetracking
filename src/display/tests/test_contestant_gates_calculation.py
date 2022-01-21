@@ -23,7 +23,7 @@ class TestContestantGatesCalculation(TestCase):
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         scorecard = get_default_scorecard()
         self.navigation_task = NavigationTask.create(name="NM navigation test",
-                                                             scorecard=scorecard,
+                                                             original_scorecard=scorecard,
                                                              route=route, contest=Contest.objects.create(name="contest",
                                                                                                          start_time=datetime.datetime.now(
                                                                                                              datetime.timezone.utc),
@@ -110,7 +110,7 @@ class TestContestantGatesCalculationANRRounded(TestCase):
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         scorecard = get_default_scorecard()
         self.navigation_task = NavigationTask.create(name="NM navigation test",
-                                                             scorecard=scorecard,
+                                                             original_scorecard=scorecard,
                                                              route=route, contest=Contest.objects.create(name="contest",
                                                                                                          start_time=datetime.datetime.now(
                                                                                                              datetime.timezone.utc),

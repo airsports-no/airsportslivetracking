@@ -832,7 +832,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             route_file = validated_data.pop("route_file", None)
             try:
                 route = create_precision_route_from_gpx(
-                    base64.decodebytes(route_file.encode("utf-8")), validated_data["scorecard"].use_procedure_turns
+                    base64.decodebytes(route_file.encode("utf-8")), validated_data["original_scorecard"].use_procedure_turns
                 )
             except Exception as e:
                 raise ValidationError("Failed building route from provided GPX: {}".format(e))

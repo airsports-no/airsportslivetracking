@@ -40,7 +40,7 @@ NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(date
         "landing_gate": line,
         "name": "name"
     },
-                        "scorecard": "FAI Precision 2020"
+                        "original_scorecard": "FAI Precision 2020"
                         }
 
 CONTESTANT_DATA = {
@@ -214,7 +214,7 @@ class TestAccessNavigationTask(APITestCase):
         url = reverse("contestants-detail",
                       kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
                               "pk": self.contestant.pk})
-        result = self.client.delete()
+        result = self.client.delete(url)
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_put_contestant_without_login(self, patch):
@@ -331,7 +331,7 @@ class TestAccessNavigationTask(APITestCase):
                       kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
                               "pk": self.contestant.pk})
 
-        result = self.client.delete()
+        result = self.client.delete(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -345,7 +345,7 @@ class TestAccessNavigationTask(APITestCase):
                       kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
                               "pk": self.contestant.pk})
 
-        result = self.client.delete()
+        result = self.client.delete(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -355,7 +355,7 @@ class TestAccessNavigationTask(APITestCase):
                       kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
                               "pk": self.contestant.pk})
 
-        result = self.client.delete()
+        result = self.client.delete(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -364,7 +364,7 @@ class TestAccessNavigationTask(APITestCase):
         url = reverse("contestants-detail",
                       kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
                               "pk": self.contestant.pk})
-        result = self.client.delete()
+        result = self.client.delete(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -373,7 +373,7 @@ class TestAccessNavigationTask(APITestCase):
         url = reverse("contestants-detail",
                       kwargs={'contest_pk': self.contest_id, 'navigationtask_pk': self.navigation_task.id,
                               "pk": self.contestant.pk})
-        result = self.client.delete()
+        result = self.client.delete(url)
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)

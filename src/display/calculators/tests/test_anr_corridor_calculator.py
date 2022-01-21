@@ -68,7 +68,7 @@ class TestANRPerLeg(TransactionTestCase):
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
-            scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
+            original_scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
             contest=Contest.objects.create(
                 name="contest",
                 start_time=datetime.datetime.now(datetime.timezone.utc),
@@ -276,7 +276,7 @@ class TestANR(TransactionTestCase):
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
-            scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
+            original_scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
             contest=Contest.objects.create(
                 name="contest",
                 start_time=datetime.datetime.now(datetime.timezone.utc),
@@ -381,7 +381,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=self.route,
-            scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
+            original_scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
             contest=Contest.objects.create(
                 name="123467",
                 start_time=datetime.datetime.now(datetime.timezone.utc),
@@ -610,7 +610,7 @@ class TestANRPolygon(TransactionTestCase):
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
-            scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
+            original_scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
             contest=Contest.objects.create(
                 name="contest",
                 start_time=datetime.datetime.now(datetime.timezone.utc),
@@ -677,7 +677,7 @@ class TestANRBergenBacktracking(TransactionTestCase):
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
-            scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
+            original_scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
             contest=Contest.objects.create(
                 name="contest",
                 start_time=datetime.datetime.now(datetime.timezone.utc),
@@ -744,7 +744,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
-            scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
+            original_scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
             contest=Contest.objects.create(
                 name="contest",
                 start_time=datetime.datetime.now(datetime.timezone.utc),

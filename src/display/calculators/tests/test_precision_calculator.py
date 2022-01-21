@@ -18,7 +18,7 @@ from display.calculators.tests.utilities import load_traccar_track
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx, calculate_extended_gate, \
     create_precision_default_route_from_kml
 from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew, \
-    Contest, Person, TrackScoreOverride, GateScoreOverride
+    Contest, Person
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 from display.views import create_precision_route_from_csv
 from mock_utilities import TraccarMock
@@ -72,7 +72,7 @@ class TestFullTrack(TransactionTestCase):
 
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
-                                                             scorecard=self.scorecard,
+                                                             original_scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
@@ -107,7 +107,7 @@ class TestFullTrack(TransactionTestCase):
         actual_time = datetime.datetime(2017, 1, 1, 0, 1, tzinfo=datetime.timezone.utc)
         waypoint = self.contestant.navigation_task.route.waypoints[1]
         gate = Gate(waypoint, expected_time,
-                    calculate_extended_gate(waypoint, self.scorecard, self.contestant))  # SC 1/1
+                    calculate_extended_gate(waypoint, self.scorecard))  # SC 1/1
         self.assertEqual("secret", gate.type)
         gate.passing_time = actual_time
         score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
@@ -116,45 +116,45 @@ class TestFullTrack(TransactionTestCase):
         print([str(item) for item in self.navigation_task.route.waypoints])
         self.assertEqual(100, score)
 
-    def test_secret_score_override(self, patch, p2):
-        gate_override = GateScoreOverride.objects.create(
-            for_gate_types=["secret"],
-            checkpoint_penalty_per_second=0,
-            checkpoint_maximum_penalty=0,
-            checkpoint_not_found=0,
-        )
-        self.contestant.gate_score_override.add(gate_override)
-        expected_time = datetime.datetime(2017, 1, 1, tzinfo=datetime.timezone.utc)
-        actual_time = datetime.datetime(2017, 1, 1, 0, 1, tzinfo=datetime.timezone.utc)
-        waypoint = self.contestant.navigation_task.route.waypoints[1]
-        gate = Gate(waypoint, expected_time,
-                    calculate_extended_gate(waypoint, self.scorecard, self.contestant))  # SC 1/1
-        self.assertEqual("secret", gate.type)
-        gate.passing_time = actual_time
-        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
-                                                                   gate.expected_time,
-                                                                   gate.passing_time)
-        print([str(item) for item in self.navigation_task.route.waypoints])
-        self.assertEqual(0, score)
+    # def test_secret_score_override(self, patch, p2):
+    #     gate_override = GateScoreOverride.objects.create(
+    #         for_gate_types=["secret"],
+    #         checkpoint_penalty_per_second=0,
+    #         checkpoint_maximum_penalty=0,
+    #         checkpoint_not_found=0,
+    #     )
+    #     self.contestant.gate_score_override.add(gate_override)
+    #     expected_time = datetime.datetime(2017, 1, 1, tzinfo=datetime.timezone.utc)
+    #     actual_time = datetime.datetime(2017, 1, 1, 0, 1, tzinfo=datetime.timezone.utc)
+    #     waypoint = self.contestant.navigation_task.route.waypoints[1]
+    #     gate = Gate(waypoint, expected_time,
+    #                 calculate_extended_gate(waypoint, self.scorecard))  # SC 1/1
+    #     self.assertEqual("secret", gate.type)
+    #     gate.passing_time = actual_time
+    #     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
+    #                                                                gate.expected_time,
+    #                                                                gate.passing_time)
+    #     print([str(item) for item in self.navigation_task.route.waypoints])
+    #     self.assertEqual(0, score)
 
-    def test_score_override(self, patch, p2):
-        positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
-        track_override = TrackScoreOverride.objects.create()
-        gate_override = GateScoreOverride.objects.create(
-            for_gate_types=["sp", "tp", "fp", "secret"],
-            checkpoint_grace_period_after=10,
-            checkpoint_grace_period_before=10,
-            checkpoint_penalty_per_second=1,
-            checkpoint_maximum_penalty=100,
-            checkpoint_not_found=100,
-            missing_procedure_turn_penalty=100
-        )
-        self.contestant.track_score_override = track_override
-        self.contestant.save()
-        self.contestant.gate_score_override.add(gate_override)
-        calculator_runner( self.contestant, positions )
-        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(21, contestant_track.score)
+    # def test_score_override(self, patch, p2):
+    #     positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
+    #     track_override = TrackScoreOverride.objects.create()
+    #     gate_override = GateScoreOverride.objects.create(
+    #         for_gate_types=["sp", "tp", "fp", "secret"],
+    #         checkpoint_grace_period_after=10,
+    #         checkpoint_grace_period_before=10,
+    #         checkpoint_penalty_per_second=1,
+    #         checkpoint_maximum_penalty=100,
+    #         checkpoint_not_found=100,
+    #         missing_procedure_turn_penalty=100
+    #     )
+    #     self.contestant.track_score_override = track_override
+    #     self.contestant.save()
+    #     self.contestant.gate_score_override.add(gate_override)
+    #     calculator_runner( self.contestant, positions )
+    #     contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+    #     self.assertEqual(21, contestant_track.score)
 
     def test_helge_track_precision(self, patch, p2):
         start_time, speed = datetime.datetime(2020, 8, 1, 10, 55, tzinfo=datetime.timezone.utc), 75
@@ -209,7 +209,7 @@ class Test2017WPFC(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
-                                                             scorecard=default_scorecard_fai_precision_2020.get_default_scorecard(),
+                                                             original_scorecard=default_scorecard_fai_precision_2020.get_default_scorecard(),
                                                              contest=Contest.objects.create(name="contest",
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
@@ -295,7 +295,7 @@ class TestNM2019(TransactionTestCase):
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
-                                                             scorecard=self.scorecard,
+                                                             original_scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),
@@ -360,7 +360,7 @@ class TestHamar23March2021(TransactionTestCase):
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
-                                                             scorecard=self.scorecard,
+                                                             original_scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
                                                                                             start_time=datetime.datetime.now(
                                                                                                 datetime.timezone.utc),

@@ -780,7 +780,8 @@ class NavigationTask(models.Model):
 
     @property
     def actual_rules(self):
-        return self.scorecard.scores_display()
+        return []
+        # return self.scorecard.scores_display()
 
     @property
     def share_string(self):
@@ -1408,7 +1409,8 @@ class Contestant(models.Model):
 
     @property
     def scorecard_rules(self):
-        return self.navigation_task.scorecard.scores_display(self)
+        return []
+        # return self.navigation_task.scorecard.scores_display(self)
 
     def _prohibited_zone_text(self):
         scorecard = self.navigation_task.scorecard
