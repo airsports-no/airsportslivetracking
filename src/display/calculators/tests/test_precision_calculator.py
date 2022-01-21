@@ -110,7 +110,7 @@ class TestFullTrack(TransactionTestCase):
                     calculate_extended_gate(waypoint, self.scorecard, self.contestant))  # SC 1/1
         self.assertEqual("secret", gate.type)
         gate.passing_time = actual_time
-        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
+        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
                                                                    gate.expected_time,
                                                                    gate.passing_time)
         print([str(item) for item in self.navigation_task.route.waypoints])
@@ -131,7 +131,7 @@ class TestFullTrack(TransactionTestCase):
                     calculate_extended_gate(waypoint, self.scorecard, self.contestant))  # SC 1/1
         self.assertEqual("secret", gate.type)
         gate.passing_time = actual_time
-        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
+        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
                                                                    gate.expected_time,
                                                                    gate.passing_time)
         print([str(item) for item in self.navigation_task.route.waypoints])

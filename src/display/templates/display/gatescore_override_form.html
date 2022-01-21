@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <h2>Change scorecard parameters for {{ navigation_task.name }} gate type {{ gate_score.get_gate_type_display }}</h2>
+    <form method="post" class="form">
+        {{ form.media }}
+        {% crispy form %}
+    </form>
+{% endblock %}

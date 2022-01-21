@@ -40,9 +40,6 @@ from display.models import (
     Person,
     Club,
     ContestTeam,
-    TRACCAR,
-    GateScoreOverride,
-    TrackScoreOverride,
     GateScore,
     Prohibited,
     PlayingCard,
@@ -515,12 +512,7 @@ class GateScoreSerialiser(serializers.ModelSerializer):
 
 
 class ScorecardNestedSerialiser(serializers.ModelSerializer):
-    takeoff_gate_score = GateScoreSerialiser()
-    landing_gate_score = GateScoreSerialiser()
-    turning_point_gate_score = GateScoreSerialiser()
-    starting_point_gate_score = GateScoreSerialiser()
-    finish_point_gate_score = GateScoreSerialiser()
-    secret_gate_score = GateScoreSerialiser()
+    gatescore_set = GateScoreSerialiser(many=True)
 
     class Meta:
         model = Scorecard
@@ -782,8 +774,6 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context["request"].user
-        track_score_override_data = validated_data.pop("track_score_override", None)
-        gate_score_override_data = validated_data.pop("gate_score_override", None)
         contestant_set = validated_data.pop("contestant_set", [])
         try:
             validated_data["contest"] = self.context["contest"]
@@ -797,16 +787,9 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         assign_perm("view_route", user, route)
         assign_perm("delete_route", user, route)
         assign_perm("change_route", user, route)
-        track_override = None
-        if track_score_override_data is not None:
-            track_override = TrackScoreOverride.objects.create(**track_score_override_data)
         navigation_task = NavigationTask.create(
-            **validated_data, track_score_override=track_override, route=route
+            **validated_data, route=route
         )
-        if gate_score_override_data is not None and len(gate_score_override_data) > 0:
-            for item in gate_score_override_data:
-                navigation_task.gate_score_override.add(GateScoreOverride.objects.create(**item))
-
         for contestant_data in contestant_set:
             contestant_serialiser = ContestantNestedTeamSerialiser(
                 data=contestant_data, context={"navigation_task": navigation_task}

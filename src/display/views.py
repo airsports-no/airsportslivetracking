@@ -1,11 +1,11 @@
 import base64
 import datetime
-import json
 import os
 from typing import Optional, Dict, Tuple
 
 import dateutil
 import gpxpy
+from crispy_forms.layout import Submit
 from django.contrib import messages
 from django.contrib.auth import login, get_user_model
 from django.contrib.auth.decorators import permission_required, login_required
@@ -86,8 +86,6 @@ from display.forms import (
     WaypointFormHelper,
     TaskTypeForm,
     ANRCorridorImportRouteForm,
-    ANRCorridorScoreOverrideForm,
-    PrecisionScoreOverrideForm,
     TrackingDataForm,
     ContestTeamOptimisationForm,
     AssignPokerCardForm,
@@ -101,9 +99,8 @@ from display.forms import (
     GPXTrackImportForm,
     ContestSelectForm,
     ANRCorridorParametersForm,
-    AirsportsScoreOverrideForm,
     AirsportsParametersForm,
-    PersonPictureForm,
+    PersonPictureForm, ScorecardFormSetHelper, ScorecardForm, GateScoreForm,
 )
 from display.generate_flight_orders import generate_flight_orders
 from display.map_plotter import (
@@ -687,8 +684,8 @@ def view_contest_team_images(request, pk):
                 Q(crewmember_two__team__contest=contest)
                 | Q(crewmember_one__team__contest=contest)
             )
-            .distinct()
-            .order_by("last_name", "first_name"),
+                .distinct()
+                .order_by("last_name", "first_name"),
         },
     )
 
@@ -892,8 +889,8 @@ def upload_gpx_track_for_contesant(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
         if (
-            not contestant.contestanttrack.calculator_finished
-            and contestant.contestanttrack.calculator_finished
+                not contestant.contestanttrack.calculator_finished
+                and contestant.contestanttrack.calculator_finished
         ):
             messages.error(
                 request,
@@ -971,8 +968,8 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
         if (
-            not contestant.contestanttrack.calculator_finished
-            and contestant.contestanttrack.calculator_finished
+                not contestant.contestanttrack.calculator_finished
+                and contestant.contestanttrack.calculator_finished
         ):
             messages.error(
                 request,
@@ -1418,14 +1415,14 @@ def add_contest_teams_to_navigation_task(request, pk):
         if form.is_valid():
             try:
                 if not schedule_and_create_contestants(
-                    navigation_task,
-                    [int(item) for item in form.cleaned_data["contest_teams"]],
-                    form.cleaned_data["tracker_lead_time_minutes"],
-                    form.cleaned_data["minutes_for_aircraft_switch"],
-                    form.cleaned_data["minutes_for_tracker_switch"],
-                    form.cleaned_data["minutes_between_contestants"],
-                    form.cleaned_data["minutes_for_crew_switch"],
-                    optimise=form.cleaned_data.get("optimise", False),
+                        navigation_task,
+                        [int(item) for item in form.cleaned_data["contest_teams"]],
+                        form.cleaned_data["tracker_lead_time_minutes"],
+                        form.cleaned_data["minutes_for_aircraft_switch"],
+                        form.cleaned_data["minutes_for_tracker_switch"],
+                        form.cleaned_data["minutes_between_contestants"],
+                        form.cleaned_data["minutes_for_crew_switch"],
+                        optimise=form.cleaned_data.get("optimise", False),
                 ):
                     messages.error(request, "Optimisation failed")
                 else:
@@ -1467,8 +1464,8 @@ def add_contest_teams_to_navigation_task(request, pk):
         [
             (item, str(item), False)
             for item in navigation_task.contest.contestteam_set.exclude(
-                pk__in=used_contest_teams
-            )
+            pk__in=used_contest_teams
+        )
         ]
     )
     # initial = navigation_task.contest.contestteam_set.filter(
@@ -1489,21 +1486,74 @@ def add_contest_teams_to_navigation_task(request, pk):
 @guardian_permission_required(
     "display.change_contest", (Contest, "navigationtask__pk", "pk")
 )
-def navigation_task_score_override_view(request, pk):
+def navigation_task_restore_original_scorecard_view(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    ScorecardFormSet=inlineformset_factory(Scorecard, GateScore)
+    navigation_task.assign_scorecard_from_original(force=True)
+    return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
+
+
+@guardian_permission_required(
+    "display.change_contest", (Contest, "navigationtask__pk", "pk")
+)
+def navigation_task_scorecard_override_view(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    form = ScorecardForm(instance=navigation_task.scorecard)
     if request.method == "POST":
-        formset = ScorecardFormSet(request.POST, instance=navigation_task.scorecard)
-        if formset.is_valid():
+        form = ScorecardForm(request.POST, instance=navigation_task.scorecard)
+        if form.is_valid():
+            form.save()
             return redirect(
-                reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
+                reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
             )
-    formset = ScorecardFormSet(instance=navigation_task.scorecard)
     return render(
         request,
-        "display/score_override_form.html",
-        {"formset": formset, "navigation_task": navigation_task},
+        "display/scorecard_override_form.html",
+        {"form": form, "navigation_task": navigation_task},
     )
+
+
+@guardian_permission_required(
+    "display.change_contest", (Contest, "navigationtask__pk", "pk")
+)
+def navigation_task_gatescore_override_view(request, pk, gate_score_pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    gate_score = get_object_or_404(GateScore, pk=gate_score_pk)
+    if request.method == "POST":
+        form = GateScoreForm(request.POST, instance=gate_score)
+        if form.is_valid():
+            form.save()
+            return redirect(
+                reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
+            )
+    form = GateScoreForm(instance=gate_score)
+    return render(
+        request,
+        "display/gatescore_override_form.html",
+        {"form": form, "navigation_task": navigation_task, "gate_score":gate_score},
+    )
+
+
+def navigation_task_view_detailed_score(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    print(navigation_task.scorecard)
+    scorecard_form = ScorecardForm(instance=navigation_task.scorecard)
+    for key in list(scorecard_form.fields.keys()):
+        if key not in navigation_task.scorecard.visible_fields:
+            scorecard_form.fields.pop(key)
+    scorecard_form.pk = navigation_task.scorecard.pk
+    gate_score_forms = []
+    for gate_score in navigation_task.scorecard.gatescore_set.all().order_by("gate_type"):
+        form = GateScoreForm(instance=gate_score)
+        form.pk = gate_score.pk
+        form.name = gate_score.get_gate_type_display()
+        for key in list(form.fields.keys()):
+            if key not in gate_score.visible_fields:
+                form.fields.pop(key)
+
+        gate_score_forms.append(form)
+    return render(request, "display/scorecard_details.html",
+                  {"navigation_task": navigation_task, "scorecard_form": scorecard_form,
+                   "gate_score_forms": gate_score_forms})
 
 
 def cached_generate_data(contestant_pk) -> Dict:
@@ -1554,13 +1604,13 @@ def _generate_data(contestant_pk):
 def show_route_definition_step(wizard):
     cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}
     return (
-        not cleaned_data.get("internal_route")
-        and cleaned_data.get("file_type") == FILE_TYPE_KML
-        and wizard.get_cleaned_data_for_step("task_type").get("task_type")
-        in (
-            NavigationTask.PRECISION,
-            NavigationTask.POKER,
-        )
+            not cleaned_data.get("internal_route")
+            and cleaned_data.get("file_type") == FILE_TYPE_KML
+            and wizard.get_cleaned_data_for_step("task_type").get("task_type")
+            in (
+                NavigationTask.PRECISION,
+                NavigationTask.POKER,
+            )
     )
 
 
@@ -1601,8 +1651,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         ("landing_route_import", LandingImportRouteForm),
         ("waypoint_definition", formset_factory(WaypointForm, extra=0)),
         ("task_content", NavigationTaskForm),
-        ("precision_override", PrecisionScoreOverrideForm),
-        ("anr_corridor_override", ANRCorridorScoreOverrideForm),
+        # ("precision_override", PrecisionScoreOverrideForm),
+        # ("anr_corridor_override", ANRCorridorScoreOverrideForm),
     ]
     file_storage = FileSystemStorage(
         location=os.path.join(settings.TEMPORARY_FOLDER, "importedroutes")
@@ -1760,8 +1810,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             useful_cards = []
             for scorecard in Scorecard.objects.all():
                 if (
-                    self.get_cleaned_data_for_step("task_type")["task_type"]
-                    in scorecard.task_type
+                        self.get_cleaned_data_for_step("task_type")["task_type"]
+                        in scorecard.task_type
                 ):
                     useful_cards.append(scorecard.pk)
             form.fields["scorecard"].queryset = Scorecard.get_originals().filter(
@@ -1777,9 +1827,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         if step == "waypoint_definition":
             print(len(form))
         if step in (
-            "anr_route_import",
-            "precision_route_import",
-            "landing_route_import",
+                "anr_route_import",
+                "precision_route_import",
+                "landing_route_import",
         ):
             form.fields["internal_route"].queryset = get_objects_for_user(
                 self.request.user,
@@ -1813,16 +1863,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                     initial[-1]["type"] = FINISHPOINT
                     initial[-1]["name"] = "FP"
                 return initial
-        if step == "anr_corridor_override":
-            scorecard = self.get_cleaned_data_for_step("task_content")["scorecard"]
-            return ANRCorridorScoreOverrideForm.extract_default_values_from_scorecard(
-                scorecard
-            )
-        if step == "precision_override":
-            scorecard = self.get_cleaned_data_for_step("task_content")["scorecard"]
-            return PrecisionScoreOverrideForm.extract_default_values_from_scorecard(
-                scorecard
-            )
         if step == "task_content":
             country_code = get_country_code_from_location(
                 self.contest.latitude, self.contest.longitude
@@ -1946,7 +1986,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             contest=contest,
             route=route,
             editable_route=self.editable_route,
-            scorecard=scorecard,
+            original_scorecard=scorecard,
             start_time=contest.start_time,
             finish_time=contest.finish_time,
             allow_self_management=True,
@@ -1998,8 +2038,8 @@ def create_new_pilot(wizard):
 def create_new_copilot(wizard):
     cleaned = wizard.get_post_data_for_step("member2search") or {}
     return (
-        cleaned.get("use_existing_copilot") is None
-        and cleaned.get("skip_copilot") is None
+            cleaned.get("use_existing_copilot") is None
+            and cleaned.get("skip_copilot") is None
     )
 
 
@@ -2309,7 +2349,7 @@ class UserPersonViewSet(GenericViewSet):
             defaults={
                 "first_name": self.request.user.first_name
                 if self.request.user.first_name
-                and len(self.request.user.first_name) > 0
+                   and len(self.request.user.first_name) > 0
                 else "",
                 "last_name": self.request.user.last_name
                 if self.request.user.last_name and len(self.request.user.last_name) > 0
@@ -2345,8 +2385,8 @@ class UserPersonViewSet(GenericViewSet):
                 | Q(team__crew__member2=self.get_object()),
                 contest__in=available_contests,
             )
-            .order_by("contest__start_time")
-            .distinct()
+                .order_by("contest__start_time")
+                .distinct()
         )
         teams = []
         for team in contest_teams:
@@ -2460,13 +2500,13 @@ class ContestViewSet(ModelViewSet):
 
     def get_queryset(self):
         return (
-            get_objects_for_user(
-                self.request.user,
-                "display.view_contest",
-                klass=self.queryset,
-                accept_global_perms=False,
-            )
-            | self.queryset.filter(is_public=True, is_featured=True)
+                get_objects_for_user(
+                    self.request.user,
+                    "display.view_contest",
+                    klass=self.queryset,
+                    accept_global_perms=False,
+                )
+                | self.queryset.filter(is_public=True, is_featured=True)
         )
 
     @action(detail=True, methods=["get"])
@@ -2477,8 +2517,8 @@ class ContestViewSet(ModelViewSet):
         contest = self.get_object()
         return Response(
             datetime.datetime.now(datetime.timezone.utc)
-            .astimezone(contest.time_zone)
-            .strftime("%H:%M:%S")
+                .astimezone(contest.time_zone)
+                .strftime("%H:%M:%S")
         )
 
     @action(detail=True, methods=["put"])
@@ -2501,11 +2541,11 @@ class ContestViewSet(ModelViewSet):
     def ongoing_navigation(self, request, *args, **kwargs):
         navigation_tasks = (
             NavigationTask.get_visible_navigation_tasks(self.request.user)
-            .filter(
+                .filter(
                 contestant__contestanttrack__calculator_started=True,
                 contestant__contestanttrack__calculator_finished=False,
             )
-            .distinct()
+                .distinct()
         )
         data = self.get_serializer_class()(
             navigation_tasks, many=True, context={"request": self.request}
@@ -2763,8 +2803,8 @@ class NavigationTaskViewSet(ModelViewSet):
             permissions.IsAuthenticated
             & NavigationTaskSelfManagementPermissions
             & (
-                NavigationTaskPublicPutDeletePermissions
-                | NavigationTaskContestPermissions
+                    NavigationTaskPublicPutDeletePermissions
+                    | NavigationTaskContestPermissions
             )
         ],
     )
@@ -2789,7 +2829,7 @@ class NavigationTaskViewSet(ModelViewSet):
             existing_contestants = navigation_task.contestant_set.all()
             if existing_contestants.exists():
                 contestant_number = (
-                    max([item.contestant_number for item in existing_contestants]) + 1
+                        max([item.contestant_number for item in existing_contestants]) + 1
                 )
             else:
                 contestant_number = 1
@@ -2818,13 +2858,13 @@ class NavigationTaskViewSet(ModelViewSet):
             if adaptive_start:
                 # Properly account for how final time is created when adaptive start is active
                 final_time = (
-                    starting_point_time
-                    + datetime.timedelta(hours=1)
-                    + datetime.timedelta(
-                        hours=final_time.hour,
-                        minutes=final_time.minute,
-                        seconds=final_time.second,
-                    )
+                        starting_point_time
+                        + datetime.timedelta(hours=1)
+                        + datetime.timedelta(
+                    hours=final_time.hour,
+                    minutes=final_time.minute,
+                    seconds=final_time.second,
+                )
                 )
             logger.debug(f"Take-off time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")
@@ -2855,9 +2895,9 @@ class NavigationTaskViewSet(ModelViewSet):
             ).delete()
             # Terminate ongoing contestants where the time has passed the takeoff time
             for c in navigation_task.contestant_set.filter(
-                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
-                team__crew__member1__email=request.user.email,
-                contestanttrack__calculator_started=True,
+                    finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+                    team__crew__member1__email=request.user.email,
+                    contestanttrack__calculator_started=True,
             ):
                 # We know the takeoff time is in the past, so we can freely set it to now.
                 c.finished_by_time = datetime.datetime.now(datetime.timezone.utc)

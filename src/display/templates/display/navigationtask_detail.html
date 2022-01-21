@@ -23,6 +23,8 @@
                         contestants</a>
                     <a class="dropdown-item" href="{% url 'navigationtask_updatescorecardoverride' object.pk %}"
                        title="Update scoring parameters">Update scoring parameters</a>
+                    <a class="dropdown-item" href="{% url 'navigationtask_restorescorecard' object.pk %}"
+                       title="Update scoring parameters">Restore original scorecard</a>
                     {% if object.editable_route %}
                         <a class="dropdown-item" href="{% url 'navigationtask_refresheditableroute' object.pk %}"
                            title="If the task is generated from a route built in the route editor, click this link to refresh the task if changes have been made to the route.">Reload
@@ -41,7 +43,7 @@
     <a href="{% url 'navigationtask_share' object.pk %}" title="Toggle the visibility of the navigation task">Share</a>
     |
     <a href="{% url 'frontend_view_map' object.pk %}" title="Link to the online tracking map">Tracking map</a> |
-    <a href="{% url 'navigationtask_rules' object.pk %}">Rules</a> |
+    <a href="{% url 'navigationtask_scoredetails' object.pk %}">Rules</a> |
     <a href="/resultsservice/{{ object.contest.pk }}/taskresults/">Contest results</a>
 
     <br/>

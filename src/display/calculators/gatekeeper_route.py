@@ -233,7 +233,7 @@ class GatekeeperRoute(Gatekeeper):
             estimated_crossing_time = gate.passing_time
         else:
             planned_time_to_crossing = (self.track[-1].time - gate.expected_time).total_seconds()
-        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
+        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
                                                                    gate.expected_time, estimated_crossing_time)
 
         self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(self.contestant, gate.name,
@@ -251,7 +251,7 @@ class GatekeeperRoute(Gatekeeper):
         if abs((estimated_crossing_time - self.track[-1].time)).total_seconds() < 20:
             estimated_crossing_time = self.estimate_crossing_time(gate, average_duration_seconds=6)
         planned_time_to_crossing = (self.track[-1].time - gate.expected_time).total_seconds()
-        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
+        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
                                                                    gate.expected_time, estimated_crossing_time)
 
         self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(self.contestant, gate.name,
@@ -368,7 +368,7 @@ class GatekeeperRoute(Gatekeeper):
                 self.missed_gate(previous_gate, gate, gate.maybe_missed_position or current_position)
                 index += 1
                 if gate.gate_check:
-                    score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
+                    score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
                                                                                gate.expected_time, None)
                     self.update_score(gate, score, "missing gate", current_position.latitude,
                                       current_position.longitude, "anomaly", "gate_score",
@@ -386,7 +386,7 @@ class GatekeeperRoute(Gatekeeper):
                 time_difference = (gate.passing_time - gate.expected_time).total_seconds()
                 self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
                 if gate.time_check:
-                    gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, self.contestant,
+                    gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
                                                                                     gate.expected_time,
                                                                                     gate.passing_time)
                     self.transmit_actual_crossing(gate)

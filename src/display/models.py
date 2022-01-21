@@ -47,7 +47,7 @@ from solo.models import SingletonModel
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.calculators.positions_and_gates import Position
-from display.clone_object import clone_object_only_foreign_keys
+from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.my_pickled_object_field import MyPickledObjectField
@@ -87,7 +87,7 @@ TAKEOFF_GATE = "to"
 LANDING_GATE = "ldg"
 INTERMEDIARY_STARTINGPOINT = "isp"
 INTERMEDIARY_FINISHPOINT = "ifp"
-GATES_TYPES = (
+GATE_TYPES = (
     (TURNPOINT, "Turning point"),
     (STARTINGPOINT, "Starting point"),
     (FINISHPOINT, "Finish point"),
@@ -685,9 +685,9 @@ class NavigationTask(models.Model):
         "Scorecard",
         on_delete=models.PROTECT,
         help_text="Reference to an existing scorecard name.", related_name="navigation_task_original")
-    scorecard = models.ForeignKey(
+    scorecard = models.OneToOneField(
         "Scorecard",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         help_text="The actual scorecard used for this task. The scorecard may be modified, since it must be a copy of original_scorecard.",
         related_name="navigation_task_override")
@@ -780,17 +780,7 @@ class NavigationTask(models.Model):
 
     @property
     def actual_rules(self):
-        mock_contestant = Mock(Contestant)
-        mock_contestant.navigation_task = self
-        mock_contestant.get_track_score_override.return_value = self.track_score_override
-
-        def gate_score_override(gate_type):
-            for item in self.gate_score_override.all():
-                if gate_type in item.for_gate_types:
-                    return item
-
-        mock_contestant.get_gate_score_override = gate_score_override
-        return self.scorecard.scores_display(mock_contestant)
+        return self.scorecard.scores_display()
 
     @property
     def share_string(self):
@@ -925,7 +915,7 @@ class Scorecard(models.Model):
         (AIRSPORTS, "Airsports"),
     )
 
-    name = models.CharField(max_length=100, default="default", unique=True)
+    name = models.CharField(max_length=300, default="default", unique=True)
     original = models.BooleanField(default=True,
                                    help_text="Signifies that this has been created manually and is not a copy")
     included_fields = MyPickledObjectField(default=list,
@@ -958,50 +948,6 @@ class Scorecard(models.Model):
         default=500,
         help_text="The maximum penalty that can be accumulated for flying below minimum altitude (not applied automatically)",
     )
-
-    takeoff_gate_score = models.ForeignKey(
-        "GateScore",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="takeoff",
-    )
-    landing_gate_score = models.ForeignKey(
-        "GateScore",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="landing",
-    )
-    turning_point_gate_score = models.ForeignKey(
-        "GateScore",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="turning_point",
-    )
-    starting_point_gate_score = models.ForeignKey(
-        "GateScore",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="starting",
-    )
-    finish_point_gate_score = models.ForeignKey(
-        "GateScore",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="finish",
-    )
-    secret_gate_score = models.ForeignKey(
-        "GateScore",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="secret",
-    )
-
     prohibited_zone_penalty = models.FloatField(
         default=200,
         help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas",
@@ -1029,20 +975,19 @@ class Scorecard(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def visible_fields(self) -> List[str]:
+        return [field for block in self.included_fields for field in block[1:]]
+
     @classmethod
     def get_originals(cls) -> QuerySet:
         return cls.objects.filter(original=True)
 
     def copy(self, name_prefix: str) -> "Scorecard":
-        return clone_object_only_foreign_keys(self, {"name": f"{name_prefix}_{self.name}", "original": False})
-
-    def delete(self, **kwargs):
-        self.takeoff_gate_score.delete()
-        self.landing_gate_score.delete()
-        self.starting_point_gate_score.delete()
-        self.finish_point_gate_score.delete()
-        self.turning_point_gate_score.delete()
-        self.secret_gate_score.delete()
+        obj = simple_clone(self, {"name": f"{name_prefix}_{self.name}", "original": False})
+        for gate in self.gatescore_set.all():
+            simple_clone(gate, {"scorecard": obj})
+        return obj
 
     def __get_label(self, field):
         return text_type(self._meta.get_field(field).verbose_name)
@@ -1050,10 +995,10 @@ class Scorecard(models.Model):
     def __get_help_text(self, field):
         return text_type(self._meta.get_field(field).help_text)
 
-    def __format_value(self, field, contestant) -> Dict:
+    def __format_value(self, field) -> Dict:
         return {
             "name": self.__get_label(field),
-            "value": getattr(self, f"get_{field}")(contestant)
+            "value": getattr(self, f"get_{field}")()
             if hasattr(self, f"get_{field}")
             else getattr(self, f"{field}"),
             "help_text": self.__get_help_text(field),
@@ -1064,276 +1009,194 @@ class Scorecard(models.Model):
         text = title.split("_")
         return text[0].capitalize() + " " + " ".join(text[1:])
 
-    def __format_value_gate(self, field, contestant, gate_type) -> Dict:
+    def __format_value_gate(self, field, gate_type) -> Dict:
         return {
             "key": field,
             "name": self.__format_title(field),
-            "value": getattr(self, f"get_{field}_for_gate_type")(gate_type, contestant),
+            "value": getattr(self, f"get_{field}_for_gate_type")(gate_type),
             "help_text": getattr(self, f"get_{field}_for_gate_type").__doc__,
         }
 
-    def scores_display(self, contestant: "Contestant") -> List[Dict]:
+    def scores_display(self) -> List[Dict]:
         if self.PRECISION in self.task_type:
-            return self.__scores_display_precision(contestant)
+            return self.__scores_display_precision()
         elif self.ANR_CORRIDOR in self.task_type:
-            return self.__scores_display_anr(contestant)
+            return self.__scores_display_anr()
         elif self.AIRSPORTS in self.task_type:
-            return self.__scores_display_airsports(contestant)
+            return self.__scores_display_airsports()
         return []
 
-    def scores_for_gate(self, contestant: "Contestant", gate: str) -> List[Dict]:
+    def scores_for_gate(self, gate: str) -> List[Dict]:
         return [
-            self.__format_value_gate("penalty_per_second", contestant, gate),
-            self.__format_value_gate("graceperiod_before", contestant, gate),
-            self.__format_value_gate("graceperiod_after", contestant, gate),
-            self.__format_value_gate("maximum_timing_penalty", contestant, gate),
-            self.__format_value_gate("missed_penalty", contestant, gate),
-            self.__format_value_gate("procedure_turn_penalty", contestant, gate),
-            self.__format_value_gate("bad_crossing_extended_gate_penalty", contestant, gate),
-            self.__format_value_gate("extended_gate_width", contestant, gate),
-            self.__format_value_gate("backtracking_after_steep_gate_grace_period_seconds", contestant, gate),
-            self.__format_value_gate("backtracking_after_gate_grace_period_nm", contestant, gate),
+            self.__format_value_gate("penalty_per_second", gate),
+            self.__format_value_gate("graceperiod_before", gate),
+            self.__format_value_gate("graceperiod_after", gate),
+            self.__format_value_gate("maximum_timing_penalty", gate),
+            self.__format_value_gate("missed_penalty", gate),
+            self.__format_value_gate("procedure_turn_penalty", gate),
+            self.__format_value_gate("bad_crossing_extended_gate_penalty", gate),
+            self.__format_value_gate("extended_gate_width", gate),
+            self.__format_value_gate("backtracking_after_steep_gate_grace_period_seconds", gate),
+            self.__format_value_gate("backtracking_after_gate_grace_period_nm", gate),
         ]
 
-    def __scores_display_precision(self, contestant: "Contestant") -> List[Dict]:
+    def __scores_display_precision(self) -> List[Dict]:
         scores = {
             "track": [
-                self.__format_value("backtracking_penalty", contestant),
-                self.__format_value("backtracking_bearing_difference", contestant),
-                self.__format_value("backtracking_grace_time_seconds", contestant),
-                self.__format_value("backtracking_maximum_penalty", contestant),
-                self.__format_value("below_minimum_altitude_penalty", contestant),
-                self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
-                self.__format_value("prohibited_zone_penalty", contestant),
-                self.__format_value("prohibited_zone_grace_time", contestant),
-                self.__format_value("penalty_zone_grace_time", contestant),
-                self.__format_value("penalty_zone_penalty_per_second", contestant),
-                self.__format_value("penalty_zone_maximum", contestant),
+                self.__format_value("backtracking_penalty"),
+                self.__format_value("backtracking_bearing_difference"),
+                self.__format_value("backtracking_grace_time_seconds"),
+                self.__format_value("backtracking_maximum_penalty"),
+                self.__format_value("below_minimum_altitude_penalty"),
+                self.__format_value("below_minimum_altitude_maximum_penalty"),
+                self.__format_value("prohibited_zone_penalty"),
+                self.__format_value("prohibited_zone_grace_time"),
+                self.__format_value("penalty_zone_grace_time"),
+                self.__format_value("penalty_zone_penalty_per_second"),
+                self.__format_value("penalty_zone_maximum"),
             ],
-            "gates": [{"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(contestant, item[0])} for
-                      item in GATES_TYPES],
+            "gates": [{"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(item[0])} for
+                      item in GATE_TYPES],
         }
         return scores
 
-    def __scores_display_anr(self, contestant: "Contestant") -> List[Dict]:
+    def __scores_display_anr(self) -> List[Dict]:
         scores = {
             "track": [
-                self.__format_value("backtracking_penalty", contestant),
-                self.__format_value("backtracking_bearing_difference", contestant),
-                self.__format_value("backtracking_grace_time_seconds", contestant),
-                self.__format_value("backtracking_maximum_penalty", contestant),
-                self.__format_value("below_minimum_altitude_penalty", contestant),
-                self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
-                self.__format_value("prohibited_zone_penalty", contestant),
-                self.__format_value("prohibited_zone_grace_time", contestant),
-                self.__format_value("corridor_grace_time", contestant),
-                self.__format_value("corridor_outside_penalty", contestant),
-                self.__format_value("corridor_maximum_penalty", contestant),
-                self.__format_value("penalty_zone_grace_time", contestant),
-                self.__format_value("penalty_zone_penalty_per_second", contestant),
-                self.__format_value("penalty_zone_maximum", contestant),
+                self.__format_value("backtracking_penalty"),
+                self.__format_value("backtracking_bearing_difference"),
+                self.__format_value("backtracking_grace_time_seconds"),
+                self.__format_value("backtracking_maximum_penalty"),
+                self.__format_value("below_minimum_altitude_penalty"),
+                self.__format_value("below_minimum_altitude_maximum_penalty"),
+                self.__format_value("prohibited_zone_penalty"),
+                self.__format_value("prohibited_zone_grace_time"),
+                self.__format_value("corridor_grace_time"),
+                self.__format_value("corridor_outside_penalty"),
+                self.__format_value("corridor_maximum_penalty"),
+                self.__format_value("penalty_zone_grace_time"),
+                self.__format_value("penalty_zone_penalty_per_second"),
+                self.__format_value("penalty_zone_maximum"),
                 {
                     "name": "corridor width",
-                    "value": contestant.navigation_task.route.corridor_width,
+                    "value": 0,  # contestant.navigation_task.route.corridor_width,
                     "help_text": "The width of the corridor in nautical miles",
                 },
             ],
             "gates": [
-                {"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
-                for item in GATES_TYPES
+                {"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(item[0])}
+                for item in GATE_TYPES
                 if item[0] in (STARTINGPOINT, FINISHPOINT)
             ],
         }
         return scores
 
-    def __scores_display_airsports(self, contestant: "Contestant") -> List[Dict]:
+    def __scores_display_airsports(self: "Contestant") -> List[Dict]:
         scores = {
             "track": [
-                self.__format_value("backtracking_penalty", contestant),
-                self.__format_value("backtracking_bearing_difference", contestant),
-                self.__format_value("backtracking_grace_time_seconds", contestant),
-                self.__format_value("backtracking_maximum_penalty", contestant),
-                self.__format_value("below_minimum_altitude_penalty", contestant),
-                self.__format_value("below_minimum_altitude_maximum_penalty", contestant),
-                self.__format_value("prohibited_zone_penalty", contestant),
-                self.__format_value("prohibited_zone_grace_time", contestant),
-                self.__format_value("corridor_grace_time", contestant),
-                self.__format_value("corridor_outside_penalty", contestant),
-                self.__format_value("corridor_maximum_penalty", contestant),
-                self.__format_value("penalty_zone_grace_time", contestant),
-                self.__format_value("penalty_zone_penalty_per_second", contestant),
-                self.__format_value("penalty_zone_maximum", contestant),
+                self.__format_value("backtracking_penalty"),
+                self.__format_value("backtracking_bearing_difference"),
+                self.__format_value("backtracking_grace_time_seconds"),
+                self.__format_value("backtracking_maximum_penalty"),
+                self.__format_value("below_minimum_altitude_penalty"),
+                self.__format_value("below_minimum_altitude_maximum_penalty"),
+                self.__format_value("prohibited_zone_penalty"),
+                self.__format_value("prohibited_zone_grace_time"),
+                self.__format_value("corridor_grace_time"),
+                self.__format_value("corridor_outside_penalty"),
+                self.__format_value("corridor_maximum_penalty"),
+                self.__format_value("penalty_zone_grace_time"),
+                self.__format_value("penalty_zone_penalty_per_second"),
+                self.__format_value("penalty_zone_maximum"),
                 {
                     "name": "corridor width",
-                    "value": contestant.navigation_task.route.corridor_width,
+                    "value": 0,  # contestant.navigation_task.route.corridor_width,
                     "help_text": "The width of the corridor in nautical miles",
                 },
             ],
             "gates": [
-                {"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(contestant, item[0])}
-                for item in GATES_TYPES
+                {"gate_code": item[0], "gate": item[1], "rules": self.scores_for_gate(item[0])}
+                for item in GATE_TYPES
             ],
         }
         return scores
 
     def get_gate_scorecard(self, gate_type: str) -> "GateScore":
-        if gate_type == "tp":
-            gate_score = self.turning_point_gate_score
-        elif gate_type in ("sp", "isp"):
-            gate_score = self.starting_point_gate_score
-        elif gate_type in ("fp", "ifp"):
-            gate_score = self.finish_point_gate_score
-        elif gate_type == "secret":
-            gate_score = self.secret_gate_score
-        elif gate_type in ("to", "ito"):
-            gate_score = self.takeoff_gate_score
-        elif gate_type in ("ldg", "ildg"):
-            gate_score = self.landing_gate_score
-        else:
-            raise ValueError("Unknown gate type '{}'".format(gate_type))
-        if gate_score is None:
-            raise ValueError("Undefined gate score for '{}'".format(gate_type))
-        return gate_score
+        try:
+            return self.gatescore_set.get(gate_type=gate_type)
+        except ObjectDoesNotExist:
+            raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
 
-    def get_gate_score_override(self, gate_type: str, contestant: "Contestant"):
-        return contestant.get_gate_score_override(gate_type)
-
-    def calculate_penalty_zone_score(self, contestant: "Contestant", enter: datetime.datetime, exit: datetime.datetime):
-        difference = round((exit - enter).total_seconds()) - self.get_penalty_zone_grace_time(contestant)
+    def calculate_penalty_zone_score(self, enter: datetime.datetime, exit: datetime.datetime):
+        difference = round((exit - enter).total_seconds()) - self.penalty_zone_grace_time
         if difference < 0:
             return 0
         return min(
-            self.get_penalty_zone_maximum(contestant), difference * self.get_penalty_zone_penalty_per_second(contestant)
+            self.penalty_zone_maximum, difference * self.penalty_zone_penalty_per_second
         )
-
-    def get_penalty_zone_grace_time(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.penalty_zone_grace_time is not None:
-                    return override.penalty_zone_grace_time
-        return self.penalty_zone_grace_time
-
-    def get_penalty_zone_penalty_per_second(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.penalty_zone_penalty_per_second is not None:
-                    return override.penalty_zone_penalty_per_second
-        return self.penalty_zone_penalty_per_second
-
-    def get_penalty_zone_maximum(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.penalty_zone_maximum is not None:
-                    return override.penalty_zone_maximum
-        return self.penalty_zone_maximum
-
-    def get_backtracking_penalty(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.bad_course_penalty is not None:
-                    return override.bad_course_penalty
-        return self.backtracking_penalty
-
-    def get_maximum_backtracking_penalty(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.bad_course_maximum_penalty is not None:
-                    return override.bad_course_maximum_penalty
-        return self.backtracking_maximum_penalty
-
-    def get_backtracking_grace_time_seconds(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.bad_course_grace_time is not None:
-                    return override.bad_course_grace_time
-        return self.backtracking_grace_time_seconds
-
-    def get_prohibited_zone_grace_time(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.prohibited_zone_grace_time is not None:
-                    return override.prohibited_zone_grace_time
-        return self.prohibited_zone_grace_time
-
-    def get_prohibited_zone_penalty(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.prohibited_zone_penalty is not None:
-                    return override.prohibited_zone_penalty
-        return self.prohibited_zone_penalty
 
     def get_gate_timing_score_for_gate_type(
             self,
             gate_type: str,
-            contestant: "Contestant",
             planned_time: datetime.datetime,
             actual_time: Optional[datetime.datetime],
     ) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.calculate_score(
             planned_time,
-            actual_time,
-            self.get_gate_score_override(gate_type, contestant),
+            actual_time
         )
 
-    def get_missed_penalty_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
+    def get_missed_penalty_for_gate_type(self, gate_type: str) -> float:
         """
         The number of points given for each second from the target time
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_missed_penalty(self.get_gate_score_override(gate_type, contestant))
+        return gate_score.missed_penalty
 
-    def get_penalty_per_second_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
+    def get_penalty_per_second_for_gate_type(self, gate_type: str) -> float:
         """
         The number of points given for each second from the target time
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_penalty_per_second(self.get_gate_score_override(gate_type, contestant))
+        return gate_score.penalty_per_second
 
-    def get_maximum_timing_penalty_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
+    def get_maximum_timing_penalty_for_gate_type(self, gate_type: str) -> float:
         """
         The maximum penalty that can be awarded for being off time
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_maximum_penalty(self.get_gate_score_override(gate_type, contestant))
+        return gate_score.maximum_penalty
 
-    def get_graceperiod_before_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
+    def get_graceperiod_before_for_gate_type(self, gate_type: str) -> float:
         """
         The number of seconds the gate can be passed early without giving penalty
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_graceperiod_before(self.get_gate_score_override(gate_type, contestant))
+        return gate_score.graceperiod_before
 
-    def get_graceperiod_after_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
+    def get_graceperiod_after_for_gate_type(self, gate_type: str) -> float:
         """
         The number of seconds the gate can be passed late without giving penalty
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_graceperiod_after(self.get_gate_score_override(gate_type, contestant))
+        return gate_score.graceperiod_after
 
-    def get_procedure_turn_penalty_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
+    def get_procedure_turn_penalty_for_gate_type(self, gate_type: str) -> float:
         """
         The penalty for missing a procedure turn
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_missed_procedure_turn_penalty(self.get_gate_score_override(gate_type, contestant))
+        return gate_score.missed_procedure_turn_penalty
 
-    def get_bad_crossing_extended_gate_penalty_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
+    def get_bad_crossing_extended_gate_penalty_for_gate_type(self, gate_type: str) -> float:
         """
         The penalty for crossing the extended starting line backwards
         """
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.get_bad_crossing_extended_gate_penalty(self.get_gate_score_override(gate_type, contestant))
+        return gate_score.bad_crossing_extended_gate_penalty
 
-    def get_extended_gate_width_for_gate_type(self, gate_type: str, contestant: "Contestant") -> float:
+    def get_extended_gate_width_for_gate_type(self, gate_type: str) -> float:
         """
         The width of the extended gate line
         """
@@ -1341,7 +1204,7 @@ class Scorecard(models.Model):
         return gate_score.extended_gate_width
 
     def get_backtracking_after_steep_gate_grace_period_seconds_for_gate_type(
-            self, gate_type: str, contestant: "Contestant"
+            self, gate_type: str
     ) -> float:
         """
         The number of seconds after passing a gate with a steep turn (more than 90 degrees) where backtracking is not calculated
@@ -1350,7 +1213,7 @@ class Scorecard(models.Model):
         return gate_score.backtracking_after_steep_gate_grace_period_seconds
 
     def get_backtracking_after_gate_grace_period_nm_for_gate_type(
-            self, gate_type: str, contestant: "Contestant"
+            self, gate_type: str
     ) -> float:
         """
         The number of NM around a gate where backtracking is not calculated
@@ -1358,48 +1221,10 @@ class Scorecard(models.Model):
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.backtracking_after_gate_grace_period_nm
 
-    ### ANR Corridor
-    def get_corridor_width(self, contestant: "Contestant"):
-        """
-        contestant is not optional
-
-        :param contestant: not optional
-        :return:
-        """
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.corridor_width is not None:
-                    return override.corridor_width
-            return contestant.navigation_task.route.corridor_width
-
-    def get_corridor_grace_time(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.corridor_grace_time is not None:
-                    return override.corridor_grace_time
-        return self.corridor_grace_time
-
-    def get_corridor_outside_penalty(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.corridor_outside_penalty is not None:
-                    return override.corridor_outside_penalty
-        return self.corridor_outside_penalty
-
-    def get_corridor_maximum_penalty(self, contestant: "Contestant"):
-        if contestant:
-            override = contestant.get_track_score_override()
-            if override:
-                if override.corridor_maximum_penalty is not None:
-                    return override.corridor_maximum_penalty
-        return self.corridor_maximum_penalty
-
 
 class GateScore(models.Model):
-    name = models.CharField(max_length=100, default="")
+    scorecard = models.ForeignKey("Scorecard", on_delete=models.CASCADE)
+    gate_type = models.CharField(choices=GATE_TYPES, max_length=20)
     included_fields = MyPickledObjectField(default=list,
                                            help_text="List of field names that should be visible in forms")
     extended_gate_width = models.FloatField(
@@ -1417,57 +1242,20 @@ class GateScore(models.Model):
     backtracking_after_steep_gate_grace_period_seconds = models.FloatField(default=0)
     backtracking_after_gate_grace_period_nm = models.FloatField(default=0.5)
 
-    def get_missed_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_not_found is not None:
-            return score_override.checkpoint_not_found
-        return self.missed_penalty
+    class Meta:
+        unique_together = ("scorecard", "gate_type")
 
-    def get_graceperiod_before(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_grace_period_before is not None:
-            return score_override.checkpoint_grace_period_before
-        return self.graceperiod_before
+    def __str__(self):
+        return f"{self.scorecard.name} - {self.get_gate_type_display()}"
 
-    def get_graceperiod_after(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_grace_period_after is not None:
-            return score_override.checkpoint_grace_period_after
-        return self.graceperiod_after
-
-    def get_maximum_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_maximum_penalty is not None:
-            return score_override.checkpoint_maximum_penalty
-        return self.maximum_penalty
-
-    def get_bad_course_crossing_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.bad_course_penalty is not None:
-            return score_override.bad_course_penalty
-        return self.bad_course_crossing_penalty
-
-    def get_bad_crossing_extended_gate_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.bad_crossing_extended_gate_penalty is not None:
-            return score_override.bad_crossing_extended_gate_penalty
-        return self.bad_crossing_extended_gate_penalty
-
-    def get_missed_procedure_turn_penalty(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.missing_procedure_turn_penalty is not None:
-            return score_override.missing_procedure_turn_penalty
-        return self.missed_procedure_turn_penalty
-
-    def get_penalty_per_second(self, score_override: Optional["GateScoreOverride"]):
-        if score_override and score_override.checkpoint_penalty_per_second is not None:
-            return score_override.checkpoint_penalty_per_second
-        return self.penalty_per_second
-
-    def get_backtracking_after_steep_gate_grace_period_seconds(self, score_override: Optional["GateScoreOverride"]):
-        return self.backtracking_after_steep_gate_grace_period_seconds
-
-    def get_backtracking_after_gate_grace_period_nm(self, score_override: Optional["GateScoreOverride"]):
-        return self.backtracking_after_gate_grace_period_nm
+    @property
+    def visible_fields(self) -> List[str]:
+        return [field for block in self.included_fields for field in block[1:]]
 
     def calculate_score(
             self,
             planned_time: datetime.datetime,
             actual_time: Optional[datetime.datetime],
-            score_override: Optional["GateScoreOverride"],
     ) -> float:
         """
 
@@ -1476,142 +1264,19 @@ class GateScore(models.Model):
         :return:
         """
         if actual_time is None:
-            return self.get_missed_penalty(score_override)
+            return self.missed_penalty
         time_difference = (actual_time - planned_time).total_seconds()
-        if -self.get_graceperiod_before(score_override) < time_difference < self.get_graceperiod_after(score_override):
+        if -self.graceperiod_before < time_difference < self.graceperiod_after:
             return 0
         else:
             if time_difference > 0:
-                grace_limit = self.get_graceperiod_after(score_override)
+                grace_limit = self.graceperiod_after
             else:
-                grace_limit = self.get_graceperiod_before(score_override)
-            score = (round(abs(time_difference) - grace_limit)) * self.get_penalty_per_second(score_override)
-            if self.get_maximum_penalty(score_override) >= 0:
-                return min(self.get_maximum_penalty(score_override), score)
+                grace_limit = self.graceperiod_before
+            score = (round(abs(time_difference) - grace_limit)) * self.penalty_per_second
+            if self.maximum_penalty >= 0:
+                return min(self.maximum_penalty, score)
             return score
-
-
-class TrackScoreOverride(models.Model):
-    bad_course_grace_time = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The number of seconds a bad course can be tolerated before generating a penalty",
-    )
-    bad_course_penalty = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="A amount of points awarded for a bad course",
-    )
-    bad_course_maximum_penalty = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="A amount of points awarded for a bad course",
-    )
-    prohibited_zone_penalty = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas",
-    )
-    prohibited_zone_grace_time = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The number of seconds the contestant can be within the prohibited zone before getting penalty",
-    )
-    penalty_zone_grace_time = models.FloatField(
-        default=3,
-        help_text="The number of seconds the contestant can be within the penalty zone before getting penalty",
-    )
-    penalty_zone_penalty_per_second = models.FloatField(
-        default=3, help_text="The number of points per second beyond the grace time while inside the penalty zone"
-    )
-    penalty_zone_maximum = models.FloatField(default=100, help_text="Maximum penalty within a single zone")
-
-    ### ANR Corridor
-    corridor_width = models.FloatField(default=None, blank=True, null=True, help_text="The width of the ANR corridor")
-    corridor_grace_time = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The grace time of the ANR corridor",
-    )
-    corridor_outside_penalty = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The penalty awarded for leaving the ANR corridor",
-    )
-    corridor_maximum_penalty = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The maximum penalty for leaving the corridor",
-    )
-
-    def __str__(self):
-        return "Track score override for {}".format(self.navigationtask_set.first())
-
-
-class GateScoreOverride(models.Model):
-    for_gate_types = MyPickledObjectField(
-        default=list,
-        help_text="List of gates types (eg. tp, secret, sp) that should be overridden (all lower case)",
-    )
-    checkpoint_grace_period_before = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The time before a checkpoint that no penalties are awarded",
-    )
-    checkpoint_grace_period_after = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The time after a checkpoint that no penalties are awarded",
-    )
-    checkpoint_penalty_per_second = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The number of points awarded per second outside of the grace period",
-    )
-    checkpoint_maximum_penalty = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The maximum number of penalty points awarded for checkpoint timing",
-    )
-    checkpoint_not_found = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The penalty for missing a checkpoint",
-    )
-    missing_procedure_turn_penalty = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The penalty for missing a procedure turn",
-    )
-    bad_course_penalty = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="A amount of points awarded for crossing the gate in the wrong direction (e.g. for landing or takeoff)",
-    )
-    bad_crossing_extended_gate_penalty = models.FloatField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="The penalty awarded when crossing the extended gate in the wrong direction (typically used for start gate)",
-    )
-
-    def __str__(self):
-        return "Gate score override for {}".format(self.navigationtask_set.first())
 
 
 class Contestant(models.Model):
@@ -1747,26 +1412,26 @@ class Contestant(models.Model):
 
     def _prohibited_zone_text(self):
         scorecard = self.navigation_task.scorecard
-        return f"""Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.get_prohibited_zone_penalty(self))} points."""
+        return f"""Entering a prohibited area gives a penalty of {"{:.04}".format(scorecard.prohibited_zone_penalty)} points."""
 
     def _penalty_zone_text(self):
         scorecard = self.navigation_task.scorecard
-        return f"""Entering a penalty area gives a penalty of {"{:.04}".format(scorecard.get_penalty_zone_penalty_per_second(self))} 
-points per second after the first {"{:.04}".format(scorecard.get_penalty_zone_grace_time(self))} seconds."""
+        return f"""Entering a penalty area gives a penalty of {"{:.04}".format(scorecard.penalty_zone_penalty_per_second)} 
+points per second after the first {"{:.04}".format(scorecard.penalty_zone_grace_time)} seconds."""
 
     def _precision_rule_description(self):
         scorecard = self.navigation_task.scorecard
         gate_sizes = [item.width for item in self.navigation_task.route.waypoints]
         return f"""For this task the turning point gate width is between {min(gate_sizes)} and {max(gate_sizes)} nm.
  The penalty for 
-crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} 
-per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds.
-Crossing the extended starting line before start ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp", self)} nm) 
-gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp", self)}.
+crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp")} 
+per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp")} seconds.
+Crossing the extended starting line before start ({self.navigation_task.scorecard.get_extended_gate_width_for_gate_type("sp")} nm) 
+gives a penalty of {self.navigation_task.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")}.
 
 Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than 
-{scorecard.get_backtracking_grace_time_seconds(self)} seconds
-gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
+{scorecard.backtracking_grace_time_seconds} seconds
+gives a penalty of {scorecard.backtracking_penalty} points.
 
 {self._prohibited_zone_text()} {self._penalty_zone_text()}
 {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
@@ -1774,11 +1439,11 @@ gives a penalty of {scorecard.get_backtracking_penalty(self)} points.
 
     def _anr_rule_description(self):
         scorecard = self.navigation_task.scorecard
-        text = f"""For this task the corridor width is {"{:.1f}".format(self.navigation_task.scorecard.get_corridor_width(self))} nm. 
-Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of 
-{"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second."""
-        if scorecard.get_corridor_maximum_penalty(self) != -1:
-            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg."""
+        text = f"""For this task the corridor width is {"{:.1f}".format(self.navigation_task.route.corridor_width)} nm. 
+Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds gives a penalty of 
+{"{:.0f}".format(scorecard.corridor_outside_penalty)} point(s) per second."""
+        if scorecard.corridor_maximum_penalty != -1:
+            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor per leg."""
         text += f"""
 {self._prohibited_zone_text()} {self._penalty_zone_text()} {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
 """
@@ -1796,14 +1461,14 @@ Flying outside of the corridor more than {scorecard.get_corridor_grace_time(self
                 f"For this task the corridor width is between {minimum_size} NM and {maximum_size} NM."
             )
         text = f"""
-{corridor_width_text} Flying outside of the corridor for more than {scorecard.get_corridor_grace_time(self)} seconds gives a penalty of 
-{"{:.0f}".format(scorecard.get_corridor_outside_penalty(self))} point(s) per second. """
-        if scorecard.get_corridor_maximum_penalty(self) != -1:
-            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.get_corridor_maximum_penalty(self))} points for being outside the corridor per leg."""
+{corridor_width_text} Flying outside of the corridor for more than {scorecard.corridor_grace_time} seconds gives a penalty of 
+{"{:.0f}".format(scorecard.corridor_outside_penalty)} point(s) per second. """
+        if scorecard.corridor_maximum_penalty != -1:
+            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor per leg."""
 
         text += f"""
-There are timed gates on the track. The penalty for crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp", self)} point(s) per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp", self)} seconds. 
-Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.get_backtracking_grace_time_seconds(self)} seconds gives a penalty of {scorecard.get_backtracking_penalty(self)} points. 
+There are timed gates on the track. The penalty for crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp")} point(s) per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp")} seconds. 
+Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.backtracking_grace_time_seconds} seconds gives a penalty of {scorecard.backtracking_penalty} points. 
 {self._prohibited_zone_text()} {self._penalty_zone_text()}
 {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
 
@@ -2032,20 +1697,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         actual = self.actualgatetime_set.filter(gate=gate_name).first()
         if planned and actual:
             return (actual.time - planned).total_seconds()
-        return None
-
-    def get_track_score_override(self) -> Optional[TrackScoreOverride]:
-        if self.track_score_override is not None:
-            return self.track_score_override
-        return self.navigation_task.track_score_override
-
-    def get_gate_score_override(self, gate_type: str) -> Optional[GateScoreOverride]:
-        for item in self.gate_score_override.all():
-            if gate_type in item.for_gate_types:
-                return item
-        for item in self.navigation_task.gate_score_override.all():
-            if gate_type in item.for_gate_types:
-                return item
         return None
 
     def get_tracker_ids(self) -> List[str]:
@@ -2411,7 +2062,7 @@ class TrackAnnotation(models.Model):
     longitude = models.FloatField()
     message = models.TextField()
     gate = models.CharField(max_length=30, blank=True, default="")
-    gate_type = models.CharField(max_length=30, blank=True, default=TURNPOINT, choices=GATES_TYPES)
+    gate_type = models.CharField(max_length=30, blank=True, default=TURNPOINT, choices=GATE_TYPES)
     type = models.CharField(max_length=30, choices=ANNOTATION_TYPES)
 
     class Meta:
@@ -3185,6 +2836,8 @@ def validate_route(sender, instance: Route, **kwargs):
 @receiver(post_delete, sender=NavigationTask)
 def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, **kwargs):
     instance.route.delete()
+    if instance.scorecard:
+        instance.scorecard.delete()
 
 
 # @receiver(post_delete, sender=ContestantTrack)

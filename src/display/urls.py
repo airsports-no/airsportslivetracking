@@ -19,9 +19,11 @@ from display.views import frontend_view_map, \
     get_contestant_email_flight_orders_link, EditableRouteList, EditableRouteDeleteView, \
     refresh_editable_route_navigation_task, \
     get_contestant_email_flying_orders_link, broadcast_navigation_task_orders, upload_gpx_track_for_contesant, \
-    navigation_task_score_override_view, RouteToTaskWizard, healthz, readyz, revert_uploaded_gpx_track_for_contestant, \
+    RouteToTaskWizard, healthz, readyz, revert_uploaded_gpx_track_for_contestant, \
     copy_editable_route, download_gpx_track_contestant, view_contest_team_images, clear_profile_image_background, \
-    upload_profile_picture, get_contestant_processing_statistics, get_contest_creators_emails
+    upload_profile_picture, get_contestant_processing_statistics, get_contest_creators_emails, \
+    navigation_task_view_detailed_score, navigation_task_restore_original_scorecard_view, \
+    navigation_task_scorecard_override_view, navigation_task_gatescore_override_view
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -49,8 +51,12 @@ urlpatterns = [
     path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),
     path('contest/<int:pk>/share/', share_contest, name="contest_share"),
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
-    path('navigationtask/<int:pk>/updatescorecardoverride/', navigation_task_score_override_view,
+    path('navigationtask/<int:pk>/restorescorecard/', navigation_task_restore_original_scorecard_view, name="navigationtask_restorescorecard"),
+    path('navigationtask/<int:pk>/scoredetails/', navigation_task_view_detailed_score, name="navigationtask_scoredetails"),
+    path('navigationtask/<int:pk>/updatescorecardoverride/', navigation_task_scorecard_override_view,
          name="navigationtask_updatescorecardoverride"),
+    path('navigationtask/<int:pk>/updategatescoreoverride/<int:gate_score_pk>/', navigation_task_gatescore_override_view,
+         name="navigationtask_updategatescoreoverride"),
     path('navigationtask/<int:pk>/qr/', tracking_qr_code_view, name="navigationtask_qr"),
     path('navigationtask/<int:pk>/map/', get_navigation_task_map, name="navigationtask_map"),
     path('navigationtask/<int:pk>/rules/', view_navigation_task_rules, name="navigationtask_rules"),

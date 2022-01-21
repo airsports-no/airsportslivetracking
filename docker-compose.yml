@@ -208,7 +208,7 @@ services:
     ports:
       - 5000-5150:5000-5150
       - 5000-5150:5000-5150/udp
-    #      - 8082:8082
+      - 8082:8082
     depends_on:
       - mysql
 
@@ -221,8 +221,10 @@ services:
       #      - MYSQL_USER=traccar
       - MYSQL_ROOT_PASSWORD=traccar
     #      - MYSQL_PASSWORD=traccar
+    ports:
+      - "3306:3306"
     volumes:
-      - mysqldata:/var/lib/mysql/
+      - mysqldata2:/var/lib/mysql/
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
 
   redis:
@@ -245,5 +247,5 @@ services:
 
 
 volumes:
-  mysqldata:
+  mysqldata2:
   traccar-db:

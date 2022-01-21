@@ -102,7 +102,7 @@ class PenaltyZoneCalculator(Calculator):
                 del self.running_penalty[zone]
             else:
                 self.running_penalty[zone] = self.scorecard.calculate_penalty_zone_score(
-                    self.contestant, start_time, position.time
+                    start_time, position.time
                 )
                 self.existing_reference[zone] = self.update_score(
                     last_gate or self.gates[0],

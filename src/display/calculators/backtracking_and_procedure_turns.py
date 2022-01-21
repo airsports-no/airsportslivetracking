@@ -174,11 +174,11 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     logger.info(f"Bearing differences: {bearing_differences}")
                     logger.info(f"Accumulated bearing differences: {accumulated_differences}")
                     self.update_score(last_gate or self.gates[0],
-                                      self.scorecard.get_backtracking_penalty(self.contestant),
+                                      self.scorecard.backtracking_penalty,
                                       "circling start",
                                       next_position.latitude, next_position.longitude, "anomaly",
                                       self.BACKTRACKING_SCORE_TYPE,
-                                      self.scorecard.get_maximum_backtracking_penalty(self.contestant))
+                                      self.scorecard.backtracking_maximum_penalty)
 
                 break
         # logger.info(f"{now}: {difference}")
@@ -298,7 +298,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         logger.info(
                             "{} {}: Started backtracking, let's see if this goes on for more than {} seconds".format(
                                 self.contestant, last_position.time,
-                                self.scorecard.get_backtracking_grace_time_seconds(self.contestant)))
+                                self.scorecard.backtracking_grace_time_seconds))
                         self.backtracking_start_time = last_position.time
                         self.update_tracking_state(self.BACKTRACKING_TEMPORARY)
                     elif is_grace_distance_after_turn:
@@ -317,16 +317,14 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                                     last_gate.type, self.contestant)))
                 if self.tracking_state == self.BACKTRACKING_TEMPORARY:
                     if (
-                            last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.get_backtracking_grace_time_seconds(
-                        self.contestant):
+                            last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
                         self.update_score(last_gate,
-                                          self.scorecard.get_backtracking_penalty(self.contestant),
+                                          self.scorecard.backtracking_penalty,
                                           "backtracking",
                                           last_position.latitude, last_position.longitude, "anomaly",
                                           self.BACKTRACKING_SCORE_TYPE,
-                                          maximum_score=self.scorecard.get_maximum_backtracking_penalty(
-                                              self.contestant))
+                                          maximum_score=self.scorecard.backtracking_maximum_penalty)
             else:
                 if self.tracking_state == self.BACKTRACKING:
                     logger.info("{} {}: Done backtracking for {} seconds".format(self.contestant,

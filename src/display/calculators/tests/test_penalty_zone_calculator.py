@@ -23,9 +23,9 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         self.contestant.navigation_task.route.waypoints = [waypoint]
         self.calculator = PenaltyZoneCalculator(self.contestant, get_default_scorecard(), [], self.route,
                                                 self.update_score)
-        self.calculator.scorecard.get_penalty_zone_grace_time = lambda c: 3
-        self.calculator.scorecard.get_penalty_zone_penalty_per_second = lambda c: 3
-        self.calculator.scorecard.get_penalty_zone_maximum = lambda c: 200
+        self.calculator.scorecard.penalty_zone_grace_time = 3
+        self.calculator.scorecard.penalty_zone_penalty_per_second = 3
+        self.calculator.scorecard.penalty_zone_maximum = 200
 
     def test_inside_enroute(self):
         position = Mock()

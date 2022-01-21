@@ -19,7 +19,7 @@ from timezone_field import TimeZoneFormField
 from display.map_plotter import A4, A3
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES, EditableRoute, Scorecard, GateScore
+    ContestTeam, TURNPOINT, GATE_TYPES, EditableRoute, Scorecard, GateScore
 from display.poker_cards import PLAYING_CARDS
 
 FILE_TYPE_CSV = "csv"
@@ -101,351 +101,6 @@ class ContestantMapForm(forms.Form):
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7)
     output_type = forms.ChoiceField(initial=PDF, choices=OUTPUT_TYPES)
-
-
-class PrecisionScoreOverrideForm(forms.Form):
-    backtracking_penalty = forms.FloatField(required=True)
-    regular_gate_grace_time = forms.FloatField(required=True,
-                                               help_text="Grace time before and after turning points and secret gates")
-    regular_gate_penalty_per_second = forms.FloatField(required=True,
-                                                       help_text="Penalty per second time offset (beyond regular_gate_grace_time) for regular and secret gates")
-    prohibited_zone_penalty = forms.FloatField(required=True,
-                                               help_text="This penalty is awarded whenever the contestant enters a prohibited zone")
-    prohibited_zone_grace_time = forms.FloatField(required=True,
-                                                  help_text="The number of seconds the contestant can be within the prohibited zone before getting penalties")
-    penalty_zone_maximum = forms.FloatField(required=True,
-                                            help_text="The maximum penalty achievable inside a single penalty zone")
-    penalty_zone_grace_time = forms.FloatField(required=True,
-                                               help_text="The number of seconds the contestant can be within the zone before getting penalties")
-    penalty_zone_penalty_per_second = forms.FloatField(required=True,
-                                                       help_text="The number of penalty points given per second inside the zone")
-
-    def build_score_override(self, navigation_task: NavigationTask):
-        if navigation_task.track_score_override:
-            navigation_task.track_score_override.delete()
-        navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            bad_course_penalty=self.cleaned_data["backtracking_penalty"],
-            prohibited_zone_grace_time=self.cleaned_data["prohibited_zone_grace_time"],
-            prohibited_zone_penalty=
-            self.cleaned_data[
-                "prohibited_zone_penalty"],
-            penalty_zone_maximum=self.cleaned_data[
-                "penalty_zone_maximum"],
-            penalty_zone_grace_time=
-            self.cleaned_data[
-                "penalty_zone_grace_time"],
-            penalty_zone_penalty_per_second=
-            self.cleaned_data[
-                "penalty_zone_penalty_per_second"]
-        )
-        navigation_task.save()
-        navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["tp", "secret"],
-                                                                                 checkpoint_grace_period_after=
-                                                                                 self.cleaned_data[
-                                                                                     "regular_gate_grace_time"],
-                                                                                 checkpoint_grace_period_before=
-                                                                                 self.cleaned_data[
-                                                                                     "regular_gate_grace_time"],
-                                                                                 checkpoint_penalty_per_second=
-                                                                                 self.cleaned_data[
-                                                                                     "regular_gate_penalty_per_second"]))
-
-    @classmethod
-    def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
-        return {
-            "backtracking_penalty": scorecard.backtracking_penalty,
-            "prohibited_zone_penalty": scorecard.prohibited_zone_penalty,
-            "prohibited_zone_grace_time": scorecard.prohibited_zone_grace_time,
-            "penalty_zone_maximum": scorecard.penalty_zone_maximum,
-            "penalty_zone_grace_time": scorecard.penalty_zone_grace_time,
-            "penalty_zone_penalty_per_second": scorecard.penalty_zone_penalty_per_second,
-            "regular_gate_grace_time": scorecard.turning_point_gate_score.graceperiod_before,
-            "regular_gate_penalty_per_second": scorecard.turning_point_gate_score.penalty_per_second
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.layout = Layout(
-            Fieldset(
-                "If required, override default scorecard penalty points",
-                "backtracking_penalty",
-                "regular_gate_grace_time",
-                "regular_gate_penalty_per_second",
-            ),
-            Fieldset(
-                "Prohibited zone",
-                "prohibited_zone_penalty",
-                "prohibited_zone_grace_time",
-            ),
-            Fieldset(
-                "Penalty zone",
-                "penalty_zone_penalty_per_second",
-                "penalty_zone_grace_time",
-                "penalty_zone_maximum",
-            ),
-            ButtonHolder(
-                Submit("submit", "Submit")
-            )
-        )
-
-
-class ANRCorridorScoreOverrideForm(forms.Form):
-    corridor_grace_time = forms.IntegerField(required=True,
-                                             help_text="The number of seconds the contestant can stay outside the corridor before penalties start")
-    corridor_outside_penalty = forms.FloatField(required=True,
-                                                help_text="The number of penalty points given per second outside the corridor beyond corridor_grace_time")
-    corridor_maximum_penalty = forms.FloatField(required=True,
-                                                help_text="A value less than 0 means that there is no maximum penalty. "
-                                                          "Otherwise the combined penalty applied for a single corridor exclusion along a single leg cannot exceed this.")
-    gate_grace_time = forms.FloatField(required=True,
-                                       help_text="Grace time before and after starting point and finish point")
-    gate_penalty_per_second = forms.FloatField(required=True,
-                                               help_text="Penalty per second time offset (beyond gate grace time) for starting point and finish point")
-    gate_miss_penalty = forms.FloatField(required=True,
-                                         help_text="Penalty awarded when missing the starting point or finish point entirely")
-
-    prohibited_zone_penalty = forms.FloatField(required=True,
-                                               help_text="This penalty is awarded whenever the contestant enters a prohibited zone")
-    prohibited_zone_grace_time = forms.FloatField(required=True,
-                                                  help_text="The number of seconds the contestant can be within the prohibited zone before getting penalties")
-
-    penalty_zone_maximum = forms.FloatField(required=True,
-                                            help_text="The maximum penalty achievable inside a single penalty zone")
-    penalty_zone_grace_time = forms.FloatField(required=True,
-                                               help_text="The number of seconds the contestant can be within the zone before getting penalties")
-    penalty_zone_penalty_per_second = forms.FloatField(required=True,
-                                                       help_text="The number of penalty points given per second inside the zone")
-
-    def build_score_override(self, navigation_task: NavigationTask):
-        if navigation_task.track_score_override:
-            navigation_task.track_score_override.delete()
-        navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            corridor_grace_time=self.cleaned_data[
-                "corridor_grace_time"],
-            corridor_outside_penalty=
-            self.cleaned_data[
-                "corridor_outside_penalty"],
-            corridor_maximum_penalty=
-            self.cleaned_data[
-                "corridor_maximum_penalty"],
-            prohibited_zone_penalty=
-            self.cleaned_data[
-                "prohibited_zone_penalty"],
-            prohibited_zone_grace_time=self.cleaned_data["prohibited_zone_grace_time"],
-            penalty_zone_maximum=self.cleaned_data[
-                "penalty_zone_maximum"],
-            penalty_zone_grace_time=
-            self.cleaned_data[
-                "penalty_zone_grace_time"],
-            penalty_zone_penalty_per_second=
-            self.cleaned_data[
-                "penalty_zone_penalty_per_second"],
-        )
-        navigation_task.save()
-        navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["sp", "fp"],
-                                                                                 checkpoint_grace_period_after=
-                                                                                 self.cleaned_data[
-                                                                                     "gate_grace_time"],
-                                                                                 checkpoint_grace_period_before=
-                                                                                 self.cleaned_data[
-                                                                                     "gate_grace_time"],
-                                                                                 checkpoint_penalty_per_second=
-                                                                                 self.cleaned_data[
-                                                                                     "gate_penalty_per_second"],
-                                                                                 checkpoint_not_found=self.cleaned_data[
-                                                                                     "gate_miss_penalty"]))
-
-    @classmethod
-    def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
-        return {
-            "corridor_grace_time": scorecard.corridor_grace_time,
-            "corridor_outside_penalty": scorecard.corridor_outside_penalty,
-            "corridor_maximum_penalty": scorecard.corridor_maximum_penalty,
-            "gate_grace_time": scorecard.starting_point_gate_score.graceperiod_before,
-            "gate_penalty_per_second": scorecard.starting_point_gate_score.penalty_per_second,
-            "gate_miss_penalty": scorecard.starting_point_gate_score.missed_penalty,
-            "prohibited_zone_penalty": scorecard.prohibited_zone_penalty,
-            "prohibited_zone_grace_time": scorecard.prohibited_zone_grace_time,
-            "penalty_zone_maximum": scorecard.penalty_zone_maximum,
-            "penalty_zone_grace_time": scorecard.penalty_zone_grace_time,
-            "penalty_zone_penalty_per_second": scorecard.penalty_zone_penalty_per_second
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.layout = Layout(
-            Fieldset(
-                "Corridor scoring",
-                "corridor_outside_penalty",
-                "corridor_grace_time",
-                "corridor_maximum_penalty"
-            ),
-            Fieldset(
-                "Start and finish gates",
-                "gate_penalty_per_second",
-                "gate_grace_time",
-                "gate_miss_penalty",
-            ),
-            Fieldset(
-                "Prohibited zone",
-                "prohibited_zone_penalty",
-                "prohibited_zone_grace_time",
-            ),
-            Fieldset(
-                "Penalty zone",
-                "penalty_zone_penalty_per_second",
-                "penalty_zone_grace_time",
-                "penalty_zone_maximum",
-            ),
-            ButtonHolder(
-                Submit("submit", "Submit")
-            )
-        )
-
-
-class AirsportsScoreOverrideForm(forms.Form):
-    corridor_grace_time = forms.IntegerField(required=True,
-                                             help_text="The number of seconds the contestant can stay outside the corridor before penalties start")
-    corridor_outside_penalty = forms.FloatField(required=True,
-                                                help_text="The number of penalty points given per second outside the corridor beyond corridor_grace_time")
-    corridor_maximum_penalty = forms.FloatField(required=True,
-                                                help_text="A value less than 0 means that there is no maximum penalty. "
-                                                          "Otherwise the combined penalty applied for a single corridor exclusion along a single leg cannot exceed this.")
-    gate_grace_time = forms.FloatField(required=True,
-                                       help_text="Grace time before and after start, finish, and regular gates")
-    gate_penalty_per_second = forms.FloatField(required=True,
-                                               help_text="Penalty per second time offset (beyond gate grace time) for start, finish, and regular gates")
-    gate_miss_penalty = forms.FloatField(required=True,
-                                         help_text="Penalty awarded when missing the start, finish, and regular gates entirely")
-
-    secret_grace_time = forms.FloatField(required=True,
-                                         help_text="Grace time before and after secret gates")
-    secret_penalty_per_second = forms.FloatField(required=True,
-                                                 help_text="Penalty per second time offset (beyond gate grace time) for secret gates")
-    secret_miss_penalty = forms.FloatField(required=True,
-                                           help_text="Penalty awarded when missing the secret gates entirely")
-
-    prohibited_zone_penalty = forms.FloatField(required=True,
-                                               help_text="This penalty is awarded whenever the contestant enters a prohibited zone")
-    prohibited_zone_grace_time = forms.FloatField(required=True,
-                                                  help_text="The number of seconds the contestant can be within the prohibited zone before getting penalties")
-    penalty_zone_maximum = forms.FloatField(required=True,
-                                            help_text="The maximum penalty achievable inside a single penalty zone")
-    penalty_zone_grace_time = forms.FloatField(required=True,
-                                               help_text="The number of seconds the contestant can be within the zone before getting penalties")
-    penalty_zone_penalty_per_second = forms.FloatField(required=True,
-                                                       help_text="The number of penalty points given per second inside the zone")
-
-    def build_score_override(self, navigation_task: NavigationTask):
-        if navigation_task.track_score_override:
-            navigation_task.track_score_override.delete()
-        navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            corridor_grace_time=self.cleaned_data[
-                "corridor_grace_time"],
-            corridor_outside_penalty=
-            self.cleaned_data[
-                "corridor_outside_penalty"],
-            corridor_maximum_penalty=
-            self.cleaned_data[
-                "corridor_maximum_penalty"],
-            prohibited_zone_penalty=
-            self.cleaned_data[
-                "prohibited_zone_penalty"],
-            prohibited_zone_grace_time=self.cleaned_data["prohibited_zone_grace_time"],
-            penalty_zone_maximum=self.cleaned_data[
-                "penalty_zone_maximum"],
-            penalty_zone_grace_time=
-            self.cleaned_data[
-                "penalty_zone_grace_time"],
-            penalty_zone_penalty_per_second=
-            self.cleaned_data[
-                "penalty_zone_penalty_per_second"],
-        )
-        navigation_task.save()
-        navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["sp", "fp", "tp"],
-                                                                                 checkpoint_grace_period_after=
-                                                                                 self.cleaned_data[
-                                                                                     "gate_grace_time"],
-                                                                                 checkpoint_grace_period_before=
-                                                                                 self.cleaned_data[
-                                                                                     "gate_grace_time"],
-                                                                                 checkpoint_penalty_per_second=
-                                                                                 self.cleaned_data[
-                                                                                     "gate_penalty_per_second"],
-                                                                                 checkpoint_not_found=self.cleaned_data[
-                                                                                     "gate_miss_penalty"]))
-
-        navigation_task.gate_score_override.add(GateScoreOverride.objects.create(for_gate_types=["secret"],
-                                                                                 checkpoint_grace_period_after=
-                                                                                 self.cleaned_data[
-                                                                                     "secret_grace_time"],
-                                                                                 checkpoint_grace_period_before=
-                                                                                 self.cleaned_data[
-                                                                                     "secret_grace_time"],
-                                                                                 checkpoint_penalty_per_second=
-                                                                                 self.cleaned_data[
-                                                                                     "secret_penalty_per_second"],
-                                                                                 checkpoint_not_found=self.cleaned_data[
-                                                                                     "secret_miss_penalty"]))
-
-    @classmethod
-    def extract_default_values_from_scorecard(cls, scorecard: "Scorecard") -> Dict:
-        return {
-            "corridor_grace_time": scorecard.corridor_grace_time,
-            "corridor_outside_penalty": scorecard.corridor_outside_penalty,
-            "corridor_maximum_penalty": scorecard.corridor_maximum_penalty,
-            "gate_grace_time": scorecard.starting_point_gate_score.graceperiod_before,
-            "gate_penalty_per_second": scorecard.starting_point_gate_score.penalty_per_second,
-            "gate_miss_penalty": scorecard.starting_point_gate_score.missed_penalty,
-            "secret_grace_time": scorecard.secret_gate_score.graceperiod_before,
-            "secret_penalty_per_second": scorecard.secret_gate_score.penalty_per_second,
-            "secret_miss_penalty": scorecard.secret_gate_score.missed_penalty,
-            "prohibited_zone_penalty": scorecard.prohibited_zone_penalty,
-            "prohibited_zone_grace_time": scorecard.prohibited_zone_grace_time,
-            "penalty_zone_maximum": scorecard.penalty_zone_maximum,
-            "penalty_zone_grace_time": scorecard.penalty_zone_grace_time,
-            "penalty_zone_penalty_per_second": scorecard.penalty_zone_penalty_per_second
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.layout = Layout(
-            Fieldset(
-                "Corridor scoring",
-                "corridor_outside_penalty",
-                "corridor_grace_time",
-                "corridor_maximum_penalty"
-            ),
-            Fieldset(
-                "Regular gates",
-                "gate_penalty_per_second",
-                "gate_grace_time",
-                "gate_miss_penalty"
-            ),
-            Fieldset(
-                "Secret gates",
-                "secret_penalty_per_second",
-                "secret_grace_time",
-                "secret_miss_penalty",
-            ),
-            Fieldset(
-                "Prohibited zone",
-                "prohibited_zone_penalty",
-                "prohibited_zone_grace_time",
-            ),
-            Fieldset(
-                "Penalty zone",
-                "penalty_zone_penalty_per_second",
-                "penalty_zone_grace_time",
-                "penalty_zone_maximum",
-            ),
-            ButtonHolder(
-                Submit("submit", "Submit")
-            )
-        )
 
 
 class TaskTypeForm(forms.Form):
@@ -596,7 +251,7 @@ class WaypointForm(forms.Form):
     longitude = forms.FloatField(help_text="degrees", widget=forms.HiddenInput())
     time_check = forms.BooleanField(required=False, initial=True)
     gate_check = forms.BooleanField(required=False, initial=True)
-    type = forms.ChoiceField(initial=TURNPOINT, choices=GATES_TYPES)
+    type = forms.ChoiceField(initial=TURNPOINT, choices=GATE_TYPES)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -607,10 +262,10 @@ class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
         fields = (
-        "name", "start_time", "finish_time", "display_background_map", "display_secrets", "original_scorecard",
-        "minutes_to_starting_point",
-        "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
-        "score_sorting_direction", "default_map", "default_line_width", "calculation_delay_minutes")
+            "name", "start_time", "finish_time", "display_background_map", "display_secrets", "original_scorecard",
+            "minutes_to_starting_point",
+            "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
+            "score_sorting_direction", "default_map", "default_line_width", "calculation_delay_minutes")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1081,10 +736,39 @@ class GPXTrackImportForm(forms.Form):
 class ScorecardForm(forms.ModelForm):
     class Meta:
         model = Scorecard
-        fields = "__all__"
+        exclude = ("name", "original", "included_fields", "calculator", "task_type", "use_procedure_turns")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            *[Fieldset(*block) for block in self.instance.included_fields],
+            *[Field(key, type="hidden") for key in self.fields.keys() if key not in self.instance.visible_fields],
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+        print(self.helper.layout.fields[0])
 
 
 class GateScoreForm(forms.ModelForm):
     class Meta:
         model = GateScore
         fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            *[Fieldset(*block) for block in self.instance.included_fields],
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+
+
+class ScorecardFormSetHelper(FormHelper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.form_method = 'post'
+        self.render_required_fields = True

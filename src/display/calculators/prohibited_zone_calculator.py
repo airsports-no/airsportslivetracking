@@ -77,7 +77,7 @@ class ProhibitedZoneCalculator(Calculator):
         ):
             inside_this_time.add(inside)
             if inside not in self.inside_zones:
-                penalty = self.scorecard.get_prohibited_zone_penalty(self.contestant)
+                penalty = self.scorecard.prohibited_zone_penalty
                 self.running_penalty[inside] = penalty
                 self.update_score(
                     last_gate or self.gates[0],

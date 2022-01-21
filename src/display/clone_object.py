@@ -1,13 +1,16 @@
 from django.db.models import ForeignKey
 
 
-def clone_object(obj, attrs={}):
+def clone_object(obj, attrs=None):
     """
     Copied from https://stackoverflow.com/questions/61584535/django-clone-the-recursive-objects
     :param obj:
     :param attrs:
     :return:
     """
+    if not attrs:
+        attrs = {}
+
     # we start by building a "flat" clone
     clone = obj._meta.model.objects.get(pk=obj.pk)
     clone.pk = None
@@ -48,7 +51,9 @@ def clone_object(obj, attrs={}):
     return clone
 
 
-def clone_object_only_foreign_keys(obj, attrs={}):
+def clone_object_only_foreign_keys(obj, attrs=None):
+    if not attrs:
+        attrs = {}
     # we start by building a "flat" clone
     clone = obj._meta.model.objects.get(pk=obj.pk)
     clone.pk = None
@@ -67,5 +72,22 @@ def clone_object_only_foreign_keys(obj, attrs={}):
         if isinstance(field, ForeignKey):
             child = getattr(clone, field.name)
             setattr(clone, field.name, clone_object_only_foreign_keys(child))
+    clone.save()
+    return clone
+
+
+def simple_clone(obj, attrs=None):
+    if not attrs:
+        attrs = {}
+    # we start by building a "flat" clone
+    clone = obj._meta.model.objects.get(pk=obj.pk)
+    clone.pk = None
+
+    # if caller specified some attributes to be overridden,
+    # use them
+    for key, value in attrs.items():
+        setattr(clone, key, value)
+
+    # save the partial clone to have a valid ID assigned
     clone.save()
     return clone
