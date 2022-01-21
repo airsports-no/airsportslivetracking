@@ -63,7 +63,7 @@ contest = Contest.objects.create(name="WPFC 2017", is_public=True, start_time=co
                                  finish_time=contest_finish_time)
 with open("../data/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
     route = create_precision_route_from_gpx(file, True)
-navigation_task = NavigationTask.objects.create(name="Route-1-Blue ", contest=contest,
+navigation_task = NavigationTask.create(name="Route-1-Blue ", contest=contest,
                                                 route=route, scorecard=scorecard,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
                                                 is_public=True)

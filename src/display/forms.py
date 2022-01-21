@@ -19,7 +19,7 @@ from timezone_field import TimeZoneFormField
 from display.map_plotter import A4, A3
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES, EditableRoute, Scorecard
+    ContestTeam, TrackScoreOverride, GateScoreOverride, TURNPOINT, GATES_TYPES, EditableRoute, Scorecard, GateScore
 from display.poker_cards import PLAYING_CARDS
 
 FILE_TYPE_CSV = "csv"
@@ -606,10 +606,11 @@ class WaypointForm(forms.Form):
 class NavigationTaskForm(forms.ModelForm):
     class Meta:
         model = NavigationTask
-        fields = ("name", "start_time", "finish_time", "display_background_map", "display_secrets", "scorecard",
-                  "minutes_to_starting_point",
-                  "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
-                  "score_sorting_direction", "default_map", "default_line_width", "calculation_delay_minutes")
+        fields = (
+        "name", "start_time", "finish_time", "display_background_map", "display_secrets", "original_scorecard",
+        "minutes_to_starting_point",
+        "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
+        "score_sorting_direction", "default_map", "default_line_width", "calculation_delay_minutes")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1075,3 +1076,15 @@ class GPXTrackImportForm(forms.Form):
                 Submit("submit", "Submit")
             )
         )
+
+
+class ScorecardForm(forms.ModelForm):
+    class Meta:
+        model = Scorecard
+        fields = "__all__"
+
+
+class GateScoreForm(forms.ModelForm):
+    class Meta:
+        model = GateScore
+        fields = "__all__"

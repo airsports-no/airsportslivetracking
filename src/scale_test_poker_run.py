@@ -82,7 +82,7 @@ def load_data_traccar(tracks, offset=30, leadtime=0):
             print(f"Cycle duration: {finish - start:.02f}")
 
 
-navigation_task = NavigationTask.objects.get(pk=314)
+navigation_task = NavigationTask.get(pk=314)
 navigation_task.contestant_set.all().delete()
 track = load_traccar_track("/data/tracks/espen_poker.csv")
 actual_start_time = datetime.datetime.now(datetime.timezone.utc)

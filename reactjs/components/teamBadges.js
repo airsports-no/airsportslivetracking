@@ -256,7 +256,7 @@ class ConnectedLowerThirdTeam extends Component {
     }
 
     render() {
-        if (this.props.scorecard_data.task_type.includes("poker")) {
+        if (this.props.scorecard.task_type.includes("poker")) {
             return this.pokerHand()
         }
         return this.profileImages()

@@ -26,7 +26,7 @@ class TestInterpolation(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
 
-        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+        self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
                                                              scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
@@ -95,7 +95,7 @@ class TestCrossingEstimate(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
 
-        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+        self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=self.route,
                                                              scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",

@@ -21,7 +21,7 @@ class TestContestantValidation(TransactionTestCase):
                                               start_time=datetime.datetime.now(datetime.timezone.utc),
                                               finish_time=datetime.datetime.now(datetime.timezone.utc))
         route = Route.objects.create(name="Route")
-        self.navigation_task = NavigationTask.objects.create(name="NavigationTask",
+        self.navigation_task = NavigationTask.create(name="NavigationTask",
                                                              scorecard=get_default_scorecard(),
                                                              start_time=datetime.datetime(2020, 1, 1, 10,
                                                                                           tzinfo=datetime.timezone.utc),
@@ -176,7 +176,7 @@ class TestGetContestantForDevice(TransactionTestCase):
                                               start_time=datetime.datetime.now(datetime.timezone.utc),
                                               finish_time=datetime.datetime.now(datetime.timezone.utc))
         route = Route.objects.create(name="Route")
-        self.navigation_task = NavigationTask.objects.create(name="NavigationTask",
+        self.navigation_task = NavigationTask.create(name="NavigationTask",
                                                              scorecard=get_default_scorecard(),
                                                              start_time=datetime.datetime(2020, 1, 1, 10,
                                                                                           tzinfo=datetime.timezone.utc),

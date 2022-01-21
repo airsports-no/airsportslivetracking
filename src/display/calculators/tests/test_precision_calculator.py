@@ -70,7 +70,7 @@ class TestFullTrack(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
 
-        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+        self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
                                                              scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
@@ -207,7 +207,7 @@ class Test2017WPFC(TransactionTestCase):
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_precision_2020
-        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+        self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
                                                              scorecard=default_scorecard_fai_precision_2020.get_default_scorecard(),
                                                              contest=Contest.objects.create(name="contest",
@@ -293,7 +293,7 @@ class TestNM2019(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
-        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+        self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
                                                              scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",
@@ -358,7 +358,7 @@ class TestHamar23March2021(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
-        self.navigation_task = NavigationTask.objects.create(name="NM navigation_task",
+        self.navigation_task = NavigationTask.create(name="NM navigation_task",
                                                              route=route,
                                                              scorecard=self.scorecard,
                                                              contest=Contest.objects.create(name="contest",

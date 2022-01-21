@@ -321,20 +321,20 @@ class ConnectedNavigationTask extends Component {
             let routeRenderer = null;
             let prohibitedRender = null;
             if (this.props.navigationTask.scorecard !== undefined) {
-                if (this.props.navigationTask.scorecard_data.task_type.includes("precision") || this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
+                if (this.props.navigationTask.scorecard.task_type.includes("precision") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
                                                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
                                                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
                                                        displaySecretGates={this.props.displaySecretGates}/>
-                } else if (this.props.navigationTask.scorecard_data.task_type.includes("airsports") || this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
+                } else if (this.props.navigationTask.scorecard.task_type.includes("airsports") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <AirsportsRenderer map={this.map} navigationTask={this.props.navigationTask}
                                                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
                                                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
                                                        displaySecretGates={this.props.displaySecretGates}/>
-                } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
+                } else if (this.props.navigationTask.scorecard.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}
                                                          currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}/>
-                } else if (this.props.navigationTask.scorecard_data.task_type.includes("landing")) {
+                } else if (this.props.navigationTask.scorecard.task_type.includes("landing")) {
                     routeRenderer = <LandingRenderer map={this.map} navigationTask={this.props.navigationTask}/>
                 }
                 prohibitedRender = <ProhibitedRenderer map={this.map} navigationTask={this.props.navigationTask}/>
@@ -349,12 +349,12 @@ class ConnectedNavigationTask extends Component {
                                                 numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                 } else {
                     display = <ContestantRankTable colourMap={colourMap}
-                                                   scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker") ? 0 : 0}
+                                                   scoreDecimals={this.props.navigationTask.scorecard.task_type.includes("poker") ? 0 : 0}
                                                    numberOfContestants={this.props.navigationTask.contestant_set.length}/>
                 }
             } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                 display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}
-                                                    scoreDecimals={this.props.navigationTask.scorecard_data.task_type.includes("poker") ? 0 : 0}/>
+                                                    scoreDecimals={this.props.navigationTask.scorecard.task_type.includes("poker") ? 0 : 0}/>
                 this.props.shrinkTrackingTable();
             } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
                 display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}

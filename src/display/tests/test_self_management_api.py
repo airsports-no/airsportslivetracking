@@ -32,7 +32,7 @@ class TestContestantGatesCalculation(APITestCase):
                                                   datetime.timezone.utc),
                                               finish_time=datetime.datetime.now(
                                                   datetime.timezone.utc))
-        self.navigation_task = NavigationTask.objects.create(name="NM navigation test",
+        self.navigation_task = NavigationTask.create(name="NM navigation test",
                                                              scorecard=self.scorecard,
                                                              minutes_to_starting_point=5,
                                                              minutes_to_landing=20,
@@ -174,7 +174,7 @@ class TestContestantGatesCalculation(APITestCase):
             route = create_precision_route_from_csv("navigation_task", file.readlines()[1:], True)
         self.contest.finish_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
         self.contest.save()
-        another_navigation_task = NavigationTask.objects.create(name="no self management",
+        another_navigation_task = NavigationTask.create(name="no self management",
                                                                 scorecard=self.scorecard,
                                                                 minutes_to_starting_point=5,
                                                                 minutes_to_landing=20,

@@ -135,7 +135,7 @@ class TestAccessContest(APITestCase):
 
     def test_delete_contestant_from_other_user_with_permissions(self, patch):
         self.client.force_login(user=self.different_user_with_object_permissions)
-        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        result = self.client.delete()
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_modify_contest_without_login(self, patch):
@@ -184,25 +184,25 @@ class TestAccessContest(APITestCase):
         self.client.logout()
         self.contest.is_public = True
         self.contest.save()
-        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        result = self.client.delete()
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_delete_contest_without_login(self, patch):
         self.client.logout()
-        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        result = self.client.delete()
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_delete_contest_as_someone_else(self, patch):
         self.client.force_login(user=self.user_someone_else)
-        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        result = self.client.delete()
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_contest_as_creator(self, patch):
         self.client.force_login(user=self.user_owner)
-        result = self.client.delete(reverse("contests-detail", kwargs={'pk': self.contest_id}))
+        result = self.client.delete()
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)

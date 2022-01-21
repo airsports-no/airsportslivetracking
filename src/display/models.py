@@ -27,7 +27,7 @@ from django.core.mail import send_mail
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 from django.db import models, IntegrityError
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
@@ -47,6 +47,7 @@ from solo.models import SingletonModel
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.calculators.positions_and_gates import Position
+from display.clone_object import clone_object_only_foreign_keys
 from display.coordinate_utilities import bearing_difference
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.my_pickled_object_field import MyPickledObjectField
@@ -680,15 +681,16 @@ class NavigationTask(models.Model):
     name = models.CharField(max_length=200)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
     route = models.OneToOneField(Route, on_delete=models.PROTECT)
-    scorecard = models.ForeignKey(
+    original_scorecard = models.ForeignKey(
         "Scorecard",
         on_delete=models.PROTECT,
-        help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-            lambda: ", ".join([str(item) for item in Scorecard.objects.all()])
-        ),
-    )
-    track_score_override = models.ForeignKey("TrackScoreOverride", on_delete=models.SET_NULL, null=True, blank=True)
-    gate_score_override = models.ManyToManyField("GateScoreOverride", blank=True)
+        help_text="Reference to an existing scorecard name.", related_name="navigation_task_original")
+    scorecard = models.ForeignKey(
+        "Scorecard",
+        on_delete=models.CASCADE,
+        null=True,
+        help_text="The actual scorecard used for this task. The scorecard may be modified, since it must be a copy of original_scorecard.",
+        related_name="navigation_task_override")
     editable_route = models.ForeignKey("EditableRoute", on_delete=models.SET_NULL, null=True, blank=True)
     score_sorting_direction = models.CharField(
         default=ASCENDING,
@@ -752,6 +754,12 @@ class NavigationTask(models.Model):
     )
 
     @classmethod
+    def create(cls, **kwargs) -> "NavigationTask":
+        task = cls.objects.create(**kwargs)
+        task.assign_scorecard_from_original(force=False)
+        return task
+
+    @classmethod
     def get_visible_navigation_tasks(cls, user: User):
         contests = get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
         return NavigationTask.objects.filter(
@@ -802,6 +810,18 @@ class NavigationTask(models.Model):
 
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.isoformat())
+
+    def assign_scorecard_from_original(self, force: bool = False):
+        """
+        Makes a copy of original_scorecard and saves it as the new scorecard after deleting the old one.
+
+        :force: If true, override scorecard. Otherwise only overwrite if it does not already exist
+        """
+        if not self.scorecard or force:
+            if self.scorecard:
+                self.scorecard.delete()
+            self.scorecard = self.original_scorecard.copy(self.name)
+            self.save(update_fields=("scorecard",))
 
     def refresh_editable_route(self):
         if self.contestant_set.all().count() > 0:
@@ -906,6 +926,10 @@ class Scorecard(models.Model):
     )
 
     name = models.CharField(max_length=100, default="default", unique=True)
+    original = models.BooleanField(default=True,
+                                   help_text="Signifies that this has been created manually and is not a copy")
+    included_fields = MyPickledObjectField(default=list,
+                                           help_text="List of field names that should be visible in forms")
     calculator = models.CharField(
         choices=CALCULATORS,
         default=PRECISION,
@@ -1004,6 +1028,21 @@ class Scorecard(models.Model):
 
     def __str__(self):
         return self.name
+
+    @classmethod
+    def get_originals(cls) -> QuerySet:
+        return cls.objects.filter(original=True)
+
+    def copy(self, name_prefix: str) -> "Scorecard":
+        return clone_object_only_foreign_keys(self, {"name": f"{name_prefix}_{self.name}", "original": False})
+
+    def delete(self, **kwargs):
+        self.takeoff_gate_score.delete()
+        self.landing_gate_score.delete()
+        self.starting_point_gate_score.delete()
+        self.finish_point_gate_score.delete()
+        self.turning_point_gate_score.delete()
+        self.secret_gate_score.delete()
 
     def __get_label(self, field):
         return text_type(self._meta.get_field(field).verbose_name)
@@ -1361,6 +1400,8 @@ class Scorecard(models.Model):
 
 class GateScore(models.Model):
     name = models.CharField(max_length=100, default="")
+    included_fields = MyPickledObjectField(default=list,
+                                           help_text="List of field names that should be visible in forms")
     extended_gate_width = models.FloatField(
         default=0,
         help_text="For SP it is 2 (1 nm each side), for tp with procedure turn it is 6",
@@ -1627,12 +1668,10 @@ class Contestant(models.Model):
         blank=True,
         null=True,
     )
-    track_score_override = models.ForeignKey(TrackScoreOverride, on_delete=models.SET_NULL, null=True, blank=True)
     calculator_started = models.BooleanField(
         default=False,
         help_text="Set to true when the calculator has started. After this point it is not permitted to change the contestant",
     )
-    gate_score_override = models.ManyToManyField(GateScoreOverride, blank=True)
     predefined_gate_times = MyPickledObjectField(
         default=None,
         null=True,

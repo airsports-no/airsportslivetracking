@@ -65,7 +65,7 @@ class TestANRPerLeg(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
-        self.navigation_task = NavigationTask.objects.create(
+        self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
             scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
@@ -273,7 +273,7 @@ class TestANR(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
-        self.navigation_task = NavigationTask.objects.create(
+        self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
             scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
@@ -378,7 +378,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc
         )
 
-        self.navigation_task = NavigationTask.objects.create(
+        self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=self.route,
             scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
@@ -607,7 +607,7 @@ class TestANRPolygon(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
-        self.navigation_task = NavigationTask.objects.create(
+        self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
             scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
@@ -674,7 +674,7 @@ class TestANRBergenBacktracking(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
-        self.navigation_task = NavigationTask.objects.create(
+        self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
             scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),
@@ -741,7 +741,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
-        self.navigation_task = NavigationTask.objects.create(
+        self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
             scorecard=default_scorecard_fai_anr_2017.get_default_scorecard(),

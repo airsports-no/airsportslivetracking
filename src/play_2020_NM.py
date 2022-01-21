@@ -76,7 +76,7 @@ contest = Contest.objects.create(name=name, is_public=True, start_time=contest_s
 with open("/data/NM.csv", "r") as file:
     route = create_precision_route_from_csv("NM 2020", file.readlines()[1:], True)
 
-navigation_task = NavigationTask.objects.create(name=name, contest=contest,
+navigation_task = NavigationTask.create(name=name, contest=contest,
                                                 route=route,
                                                 scorecard=scorecard,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,

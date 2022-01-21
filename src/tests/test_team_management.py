@@ -136,7 +136,7 @@ class TestTeamApi(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_delete_team_with_privileges(self, p):
-        result = self.client.delete(reverse("teams-detail", kwargs={"pk": self.team.pk}))
+        result = self.client.delete()
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)

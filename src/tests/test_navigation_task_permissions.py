@@ -171,8 +171,7 @@ class TestAccessNavigationTask(APITestCase):
         print("Contestant result: {}".format(result.content))
         self.contestant = Contestant.objects.get(pk=result.json()["id"])
         self.client.force_login(self.generic_user)
-        result = self.client.delete(
-            f"/api/v1/contests/{self.contest.pk}/navigationtasks/{self.navigation_task.pk}/contestant_self_registration/")
+        result = self.client.delete()
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_view_navigation_task_from_other_user_with_permissions(self):
@@ -197,8 +196,7 @@ class TestAccessNavigationTask(APITestCase):
 
     def test_delete_navigation_task_from_other_user_with_permissions(self):
         self.client.force_login(user=self.different_user_with_object_permissions)
-        result = self.client.delete(
-            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        result = self.client.delete()
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_put_navigation_task_without_login(self):
@@ -291,8 +289,7 @@ class TestAccessNavigationTask(APITestCase):
         self.navigation_task.is_public = True
         self.navigation_task.save()
         self.client.logout()
-        result = self.client.delete(
-            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        result = self.client.delete()
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -302,29 +299,25 @@ class TestAccessNavigationTask(APITestCase):
         self.contest.save()
         self.navigation_task.is_public = True
         self.navigation_task.save()
-        result = self.client.delete(
-            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        result = self.client.delete()
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_navigation_task_without_login(self):
         self.client.logout()
-        result = self.client.delete(
-            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        result = self.client.delete()
         print(result)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_delete_navigation_task_as_someone_else(self):
         self.client.force_login(user=self.user_someone_else)
-        result = self.client.delete(
-            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        result = self.client.delete()
         print(result)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_navigation_task_as_creator(self):
         self.client.force_login(user=self.user_owner)
-        result = self.client.delete(
-            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+        result = self.client.delete()
         print(result)
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)

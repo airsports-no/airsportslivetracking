@@ -180,7 +180,7 @@ class ConnectedTrackingContainer extends Component {
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             <div id="cesiumContainer"/>
                             {this.props.displayLowerThirds !== null ?
-                                <div><LowerThirdTeam scorecard_data={this.props.navigationTask.scorecard_data}
+                                <div><LowerThirdTeam scorecard={this.props.navigationTask.scorecard}
                                                      contestant={this.props.contestants[this.props.displayLowerThirds]}
                                                      contestantId={this.props.displayLowerThirds}/>
                                     {/*<TimeDisplay contestantId={this.props.displayLowerThirds} class={"pilotTime"}/>*/}

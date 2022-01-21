@@ -12,7 +12,7 @@ from display.models import Team, Aeroplane, NavigationTask, Route, Contestant
 NavigationTask.objects.all().delete()
 aeroplane = Aeroplane.objects.first()
 now = datetime.now(timezone.utc).astimezone()
-navigation_task = NavigationTask.objects.create(name="Test navigation_task",
+navigation_task = NavigationTask.create(name="Test navigation_task",
                                                 route=Route.objects.get(name="NM 2020"), server_address="home.kolaf.net:8082",
                                                 server_token="FydcKTi7Lnat5wHhMGTCs0ykEpNAAOdj",
                                                 start_time=now, finish_time=now + timedelta(hours=2))

@@ -140,8 +140,7 @@ class TestContestTeamApi(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
         list_result = self.client.get(reverse("contestteams-list", kwargs={"contest_pk": self.contest.pk}))
         self.assertEqual(1, len(list_result.json()))
-        result = self.client.delete(
-            reverse("contestteams-detail", kwargs={"contest_pk": self.contest.pk, "pk": result.json()["id"]}))
+        result = self.client.delete()
         print(result)
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
         result = self.client.get(reverse("contestteams-list", kwargs={"contest_pk": self.contest.pk}))

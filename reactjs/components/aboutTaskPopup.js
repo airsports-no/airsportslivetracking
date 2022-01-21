@@ -10,14 +10,14 @@ export default class AboutTaskPopup extends Component {
         let text = null, displaySecretGatesToggle=false;
         if (this.props.navigationTask.contestant_set !== undefined) {
             if (this.props.navigationTask.scorecard !== undefined) {
-                if (this.props.navigationTask.scorecard_data.task_type.includes("precision")) {
+                if (this.props.navigationTask.scorecard.task_type.includes("precision")) {
                     text = aboutPrecisionFlying(this.props.navigationTask.actual_rules, this.props.navigationTask.route.waypoints)
                     displaySecretGatesToggle = true
-                } else if (this.props.navigationTask.scorecard_data.task_type.includes("poker")) {
+                } else if (this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     text = aboutPilotPokerRun
-                } else if (this.props.navigationTask.scorecard_data.task_type.includes("anr_corridor")) {
+                } else if (this.props.navigationTask.scorecard.task_type.includes("anr_corridor")) {
                     text = aboutANR(this.props.navigationTask.actual_rules)
-                }else if (this.props.navigationTask.scorecard_data.task_type.includes("airsports")) {
+                }else if (this.props.navigationTask.scorecard.task_type.includes("airsports")) {
                     text = aboutAirsports(this.props.navigationTask.actual_rules, this.props.navigationTask.route.waypoints)
                     displaySecretGatesToggle = true
                 }

@@ -21,7 +21,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.db import transaction, connection
 from django.db.models import Q
-from django.forms import formset_factory
+from django.forms import formset_factory, inlineformset_factory
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
@@ -139,7 +139,7 @@ from display.models import (
     ScoreLogEntry,
     EmailMapLink,
     EditableRoute,
-    ANOMALY,
+    ANOMALY, GateScore,
 )
 from display.permissions import (
     ContestPermissions,
@@ -1491,38 +1491,18 @@ def add_contest_teams_to_navigation_task(request, pk):
 )
 def navigation_task_score_override_view(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    if NavigationTask.PRECISION in navigation_task.scorecard.task_type:
-        form_class = PrecisionScoreOverrideForm
-    elif NavigationTask.ANR_CORRIDOR in navigation_task.scorecard.task_type:
-        form_class = ANRCorridorScoreOverrideForm
-    elif NavigationTask.AIRSPORTS in navigation_task.scorecard.task_type:
-        form_class = AirsportsScoreOverrideForm
-    else:
-        messages.error(
-            request,
-            f"{navigation_task.scorecard.get_task_type_display()} has no scoring parameters to override",
-        )
-        return redirect(
-            reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
-        )
+    ScorecardFormSet=inlineformset_factory(Scorecard, GateScore)
     if request.method == "POST":
-        form = form_class(request.POST)
-        if form.is_valid():
-            form.build_score_override(navigation_task)
-            messages.success(request, "Updated scoring")
+        formset = ScorecardFormSet(request.POST, instance=navigation_task.scorecard)
+        if formset.is_valid():
             return redirect(
                 reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
             )
-        else:
-            messages.error(request,"Saving failed")
-    initial = form_class.extract_default_values_from_scorecard(
-        navigation_task.scorecard
-    )
-    form = form_class(initial=initial)
+    formset = ScorecardFormSet(instance=navigation_task.scorecard)
     return render(
         request,
         "display/score_override_form.html",
-        {"form": form, "navigation_task": navigation_task},
+        {"formset": formset, "navigation_task": navigation_task},
     )
 
 
@@ -1735,7 +1715,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
         route, ediable_route = self.create_route()
         final_data = self.get_cleaned_data_for_step("task_content")
-        navigation_task = NavigationTask.objects.create(
+        navigation_task = NavigationTask.create(
             **final_data,
             contest=self.contest,
             route=route,
@@ -1784,10 +1764,10 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                     in scorecard.task_type
                 ):
                     useful_cards.append(scorecard.pk)
-            form.fields["scorecard"].queryset = Scorecard.objects.filter(
+            form.fields["scorecard"].queryset = Scorecard.get_originals().filter(
                 pk__in=useful_cards
             )
-            form.fields["scorecard"].initial = Scorecard.objects.filter(
+            form.fields["scorecard"].initial = Scorecard.get_originals().filter(
                 pk__in=useful_cards
             ).first()
         return context
@@ -1961,7 +1941,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
         route = self.create_route()
         route_location = route.get_location()
         country_code = get_country_code_from_location(*route_location)
-        navigation_task = NavigationTask.objects.create(
+        navigation_task = NavigationTask.create(
             name=task_name,
             contest=contest,
             route=route,
