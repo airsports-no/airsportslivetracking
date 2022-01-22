@@ -1531,14 +1531,14 @@ def navigation_task_view_detailed_score(request, pk):
     scorecard_form.pk = navigation_task.scorecard.pk
     gate_score_forms = []
     for gate_score in navigation_task.scorecard.gatescore_set.all().order_by("gate_type"):
-        form = GateScoreForm(instance=gate_score)
-        form.pk = gate_score.pk
-        form.name = gate_score.get_gate_type_display()
-        for key in list(form.fields.keys()):
-            if key not in gate_score.visible_fields:
-                form.fields.pop(key)
-
-        gate_score_forms.append(form)
+        if len(gate_score.visible_fields)>0:
+            form = GateScoreForm(instance=gate_score)
+            form.pk = gate_score.pk
+            form.name = gate_score.get_gate_type_display()
+            for key in list(form.fields.keys()):
+                if key not in gate_score.visible_fields:
+                    form.fields.pop(key)
+            gate_score_forms.append(form)
     return render(request, "display/scorecard_details.html",
                   {"navigation_task": navigation_task, "scorecard_form": scorecard_form,
                    "gate_score_forms": gate_score_forms})
