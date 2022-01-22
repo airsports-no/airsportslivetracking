@@ -403,6 +403,34 @@ def correct_gate_directions_to_the_right(waypoints: List[Waypoint]):
             waypoint.left_corridor_line = temp
 
 
+def create_bisecting_line_between_gates(previous_gate: Waypoint, current_gate: Waypoint, next_gate: Waypoint,
+                                        width_nm: float) -> List[Tuple[float, float]]:
+    line = create_bisecting_line_between_segments_corridor_width_lonlat(
+        previous_gate.longitude,
+        previous_gate.latitude,
+        current_gate.longitude,
+        current_gate.latitude,
+        next_gate.longitude,
+        next_gate.latitude,
+        width_nm * 1852)
+    # Switch from longitude, latitude to latitude, longitude
+    line[0].reverse()
+    line[1].reverse()
+    return line
+
+
+def create_perpendicular_line_at_end_gates(previous_gate: Waypoint, current_gate: Waypoint, width_nm: float) -> List[
+    Tuple[float, float]]:
+    line = create_perpendicular_line_at_end_lonlat(previous_gate.longitude,
+                                                   previous_gate.latitude,
+                                                   current_gate.longitude,
+                                                   current_gate.latitude,
+                                                   width_nm * 1852)
+    line[0].reverse()
+    line[1].reverse()
+    return line
+
+
 def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners: bool,
                                                  corridor_width: float = None) -> Route:
     """
@@ -422,70 +450,34 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
 
     gates = waypoint_list
     for index in range(1, len(gates) - 1):
-        gates[index].gate_line = create_bisecting_line_between_segments_corridor_width_lonlat(
-            gates[index - 1].longitude,
-            gates[index - 1].latitude,
-            gates[index].longitude,
-            gates[index].latitude,
-            gates[index + 1].longitude,
-            gates[index + 1].latitude,
-            gates[index].width * 1852)
-        # Switch from longitude, latitude to latitude, longitude
-        gates[index].gate_line[0].reverse()
-        gates[index].gate_line[1].reverse()
+        gates[index].gate_line = create_bisecting_line_between_gates(gates[index - 1], gates[index], gates[index + 1],
+                                                                     gates[index].width)
         # Fix corridor line
-        corridor_line = create_bisecting_line_between_segments_corridor_width_lonlat(
-            gates[index - 1].longitude,
-            gates[index - 1].latitude,
-            gates[index].longitude,
-            gates[index].latitude,
-            gates[index + 1].longitude,
-            gates[index + 1].latitude,
-            (corridor_width if corridor_width is not None else gates[index].width) * 1852)
-        corridor_line[0].reverse()
-        corridor_line[1].reverse()
+        corridor_line = create_bisecting_line_between_gates(gates[index - 1], gates[index], gates[index + 1],
+                                                            corridor_width if corridor_width is not None else gates[
+                                                                index].width)
         # If these are in the wrong order, it will be corrected in "correct_gate_directions_to_the_right"
         gates[index].left_corridor_line = [corridor_line[0]]
         gates[index].right_corridor_line = [corridor_line[1]]
 
-    gates[0].gate_line = create_perpendicular_line_at_end_lonlat(gates[1].longitude,
-                                                                 gates[1].latitude,
-                                                                 gates[0].longitude,
-                                                                 gates[0].latitude,
-                                                                 gates[0].width * 1852)
-    gates[0].gate_line[0].reverse()
-    gates[0].gate_line[1].reverse()
+    # Start and finish gates
+    gates[0].gate_line = create_perpendicular_line_at_end_gates(gates[1], gates[0], gates[0].width)
     # Reverse the line since we have created it in the wrong direction
     gates[0].gate_line.reverse()
-    gates[-1].gate_line = create_perpendicular_line_at_end_lonlat(gates[-2].longitude,
-                                                                  gates[-2].latitude,
-                                                                  gates[-1].longitude,
-                                                                  gates[-1].latitude,
-                                                                  gates[-1].width * 1852)
-    gates[-1].gate_line[0].reverse()
-    gates[-1].gate_line[1].reverse()
+    gates[-1].gate_line = create_perpendicular_line_at_end_gates(gates[-2], gates[-1], gates[-1].width)
+
     # Fix the corridor line
     # start
-    start_corridor_line = create_perpendicular_line_at_end_lonlat(gates[1].longitude,
-                                                                  gates[1].latitude,
-                                                                  gates[0].longitude,
-                                                                  gates[0].latitude,
-                                                                  (corridor_width if corridor_width is not None else gates[
-                                                                      0].width) * 1852)
-    start_corridor_line[0].reverse()
-    start_corridor_line[1].reverse()
+    start_corridor_line = create_perpendicular_line_at_end_gates(gates[1], gates[0],
+                                                                 corridor_width if corridor_width is not None else
+                                                                 gates[0].width)
     start_corridor_line.reverse()
     gates[0].left_corridor_line = [start_corridor_line[0]]
     gates[0].right_corridor_line = [start_corridor_line[1]]
     # finish
-    finish_corridor_line = create_perpendicular_line_at_end_lonlat(gates[-2].longitude,
-                                                                   gates[-2].latitude,
-                                                                   gates[-1].longitude,
-                                                                   gates[-1].latitude,
-                                                                   (corridor_width if corridor_width is not None else gates[
-                                                                       -1].width) * 1852)
-    finish_corridor_line[0].reverse()
-    finish_corridor_line[1].reverse()
+    finish_corridor_line = create_perpendicular_line_at_end_gates(gates[-2], gates[-1],
+                                                                  corridor_width if corridor_width is not None else
+                                                                  gates[-1].width)
     gates[-1].left_corridor_line = [finish_corridor_line[0]]
     gates[-1].right_corridor_line = [finish_corridor_line[1]]
 

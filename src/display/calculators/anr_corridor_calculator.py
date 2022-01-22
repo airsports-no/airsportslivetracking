@@ -82,6 +82,7 @@ class AnrCorridorCalculator(Calculator):
         points = []
         for waypoint in self.contestant.navigation_task.route.waypoints:
             if waypoint.left_corridor_line is not None:
+                # This is the preferred option, using the gate line is for backwards compatibility
                 points.extend(waypoint.left_corridor_line)
             else:
                 points.append(waypoint.gate_line[0])

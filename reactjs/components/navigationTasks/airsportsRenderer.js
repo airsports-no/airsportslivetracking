@@ -17,6 +17,7 @@ export default class AirsportsRenderer extends GenericRenderer {
         let insideTrack = []
         for (const waypoint of this.props.navigationTask.route.waypoints) {
             if (waypoint.left_corridor_line) {
+                // This is the preferred option, using the gate line is for backwards compatibility
                 outsideTrack.push(...waypoint.left_corridor_line)
                 insideTrack.push(...waypoint.right_corridor_line)
             } else {
