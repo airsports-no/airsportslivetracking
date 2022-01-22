@@ -242,43 +242,43 @@ class Test2017WPFC(TransactionTestCase):
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-class TestScoreverride(TransactionTestCase):
-    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p, p2):
-        with open("display/calculators/tests/bugs_with_gate_score_overrides.json", "r") as file:
-            task_data = json.load(file)
-        from display.default_scorecards import default_scorecard_fai_precision_2020
-        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
-        self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        contest = Contest.objects.create(name="contest",
-                                         start_time=datetime.datetime.now(
-                                             datetime.timezone.utc),
-                                         finish_time=datetime.datetime.now(
-                                             datetime.timezone.utc),
-                                         time_zone="Europe/Oslo")
-        user = get_user_model().objects.create(email="user")
-        request = Mock()
-        request.user = user
-        serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=task_data, context={"contest": contest,
-                                                                                         "request": request})
-        serialiser.is_valid(True)
-        self.navigation_task = serialiser.save()
-        # Required to make the time zone save correctly
-        self.navigation_task.refresh_from_db()
-
-    def test_4(self, p, p2):
-        with open("display/calculators/tests/bugs_with_gate_score_overrides_track.json", "r") as file:
-            track_data = json.load(file)
-        contestant = self.navigation_task.contestant_set.first()
-        insert_gpx_file(contestant, base64.decodebytes(track_data["track_file"].encode("utf-8")))
-
-        contestant_track = ContestantTrack.objects.get(contestant=contestant)
-
-        self.assertEqual(8, contestant.gatecumulativescore_set.get(gate="SP").points)
-        self.assertEqual(23, contestant_track.score)
+# @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+# @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+# class TestScoreverride(TransactionTestCase):
+#     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+#     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+#     def setUp(self, p, p2):
+#         with open("display/calculators/tests/bugs_with_gate_score_overrides.json", "r") as file:
+#             task_data = json.load(file)
+#         from display.default_scorecards import default_scorecard_fai_precision_2020
+#         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+#         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+#         contest = Contest.objects.create(name="contest",
+#                                          start_time=datetime.datetime.now(
+#                                              datetime.timezone.utc),
+#                                          finish_time=datetime.datetime.now(
+#                                              datetime.timezone.utc),
+#                                          time_zone="Europe/Oslo")
+#         user = get_user_model().objects.create(email="user")
+#         request = Mock()
+#         request.user = user
+#         serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=task_data, context={"contest": contest,
+#                                                                                          "request": request})
+#         serialiser.is_valid(True)
+#         self.navigation_task = serialiser.save()
+#         # Required to make the time zone save correctly
+#         self.navigation_task.refresh_from_db()
+#
+#     def test_4(self, p, p2):
+#         with open("display/calculators/tests/bugs_with_gate_score_overrides_track.json", "r") as file:
+#             track_data = json.load(file)
+#         contestant = self.navigation_task.contestant_set.first()
+#         insert_gpx_file(contestant, base64.decodebytes(track_data["track_file"].encode("utf-8")))
+#
+#         contestant_track = ContestantTrack.objects.get(contestant=contestant)
+#
+#         self.assertEqual(8, contestant.gatecumulativescore_set.get(gate="SP").points)
+#         self.assertEqual(23, contestant_track.score)
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)

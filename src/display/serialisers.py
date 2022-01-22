@@ -508,7 +508,7 @@ class ScorecardSerialiser(serializers.ModelSerializer):
 class GateScoreSerialiser(serializers.ModelSerializer):
     class Meta:
         model = GateScore
-        fields = "__all__"
+        exclude = ("id", "scorecard", "included_fields")
 
 
 class ScorecardNestedSerialiser(serializers.ModelSerializer):
@@ -516,16 +516,18 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Scorecard
-        fields = "__all__"
+        exclude = ("id", "original", "included_fields", "calculator", "task_type", "name", "use_procedure_turns")
 
     def create(self, validated_data):
         raise NotImplementedError("Manually creating scorecards is not supported")
 
     def update(self, instance, validated_data):
         gate_scores = validated_data.pop("gatescore_set")
-        updated = super().update(instance, validated_data)
+        Scorecard.objects.filter(pk=instance.pk).update(**validated_data)
+        instance.refresh_from_db()
         for gate in gate_scores:
-            updated.gatescore_set.filter(gate_type=gate["gate_type"]).update(gate)
+            instance.gatescore_set.filter(gate_type=gate["gate_type"]).update(**gate)
+        return instance
 
 
 class DangerLevelSerialiser(serializers.Serializer):

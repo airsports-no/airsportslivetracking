@@ -132,7 +132,7 @@ class TestCrossingEstimate(TransactionTestCase):
         gatekeeper.track = [start_position, next_position]
         gate, estimated = gatekeeper.estimate_crossing_time_of_next_timed_gate()
         self.assertEqual(self.route.waypoints[0].name, gate.name)
-        expected = dateutil.parser.parse("2020-01-01T00:00:01.764601+00:00")
+        expected = dateutil.parser.parse("2020-01-01T00:00:02.631887+00:00")
         self.assertEqual(expected,estimated)
 
     def test_next_is_not_timed(self, p1, p2):
