@@ -321,8 +321,8 @@ class WaypointSerialiser(serializers.Serializer):
         help_text="The distance at which we enter the gate vicinity", read_only=True, required=False
     )
 
-    left_corridor_line = serializers.JSONField(required=False)
-    right_corridor_line = serializers.JSONField(required=False)
+    left_corridor_line = serializers.JSONField(required=False, help_text="A list of (lat,lon) values that define the left edge of the corridor at this waypoint (can be a single point or multiple points e.g. for a curved corridor)")
+    right_corridor_line = serializers.JSONField(required=False, help_text="A list of (lat,lon) values that define the left edge of the corridor at this waypoint (can be a single point or multiple points e.g. for a curved corridor)")
     outer_corner_position = serializers.JSONField(required=False)
 
 

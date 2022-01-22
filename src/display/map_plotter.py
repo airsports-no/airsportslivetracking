@@ -671,7 +671,7 @@ def plot_anr_corridor_track(
                 "red",
                 character_padding=1,
             )
-        if route.rounded_corners and waypoint.left_corridor_line is not None:
+        if waypoint.left_corridor_line is not None:
             inner_track.extend(waypoint.left_corridor_line)
             outer_track.extend(waypoint.right_corridor_line)
         else:

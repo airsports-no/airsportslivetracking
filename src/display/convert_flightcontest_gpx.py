@@ -397,9 +397,22 @@ def correct_gate_directions_to_the_right(waypoints: List[Waypoint]):
     for waypoint in waypoints:
         if not waypoint.is_gate_line_pointing_right():
             waypoint.gate_line.reverse()
+            # Change order of corridor lines
+            temp = waypoint.left_corridor_line
+            waypoint.left_corridor_line = waypoint.right_corridor_line
+            waypoint.left_corridor_line = temp
 
 
-def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners: bool) -> Route:
+def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners: bool,
+                                                 corridor_width: float = None) -> Route:
+    """
+
+    :param route_name:
+    :param waypoint_list:
+    :param rounded_corners:
+    :param corridor_width: If this is set, use this for corridor width and leave the gates as they should be
+    :return:
+    """
     if len(waypoint_list) < 2:
         raise ValidationError("A route must at least have a starting point and finish point")
     if waypoint_list[0].type != "sp":
@@ -417,9 +430,22 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
             gates[index + 1].longitude,
             gates[index + 1].latitude,
             gates[index].width * 1852)
-        # Switch from longitude, Latitude to lattitude, longitude
+        # Switch from longitude, latitude to latitude, longitude
         gates[index].gate_line[0].reverse()
         gates[index].gate_line[1].reverse()
+        corridor_line = create_bisecting_line_between_segments_corridor_width_lonlat(
+            gates[index - 1].longitude,
+            gates[index - 1].latitude,
+            gates[index].longitude,
+            gates[index].latitude,
+            gates[index + 1].longitude,
+            gates[index + 1].latitude,
+            (corridor_width if corridor_width != None else gates[index].width) * 1852)
+        corridor_line[0].reverse()
+        corridor_line[1].reverse()
+        # If these are in the wrong order, it will be corrected in "correct_gate_directions_to_the_right"
+        gates[index].left_corridor_line = [corridor_line[0]]
+        gates[index].right_corridor_line = [corridor_line[1]]
 
     gates[0].gate_line = create_perpendicular_line_at_end_lonlat(gates[1].longitude,
                                                                  gates[1].latitude,
@@ -437,6 +463,30 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
                                                                   gates[-1].width * 1852)
     gates[-1].gate_line[0].reverse()
     gates[-1].gate_line[1].reverse()
+    # Fix the corridor line
+    # start
+    start_corridor_line = create_perpendicular_line_at_end_lonlat(gates[1].longitude,
+                                                                  gates[1].latitude,
+                                                                  gates[0].longitude,
+                                                                  gates[0].latitude,
+                                                                  (corridor_width if corridor_width != None else gates[
+                                                                      0].width) * 1852)
+    start_corridor_line[0].reverse()
+    start_corridor_line[1].reverse()
+    start_corridor_line.reverse()
+    gates[0].left_corridor_line = [start_corridor_line[0]]
+    gates[0].right_corridor_line = [start_corridor_line[1]]
+    # finish
+    finish_corridor_line = create_perpendicular_line_at_end_lonlat(gates[-2].longitude,
+                                                                   gates[-2].latitude,
+                                                                   gates[-1].longitude,
+                                                                   gates[-1].latitude,
+                                                                   (corridor_width if corridor_width != None else gates[
+                                                                       -1].width) * 1852)
+    finish_corridor_line[0].reverse()
+    finish_corridor_line[1].reverse()
+    gates[-1].left_corridor_line = [finish_corridor_line[0]]
+    gates[-1].right_corridor_line = [finish_corridor_line[1]]
 
     # Calculate bearings and distances
     calculate_and_update_legs(waypoint_list, False)

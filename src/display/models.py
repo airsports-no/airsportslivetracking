@@ -2473,12 +2473,15 @@ class EditableRoute(models.Model):
         waypoint_list[0].type = "sp"
         waypoint_list[0].gate_check = True
         waypoint_list[0].time_check = True
+        waypoint_list[0].width = track_points[0]["gateWidth"]
 
         waypoint_list[-1].type = "fp"
         waypoint_list[-1].gate_check = True
         waypoint_list[-1].time_check = True
+        waypoint_list[-1].width = track_points[-1]["gateWidth"]
+
         logger.debug(f"Created waypoints {waypoint_list}")
-        route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners)
+        route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners, corridor_width=corridor_width)
         route.corridor_width = corridor_width
         route.save()
         self.extract_additional_features(route)

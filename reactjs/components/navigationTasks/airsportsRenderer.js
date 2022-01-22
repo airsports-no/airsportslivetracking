@@ -16,7 +16,7 @@ export default class AirsportsRenderer extends GenericRenderer {
         let outsideTrack = []
         let insideTrack = []
         for (const waypoint of this.props.navigationTask.route.waypoints) {
-            if (this.props.navigationTask.route.rounded_corners && waypoint.left_corridor_line) {
+            if (waypoint.left_corridor_line) {
                 outsideTrack.push(...waypoint.left_corridor_line)
                 insideTrack.push(...waypoint.right_corridor_line)
             } else {
