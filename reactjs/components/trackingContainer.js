@@ -19,7 +19,6 @@ import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
 import TimeDisplay from "./timeDisplay";
 import {Link} from "react-router-dom";
-import GateScoreArrow from "./gateScoreArrow/gateScoreArrow";
 
 // import "leaflet/dist/leaflet.css"
 

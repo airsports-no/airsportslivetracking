@@ -33,7 +33,7 @@ def get_default_scorecard():
                                 ["Penalty zone", "penalty_zone_grace_time",
                                  "penalty_zone_penalty_per_second",
                                  "penalty_zone_maximum"],
-                                ["Corridor penalties", "backtracking_penalty", "corridor_outside_penalty"]]
+                                ["Corridor penalties", "backtracking_penalty", "corridor_outside_penalty", "corridor_width"]]
 
         },
     )

@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import {getGateValue, getTrackValue} from "./actualScoreUtilities";
 
-const aboutANR = (actualRules) => {
+const aboutANR = (scorecard) => {
     return <div>
         <h2>Air navigation race (ANR)</h2>
         <p>
@@ -9,30 +9,30 @@ const aboutANR = (actualRules) => {
             corridor and cross the start and finish lines at predefined times.
         </p>
         <p>
-            For this ANR task the corridor width is {getTrackValue(actualRules.track, "corridor width")} NM. Contestants
+            For this ANR task the corridor width is {getTrackValue(scorecard, "corridor_width")} NM. Contestants
             are given a penalty
-            of {getTrackValue(actualRules.track, "corridor outside penalty")} points for each second outside the
+            of {getTrackValue(scorecard, "corridor_outside_penalty")} points for each second outside the
             corridor beyond the
-            first {getTrackValue(actualRules.track, "corridor grace time")} seconds. {getTrackValue(actualRules.track, "corridor maximum penalty") >= 0 ?
-            <span>A maximum of {getTrackValue(actualRules.track, "corridor maximum penalty")} points will be awarded per leg for being outside the corridor.</span> : null}
+            first {getTrackValue(scorecard, "corridor_grace_time")} seconds. {getTrackValue(scorecard, "corridor_maximum_penalty") >= 0 ?
+            <span>A maximum of {getTrackValue(scorecard, "corridor_maximum_penalty")} points will be awarded per leg for being outside the corridor.</span> : null}
         </p>
         <p>
             Missing the starting point gives a penalty
-            of {getGateValue(actualRules.gates, "Starting point", "Missed penalty")}. Passing the checkpoint more
-            than {getGateValue(actualRules.gates, "Starting point", "Graceperiod before")} seconds early
-            or {getGateValue(actualRules.gates, "Starting point", "Graceperiod after")} seconds
-            late gives {getGateValue(actualRules.gates, "Starting point", "Penalty per second")} points per additional
+            of {getGateValue(scorecard, "sp", "missed_penalty")}. Passing the checkpoint more
+            than {getGateValue(scorecard, "sp", "graceperiod_before")} seconds early
+            or {getGateValue(scorecard, "sp", "graceperiod_after")} seconds
+            late gives {getGateValue(scorecard, "sp", "penalty_per_second")} points per additional
             second. The maximum score for being late or early at the gate
-            is {getGateValue(actualRules.gates, "Starting point", "Maximum timing penalty")} points.
+            is {getGateValue(scorecard, "sp", "maximum_timing_penalty")} points.
         </p>
         <p>
             Missing the finish point gives a penalty
-            of {getGateValue(actualRules.gates, "Finish point", "Missed penalty")}. Passing the checkpoint more
-            than {getGateValue(actualRules.gates, "Finish point", "Graceperiod before")} seconds early
-            or {getGateValue(actualRules.gates, "Finish point", "Graceperiod after")} seconds
-            late gives {getGateValue(actualRules.gates, "Finish point", "Penalty per second")} points per additional
+            of {getGateValue(scorecard, "fp", "missed_penalty")}. Passing the checkpoint more
+            than {getGateValue(scorecard, "fp", "graceperiod_before")} seconds early
+            or {getGateValue(scorecard, "fp", "graceperiod_after")} seconds
+            late gives {getGateValue(scorecard, "fp", "penalty_per_second")} points per additional
             second. The maximum score for being late or early at the gate
-            is {getGateValue(actualRules.gates, "Finish point", "Maximum timing penalty")} points.
+            is {getGateValue(scorecard, "fp", "maximum_timing_penalty")} points.
 
         </p>
     </div>

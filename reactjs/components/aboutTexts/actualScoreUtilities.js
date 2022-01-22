@@ -1,28 +1,23 @@
-export function getTrackValue(track, name) {
-    const score = track.find((score) => {
-        return score.name === name
-    })
-    if (score) {
-        return score.value
-    }
-    return null
+export function getTrackValue(scorecard, name) {
+    return scorecard[name]
 }
 
-export function getGate(gates, gateName) {
+export function getGate(gates, gateType) {
     return gates.find((gate) => {
-        return gate.gate === gateName
+        return gate.type === gateType
     })
 }
 
-export function getGateValue(gates, gateName, name) {
-    const gate = getGate(gates, gateName)
+export function getGateInScorecard(scorecard, gateType) {
+    return scorecard.gatescore_set.find((gate) => {
+        return gate.gate_type === gateType
+    })
+}
+
+export function getGateValue(scorecard, gateType, name) {
+    const gate = getGateInScorecard(scorecard, gateType)
     if (gate) {
-        const value = gate.rules.find((score) => {
-            return score.name === name
-        })
-        if (value) {
-            return value.value
-        }
+        return gate[name]
     }
     return null
 }

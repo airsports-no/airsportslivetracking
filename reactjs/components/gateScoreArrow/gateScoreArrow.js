@@ -7,7 +7,7 @@ import './gateScore.css'
 const mapStateToProps = (state, props) => ({
     contestantTrack: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
     arrowData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].gate_distance_and_estimate : null,
-    rules: state.contestants[props.contestantId] !== undefined ? state.contestants[props.contestantId].scorecard_rules : null,
+    scorecard: state.navigationTask.scorecard,
     waypoints: state.navigationTask.route.waypoints,
     displayGateArrow: state.displayGateArrow
 })
@@ -35,12 +35,10 @@ class ConnectedGateScoreArrow extends Component {
 
     getRule(ruleName) {
         const waypointType = this.getWaypointType(this.state.currentArrowData.waypoint_name)
-        const gateRules = this.props.rules.gates.find((gate) => {
-            return gate.gate_code === waypointType
+        const gateScore = this.props.scorecard.gatescore_set.find((gate) => {
+            return gate.gate_type === waypointType
         })
-        return gateRules.rules.find((rule) => {
-            return rule.key === ruleName
-        }).value
+        return gateScore[ruleName]
     }
 
     getGracePeriodBefore() {

@@ -513,10 +513,11 @@ class GateScoreSerialiser(serializers.ModelSerializer):
 
 class ScorecardNestedSerialiser(serializers.ModelSerializer):
     gatescore_set = GateScoreSerialiser(many=True)
+    corridor_width = serializers.FloatField(read_only=True)
 
     class Meta:
         model = Scorecard
-        exclude = ("id", "original", "included_fields", "calculator", "task_type", "name", "use_procedure_turns")
+        exclude = ("id", "original", "included_fields", "calculator", "name", "use_procedure_turns")
 
     def create(self, validated_data):
         raise NotImplementedError("Manually creating scorecards is not supported")

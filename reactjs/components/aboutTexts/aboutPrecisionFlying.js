@@ -34,7 +34,7 @@ const aboutPrecisionFlying = (scorecard, waypoints) => {
         </p>
         {getGate(waypoints, "to") && getGateValue(scorecard, "to", "maximum_penalty") > 0 ?
             <p>
-                The route has a to. If this is passed before the takeoff time or more than one minute after
+                The route has a takeoff gate. If this is passed before the takeoff time or more than one minute after
                 the
                 takeoff time a penalty
                 of {getGateValue(scorecard.gates, "to", "maximum_penalty")} points
@@ -42,7 +42,7 @@ const aboutPrecisionFlying = (scorecard, waypoints) => {
             </p> : null}
         {getGate(waypoints, "ldg") && getGateValue(scorecard, "ldg", "maximum_penalty") > 0 ?
             <p>
-                The route has a ldg. If this is not passed by the finish time for the contestant, a penalty
+                The route has a landing gate. If this is not passed by the finish time for the contestant, a penalty
                 of {getGateValue(scorecard, "ldg", "maximum_penalty")} points is applied.
             </p> : null}
         <h3>Track rules</h3>

@@ -734,16 +734,24 @@ class GPXTrackImportForm(forms.Form):
 
 
 class ScorecardForm(forms.ModelForm):
+    corridor_width = forms.FloatField()
+
     class Meta:
         model = Scorecard
         exclude = ("name", "original", "included_fields", "calculator", "task_type", "use_procedure_turns")
 
     def __init__(self, *args, **kwargs):
+        instance = kwargs.get('instance', None)
+        if instance:
+            kwargs['initial'] = {'corridor_width': instance.corridor_width}
         super().__init__(*args, **kwargs)
+
         self.helper = FormHelper()
         self.helper.layout = Layout(
-            *[Fieldset(*block) for block in self.instance.included_fields],
-            *[Field(key, type="hidden") for key in self.fields.keys() if key not in self.instance.visible_fields],
+            *[Fieldset(*[field for field in block if field != "corridor_width"]) for block in
+              self.instance.included_fields],
+            *[Field(key, type="hidden") for key in self.fields.keys() if
+              key not in self.instance.visible_fields or key == "corridor_width"],
             ButtonHolder(
                 Submit("submit", "Submit")
             )

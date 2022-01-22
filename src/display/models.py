@@ -980,6 +980,10 @@ class Scorecard(models.Model):
     def visible_fields(self) -> List[str]:
         return [field for block in self.included_fields for field in block[1:]]
 
+    @property
+    def corridor_width(self)->float:
+        return self.navigation_task_override.route.corridor_width
+
     @classmethod
     def get_originals(cls) -> QuerySet:
         return cls.objects.filter(original=True)
