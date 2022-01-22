@@ -201,6 +201,27 @@ class ANRCorridorImportRouteForm(forms.Form):
             raise ValidationError("You cannot both upload a file and use an internal route")
 
 
+class AirsportsImportRouteForm(forms.Form):
+    rounded_corners = forms.BooleanField(required=False, initial=False,
+                                         help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.")
+    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "Route import",
+                "internal_route",
+                "rounded_corners",
+            ),
+            kml_description,
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+
+
 class LandingImportRouteForm(forms.Form):
     file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz"])],
                            help_text="File must be of type KML or KMZ", required=False)
@@ -263,7 +284,7 @@ class NavigationTaskForm(forms.ModelForm):
         model = NavigationTask
         fields = (
             "name", "start_time", "finish_time", "display_background_map", "display_secrets",
-            "minutes_to_starting_point",
+            "minutes_to_starting_point","original_scorecard",
             "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
             "score_sorting_direction", "default_map", "default_line_width", "calculation_delay_minutes")
 
@@ -276,7 +297,7 @@ class NavigationTaskForm(forms.ModelForm):
                 "name",
                 "start_time",
                 "finish_time",
-                "scorecard",
+                "original_scorecard",
                 "allow_self_management",
                 "score_sorting_direction"
             ),

@@ -101,7 +101,7 @@ from display.forms import (
     ContestSelectForm,
     ANRCorridorParametersForm,
     AirsportsParametersForm,
-    PersonPictureForm, ScorecardFormSetHelper, ScorecardForm, GateScoreForm,
+    PersonPictureForm, ScorecardFormSetHelper, ScorecardForm, GateScoreForm, AirsportsImportRouteForm,
 )
 from display.generate_flight_orders import generate_flight_orders
 from display.map_plotter import (
@@ -1614,6 +1614,11 @@ def show_anr_path(wizard):
         NavigationTask.ANR_CORRIDOR,
     )
 
+def show_airsports_path(wizard):
+    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
+        NavigationTask.AIRSPORTS,
+    )
+
 
 def show_landing_path(wizard):
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
@@ -1635,6 +1640,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     form_list = [
         ("task_type", TaskTypeForm),
         ("anr_route_import", ANRCorridorImportRouteForm),
+        ("airsports_route_import", AirsportsImportRouteForm),
         ("precision_route_import", PrecisionImportRouteForm),
         ("landing_route_import", LandingImportRouteForm),
         ("waypoint_definition", formset_factory(WaypointForm, extra=0)),
@@ -1645,6 +1651,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     )
     condition_dict = {
         "anr_route_import": show_anr_path,
+        "airsports_route_import": show_airsports_path,
         "precision_route_import": show_precision_path,
         "landing_route_import": show_landing_path,
         "waypoint_definition": show_route_definition_step,
@@ -1652,6 +1659,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
     templates = {
         "task_type": "display/navigationtaskwizardform.html",
         "anr_route_import": "display/navigationtaskwizardform.html",
+        "airsports_route_import": "display/navigationtaskwizardform.html",
         "landing_route_import": "display/navigationtaskwizardform.html",
         "precision_route_import": "display/navigationtaskwizardform.html",
         "waypoint_definition": "display/waypoints_form.html",
@@ -1679,7 +1687,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
         if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
             initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
             use_procedure_turns = self.get_cleaned_data_for_step("task_content")[
-                "scorecard"
+                "original_scorecard"
             ].use_procedure_turns
             if initial_step_data["internal_route"]:
                 route = initial_step_data["internal_route"].create_precision_route(
@@ -1730,6 +1738,16 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 route = create_anr_corridor_route_from_kml(
                     "route", data, corridor_width, rounded_corners
                 )
+        elif task_type == NavigationTask.AIRSPORTS:
+            initial_step_data = self.get_cleaned_data_for_step("airsports_route_import")
+            rounded_corners = initial_step_data["rounded_corners"]
+            if initial_step_data["internal_route"]:
+                route = initial_step_data["internal_route"].create_airsports_route(
+                    rounded_corners
+                )
+                editable_route = initial_step_data["internal_route"]
+            else:
+                raise ValidationError("Air Sports Race is not supported with imported routes")
         elif task_type == NavigationTask.LANDING:
             initial_step_data = self.get_cleaned_data_for_step("landing_route_import")
             if initial_step_data["internal_route"]:
@@ -1780,16 +1798,16 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             # )
             # form.fields["default_map"].initial = country_code_to_map_source(country_code)
             useful_cards = []
-            for scorecard in Scorecard.objects.all():
+            for scorecard in Scorecard.get_originals():
                 if (
                         self.get_cleaned_data_for_step("task_type")["task_type"]
                         in scorecard.task_type
                 ):
                     useful_cards.append(scorecard.pk)
-            form.fields["scorecard"].queryset = Scorecard.get_originals().filter(
+            form.fields["original_scorecard"].queryset = Scorecard.get_originals().filter(
                 pk__in=useful_cards
             )
-            form.fields["scorecard"].initial = Scorecard.get_originals().filter(
+            form.fields["original_scorecard"].initial = Scorecard.get_originals().filter(
                 pk__in=useful_cards
             ).first()
         return context
