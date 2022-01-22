@@ -499,6 +499,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
         # correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
     instance.rounded_corners = rounded_corners
+    instance.corridor_width = corridor_width
     instance.save()
     return instance
 

@@ -87,7 +87,8 @@ class AnrCorridorCalculator(Calculator):
             else:
                 points.append(waypoint.gate_line[0])
         for waypoint in reversed(self.contestant.navigation_task.route.waypoints):
-            if self.contestant.navigation_task.route.rounded_corners and waypoint.right_corridor_line is not None:
+            if waypoint.right_corridor_line is not None:
+                # This is the preferred option, using the gate line is for backwards compatibility
                 points.extend(list(reversed(waypoint.right_corridor_line)))
             else:
                 points.append(waypoint.gate_line[1])
