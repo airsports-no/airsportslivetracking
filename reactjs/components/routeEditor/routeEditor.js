@@ -552,18 +552,16 @@ class ConnectedRouteEditor extends Component {
                         this.setState({selectedWaypoint: item.target.options.index})
                     }
                 })
-                if (track.trackPoints[index].timeCheck) {
-                    circle([p.lat, p.lng], {
-                        radius: track.trackPoints[index].gateWidth * 1852 / 2,
-                        index: index,
-                        color: "blue",
-                        opacity: 0.05
-                    }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
-                        if (this.state.globalEditingMode) {
-                            this.setState({selectedWaypoint: item.target.options.index})
-                        }
-                    })
-                }
+                circle([p.lat, p.lng], {
+                    radius: track.trackPoints[index].gateWidth * 1852 / 2,
+                    index: index,
+                    color: track.trackPoints[index].timeCheck ? "blue" : "grey",
+                    opacity: 0.05
+                }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
+                    if (this.state.globalEditingMode) {
+                        this.setState({selectedWaypoint: item.target.options.index})
+                    }
+                })
                 index += 1
             }
         } else if (Object.keys(generalTypes).includes(track.featureType)) {
