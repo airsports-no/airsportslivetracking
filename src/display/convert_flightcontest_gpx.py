@@ -433,6 +433,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
         # Switch from longitude, latitude to latitude, longitude
         gates[index].gate_line[0].reverse()
         gates[index].gate_line[1].reverse()
+        # Fix corridor line
         corridor_line = create_bisecting_line_between_segments_corridor_width_lonlat(
             gates[index - 1].longitude,
             gates[index - 1].latitude,
@@ -440,7 +441,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
             gates[index].latitude,
             gates[index + 1].longitude,
             gates[index + 1].latitude,
-            (corridor_width if corridor_width != None else gates[index].width) * 1852)
+            (corridor_width if corridor_width is not None else gates[index].width) * 1852)
         corridor_line[0].reverse()
         corridor_line[1].reverse()
         # If these are in the wrong order, it will be corrected in "correct_gate_directions_to_the_right"
@@ -469,7 +470,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
                                                                   gates[1].latitude,
                                                                   gates[0].longitude,
                                                                   gates[0].latitude,
-                                                                  (corridor_width if corridor_width != None else gates[
+                                                                  (corridor_width if corridor_width is not None else gates[
                                                                       0].width) * 1852)
     start_corridor_line[0].reverse()
     start_corridor_line[1].reverse()
@@ -481,7 +482,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
                                                                    gates[-2].latitude,
                                                                    gates[-1].longitude,
                                                                    gates[-1].latitude,
-                                                                   (corridor_width if corridor_width != None else gates[
+                                                                   (corridor_width if corridor_width is not None else gates[
                                                                        -1].width) * 1852)
     finish_corridor_line[0].reverse()
     finish_corridor_line[1].reverse()
@@ -501,7 +502,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
             waypoint.original_gate_line = waypoint.gate_line
             turn_degrees = bearing_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
             waypoint.left_corridor_line, waypoint.right_corridor_line, waypoint.gate_line = create_rounded_corridor_corner(
-                waypoint.gate_line, waypoint.width, turn_degrees)
+                waypoint.gate_line, corridor_width if corridor_width is not None else waypoint.width, turn_degrees)
 
         # correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
