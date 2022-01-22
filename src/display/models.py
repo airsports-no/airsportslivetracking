@@ -684,7 +684,7 @@ class NavigationTask(models.Model):
     original_scorecard = models.ForeignKey(
         "Scorecard",
         on_delete=models.PROTECT,
-        help_text="Reference to an existing scorecard name.", related_name="navigation_task_original")
+        help_text=f"Reference to an existing scorecard", related_name="navigation_task_original")
     scorecard = models.OneToOneField(
         "Scorecard",
         on_delete=models.SET_NULL,
@@ -777,11 +777,6 @@ class NavigationTask(models.Model):
     @property
     def everything_public(self):
         return self.is_public and self.contest.is_public and self.is_featured
-
-    @property
-    def actual_rules(self):
-        return []
-        # return self.scorecard.scores_display()
 
     @property
     def share_string(self):
@@ -981,7 +976,7 @@ class Scorecard(models.Model):
         return [field for block in self.included_fields for field in block[1:]]
 
     @property
-    def corridor_width(self)->float:
+    def corridor_width(self) -> float:
         return self.navigation_task_override.route.corridor_width
 
     @classmethod
@@ -1117,6 +1112,7 @@ class GateScore(models.Model):
 
     class Meta:
         unique_together = ("scorecard", "gate_type")
+        ordering = ("gate_type",)
 
     def __str__(self):
         return f"{self.scorecard.name} - {self.get_gate_type_display()}"

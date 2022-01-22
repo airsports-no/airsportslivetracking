@@ -31,8 +31,7 @@ export default class AirsportsRenderer extends GenericRenderer {
             color: "blue"
         }).addTo(this.props.map)
 
-        this.props.map.fitBounds(route.getBounds(), {padding: [50, 50]})
-
+        return route
     }
 
     render() {

@@ -59,7 +59,7 @@ class ConnectedGateScoreArrow extends Component {
 
 
     getMaximumTimingPenalty() {
-        return this.getRule("maximum_timing_penalty")
+        return this.getRule("maximum_penalty")
     }
 
 

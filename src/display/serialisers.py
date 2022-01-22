@@ -517,6 +517,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Scorecard
+        read_only_fields = ["task_type"]
         exclude = ("id", "original", "included_fields", "calculator", "name", "use_procedure_turns")
 
     def create(self, validated_data):
@@ -769,12 +770,11 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         slug_field="name",
         queryset=Scorecard.get_originals(),
         required=False,
-        help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-            lambda: ", ".join(["'{}'".format(item) for item in Scorecard.get_originals()])
+        help_text="Reference to an existing scorecard name. This forms the basis for the values available in the 'scorecard' field. Currently existing scorecards: {}".format(
+            ", ".join(["'{}'".format(item) for item in Scorecard.get_originals()])
         ),
     )
     scorecard = ScorecardNestedSerialiser(read_only=True)
-    actual_rules = serializers.JSONField(read_only=True)
     display_contestant_rank_summary = serializers.BooleanField(read_only=True)
     share_string = serializers.CharField(read_only=True)
     route = RouteSerialiser()
@@ -817,8 +817,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
         slug_field="name",
         queryset=Scorecard.get_originals(),
         required=False,
-        help_text="Reference to an existing scorecard name. Currently existing scorecards: {}".format(
-            lambda: ", ".join(["'{}'".format(item) for item in Scorecard.get_originals()])
+        help_text="Reference to an existing scorecard name. This forms the basis for the values available in the 'scorecard' field. Currently existing scorecards: {}".format(
+            ", ".join(["'{}'".format(item) for item in Scorecard.get_originals()])
         ),
     )
     scorecard = ScorecardNestedSerialiser(required=False)

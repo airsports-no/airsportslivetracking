@@ -1,4 +1,5 @@
 import datetime
+import json
 from unittest.mock import patch
 
 from django.contrib.auth.models import User, Permission
@@ -19,7 +20,7 @@ line = {
     "longitude": 0,
     "elevation": 0,
     "width": 1,
-    "gate_line": [[66,66],[66.1,66.1]],
+    "gate_line": [[66, 66], [66.1, 66.1]],
     "end_curved": False,
     "is_procedure_turn": False,
     "time_check": True,
@@ -101,6 +102,10 @@ class TestAccessNavigationTask(APITestCase):
             Permission.objects.get(codename="view_contest"),
             Permission.objects.get(codename="change_contest"),
             Permission.objects.get(codename="delete_contest")
+        )
+        self.user_view_permissions = get_user_model().objects.create(email="view_permissions")
+        self.user_view_permissions.user_permissions.add(
+            Permission.objects.get(codename="view_contest"),
         )
         self.user_someone_else = get_user_model().objects.create(email="withoutpermissions")
         self.user_someone_else.user_permissions.add(
@@ -493,3 +498,29 @@ class TestAccessNavigationTask(APITestCase):
         self.assertFalse(self.navigation_task.is_featured)
         self.assertFalse(self.contest.is_public)
         self.assertFalse(self.contest.is_featured)
+
+    def test_modify_scorecard_as_owner(self):
+        self.client.force_login(user=self.user_owner)
+        scorecard_data = self.client.get(reverse("navigationtasks-scorecard", kwargs={'contest_pk': self.contest_id,
+                                                                                      'pk': self.navigation_task.id})).json()
+        self.assertEqual(200, scorecard_data["backtracking_penalty"])
+        scorecard_data["backtracking_penalty"] = 1234
+        scorecard_data.pop("task_type")
+        gate = scorecard_data["gatescore_set"][0]
+        self.assertEqual("fp", gate["gate_type"])
+        self.assertEqual(2, gate["graceperiod_before"])
+        gate["graceperiod_before"] = 4321
+        result = self.client.put(reverse("navigationtasks-scorecard",
+                                         kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}),
+                                 data=scorecard_data, format="json")
+        self.assertEqual(result.status_code, status.HTTP_200_OK, result.content)
+        self.navigation_task.scorecard.refresh_from_db()
+        self.assertEqual(1234, self.navigation_task.scorecard.backtracking_penalty)
+        self.assertEqual(4321, self.navigation_task.scorecard.gatescore_set.get(gate_type="fp").graceperiod_before)
+
+    def test_anonymous_cannot_view_scorecard(self):
+        self.client.logout()
+        result = self.client.get(reverse("navigationtasks-scorecard", kwargs={'contest_pk': self.contest_id,
+                                                                              'pk': self.navigation_task.id}))
+        self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED, result.content)
+

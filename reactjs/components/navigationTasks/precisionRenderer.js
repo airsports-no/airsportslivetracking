@@ -66,9 +66,8 @@ export default class PrecisionRenderer extends GenericRenderer {
             }).addTo(this.props.map)
             this.lines.push(route)
         }
-        this.props.map.fitBounds(route.getBounds(), {padding: [50, 50]})
 
-
+        return route
     }
 
     render() {

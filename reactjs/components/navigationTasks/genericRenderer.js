@@ -31,12 +31,16 @@ export default class GenericRenderer extends Component {
         super(props)
         this.markers = []
         this.lines = []
+        this.routeLine = null
     }
 
     componentDidMount() {
         this.markers = []
         this.lines = []
-        this.renderRoute()
+        const route = this.renderRoute()
+        if (route) {
+            this.props.map.fitBounds(route.getBounds(), {padding: [50, 50]})
+        }
         this.renderMarkers()
     }
 
@@ -75,7 +79,7 @@ export default class GenericRenderer extends Component {
                     html: waypointText,
                     iconSize: [width, height],
                     className: "myGateLink",
-                    iconAnchor: [waypoint.outer_corner_position[1] === 1 ? -5 : width + 5, waypoint.outer_corner_position[2] === 1 ? -5 : height+5]
+                    iconAnchor: [waypoint.outer_corner_position[1] === 1 ? -5 : width + 5, waypoint.outer_corner_position[2] === 1 ? -5 : height + 5]
                 })
             }).on('click', () => {
                 this.props.handleMapTurningPointClick(waypoint.name)

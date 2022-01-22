@@ -78,7 +78,7 @@ with open("/data/NM.csv", "r") as file:
 
 navigation_task = NavigationTask.create(name=name, contest=contest,
                                                 route=route,
-                                                scorecard=scorecard,
+                                                original_scorecard=scorecard,
                                                 start_time=contest_start_time, finish_time=contest_finish_time,
                                                 is_public=True)
 
@@ -89,7 +89,7 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
     contestant = os.path.splitext(os.path.basename(file))[0]
     if contestant in contestants:
         print(contestant)
-        if contestant == "Frank-Olaf":
+        if contestant == "Frank-Olaf" and False:
             member1, _ = Person.objects.get_or_create(first_name="Frank Olaf", last_name="Sem-Jacobsen",
                                                       email="frankose@ifi.uio.no")
             member2, _ = Person.objects.get_or_create(first_name="Espen", last_name="Grønstad",

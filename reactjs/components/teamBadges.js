@@ -216,7 +216,7 @@ class ConnectedLowerThirdTeam extends Component {
                         />
                     </div>
                     <div className={"p-2 clickable click-time-arrow"}>
-                        <div className={"time-text"}>TIME</div>
+                        <div className={"time-text"} onClick={() => this.props.toggleGateArrow()}>TIME</div>
                         <img src={"/static/img/expand_arrow.gif"} onClick={() => this.props.toggleGateArrow()}/>
                     </div>
                     <div
