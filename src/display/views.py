@@ -199,7 +199,7 @@ from display.serialisers import (
     SelfManagementSerialiser,
     OngoingNavigationSerialiser,
     EditableRouteSerialiser,
-    PositionSerialiser,
+    PositionSerialiser, ScorecardNestedSerialiser,
 )
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
@@ -1515,7 +1515,7 @@ def navigation_task_gatescore_override_view(request, pk, gate_score_pk):
     return render(
         request,
         "display/gatescore_override_form.html",
-        {"form": form, "navigation_task": navigation_task, "gate_score":gate_score},
+        {"form": form, "navigation_task": navigation_task, "gate_score": gate_score},
     )
 
 
@@ -2713,6 +2713,7 @@ class NavigationTaskViewSet(ModelViewSet):
     serializer_classes = {
         "share": SharingSerialiser,
         "contestant_self_registration": SelfManagementSerialiser,
+        "scorecard": ScorecardNestedSerialiser
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -2765,6 +2766,19 @@ class NavigationTaskViewSet(ModelViewSet):
         raise drf_exceptions.PermissionDenied(
             "It is not possible to modify existing navigation tasks except to publish or hide them"
         )
+
+    @action(detail=True, methods=["get", "put"],
+            permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions])
+    def scorecard(self, request, *args, **kwargs):
+        navigation_task = self.get_object()  # type: NavigationTask
+        if request.method == "PUT":
+            serialiser = self.get_serializer(instance=navigation_task.scorecard, data=request.data)
+            serialiser.is_valid(True)
+            serialiser.save()
+            return Response(serialiser.data, status=status.HTTP_200_OK)
+        else:
+            serialiser = self.get_serializer(instance=navigation_task.scorecard)
+            return Response(serialiser.data, status=status.HTTP_200_OK)
 
     @action(
         detail=True,

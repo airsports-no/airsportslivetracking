@@ -2,22 +2,7 @@ import React, {Component} from "react";
 import {getGate, getGateValue, getTrackValue} from "./actualScoreUtilities";
 
 
-function gateText(gates, track, gateType) {
-    return <p>
-        {gateType} gives a penalty of {getGateValue(gates, gateType, "Penalty per second")} points for each second more
-        than {getGateValue(gates, gateType, "Graceperiod before")}s early
-        or {getGateValue(gates, gateType, "Graceperiod after")}s late. Missing the gate is a penalty
-        of {getGateValue(gates, gateType, "Missed penalty")} points.
-        A maximum of {getGateValue(gates, gateType, "Maximum timing penalty")} points are awarded for bad timing
-        {gateType !== "Starting point" && gateType !== "Finish point" ? <span>, and
-                missing the procedure turn (if required) gives {getGateValue(gates, gateType, "Procedure turn penalty")} points</span> : null}.
-        {gateType === "Starting point" ?
-            <span> Crossing the extended starting line ({getGateValue(gates, gateType, "Extended gate width")} NM wide) backwards gives a penalty of {getGateValue(gates, gateType, "Bad crossing extended gate penalty")}</span> : null}
-    </p>
-}
-
-const aboutPrecisionFlying = (actualRules, waypoints) => {
-    const gates = actualRules.gates
+const aboutPrecisionFlying = (scorecard, waypoints) => {
     const gateWidths = waypoints.map((waypoint) => {
         return waypoint.width
     })
@@ -30,47 +15,43 @@ const aboutPrecisionFlying = (actualRules, waypoints) => {
         </p>
         <h3>Gate rules</h3>
         <p>
-            Most gates gives a penalty of {getGateValue(gates, "Turning point", "Penalty per second")} points for each
+            Most gates gives a penalty of {getGateValue(scorecard, "tp", "penalty_per_second")} points for each
             second more
-            than {getGateValue(gates, "Turning point", "Graceperiod before")}s early
-            or {getGateValue(gates, "Turning point", "Graceperiod after")}s late. Missing the gate is a penalty
-            of {getGateValue(gates, "Turning point", "Missed penalty")} points.
-            A maximum of {getGateValue(gates, "Turning point", "Maximum timing penalty")} points are awarded for bad
+            than {getGateValue(scorecard, "tp", "graceperiod_before")}s early
+            or {getGateValue(scorecard, "tp", "graceperiod_after")}s late. Missing the gate is a penalty
+            of {getGateValue(scorecard, "tp", "missed_penalty")} points.
+            A maximum of {getGateValue(scorecard, "tp", "maximum_penalty")} points are awarded for bad
             timing, and missing the procedure turn (if required)
-            gives {getGateValue(gates, "Turning point", "Procedure turn penalty")} points.
+            gives {getGateValue(scorecard, "tp", "missed_procedure_turn_penalty")} points.
         </p>
         <p>
             The width of the gates range between {Math.min(...gateWidths)} and {Math.max(...gateWidths)} NM.
         </p>
         <p>
-            Crossing the extended starting line ({getGateValue(gates, "Starting point", "Extended gate width")} NM wide)
+            Crossing the extended starting line ({getGateValue(scorecard, "sp", "extended_gate_width")} NM wide)
             backwards gives a penalty
-            of {getGateValue(gates, "Starting point", "Bad crossing extended gate penalty")} points.
+            of {getGateValue(scorecard, "sp", "bad_crossing_extended_gate_penalty")} points.
         </p>
-        {/*{gateText(actualRules.gates, actualRules.track, "Starting point")}*/}
-        {/*{gateText(actualRules.gates, actualRules.track, "Turning point")}*/}
-        {/*{gateText(actualRules.gates, actualRules.track, "Secret point")}*/}
-        {/*{gateText(actualRules.gates, actualRules.track, "Finish point")}*/}
-        {getGate(waypoints, "Takeoff gate") && getGateValue(actualRules.gates, "Takeoff gate", "Maximum timing penalty") > 0 ?
+        {getGate(waypoints, "to") && getGateValue(scorecard, "to", "maximum_penalty") > 0 ?
             <p>
-                The route has a takeoff gate. If this is passed before the takeoff time or more than one minute after
+                The route has a to. If this is passed before the takeoff time or more than one minute after
                 the
                 takeoff time a penalty
-                of {getGateValue(actualRules.gates, "Takeoff gate", "Maximum timing penalty")} points
+                of {getGateValue(scorecard.gates, "to", "maximum_penalty")} points
                 is applied.
             </p> : null}
-        {getGate(waypoints, "Landing gate") && getGateValue(actualRules.gates, "Landing gate", "Maximum timing penalty") > 0 ?
+        {getGate(waypoints, "ldg") && getGateValue(scorecard, "ldg", "maximum_penalty") > 0 ?
             <p>
-                The route has a landing gate. If this is not passed by the finish time for the contestant, a penalty
-                of {getGateValue(actualRules.gates, "Landing gate", "Maximum timing penalty")} points is applied.
+                The route has a ldg. If this is not passed by the finish time for the contestant, a penalty
+                of {getGateValue(scorecard, "ldg", "maximum_penalty")} points is applied.
             </p> : null}
         <h3>Track rules</h3>
         Backtracking during the route (defined as more
-        than {getTrackValue(actualRules.track, "backtracking bearing difference")} degrees of track for more
-        than {getTrackValue(actualRules.track, "backtracking grace time seconds")} seconds) gives a penalty
-        of {getTrackValue(actualRules.track, "backtracking penalty")} points per
-        occurrence{getTrackValue(actualRules.track, "backtracking maximum penalty") >= 0 ?
-        <span> (with a maximum of {getTrackValue(actualRules.track, "backtracking maximum penalty")} points)</span> : null}.
+        than {getTrackValue(scorecard, "backtracking_bearing_difference")} degrees of track for more
+        than {getTrackValue(scorecard, "backtracking_grace_time_seconds")} seconds) gives a penalty
+        of {getTrackValue(scorecard, "backtracking_penalty")} points per
+        occurrence{getTrackValue(scorecard, "backtracking_maximum_penalty") >= 0 ?
+        <span> (with a maximum of {getTrackValue(scorecard, "backtracking_maximum_penalty")} points)</span> : null}.
     </div>
 }
 export default aboutPrecisionFlying

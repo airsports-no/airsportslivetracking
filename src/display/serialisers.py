@@ -518,6 +518,15 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
         model = Scorecard
         fields = "__all__"
 
+    def create(self, validated_data):
+        raise NotImplementedError("Manually creating scorecards is not supported")
+
+    def update(self, instance, validated_data):
+        gate_scores = validated_data.pop("gatescore_set")
+        updated = super().update(instance, validated_data)
+        for gate in gate_scores:
+            updated.gatescore_set.filter(gate_type=gate["gate_type"]).update(gate)
+
 
 class DangerLevelSerialiser(serializers.Serializer):
     danger_level = serializers.FloatField()
@@ -832,7 +841,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             route_file = validated_data.pop("route_file", None)
             try:
                 route = create_precision_route_from_gpx(
-                    base64.decodebytes(route_file.encode("utf-8")), validated_data["original_scorecard"].use_procedure_turns
+                    base64.decodebytes(route_file.encode("utf-8")),
+                    validated_data["original_scorecard"].use_procedure_turns
                 )
             except Exception as e:
                 raise ValidationError("Failed building route from provided GPX: {}".format(e))

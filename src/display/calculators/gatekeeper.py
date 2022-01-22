@@ -393,7 +393,7 @@ class Gatekeeper(ABC):
             termination_requested = cache.get(self.contestant.termination_request_key)
             if termination_requested:
                 logger.info(f"{self.contestant}: Termination request received")
-                cache.delete()
+                cache.delete(self.contestant.termination_request_key)
             return termination_requested is True
         return False
 

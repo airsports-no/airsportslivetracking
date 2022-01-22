@@ -94,6 +94,11 @@ def get_default_scorecard():
 
         },
     )
+    # Uses secret gates for all turning points along the track
+    GateScore.objects.update_or_create(
+        scorecard=scorecard,
+        gate_type=SECRETPOINT,
+    )
 
     GateScore.objects.update_or_create(
         scorecard=scorecard,

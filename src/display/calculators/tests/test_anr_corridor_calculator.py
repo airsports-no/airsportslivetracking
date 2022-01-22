@@ -23,7 +23,6 @@ from display.models import (
     Team,
     Contestant,
     ContestantTrack,
-    TrackScoreOverride,
 )
 from mock_utilities import TraccarMock
 from redis_queue import RedisQueue
@@ -78,15 +77,13 @@ class TestANRPerLeg(TransactionTestCase):
             start_time=navigation_task_start_time,
             finish_time=navigation_task_finish_time,
         )
-        self.navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            corridor_width=0.5, corridor_grace_time=5, corridor_maximum_penalty=50
-        )
-        self.navigation_task.save()
+        self.navigation_task.scorecard.corridor_maximum_penalty = 50
+        self.navigation_task.scorecard.corridor_grace_time = 5
+        self.navigation_task.scorecard.save()
         crew = Crew.objects.create(
             member1=Person.objects.create(first_name="Mister", last_name="Pilot")
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
-        self.scorecard = default_scorecard_fai_anr_2017.get_default_scorecard()
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
@@ -286,14 +283,12 @@ class TestANR(TransactionTestCase):
             start_time=navigation_task_start_time,
             finish_time=navigation_task_finish_time,
         )
-        self.navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            corridor_width=0.5, corridor_grace_time=5
-        )
+        self.navigation_task.scorecard.corridor_grace_time = 5
+        self.navigation_task.scorecard.save()
         crew = Crew.objects.create(
             member1=Person.objects.create(first_name="Mister", last_name="Pilot")
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
-        self.scorecard = default_scorecard_fai_anr_2017.get_default_scorecard()
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
@@ -391,9 +386,8 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             start_time=navigation_task_start_time,
             finish_time=navigation_task_finish_time,
         )
-        self.navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            corridor_width=0.5, corridor_grace_time=5
-        )
+        self.navigation_task.scorecard.corridor_grace_time = 5
+        self.navigation_task.scorecard.save()
         start_time, speed = (
             datetime.datetime(2021, 1, 27, 6, 45, tzinfo=datetime.timezone.utc),
             40,
@@ -620,14 +614,12 @@ class TestANRPolygon(TransactionTestCase):
             start_time=navigation_task_start_time,
             finish_time=navigation_task_finish_time,
         )
-        self.navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            corridor_width=0.5, corridor_grace_time=5
-        )
+        self.navigation_task.scorecard.corridor_grace_time = 5
+        self.navigation_task.scorecard.save()
         crew = Crew.objects.create(
             member1=Person.objects.create(first_name="Mister", last_name="Pilot")
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
-        self.scorecard = default_scorecard_fai_anr_2017.get_default_scorecard()
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
@@ -687,14 +679,12 @@ class TestANRBergenBacktracking(TransactionTestCase):
             start_time=navigation_task_start_time,
             finish_time=navigation_task_finish_time,
         )
-        self.navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            corridor_width=0.5, corridor_grace_time=5
-        )
+        self.navigation_task.scorecard.corridor_grace_time = 5
+        self.navigation_task.scorecard.save()
         crew = Crew.objects.create(
             member1=Person.objects.create(first_name="Mister", last_name="Pilot")
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
-        self.scorecard = default_scorecard_fai_anr_2017.get_default_scorecard()
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
@@ -754,14 +744,12 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
             start_time=navigation_task_start_time,
             finish_time=navigation_task_finish_time,
         )
-        self.navigation_task.track_score_override = TrackScoreOverride.objects.create(
-            corridor_width=0.5, corridor_grace_time=5
-        )
+        self.navigation_task.scorecard.corridor_grace_time = 5
+        self.navigation_task.scorecard.save()
         crew = Crew.objects.create(
             member1=Person.objects.create(first_name="Mister", last_name="Pilot")
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
-        self.scorecard = default_scorecard_fai_anr_2017.get_default_scorecard()
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 

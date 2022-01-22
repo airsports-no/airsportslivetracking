@@ -172,7 +172,7 @@ class TestAccessNavigationTask(APITestCase):
         self.contestant = Contestant.objects.get(pk=result.json()["id"])
         self.client.force_login(self.generic_user)
         result = self.client.delete(
-            reverse("navigationtasks-detail", kwargs={'contest_pk': self.contest_id, 'pk': self.navigation_task.id}))
+            f"/api/v1/contests/{self.contest.pk}/navigationtasks/{self.navigation_task.pk}/contestant_self_registration/")
         self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_view_navigation_task_from_other_user_with_permissions(self):

@@ -4,7 +4,7 @@ from unittest.mock import Mock, call
 from django.test import TransactionTestCase
 
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
-from display.models import Prohibited, Route, TrackScoreOverride
+from display.models import Prohibited, Route
 from display.waypoint import Waypoint
 
 
