@@ -771,7 +771,8 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         queryset=Scorecard.get_originals(),
         required=False,
         help_text="Reference to an existing scorecard name. This forms the basis for the values available in the 'scorecard' field. Currently existing scorecards: {}".format(
-            ", ".join(["'{}'".format(item) for item in Scorecard.get_originals()])
+            # ", ".join(["'{}'".format(item) for item in Scorecard.get_originals()])
+            ""
         ),
     )
     scorecard = ScorecardNestedSerialiser(read_only=True)
@@ -818,7 +819,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
         queryset=Scorecard.get_originals(),
         required=False,
         help_text="Reference to an existing scorecard name. This forms the basis for the values available in the 'scorecard' field. Currently existing scorecards: {}".format(
-            ", ".join(["'{}'".format(item) for item in Scorecard.get_originals()])
+            # ", ".join(["'{}'".format(item) for item in Scorecard.get_originals()])
+            ""
         ),
     )
     scorecard = ScorecardNestedSerialiser(required=False)

@@ -806,7 +806,7 @@ class NavigationTask(models.Model):
         if not self.scorecard or force:
             if self.scorecard:
                 self.scorecard.delete()
-            self.scorecard = self.original_scorecard.copy(self.name)
+            self.scorecard = self.original_scorecard.copy(self.pk)
             self.save(update_fields=("scorecard",))
 
     def refresh_editable_route(self):
@@ -983,8 +983,8 @@ class Scorecard(models.Model):
     def get_originals(cls) -> QuerySet:
         return cls.objects.filter(original=True)
 
-    def copy(self, name_prefix: str) -> "Scorecard":
-        obj = simple_clone(self, {"name": f"{name_prefix}_{self.name}", "original": False})
+    def copy(self, name_postfix: str) -> "Scorecard":
+        obj = simple_clone(self, {"name": f"{self.name}_{name_postfix}", "original": False})
         for gate in self.gatescore_set.all():
             simple_clone(gate, {"scorecard": obj})
         return obj

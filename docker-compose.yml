@@ -224,7 +224,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysqldata2:/var/lib/mysql/
+      - mysqldata3:/var/lib/mysql/
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
 
   redis:
@@ -247,5 +247,5 @@ services:
 
 
 volumes:
-  mysqldata2:
+  mysqldata3:
   traccar-db:
