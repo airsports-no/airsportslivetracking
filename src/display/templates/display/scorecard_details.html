@@ -4,18 +4,24 @@
 
 {% block content %}
     {% get_obj_perms request.user for navigation_task.contest as "contest_permissions" %}
+    <h2 class="float-right">Scorecard</h2>
+    <h2><a
+            href="{% url 'navigationtask_detail' navigation_task.pk %}">{{ navigation_task.scorecard.get_calculator_display }}
+        task {{ navigation_task.name }}</a>
+    </h2>
     {% if "change_contest" in contest_permissions %}
         <a class="btn btn-outline-danger float-right" style="margin-top: 5px"
            href="{% url 'navigationtask_restorescorecard' navigation_task.pk %}"
-           title="Update scoring parameters">Restore original scorecard</a>
+           title="Update scoring parameters">Reset to original</a>
     {% endif %}
-    <h2>Scorecard for {{ navigation_task.scorecard.get_calculator_display }} task <a
-            href="{% url 'navigationtask_detail' navigation_task.pk %}">{{ navigation_task.name }}</a></h2>
-
+    <p>
+        Note that any changes to any scoring value will only take effect for contestants where the tracking time has not
+        started or the tracker has not been switched on.
+    </p>
     <div class="card-deck">
-        <div class="card">
+        <div class="card border-dark" style="margin-bottom: 5px">
+            <h5 class="card-header">Track rules</h5>
             <div class="card-body">
-                <h5 class="card-title">Track rules</h5>
                 <div class="card-text">
                     <table class="table">
                         {% for field in scorecard_form %}
@@ -36,11 +42,11 @@
             {% endif %}
         </div>
     </div>
-    <div class="card-columns">
+    <div class="card-deck">
         {% for gate in gate_score_forms %}
-            <div class="card">
+            <div class="card border-dark mb-4" style="min-width: 18rem">
+                <h5 class="card-header">{{ gate.name }}</h5>
                 <div class="card-body">
-                    <h5 class="card-title">{{ gate.name }}</h5>
                     <div class="card-text">
                         <table class="table">
                             {% for field in gate %}
