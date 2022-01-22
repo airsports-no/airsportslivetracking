@@ -1476,7 +1476,8 @@ def add_contest_teams_to_navigation_task(request, pk):
 def navigation_task_restore_original_scorecard_view(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     navigation_task.assign_scorecard_from_original(force=True)
-    return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
+    messages.success(request, "Original scorecard values have been restored")
+    return redirect(reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk}))
 
 
 @guardian_permission_required(

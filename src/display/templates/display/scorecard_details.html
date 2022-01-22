@@ -4,41 +4,62 @@
 
 {% block content %}
     {% get_obj_perms request.user for navigation_task.contest as "contest_permissions" %}
-    <h2>Scorecard for <a href="{% url 'navigationtask_detail' navigation_task.pk %}">{{ navigation_task.name }}</a></h2>
-        <div class="p-2 card card-body">
-            <div class="card-title"><h4>Track rules</h4></div>
-            <div class="card-text">
-                <table class="table-condensed">
-                    {% for field in scorecard_form %}
-                        <tr>
-                            <td><b>{{ field.label }}:</b></td>
-                            <td>{{ field.value }}</td>
-                        </tr>
-                    {% endfor %}
-                </table>
-                {% if "change_contest" in contest_permissions %}
-                    <a class="btn btn-primary" href="{% url 'navigationtask_updatescorecardoverride' navigation_task.pk %}">Update values</a>
-                {% endif %}
-            </div>
-        </div>
-    <div class="d-flex flex-wrap">
-        {% for gate in gate_score_forms %}
-            <div class="p-2 card card-body">
-                <div class="card-title"><h4>Gate rules for {{ gate.name }}</h4></div>
+    {% if "change_contest" in contest_permissions %}
+        <a class="btn btn-outline-danger float-right" style="margin-top: 5px"
+           href="{% url 'navigationtask_restorescorecard' navigation_task.pk %}"
+           title="Update scoring parameters">Restore original scorecard</a>
+    {% endif %}
+    <h2>Scorecard for {{ navigation_task.scorecard.get_calculator_display }} task <a
+            href="{% url 'navigationtask_detail' navigation_task.pk %}">{{ navigation_task.name }}</a></h2>
+
+    <div class="card-deck">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Track rules</h5>
                 <div class="card-text">
-                    <table class="table-condensed">
-                        {% for field in gate %}
+                    <table class="table">
+                        {% for field in scorecard_form %}
                             <tr>
-                                <td><b>{{ field.label }}:</b></td>
+                                <td>{{ field.label }}:</td>
                                 <td>{{ field.value }}</td>
                             </tr>
                         {% endfor %}
                     </table>
-                    {% if "change_contest" in contest_permissions %}
-                        <a class="btn btn-primary" href="{% url 'navigationtask_updategatescoreoverride' navigation_task.pk gate.pk %}">Update
-                            values</a>
-                    {% endif %}
                 </div>
+            </div>
+            {% if "change_contest" in contest_permissions %}
+                <div class="card-footer">
+                    <a class="btn btn-primary"
+                       href="{% url 'navigationtask_updatescorecardoverride' navigation_task.pk %}">Update
+                        values</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-columns">
+        {% for gate in gate_score_forms %}
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ gate.name }}</h5>
+                    <div class="card-text">
+                        <table class="table">
+                            {% for field in gate %}
+                                <tr>
+                                    <td>{{ field.label }}:</td>
+                                    <td>{{ field.value }}</td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                </div>
+                {% if "change_contest" in contest_permissions %}
+                    <div class="card-footer">
+                        <a class="btn btn-primary"
+                           href="{% url 'navigationtask_updategatescoreoverride' navigation_task.pk gate.pk %}">Update
+                            values</a>
+                    </div>
+                {% endif %}
+
             </div>
         {% endfor %}
     </div>
