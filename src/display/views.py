@@ -1590,14 +1590,20 @@ def _generate_data(contestant_pk):
 
 # Everything below he is related to management and requires authentication
 def show_route_definition_step(wizard):
-    cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}
+    if show_precision_path(wizard):
+        cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}
+    elif show_anr_path(wizard):
+        cleaned_data = wizard.get_cleaned_data_for_step("anr_route_import") or {}
+    else:
+        cleaned_data = {}
     return (
             not cleaned_data.get("internal_route")
-            and cleaned_data.get("file_type") == FILE_TYPE_KML
+            and (cleaned_data.get("file_type") == FILE_TYPE_KML or show_anr_path(wizard))
             and wizard.get_cleaned_data_for_step("task_type").get("task_type")
             in (
                 NavigationTask.PRECISION,
                 NavigationTask.POKER,
+                NavigationTask.ANR_CORRIDOR
             )
     )
 
@@ -1613,6 +1619,7 @@ def show_anr_path(wizard):
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
         NavigationTask.ANR_CORRIDOR,
     )
+
 
 def show_airsports_path(wizard):
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
@@ -1735,8 +1742,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             else:
                 data = self.get_cleaned_data_for_step("anr_route_import")["file"]
                 data.seek(0)
+                second_step_data = self.get_cleaned_data_for_step("waypoint_definition")
                 route = create_anr_corridor_route_from_kml(
-                    "route", data, corridor_width, rounded_corners
+                    "route", data, corridor_width, rounded_corners, first_and_last_gates=second_step_data,
                 )
         elif task_type == NavigationTask.AIRSPORTS:
             initial_step_data = self.get_cleaned_data_for_step("airsports_route_import")
@@ -1831,9 +1839,33 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
 
     def get_form_initial(self, step):
         if step == "waypoint_definition":
-            data = self.get_cleaned_data_for_step("precision_route_import")
-            print("Data: {}".format(data))
-            if data.get("file_type") == FILE_TYPE_KML:
+            task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
+            if task_type in (NavigationTask.POKER, NavigationTask.PRECISION):
+                data = self.get_cleaned_data_for_step("precision_route_import")
+                print("Data: {}".format(data))
+                if data.get("file_type") == FILE_TYPE_KML:
+                    # print(" (subfile contents {}".format(data["file"].read()))
+                    data["file"].seek(0)
+                    features = load_features_from_kml(data["file"])
+                    positions = features.get("route", [])
+                    initial = []
+                    for index, position in enumerate(positions):
+                        initial.append(
+                            {
+                                "name": f"TP {index}",
+                                "latitude": position[0],
+                                "longitude": position[1],
+                            }
+                        )
+                    if len(positions) > 0:
+                        initial[0]["type"] = STARTINGPOINT
+                        initial[0]["name"] = "SP"
+                        initial[-1]["type"] = FINISHPOINT
+                        initial[-1]["name"] = "FP"
+                    return initial
+            elif task_type == NavigationTask.ANR_CORRIDOR:
+                data = self.get_cleaned_data_for_step("anr_route_import")
+                print("Data: {}".format(data))
                 # print(" (subfile contents {}".format(data["file"].read()))
                 data["file"].seek(0)
                 features = load_features_from_kml(data["file"])
@@ -1852,7 +1884,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                     initial[0]["name"] = "SP"
                     initial[-1]["type"] = FINISHPOINT
                     initial[-1]["name"] = "FP"
-                return initial
+                return [initial[0], initial[-1]]
+
         if step == "task_content":
             country_code = get_country_code_from_location(
                 self.contest.latitude, self.contest.longitude

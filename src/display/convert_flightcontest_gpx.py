@@ -287,7 +287,7 @@ def create_gate_from_line(gate_line, name: str, type: str) -> Waypoint:
 
 
 def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_width: float,
-                                       rounded_corners: bool) -> Route:
+                                       rounded_corners: bool, first_and_last_gates: List = None) -> Route:
     """
     Generate a route where only the first point and last points have gate and time checks. All other gates are secret
     without gate or tone checks.  Each gate has a width equal
@@ -302,19 +302,26 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
         waypoint_list.append(
             build_waypoint(f"Waypoint {index}", item[0], item[1], "secret", corridor_width,
                            False, False))
-    waypoint_list[0].name = "SP"
-    waypoint_list[0].type = "sp"
-    waypoint_list[0].gate_check = True
-    waypoint_list[0].time_check = True
+    if first_and_last_gates is not None:
+        gate = first_and_last_gates[0]
+        waypoint_list[0] = build_waypoint(gate["name"], gate["latitude"], gate["longitude"], "sp", gate["width"],
+                                          gate["time_check"], gate["gate_check"])
+        gate = first_and_last_gates[-1]
+        waypoint_list[-1] = build_waypoint(gate["name"], gate["latitude"], gate["longitude"], "fp", gate["width"],
+                                           gate["time_check"], gate["gate_check"])
+    else:
+        waypoint_list[0].name = "SP"
+        waypoint_list[0].type = "sp"
+        waypoint_list[0].gate_check = True
+        waypoint_list[0].time_check = True
 
-    waypoint_list[-1].name = "FP"
-    waypoint_list[-1].type = "fp"
-    waypoint_list[-1].gate_check = True
-    waypoint_list[-1].time_check = True
+        waypoint_list[-1].name = "FP"
+        waypoint_list[-1].type = "fp"
+        waypoint_list[-1].gate_check = True
+        waypoint_list[-1].time_check = True
     logger.debug(f"Created waypoints {waypoint_list}")
-    route = create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners)
-    route.corridor_width = corridor_width
-    route.save()
+    route = create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners,
+                                                         corridor_width=corridor_width)
     extract_additional_features_from_kml_features(features, route)
     return route
 
@@ -499,7 +506,8 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
         # correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
     instance.rounded_corners = rounded_corners
-    instance.corridor_width = corridor_width
+    if corridor_width is not None:
+        instance.corridor_width = corridor_width
     instance.save()
     return instance
 
