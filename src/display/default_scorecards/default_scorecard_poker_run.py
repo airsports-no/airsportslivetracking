@@ -3,14 +3,17 @@ from display.models import GateScore, Scorecard, NavigationTask, TURNPOINT
 
 
 def get_default_scorecard():
-    scorecard, created = Scorecard.objects.update_or_create(name="Poker run", defaults={
-        "backtracking_penalty": 0,
-        "backtracking_grace_time_seconds": 5,
-        "use_procedure_turns": False,
-        "task_type": [NavigationTask.POKER],
-        "calculator": Scorecard.POKER,
-        "prohibited_zone_penalty": 0,
-    })
+    scorecard, created = Scorecard.objects.update_or_create(
+        name="Poker run",
+        defaults={
+            "shortcut_name": "Poker run",
+            "backtracking_penalty": 0,
+            "backtracking_grace_time_seconds": 5,
+            "use_procedure_turns": False,
+            "task_type": [NavigationTask.POKER],
+            "calculator": Scorecard.POKER,
+            "prohibited_zone_penalty": 0,
+        })
 
     GateScore.objects.update_or_create(scorecard=scorecard, gate_type=TURNPOINT, defaults={
         "extended_gate_width": 6,

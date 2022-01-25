@@ -6,6 +6,7 @@ def get_default_scorecard():
     scorecard, created = Scorecard.objects.update_or_create(
         name="Landing",
         defaults={
+            "shortcut_name": "Landing",
             "backtracking_penalty": 0,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": False,

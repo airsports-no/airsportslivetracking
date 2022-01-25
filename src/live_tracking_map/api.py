@@ -12,7 +12,7 @@ router.register(r'contests', ContestViewSet, basename="contests")
 # router.register(r'routes', RouteViewSet, basename="routes")
 
 navigation_task_router = routers.NestedSimpleRouter(router, r'contests', lookup="contest")
-# navigation_task_router.register(r'importnavigationtask', ImportFCNavigationTask, basename="importnavigationtask")
+navigation_task_router.register(r'importnavigationtask', ImportFCNavigationTask, basename="importnavigationtask")
 navigation_task_router.register(r'importnavigationtaskteamid', ImportFCNavigationTaskTeamId,
                                 basename="importnavigationtaskteamid")
 navigation_task_router.register(r'navigationtasks', NavigationTaskViewSet, basename="navigationtasks")

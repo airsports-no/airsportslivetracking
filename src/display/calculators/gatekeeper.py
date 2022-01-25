@@ -359,7 +359,7 @@ class Gatekeeper(ABC):
         logger.info(f"last_gate: {self.last_gate} {self.last_gate.type}")
         if self.enroute and self.last_gate is not None and self.last_gate.type in ["ldg", "ifp", "fp"]:
             self.enroute = False
-            logger.info("thisSwitching to not enroute")
+            logger.info("Switching to not enroute")
             return
         if not self.enroute and self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]:
             self.enroute = True

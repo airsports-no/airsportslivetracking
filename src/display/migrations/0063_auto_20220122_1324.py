@@ -15,7 +15,7 @@ def copy(scorecard, name_postfix: str) -> "Scorecard":
 
 def reapply_originals_scorecards(apps, schema_editor):
     db_alias = schema_editor.connection.alias
-    create_scorecards()
+    # create_scorecards()
     NavigationTask = apps.get_model("display", "NavigationTask")
     for task in NavigationTask.objects.using(db_alias).all():
         task.scorecard = copy(task.original_scorecard, task.pk)

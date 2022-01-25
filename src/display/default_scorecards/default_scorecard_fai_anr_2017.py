@@ -17,6 +17,7 @@ def get_default_scorecard():
     scorecard, created = Scorecard.objects.update_or_create(
         name="FAI ANR 2017",
         defaults={
+            "shortcut_name": "FAI ANR",
             "backtracking_penalty": 200,  # verified
             "backtracking_grace_time_seconds": 5,  # verified?
             "backtracking_maximum_penalty": 400,  # verified
@@ -33,7 +34,8 @@ def get_default_scorecard():
                                 ["Penalty zone", "penalty_zone_grace_time",
                                  "penalty_zone_penalty_per_second",
                                  "penalty_zone_maximum"],
-                                ["Corridor penalties", "backtracking_penalty", "corridor_outside_penalty", "corridor_width"]]
+                                ["Corridor penalties", "backtracking_penalty", "corridor_outside_penalty",
+                                 "corridor_width"]]
 
         },
     )

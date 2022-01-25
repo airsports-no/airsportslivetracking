@@ -17,6 +17,7 @@ def get_default_scorecard():
     scorecard, created = Scorecard.objects.update_or_create(
         name="NLF Precision 2020",
         defaults={
+            "shortcut_name": "NLF Precision",
             "backtracking_penalty": 200,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": True,

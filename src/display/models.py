@@ -911,7 +911,12 @@ class Scorecard(models.Model):
         (AIRSPORTS, "Airsports"),
     )
 
-    name = models.CharField(max_length=300, default="default", unique=True)
+    name = models.CharField(max_length=255, default="default", unique=True)
+    shortcut_name = models.CharField(max_length=255, default="shortcut_default", unique=True,
+                                     help_text=" Shortcut reference to latest scorecard version, e.g. 'FAI Precision' "
+                                               "currently links to 'FAI Precision 2020'. This is the field that is "
+                                               "used for lookups through the API, but the name is still used "
+                                               "everywhere else")
     original = models.BooleanField(default=True,
                                    help_text="Signifies that this has been created manually and is not a copy")
     included_fields = MyPickledObjectField(default=list,
@@ -984,7 +989,8 @@ class Scorecard(models.Model):
         return cls.objects.filter(original=True)
 
     def copy(self, name_postfix: str) -> "Scorecard":
-        obj = simple_clone(self, {"name": f"{self.name}_{name_postfix}", "original": False})
+        obj = simple_clone(self, {"name": f"{self.name}_{name_postfix}",
+                                  "shortcut_name": f"{self.shortcut_name}_{name_postfix}", "original": False})
         for gate in self.gatescore_set.all():
             simple_clone(gate, {"scorecard": obj})
         return obj

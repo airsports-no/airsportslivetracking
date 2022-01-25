@@ -17,6 +17,7 @@ def get_default_scorecard():
     scorecard, created = Scorecard.objects.update_or_create(
         name="Airsports",
         defaults={
+            "shortcut_name": "Airsports",
             "backtracking_penalty": 10,
             "backtracking_grace_time_seconds": 5,
             "backtracking_maximum_penalty": 100,

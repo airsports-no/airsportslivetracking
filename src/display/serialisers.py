@@ -767,7 +767,7 @@ class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSeri
 class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
     original_scorecard = SlugRelatedField(
-        slug_field="name",
+        slug_field="shortcut_name",
         queryset=Scorecard.get_originals(),
         required=False,
         help_text="Reference to an existing scorecard name. This forms the basis for the values available in the 'scorecard' field. Currently existing scorecards: {}".format(
@@ -815,7 +815,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiser(many=True)
     original_scorecard = SlugRelatedField(
-        slug_field="name",
+        slug_field="shortcut_name",
         queryset=Scorecard.get_originals(),
         required=False,
         help_text="Reference to an existing scorecard name. This forms the basis for the values available in the 'scorecard' field. Currently existing scorecards: {}".format(

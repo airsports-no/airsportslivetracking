@@ -22,6 +22,7 @@ def get_default_scorecard():
     scorecard, created = Scorecard.objects.update_or_create(
         name="FAI Air Rally 2020",
         defaults={
+            "shortcut_name": "FAI Air Rally",
             "backtracking_penalty": 100,
             "backtracking_grace_time_seconds": 5,
             "backtracking_maximum_penalty": 1000,

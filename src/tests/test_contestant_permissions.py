@@ -40,7 +40,7 @@ NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(date
         "landing_gate": line,
         "name": "name"
     },
-                        "original_scorecard": "FAI Precision 2020"
+                        "original_scorecard": "FAI Precision"
                         }
 
 CONTESTANT_DATA = {

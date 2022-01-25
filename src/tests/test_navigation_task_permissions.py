@@ -44,7 +44,7 @@ class TestCreateNavigationTask(APITestCase):
                 "takeoff_gate": line,
                 "landing_gate": line,
                 "name": "name"},
-                                     "original_scorecard": get_default_scorecard().name
+                                     "original_scorecard": get_default_scorecard().shortcut_name
                                      }
         self.user_owner = get_user_model().objects.create(email="withpermissions")
         permission = Permission.objects.get(codename="add_contest")
@@ -92,7 +92,7 @@ class TestAccessNavigationTask(APITestCase):
                 "takeoff_gate": line,
                 "landing_gate": line,
                 "name": "name"},
-                                     "original_scorecard": get_default_scorecard().name
+                                     "original_scorecard": get_default_scorecard().shortcut_name
                                      }
 
         get_default_scorecard()
