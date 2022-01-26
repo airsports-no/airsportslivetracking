@@ -10,7 +10,7 @@ def clone_scorecards(apps, schema_editor):
     NavigationTask = apps.get_model("display", "NavigationTask")
     for navigation_task in NavigationTask.objects.using(db_alias).all():
         navigation_task.scorecard = clone_object_only_foreign_keys(navigation_task.original_scorecard, {
-            "name": f"{navigation_task.name}_{navigation_task.original_scorecard.name}", "original": False})
+            "name": f"{navigation_task.pk}_{navigation_task.original_scorecard.name}", "original": False})
         navigation_task.save(update_fields=("scorecard",))
 
 
