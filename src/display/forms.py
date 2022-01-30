@@ -284,7 +284,7 @@ class NavigationTaskForm(forms.ModelForm):
         model = NavigationTask
         fields = (
             "name", "start_time", "finish_time", "display_background_map", "display_secrets",
-            "minutes_to_starting_point","original_scorecard",
+            "minutes_to_starting_point", "original_scorecard",
             "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
             "score_sorting_direction", "default_map", "default_line_width", "calculation_delay_minutes")
 
@@ -774,7 +774,8 @@ class ScorecardForm(forms.ModelForm):
             *[Field(key, type="hidden") for key in self.fields.keys() if
               key not in self.instance.visible_fields or key == "corridor_width"],
             ButtonHolder(
-                Submit("submit", "Submit")
+                Submit("submit", "Submit"),
+                Submit('cancel', 'Cancel', css_class='btn-danger', )
             )
         )
 
@@ -792,7 +793,8 @@ class GateScoreForm(forms.ModelForm):
             *[Field(key, type="hidden") for key in self.fields.keys() if
               key not in self.instance.visible_fields],
             ButtonHolder(
-                Submit("submit", "Submit")
+                Submit("submit", "Submit"),
+                Submit('cancel', 'Cancel', css_class='btn-danger', )
             )
         )
 

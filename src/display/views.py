@@ -1487,6 +1487,10 @@ def navigation_task_scorecard_override_view(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     form = ScorecardForm(instance=navigation_task.scorecard)
     if request.method == "POST":
+        if "cancel" in request.POST:
+            return redirect(
+                reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
+            )
         form = ScorecardForm(request.POST, instance=navigation_task.scorecard)
         if form.is_valid():
             form.save()
@@ -1508,6 +1512,10 @@ def navigation_task_gatescore_override_view(request, pk, gate_score_pk):
     gate_score = get_object_or_404(GateScore, pk=gate_score_pk)
     form = GateScoreForm(instance=gate_score)
     if request.method == "POST":
+        if "cancel" in request.POST:
+            return redirect(
+                reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
+            )
         form = GateScoreForm(request.POST, instance=gate_score)
         if form.is_valid():
             form.save()
