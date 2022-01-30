@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% load guardian_tags %}
+{% load crispy_forms_tags %}
 
 {% block content %}
     {% get_obj_perms request.user for navigation_task.contest as "contest_permissions" %}
@@ -23,14 +24,17 @@
             <h5 class="card-header">Track rules</h5>
             <div class="card-body">
                 <div class="card-text">
-                    <table class="table">
-                        {% for field in scorecard_form %}
-                            <tr>
-                                <td>{{ field.label }}:</td>
-                                <td>{{ field.value }}</td>
-                            </tr>
-                        {% endfor %}
-                    </table>
+                    {% for c in scorecard_form.content %}
+                        <h5>{{ c.legend }}</h5>
+                        <table class="table">
+                            {% for field in c.values %}
+                                <tr>
+                                    <td>{{ field.label }}:</td>
+                                    <td>{{ field.value }}</td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    {% endfor %}
                 </div>
             </div>
             {% if "change_contest" in contest_permissions %}
@@ -48,14 +52,17 @@
                 <h5 class="card-header">{{ gate.name }}</h5>
                 <div class="card-body">
                     <div class="card-text">
-                        <table class="table">
-                            {% for field in gate %}
-                                <tr>
-                                    <td>{{ field.label }}:</td>
-                                    <td>{{ field.value }}</td>
-                                </tr>
-                            {% endfor %}
-                        </table>
+                        {% for c in gate.content %}
+                            <h5>{{ c.legend }}</h5>
+                            <table class="table">
+                                {% for field in c.values %}
+                                    <tr>
+                                        <td>{{ field.label }}:</td>
+                                        <td>{{ field.value }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        {% endfor %}
                     </div>
                 </div>
                 {% if "change_contest" in contest_permissions %}

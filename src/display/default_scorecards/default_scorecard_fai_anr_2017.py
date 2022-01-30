@@ -30,13 +30,25 @@ def get_default_scorecard():
             "below_minimum_altitude_penalty": 500,  # verified
             "below_minimum_altitude_maximum_penalty": 500,  # verified
             "prohibited_zone_penalty": 200,
-            "included_fields": [["Prohibited zone", "prohibited_zone_penalty"],
-                                ["Penalty zone", "penalty_zone_grace_time",
-                                 "penalty_zone_penalty_per_second",
-                                 "penalty_zone_maximum"],
-                                ["Corridor penalties", "backtracking_penalty", "corridor_outside_penalty",
-                                 "corridor_width"]]
-
+            "included_fields": [
+                [
+                    "Corridor penalties",
+                    "corridor_grace_time",
+                    "backtracking_penalty",
+                    "corridor_outside_penalty",
+                ],
+                [
+                    "Prohibited zone",
+                    "prohibited_zone_grace_time",
+                    "prohibited_zone_penalty",
+                ],
+                [
+                    "Penalty zone",
+                    "penalty_zone_grace_time",
+                    "penalty_zone_penalty_per_second",
+                    "penalty_zone_maximum",
+                ],
+            ],
         },
     )
     GateScore.objects.update_or_create(
@@ -53,9 +65,15 @@ def get_default_scorecard():
             "backtracking_after_steep_gate_grace_period_seconds": 0,
             "backtracking_after_gate_grace_period_nm": 0.5,
             "missed_procedure_turn_penalty": 0,
-            "included_fields": [["Penalties", "penalty_per_second", "maximum_penalty", "missed_penalty"],
-                                ["Time limits", "graceperiod_before", "graceperiod_after"]]
-
+            "included_fields": [
+                [
+                    "Penalties",
+                    "penalty_per_second",
+                    "maximum_penalty",
+                    "missed_penalty",
+                ],
+                ["Time limits", "graceperiod_before", "graceperiod_after"],
+            ],
         },
     )
 
@@ -72,9 +90,10 @@ def get_default_scorecard():
             "penalty_per_second": 200,  # verified
             "missed_penalty": 0,
             "missed_procedure_turn_penalty": 0,
-            "included_fields": [["Penalties", "maximum_penalty", "missed_penalty"],
-                                ["Time limits", "graceperiod_before", "graceperiod_after"]]
-
+            "included_fields": [
+                ["Penalties", "maximum_penalty", "missed_penalty"],
+                ["Time limits", "graceperiod_before", "graceperiod_after"],
+            ],
         },
     )
 
@@ -92,8 +111,7 @@ def get_default_scorecard():
             "penalty_per_second": 0,
             "missed_penalty": 0,
             "missed_procedure_turn_penalty": 0,
-            "included_fields": [["Penalties", "maximum_penalty", "missed_penalty"]]
-
+            "included_fields": [["Penalties", "maximum_penalty", "missed_penalty"]],
         },
     )
     # Uses secret gates for all turning points along the track
@@ -116,10 +134,16 @@ def get_default_scorecard():
             "penalty_per_second": 3,  # verified
             "missed_penalty": 200,  # verified
             "missed_procedure_turn_penalty": 0,
-            "included_fields": [["Penalties", "penalty_per_second", "maximum_penalty", "missed_penalty",
-                                 "bad_crossing_extended_gate_penalty"],
-                                ["Time limits", "graceperiod_before", "graceperiod_after"]]
-
+            "included_fields": [
+                [
+                    "Penalties",
+                    "penalty_per_second",
+                    "maximum_penalty",
+                    "missed_penalty",
+                    "bad_crossing_extended_gate_penalty",
+                ],
+                ["Time limits", "graceperiod_before", "graceperiod_after"],
+            ],
         },
     )
 

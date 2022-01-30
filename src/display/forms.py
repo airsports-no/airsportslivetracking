@@ -777,7 +777,6 @@ class ScorecardForm(forms.ModelForm):
                 Submit("submit", "Submit")
             )
         )
-        print(self.helper.layout.fields[0])
 
 
 class GateScoreForm(forms.ModelForm):
@@ -790,6 +789,8 @@ class GateScoreForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.layout = Layout(
             *[Fieldset(*block) for block in self.instance.included_fields],
+            *[Field(key, type="hidden") for key in self.fields.keys() if
+              key not in self.instance.visible_fields],
             ButtonHolder(
                 Submit("submit", "Submit")
             )

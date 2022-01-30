@@ -34,17 +34,22 @@ def get_default_scorecard():
             "penalty_zone_penalty_per_second": 1,
             "penalty_zone_maximum": 100,
             "included_fields": [
-                ["Prohibited zone", "prohibited_zone_penalty"],
+                [
+                    "Corridor penalties",
+                    "corridor_grace_time",
+                    "backtracking_penalty",
+                    "corridor_outside_penalty",
+                ],
+                [
+                    "Prohibited zone",
+                    "prohibited_zone_grace_time",
+                    "prohibited_zone_penalty",
+                ],
                 [
                     "Penalty zone",
                     "penalty_zone_grace_time",
                     "penalty_zone_penalty_per_second",
                     "penalty_zone_maximum",
-                ],
-                [
-                    "Corridor penalties",
-                    "backtracking_penalty",
-                    "corridor_outside_penalty",
                 ],
             ],
         },

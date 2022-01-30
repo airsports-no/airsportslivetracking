@@ -4,6 +4,7 @@
 
 {% block content %}
     <h2>Change scorecard parameters for {{ navigation_task.name }} gate type {{ gate_score.get_gate_type_display }}</h2>
+    {{ form.errors }}
     <form method="post" class="form">
         {{ form.media }}
         {% crispy form %}

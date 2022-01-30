@@ -2,11 +2,11 @@ import base64
 import datetime
 import json
 import os
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, List
 
 import dateutil
 import gpxpy
-from crispy_forms.layout import Submit
+from crispy_forms.layout import Submit, Fieldset
 from django.contrib import messages
 from django.contrib.auth import login, get_user_model
 from django.contrib.auth.decorators import permission_required, login_required
@@ -22,7 +22,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.storage import FileSystemStorage
 from django.db import transaction, connection
 from django.db.models import Q
-from django.forms import formset_factory, inlineformset_factory
+from django.forms import formset_factory, inlineformset_factory, FloatField
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
@@ -1506,6 +1506,7 @@ def navigation_task_scorecard_override_view(request, pk):
 def navigation_task_gatescore_override_view(request, pk, gate_score_pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     gate_score = get_object_or_404(GateScore, pk=gate_score_pk)
+    form = GateScoreForm(instance=gate_score)
     if request.method == "POST":
         form = GateScoreForm(request.POST, instance=gate_score)
         if form.is_valid():
@@ -1513,7 +1514,6 @@ def navigation_task_gatescore_override_view(request, pk, gate_score_pk):
             return redirect(
                 reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
             )
-    form = GateScoreForm(instance=gate_score)
     return render(
         request,
         "display/gatescore_override_form.html",
@@ -1521,23 +1521,45 @@ def navigation_task_gatescore_override_view(request, pk, gate_score_pk):
     )
 
 
+def _extract_values_from_form(form: "Form") -> List:
+    """
+    Extracts the data from a crispy form using the data in the helper layout.
+    """
+    content = []
+    for field in form.helper.layout:
+        if isinstance(field, Fieldset):
+            data = {"legend": field.legend, "values": []}
+            for internal_field in field.fields:
+                data["values"].append(
+                    {"label": form.fields[internal_field].label, "value": form.fields[internal_field].initial})
+            content.append(data)
+    return content
+
+
 def navigation_task_view_detailed_score(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     print(navigation_task.scorecard)
     scorecard_form = ScorecardForm(instance=navigation_task.scorecard)
+    content = _extract_values_from_form(scorecard_form)
     for key in list(scorecard_form.fields.keys()):
         if key not in navigation_task.scorecard.visible_fields:
             scorecard_form.fields.pop(key)
     scorecard_form.pk = navigation_task.scorecard.pk
+    scorecard_form.content = content
     gate_score_forms = []
     for gate_score in navigation_task.scorecard.gatescore_set.all().order_by("gate_type"):
-        if len(gate_score.visible_fields)>0:
+        if len(gate_score.visible_fields) > 0:
             form = GateScoreForm(instance=gate_score)
             form.pk = gate_score.pk
             form.name = gate_score.get_gate_type_display()
+            content = _extract_values_from_form(form)
             for key in list(form.fields.keys()):
                 if key not in gate_score.visible_fields:
                     form.fields.pop(key)
+                else:
+                    form.fields[key].disabled = True
+            form.helper.layout.pop(-1)  # Remove submit
+            form.content = content
             gate_score_forms.append(form)
     return render(request, "display/scorecard_details.html",
                   {"navigation_task": navigation_task, "scorecard_form": scorecard_form,
