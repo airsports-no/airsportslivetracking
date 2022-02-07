@@ -24,7 +24,7 @@ def get_default_scorecard():
             "use_procedure_turns": False,
             "task_type": [NavigationTask.AIRSPORTS],
             "calculator": Scorecard.AIRSPORTS,
-            "corridor_maximum_penalty": -1,
+            "corridor_maximum_penalty": -1,  # verified
             "corridor_outside_penalty": 1,  # verified
             "corridor_grace_time": 5,  # verified
             "below_minimum_altitude_penalty": 500,  # verified

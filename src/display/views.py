@@ -3156,7 +3156,7 @@ class ContestantViewSet(ModelViewSet):
         if not track_file:
             raise ValidationError("Missing track_file")
         import_gpx_track.apply_async(
-            (contestant.pk, base64.decodebytes(track_file).decode("utf-8"))
+            (contestant.pk, base64.decodebytes(bytes(track_file, "utf-8")).decode("utf-8"))
         )
         return Response({}, status=status.HTTP_201_CREATED)
 

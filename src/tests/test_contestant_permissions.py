@@ -1,4 +1,5 @@
 import datetime
+import json
 from unittest.mock import patch
 
 from django.contrib.auth.models import User, Permission
@@ -19,7 +20,7 @@ line = {
     "longitude": 0,
     "elevation": 0,
     "width": 1,
-    "gate_line": [[66,66],[66.1,66.1]],
+    "gate_line": [[66, 66], [66.1, 66.1]],
     "end_curved": False,
     "is_procedure_turn": False,
     "time_check": True,
@@ -168,6 +169,17 @@ class TestAccessNavigationTask(APITestCase):
         assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
+
+    def test_post_gpx_track(self, p):
+        with open("tests/post_gpx_track.json", "r") as i:
+            data = json.load(i)
+        self.client.force_login(user=self.user_owner)
+        result = self.client.post(reverse("contestants-gpx-track", kwargs={"contest_pk": self.contest.pk,
+                                                                          "navigationtask_pk": self.navigation_task.pk,
+                                                                          "pk": self.contestant.pk}),
+                                  # f"/api/v1/contests/{self.contest.pk}/navigationtasks/{self.navigation_task.pk}/contestants/{self.contestant.pk}/gpx_track/",
+                                  data=data, format="json")
+        self.assertEqual(result.status_code, status.HTTP_201_CREATED)
 
     def test_view_contestant_from_other_user_with_permissions(self, patch):
         self.client.force_login(user=self.different_user_with_object_permissions)
@@ -471,4 +483,3 @@ class TestAccessNavigationTask(APITestCase):
         result = self.client.get(url)
         print(result)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
-
