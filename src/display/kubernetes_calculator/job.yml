@@ -3,13 +3,13 @@ kind: Job
 metadata:
   name: calculator-job
 spec:
+  ttlSecondsAfterFinished: 259200  # Three days
   template:
     metadata:
       labels: {}
     spec:
       imagePullSecrets:
         - name: acr-pull-secret
-      ttlSecondsAfterFinished: 259200  # Three days
       backoffLimit: 4
       containers:
       - image: airsportsacr.azurecr.io/tracker_processor:latest
