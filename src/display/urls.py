@@ -23,7 +23,7 @@ from display.views import frontend_view_map, \
     copy_editable_route, download_gpx_track_contestant, view_contest_team_images, clear_profile_image_background, \
     upload_profile_picture, get_contestant_processing_statistics, get_contest_creators_emails, \
     navigation_task_view_detailed_score, navigation_task_restore_original_scorecard_view, \
-    navigation_task_scorecard_override_view, navigation_task_gatescore_override_view
+    navigation_task_scorecard_override_view, navigation_task_gatescore_override_view, update_flight_order_configurations
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -53,6 +53,7 @@ urlpatterns = [
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
     path('navigationtask/<int:pk>/restorescorecard/', navigation_task_restore_original_scorecard_view, name="navigationtask_restorescorecard"),
     path('navigationtask/<int:pk>/scoredetails/', navigation_task_view_detailed_score, name="navigationtask_scoredetails"),
+    path('navigationtask/<int:pk>/flightorderconfiguration/', update_flight_order_configurations, name="navigationtask_flightorderconfiguration"),
     path('navigationtask/<int:pk>/updatescorecardoverride/', navigation_task_scorecard_override_view,
          name="navigationtask_updatescorecardoverride"),
     path('navigationtask/<int:pk>/updategatescoreoverride/<int:gate_score_pk>/', navigation_task_gatescore_override_view,

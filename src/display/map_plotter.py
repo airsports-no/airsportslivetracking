@@ -23,6 +23,7 @@ from display.coordinate_utilities import (
     project_position_lat_lon,
     create_perpendicular_line_at_end_lonlat, utm_from_lat_lon, bearing_difference,
 )
+from display.map_constants import A3
 from display.wind_utilities import (
     calculate_ground_speed_combined,
     calculate_wind_correction_angle,
@@ -185,10 +186,6 @@ def create_minute_lines_track(
     for line in lines:
         print(line)
     return lines
-
-
-A4 = "A4"
-A3 = "A3"
 
 
 def country_code_to_map_source(country_code: str) -> str:
@@ -866,6 +863,17 @@ def plot_precision_track(
         return path
 
 
+# def add_geotiff_background(path: str, ax):
+#     import xarray as xr
+#     from affine import Affine
+#     da = xr.open_rasterio(path)
+#     transform = Affine.from_gdal(
+#         *da.attrs['transform'])  # this is important to retain the geographic attributes from the file
+#     # Create meshgrid from geotiff
+#     nx, ny = da.sizes['x'], da.sizes['y']
+#     x, y = np.meshgrid(np.arange(nx), np.arange(ny)) * transform
+
+
 def plot_route(
         task: NavigationTask,
         map_size: str,
@@ -1093,6 +1101,13 @@ def plot_route(
         figdata, format="png", dpi=dpi, transparent=True
     )  # , bbox_inches="tight", pad_inches=margin_inches/2)
     figdata.seek(0)
+    if landscape:
+        image = Image.open(figdata)
+        rotated = image.rotate(90, expand=1)
+        rotated_data = BytesIO()
+        rotated.save(rotated_data, format="PNG")
+        rotated_data.seek(0)
+        figdata = rotated_data
     pdfdata = BytesIO()
     plt.savefig(
         pdfdata, format="pdf", dpi=dpi, transparent=True

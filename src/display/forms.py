@@ -16,10 +16,10 @@ from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 from timezone_field import TimeZoneFormField
 
-from display.map_plotter import A4, A3
+from display.map_constants import MAP_SIZES, ORIENTATIONS, LANDSCAPE, SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, A4
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam, TURNPOINT, GATE_TYPES, EditableRoute, Scorecard, GateScore
+    ContestTeam, TURNPOINT, GATE_TYPES, EditableRoute, Scorecard, GateScore, FlightOrderConfiguration
 from display.poker_cards import PLAYING_CARDS
 
 FILE_TYPE_CSV = "csv"
@@ -29,37 +29,6 @@ FILE_TYPES = (
     (FILE_TYPE_CSV, "CSV"),
     (FILE_TYPE_FLIGHTCONTEST_GPX, "FlightContest GPX file"),
     (FILE_TYPE_KML, "KML/KMZ file")
-)
-
-MAP_SIZES = (
-    (A4, A4),
-    (A3, A3)
-)
-SCALE_150 = 150
-SCALE_250 = 250
-SCALE_200 = 200
-SCALE_300 = 300
-SCALE_TO_FIT = 0
-SCALES = (
-    (SCALE_150, "1:150,000"),
-    (SCALE_200, "1:200,000"),
-    (SCALE_250, "1:250,000"),
-    (SCALE_300, "1:300,000"),
-    (SCALE_TO_FIT, "Fit page")
-)
-
-LANDSCAPE = 0
-PORTRAIT = 1
-ORIENTATIONS = (
-    (LANDSCAPE, "Landscape"),
-    (PORTRAIT, "Portrait")
-)
-
-PNG = 1
-PDF = 2
-OUTPUT_TYPES = (
-    (PNG, "PNG"),
-    (PDF, "PDF")
 )
 
 
@@ -101,6 +70,12 @@ class ContestantMapForm(forms.Form):
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7)
     output_type = forms.ChoiceField(initial=PDF, choices=OUTPUT_TYPES)
+
+
+class FlightOrderConfigurationForm(forms.ModelForm):
+    class Meta:
+        model = FlightOrderConfiguration
+        exclude = ("navigation_task",)
 
 
 class TaskTypeForm(forms.Form):

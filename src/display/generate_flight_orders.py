@@ -12,9 +12,10 @@ from fpdf import FPDF, HTMLMixin
 from shapely.geometry import Polygon
 
 from display.coordinate_utilities import utm_from_lat_lon
-from display.map_plotter import plot_route, A4
+from display.map_constants import LANDSCAPE
+from display.map_plotter import plot_route
 from display.map_plotter_shared_utilities import qr_code_image
-from display.models import Scorecard
+from display.models import Scorecard, Contestant
 from display.waypoint import Waypoint
 import cartopy.crs as ccrs
 
@@ -112,7 +113,7 @@ def insert_turning_point_images(contestant, pdf: FPDF):
     row_step = image_height + title_offset
     row_start = 30
     for index in range(number_of_images):
-        waypoint_object=render_waypoints[index]
+        waypoint_object = render_waypoints[index]
         if index % (rows_per_page * 2) == 0:
             if index > 0:
                 pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
@@ -129,7 +130,7 @@ def insert_turning_point_images(contestant, pdf: FPDF):
         row_number = (index - (current_page * rows_per_page * 2)) // 2
         y = row_start + row_number * row_step
         pdf.text(x, y, render_waypoints[index]["waypoint"].name)
-        image = generate_turning_point_image(accounted_waypoints,waypoint_object["index"])
+        image = generate_turning_point_image(accounted_waypoints, waypoint_object["index"])
         file = NamedTemporaryFile(suffix=".png")
         file.write(image.read())
         file.seek(0)
@@ -145,7 +146,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     :return:
     """
     from display.forms import SCALE_TO_FIT
-
+    flight_order_configuration = contestant.navigation_task.flightorderconfiguration
     starting_point_time_string = f'{contestant.starting_point_time_local.strftime("%H:%M:%S")}'
     tracking_start_time_string = f'{contestant.tracker_start_time_local.strftime("%H:%M:%S")}'
     finish_tracking_time = f'{contestant.finished_by_time_local.strftime("%H:%M:%S")}'
@@ -196,7 +197,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 <p><p><b>Rules</b><br/>{contestant.get_formatted_rules_description()}<p><center><h2>Good luck</h2></center>
 """
 
-    pdf = MyFPDF(orientation="P", unit="mm", format="a4")
+    pdf = MyFPDF(orientation="P", unit="mm", format=flight_order_configuration.document_size)
     # 210 x 297 mm
     pdf.add_page()
     pdf.set_font("Times", "B", 12)
@@ -231,17 +232,17 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.add_page()
     map_image, pdf_image = plot_route(
         contestant.navigation_task,
-        A4,
-        zoom_level=12,
-        landscape=False,
+        flight_order_configuration.document_size,
+        zoom_level=flight_order_configuration.map_zoom_level,
+        landscape=flight_order_configuration.map_orientation == LANDSCAPE,
         contestant=contestant,
-        annotations=True,
-        waypoints_only=False,
-        dpi=300,
-        scale=SCALE_TO_FIT,
-        map_source=contestant.navigation_task.default_map,
-        line_width=contestant.navigation_task.default_line_width,
-        colour="#0000ff",
+        annotations=flight_order_configuration.map_include_annotations,
+        waypoints_only=flight_order_configuration.map_include_waypoints,
+        dpi=flight_order_configuration.map_dpi,
+        scale=flight_order_configuration.map_scale,
+        map_source=flight_order_configuration.map_source,
+        line_width=flight_order_configuration.map_line_width,
+        colour=flight_order_configuration.map_line_colour,
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")
     mapimage_file.write(map_image.read())
@@ -249,6 +250,6 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     # Negative values to account for margins
     pdf.image(mapimage_file.name, x=0, y=0, h=297)
     pdf.image("static/img/AirSportsLiveTrackingWhiteBG.png", x=150, y=288, w=50)
-    if contestant.navigation_task.scorecard.calculator != Scorecard.ANR_CORRIDOR:
+    if contestant.navigation_task.scorecard.calculator != Scorecard.ANR_CORRIDOR and flight_order_configuration.include_turning_points:
         insert_turning_point_images(contestant, pdf)
     return pdf.output()

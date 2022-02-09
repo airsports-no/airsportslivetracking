@@ -94,7 +94,6 @@ from display.forms import (
     AddContestPermissionsForm,
     RouteCreationForm,
     LandingImportRouteForm,
-    PNG,
     ShareForm,
     SCALE_TO_FIT,
     GPXTrackImportForm,
@@ -102,12 +101,13 @@ from display.forms import (
     ANRCorridorParametersForm,
     AirsportsParametersForm,
     PersonPictureForm, ScorecardFormSetHelper, ScorecardForm, GateScoreForm, AirsportsImportRouteForm,
+    FlightOrderConfigurationForm,
 )
 from display.generate_flight_orders import generate_flight_orders
+from display.map_constants import PNG, A4
 from display.map_plotter import (
     plot_route,
     get_basic_track,
-    A4,
     country_code_to_map_source,
 )
 from display.models import (
@@ -137,7 +137,7 @@ from display.models import (
     ScoreLogEntry,
     EmailMapLink,
     EditableRoute,
-    ANOMALY, GateScore,
+    ANOMALY, GateScore, FlightOrderConfiguration,
 )
 from display.permissions import (
     ContestPermissions,
@@ -747,7 +747,7 @@ def get_contestant_map(request, pk):
                 contestant.navigation_task,
                 form.cleaned_data["size"],
                 zoom_level=form.cleaned_data["zoom_level"],
-                landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE,
+                landscape=form.cleaned_data["orientation"] == LANDSCAPE,
                 contestant=contestant,
                 annotations=form.cleaned_data["include_annotations"],
                 waypoints_only=False,
@@ -766,6 +766,22 @@ def get_contestant_map(request, pk):
             return response
     form = ContestantMapForm()
     return render(request, "display/map_form.html", {"form": form})
+
+
+@guardian_permission_required(
+    "display.change_contest", (Contest, "navigationtask__contestant__pk", "pk")
+)
+def update_flight_order_configurations(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    configuration = get_object_or_404(FlightOrderConfiguration, navigation_task__pk=pk)
+    form = FlightOrderConfigurationForm(instance=configuration)
+    if request.method == "POST":
+        form = FlightOrderConfigurationForm(request.POST, instance=configuration)
+        if form.is_valid():
+            form.save()
+            return redirect(reverse("navigationtask_detail", kwargs={"pk": pk}))
+    return render(request, "display/flight_order_configuration_form.html",
+                  {"form": form, "navigation_task": navigation_task})
 
 
 @guardian_permission_required(
@@ -861,7 +877,7 @@ def get_navigation_task_map(request, pk):
                 navigation_task,
                 form.cleaned_data["size"],
                 zoom_level=form.cleaned_data["zoom_level"],
-                landscape=int(form.cleaned_data["orientation"]) == LANDSCAPE,
+                landscape=form.cleaned_data["orientation"] == LANDSCAPE,
                 waypoints_only=form.cleaned_data["include_only_waypoints"],
                 dpi=form.cleaned_data["dpi"],
                 scale=int(form.cleaned_data["scale"]),
@@ -2431,7 +2447,8 @@ class UserPersonViewSet(GenericViewSet):
             finish_time__gte=datetime.datetime.now(datetime.timezone.utc)
         )
         print(available_contests)
-        print(self.get_object())
+        print()
+        person = self.get_object()
         contest_teams = (
             ContestTeam.objects.filter(
                 Q(team__crew__member1=self.get_object())

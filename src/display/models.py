@@ -49,6 +49,7 @@ from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.calculators.positions_and_gates import Position
 from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
+from display.map_constants import SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, MAP_SIZES, ORIENTATIONS, LANDSCAPE, A4
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.my_pickled_object_field import MyPickledObjectField
 from display.poker_cards import PLAYING_CARDS
@@ -346,8 +347,8 @@ class Person(models.Model):
             email: Optional[str],
     ) -> Optional["Person"]:
         possible_person = None
-        if phone is not None and len(phone) > 0:
-            possible_person = Person.objects.filter(phone=phone)
+        # if phone is not None and len(phone) > 0:
+        #     possible_person = Person.objects.filter(phone=phone)
         if (not possible_person or possible_person.count() == 0) and email is not None and len(email) > 0:
             possible_person = Person.objects.filter(email__iexact=email)
         elif not possible_person or possible_person.count() == 0:
@@ -894,6 +895,21 @@ class NavigationTask(models.Model):
             except IntegrityError:
                 # Caused if there are multiple contestants for the same team. We ignore all but the first one so we only include the lowest score
                 pass
+
+
+class FlightOrderConfiguration(models.Model):
+    navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE)
+    document_size = models.CharField(choices=MAP_SIZES, default=A4, max_length=50)
+    include_turning_points = models.BooleanField(default=True)
+    map_dpi = models.IntegerField(default=300, validators=[MinValueValidator(100), MaxValueValidator(500)])
+    map_zoom_level = models.IntegerField(default=12)
+    map_orientation = models.CharField(choices=ORIENTATIONS, default=LANDSCAPE, max_length=30)
+    map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
+    map_source = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=50)
+    map_include_annotations = models.BooleanField(default=True)
+    map_include_waypoints = models.BooleanField(default=True)
+    map_line_width = models.FloatField(default=0.5, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
+    map_line_colour = models.CharField(default="#0000ff", max_length=7)
 
 
 class Scorecard(models.Model):
@@ -2725,6 +2741,7 @@ def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, 
 def create_results_service_test(sender, instance: NavigationTask, created, **kwargs):
     if created:
         instance.create_results_service_test()
+        FlightOrderConfiguration.objects.get_or_create(navigation_task=instance)
 
 
 @receiver(post_delete, sender=NavigationTask)

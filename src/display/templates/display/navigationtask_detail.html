@@ -23,6 +23,8 @@
                     <a class="dropdown-item" href="{% url 'navigationtask_removecontestants' object.pk %}"
                        title="Remove all scheduled contestants">Remove
                         contestants</a>
+                    <a class="dropdown-item" href="{% url 'navigationtask_flightorderconfiguration' object.pk %}"
+                       title="Update scoring parameters">Update flight order configuration</a>
                     <a class="dropdown-item" href="{% url 'navigationtask_updatescorecardoverride' object.pk %}"
                        title="Update scoring parameters">Update scoring parameters</a>
                     {% if object.editable_route %}

@@ -942,11 +942,12 @@ class TaskNestedSerialiser(serializers.ModelSerializer):
 
 
 # Details entry
-class ContestResultsDetailsSerialiser(serializers.ModelSerializer):
+class ContestResultsDetailsSerialiser(CountryFieldMixin,serializers.ModelSerializer):
     contestsummary_set = ContestSummaryNestedSerialiser(many=True)
     task_set = TaskNestedSerialiser(many=True)
     time_zone = TimeZoneSerializerField(required=True)
     permission_change_contest = serializers.BooleanField(read_only=True)
+    country = CountryField(required=False)
 
     class Meta:
         model = Contest
