@@ -646,6 +646,7 @@ def plot_anr_corridor_track(
         contestant: Optional[Contestant],
         annotations,
         line_width: float,
+        minute_mark_line_width: float,
         colour: str,
         plot_center_line: bool
 ):
@@ -685,7 +686,7 @@ def plot_anr_corridor_track(
                 contestant,
                 route.waypoints,
                 index,
-                line_width,
+                minute_mark_line_width,
                 colour,
                 mark_offset=2,
                 line_width_nm=0.5,
@@ -794,6 +795,7 @@ def plot_precision_track(
         waypoints_only: bool,
         annotations: bool,
         line_width: float,
+        minute_mark_line_width: float,
         colour: str,
 ):
     tracks = [[]]
@@ -847,7 +849,7 @@ def plot_precision_track(
                                 contestant.wind_direction,
                             )
                             plot_minute_marks(
-                                waypoint, contestant, track, index, line_width, colour
+                                waypoint, contestant, track, index, minute_mark_line_width, colour
                             )
 
             if waypoint.is_procedure_turn:
@@ -886,6 +888,7 @@ def plot_route(
         dpi: int = 300,
         map_source: str = "osm",
         line_width: float = 0.5,
+        minute_mark_line_width: float = 0.5,
         colour: str = "#0000ff",
 ):
     route = task.route
@@ -932,15 +935,15 @@ def plot_route(
     ax.set_aspect("auto")
     if NavigationTask.PRECISION in task.scorecard.task_type or NavigationTask.POKER in task.scorecard.task_type:
         path = plot_precision_track(
-            route, contestant, waypoints_only, annotations, line_width, colour
+            route, contestant, waypoints_only, annotations, line_width, minute_mark_line_width, colour
         )
     elif NavigationTask.ANR_CORRIDOR in task.scorecard.task_type:
         path = plot_anr_corridor_track(
-            route, contestant, annotations, line_width, colour, False
+            route, contestant, annotations, line_width, minute_mark_line_width, colour, False
         )
     elif NavigationTask.AIRSPORTS in task.scorecard.task_type:
         path = plot_anr_corridor_track(
-            route, contestant, annotations, line_width, colour, True
+            route, contestant, annotations, line_width, minute_mark_line_width, colour, True
         )
     else:
         path = []

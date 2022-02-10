@@ -745,8 +745,6 @@ class NavigationTask(models.Model):
         default=False,
         help_text="If checked, authenticated users will be allowed to set up themselves as a contestant after having registered for the contest.",
     )
-    default_map = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=200)
-    default_line_width = models.FloatField(default=1)
     calculation_delay_minutes = models.FloatField(
         default=0,
         validators=[MinValueValidator(0)],
@@ -909,6 +907,7 @@ class FlightOrderConfiguration(models.Model):
     map_include_annotations = models.BooleanField(default=True)
     map_include_waypoints = models.BooleanField(default=True)
     map_line_width = models.FloatField(default=0.5, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
+    map_minute_mark_line_width = models.FloatField(default=0.5, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
     map_line_colour = models.CharField(default="#0000ff", max_length=7)
 
 

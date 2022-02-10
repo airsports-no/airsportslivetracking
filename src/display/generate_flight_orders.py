@@ -237,11 +237,12 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         landscape=flight_order_configuration.map_orientation == LANDSCAPE,
         contestant=contestant,
         annotations=flight_order_configuration.map_include_annotations,
-        waypoints_only=flight_order_configuration.map_include_waypoints,
+        waypoints_only=not flight_order_configuration.map_include_waypoints,
         dpi=flight_order_configuration.map_dpi,
         scale=flight_order_configuration.map_scale,
         map_source=flight_order_configuration.map_source,
         line_width=flight_order_configuration.map_line_width,
+        minute_mark_line_width=flight_order_configuration.map_minute_mark_line_width,
         colour=flight_order_configuration.map_line_colour,
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")

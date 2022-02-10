@@ -77,6 +77,35 @@ class FlightOrderConfigurationForm(forms.ModelForm):
         model = FlightOrderConfiguration
         exclude = ("navigation_task",)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+        self.helper.layout = Layout(
+            Fieldset(
+                "Flight order options",
+                "document_size",
+                "include_turning_points"
+            ),
+            Fieldset(
+                "Map options",
+                "map_source",
+                "map_orientation",
+                "map_zoom_level",
+                "map_scale",
+                "map_dpi",
+                "map_include_annotations",
+                "map_include_waypoints",
+                "map_line_width",
+                "map_minute_mark_line_width",
+            ),
+            Field("map_line_colour", type="hidden"),
+            HTML('<h3>Pick a colour for the map lines</h3><div id="picker" style="margin-bottom: 10px"></div>'),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+
 
 class TaskTypeForm(forms.Form):
     task_type = forms.ChoiceField(choices=NavigationTask.NAVIGATION_TASK_TYPES,
@@ -261,7 +290,7 @@ class NavigationTaskForm(forms.ModelForm):
             "name", "start_time", "finish_time", "display_background_map", "display_secrets",
             "minutes_to_starting_point", "original_scorecard",
             "minutes_to_landing", "wind_speed", "wind_direction", "allow_self_management",
-            "score_sorting_direction", "default_map", "default_line_width", "calculation_delay_minutes")
+            "score_sorting_direction", "calculation_delay_minutes")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -291,8 +320,6 @@ class NavigationTaskForm(forms.ModelForm):
                 "display_background_map",
                 "display_secrets",
                 "calculation_delay_minutes",
-                "default_map",
-                "default_line_width"
             ),
             ButtonHolder(
                 Submit("submit", "Submit")

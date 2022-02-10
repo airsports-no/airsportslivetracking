@@ -781,7 +781,7 @@ def update_flight_order_configurations(request, pk):
             form.save()
             return redirect(reverse("navigationtask_detail", kwargs={"pk": pk}))
     return render(request, "display/flight_order_configuration_form.html",
-                  {"form": form, "navigation_task": navigation_task})
+                  {"form": form, "navigation_task": navigation_task, "initial_color": configuration.map_line_colour})
 
 
 @guardian_permission_required(

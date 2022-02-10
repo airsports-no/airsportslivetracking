@@ -8,7 +8,9 @@ def create_flight_order_configuration(apps, schema_editor):
     NavigationTask = apps.get_model("display", "NavigationTask")
     FlightOrderConfiguration = apps.get_model("display", "FlightOrderConfiguration")
     for navigation_task in NavigationTask.objects.using(db_alias).all():
-        FlightOrderConfiguration.objects.get_or_create(navigation_task=navigation_task)
+        FlightOrderConfiguration.objects.get_or_create(navigation_task=navigation_task, defaults={
+            "map_source": navigation_task.default_map
+        })
 
 
 class Migration(migrations.Migration):
