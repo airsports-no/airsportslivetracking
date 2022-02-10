@@ -24,9 +24,7 @@
                        title="Remove all scheduled contestants">Remove
                         contestants</a>
                     <a class="dropdown-item" href="{% url 'navigationtask_flightorderconfiguration' object.pk %}"
-                       title="Update scoring parameters">Update flight order configuration</a>
-                    <a class="dropdown-item" href="{% url 'navigationtask_updatescorecardoverride' object.pk %}"
-                       title="Update scoring parameters">Update scoring parameters</a>
+                       title="Update scoring parameters">Flight order configuration</a>
                     {% if object.editable_route %}
                         <a class="dropdown-item" href="{% url 'navigationtask_refresheditableroute' object.pk %}"
                            title="If the task is generated from a route built in the route editor, click this link to refresh the task if changes have been made to the route.">Reload

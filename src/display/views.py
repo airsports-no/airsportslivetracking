@@ -1568,7 +1568,7 @@ def _extract_values_from_form(form: "Form") -> List:
             data = {"legend": field.legend, "values": []}
             for internal_field in field.fields:
                 data["values"].append(
-                    {"label": form.fields[internal_field].label, "value": form.fields[internal_field].initial})
+                    {"label": form.fields[internal_field].label, "value": getattr(form.instance, internal_field)})
             content.append(data)
     return content
 
@@ -1596,6 +1596,7 @@ def navigation_task_view_detailed_score(request, pk):
                 else:
                     form.fields[key].disabled = True
             form.helper.layout.pop(-1)  # Remove submit
+            print(content)
             form.content = content
             gate_score_forms.append(form)
     return render(request, "display/scorecard_details.html",
