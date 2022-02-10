@@ -209,7 +209,6 @@ class UserUploadedMBTiles(GoogleWTS):
         global first
         x, y, z = tile
         y = (2 ** z) - y - 1
-        print((x, y, z))
         try:
             with MBtiles(self.mbtiles_file) as src:
                 # tiles = src.list_tiles()

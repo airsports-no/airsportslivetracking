@@ -775,7 +775,7 @@ def get_contestant_map(request, pk):
 
 
 @guardian_permission_required(
-    "display.change_contest", (Contest, "navigationtask__contestant__pk", "pk")
+    "display.change_contest", (Contest, "navigationtask__pk", "pk")
 )
 def update_flight_order_configurations(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
