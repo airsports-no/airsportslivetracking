@@ -50,6 +50,7 @@ from display.calculators.positions_and_gates import Position
 from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
 from display.map_constants import SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, MAP_SIZES, ORIENTATIONS, LANDSCAPE, A4
+from display.map_plotter import country_code_to_map_source
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.my_pickled_object_field import MyPickledObjectField
 from display.poker_cards import PLAYING_CARDS
@@ -907,7 +908,8 @@ class FlightOrderConfiguration(models.Model):
     map_include_annotations = models.BooleanField(default=True)
     map_include_waypoints = models.BooleanField(default=True)
     map_line_width = models.FloatField(default=0.5, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
-    map_minute_mark_line_width = models.FloatField(default=0.5, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
+    map_minute_mark_line_width = models.FloatField(default=0.5,
+                                                   validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
     map_line_colour = models.CharField(default="#0000ff", max_length=7)
 
 
@@ -2737,10 +2739,15 @@ def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, 
 
 
 @receiver(post_save, sender=NavigationTask)
-def create_results_service_test(sender, instance: NavigationTask, created, **kwargs):
+def initialise_navigation_task_dependencies(sender, instance: NavigationTask, created, **kwargs):
     if created:
         instance.create_results_service_test()
-        FlightOrderConfiguration.objects.get_or_create(navigation_task=instance)
+        country_code = "xx"
+        if instance.route and len(instance.route.waypoints) > 0:
+            waypoint = instance.route.waypoints[0]  # type: Waypoint
+            country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
+        map_source = country_code_to_map_source(country_code)
+        FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 
 
 @receiver(post_delete, sender=NavigationTask)

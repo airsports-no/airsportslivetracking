@@ -799,22 +799,20 @@ def get_contestant_processing_statistics(request, pk):
 )
 def get_contestant_default_map(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
-    waypoint = contestant.navigation_task.route.waypoints[0]  # type: Waypoint
-    country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
-    map_source = country_code_to_map_source(country_code)
+    configuration=contestant.navigation_task.flightorderconfiguration
     map_image, pdf_image = plot_route(
         contestant.navigation_task,
-        A4,
-        zoom_level=12,
-        landscape=LANDSCAPE,
+        configuration.document_size,
+        zoom_level=configuration.map_zoom_level,
+        landscape=configuration.map_orientation==LANDSCAPE,
         contestant=contestant,
-        annotations=True,
-        waypoints_only=False,
-        dpi=300,
-        scale=SCALE_TO_FIT,
-        map_source=map_source,
-        line_width=1,
-        colour="#0000ff",
+        annotations=configuration.map_include_annotations,
+        waypoints_only=not configuration.map_include_waypoints,
+        dpi=configuration.map_dpi,
+        scale=configuration.map_scale,
+        map_source=configuration.map_source,
+        line_width=configuration.map_line_width,
+        colour=configuration.map_line_colour,
     )
     response = HttpResponse(pdf_image, content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=map.pdf"
@@ -1847,10 +1845,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             # route, editable = self.create_route()
             # self.request.session["route"] = route
             # self.request.session["editable_route"] = route
-            # country_code = get_country_code_from_location(
-            #     *self.request.session["route"].get_location()
-            # )
-            # form.fields["default_map"].initial = country_code_to_map_source(country_code)
             useful_cards = []
             for scorecard in Scorecard.get_originals():
                 if (
@@ -1933,12 +1927,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 return [initial[0], initial[-1]]
 
         if step == "task_content":
-            country_code = get_country_code_from_location(
-                self.contest.latitude, self.contest.longitude
-            )
-            print(country_code)
             return {
-                "default_map": country_code_to_map_source(country_code),
                 "score_sorting_direction": self.contest.summary_score_sorting_direction,
             }
         return {}
@@ -2059,7 +2048,6 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
             start_time=contest.start_time,
             finish_time=contest.finish_time,
             allow_self_management=True,
-            default_map=country_code_to_map_source(country_code),
             score_sorting_direction=contest.summary_score_sorting_direction,
         )
         return HttpResponseRedirect(
