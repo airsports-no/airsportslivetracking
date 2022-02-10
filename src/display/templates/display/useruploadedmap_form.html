@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+
+{% block content %}
+    {% if object %}
+        <h2>Update map {{ object }}</h2>
+    {% else %}
+        <h2>Upload new map</h2>
+    {% endif %}
+    <form method="post" class="form" enctype="multipart/form-data">
+        {{ form.media }}
+        {% crispy form %}
+    </form>
+{% endblock %}

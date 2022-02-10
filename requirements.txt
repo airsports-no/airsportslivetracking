@@ -72,3 +72,4 @@ html2text
 kubernetes
 kubernetes-job
 wagtail
+pymbtiles

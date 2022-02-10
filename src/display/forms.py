@@ -12,6 +12,7 @@ from django.contrib.gis.forms import MultiLineStringField, OSMWidget, LineString
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.forms import HiddenInput
+from django.forms.widgets import FileInput
 from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 from timezone_field import TimeZoneFormField
@@ -19,7 +20,7 @@ from timezone_field import TimeZoneFormField
 from display.map_constants import MAP_SIZES, ORIENTATIONS, LANDSCAPE, SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, A4
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
-    ContestTeam, TURNPOINT, GATE_TYPES, EditableRoute, Scorecard, GateScore, FlightOrderConfiguration
+    ContestTeam, TURNPOINT, GATE_TYPES, EditableRoute, Scorecard, GateScore, FlightOrderConfiguration, UserUploadedMap
 from display.poker_cards import PLAYING_CARDS
 
 FILE_TYPE_CSV = "csv"
@@ -51,7 +52,8 @@ class MapForm(forms.Form):
                                     help_text="WARNING: scale printing is currently only correct for landscape orientation")
     include_only_waypoints = forms.BooleanField(initial=False, required=False)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="cyclosm")
+    map_source = forms.ChoiceField(choices=MAP_CHOICES, help_text="Is overridden by user map source if set")
+    user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set")
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7)
@@ -64,12 +66,36 @@ class ContestantMapForm(forms.Form):
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE,
                                     help_text="WARNING: scale printing is currently only correct for landscape orientation")
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_CHOICES, initial="cyclosm")
+    map_source = forms.ChoiceField(choices=MAP_CHOICES, help_text="Is overridden by user map source if set")
+    user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set")
     include_annotations = forms.BooleanField(required=False, initial=True)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7)
     output_type = forms.ChoiceField(initial=PDF, choices=OUTPUT_TYPES)
+
+
+class UserUploadedMapForm(forms.ModelForm):
+    class Meta:
+        model = UserUploadedMap
+        fields = "__all__"
+        widgets = {"map_file": FileInput(attrs={'accept': 'application/vnd.mapbox-vector-tile'})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "User map",
+                "name",
+                "map_file"
+            ),
+            Field("user", type="hidden"),
+            ButtonHolder(
+                Submit("submit", "Submit")
+            )
+        )
+
 
 
 class FlightOrderConfigurationForm(forms.ModelForm):
@@ -90,6 +116,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
             Fieldset(
                 "Map options",
                 "map_source",
+                "map_user_source",
                 "map_orientation",
                 "map_zoom_level",
                 "map_scale",

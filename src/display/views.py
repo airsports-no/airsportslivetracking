@@ -101,7 +101,7 @@ from display.forms import (
     ANRCorridorParametersForm,
     AirsportsParametersForm,
     PersonPictureForm, ScorecardFormSetHelper, ScorecardForm, GateScoreForm, AirsportsImportRouteForm,
-    FlightOrderConfigurationForm,
+    FlightOrderConfigurationForm, UserUploadedMapForm,
 )
 from display.generate_flight_orders import generate_flight_orders
 from display.map_constants import PNG, A4
@@ -137,7 +137,7 @@ from display.models import (
     ScoreLogEntry,
     EmailMapLink,
     EditableRoute,
-    ANOMALY, GateScore, FlightOrderConfiguration,
+    ANOMALY, GateScore, FlightOrderConfiguration, UserUploadedMap,
 )
 from display.permissions import (
     ContestPermissions,
@@ -739,10 +739,13 @@ def get_contestant_rules(request, pk):
     "display.view_contest", (Contest, "navigationtask__contestant__pk", "pk")
 )
 def get_contestant_map(request, pk):
+    form = ContestantMapForm()
+    contestant = get_object_or_404(Contestant, pk=pk)
     if request.method == "POST":
         form = ContestantMapForm(request.POST)
+        form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
+                                                                   contestant.navigation_task.get_available_user_maps()]
         if form.is_valid():
-            contestant = get_object_or_404(Contestant, pk=pk)
             map_image, pdf_image = plot_route(
                 contestant.navigation_task,
                 form.cleaned_data["size"],
@@ -754,6 +757,7 @@ def get_contestant_map(request, pk):
                 dpi=form.cleaned_data["dpi"],
                 scale=int(form.cleaned_data["scale"]),
                 map_source=form.cleaned_data["map_source"],
+                user_map_source=form.cleaned_data["user_map_source"],
                 line_width=float(form.cleaned_data["line_width"]),
                 colour=form.cleaned_data["colour"],
             )
@@ -764,7 +768,9 @@ def get_contestant_map(request, pk):
                 response = HttpResponse(pdf_image, content_type="application/pdf")
                 response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
-    form = ContestantMapForm()
+    form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
+                                                               contestant.navigation_task.get_available_user_maps()]
+
     return render(request, "display/map_form.html", {"form": form})
 
 
@@ -775,8 +781,10 @@ def update_flight_order_configurations(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     configuration = get_object_or_404(FlightOrderConfiguration, navigation_task__pk=pk)
     form = FlightOrderConfigurationForm(instance=configuration)
+    form.fields['map_user_source'].queryset = navigation_task.get_available_user_maps()
     if request.method == "POST":
         form = FlightOrderConfigurationForm(request.POST, instance=configuration)
+        form.fields['map_user_source'].queryset = navigation_task.get_available_user_maps()
         if form.is_valid():
             form.save()
             return redirect(reverse("navigationtask_detail", kwargs={"pk": pk}))
@@ -799,18 +807,19 @@ def get_contestant_processing_statistics(request, pk):
 )
 def get_contestant_default_map(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
-    configuration=contestant.navigation_task.flightorderconfiguration
+    configuration = contestant.navigation_task.flightorderconfiguration
     map_image, pdf_image = plot_route(
         contestant.navigation_task,
         configuration.document_size,
         zoom_level=configuration.map_zoom_level,
-        landscape=configuration.map_orientation==LANDSCAPE,
+        landscape=configuration.map_orientation == LANDSCAPE,
         contestant=contestant,
         annotations=configuration.map_include_annotations,
         waypoints_only=not configuration.map_include_waypoints,
         dpi=configuration.map_dpi,
         scale=configuration.map_scale,
         map_source=configuration.map_source,
+        user_map_source=configuration.map_user_source.map_file if configuration.map_user_source else "",
         line_width=configuration.map_line_width,
         colour=configuration.map_line_colour,
     )
@@ -866,10 +875,14 @@ def broadcast_navigation_task_orders(request, pk):
     "display.view_contest", (Contest, "navigationtask__pk", "pk")
 )
 def get_navigation_task_map(request, pk):
+    form = MapForm()
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if request.method == "POST":
         form = MapForm(request.POST)
+        form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
+                                                                   navigation_task.get_available_user_maps()]
+
         if form.is_valid():
-            navigation_task = get_object_or_404(NavigationTask, pk=pk)
             print(form.cleaned_data)
             map_image, pdf_image = plot_route(
                 navigation_task,
@@ -880,6 +893,7 @@ def get_navigation_task_map(request, pk):
                 dpi=form.cleaned_data["dpi"],
                 scale=int(form.cleaned_data["scale"]),
                 map_source=form.cleaned_data["map_source"],
+                user_map_source=form.cleaned_data["user_map_source"],
                 line_width=float(form.cleaned_data["line_width"]),
                 colour=form.cleaned_data["colour"],
             )
@@ -890,7 +904,8 @@ def get_navigation_task_map(request, pk):
                 response = HttpResponse(pdf_image, content_type="application/pdf")
                 response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
-    form = MapForm()
+    form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
+                                                               navigation_task.get_available_user_maps()]
     return render(request, "display/map_form.html", {"form": form})
 
 
@@ -3233,6 +3248,57 @@ def renew_token(request):
 @permission_required("display.view_contest")
 def view_token(request):
     return render(request, "token.html")
+
+
+class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
+    model = UserUploadedMap
+    permission_required = ("display.add_contest",)
+    form_class = UserUploadedMapForm
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial["user"] = self.request.user.pk
+        return initial
+
+    # def form_valid(self, form):
+    #     instance = form.save(commit=False)  # type: UserUploadedMap
+    #     instance.user = self.request.user
+    #     instance.save()
+    #     self.object = instance
+    #     return HttpResponseRedirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse("useruploadedmaps_list")
+
+
+class UserUploadedMapUpdate(PermissionRequiredMixin, UpdateView):
+    model = UserUploadedMap
+    permission_required = ("display.add_contest",)
+    form_class = UserUploadedMapForm
+
+    def get_success_url(self):
+        return reverse("useruploadedmaps_list")
+
+    def has_permission(self):
+        return super().has_permission() and self.get_object().user == self.request.user
+
+
+class UserUploadedMapList(PermissionRequiredMixin, ListView):
+    model = UserUploadedMap
+    permission_required = ("display.add_contest",)
+
+    def get_queryset(self):
+        return self.model.objects.filter(user=self.request.user)
+
+
+class UserUploadedMapDelete(PermissionRequiredMixin, DeleteView):
+    model = UserUploadedMap
+    permission_required = ("display.add_contest",)
+    template_name = "model_delete.html"
+    success_url = reverse_lazy("useruploadedmaps_list")
+
+    def has_permission(self):
+        return super().has_permission() and self.get_object().user == self.request.user
 
 
 ########## Results service ##########

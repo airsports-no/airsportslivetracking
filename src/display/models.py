@@ -23,8 +23,9 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.files.images import ImageFile
+from django.core.files.storage import FileSystemStorage
 from django.core.mail import send_mail
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, FileExtensionValidator
 
 from django.db import models, IntegrityError
 from django.db.models import Q, QuerySet
@@ -50,7 +51,6 @@ from display.calculators.positions_and_gates import Position
 from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
 from display.map_constants import SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, MAP_SIZES, ORIENTATIONS, LANDSCAPE, A4
-from display.map_plotter import country_code_to_map_source
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.my_pickled_object_field import MyPickledObjectField
 from display.poker_cards import PLAYING_CARDS
@@ -765,6 +765,13 @@ class NavigationTask(models.Model):
             Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
         )
 
+    def get_available_user_maps(self) -> List["UserUploadedMap"]:
+        users = get_users_with_perms(self.contest, attach_perms=True)
+        print(users)
+        users = [user for user, permissions in users.items() if "change_contest" in permissions]
+        print(users)
+        return UserUploadedMap.objects.filter(user__in=users)
+
     @property
     def is_poker_run(self) -> bool:
         return self.POKER in self.scorecard.task_type
@@ -904,7 +911,9 @@ class FlightOrderConfiguration(models.Model):
     map_zoom_level = models.IntegerField(default=12)
     map_orientation = models.CharField(choices=ORIENTATIONS, default=LANDSCAPE, max_length=30)
     map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
-    map_source = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=50)
+    map_source = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=50, blank=True)
+    map_user_source = models.ForeignKey("UserUploadedMap", on_delete=models.SET_NULL, blank=True, null=True,
+                                        help_text="Overrides whatever is chosen in map source")
     map_include_annotations = models.BooleanField(default=True)
     map_include_waypoints = models.BooleanField(default=True)
     map_line_width = models.FloatField(default=0.5, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
@@ -2409,6 +2418,21 @@ ____________________________________________________________
         )
 
 
+
+class UserUploadedMap(models.Model):
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    map_file = models.FileField(upload_to="user_maps", storage=FileSystemStorage(location="/maptiles"),
+                                validators=[FileExtensionValidator(allowed_extensions=['mbtiles'])], help_text="File must be of type MBTILES. This can be generated for instance using MapTile Desktop")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        unique_together = ("user", "name")
+
+
+
 class EditableRoute(models.Model):
     route_type = models.CharField(
         choices=NavigationTask.NAVIGATION_TASK_TYPES, default=NavigationTask.PRECISION, max_length=200
@@ -2746,6 +2770,7 @@ def initialise_navigation_task_dependencies(sender, instance: NavigationTask, cr
         if instance.route and len(instance.route.waypoints) > 0:
             waypoint = instance.route.waypoints[0]  # type: Waypoint
             country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
+        from display.map_plotter import country_code_to_map_source
         map_source = country_code_to_map_source(country_code)
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 

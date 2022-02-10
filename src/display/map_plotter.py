@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
 from matplotlib import patheffects
+from pymbtiles import MBtiles
 from shapely.geometry import Polygon
 
 from display.coordinate_utilities import (
@@ -191,6 +192,45 @@ def create_minute_lines_track(
 def country_code_to_map_source(country_code: str) -> str:
     map = {"no": "/maptiles/Norway_N250"}
     return map.get(country_code, "cyclosm")
+
+
+first = True
+
+
+class UserUploadedMBTiles(GoogleWTS):
+    def __init__(self, mbtiles_file, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mbtiles_file = "/maptiles/" + mbtiles_file
+
+    def _image_url(self, tile):
+        return "something"
+
+    def get_image(self, tile):
+        global first
+        x, y, z = tile
+        y = (2 ** z) - y - 1
+        print((x, y, z))
+        try:
+            with MBtiles(self.mbtiles_file) as src:
+                # tiles = src.list_tiles()
+                # for tile in tiles:
+                #     if tile.z == z and first:
+                #         print(tile)
+                # print(f"Has tile: {src.has_tile(z, x, y)}")
+                data = src.read_tile(z=z, x=x, y=y)
+                img = Image.open(BytesIO(data))
+                # print("Success")
+        except ValueError:
+            img = Image.fromarray(
+                np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8)
+            )
+        except Exception:
+            logger.exception("bad ")
+            raise
+
+        img = img.convert(self.desired_tile_form)
+        first = False
+        return img, self.tileextent(tile), "lower"
 
 
 class FlightContest(GoogleWTS):
@@ -887,6 +927,7 @@ def plot_route(
         scale: int = 200,
         dpi: int = 300,
         map_source: str = "osm",
+        user_map_source: str = "",
         line_width: float = 0.5,
         minute_mark_line_width: float = 0.5,
         colour: str = "#0000ff",
@@ -896,16 +937,19 @@ def plot_route(
     A4_height = 29.7
     A3_height = 42
     A3_width = 29.7
-    if map_source == "osm":
-        imagery = OSM()
-    elif map_source == "fc":
-        imagery = FlightContest(desired_tile_form="RGBA")
-    elif map_source == "mto":
-        imagery = MapTilerOutdoor(desired_tile_form="RGBA")
-    elif map_source == "cyclosm":
-        imagery = CyclOSM(desired_tile_form="RGBA")
+    if user_map_source and len(user_map_source):
+        imagery = UserUploadedMBTiles(user_map_source)
     else:
-        imagery = LocalImages(map_source, desired_tile_form="RGBA")
+        if map_source == "osm":
+            imagery = OSM()
+        elif map_source == "fc":
+            imagery = FlightContest(desired_tile_form="RGBA")
+        elif map_source == "mto":
+            imagery = MapTilerOutdoor(desired_tile_form="RGBA")
+        elif map_source == "cyclosm":
+            imagery = CyclOSM(desired_tile_form="RGBA")
+        else:
+            imagery = LocalImages(map_source, desired_tile_form="RGBA")
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12

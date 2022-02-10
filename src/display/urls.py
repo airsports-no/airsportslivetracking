@@ -23,13 +23,19 @@ from display.views import frontend_view_map, \
     copy_editable_route, download_gpx_track_contestant, view_contest_team_images, clear_profile_image_background, \
     upload_profile_picture, get_contestant_processing_statistics, get_contest_creators_emails, \
     navigation_task_view_detailed_score, navigation_task_restore_original_scorecard_view, \
-    navigation_task_scorecard_override_view, navigation_task_gatescore_override_view, update_flight_order_configurations
+    navigation_task_scorecard_override_view, navigation_task_gatescore_override_view, \
+    update_flight_order_configurations, UserUploadedMapCreate, UserUploadedMapList, UserUploadedMapUpdate, \
+    UserUploadedMapDelete
 
 urlpatterns = [
     path('healthz/', healthz),
     path('readyz/', readyz),
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
     path('task/<int:pk>/playbackmap/', frontend_playback_map, name="frontend_playback_map"),
+    path('useruploadedmaps/', UserUploadedMapList.as_view(), name="useruploadedmaps_list"),
+    path('useruploadedmaps/create/', UserUploadedMapCreate.as_view(), name="useruploadedmaps_add"),
+    path('useruploadedmaps/<int:pk>/update/', UserUploadedMapUpdate.as_view(), name="useruploadedmaps_change"),
+    path('useruploadedmaps/<int:pk>/delete/', UserUploadedMapDelete.as_view(), name="useruploadedmaps_delete"),
     path('token/renew', renew_token, name="renewtoken"),
     path('users/emails/', get_contest_creators_emails, name="user_emails"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
@@ -51,12 +57,16 @@ urlpatterns = [
     path('contest/<int:pk>/update/', ContestUpdateView.as_view(), name="contest_update"),
     path('contest/<int:pk>/share/', share_contest, name="contest_share"),
     path('navigationtask/<int:pk>/', NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
-    path('navigationtask/<int:pk>/restorescorecard/', navigation_task_restore_original_scorecard_view, name="navigationtask_restorescorecard"),
-    path('navigationtask/<int:pk>/scoredetails/', navigation_task_view_detailed_score, name="navigationtask_scoredetails"),
-    path('navigationtask/<int:pk>/flightorderconfiguration/', update_flight_order_configurations, name="navigationtask_flightorderconfiguration"),
+    path('navigationtask/<int:pk>/restorescorecard/', navigation_task_restore_original_scorecard_view,
+         name="navigationtask_restorescorecard"),
+    path('navigationtask/<int:pk>/scoredetails/', navigation_task_view_detailed_score,
+         name="navigationtask_scoredetails"),
+    path('navigationtask/<int:pk>/flightorderconfiguration/', update_flight_order_configurations,
+         name="navigationtask_flightorderconfiguration"),
     path('navigationtask/<int:pk>/updatescorecardoverride/', navigation_task_scorecard_override_view,
          name="navigationtask_updatescorecardoverride"),
-    path('navigationtask/<int:pk>/updategatescoreoverride/<int:gate_score_pk>/', navigation_task_gatescore_override_view,
+    path('navigationtask/<int:pk>/updategatescoreoverride/<int:gate_score_pk>/',
+         navigation_task_gatescore_override_view,
          name="navigationtask_updategatescoreoverride"),
     path('navigationtask/<int:pk>/qr/', tracking_qr_code_view, name="navigationtask_qr"),
     path('navigationtask/<int:pk>/map/', get_navigation_task_map, name="navigationtask_map"),
