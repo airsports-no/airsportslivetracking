@@ -24,7 +24,7 @@ def folder_map_name(folder: str) -> str:
 
 
 MAP_FOLDERS = glob.glob("/maptiles/*")
-MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS] + [
+MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS if not "user_maps" in item] + [
     ("osm", "OSM"),
     ("fc", "Flight Contest"),
     ("mto", "MapTiler Outdoor"),
