@@ -2545,14 +2545,19 @@ class EditableRouteViewSet(ModelViewSet):
         )
     def perform_update(self, serializer):
         super().perform_update(serializer)
-        self.get_object().thumbnail.save(self.get_object().name + "_thumbnail.png",
+        try:
+            self.get_object().thumbnail.save(self.get_object().name + "_thumbnail.png",
                                 ContentFile(self.get_object().create_thumbnail().getvalue()), save=True)
+        except:
+            logger.exception("Failed creating editable route thumbnail")
 
     def perform_create(self, serializer):
         super().perform_create(serializer)
-        print(serializer)
-        serializer.instance.thumbnail.save(serializer.instance.name + "_thumbnail.png",
+        try:
+            serializer.instance.thumbnail.save(serializer.instance.name + "_thumbnail.png",
                                 ContentFile(serializer.instance.create_thumbnail().getvalue()), save=True)
+        except:
+            logger.exception("Failed creating editable route thumbnail")
 
 
 class ContestViewSet(ModelViewSet):
