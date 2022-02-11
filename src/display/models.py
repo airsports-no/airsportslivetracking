@@ -36,6 +36,7 @@ from django_use_email_as_username.models import BaseUser, BaseUserManager
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm, get_users_with_perms
 from multiselectfield import MultiSelectField
+from pymbtiles import MBtiles
 from six import text_type
 from timezone_field import TimeZoneField
 
@@ -52,6 +53,7 @@ from display.clone_object import clone_object_only_foreign_keys, clone_object, s
 from display.coordinate_utilities import bearing_difference
 from display.map_constants import SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, MAP_SIZES, ORIENTATIONS, LANDSCAPE, A4
 from display.map_plotter_shared_utilities import MAP_CHOICES
+from display.mbtiles_stitch import MBTilesHelper
 from display.my_pickled_object_field import MyPickledObjectField
 from display.poker_cards import PLAYING_CARDS
 from display.track_merger import merge_tracks
@@ -2418,12 +2420,13 @@ ____________________________________________________________
         )
 
 
-
 class UserUploadedMap(models.Model):
     user = models.ForeignKey(MyUser, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
-    map_file = models.FileField(upload_to="user_maps", storage=FileSystemStorage(location="/maptiles"),
-                                validators=[FileExtensionValidator(allowed_extensions=['mbtiles'])], help_text="File must be of type MBTILES. This can be generated for instance using MapTile Desktop")
+    map_file = models.FileField(storage=FileSystemStorage(location="/maptiles/user_maps"),
+                                validators=[FileExtensionValidator(allowed_extensions=['mbtiles'])],
+                                help_text="File must be of type MBTILES. This can be generated for instance using MapTile Desktop")
+    thumbnail = models.ImageField(upload_to="map_thumbnails/", blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -2431,6 +2434,19 @@ class UserUploadedMap(models.Model):
     class Meta:
         unique_together = ("user", "name")
 
+    def create_thumbnail(self) -> BytesIO:
+        """
+        Finds the smallest Zoom tile and returns this
+        """
+        with MBtiles(self.map_file.path) as src:
+            print(src.meta)
+            helper = MBTilesHelper(src)
+            image = helper.stitch()
+            width, height = image.size
+            image = image.resize((400, int(400 * height / width)))
+            temporary_file = BytesIO()
+            image.save(temporary_file, "PNG")
+            return temporary_file
 
 
 class EditableRoute(models.Model):

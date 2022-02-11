@@ -19,6 +19,7 @@ from django.contrib.auth.models import User
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 from django.db import transaction, connection
 from django.db.models import Q
@@ -3261,12 +3262,12 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
         initial["user"] = self.request.user.pk
         return initial
 
-    # def form_valid(self, form):
-    #     instance = form.save(commit=False)  # type: UserUploadedMap
-    #     instance.user = self.request.user
-    #     instance.save()
-    #     self.object = instance
-    #     return HttpResponseRedirect(self.get_success_url())
+    def form_valid(self, form):
+        instance = form.save()  # type: UserUploadedMap
+        instance.thumbnail.save(os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
+                                ContentFile(instance.create_thumbnail().getvalue()), save=True)
+        self.object = instance
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse("useruploadedmaps_list")
@@ -3276,6 +3277,13 @@ class UserUploadedMapUpdate(PermissionRequiredMixin, UpdateView):
     model = UserUploadedMap
     permission_required = ("display.add_contest",)
     form_class = UserUploadedMapForm
+
+    def form_valid(self, form):
+        instance = form.save()  # type: UserUploadedMap
+        instance.thumbnail.save(os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
+                                ContentFile(instance.create_thumbnail().getvalue()), save=True)
+        self.object = instance
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse("useruploadedmaps_list")

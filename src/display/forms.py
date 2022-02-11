@@ -52,8 +52,9 @@ class MapForm(forms.Form):
                                     help_text="WARNING: scale printing is currently only correct for landscape orientation")
     include_only_waypoints = forms.BooleanField(initial=False, required=False)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_CHOICES, help_text="Is overridden by user map source if set")
-    user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set")
+    map_source = forms.ChoiceField(choices=MAP_CHOICES, help_text="Is overridden by user map source if set",
+                                   required=False)
+    user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set", required=False)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7)
@@ -66,8 +67,9 @@ class ContestantMapForm(forms.Form):
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE,
                                     help_text="WARNING: scale printing is currently only correct for landscape orientation")
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=MAP_CHOICES, help_text="Is overridden by user map source if set")
-    user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set")
+    map_source = forms.ChoiceField(choices=MAP_CHOICES, help_text="Is overridden by user map source if set",
+                                   required=False)
+    user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set", required=False)
     include_annotations = forms.BooleanField(required=False, initial=True)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
@@ -78,8 +80,8 @@ class ContestantMapForm(forms.Form):
 class UserUploadedMapForm(forms.ModelForm):
     class Meta:
         model = UserUploadedMap
-        fields = "__all__"
-        widgets = {"map_file": FileInput(attrs={'accept': 'application/vnd.mapbox-vector-tile'})}
+        exclude = ("thumbnail",)
+        # widgets = {"map_file": FileInput(attrs={'accept': 'application/vnd.mapbox-vector-tile'})}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -95,7 +97,6 @@ class UserUploadedMapForm(forms.ModelForm):
                 Submit("submit", "Submit")
             )
         )
-
 
 
 class FlightOrderConfigurationForm(forms.ModelForm):
