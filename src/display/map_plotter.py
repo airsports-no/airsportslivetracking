@@ -200,7 +200,7 @@ first = True
 class UserUploadedMBTiles(GoogleWTS):
     def __init__(self, mbtiles_file, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mbtiles_file = "/maptiles/" + mbtiles_file
+        self.mbtiles_file = "/maptiles/user_maps/" + mbtiles_file
 
     def _image_url(self, tile):
         return "something"
