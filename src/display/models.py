@@ -2455,6 +2455,18 @@ class EditableRoute(models.Model):
     )
     name = models.CharField(max_length=200, help_text="User-friendly name")
     route = MyPickledObjectField(default=dict)
+    thumbnail = models.ImageField(upload_to="route_thumbnails/", blank=True, null=True)
+
+    class Meta:
+        ordering = ("name", "pk")
+
+    def create_thumbnail(self) -> BytesIO:
+        """
+        Finds the smallest Zoom tile and returns this
+        """
+        from display.map_plotter import plot_editable_route
+        image_stream = plot_editable_route(self)
+        return image_stream
 
     def __str__(self):
         return self.name
@@ -2494,12 +2506,14 @@ class EditableRoute(models.Model):
         route.save()
         return route
 
-    def create_precision_route(self, use_procedure_turns: bool) -> Route:
+    def create_precision_route(self, use_procedure_turns: bool) -> Optional[Route]:
         from display.convert_flightcontest_gpx import build_waypoint
         from display.convert_flightcontest_gpx import create_precision_route_from_waypoint_list
 
         track = self._get_feature_type("track")
         waypoint_list = []
+        if track is None:
+            return None
         coordinates = self._get_feature_coordinates(track)
         track_points = track["track_points"]
         for index, (latitude, longitude) in enumerate(coordinates):

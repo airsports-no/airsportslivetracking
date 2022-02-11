@@ -2543,6 +2543,16 @@ class EditableRouteViewSet(ModelViewSet):
             klass=self.queryset,
             accept_global_perms=False,
         )
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self.get_object().thumbnail.save(self.get_object().name + "_thumbnail.png",
+                                ContentFile(self.get_object().create_thumbnail().getvalue()), save=True)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        print(serializer)
+        serializer.instance.thumbnail.save(serializer.instance.name + "_thumbnail.png",
+                                ContentFile(serializer.instance.create_thumbnail().getvalue()), save=True)
 
 
 class ContestViewSet(ModelViewSet):

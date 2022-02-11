@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.models import Route, Contestant, NavigationTask
+from display.models import Route, Contestant, NavigationTask, EditableRoute
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
@@ -913,6 +913,58 @@ def plot_precision_track(
 #     # Create meshgrid from geotiff
 #     nx, ny = da.sizes['x'], da.sizes['y']
 #     x, y = np.meshgrid(np.arange(nx), np.arange(ny)) * transform
+def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
+    plt.figure(figsize=(3, 3))
+    imagery = OSM()
+    ax = plt.axes(projection=imagery.crs)
+    route = editable_route.create_precision_route(False)
+    if route is None:
+        return BytesIO()
+    if route is not None:
+        tracks = [[]]
+        for waypoint in route.waypoints:  # type: Waypoint
+            if waypoint.type == "isp":
+                tracks.append([])
+            if waypoint.type in ("tp", "sp", "fp", "isp", "ifp"):
+                tracks[-1].append(waypoint)
+        for track in tracks:
+            line = []
+            for index, waypoint in enumerate(track):  # type: int, Waypoint
+                # plt.plot(
+                #     waypoint.longitude,
+                #     waypoint.latitude,
+                #     transform=ccrs.PlateCarree(),
+                #     color="red",
+                #     marker="o",
+                #     markersize=8,
+                #     fillstyle="none",
+                # )
+                plt.text(
+                    waypoint.longitude,
+                    waypoint.latitude,
+                    " "+waypoint.name,
+                    verticalalignment="center",
+                    color="red",
+                    horizontalalignment="left",
+                    transform=ccrs.PlateCarree(),
+                    fontsize=8,
+                    family="monospace",
+                    clip_on=True,
+                )
+                line.append((waypoint.latitude, waypoint.longitude))
+            path = np.array(line)
+            ys, xs = path.T
+            plt.plot(
+                xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1
+            )
+        plot_prohibited_zones(route, imagery.crs, ax)
+    ax.add_image(imagery, 11)
+    figdata = BytesIO()
+    plt.savefig(
+        figdata, format="png", dpi=100, transparent=True
+    )  # , bbox_inches="tight", pad_inches=margin_inches/2)
+    figdata.seek(0)
+    return figdata
 
 
 def plot_route(
