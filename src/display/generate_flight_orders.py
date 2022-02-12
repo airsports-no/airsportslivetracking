@@ -138,6 +138,9 @@ def insert_turning_point_images(contestant, pdf: FPDF):
     pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
 
 
+def recode_text(text: str):
+    return text.encode('latin-1', 'replace').decode('latin-1')
+
 def generate_flight_orders(contestant: "Contestant") -> bytes:
     """
     Returns a PDF report
@@ -202,7 +205,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.add_page()
     pdf.set_font("Times", "B", 12)
 
-    pdf.write_html(heading)
+    pdf.write_html(recode_text(heading))
     pdf.set_text_color(0, 0, 255)
     pdf.set_xy(136, 90)
     pdf.write(10, "Share flight on Facebook", url)

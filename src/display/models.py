@@ -1299,6 +1299,9 @@ class Contestant(models.Model):
         return f"termination_request_{self.pk}"
 
     def request_calculator_termination(self):
+        self.finished_by_time = max(self.takeoff_time + datetime.timedelta(seconds=1),
+                                    datetime.datetime.now(datetime.timezone.utc))
+        self.save(update_fields=["finished_by_time"])
         logger.info(f"Signalling manual termination for contestant {self}")
         cache.set(self.termination_request_key, True, timeout=600)
 

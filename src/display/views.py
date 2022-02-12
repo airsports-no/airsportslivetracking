@@ -2,6 +2,7 @@ import base64
 import datetime
 import json
 import os
+import time
 from typing import Optional, Dict, Tuple, List
 
 import dateutil
@@ -921,7 +922,7 @@ def upload_gpx_track_for_contesant(request, pk):
     try:
         if (
                 not contestant.contestanttrack.calculator_finished
-                and contestant.contestanttrack.calculator_finished
+                and contestant.contestanttrack.calculator_started
         ):
             messages.error(
                 request,
@@ -1000,7 +1001,7 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
     try:
         if (
                 not contestant.contestanttrack.calculator_finished
-                and contestant.contestanttrack.calculator_finished
+                and contestant.contestanttrack.calculator_started
         ):
             messages.error(
                 request,
@@ -1114,7 +1115,39 @@ class ContestList(PermissionRequiredMixin, ListView):
 def terminate_contestant_calculator(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     contestant.request_calculator_termination()
-    messages.success(request, "Calculator termination requested")
+    time.sleep(10)
+    try:
+        if contestant.contestanttrack.calculator_finished:
+            messages.success(request, "Calculator terminated successfully")
+        else:
+            messages.info(request, "Calculator termination requested")
+    except:
+        # This may fail if the contestants track has just been deleted
+        messages.info(request, "Calculator termination requested")
+    return HttpResponseRedirect(
+        reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
+    )
+
+
+@guardian_permission_required(
+    "display.change_contest", (Contest, "navigationtask__contestant__pk", "pk")
+)
+def restart_running_contestant_calculator(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    contestant.request_calculator_termination()
+    now=datetime.datetime.now()
+    while datetime.datetime.now()<now+datetime.timedelta(minutes=1):
+        try:
+            contestant.refresh_from_db()
+            if contestant.contestanttrack.calculator_finished:
+                messages.success(request, "Calculator should have been restarted")
+                contestant.reset_track_and_score()
+                break
+        except:
+            # This may fail if the contestants track has just been deleted
+            pass
+        time.sleep(5)
+
     return HttpResponseRedirect(
         reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
     )

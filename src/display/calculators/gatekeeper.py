@@ -50,7 +50,7 @@ class ScoreAccumulator:
 
 
 LOOP_TIME = 60
-CONTESTANT_REFRESH_INTERVAL = datetime.timedelta(seconds=30)
+CONTESTANT_REFRESH_INTERVAL = datetime.timedelta(seconds=15)
 
 
 class Gatekeeper(ABC):
@@ -213,7 +213,7 @@ class Gatekeeper(ABC):
                     break
                 self.last_contestant_refresh = now
             try:
-                position_data = self.timed_queue.get(timeout=30)
+                position_data = self.timed_queue.get(timeout=15)
             except TimedOut:
                 # We have not received anything for 60 seconds, check if we should terminate
                 self.check_termination()

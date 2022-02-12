@@ -100,6 +100,10 @@ def recalculate_traccar(contestant: "Contestant"):
     except:
         pass
     contestant.contestantreceivedposition_set.all().delete()
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if contestant.finished_by_time > now:
+        contestant.finished_by_time = max(contestant.takeoff_time + datetime.timedelta(seconds=1), now)
+        contestant.save(update_fields=["finished_by_time"])
     track = contestant.get_traccar_track()
     queue_name = f"override_{contestant.pk}"
     q = RedisQueue(queue_name)
@@ -116,6 +120,11 @@ def recalculate_traccar(contestant: "Contestant"):
 
 
 def insert_gpx_file(contestant_object: "Contestant", file):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if contestant_object.finished_by_time > now:
+        contestant_object.finished_by_time = max(contestant_object.takeoff_time + datetime.timedelta(seconds=1), now)
+        contestant_object.save(update_fields=["finished_by_time"])
+
     try:
         gpx = gpxpy.parse(file)
         logger.debug("Successfully parsed GPX file")
