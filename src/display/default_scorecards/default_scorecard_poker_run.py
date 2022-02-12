@@ -1,5 +1,7 @@
 #
-from display.models import GateScore, Scorecard, NavigationTask, TURNPOINT
+from display.clone_object import simple_clone
+from display.models import GateScore, Scorecard, NavigationTask, TURNPOINT, SECRETPOINT, STARTINGPOINT, FINISHPOINT, \
+    TAKEOFF_GATE, LANDING_GATE, GATE_TYPES
 
 
 def get_default_scorecard():
@@ -15,7 +17,7 @@ def get_default_scorecard():
             "prohibited_zone_penalty": 0,
         })
 
-    GateScore.objects.update_or_create(scorecard=scorecard, gate_type=TURNPOINT, defaults={
+    turning_point, _ = GateScore.objects.update_or_create(scorecard=scorecard, gate_type=TURNPOINT, defaults={
         "extended_gate_width": 6,
         "bad_crossing_extended_gate_penalty": 0,
         "graceperiod_before": 2,
@@ -26,5 +28,8 @@ def get_default_scorecard():
         "missed_procedure_turn_penalty": 0,
         "backtracking_after_steep_gate_grace_period_seconds": 0,
     })
+    for gate_type, friendly_name in GATE_TYPES:
+        if gate_type != TURNPOINT:
+            simple_clone(turning_point, {"gate_type": gate_type})
 
     return scorecard
