@@ -26,8 +26,8 @@ class GatekeeperRoute(Gatekeeper):
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
     def __init__(self, contestant: "Contestant", calculators: List[Callable],
-                 live_processing: bool = True):
-        super().__init__(contestant, calculators, live_processing)
+                 live_processing: bool = True, queue_name_override: str=None):
+        super().__init__(contestant, calculators, live_processing, queue_name_override=queue_name_override)
         self.last_backwards = None
         self.recalculation_completed = not self.contestant.adaptive_start
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
@@ -126,8 +126,7 @@ class GatekeeperRoute(Gatekeeper):
             if intersection_time:
                 if not self.starting_line.is_passed_in_correct_direction_track_to_next(self.track):
                     # Add penalty for crossing in the wrong direction
-                    score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp",
-                                                                                                self.contestant)
+                    score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
                     # Add a grace time to prevent multiple backwards penalties for a single crossing
                     if self.last_backwards is None or intersection_time > self.last_backwards + datetime.timedelta(
                             seconds=15):

@@ -23,8 +23,8 @@ LOOP_TIME = 60
 
 class GatekeeperLanding(Gatekeeper):
     def __init__(self, contestant: "Contestant", calculators: List[Callable],
-                 live_processing: bool = True):
-        super().__init__(contestant, calculators, live_processing)
+                 live_processing: bool = True, queue_name_override: str=None):
+        super().__init__(contestant, calculators, live_processing, queue_name_override=queue_name_override)
         self.last_intersection = None
         self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
                                  datetime.datetime.min,

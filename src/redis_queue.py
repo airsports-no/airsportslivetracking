@@ -41,6 +41,10 @@ class RedisQueue:
         if self.redis_handle:
             self.redis_handle.lpush(self.queue_name, pickle.dumps(item))
 
+    @property
+    def size(self)->int:
+        return self.redis_handle.llen(self.queue_name)
+
     def pop(self, blocking=False, timeout: float = 10) -> Any:
         if self.redis_handle:
             if not blocking:

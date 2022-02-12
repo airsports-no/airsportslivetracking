@@ -58,7 +58,7 @@ class Gatekeeper(ABC):
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
     def __init__(self, contestant: "Contestant", calculators: List[Callable],
-                 live_processing: bool = True):
+                 live_processing: bool = True, queue_name_override: str = None):
         super().__init__()
         logger.info(f"{contestant}: Created gatekeeper")
         self.traccar = get_traccar_instance()
@@ -67,7 +67,7 @@ class Gatekeeper(ABC):
         self.track_terminated = False
         self.contestant = contestant
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
-        self.position_queue = RedisQueue(str(contestant.pk))
+        self.position_queue = RedisQueue(queue_name_override or str(contestant.pk))
         self.last_termination_command_check = None
         self.track = []  # type: List[Position]
         self.score = 0
@@ -165,13 +165,20 @@ class Gatekeeper(ABC):
         return [position_data]
 
     def enqueue_positions(self):
+        logger.info(
+            f"{self.contestant}: Starting delayed position queuer with {self.position_queue.size} waiting messages. Track terminated is {self.track_terminated}")
+        receiving = False
         while not self.track_terminated:
             try:
                 position_data = self.position_queue.pop(True, timeout=30)
                 if position_data is not None:
                     release_time = position_data["device_time"] + datetime.timedelta(
                         minutes=self.contestant.navigation_task.calculation_delay_minutes)
+                    if not receiving:
+                        logger.info(f"{self.contestant}: Started receiving data")
+                        receiving = True
                 else:
+                    logger.info(f"{self.contestant}: Delayed position queuer received None")
                     release_time = datetime.datetime.now(datetime.timezone.utc)
                 self.timed_queue.put(position_data, release_time)
             except RedisEmpty:
@@ -188,6 +195,7 @@ class Gatekeeper(ABC):
 
         self.contestant.contestanttrack.set_calculator_started()
         threading.Thread(target=self.enqueue_positions).start()
+        receiving = False
         number_of_positions = 0
         while not self.track_terminated:
             now = datetime.datetime.now(datetime.timezone.utc)
@@ -200,6 +208,7 @@ class Gatekeeper(ABC):
                     self.contestant.refresh_from_db()
                 except ObjectDoesNotExist:
                     # Contestants has been deleted, terminate the calculator
+                    logger.info(f"{self.contestant} has been deleted, terminating")
                     self.track_terminated = True
                     break
                 self.last_contestant_refresh = now
@@ -214,6 +223,9 @@ class Gatekeeper(ABC):
                 logger.debug(f"End of position list after {number_of_positions} positions")
                 self.notify_termination()
                 continue
+            if not receiving:
+                logger.info(f"{self.contestant}: Started processing data")
+                receiving = True
             # logger.debug(f"Processing position ID {position_data['id']} for device ID {position_data['deviceId']}")
             position_data["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
             number_of_positions += 1

@@ -101,12 +101,15 @@ def recalculate_traccar(contestant: "Contestant"):
         pass
     contestant.contestantreceivedposition_set.all().delete()
     track = contestant.get_traccar_track()
-    q = RedisQueue(str(contestant.pk))
+    queue_name = f"override_{contestant.pk}"
+    q = RedisQueue(queue_name)
+    while not q.empty():
+        q.pop()
     for i in track:
         q.append(i)
     q.append(None)
     logger.debug(f"Loaded {len(track)} positions")
-    calculator = calculator_factory(contestant, live_processing=False)
+    calculator = calculator_factory(contestant, live_processing=False, queue_name_override=queue_name)
     calculator.run()
     while not q.empty():
         q.pop()
@@ -164,11 +167,14 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     logger.debug("Created new uploaded track with {} positions".format(len(positions)))
     # generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
     # influx.put_position_data_for_contestant(contestant_object, positions)
-    q = RedisQueue(contestant_object.pk)
+    queue_name = f"override_{contestant_object.pk}"
+    q = RedisQueue(queue_name)
+    while not q.empty():
+        q.pop()
     for i in positions:
         q.append(i)
     q.append(None)
-    calculator = calculator_factory(contestant_object, live_processing=False)
+    calculator = calculator_factory(contestant_object, live_processing=False, queue_name_override=queue_name)
     calculator.run()
     while not q.empty():
         q.pop()

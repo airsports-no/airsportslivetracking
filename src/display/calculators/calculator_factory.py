@@ -14,20 +14,22 @@ from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalcula
 from display.models import Contestant, Scorecard
 
 
-def calculator_factory(contestant: "Contestant", live_processing: bool = True) -> "Gatekeeper":
+def calculator_factory(contestant: "Contestant", live_processing: bool = True,
+                       queue_name_override: str = None) -> "Gatekeeper":
     cache.delete(contestant.termination_request_key)
     if contestant.navigation_task.scorecard.calculator == Scorecard.PRECISION:
         return GatekeeperRoute(contestant,
                                [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator,
                                 PenaltyZoneCalculator],
-                               live_processing=live_processing)
+                               live_processing=live_processing, queue_name_override=queue_name_override)
     if contestant.navigation_task.scorecard.calculator in (Scorecard.ANR_CORRIDOR, Scorecard.AIRSPORTS):
         return GatekeeperRoute(contestant,
                                [BacktrackingAndProcedureTurnsCalculator, AnrCorridorCalculator,
                                 ProhibitedZoneCalculator, PenaltyZoneCalculator],
-                               live_processing=live_processing)
+                               live_processing=live_processing, queue_name_override=queue_name_override)
     if contestant.navigation_task.scorecard.calculator == Scorecard.LANDING:
-        return GatekeeperLanding(contestant, [], live_processing=live_processing)
+        return GatekeeperLanding(contestant, [], live_processing=live_processing,
+                                 queue_name_override=queue_name_override)
     if contestant.navigation_task.scorecard.calculator == Scorecard.POKER:
-        return GatekeeperPoker(contestant, [], live_processing=live_processing)
-    return GatekeeperRoute(contestant, [], live_processing=live_processing)
+        return GatekeeperPoker(contestant, [], live_processing=live_processing, queue_name_override=queue_name_override)
+    return GatekeeperRoute(contestant, [], live_processing=live_processing, queue_name_override=queue_name_override)
