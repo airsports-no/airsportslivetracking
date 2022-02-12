@@ -851,7 +851,7 @@ def get_contestant_email_flying_orders_link(request, pk):
 def broadcast_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestants = navigation_task.contestant_set.filter(
-        tracker_start_time__gt=datetime.datetime.now(datetime.timezone.utc)
+        takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
     )
     for contestant in contestants:
         # Delete existing order
