@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Optional, List
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -6,6 +7,8 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduler import TeamDefinition, Solver
 from display.models import NavigationTask, ContestTeam, Contestant, Scorecard
+
+logger = logging.getLogger(__name__)
 
 
 def schedule_and_create_contestants(navigation_task: NavigationTask, contest_teams_pks: List[int],
@@ -108,6 +111,9 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
         # print(f"start_slot: {team_definition.start_slot}")
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
+            if contestant.contestanttrack.calculator_started:
+                logger.warning(f"{contestant} has already started, so we cannot change this")
+                continue
             start_offset = team_definition.start_time - contestant.takeoff_time
             contestant.tracker_start_time = team_definition.start_time - datetime.timedelta(
                 minutes=tracker_leadtime_minutes)
