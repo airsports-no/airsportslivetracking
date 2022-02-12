@@ -30,6 +30,7 @@ def get_default_scorecard():
     })
     for gate_type, friendly_name in GATE_TYPES:
         if gate_type != TURNPOINT:
+            scorecard.gatescore_set.filter(gate_type=gate_type).delete()
             simple_clone(turning_point, {"gate_type": gate_type})
 
     return scorecard

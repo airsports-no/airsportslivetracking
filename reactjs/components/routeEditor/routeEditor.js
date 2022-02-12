@@ -164,6 +164,7 @@ class ConnectedRouteEditor extends Component {
             selectedWaypoint: null,
             globalEditingMode: false
         }
+        this.usedGateNames = []
     }
 
     componentDidMount() {
@@ -382,9 +383,10 @@ class ConnectedRouteEditor extends Component {
             } else {
                 let names = []
                 for (let i = 0; i < layer.trackPoints.length; i++) {
-                    if (names.contains(layer.trackPoints[i].name)) {
-                        errors.push("Gate names must be unique. The name " + layer.trackPoints[i].name + " is used multiple times.")
+                    if (names.includes(layer.trackPoints[i].name)) {
+                        errors.push("Gate names must be unique. The name '" + layer.trackPoints[i].name + "' is used multiple times.")
                     }
+                    names.push(layer.trackPoints[i].name)
                 }
                 if (layer.getLatLngs().length !== layer.trackPoints.length) {
                     errors.push("The length of points and the length of the names do not match")
@@ -771,6 +773,19 @@ class ConnectedRouteEditor extends Component {
         })
     }
 
+    generateGateName(trackPoints) {
+        const names = trackPoints.map((p) => {
+            return p.name
+        })
+        let index = 1
+        let name = "NEW"
+        while (names.includes(name)) {
+            name = "NEW" + index
+            index++
+        }
+        return name
+    }
+
     updateWaypoints(trackLayer) {
         const points = trackLayer.getLatLngs()
         let newTrackPoints = []
@@ -792,7 +807,7 @@ class ConnectedRouteEditor extends Component {
             }
             if (!match) {
                 newTrackPoints.push({
-                    name: "NEW",
+                    name: this.generateGateName(trackLayer.trackPoints),
                     gateType: "tp",
                     timeCheck: true,
                     gateWidth: 1,
