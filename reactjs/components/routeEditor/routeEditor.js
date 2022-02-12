@@ -174,8 +174,8 @@ class ConnectedRouteEditor extends Component {
         console.log("Visited: " + visited)
         if (!visited) {
             this.setState({displayTutorial: true})
-            cookies.set(key, true)
         }
+        cookies.set(key, true)
         this.initialiseMap()
         if (this.props.routeId) {
             this.reloadMap()
