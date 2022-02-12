@@ -1,3 +1,4 @@
+import time
 from io import BytesIO
 
 import dateutil.parser
@@ -1811,7 +1812,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         self.trackannotation_set.all().delete()
         self.gatecumulativescore_set.all().delete()
         self.actualgatetime_set.all().delete()
-        self.contestanttrack.delete()
+        try:
+            self.contestanttrack.delete()
+        except:
+            # May fail if it has already been deleted
+            pass
         contestant_track = ContestantTrack.objects.create(contestant=self)
         contestant_track.update_score(0)
 
@@ -2757,6 +2762,12 @@ def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs
 @receiver(pre_save, sender=Contestant)
 def validate_contestant(sender, instance: Contestant, **kwargs):
     instance.clean()
+
+
+@receiver(pre_delete, sender=Contestant)
+def stop_any_calculators(sender, instance: Contestant, **kwargs):
+    instance.request_calculator_termination()
+    time.sleep(10)
 
 
 @receiver(pre_save, sender=ContestTeam)
