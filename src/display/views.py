@@ -2543,11 +2543,12 @@ class EditableRouteViewSet(ModelViewSet):
             klass=self.queryset,
             accept_global_perms=False,
         )
+
     def perform_update(self, serializer):
         super().perform_update(serializer)
         try:
             self.get_object().thumbnail.save(self.get_object().name + "_thumbnail.png",
-                                ContentFile(self.get_object().create_thumbnail().getvalue()), save=True)
+                                             ContentFile(self.get_object().create_thumbnail().getvalue()), save=True)
         except:
             logger.exception("Failed creating editable route thumbnail")
 
@@ -2555,7 +2556,8 @@ class EditableRouteViewSet(ModelViewSet):
         super().perform_create(serializer)
         try:
             serializer.instance.thumbnail.save(serializer.instance.name + "_thumbnail.png",
-                                ContentFile(serializer.instance.create_thumbnail().getvalue()), save=True)
+                                               ContentFile(serializer.instance.create_thumbnail().getvalue()),
+                                               save=True)
         except:
             logger.exception("Failed creating editable route thumbnail")
 
@@ -2634,8 +2636,8 @@ class ContestViewSet(ModelViewSet):
                 .filter(
                 contestant__contestanttrack__calculator_started=True,
                 contestant__contestanttrack__calculator_finished=False,
-            )
-                .distinct()
+                contestant__finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc)
+            ).distinct()
         )
         data = self.get_serializer_class()(
             navigation_tasks, many=True, context={"request": self.request}
@@ -2986,21 +2988,18 @@ class NavigationTaskViewSet(ModelViewSet):
             )
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
+            my_contestants = navigation_task.contestant_set.filter(team__crew__member1__email=request.user.email)
             # Delete all contestants that have not started yet where I am the pilot
-            navigation_task.contestant_set.filter(
-                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
-                team__crew__member1__email=request.user.email,
+            my_contestants.filter(
                 contestanttrack__calculator_started=False,
             ).delete()
             # If the contestant has not reached the takeoff time, delete the contestant
-            navigation_task.contestant_set.filter(
+            my_contestants.filter(
                 takeoff_time__gte=datetime.datetime.now(datetime.timezone.utc),
-                team__crew__member1__email=request.user.email,
             ).delete()
             # Terminate ongoing contestants where the time has passed the takeoff time
-            for c in navigation_task.contestant_set.filter(
+            for c in my_contestants.filter(
                     finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
-                    team__crew__member1__email=request.user.email,
                     contestanttrack__calculator_started=True,
             ):
                 # We know the takeoff time is in the past, so we can freely set it to now.
