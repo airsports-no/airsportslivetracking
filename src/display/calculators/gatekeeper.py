@@ -398,16 +398,16 @@ class Gatekeeper(ABC):
             self.notify_termination()
 
     def is_termination_commanded(self) -> bool:
-        now = datetime.datetime.now(datetime.timezone.utc)
-        if self.last_termination_command_check is None or now > self.last_termination_command_check + datetime.timedelta(
-                seconds=15):
-            self.last_termination_command_check = now
-            termination_requested = cache.get(self.contestant.termination_request_key)
-            if termination_requested:
-                logger.info(f"{self.contestant}: Termination request received")
-                cache.delete(self.contestant.termination_request_key)
-            return termination_requested is True
-        return False
+        # now = datetime.datetime.now(datetime.timezone.utc)
+        # if self.last_termination_command_check is None or now > self.last_termination_command_check + datetime.timedelta(
+        #         seconds=15):
+        # self.last_termination_command_check = now
+        termination_requested = cache.get(self.contestant.termination_request_key)
+        if termination_requested:
+            logger.info(f"{self.contestant}: Termination request received")
+            cache.delete(self.contestant.termination_request_key)
+        return termination_requested is True
+        # return False
 
     @abstractmethod
     def check_gates(self):

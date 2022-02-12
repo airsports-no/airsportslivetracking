@@ -208,7 +208,7 @@ class TestANRPerLeg(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
 
         print(strings)
-        self.assertTrue("Waypoint 1: 0 points manually terminated" in strings)
+        self.assertTrue("SP: 0 points manually terminated" in strings)
         # self.assertEqual(492, contestant_track.score)
 
     def test_anr_miss_start_and_finish(self, p, p2):

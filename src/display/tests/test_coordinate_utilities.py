@@ -88,7 +88,7 @@ class TestCoordinateUtilities(TestCase):
         self.assertAlmostEquals(1000.2567, calculated_length, 4)
 
     @parameterized.expand([
-        (0, 0, 1, 1, 2, 0, 1, [[1.0, 1.7071067811865475], [1.0, 0.2928932188134524]]),
+        (0, 0, 1, 1, 2, 0, 1, [[1.0, 1.7071067811865475], [1.0, 0.29289321881345254]]),
         (0, 0, 0, 1, 0, 2.01, 1, [[-0.5, 1.0], [0.5, 1.0]])
     ])
     def test_create_bisecting_line_between_segments_corridor_width_xy(self, x1, y1, x2, y2, x3, y3, length, expected):
