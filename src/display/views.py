@@ -1305,6 +1305,13 @@ class ContestantUpdateView(
     def get_permission_object(self):
         return self.get_object().navigation_task.contest
 
+    def form_valid(self, form):
+        instance = form.save(commit=False)  # type: Contestant
+        instance.predefined_gate_times = None
+        instance.save()
+        self.object = instance
+        return HttpResponseRedirect(self.get_success_url())
+
 
 class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = Contestant
