@@ -12,6 +12,7 @@ import dateutil
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 
+from display.calculator_running_utilities import is_calculator_running, calculator_is_alive
 from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
 from redis_queue import RedisQueue
 
@@ -28,7 +29,7 @@ from display.calculators.calculator_factory import calculator_factory
 from display.models import TraccarCredentials, Contestant
 from traccar_facade import Traccar
 
-CACHE_TTL = 180
+CACHE_TTL = 60
 contestant_cache = {}
 
 logger = logging.getLogger(__name__)
@@ -106,17 +107,26 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
     global processes
     key = contestant.pk
     with calculator_lock:
-        if key not in processes:
+        if key not in processes or not is_calculator_running(key):
             q = RedisQueue(str(contestant.pk))
             # Create kubernetes job for the calculator
             creator = JobCreator()
             processes[key] = (q, None)
             try:
                 response = creator.spawn_calculator_job(contestant.pk)
+                calculator_is_alive(contestant.pk, 30)
                 logger.info(f"Successfully created calculator job for {contestant}")
             except AlreadyExists:
                 logger.warning(
-                    f"Tried to start existing calculator job for contestant {contestant}. Ignoring the failure.")
+                    f"Tried to start existing calculator job for contestant {contestant}. Attempting to restart.")
+                creator.delete_calculator(contestant.pk)
+                try:
+                    response = creator.spawn_calculator_job(contestant.pk)
+                    calculator_is_alive(contestant.pk, 30)
+                    logger.info(f"Successfully created calculator job for {contestant}")
+                except AlreadyExists:
+                    logger.warning(
+                        f"Tried to start existing calculator job for contestant {contestant}. Ignoring.")
             except:
                 logger.exception(f"Failed starting kubernetes calculator job for {contestant}")
                 try:

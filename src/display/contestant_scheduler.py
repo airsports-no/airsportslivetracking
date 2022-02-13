@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 
 class TeamDefinition:
     def __init__(self, pk: int, flight_time: float, tracker_id: str, tracker_service: str,
-                 aircraft_registration: str, member1: Optional[int], member2: Optional[int]):
+                 aircraft_registration: str, member1: Optional[int], member2: Optional[int], frozen: bool,
+                 start_time: Optional[datetime.datetime]):
         """
 
         :param pk:
@@ -29,8 +30,9 @@ class TeamDefinition:
         self.aircraft_registration = aircraft_registration
         self.member1 = member1
         self.member2 = member2
-        self.start_time = None
+        self.start_time = start_time
         self.start_slot = None
+        self.frozen = frozen
 
     def get_tracker_id(self):
         return f"{self.tracker_id.replace(':', '_')}_{self.tracker_service}"
@@ -54,6 +56,9 @@ class Solver:
         self.crew_switch_time = int(np.ceil(crew_switch_time / self.minutes_per_slot))
         self.tracker_start_lead_time = int(np.ceil(tracker_start_lead_time / self.minutes_per_slot))
         self.very_large_variable = self.contest_duration ** 2
+
+    def time_to_slot(self, takeoff_time: datetime.datetime) -> int:
+        return int(((takeoff_time - self.first_takeoff_time).total_seconds() / 60) / self.minutes_per_slot)
 
     def schedule_teams(self) -> List[TeamDefinition]:
         """
@@ -92,15 +97,13 @@ class Solver:
         for team in teams:
             logger.debug(f"Team {team} will start in slot {team.start_slot} at {team.start_time}")
 
-
-
     def __initiate_problem(self):
         logger.debug("Initiating problem")
         self.problem = pulp.LpProblem("Minimise contest time", pulp.LpMinimize)
         self.start_slot_numbers = pulp.LpVariable.dicts(
             "start_slot_numbers",
             [f"{team.pk}" for team in self.teams],
-            lowBound=0,
+            lowBound=-9999999999,
             upBound=self.contest_duration - min([team.flight_time for team in self.teams]),
             cat=pulp.LpInteger,
         )
@@ -166,13 +169,34 @@ class Solver:
                 earliest_slot
             ])
 
+        def select_team(team, selected_slot):
+            used_teams.add(team)
+            latest_finish = selected_slot + team.flight_time
+            next_aircraft_available[
+                team.aircraft_registration] = selected_slot + team.flight_time + self.aircraft_switch_time
+            next_tracker_available[
+                team.get_tracker_id()] = selected_slot + team.flight_time + self.tracker_switch_time + self.tracker_start_lead_time
+            if team.member1 is not None:
+                next_crew_available[
+                    team.member1] = selected_slot + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time
+            if team.member2 is not None:
+                next_crew_available[
+                    team.member2] = selected_slot + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time
+            self.start_slot_numbers[f"{team.pk}"].setInitialValue(selected_slot)
+            return latest_finish
+
         for team in self.teams:
             team.priority = len(overlapping_trackers[team.get_tracker_id()]) * len(
                 overlapping_aircraft[team.aircraft_registration]) * len(
                 overlapping_crew.get(team.member1, [1])) * len(
                 overlapping_crew.get(team.member2, [1]))
+            if team.frozen:
+                # The team has to have a start time if it is frozen
+                select_team(team, self.time_to_slot(team.start_time))
+
         current_slot = 0
         latest_finish = 0
+
         while len(used_teams) < len(self.teams):
             found = False
             increment = 0
@@ -187,19 +211,7 @@ class Solver:
                         local_latest_finish = next_available + team.flight_time
                     if next_available <= current_slot + increment:
                         found = True
-                        used_teams.add(team)
-                        latest_finish = next_available + team.flight_time
-                        next_aircraft_available[
-                            team.aircraft_registration] = next_available + team.flight_time + self.aircraft_switch_time
-                        next_tracker_available[
-                            team.get_tracker_id()] = next_available + team.flight_time + self.tracker_switch_time + self.tracker_start_lead_time
-                        if team.member1 is not None:
-                            next_crew_available[
-                                team.member1] = next_available + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time
-                        if team.member2 is not None:
-                            next_crew_available[
-                                team.member2] = next_available + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time
-                        self.start_slot_numbers[f"{team.pk}"].setInitialValue(next_available)
+                        latest_finish = select_team(team, next_available)
                         current_slot = next_available + self.minimum_start_interval
                         break
                 increment += 1

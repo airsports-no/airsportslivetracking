@@ -1292,12 +1292,13 @@ class Contestant(models.Model):
             minutes=self.navigation_task.minutes_to_landing
         )
 
-    def blocking_request_calculator_termination(self):
+    def youblocking_request_calculator_termination(self):
         self.request_calculator_termination()
         start = datetime.datetime.now()
         while is_calculator_running(self.pk):
             if datetime.datetime.now() > start + datetime.timedelta(minutes=1):
                 raise TimeoutError("Calculator is running even though termination is requested")
+            time.sleep(3)
         return
 
     def request_calculator_termination(self):

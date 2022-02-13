@@ -1,5 +1,7 @@
+import datetime
 import json
 import os
+import time
 from copy import deepcopy
 
 import yaml
@@ -23,8 +25,7 @@ class JobCreator:
 
     def create_client(self):
         configuration = client.Configuration()
-        configuration.api_key["authorization"] = os.getenv("K8S_TOKEN",
-                                                           AKS_TOKEN)
+        configuration.api_key["authorization"] = os.getenv("K8S_TOKEN", AKS_TOKEN)
         configuration.api_key_prefix["authorization"] = "Bearer"
         # Requires minikube to run with proxy: kubectl proxy --port=8080
         configuration.host = os.environ.get("K8S_API", AKS_HOST)
@@ -34,6 +35,12 @@ class JobCreator:
         )
         configuration.client_side_validation = True
         return client.ApiClient(configuration)
+
+    def get_job_name(self, pk):
+        with open("display/kubernetes_calculator/job.yml", "r") as i:
+            configuration = yaml.safe_load(i)
+        container = configuration["spec"]["template"]["spec"]["containers"][0]
+        return f"{container['name']}-{pk}"
 
     def spawn_calculator_job(self, pk):
         command = ["python3", "calculator_job.py", str(pk)]
@@ -57,6 +64,32 @@ class JobCreator:
                     raise AlreadyExists
             raise e
         # api_response = self.client.create_namespaced_job("default", configuration)
+        return api_response
+
+    def get_job_completed(self, pk):
+        batch_v1 = client.BatchV1Api(self.client)
+        api_response = batch_v1.read_namespaced_job_status(
+            name=self.get_job_name(pk), namespace="default"
+        )
+        return (
+                api_response.status.succeeded is not None
+                or api_response.status.failed is not None
+        )
+
+    def delete_calculator(self, pk):
+        batch_v1 = client.BatchV1Api(self.client)
+        api_response = batch_v1.delete_namespaced_job(
+            name=self.get_job_name(pk),
+            namespace="default",
+            body=client.V1DeleteOptions(
+                propagation_policy="Foreground", grace_period_seconds=5
+            ),
+        )
+        start = datetime.datetime.now()
+        while start + datetime.timedelta(minutes=1) < datetime.datetime.now():
+            if self.get_job_completed(pk):
+                break
+            time.sleep(5)
         return api_response
 
 

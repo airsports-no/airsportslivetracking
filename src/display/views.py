@@ -1154,7 +1154,7 @@ def terminate_contestant_calculator(request, pk):
 def restart_contestant_calculator(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     contestant.blocking_request_calculator_termination()
-    messages.success(request, "Calculator should have been restarted")
+    messages.success(request, "Calculator should have been restarted. It may take a few minutes for it to come back to life.")
     contestant.reset_track_and_score()
     return HttpResponseRedirect(
         reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})

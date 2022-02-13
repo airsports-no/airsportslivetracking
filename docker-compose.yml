@@ -39,37 +39,6 @@ services:
       - redis
       - traccar
 
-  tracker_init:
-    container_name: tracker_init
-    image: airsportsacr.azurecr.io/tracker_init
-    environment:
-      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
-      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
-      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
-      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
-      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
-      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
-      - MODE=production
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: tracker_web
-    volumes:
-      - ./secret:/secret
-      - ./static:/static
-      - ./assets:/assets
-      - ./src:/src
-      - ./reactjs:/reactjs
-      - ./data:/data
-      - ./weblog:/logs
-      - ./mapserver:/maptiles
-    ports:
-      - "8002:8000"
-    depends_on:
-      - mysql
-      - redis
-      - traccar
-
   tracker_daphne:
 
     container_name: tracker_daphne

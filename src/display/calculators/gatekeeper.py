@@ -61,6 +61,7 @@ class Gatekeeper(ABC):
 
     def __init__(self, contestant: "Contestant", calculators: List[Callable],
                  live_processing: bool = True, queue_name_override: str = None):
+        calculator_is_alive(contestant.pk, 30)
         super().__init__()
         logger.info(f"{contestant}: Created gatekeeper")
         self.traccar = get_traccar_instance()

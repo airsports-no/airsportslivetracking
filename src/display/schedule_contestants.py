@@ -83,13 +83,14 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
             contest_teams.append((contest_team, contestant.air_speed, contestant.wind_speed,
                                   contestant.wind_direction, contestant.minutes_to_starting_point,
                                   (contestant.finished_by_time - contestant.gate_times[
-                                      final_waypoint.name]).total_seconds() / 60))
+                                      final_waypoint.name]).total_seconds() / 60,
+                                  contestant.contestanttrack.calculator_started, contestant.takeoff_time))
         except ObjectDoesNotExist:
             contest_teams.append((contest_team, contest_team.air_speed, navigation_task.wind_speed,
                                   navigation_task.wind_direction, navigation_task.minutes_to_starting_point,
-                                  navigation_task.minutes_to_landing))
+                                  navigation_task.minutes_to_landing, False, None))
     team_data = []
-    for contest_team, speed, wind_speed, wind_direction, minutes_to_starting_point, minutes_to_landing in contest_teams:
+    for contest_team, speed, wind_speed, wind_direction, minutes_to_starting_point, minutes_to_landing, frozen, start_time in contest_teams:
         gate_times = calculate_and_get_relative_gate_times(navigation_task.route, speed,
                                                            wind_speed, wind_direction)
         duration = datetime.timedelta(minutes=minutes_to_starting_point + minutes_to_landing) + gate_times[-1][1]
@@ -97,7 +98,7 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
             TeamDefinition(contest_team.pk, duration.total_seconds() / 60, contest_team.get_tracker_id(),
                            contest_team.tracking_service, contest_team.team.aeroplane.registration,
                            contest_team.team.crew.member1.pk if contest_team.team.crew.member1 else None,
-                           contest_team.team.crew.member2.pk if contest_team.team.crew.member2 else None))
+                           contest_team.team.crew.member2.pk if contest_team.team.crew.member2 else None, frozen, start_time))
     print("Initiating solver")
     solver = Solver(first_takeoff_time,
                     int((navigation_task.finish_time - navigation_task.start_time).total_seconds() / 60), team_data,
