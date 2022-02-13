@@ -12,22 +12,24 @@ logger = logging.getLogger(__name__)
 
 
 def schedule_and_create_contestants(navigation_task: NavigationTask, contest_teams_pks: List[int],
+                                    first_takeoff_time: datetime.datetime,
                                     tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
                                     tracker_switch_time: int, minimum_start_interval: int, crew_switch_time: int,
                                     optimise: bool = False) -> bool:
     if Scorecard.LANDING in navigation_task.scorecard.task_type:
-        return schedule_and_create_contestants_landing_task(navigation_task, contest_teams_pks,
+        return schedule_and_create_contestants_landing_task(navigation_task, contest_teams_pks, first_takeoff_time,
                                                             tracker_leadtime_minutes, aircraft_switch_time_minutes,
                                                             tracker_switch_time, minimum_start_interval,
                                                             crew_switch_time, optimise)
     else:
-        return schedule_and_create_contestants_navigation_tasks(navigation_task, contest_teams_pks,
+        return schedule_and_create_contestants_navigation_tasks(navigation_task, contest_teams_pks, first_takeoff_time,
                                                                 tracker_leadtime_minutes, aircraft_switch_time_minutes,
                                                                 tracker_switch_time, minimum_start_interval,
                                                                 crew_switch_time, optimise)
 
 
 def schedule_and_create_contestants_landing_task(navigation_task: NavigationTask, contest_teams_pks: List[int],
+                                                 first_takeoff_time: datetime.datetime,
                                                  tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
                                                  tracker_switch_time: int, minimum_start_interval: int,
                                                  crew_switch_time: int,
@@ -38,7 +40,7 @@ def schedule_and_create_contestants_landing_task(navigation_task: NavigationTask
     for index, contest_team in enumerate(selected_contest_teams):
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
-            contestant.takeoff_time = navigation_task.start_time
+            contestant.takeoff_time = first_takeoff_time
             contestant.finished_by_time = navigation_task.finish_time
             contestant.tracker_start_time = navigation_task.start_time
             contestant.save()
@@ -60,6 +62,7 @@ def schedule_and_create_contestants_landing_task(navigation_task: NavigationTask
 
 
 def schedule_and_create_contestants_navigation_tasks(navigation_task: NavigationTask, contest_teams_pks: List[int],
+                                                     first_takeoff_time: datetime.datetime,
                                                      tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
                                                      tracker_switch_time: int, minimum_start_interval: int,
                                                      crew_switch_time: int,
@@ -96,7 +99,7 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
                            contest_team.team.crew.member1.pk if contest_team.team.crew.member1 else None,
                            contest_team.team.crew.member2.pk if contest_team.team.crew.member2 else None))
     print("Initiating solver")
-    solver = Solver(navigation_task.start_time,
+    solver = Solver(first_takeoff_time,
                     int((navigation_task.finish_time - navigation_task.start_time).total_seconds() / 60), team_data,
                     minimum_start_interval=minimum_start_interval, aircraft_switch_time=aircraft_switch_time_minutes,
                     tracker_start_lead_time=tracker_leadtime_minutes, tracker_switch_time=tracker_switch_time,

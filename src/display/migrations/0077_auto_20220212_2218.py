@@ -12,13 +12,13 @@ def get_new_name(existing_names):
     return name
 
 
-def create_unique_waypoint_names(apps, schema_editor):
+def create_unique_waypoint_names_editable(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     EditableRoute = apps.get_model("display", "EditableRoute")
     for editable_route in EditableRoute.objects.using(db_alias).all():
         existing_names = set()
         try:
-            track = [item for item in editable_route if item["feature_type"] == "track"][0]
+            track = [item for item in editable_route.route if item["feature_type"] == "track"][0]
             track_points = track["track_points"]
             for item in track_points:
                 if item["name"] in existing_names:
@@ -29,11 +29,24 @@ def create_unique_waypoint_names(apps, schema_editor):
             pass
 
 
+def create_unique_waypoint_names_route(apps, schema_editor):
+    db_alias = schema_editor.connection.alias
+    Route = apps.get_model("display", "Route")
+    for route in Route.objects.using(db_alias).all():
+        existing_names = set()
+        for waypoint in route.waypoints:
+            if waypoint.name in existing_names:
+                waypoint.name = get_new_name(existing_names)
+            existing_names.add(waypoint.name)
+        route.save()
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ('display', '0076_auto_20220211_2224'),
     ]
 
     operations = [
-        migrations.RunPython(create_unique_waypoint_names)
+        migrations.RunPython(create_unique_waypoint_names_editable),
+        migrations.RunPython(create_unique_waypoint_names_route)
     ]

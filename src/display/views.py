@@ -1460,6 +1460,7 @@ def add_contest_teams_to_navigation_task(request, pk):
     """
     TIME_LOCK_MINUTES = 30
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    timezone.activate(navigation_task.contest.time_zone)
     form = ContestTeamOptimisationForm()
     if request.method == "POST":
         form = ContestTeamOptimisationForm(request.POST)
@@ -1472,6 +1473,7 @@ def add_contest_teams_to_navigation_task(request, pk):
                 if not schedule_and_create_contestants(
                         navigation_task,
                         [int(item) for item in form.cleaned_data["contest_teams"]],
+                        form.cleaned_data["first_takeoff_time"],
                         form.cleaned_data["tracker_lead_time_minutes"],
                         form.cleaned_data["minutes_for_aircraft_switch"],
                         form.cleaned_data["minutes_for_tracker_switch"],
@@ -1531,6 +1533,7 @@ def add_contest_teams_to_navigation_task(request, pk):
     form.fields["contest_teams"].initial = [
         str(item[0].pk) for item in selected_existing if item[2]
     ]
+    form.fields["first_takeoff_time"].initial = navigation_task.start_time
     return render(
         request,
         "display/contestteam_optimisation_form.html",

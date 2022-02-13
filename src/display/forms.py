@@ -736,6 +736,7 @@ class ContestantForm(forms.ModelForm):
 
 class ContestTeamOptimisationForm(forms.Form):
     contest_teams = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple())
+    first_takeoff_time = forms.DateTimeField()
     minutes_between_contestants = forms.FloatField(initial=5)
     minutes_for_aircraft_switch = forms.IntegerField(initial=30)
     minutes_for_tracker_switch = forms.IntegerField(initial=15)
