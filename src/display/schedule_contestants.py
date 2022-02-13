@@ -1,8 +1,9 @@
 import datetime
 import logging
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.utils.safestring import mark_safe
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduler import TeamDefinition, Solver
@@ -15,7 +16,7 @@ def schedule_and_create_contestants(navigation_task: NavigationTask, contest_tea
                                     first_takeoff_time: datetime.datetime,
                                     tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
                                     tracker_switch_time: int, minimum_start_interval: int, crew_switch_time: int,
-                                    optimise: bool = False) -> bool:
+                                    optimise: bool = False) -> Tuple[bool, List[str]]:
     if Scorecard.LANDING in navigation_task.scorecard.task_type:
         return schedule_and_create_contestants_landing_task(navigation_task, contest_teams_pks, first_takeoff_time,
                                                             tracker_leadtime_minutes, aircraft_switch_time_minutes,
@@ -33,7 +34,7 @@ def schedule_and_create_contestants_landing_task(navigation_task: NavigationTask
                                                  tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
                                                  tracker_switch_time: int, minimum_start_interval: int,
                                                  crew_switch_time: int,
-                                                 optimise: bool = False) -> bool:
+                                                 optimise: bool = False) -> Tuple[bool, List[str]]:
     selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
     # Remove contestants that are not selected:
     navigation_task.contestant_set.exclude(team__in=[item.team for item in selected_contest_teams]).delete()
@@ -58,7 +59,7 @@ def schedule_and_create_contestants_landing_task(navigation_task: NavigationTask
                                       tracking_device=contest_team.tracking_device,
                                       tracker_start_time=navigation_task.start_time,
                                       contestant_number=index + 1)
-    return True
+    return True, []
 
 
 def schedule_and_create_contestants_navigation_tasks(navigation_task: NavigationTask, contest_teams_pks: List[int],
@@ -66,7 +67,8 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
                                                      tracker_leadtime_minutes: int, aircraft_switch_time_minutes: int,
                                                      tracker_switch_time: int, minimum_start_interval: int,
                                                      crew_switch_time: int,
-                                                     optimise: bool = False) -> bool:
+                                                     optimise: bool = False) -> Tuple[bool, List[str]]:
+    optimisation_messages = []
     contest_teams = []
     final_waypoint = navigation_task.route.waypoints[-1]
     selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
@@ -98,7 +100,8 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
             TeamDefinition(contest_team.pk, duration.total_seconds() / 60, contest_team.get_tracker_id(),
                            contest_team.tracking_service, contest_team.team.aeroplane.registration,
                            contest_team.team.crew.member1.pk if contest_team.team.crew.member1 else None,
-                           contest_team.team.crew.member2.pk if contest_team.team.crew.member2 else None, frozen, start_time))
+                           contest_team.team.crew.member2.pk if contest_team.team.crew.member2 else None, frozen,
+                           start_time))
     print("Initiating solver")
     solver = Solver(first_takeoff_time,
                     int((navigation_task.finish_time - navigation_task.start_time).total_seconds() / 60), team_data,
@@ -108,11 +111,9 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
     print("Running solver")
     team_definitions = solver.schedule_teams()
     if len(team_definitions) == 0:
-        return False
+        return False, optimisation_messages
     for team_definition in team_definitions:
         contest_team = ContestTeam.objects.get(pk=team_definition.pk)
-        # print(f"start_time: {team_definition.start_time}")
-        # print(f"start_slot: {team_definition.start_slot}")
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
             if contestant.contestanttrack.calculator_started:
@@ -126,26 +127,30 @@ def schedule_and_create_contestants_navigation_tasks(navigation_task: Navigation
             if contestant.predefined_gate_times is not None:
                 for key, value in contestant.predefined_gate_times.items():
                     contestant.predefined_gate_times[key] = value + start_offset
-            contestant.save()
+            try:
+                contestant.save()
+            except ValidationError as e:
+                logger.warning(e)
+                optimisation_messages.append(mark_safe(f"Failed updating contestant {contestant} because of {e}. The resulting schedule is probably not valid."))
         except ObjectDoesNotExist:
             if navigation_task.contestant_set.all().count() > 0:
                 maximum_contestant = max([item.contestant_number for item in navigation_task.contestant_set.all()])
             else:
                 maximum_contestant = 0
-            contestant = Contestant.objects.create(takeoff_time=team_definition.start_time.replace(microsecond=0),
-                                                   finished_by_time=(team_definition.start_time + datetime.timedelta(
-                                                       minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes)).replace(
-                                                       microsecond=0),
-                                                   air_speed=contest_team.air_speed,
-                                                   wind_speed=navigation_task.wind_speed,
-                                                   wind_direction=navigation_task.wind_direction,
-                                                   team=contest_team.team,
-                                                   tracking_device=contest_team.tracking_device,
-                                                   minutes_to_starting_point=navigation_task.minutes_to_starting_point,
-                                                   navigation_task=navigation_task,
-                                                   tracking_service=contest_team.tracking_service,
-                                                   tracker_device_id=contest_team.tracker_device_id,
-                                                   tracker_start_time=(team_definition.start_time - datetime.timedelta(
-                                                       minutes=tracker_leadtime_minutes)).replace(microsecond=0),
-                                                   contestant_number=maximum_contestant + 1)
-    return True
+            Contestant.objects.create(takeoff_time=team_definition.start_time.replace(microsecond=0),
+                                      finished_by_time=(team_definition.start_time + datetime.timedelta(
+                                          minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes)).replace(
+                                          microsecond=0),
+                                      air_speed=contest_team.air_speed,
+                                      wind_speed=navigation_task.wind_speed,
+                                      wind_direction=navigation_task.wind_direction,
+                                      team=contest_team.team,
+                                      tracking_device=contest_team.tracking_device,
+                                      minutes_to_starting_point=navigation_task.minutes_to_starting_point,
+                                      navigation_task=navigation_task,
+                                      tracking_service=contest_team.tracking_service,
+                                      tracker_device_id=contest_team.tracker_device_id,
+                                      tracker_start_time=(team_definition.start_time - datetime.timedelta(
+                                          minutes=tracker_leadtime_minutes)).replace(microsecond=0),
+                                      contestant_number=maximum_contestant + 1)
+    return True, optimisation_messages

@@ -1154,7 +1154,8 @@ def terminate_contestant_calculator(request, pk):
 def restart_contestant_calculator(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     contestant.blocking_request_calculator_termination()
-    messages.success(request, "Calculator should have been restarted. It may take a few minutes for it to come back to life.")
+    messages.success(request,
+                     "Calculator should have been restarted. It may take a few minutes for it to come back to life.")
     contestant.reset_track_and_score()
     return HttpResponseRedirect(
         reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
@@ -1492,20 +1493,23 @@ def add_contest_teams_to_navigation_task(request, pk):
         ]
         if form.is_valid():
             try:
-                if not schedule_and_create_contestants(
-                        navigation_task,
-                        [int(item) for item in form.cleaned_data["contest_teams"]],
-                        form.cleaned_data["first_takeoff_time"],
-                        form.cleaned_data["tracker_lead_time_minutes"],
-                        form.cleaned_data["minutes_for_aircraft_switch"],
-                        form.cleaned_data["minutes_for_tracker_switch"],
-                        form.cleaned_data["minutes_between_contestants"],
-                        form.cleaned_data["minutes_for_crew_switch"],
-                        optimise=form.cleaned_data.get("optimise", False),
-                ):
+                success, returned_messages = schedule_and_create_contestants(
+                    navigation_task,
+                    [int(item) for item in form.cleaned_data["contest_teams"]],
+                    form.cleaned_data["first_takeoff_time"],
+                    form.cleaned_data["tracker_lead_time_minutes"],
+                    form.cleaned_data["minutes_for_aircraft_switch"],
+                    form.cleaned_data["minutes_for_tracker_switch"],
+                    form.cleaned_data["minutes_between_contestants"],
+                    form.cleaned_data["minutes_for_crew_switch"],
+                    optimise=form.cleaned_data.get("optimise", False),
+                )
+                if not success:
                     messages.error(request, "Optimisation failed")
                 else:
                     messages.success(request, "Optimisation successful")
+                for item in returned_messages:
+                    messages.warning(request, item)
             except ValidationError as v:
                 messages.error(request, f"Failed validating created contestant: {v}")
             return redirect(

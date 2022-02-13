@@ -33,6 +33,7 @@ from django.db.models import Q, QuerySet
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 from django_use_email_as_username.models import BaseUser, BaseUserManager
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm, get_users_with_perms
@@ -1469,13 +1470,18 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 intervals.append(
                     (
                         contestant.navigation_task,
-                        largest_start.isoformat(),
-                        smallest_end.isoformat(),
+                        largest_start,
+                        smallest_end,
                     )
                 )
-            raise ValidationError(
-                f"The pilot '{self.team.crew.member1}' is competing as a different contestant for the intervals: {intervals}"
-            )
+            links = []
+            for task, start, finish in intervals:
+                links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": task.pk})}">{task}</a>')
+            start_time = min(item[1] for item in intervals)
+            finish_time = max(item[2] for item in intervals)
+            raise ValidationError(mark_safe(
+                f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+            ))
 
         if self.team.crew.member2 is not None:
             overlapping2 = Contestant.objects.filter(
@@ -1495,9 +1501,14 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                             smallest_end.isoformat(),
                         )
                     )
-                raise ValidationError(
-                    f"The copilot '{self.team.crew.member2}' is competing as a different contestant for the intervals: {intervals}"
-                )
+                links = []
+                for task, start, finish in intervals:
+                    links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": task.pk})}">{task}</a>')
+                start_time = min(item[1] for item in intervals)
+                finish_time = max(item[2] for item in intervals)
+                raise ValidationError(mark_safe(
+                    f"The copilot '{self.team.crew.member2}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+                ))
 
         # Validate takeoff time after tracker start
         if self.tracker_start_time > self.takeoff_time:
