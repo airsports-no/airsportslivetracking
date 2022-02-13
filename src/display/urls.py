@@ -25,7 +25,7 @@ from display.views import frontend_view_map, \
     navigation_task_view_detailed_score, navigation_task_restore_original_scorecard_view, \
     navigation_task_scorecard_override_view, navigation_task_gatescore_override_view, \
     update_flight_order_configurations, UserUploadedMapCreate, UserUploadedMapList, UserUploadedMapUpdate, \
-    UserUploadedMapDelete
+    UserUploadedMapDelete, restart_contestant_calculator, get_running_calculators
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -68,6 +68,8 @@ urlpatterns = [
     path('navigationtask/<int:pk>/updategatescoreoverride/<int:gate_score_pk>/',
          navigation_task_gatescore_override_view,
          name="navigationtask_updategatescoreoverride"),
+    path('navigationtask/<int:pk>/runningcalculators/', get_running_calculators,
+         name="navigationtask_getrunningcalculators"),
     path('navigationtask/<int:pk>/qr/', tracking_qr_code_view, name="navigationtask_qr"),
     path('navigationtask/<int:pk>/map/', get_navigation_task_map, name="navigationtask_map"),
     path('navigationtask/<int:pk>/rules/', view_navigation_task_rules, name="navigationtask_rules"),
@@ -98,6 +100,8 @@ urlpatterns = [
     path('contestant/<int:pk>/defaultmap/', get_contestant_default_map, name="contestant_default_map"),
     path('contestant/<int:pk>/rules/', get_contestant_rules, name="contestant_rules"),
     path('contestant/<int:pk>/stop_calculator/', terminate_contestant_calculator, name="contestant_stop_calculator"),
+    path('contestant/<int:pk>/restart_calculator/', restart_contestant_calculator,
+         name="contestant_restart_calculator"),
     path('contestant/<int:pk>/list_cards/', contestant_cards_list, name="contestant_cards_list"),
     path('contestant/<int:pk>/remove_card/<int:card_pk>/', contestant_card_remove, name="contestant_card_remove"),
     path('contestant/<int:pk>/update/', ContestantUpdateView.as_view(), name="contestant_update"),

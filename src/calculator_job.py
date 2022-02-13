@@ -23,10 +23,7 @@ if __name__ == "__main__":
         sys.exit(0)
     if not contestant.contestanttrack.calculator_finished:
         calculator = calculator_factory(contestant, live_processing=True)
-        try:
-            calculator.run()
-        except ObjectDoesNotExist:
-            logger.exception(f"Calculator job terminated because {contestant} or his contestanttrack has been deleted")
+        calculator.run()
     else:
         logger.warning(
             f"Attempting to start new calculator for terminated contestant {contestant}"

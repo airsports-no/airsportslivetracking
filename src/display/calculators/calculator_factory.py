@@ -2,6 +2,7 @@ from multiprocessing.queues import Queue
 
 from django.core.cache import cache
 
+from display.calculator_termination_utilities import cancel_termination_request
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.backtracking_and_procedure_turns import BacktrackingAndProcedureTurnsCalculator
 from display.calculators.gatekeeper import Gatekeeper
@@ -16,7 +17,7 @@ from display.models import Contestant, Scorecard
 
 def calculator_factory(contestant: "Contestant", live_processing: bool = True,
                        queue_name_override: str = None) -> "Gatekeeper":
-    cache.delete(contestant.termination_request_key)
+    cancel_termination_request(contestant.pk)
     if contestant.navigation_task.scorecard.calculator == Scorecard.PRECISION:
         return GatekeeperRoute(contestant,
                                [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator,

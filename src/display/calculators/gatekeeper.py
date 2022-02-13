@@ -12,6 +12,8 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 
+from display.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
+from display.calculator_termination_utilities import is_termination_requested, cancel_termination_request
 from redis_queue import RedisQueue, RedisEmpty
 from timed_queue import TimedQueue, TimedOut
 from websocket_channels import WebsocketFacade
@@ -76,6 +78,7 @@ class Gatekeeper(ABC):
         self.enroute = False
         self.process_event = threading.Event()
         self.contestant.reset_track_and_score()
+        self.contestant.contestanttrack.set_calculator_started()
         self.scorecard = self.contestant.navigation_task.scorecard
         self.gates = self.create_gates()
         self.outstanding_gates = list(self.gates)
@@ -190,14 +193,15 @@ class Gatekeeper(ABC):
         self.websocket_facade.transmit_basic_information(self.contestant)
 
     def run(self):
+        calculator_is_alive(self.contestant.pk, 30)
         logger.info("Started gatekeeper for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
 
-        self.contestant.contestanttrack.set_calculator_started()
         threading.Thread(target=self.enqueue_positions).start()
         receiving = False
         number_of_positions = 0
         while not self.track_terminated:
+            calculator_is_alive(self.contestant.pk, 30)
             now = datetime.datetime.now(datetime.timezone.utc)
             if self.live_processing and now > self.contestant.finished_by_time:
                 self.notify_termination()
@@ -251,6 +255,7 @@ class Gatekeeper(ABC):
                     continue
                 all_positions.append(p)
                 for position in self.interpolate_track(p):
+                    calculator_is_alive(self.contestant.pk, 30)
                     self.track.append(position)
                     if len(self.track) > 1:
                         self.calculate_score()
@@ -265,6 +270,7 @@ class Gatekeeper(ABC):
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
             self.check_termination()
+        calculator_is_terminated(self.contestant.pk)
         self.contestant.contestanttrack.set_calculator_finished()
         while not self.position_queue.empty():
             self.position_queue.pop()
@@ -402,10 +408,10 @@ class Gatekeeper(ABC):
         # if self.last_termination_command_check is None or now > self.last_termination_command_check + datetime.timedelta(
         #         seconds=15):
         # self.last_termination_command_check = now
-        termination_requested = cache.get(self.contestant.termination_request_key)
+        termination_requested = is_termination_requested( self.contestant.pk)
         if termination_requested:
             logger.info(f"{self.contestant}: Termination request received")
-            cache.delete(self.contestant.termination_request_key)
+            cancel_termination_request(self.contestant.pk)
         return termination_requested is True
         # return False
 

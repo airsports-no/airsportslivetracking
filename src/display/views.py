@@ -60,6 +60,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 from rest_framework.viewsets import ModelViewSet, ViewSet, GenericViewSet
 
+from display.calculator_running_utilities import is_calculator_running
 from display.convert_flightcontest_gpx import (
     create_precision_route_from_gpx,
     create_precision_route_from_csv,
@@ -1114,16 +1115,12 @@ class ContestList(PermissionRequiredMixin, ListView):
 )
 def terminate_contestant_calculator(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
-    contestant.request_calculator_termination()
-    time.sleep(10)
+
     try:
-        if contestant.contestanttrack.calculator_finished:
-            messages.success(request, "Calculator terminated successfully")
-        else:
-            messages.info(request, "Calculator termination requested")
-    except:
-        # This may fail if the contestants track has just been deleted
-        messages.info(request, "Calculator termination requested")
+        contestant.blocking_request_calculator_termination()
+        messages.success(request, "Calculator terminated successfully")
+    except TimeoutError:
+        messages.info(request, "Calculator termination requested, but not stopped in time")
     return HttpResponseRedirect(
         reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
     )
@@ -1132,25 +1129,26 @@ def terminate_contestant_calculator(request, pk):
 @guardian_permission_required(
     "display.change_contest", (Contest, "navigationtask__contestant__pk", "pk")
 )
-def restart_running_contestant_calculator(request, pk):
+def restart_contestant_calculator(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
-    contestant.request_calculator_termination()
-    now=datetime.datetime.now()
-    while datetime.datetime.now()<now+datetime.timedelta(minutes=1):
-        try:
-            contestant.refresh_from_db()
-            if contestant.contestanttrack.calculator_finished:
-                messages.success(request, "Calculator should have been restarted")
-                contestant.reset_track_and_score()
-                break
-        except:
-            # This may fail if the contestants track has just been deleted
-            pass
-        time.sleep(5)
-
+    contestant.blocking_request_calculator_termination()
+    messages.success(request, "Calculator should have been restarted")
+    contestant.reset_track_and_score()
     return HttpResponseRedirect(
         reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
     )
+
+
+@api_view(["GET"])
+@guardian_permission_required(
+    "display.view_contest", (Contest, "navigationtask__pk", "pk")
+)
+def get_running_calculators(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    status_list = []
+    for contestant in navigation_task.contestant_set.all():
+        status_list.append([contestant.pk, is_calculator_running(contestant.pk)])
+    return Response(status_list)
 
 
 @guardian_permission_required(

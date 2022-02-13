@@ -49,6 +49,8 @@ from phonenumber_field.modelfields import PhoneNumberField
 from solo.models import SingletonModel
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
+from display.calculator_running_utilities import is_calculator_running
+from display.calculator_termination_utilities import request_termination
 from display.calculators.positions_and_gates import Position
 from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
@@ -1236,10 +1238,6 @@ class Contestant(models.Model):
         blank=True,
         null=True,
     )
-    calculator_started = models.BooleanField(
-        default=False,
-        help_text="Set to true when the calculator has started. After this point it is not permitted to change the contestant",
-    )
     predefined_gate_times = MyPickledObjectField(
         default=None,
         null=True,
@@ -1294,16 +1292,18 @@ class Contestant(models.Model):
             minutes=self.navigation_task.minutes_to_landing
         )
 
-    @property
-    def termination_request_key(self):
-        return f"termination_request_{self.pk}"
+    def blocking_request_calculator_termination(self):
+        self.request_calculator_termination()
+        start = datetime.datetime.now()
+        while is_calculator_running(self.pk):
+            if datetime.datetime.now() > start + datetime.timedelta(minutes=1):
+                raise TimeoutError("Calculator is running even though termination is requested")
+        return
 
     def request_calculator_termination(self):
-        self.finished_by_time = max(self.takeoff_time + datetime.timedelta(seconds=1),
-                                    datetime.datetime.now(datetime.timezone.utc))
-        self.save(update_fields=["finished_by_time"])
         logger.info(f"Signalling manual termination for contestant {self}")
-        cache.set(self.termination_request_key, True, timeout=600)
+        self.contestanttrack.set_calculator_finished()
+        request_termination(self.pk)
 
     def save(self, **kwargs):
         self.tracker_device_id = self.tracker_device_id.strip() if self.tracker_device_id else ""
@@ -1513,7 +1513,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         # Validate no timing changes after calculator start
         if self.pk is not None:
             original = Contestant.objects.get(pk=self.pk)
-            if original.calculator_started:
+            if original.contestanttrack.calculator_started:
                 if original.takeoff_time.replace(microsecond=0) != self.takeoff_time.replace(microsecond=0):
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change takeoff time from {original.takeoff_time} to {self.takeoff_time}"
@@ -1815,13 +1815,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         self.trackannotation_set.all().delete()
         self.gatecumulativescore_set.all().delete()
         self.actualgatetime_set.all().delete()
-        try:
-            self.contestanttrack.delete()
-        except:
-            # May fail if it has already been deleted
-            pass
-        contestant_track = ContestantTrack.objects.create(contestant=self)
-        contestant_track.update_score(0)
+        self.contestanttrack.reset()
 
     def generate_processing_statistics(self):
         stored_positions = ContestantReceivedPosition.objects.filter(contestant=self)
@@ -2026,6 +2020,19 @@ class ContestantTrack(models.Model):
     passed_finish_gate = models.BooleanField(default=False)
     calculator_finished = models.BooleanField(default=False)
     calculator_started = models.BooleanField(default=False)
+
+    def reset(self):
+        self.score = 0
+        self.current_state = "Waiting..."
+        self.current_leg = ""
+        self.last_gate = ""
+        self.last_gate_time_offset = 0
+        self.passed_starting_gate = False
+        self.passed_finish_gate = False
+        self.calculator_finished = False
+        self.calculator_started = False
+        self.save()
+        self.__push_change()
 
     @property
     def contest_summary(self):
@@ -2769,8 +2776,7 @@ def validate_contestant(sender, instance: Contestant, **kwargs):
 
 @receiver(pre_delete, sender=Contestant)
 def stop_any_calculators(sender, instance: Contestant, **kwargs):
-    instance.request_calculator_termination()
-    time.sleep(10)
+    instance.blocking_request_calculator_termination()
 
 
 @receiver(pre_save, sender=ContestTeam)
