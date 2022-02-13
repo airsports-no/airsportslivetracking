@@ -9,6 +9,7 @@ import multiprocessing
 
 import datetime
 import dateutil
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 
 from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
@@ -89,7 +90,11 @@ def calculator_process(contestant_pk: int):
     To be run in a separate process
     """
     connections.close_all()
-    contestant = Contestant.objects.get(pk=contestant_pk)
+    try:
+        contestant = Contestant.objects.get(pk=contestant_pk)
+    except ObjectDoesNotExist:
+        logger.warning(f"Attempting to start new calculator for non-existent contestant {contestant_pk}")
+        return
     if not contestant.contestanttrack.calculator_finished:
         calculator = calculator_factory(contestant, live_processing=True)
         calculator.run()

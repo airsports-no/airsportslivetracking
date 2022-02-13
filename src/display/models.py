@@ -1302,6 +1302,7 @@ class Contestant(models.Model):
 
     def request_calculator_termination(self):
         logger.info(f"Signalling manual termination for contestant {self}")
+        # To prevent the calculation from restarting
         self.contestanttrack.set_calculator_finished()
         request_termination(self.pk)
 
