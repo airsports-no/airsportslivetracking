@@ -32,7 +32,8 @@
                             route</a>
                     {% endif %}
                     <a class="dropdown-item" href="{% url 'navigationtask_broadcastflightorders' object.pk %}"
-                       title="Regenerate flight orders for all future contestants and email them">Broadcast flight
+                       title="Regenerate flight orders for all future contestants and email them. Warning: it takes a couple of minutes to generate each flight order so this will take some time.">Broadcast
+                        flight
                         orders</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item" href="{% url 'navigationtask_update' object.pk %}">Update</a>
@@ -217,9 +218,8 @@
         }
 
         $(document).ready(function () {
+            checkCalculatorRunning()
             setInterval(checkCalculatorRunning, 5000);
-
-
         })
     </script>
 {% endblock %}

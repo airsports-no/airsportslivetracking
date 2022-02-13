@@ -855,6 +855,10 @@ def broadcast_navigation_task_orders(request, pk):
     contestants = navigation_task.contestant_set.filter(
         takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
     )
+    cache.set(f"total_flight_orders_{pk}", contestants.count())
+    cache.set(f"completed_flight_orders_{pk}", 0)
+    cache.set(f"failed_flight_orders_{pk}", 0)
+    cache.set(f"failed_flight_orders_details_{navigation_task.pk}", [])
     for contestant in contestants:
         # Delete existing order
         contestant.emailmaplink_set.all().delete()
@@ -865,13 +869,31 @@ def broadcast_navigation_task_orders(request, pk):
                 contestant.team.crew.member1.first_name,
             )
         )
-    messages.success(
-        request,
-        f"Started generating flight orders for {contestants.count()} contestants",
-    )
     return HttpResponseRedirect(
-        reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
+        reverse("navigationtask_getbroadcastflightordersstatustemplate", kwargs={"pk": navigation_task.pk})
     )
+
+
+@api_view(["GET"])
+@guardian_permission_required(
+    "display.view_contest", (Contest, "navigationtask__pk", "pk")
+)
+def get_broadcast_navigation_task_orders_status(request, pk):
+    data = {
+        "total_flight_orders": cache.get(f"total_flight_orders_{pk}"),
+        "completed_flight_orders": cache.get(f"completed_flight_orders_{pk}"),
+        "failed_flight_orders": cache.get(f"failed_flight_orders_{pk}"),
+        "failed_flight_orders_details": cache.get(f"failed_flight_orders_details_{pk}")
+    }
+    return Response(data)
+
+
+@guardian_permission_required(
+    "display.view_contest", (Contest, "navigationtask__pk", "pk")
+)
+def get_broadcast_navigation_task_orders_status_template(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    return render(request, "display/broadcast_flight_order_progress.html", {"navigation_task": navigation_task})
 
 
 @guardian_permission_required(

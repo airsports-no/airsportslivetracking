@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+    <H1>Broadcast flight order progress for {{ navigation_task }}</H1>
+    <a href="{% url 'navigationtask_detail' navigation_task.pk %}">Back to navigation task</a>
+    <h4> This can take a few minutes per contestant, so please be patient. Progress and any failures will continuously be reported below.</h4>
+    <div class="progress">
+        <div id="progressbar" class="progrthisess-bar progress-bar-striped progress-bar-animated" role="progressbar"
+             aria-valuenow="0"
+             aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>
+    </div>
+    <div id="details"></div>
+    <div id="failed">
+
+    </div>
+
+    <script type="text/javascript">
+        var first = true
+
+        function updateRunningStatus(data) {
+            const element = document.getElementById("progressbar");
+            var percentage = 100
+            if (data.total_flight_orders > 0) {
+                percentage = 100 * (data.completed_flight_orders + data.failed_flight_orders) / data.total_flight_orders
+            }
+            element.setAttribute('aria-valuenow', percentage);
+            element.style.width = percentage + '%';
+            document.getElementById("details").innerHTML = "Total: " + data.total_flight_orders + ", Completed: " + data.completed_flight_orders + ", Failed: " + data.failed_flight_orders
+            if (data.failed_flight_orders_details) {
+                document.getElementById("failed").innerHTML = "<h5>Failures</h5>" + data.failed_flight_orders_details.join("<br>")
+            }
+            if (percentage === 100) {
+                first = false
+                element.setAttribute('class', "progress-bar")
+            }
+            if (!first && data.failed_flight_orders === 0) {
+                location.href = "{% url 'navigationtask_detail' navigation_task.pk %}"
+            }
+        }
+
+        function getFlightOrderProgress() {
+            $.ajax({
+                url: "/display/navigationtask/{{ navigation_task.pk }}/getbroadcastflightordersstatus/",
+                type: 'get',
+                dataType: "json",
+                success: function (data) {
+                    updateRunningStatus(data);
+                }
+            });
+        }
+
+        $(document).ready(function () {
+            getFlightOrderProgress()
+            setInterval(getFlightOrderProgress, 5000);
+
+
+        })
+
+    </script>
+{% endblock %}

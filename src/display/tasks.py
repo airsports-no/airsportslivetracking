@@ -2,6 +2,7 @@ import base64
 import datetime
 import logging
 
+from django.core.cache import cache
 from django.db import connections
 from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
@@ -67,11 +68,21 @@ def generate_and_notify_flight_order(contestant_pk: int, email: str, first_name:
         except ObjectDoesNotExist:
             logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
             return
-        orders = generate_flight_orders(contestant)
+        try:
+            orders = generate_flight_orders(contestant)
+            for c in connections.all():
+                c.close_if_unusable_or_obsolete()
+            mail_link = EmailMapLink.objects.create(contestant=contestant, orders=bytes(orders))
+            mail_link.send_email(email, first_name)
+        except Exception as e:
+            existing_failures = cache.get(f"failed_flight_orders_details_{contestant.navigation_task.pk}") or []
+            existing_failures.append(f"{contestant}: {e}")
+            cache.set(f"failed_flight_orders_details_{contestant.navigation_task.pk}", existing_failures)
+            cache.incr(f"failed_flight_orders_{contestant.navigation_task.pk}")
+            raise
         for c in connections.all():
             c.close_if_unusable_or_obsolete()
-        mail_link = EmailMapLink.objects.create(contestant=contestant, orders=bytes(orders))
-        mail_link.send_email(email, first_name)
+        cache.incr(f"completed_flight_orders_{contestant.navigation_task.pk}")
     except:
         logger.exception("Exception in generate_and_notify_flight_order")
 
