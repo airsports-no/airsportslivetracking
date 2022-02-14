@@ -38,6 +38,7 @@ django-countries
 django-formtools
 django-bootstrap-dynamic-formsets
 django-bootstrap4
+django-jenkins
 phonenumbers
 Babel
 django-phonenumber-field

@@ -98,6 +98,7 @@ INSTALLED_APPS = [
     "phonenumber_field",
     "qr_code",
     "crispy_forms",
+    'django_jenkins',
     "google_analytics",
     "channels",
     "display.apps.DisplayConfig",
@@ -161,6 +162,9 @@ MIDDLEWARE = [
     "live_tracking_map.middleware.HandleKnownExceptionsMiddleware",
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
     # 'google_analytics.middleware.GoogleAnalyticsMiddleware',
+]
+JENKINS_TASKS = [  # executed on the apps in PROJECT_APPS
+    'django_jenkins.tasks.run_pep8'
 ]
 
 WAGTAIL_SITE_NAME = 'Airsports Live Tracking'
