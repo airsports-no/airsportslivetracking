@@ -7,8 +7,8 @@ from display.contestant_scheduler import TeamDefinition, Solver
 class TestContestantScheduler(TestCase):
     def test_overlapping_aircraft(self):
         teams = [
-            TeamDefinition(0, 5, "something1", "traccar", "aircraft_one", 1, 2),
-            TeamDefinition(1, 5, "something2", "traccar", "aircraft_one", 3, 4),
+            TeamDefinition(0, 5, "something1", "traccar", "aircraft_one", 1, 2, False, None),
+            TeamDefinition(1, 5, "something2", "traccar", "aircraft_one", 3, 4, False, None),
         ]
         now = datetime.datetime.now(datetime.timezone.utc)
         solver = Solver(
@@ -28,8 +28,8 @@ class TestContestantScheduler(TestCase):
 
     def test_overtaking(self):
         teams = [
-            TeamDefinition(0, 2, "something", "traccar", "aircraft_one", 1, 2),
-            TeamDefinition(1, 5, "something2", "traccar", "aircraft_two", 3, 4),
+            TeamDefinition(0, 2, "something", "traccar", "aircraft_one", 1, 2, False, None),
+            TeamDefinition(1, 5, "something2", "traccar", "aircraft_two", 3, 4, False, None),
         ]
         now = datetime.datetime.now(datetime.timezone.utc)
         solver = Solver(now, 8, teams, minimum_start_interval=2)
@@ -41,8 +41,8 @@ class TestContestantScheduler(TestCase):
 
     def test_overlapping_tracker(self):
         teams = [
-            TeamDefinition(0, 5, "something", "traccar", "aircraft_one", 1, 2),
-            TeamDefinition(1, 5, "something", "traccar", "aircraft_two", 3, 4),
+            TeamDefinition(0, 5, "something", "traccar", "aircraft_one", 1, 2, False, None),
+            TeamDefinition(1, 5, "something", "traccar", "aircraft_two", 3, 4, False, None),
         ]
         now = datetime.datetime.now(datetime.timezone.utc)
         solver = Solver(
@@ -70,8 +70,8 @@ class TestContestantScheduler(TestCase):
 
     def test_overlapping_crew(self):
         teams = [
-            TeamDefinition(0, 5, "something", "traccar", "aircraft_one", 1, 2),
-            TeamDefinition(1, 5, "something", "traccar", "aircraft_one", 1, None),
+            TeamDefinition(0, 5, "something", "traccar", "aircraft_one", 1, 2, False, None),
+            TeamDefinition(1, 5, "something", "traccar", "aircraft_one", 1, None, False, None),
         ]
         now = datetime.datetime.now(datetime.timezone.utc)
         solver = Solver(

@@ -163,7 +163,7 @@ class TestContestantValidation(TransactionTestCase):
                                                    finished_by_time=datetime.datetime(2020, 1, 2, 16,
                                                                                       tzinfo=datetime.timezone.utc))
             contestant.contestanttrack.calculator_started = True
-            contestant.save()
+            contestant.contestanttrack.save()
             # Second save should detect that nothing vital has changed and not throw an exception
             contestant.takeoff_time = contestant.takeoff_time.replace(hour=contestant.takeoff_time.hour + 1)
             contestant.save()

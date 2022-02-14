@@ -1507,8 +1507,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     intervals.append(
                         (
                             contestant.navigation_task,
-                            largest_start.isoformat(),
-                            smallest_end.isoformat(),
+                            largest_start,
+                            smallest_end,
                         )
                     )
                 links = []
