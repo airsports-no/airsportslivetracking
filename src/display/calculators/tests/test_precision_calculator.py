@@ -18,7 +18,7 @@ from display.calculators.tests.utilities import load_traccar_track
 from display.convert_flightcontest_gpx import create_precision_route_from_gpx, calculate_extended_gate, \
     create_precision_default_route_from_kml
 from display.models import Aeroplane, NavigationTask, Scorecard, Team, Contestant, ContestantTrack, GateScore, Crew, \
-    Contest, Person
+    Contest, Person, TeamTestScore
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
 from display.views import create_precision_route_from_csv
 from mock_utilities import TraccarMock
@@ -71,16 +71,16 @@ class TestFullTrack(TransactionTestCase):
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
 
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
-                                                             route=route,
-                                                             original_scorecard=self.scorecard,
-                                                             contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc),
-                                                                                            finish_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc),
-                                                                                            time_zone="Europe/Oslo"),
-                                                             start_time=navigation_task_start_time,
-                                                             finish_time=navigation_task_finish_time)
+                                                     route=route,
+                                                     original_scorecard=self.scorecard,
+                                                     contest=Contest.objects.create(name="contest",
+                                                                                    start_time=datetime.datetime.now(
+                                                                                        datetime.timezone.utc),
+                                                                                    finish_time=datetime.datetime.now(
+                                                                                        datetime.timezone.utc),
+                                                                                    time_zone="Europe/Oslo"),
+                                                     start_time=navigation_task_start_time,
+                                                     finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
         start_time, speed = datetime.datetime(2020, 8, 1, 9, 15, tzinfo=datetime.timezone.utc), 70
@@ -95,9 +95,14 @@ class TestFullTrack(TransactionTestCase):
                                                     air_speed=speed,
                                                     wind_direction=165, wind_speed=8)
 
+    def test_team_test_score_updated(self, p1, p2):
+        self.contestant.contestanttrack.update_score(23)
+        team_test_score = TeamTestScore.objects.get(team=self.team, task_test__navigation_task=self.navigation_task)
+        self.assertEqual(23, team_test_score.points)
+
     def test_correct_scoring_correct_track_precision(self, patch, p2):
         positions = load_track_points("display/calculators/tests/test_contestant_correct_track.gpx")
-        calculator_runner( self.contestant, positions )
+        calculator_runner(self.contestant, positions)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(222,  # 150.0,
                          contestant_track.score)
@@ -171,19 +176,19 @@ class TestFullTrack(TransactionTestCase):
                                                minutes_to_starting_point=6, air_speed=speed,
                                                wind_direction=165, wind_speed=8)
         positions = load_track_points("display/calculators/tests/Helge.gpx")
-        calculator_runner( contestant, positions )
+        calculator_runner(contestant, positions)
         contestant_track = ContestantTrack.objects.get(contestant=contestant)
         self.assertEqual(327, contestant_track.score)
 
     def test_correct_scoring_bad_track_precision(self, patch, p2):
         positions = load_track_points("display/calculators/tests/Steinar.gpx")
-        calculator_runner( self.contestant, positions )
+        calculator_runner(self.contestant, positions)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1800, contestant_track.score)
 
     def test_missed_procedure_turn(self, patch, p2):
         positions = load_track_points("display/calculators/tests/jorgen_missed_procedure_turn.gpx")
-        calculator_runner( self.contestant, positions )
+        calculator_runner(self.contestant, positions)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
 
         self.assertTrue("TP1: 200.0 points incorrect procedure turn" in strings)
@@ -208,16 +213,16 @@ class Test2017WPFC(TransactionTestCase):
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
-                                                             route=route,
-                                                             original_scorecard=default_scorecard_fai_precision_2020.get_default_scorecard(),
-                                                             contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc),
-                                                                                            finish_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc),
-                                                                                            time_zone="Europe/Oslo"),
-                                                             start_time=navigation_task_start_time,
-                                                             finish_time=navigation_task_finish_time)
+                                                     route=route,
+                                                     original_scorecard=default_scorecard_fai_precision_2020.get_default_scorecard(),
+                                                     contest=Contest.objects.create(name="contest",
+                                                                                    start_time=datetime.datetime.now(
+                                                                                        datetime.timezone.utc),
+                                                                                    finish_time=datetime.datetime.now(
+                                                                                        datetime.timezone.utc),
+                                                                                    time_zone="Europe/Oslo"),
+                                                     start_time=navigation_task_start_time,
+                                                     finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
@@ -236,7 +241,7 @@ class Test2017WPFC(TransactionTestCase):
                                                     minutes_to_starting_point=8,
                                                     air_speed=speed, wind_direction=160,
                                                     wind_speed=18)
-        calculator_runner( self.contestant, track )
+        calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1065,  # 1152,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
@@ -294,16 +299,16 @@ class TestNM2019(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
-                                                             route=route,
-                                                             original_scorecard=self.scorecard,
-                                                             contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc),
-                                                                                            finish_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc),
-                                                                                            time_zone="Europe/Oslo"),
-                                                             start_time=navigation_task_start_time,
-                                                             finish_time=navigation_task_finish_time)
+                                                     route=route,
+                                                     original_scorecard=self.scorecard,
+                                                     contest=Contest.objects.create(name="contest",
+                                                                                    start_time=datetime.datetime.now(
+                                                                                        datetime.timezone.utc),
+                                                                                    finish_time=datetime.datetime.now(
+                                                                                        datetime.timezone.utc),
+                                                                                    time_zone="Europe/Oslo"),
+                                                     start_time=navigation_task_start_time,
+                                                     finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         # Required to make the time zone save correctly
@@ -321,7 +326,7 @@ class TestNM2019(TransactionTestCase):
                                                     minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        calculator_runner( self.contestant, track )
+        calculator_runner(self.contestant, track)
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(838,
@@ -339,7 +344,7 @@ class TestNM2019(TransactionTestCase):
                                                     minutes_to_starting_point=6,
                                                     air_speed=speed, wind_direction=220,
                                                     wind_speed=7)
-        calculator_runner( self.contestant, track )
+        calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(1200,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
@@ -359,16 +364,16 @@ class TestHamar23March2021(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_precision_2020
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         self.navigation_task = NavigationTask.create(name="NM navigation_task",
-                                                             route=route,
-                                                             original_scorecard=self.scorecard,
-                                                             contest=Contest.objects.create(name="contest",
-                                                                                            start_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc),
-                                                                                            finish_time=datetime.datetime.now(
-                                                                                                datetime.timezone.utc),
-                                                                                            time_zone="Europe/Oslo"),
-                                                             start_time=navigation_task_start_time,
-                                                             finish_time=navigation_task_finish_time)
+                                                     route=route,
+                                                     original_scorecard=self.scorecard,
+                                                     contest=Contest.objects.create(name="contest",
+                                                                                    start_time=datetime.datetime.now(
+                                                                                        datetime.timezone.utc),
+                                                                                    finish_time=datetime.datetime.now(
+                                                                                        datetime.timezone.utc),
+                                                                                    time_zone="Europe/Oslo"),
+                                                     start_time=navigation_task_start_time,
+                                                     finish_time=navigation_task_finish_time)
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         # Required to make the time zone save correctly
@@ -387,7 +392,7 @@ class TestHamar23March2021(TransactionTestCase):
                                                     adaptive_start=True,
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
-        calculator_runner( self.contestant, track )
+        calculator_runner(self.contestant, track)
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(216, contestant_track.score)  # 15 points more than website
@@ -404,7 +409,7 @@ class TestHamar23March2021(TransactionTestCase):
                                                     adaptive_start=True,
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
-        calculator_runner( self.contestant, track )
+        calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(213, contestant_track.score)
 
@@ -420,7 +425,7 @@ class TestHamar23March2021(TransactionTestCase):
                                                     adaptive_start=True,
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
-        calculator_runner( self.contestant, track )
+        calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(213, contestant_track.score)
 
@@ -436,6 +441,10 @@ class TestHamar23March2021(TransactionTestCase):
                                                     adaptive_start=True,
                                                     air_speed=speed, wind_direction=180,
                                                     wind_speed=4)
-        calculator_runner( self.contestant, track )
+        calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(213, contestant_track.score)  # same as website
+        # Test that task test is updated
+        self.assertTrue(hasattr(self.navigation_task, "tasktest"))
+        task_test = self.navigation_task.tasktest
+        self.assertEqual(213, task_test.teamtestscore_set.get(team=self.team).points)

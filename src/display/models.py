@@ -1293,7 +1293,7 @@ class Contestant(models.Model):
             minutes=self.navigation_task.minutes_to_landing
         )
 
-    def youblocking_request_calculator_termination(self):
+    def blocking_request_calculator_termination(self):
         self.request_calculator_termination()
         start = datetime.datetime.now()
         while is_calculator_running(self.pk):
@@ -2067,10 +2067,10 @@ class ContestantTrack(models.Model):
     def update_score(self, score):
         ContestantTrack.objects.filter(pk=self.pk).update(score=score)
         # Update task test score if it exists
-        if hasattr(self.contestant.navigation_task, "task_test"):
+        if hasattr(self.contestant.navigation_task, "tasktest"):
             entry, _ = TeamTestScore.objects.update_or_create(
                 team=self.contestant.team,
-                task_test=self.contestant.navigation_task.task_test,
+                task_test=self.contestant.navigation_task.tasktest,
                 defaults={"points": score},
             )
         self.__push_change()

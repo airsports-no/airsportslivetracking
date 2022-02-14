@@ -141,8 +141,14 @@
 
                             {% if "change_contest" in contest_permissions %}
                                 <div class="dropdown-divider"></div>
+                                {% for a in contestant.emailmaplink_set.all %}
+                                    <a class="dropdown-item" href="{% url 'email_map_link' a.id %}"
+                                       title="Download the already generated flight order. If settings have been changed, regenerate the flight orders by clicking the button 'Broadcast flight orders' at the top or click the link to generate and download a new one for this contestant specifically.">Download
+                                        existing flight
+                                        order</a>
+                                {% endfor %}
                                 <a class="dropdown-item" href="{% url 'email_report_link' contestant.pk %}"
-                                   title="Generate and download a new flight order.">Flight
+                                   title="Generate and download a new flight order.">Generate new flight
                                     order</a>
                                 <a class="dropdown-item" href="{% url 'contestant_uploadgpxtrack' contestant.pk %}"
                                    title="Upload a GPX track for scoring. This will delete any existing track for the contestant.">Upload
