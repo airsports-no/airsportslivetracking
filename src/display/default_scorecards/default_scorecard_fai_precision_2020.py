@@ -117,6 +117,7 @@ def get_default_scorecard():
                     "missed_penalty",
                     "bad_crossing_extended_gate_penalty",
                 ],
+                ["Additional gate sizes", "extended_gate_width"],
                 ["Time limits", "graceperiod_before", "graceperiod_after"],
             ],
         },
