@@ -4,6 +4,9 @@
     <a href="{% url 'navigationtask_detail' navigation_task.pk %}">Back to navigation task</a>
     <h4> This can take a few minutes per contestant, so please be patient. Progress and any failures will continuously
         be reported below.</h4>
+    <div id="loading">
+        <img class="center" src="/static/img/loading_airplane.gif" alt="loading..."/>
+    </div>
     <div class="progress">
         <div id="progressbar" class="progrthisess-bar progress-bar-striped progress-bar-animated" role="progressbar"
              aria-valuenow="0"
@@ -33,6 +36,7 @@
             }
             if (percentage === 100) {
                 element.setAttribute('class', "progress-bar")
+                document.getElementById("loading").innerHTML = ""
                 setTimeout(redirect, 10000)
             }
         }
