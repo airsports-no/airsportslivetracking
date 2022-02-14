@@ -1608,7 +1608,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @property
     def gate_times(self) -> Dict:
-        if not self.predefined_gate_times:
+        if not self.predefined_gate_times or not len(self.predefined_gate_times):
             self.predefined_gate_times = self.calculate_missing_gate_times({})
             self.save()
         return self.predefined_gate_times
@@ -1620,9 +1620,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     def get_gate_time_offset(self, gate_name):
         planned = self.gate_times.get(gate_name)
         if planned is None:
-            if gate_name == self.navigation_task.route.takeoff_gate.name:
+            if self.navigation_task.route.takeoff_gate and gate_name == self.navigation_task.route.takeoff_gate.name:
                 planned = self.takeoff_time
-            elif gate_name == self.navigation_task.route.landing_gate.name:
+            elif self.navigation_task.route.landing_gate and gate_name == self.navigation_task.route.landing_gate.name:
                 planned = self.finished_by_time
         actual = self.actualgatetime_set.filter(gate=gate_name).first()
         if planned and actual:
@@ -2839,6 +2839,14 @@ def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, 
 #     if instance.contestant:
 #         instance.contestant.reset_track_and_score()
 
+@receiver(pre_save, sender=NavigationTask)
+def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
+    if instance.id is None: # new object will be created
+        pass # write your code here
+    else:
+        previous = NavigationTask.objects.get(id=instance.id)
+        if previous.original_scorecard != instance.original_scorecard: # field will be updated
+            raise ValidationError(f"Cannot change scorecard to {instance.original_scorecard.name}. You must create a new task.")
 
 @receiver(post_save, sender=NavigationTask)
 def initialise_navigation_task_dependencies(sender, instance: NavigationTask, created, **kwargs):

@@ -1265,7 +1265,6 @@ class NavigationTaskUpdateView(
     def get_success_url(self):
         return reverse("navigationtask_detail", kwargs={"pk": self.get_object().pk})
 
-
 class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = NavigationTask
     permission_required = ("display.delete_contest",)

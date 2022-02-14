@@ -322,6 +322,10 @@ class NavigationTaskForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["original_scorecard"].queryset = Scorecard.objects.filter(original=True)
+        instance = getattr(self, 'instance', None)
+        if instance and instance.pk:
+            self.fields['original_scorecard'].disabled = True
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(
@@ -722,6 +726,7 @@ class ContestantForm(forms.ModelForm):
         self.fields["contestant_number"].initial = max([item.contestant_number for item in
                                                         self.navigation_task.contestant_set.all()]) + 1 if self.navigation_task.contestant_set.all().count() > 0 else 1
         self.fields["wind_speed"].initial = self.navigation_task.wind_speed
+        self.fields["wind_direction"].initial = self.navigation_task.wind_direction
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
         # self.fields["tracking_device_id"].required = False
 
