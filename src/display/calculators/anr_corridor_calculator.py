@@ -119,7 +119,7 @@ class AnrCorridorCalculator(Calculator):
         return self.polygon_helper.distance_from_point_to_polygons([("test", self.track_polygon)], latitude, longitude)[
             "test"]
 
-    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
+    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate", next_gate: Optional["Gate"]):
         self.enroute = True
         self.check_outside_corridor(track, last_gate)
 

@@ -431,8 +431,8 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position2.time = datetime.datetime(2020, 1, 1, 0, 0, 20)
 
         gate = Mock()
-        self.calculator.calculate_enroute([position], gate, gate)
-        self.calculator.calculate_enroute([position2], gate, gate)
+        self.calculator.calculate_enroute([position], gate, gate, None)
+        self.calculator.calculate_enroute([position2], gate, gate, None)
         self.update_score.assert_not_called()
 
     def test_outside_2_seconds_enroute(self):
@@ -450,10 +450,10 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position3.time = datetime.datetime(2020, 1, 1, 0, 0, 3)
 
         gate = Mock()
-        self.calculator.calculate_enroute([position], gate, gate)
-        self.calculator.calculate_enroute([position2], gate, gate)
+        self.calculator.calculate_enroute([position], gate, gate, None)
+        self.calculator.calculate_enroute([position2], gate, gate, None)
         er = self.calculator.existing_reference
-        self.calculator.calculate_enroute([position3], gate, gate)
+        self.calculator.calculate_enroute([position3], gate, gate, None)
         self.update_score.assert_has_calls(
             [
                 call(
@@ -509,10 +509,10 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position3.time = datetime.datetime(2020, 1, 1, 0, 0, 21)
 
         gate = Mock()
-        self.calculator.calculate_enroute([position], gate, gate)
-        self.calculator.calculate_enroute([position2], gate, gate)
+        self.calculator.calculate_enroute([position], gate, gate, None)
+        self.calculator.calculate_enroute([position2], gate, gate, None)
         er = self.calculator.existing_reference
-        self.calculator.calculate_enroute([position3], gate, gate)
+        self.calculator.calculate_enroute([position3], gate, gate, None)
         self.update_score.assert_has_calls(
             [
                 call(
@@ -544,8 +544,8 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position3.time = datetime.datetime(2020, 1, 1, 0, 0, 21)
 
         gate = Mock()
-        self.calculator.calculate_enroute([position], gate, gate)
-        self.calculator.calculate_enroute([position2], gate, gate)
+        self.calculator.calculate_enroute([position], gate, gate, None)
+        self.calculator.calculate_enroute([position2], gate, gate, None)
         self.calculator.passed_finishpoint([position3], gate)
         er = self.calculator.existing_reference
 

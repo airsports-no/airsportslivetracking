@@ -67,6 +67,7 @@ def get_default_scorecard():
             "penalty_per_second": 2,
             "missed_penalty": 200,
             "backtracking_after_steep_gate_grace_period_seconds": 0,
+            "backtracking_before_gate_grace_period_nm": 0.5,
             "backtracking_after_gate_grace_period_nm": 0.5,
             "missed_procedure_turn_penalty": 0,
             "included_fields": [

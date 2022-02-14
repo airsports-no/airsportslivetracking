@@ -33,7 +33,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position.longitude = 11.5
         position.time = datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc)
         gate = Mock()
-        self.calculator.calculate_enroute([position], gate, gate)
+        self.calculator.calculate_enroute([position], gate, gate, None)
         self.update_score.assert_called_with(gate, 0, 'inside penalty zone test', 60.5, 11.5, 'anomaly',
                                              'inside_penalty_zone', existing_reference=None)
 
@@ -110,7 +110,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position.latitude = 59.5
         position.longitude = 11.5
         gate = Mock()
-        self.calculator.calculate_enroute([position], gate, gate)
+        self.calculator.calculate_enroute([position], gate, gate, None)
         self.update_score.assert_not_called()
 
     def test_outside_outside_route(self):

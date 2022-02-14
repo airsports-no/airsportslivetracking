@@ -71,7 +71,7 @@ class PenaltyZoneCalculator(Calculator):
             return self._calculate_danger_level(track), sum([0] + list(self.running_penalty.values()))
 
     def calculate_enroute(
-            self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"
+            self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate", next_gate: Optional["Gate"]
     ):
         self.check_inside_prohibited_zone(track, last_gate)
 

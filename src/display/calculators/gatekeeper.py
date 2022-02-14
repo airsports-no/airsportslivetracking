@@ -409,7 +409,7 @@ class Gatekeeper(ABC):
         # if self.last_termination_command_check is None or now > self.last_termination_command_check + datetime.timedelta(
         #         seconds=15):
         # self.last_termination_command_check = now
-        termination_requested = is_termination_requested( self.contestant.pk)
+        termination_requested = is_termination_requested(self.contestant.pk)
         if termination_requested:
             logger.info(f"{self.contestant}: Termination request received")
             cancel_termination_request(self.contestant.pk)
@@ -430,7 +430,8 @@ class Gatekeeper(ABC):
         self.check_gates()
         for calculator in self.calculators:
             if self.enroute:
-                calculator.calculate_enroute(self.track, self.last_gate, self.in_range_of_gate)
+                calculator.calculate_enroute(self.track, self.last_gate, self.in_range_of_gate,
+                                             self.outstanding_gates[0] if len(self.outstanding_gates) > 0 else None)
             else:
                 calculator.calculate_outside_route(self.track, self.last_gate)
         self.report_calculator_danger_level()

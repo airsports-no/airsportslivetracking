@@ -118,6 +118,9 @@ def get_default_scorecard():
     GateScore.objects.update_or_create(
         scorecard=scorecard,
         gate_type=SECRETPOINT,
+        defaults={
+            "backtracking_before_gate_grace_period_nm": 0.5,
+        }
     )
 
     GateScore.objects.update_or_create(

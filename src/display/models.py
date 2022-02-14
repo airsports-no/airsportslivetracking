@@ -1117,6 +1117,15 @@ class Scorecard(models.Model):
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.backtracking_after_steep_gate_grace_period_seconds
 
+    def get_backtracking_before_gate_grace_period_nm_for_gate_type(
+            self, gate_type: str
+    ) -> float:
+        """
+        The number of NM around a gate where backtracking is not calculated
+        """
+        gate_score = self.get_gate_scorecard(gate_type)
+        return gate_score.backtracking_before_gate_grace_period_nm
+
     def get_backtracking_after_gate_grace_period_nm_for_gate_type(
             self, gate_type: str
     ) -> float:
@@ -1145,6 +1154,7 @@ class GateScore(models.Model):
     bad_course_crossing_penalty = models.FloatField(default=0)
     missed_procedure_turn_penalty = models.FloatField(default=200)
     backtracking_after_steep_gate_grace_period_seconds = models.FloatField(default=0)
+    backtracking_before_gate_grace_period_nm = models.FloatField(default=0)
     backtracking_after_gate_grace_period_nm = models.FloatField(default=0.5)
 
     class Meta:

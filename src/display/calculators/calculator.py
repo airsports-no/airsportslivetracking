@@ -26,11 +26,12 @@ class Calculator:
     def extrapolate_position_forward(self, track: List["Position"], seconds_ahead: float) -> "Position":
         pass
 
-    def get_danger_level_and_accumulated_score(self, track: List["Position"])->Tuple[float, float]:
+    def get_danger_level_and_accumulated_score(self, track: List["Position"]) -> Tuple[float, float]:
         return 0, 0
 
     @abstractmethod
-    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate"):
+    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate",
+                          next_gate: Optional["Gate"]):
         pass
 
     @abstractmethod
