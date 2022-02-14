@@ -300,8 +300,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 <Modal.Body>
                     <Container>
                         <Form.Group>
-                            <Form.Label>Task</Form.Label>
-                            <Form.Control as={"select"} onChange={(e) => {
+                            <Form.Label style={{display:"none"}}>Task</Form.Label>
+                            <Form.Control style={{display:"none"}} as={"select"} onChange={(e) => {
                                 this.setState({editTaskTest: {...this.state.editTaskTest, task: e.target.value}})
                             }} value={this.state.editTaskTest.task ? this.state.editTaskTest.task : -1}>
                                 <option key={-1} value={-1}>--</option>
@@ -778,6 +778,20 @@ class ConnectedTaskSummaryResultsTable extends Component {
                             )
                         }
                     </ToolkitProvider>
+                </div>
+                <div className={"alert alert-info alert-dismissable fade show"} style={{marginTop: "20px"}}>
+                    <button type="button" className="close" data-dismiss="alert" aria-hidden="true">&#215;</button>
+                    <h4 className="alert-heading">About the results table</h4>
+                    Contest results consists of one or more tasks, and each task contains one or more tests. The initial
+                    view shows the summary score for each task in the contest. By clicking on the magnifying glass you
+                    can zoom into the individual test results within the task. For instance, a precision navigation task
+                    will consist of three tests; a planning test, a navigation test, and an observation test. The total
+                    score of these three tests make up the score for the task.
+                    {this.props.contest.results.permission_change_contest?<p>
+                        <hr/>
+                        <a className={"alert-link"} href={"/static/documents/contest_results_admin.pdf"}>Administration how-to guide</a>
+                    </p>:null}
+
                 </div>
                 <div className={'text-dark'}>Photo by <a
                     href="https://unsplash.com/@tadeu?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Tadeu

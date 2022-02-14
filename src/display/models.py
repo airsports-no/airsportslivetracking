@@ -2825,6 +2825,11 @@ def validate_route(sender, instance: Route, **kwargs):
 @receiver(post_delete, sender=NavigationTask)
 def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, **kwargs):
     instance.route.delete()
+    if hasattr(instance, "tasktest"):
+        task = instance.tasktest.task
+        instance.tasktest.delete()
+        if task.tasktest_set.all().count() == 0:
+            task.delete()
     if instance.scorecard:
         instance.scorecard.delete()
 
