@@ -81,9 +81,29 @@
                         href="{% url 'contestant_update' contestant.pk %}">{{ contestant.team.table_display|safe }}</a>
                 </td>
                 <td>
-                    <img id="contestant_live_{{ contestant.pk }}" src="{% static "img/red_light.png" %}"
-                         alt="Calculator is not running"
-                         style="width: 18px"/>
+                    <div id="contestant_live_running_{{ contestant.pk }}" style="display: none">
+                        <a class="dropdown-item" href="{% url 'contestant_stop_calculator' contestant.pk %}"
+                           title="Terminates the running scoring of the contestant."
+                           onclick="return confirm('Are you sure you want to stop the calculator? Do not do this unless you know what you are doing.')"><img
+                                src="{% static "img/green_light.png" %}"
+                                alt="Calculator is running"
+                                style="width: 18px"/></a>
+                    </div>
+                    <div id="contestant_live_not_running_{{ contestant.pk }}" style="display: none">
+                        {% if contestant.contestanttrack.calculator_finished %}
+                            <a class="dropdown-item" href="{% url 'contestant_restart_calculator' contestant.pk %}"
+                               title="Restart the live scoring process from the beginning. Can be used if it was inadvertently stopped."
+                               onclick="return confirm('Are you sure you want to restart the calculator? Do not do this unless you know what you are doing.')"><img
+                                    src="{% static "img/red_light.png" %}"
+                                    alt="Calculator is not running"
+                                    style="width: 18px"/></a>
+                        {% else %}
+                            <img
+                                    src="{% static "img/red_light.png" %}"
+                                    alt="Calculator is not running"
+                                    style="width: 18px"/>
+                        {% endif %}
+                    </div>
                 </td>
                 <td>
                     {% for tracker in contestant.tracker_id_display %}
@@ -160,14 +180,6 @@
                                    href="{% url 'contestant_recalculatetraccartrack' contestant.pk %}"
                                    title="Recalculate original data. This will delete any uploaded tracks">Recalculate
                                     original</a>
-                                <a class="dropdown-item" href="{% url 'contestant_stop_calculator' contestant.pk %}"
-                                   title="Terminates the running scoring of the contestant."
-                                   onclick="return confirm('Are you sure you want to stop the calculator? Do not do this unless you know what you are doing.')">Stop
-                                    live tracking</a>
-                                <a class="dropdown-item" href="{% url 'contestant_restart_calculator' contestant.pk %}"
-                                   title="Restart the live scoring process from the beginning. Can be used if it was inadvertently stopped."
-                                   onclick="return confirm('Are you sure you want to restart the calculator? Do not do this unless you know what you are doing.')">Restart
-                                    live tracking</a>
                                 <a class="dropdown-item" href="{% url 'processingstatistics' contestant.pk %}"
                                    title="Retrieve figure with processing statistics for debug purposes">Processing
                                     statistics</a>
@@ -201,13 +213,12 @@
     <script type="text/javascript">
         function updateRunningStatus(statuses) {
             for (var i = 0; i < statuses.length; i++) {
-                const element = document.getElementById("contestant_live_" + statuses[i][0]);
                 if (statuses[i][1]) {
-                    element.src = "{% static "img/green_light.png" %}"
-                    element.alt = "Calculator is running"
+                    document.getElementById("contestant_live_running_" + statuses[i][0]).removeAttribute("style")
+                    document.getElementById("contestant_live_not_running_" + statuses[i][0]).setAttribute("style", "display: none")
                 } else {
-                    element.src = "{% static "img/red_light.png" %}"
-                    element.alt = "Calculator is not running"
+                    document.getElementById("contestant_live_not_running_" + statuses[i][0]).removeAttribute("style")
+                    document.getElementById("contestant_live_running_" + statuses[i][0]).setAttribute("style", "display: none")
                 }
             }
         }
