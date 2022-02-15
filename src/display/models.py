@@ -1519,7 +1519,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 raise ValidationError(mark_safe(
                     f"The copilot '{self.team.crew.member2}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
                 ))
-
+        # Validate maximum tracking time
+        if self.finished_by_time-self.tracker_start_time>datetime.timedelta(hours=24):
+            pass
+            raise ValidationError(
+                f"The maximum tracking time (from tracker start time to finished by time) is 24 hours (currently {self.finished_by_time-self.tracker_start_time}). Either start tracking later or finish earlier to solve this."
+            )
         # Validate takeoff time after tracker start
         if self.tracker_start_time > self.takeoff_time:
             raise ValidationError(
