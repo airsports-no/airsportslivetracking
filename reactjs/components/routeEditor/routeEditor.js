@@ -228,6 +228,9 @@ class ConnectedRouteEditor extends Component {
         }
         let features = []
         let errors = []
+        if(this.drawnItems.getLayers().length===0){
+            errors.push("The route contains no features. Add a track other or features before saving.")
+        }
         for (let l of this.drawnItems.getLayers().filter((a) => a.layerType !== undefined)) {
             errors = errors.concat(this.validateLayer(l))
             if (["polyline", "rectangle", "polygon"].includes(l.layerType)) {

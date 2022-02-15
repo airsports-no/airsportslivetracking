@@ -881,7 +881,8 @@ def broadcast_navigation_task_orders(request, pk):
         single_contestant = get_object_or_404(Contestant, pk=single_contestant_pk)
         contestants = contestants.filter(pk=single_contestant_pk)
     cache.set(f"total_flight_orders_{pk}", contestants.count())
-    cache.set(f"transmitted_flight_orders_map_{navigation_task.pk}", {contestant.pk: False for contestant in contestants})
+    cache.set(f"transmitted_flight_orders_map_{navigation_task.pk}",
+              {contestant.pk: False for contestant in contestants})
 
     for contestant in contestants:
         notify_flight_order.apply_async(
@@ -908,17 +909,24 @@ def download_navigation_task_orders(request, pk):
         contestants = navigation_task.contestant_set.filter(
             takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
         )
-    # set up zip folder
-    zip_subdir = "flight_orders"
-    zip_filename = zip_subdir + ".zip"
-    byte_stream = BytesIO()
-    zf = zipfile.ZipFile(byte_stream, "w")
-    for order in EmailMapLink.objects.filter(contestant__in=contestants):
-        zf.writestr(f"{order.contestant}.pdf", order.orders)
-    zf.close()
-    response = HttpResponse(byte_stream.getvalue(), content_type="application/x-zip-compressed")
-    response['Content-Disposition'] = 'attachment; filename=%s' % zip_filename
-    return response
+    orders = EmailMapLink.objects.filter(contestant__in=contestants)
+    if orders.count() > 1:
+        # set up zip folder
+        zip_subdir = "flight_orders"
+        zip_filename = zip_subdir + ".zip"
+        byte_stream = BytesIO()
+        zf = zipfile.ZipFile(byte_stream, "w")
+        for order in EmailMapLink.objects.filter(contestant__in=contestants):
+            zf.writestr(f"{order.contestant}.pdf", order.orders)
+        zf.close()
+        response = HttpResponse(byte_stream.getvalue(), content_type="application/x-zip-compressed")
+        response['Content-Disposition'] = 'attachment; filename=%s' % zip_filename
+        return response
+    elif orders.count() == 1:
+        response = HttpResponse(orders.first().orders, content_type="application/pdf")
+        response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
+        return response
+    raise Http404
 
 
 @api_view(["GET"])
