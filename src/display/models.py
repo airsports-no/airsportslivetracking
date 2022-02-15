@@ -807,7 +807,7 @@ class NavigationTask(models.Model):
         ordering = ("start_time", "finish_time")
 
     def __str__(self):
-        return "{}: {}".format(self.name, self.start_time.isoformat())
+        return "{}: {}".format(self.name, self.start_time.strftime("%Y-%m-%d"))
 
     def assign_scorecard_from_original(self, force: bool = False):
         """

@@ -2,6 +2,7 @@ import base64
 import datetime
 import logging
 
+import redis_lock
 from django.core.cache import cache
 from django.db import connections
 from celery.schedules import crontab
@@ -60,8 +61,17 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
         logger.exception("Exception in import_gpx_track")
 
 
+def append_cache_dict(cache_key, dict_key, value):
+    base = cache_key
+    with redis_lock.Lock(cache.get_client(""), f"{base}_lock"):
+        dictionary = cache.get(cache_key) or {}
+        dictionary[dict_key] = value
+        cache.set(cache_key, dictionary)
+
+
 @app.task
-def generate_and_notify_flight_order(contestant_pk: int, email: str, first_name: str):
+def generate_and_maybe_notify_flight_order(contestant_pk: int, email: str, first_name: str,
+                                           transmit_immediately: bool = False):
     try:
         try:
             contestant = Contestant.objects.get(pk=contestant_pk)
@@ -72,19 +82,41 @@ def generate_and_notify_flight_order(contestant_pk: int, email: str, first_name:
             orders = generate_flight_orders(contestant)
             for c in connections.all():
                 c.close_if_unusable_or_obsolete()
+            contestant.emailmaplink_set.all().delete()
             mail_link = EmailMapLink.objects.create(contestant=contestant, orders=bytes(orders))
-            mail_link.send_email(email, first_name)
+            if transmit_immediately:
+                mail_link.send_email(email, first_name)
         except Exception as e:
-            existing_failures = cache.get(f"failed_flight_orders_details_{contestant.navigation_task.pk}") or []
-            existing_failures.append(f"{contestant}: {e}")
-            cache.set(f"failed_flight_orders_details_{contestant.navigation_task.pk}", existing_failures)
-            cache.incr(f"failed_flight_orders_{contestant.navigation_task.pk}")
+            append_cache_dict(f"generate_failed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk,
+                              str(e))
             raise
         for c in connections.all():
             c.close_if_unusable_or_obsolete()
-        cache.incr(f"completed_flight_orders_{contestant.navigation_task.pk}")
+        append_cache_dict(f"completed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, True)
     except:
-        logger.exception("Exception in generate_and_notify_flight_order")
+        logger.exception("Exception in generate_flight_order")
+
+
+@app.task
+def notify_flight_order(contestant_pk: int, email: str, first_name: str):
+    try:
+        try:
+            contestant = Contestant.objects.get(pk=contestant_pk)
+        except ObjectDoesNotExist:
+            logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
+            return
+        try:
+            mail_link = EmailMapLink.objects.filter(contestant=contestant).first()
+            mail_link.send_email(email, first_name)
+        except Exception as e:
+            append_cache_dict(f"transmit_failed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk,
+                              str(e))
+            raise
+        for c in connections.all():
+            c.close_if_unusable_or_obsolete()
+        append_cache_dict(f"transmitted_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, True)
+    except:
+        logger.exception("Exception in notify_flight_order")
 
 
 @app.task

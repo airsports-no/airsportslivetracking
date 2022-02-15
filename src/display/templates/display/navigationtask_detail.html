@@ -24,15 +24,16 @@
                     <a class="dropdown-item" href="{% url 'navigationtask_removecontestants' object.pk %}"
                        title="Remove all scheduled contestants">Remove
                         contestants</a>
-                    <a class="dropdown-item" href="{% url 'navigationtask_flightorderconfiguration' object.pk %}"
-                       title="Update scoring parameters">Flight order configuration</a>
                     {% if object.editable_route %}
                         <a class="dropdown-item" href="{% url 'navigationtask_refresheditableroute' object.pk %}"
                            title="If the task is generated from a route built in the route editor, click this link to refresh the task if changes have been made to the route.">Reload
                             route</a>
                     {% endif %}
-                    <a class="dropdown-item" href="{% url 'navigationtask_broadcastflightorders' object.pk %}"
-                       title="Regenerate flight orders for all future contestants and email them. Warning: it takes a couple of minutes to generate each flight order so this will take some time.">Broadcast
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{% url 'navigationtask_flightorderconfiguration' object.pk %}"
+                       title="Update scoring parameters">Flight order configuration</a>
+                    <a class="dropdown-item" href="{% url 'navigationtask_generateflightorders' object.pk %}"
+                       title="Regenerate flight orders for all future contestants. Warning: it takes a couple of minutes to generate each flight order so this will take some time.">Generate
                         flight
                         orders</a>
                     <div class="dropdown-divider"></div>
@@ -165,13 +166,8 @@
 
                             {% if "change_contest" in contest_permissions %}
                                 <div class="dropdown-divider"></div>
-                                {% for a in contestant.emailmaplink_set.all %}
-                                    <a class="dropdown-item" href="{% url 'email_map_link' a.id %}"
-                                       title="Download the already generated flight order. If settings have been changed, regenerate the flight orders by clicking the button 'Broadcast flight orders' at the top or click the link to generate and download a new one for this contestant specifically.">Download
-                                        existing flight
-                                        order</a>
-                                {% endfor %}
-                                <a class="dropdown-item" href="{% url 'email_report_link' contestant.pk %}"
+                                <a class="dropdown-item"
+                                   href="{% url 'navigationtask_generateflightorders' object.pk %}?contestant_pk={{ contestant.pk }}"
                                    title="Generate and download a new flight order.">Generate new flight
                                     order</a>
                                 <a class="dropdown-item" href="{% url 'contestant_uploadgpxtrack' contestant.pk %}"
@@ -206,7 +202,8 @@
     <hr/>
     <p>
         To verify that tracking will work, switch on the Airsports app for the contestants and reload this page. If
-        there is a green checkmark next to the tracking email, then tracking is set up correctly. If there is an * next to the email,
+        there is a green checkmark next to the tracking email, then tracking is set up correctly. If there is an * next
+        to the email,
         then this user is not set up the Airsports app correctly (for instance using a different email address). The
         email
         address listed in the tracking column must exactly match the email address used to log into the Airsports app.

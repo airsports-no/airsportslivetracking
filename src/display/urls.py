@@ -18,7 +18,7 @@ from display.views import frontend_view_map, \
     share_contest, share_navigation_task, get_persons_for_signup, get_contestant_default_map, \
     get_contestant_email_flight_orders_link, EditableRouteList, EditableRouteDeleteView, \
     refresh_editable_route_navigation_task, \
-    get_contestant_email_flying_orders_link, broadcast_navigation_task_orders, upload_gpx_track_for_contesant, \
+    get_contestant_email_flying_orders_link, generate_navigation_task_orders, upload_gpx_track_for_contesant, \
     RouteToTaskWizard, healthz, readyz, revert_uploaded_gpx_track_for_contestant, \
     copy_editable_route, download_gpx_track_contestant, view_contest_team_images, clear_profile_image_background, \
     upload_profile_picture, get_contestant_processing_statistics, get_contest_creators_emails, \
@@ -26,7 +26,7 @@ from display.views import frontend_view_map, \
     navigation_task_scorecard_override_view, navigation_task_gatescore_override_view, \
     update_flight_order_configurations, UserUploadedMapCreate, UserUploadedMapList, UserUploadedMapUpdate, \
     UserUploadedMapDelete, restart_contestant_calculator, get_running_calculators, \
-    get_broadcast_navigation_task_orders_status, get_broadcast_navigation_task_orders_status_template
+    get_broadcast_navigation_task_orders_status, broadcast_navigation_task_orders, download_navigation_task_orders
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -77,12 +77,17 @@ urlpatterns = [
     path('navigationtask/<int:pk>/update/', NavigationTaskUpdateView.as_view(), name="navigationtask_update"),
     path('navigationtask/<int:pk>/delete/', NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),
     path('navigationtask/<int:pk>/share/', share_navigation_task, name="navigationtask_share"),
+    path('navigationtask/<int:pk>/generateflightorders/', generate_navigation_task_orders,
+         name="navigationtask_generateflightorders"),
     path('navigationtask/<int:pk>/broadcastflightorders/', broadcast_navigation_task_orders,
          name="navigationtask_broadcastflightorders"),
-    path('navigationtask/<int:pk>/getbroadcastflightordersstatus/', get_broadcast_navigation_task_orders_status,
-         name="navigationtask_getbroadcastflightordersstatus"),
-    path('navigationtask/<int:pk>/getbroadcastflightordersstatustemplate/', get_broadcast_navigation_task_orders_status_template,
-         name="navigationtask_getbroadcastflightordersstatustemplate"),
+    path('navigationtask/<int:pk>/downloadflightorders/', download_navigation_task_orders,
+         name="navigationtask_downloadflightorders"),
+
+    path('navigationtask/<int:pk>/getflightordersstatus/', get_broadcast_navigation_task_orders_status,
+         name="navigationtask_getflightordersstatus"),
+    # path('navigationtask/<int:pk>/getbroadcastflightordersstatustemplate/', get_broadcast_navigation_task_orders_status_template,
+    #      name="navigationtask_getbroadcastflightordersstatustemplate"),
 
     path('navigationtask/<int:pk>/refresheditableroute/', refresh_editable_route_navigation_task,
          name="navigationtask_refresheditableroute"),

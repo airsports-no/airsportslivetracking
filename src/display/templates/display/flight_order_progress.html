@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+    <h2> Generating flight order for</h2>
+    {% if single_contestant %}
+    <h2>Contestant {{ single_contestant }}</h2>
+    {% else %}
+    <H2>Navigation task {{ navigation_task }}</H2>
+    {% endif %}
+    <a href="{% url 'navigationtask_detail' navigation_task.pk %}">Back to navigation task</a>
+    <h4> This can take a few minutes per contestant, so please be patient. Progress and any failures will continuously
+        be reported below.</h4>
+    <div id="loading">
+        <img class="center" src="/static/img/loading_airplane.gif" alt="loading..."/>
+    </div>
+    <table class="table">
+    <thead>
+    <tr><th>Contestant</th><th>Generating</th><th>Sending</th><th>Errors</th></tr>
+    </thead>
+        {% for contestant in contestants %}
+            <tr>
+                <td>{{ contestant }}</td>
+                <td id="generating_{{ contestant.pk }}"></td>
+                <td id="transmitting_{{ contestant.pk }}"></td>
+                <td id="errors_{{ contestant.pk }}"></td>
+            </tr>
+        {% endfor %}
+    </table>
+    <div id="details"></div>
+    <div id="successful_menu" style="display: none">
+    {% if single_contestant %}
+        <a class="btn btn-primary" href="{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}?contestant_pk={{ single_contestant.pk }}" role="button">Broadcast</a>
+        <a class="btn btn-primary" href="{% url 'navigationtask_downloadflightorders' navigation_task.pk %}?contestant_pk={{ single_contestant.pk }}" role="button">Download</a>
+    {% else %}
+        <a class="btn btn-primary" href="{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}" role="button">Broadcast</a>
+        <a class="btn btn-primary" href="{% url 'navigationtask_downloadflightorders' navigation_task.pk %}" role="button">Download</a>
+    {% endif %}
+    </div>
+    <div id="failed">
+
+    </div>
+
+    <script type="text/javascript">
+        function redirect() {
+            location.href = "{% url 'navigationtask_detail' navigation_task.pk %}"
+        }
+
+        function updateRunningStatus(data) {
+            var completed = true
+            if (data.completed_flight_orders_map) {
+                for (const [key, value] of Object.entries(data.completed_flight_orders_map)) {
+                    if (!value) {
+                        completed = false
+                        document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/loading.gif' %}" style="width: 24px"/>'
+                    } else {
+                        document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/green_checkmark.png' %}"  style="width: 24px"/>'
+
+                    }
+                }
+            }
+            if (data.transmitted_flight_orders_map) {
+                for (const [key, value] of Object.entries(data.transmitted_flight_orders_map)) {
+                    if (!value) {
+                        completed = false
+                        document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/loading.gif' %}"  style="width: 24px"/>'
+                    } else {
+                        document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/green_checkmark.png' %}"  style="width: 24px"/>'
+
+                    }
+                }
+            }
+            if (data.generate_failed_flight_orders_map) {
+                for (const [key, value] of Object.entries(data.generate_failed_flight_orders_map)) {
+                    document.getElementById("errors_" + key).innerHTML = value
+                        document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}"  style="width: 24px"/>'
+                }
+            }
+            if (data.transmit_failed_flight_orders_map) {
+                for (const [key, value] of Object.entries(data.transmit_failed_flight_orders_map)) {
+                    document.getElementById("errors_" + key).innerHTML = value
+                        document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}"  style="width: 24px"/>'
+                }
+            }
+            if (completed) {
+                document.getElementById("loading").innerHTML = ""
+                document.getElementById("successful_menu").removeAttribute("style")
+                {#setTimeout(redirect, 10000)#}
+            }
+        }
+
+        function getFlightOrderProgress() {
+            $.ajax({
+                url: "/display/navigationtask/{{ navigation_task.pk }}/getflightordersstatus/",
+                type: 'get',
+                dataType: "json",
+                success: function (data) {
+                    updateRunningStatus(data);
+                }
+            });
+        }
+
+        $(document).ready(function () {
+            getFlightOrderProgress()
+            setInterval(getFlightOrderProgress, 5000);
+
+
+        })
+
+    </script>
+{% endblock %}

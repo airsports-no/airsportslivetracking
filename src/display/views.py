@@ -3,10 +3,12 @@ import datetime
 import json
 import os
 import time
+from io import BytesIO
 from typing import Optional, Dict, Tuple, List
 
 import dateutil
 import gpxpy
+import zipfile
 from crispy_forms.layout import Submit, Fieldset
 from django.contrib import messages
 from django.contrib.auth import login, get_user_model
@@ -208,8 +210,7 @@ from display.serialisers import (
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
     import_gpx_track,
-    generate_and_notify_flight_order,
-    revert_gpx_track_to_traccar,
+    revert_gpx_track_to_traccar, generate_and_maybe_notify_flight_order, notify_flight_order,
 )
 from display.traccar_factory import get_traccar_instance
 from display.utilities import get_country_code_from_location
@@ -850,28 +851,88 @@ def get_contestant_email_flying_orders_link(request, pk):
 @guardian_permission_required(
     "display.view_contest", (Contest, "navigationtask__pk", "pk")
 )
-def broadcast_navigation_task_orders(request, pk):
+def generate_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    single_contestant_pk = request.GET.get("contestant_pk")
+    single_contestant = None
     contestants = navigation_task.contestant_set.filter(
         takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
     )
+    if single_contestant_pk:
+        single_contestant = get_object_or_404(Contestant, pk=single_contestant_pk)
+        contestants = contestants.filter(pk=single_contestant_pk)
     cache.set(f"total_flight_orders_{pk}", contestants.count())
-    cache.set(f"completed_flight_orders_{pk}", 0)
-    cache.set(f"failed_flight_orders_{pk}", 0)
-    cache.set(f"failed_flight_orders_details_{navigation_task.pk}", [])
+    cache.set(f"completed_flight_orders_map_{navigation_task.pk}", {contestant.pk: False for contestant in contestants})
+    cache.set(f"generate_failed_flight_orders_map_{navigation_task.pk}", {})
+    cache.delete(f"transmitted_flight_orders_map_{navigation_task.pk}")
+    cache.delete(f"transmit_failed_flight_orders_map_{navigation_task.pk}")
     for contestant in contestants:
         # Delete existing order
         contestant.emailmaplink_set.all().delete()
-        generate_and_notify_flight_order.apply_async(
+        generate_and_maybe_notify_flight_order.apply_async(
+            (
+                contestant.pk,
+                contestant.team.crew.member1.email,
+                contestant.team.crew.member1.first_name,
+                False
+            )
+        )
+    return render(request, "display/flight_order_progress.html",
+                  {"navigation_task": navigation_task, "contestants": contestants,
+                   "single_contestant": single_contestant})
+
+
+@guardian_permission_required(
+    "display.view_contest", (Contest, "navigationtask__pk", "pk")
+)
+def broadcast_navigation_task_orders(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    single_contestant_pk = request.GET.get("contestant_pk")
+    single_contestant = None
+    contestants = navigation_task.contestant_set.filter(
+        takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
+    )
+    if single_contestant_pk:
+        single_contestant = get_object_or_404(Contestant, pk=single_contestant_pk)
+        contestants = contestants.filter(pk=single_contestant_pk)
+    cache.set(f"total_flight_orders_{pk}", contestants.count())
+
+    for contestant in contestants:
+        notify_flight_order.apply_async(
             (
                 contestant.pk,
                 contestant.team.crew.member1.email,
                 contestant.team.crew.member1.first_name,
             )
         )
-    return HttpResponseRedirect(
-        reverse("navigationtask_getbroadcastflightordersstatustemplate", kwargs={"pk": navigation_task.pk})
-    )
+    return render(request, "display/flight_order_progress.html",
+                  {"navigation_task": navigation_task, "contestants": contestants,
+                   "single_contestant": single_contestant})
+
+
+@guardian_permission_required(
+    "display.view_contest", (Contest, "navigationtask__pk", "pk")
+)
+def download_navigation_task_orders(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    single_contestant = request.GET.get("contestant_pk")
+    if single_contestant:
+        contestants = Contestant.objects.filter(pk=single_contestant)
+    else:
+        contestants = navigation_task.contestant_set.filter(
+            takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
+        )
+    # set up zip folder
+    zip_subdir = "flight_orders"
+    zip_filename = zip_subdir + ".zip"
+    byte_stream = BytesIO()
+    zf = zipfile.ZipFile(byte_stream, "w")
+    for order in EmailMapLink.objects.filter(contestant__in=contestants):
+        zf.writestr(f"{order.contestant}.pdf", order.orders)
+    zf.close()
+    response = HttpResponse(byte_stream.getvalue(), content_type="application/x-zip-compressed")
+    response['Content-Disposition'] = 'attachment; filename=%s' % zip_filename
+    return response
 
 
 @api_view(["GET"])
@@ -881,19 +942,20 @@ def broadcast_navigation_task_orders(request, pk):
 def get_broadcast_navigation_task_orders_status(request, pk):
     data = {
         "total_flight_orders": cache.get(f"total_flight_orders_{pk}"),
-        "completed_flight_orders": cache.get(f"completed_flight_orders_{pk}"),
-        "failed_flight_orders": cache.get(f"failed_flight_orders_{pk}"),
-        "failed_flight_orders_details": cache.get(f"failed_flight_orders_details_{pk}")
+        "completed_flight_orders_map": cache.get(f"completed_flight_orders_map_{pk}"),
+        "transmitted_flight_orders_map": cache.get(f"transmitted_flight_orders_map_{pk}"),
+        "generate_failed_flight_orders_map": cache.get(f"generate_failed_flight_orders_map_{pk}"),
+        "transmit_failed_flight_orders_map": cache.get(f"transmit_failed_flight_orders_map_{pk}"),
     }
     return Response(data)
 
 
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__pk", "pk")
-)
-def get_broadcast_navigation_task_orders_status_template(request, pk):
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    return render(request, "display/broadcast_flight_order_progress.html", {"navigation_task": navigation_task})
+# @guardian_permission_required(
+#     "display.view_contest", (Contest, "navigationtask__pk", "pk")
+# )
+# def get_broadcast_navigation_task_orders_status_template(request, pk):
+#     navigation_task = get_object_or_404(NavigationTask, pk=pk)
+#     return render(request, "display/broadcast_flight_order_progress.html", {"navigation_task": navigation_task})
 
 
 @guardian_permission_required(
@@ -1264,6 +1326,7 @@ class NavigationTaskUpdateView(
 
     def get_success_url(self):
         return reverse("navigationtask_detail", kwargs={"pk": self.get_object().pk})
+
 
 class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = NavigationTask
@@ -3049,8 +3112,8 @@ class NavigationTaskViewSet(ModelViewSet):
             logger.debug("Updated contestant")
             # mail_link = EmailMapLink.objects.create(contestant=contestant)
             # mail_link.send_email(request.user.email, request.user.first_name)
-            generate_and_notify_flight_order.apply_async(
-                (contestant.pk, request.user.email, request.user.first_name)
+            generate_and_maybe_notify_flight_order.apply_async(
+                (contestant.pk, request.user.email, request.user.first_name, True)
             )
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
