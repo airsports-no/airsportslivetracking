@@ -161,9 +161,6 @@
                         <div class="dropdown-menu">
                             <a class="dropdown-item" href="{% url 'contestant_map' contestant.pk %}"
                                title="Generate the navigation map for the contestant">Map</a>
-                            <a class="dropdown-item" href="{% url 'contestant_rules' contestant.pk %}"
-                               title="Display the specific rules for the contestant">Rules</a>
-
                             {% if "change_contest" in contest_permissions %}
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item"

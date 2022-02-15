@@ -14,7 +14,7 @@ from display.views import frontend_view_map, \
     list_contest_permissions, add_user_contest_permissions, delete_user_contest_permissions, \
     change_user_contest_permissions, contestant_cards_list, contestant_card_remove, create_route_test, \
     clear_results_service, delete_score_item, \
-    terminate_contestant_calculator, view_navigation_task_rules, get_contestant_rules, frontend_playback_map, \
+    terminate_contestant_calculator, view_navigation_task_rules, frontend_playback_map, \
     share_contest, share_navigation_task, get_persons_for_signup, get_contestant_default_map, \
     get_contestant_email_flight_orders_link, EditableRouteList, EditableRouteDeleteView, \
     refresh_editable_route_navigation_task, \
@@ -108,7 +108,6 @@ urlpatterns = [
          name="processingstatistics"),
     path('contestant/<int:pk>/map/', get_contestant_map, name="contestant_map"),
     path('contestant/<int:pk>/defaultmap/', get_contestant_default_map, name="contestant_default_map"),
-    path('contestant/<int:pk>/rules/', get_contestant_rules, name="contestant_rules"),
     path('contestant/<int:pk>/stop_calculator/', terminate_contestant_calculator, name="contestant_stop_calculator"),
     path('contestant/<int:pk>/restart_calculator/', restart_contestant_calculator,
          name="contestant_restart_calculator"),

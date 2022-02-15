@@ -727,21 +727,6 @@ def upload_profile_picture(request, contest_pk, pk):
 @guardian_permission_required(
     "display.view_contest", (Contest, "navigationtask__contestant__pk", "pk")
 )
-def get_contestant_rules(request, pk):
-    contestant = get_object_or_404(Contestant, pk=pk)
-    return render(
-        request,
-        "display/contestant_rules.html",
-        {
-            "contestant": contestant,
-            "rules": contestant.navigation_task.scorecard.scores_display(contestant),
-        },
-    )
-
-
-@guardian_permission_required(
-    "display.view_contest", (Contest, "navigationtask__contestant__pk", "pk")
-)
 def get_contestant_map(request, pk):
     form = ContestantMapForm()
     contestant = get_object_or_404(Contestant, pk=pk)
@@ -896,6 +881,7 @@ def broadcast_navigation_task_orders(request, pk):
         single_contestant = get_object_or_404(Contestant, pk=single_contestant_pk)
         contestants = contestants.filter(pk=single_contestant_pk)
     cache.set(f"total_flight_orders_{pk}", contestants.count())
+    cache.set(f"transmitted_flight_orders_map_{navigation_task.pk}", {contestant.pk: False for contestant in contestants})
 
     for contestant in contestants:
         notify_flight_order.apply_async(
