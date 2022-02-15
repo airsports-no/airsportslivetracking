@@ -772,8 +772,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                                     bootstrap4 striped condensed
                                                     cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
                                     />
-                                    <ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export
-                                        CSV</ExportCSVButton>
+                                    {this.props.contest.results.permission_change_contest?<ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export
+                                        CSV</ExportCSVButton>:null}
                                 </div>
                             )
                         }
