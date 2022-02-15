@@ -318,8 +318,8 @@ class Person(models.Model):
     @property
     def is_tracking_active(self):
         return (
-                self.last_seen and (
-                datetime.datetime.now(datetime.timezone.utc) - self.last_seen).total_seconds() < 10 * 60
+            # We assume the tracker is active if we have seen it today
+            self.last_seen and datetime.datetime.now(datetime.timezone.utc).date() == self.last_seen.date()
         )
 
     @property
@@ -1520,10 +1520,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     f"The copilot '{self.team.crew.member2}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
                 ))
         # Validate maximum tracking time
-        if self.finished_by_time-self.tracker_start_time>datetime.timedelta(hours=24):
+        if self.finished_by_time - self.tracker_start_time > datetime.timedelta(hours=24):
             pass
             raise ValidationError(
-                f"The maximum tracking time (from tracker start time to finished by time) is 24 hours (currently {self.finished_by_time-self.tracker_start_time}). Either start tracking later or finish earlier to solve this."
+                f"The maximum tracking time (from tracker start time to finished by time) is 24 hours (currently {self.finished_by_time - self.tracker_start_time}). Either start tracking later or finish earlier to solve this."
             )
         # Validate takeoff time after tracker start
         if self.tracker_start_time > self.takeoff_time:
@@ -2846,12 +2846,14 @@ def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, 
 
 @receiver(pre_save, sender=NavigationTask)
 def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
-    if instance.id is None: # new object will be created
-        pass # write your code here
+    if instance.id is None:  # new object will be created
+        pass  # write your code here
     else:
         previous = NavigationTask.objects.get(id=instance.id)
-        if previous.original_scorecard != instance.original_scorecard: # field will be updated
-            raise ValidationError(f"Cannot change scorecard to {instance.original_scorecard.name}. You must create a new task.")
+        if previous.original_scorecard != instance.original_scorecard:  # field will be updated
+            raise ValidationError(
+                f"Cannot change scorecard to {instance.original_scorecard.name}. You must create a new task.")
+
 
 @receiver(post_save, sender=NavigationTask)
 def initialise_navigation_task_dependencies(sender, instance: NavigationTask, created, **kwargs):

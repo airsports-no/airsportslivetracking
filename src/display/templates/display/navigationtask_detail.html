@@ -62,7 +62,7 @@
             <th>#</th>
             <th>Team</th>
             <th>Live</th>
-            <th>Tracking</th>
+            <th colspan="2">Tracking</th>
             <th>Timing</th>
             {#            <th>Tracker start time</th>#}
             {#            <th>Takeoff time</th>#}
@@ -105,15 +105,19 @@
                         {% endif %}
                     </div>
                 </td>
-                <td>
+                <td style="padding-right:0">
+                    {% for tracker in contestant.tracker_id_display %}
+                        {% if tracker.is_active %}
+                            <img src="{% static "img/green_checkmark.png" %}" alt="Tracking connection is verified"
+                                 style="width: 12px"/>
+                        {% endif %}
+                        <br/>
+                    {% endfor %}
+                </td>
+                <td style="padding-left:0">
                     {% for tracker in contestant.tracker_id_display %}
                         {{ tracker.tracker }}{% if not tracker.has_user %}<a href="#" data-toggle="tooltip"
                                                                              title="The user for the tracker is not registered. This probably means that the user has not downloaded and logged into the app.">*</a>
-                        {% endif %}
-                        {% if tracker.is_active %}
-                            <img src="{% static "img/green_light.png" %}" alt="User is active" style="width: 18px"/>
-                        {% else %}
-                            <img src="{% static "img/red_light.png" %}" alt="User is inactive" style="width: 18px"/>
                         {% endif %}
                         <br/>
                     {% endfor %}
@@ -202,8 +206,7 @@
     <hr/>
     <p>
         To verify that tracking will work, switch on the Airsports app for the contestants and reload this page. If
-        there is a
-        green light next to the tracking email, then tracking is set up correctly. If there is an * next to the email,
+        there is a green checkmark next to the tracking email, then tracking is set up correctly. If there is an * next to the email,
         then this user is not set up the Airsports app correctly (for instance using a different email address). The
         email
         address listed in the tracking column must exactly match the email address used to log into the Airsports app.
