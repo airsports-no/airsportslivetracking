@@ -57,7 +57,7 @@ stages:
         dockerComposeCommand: 'up'
         arguments: '-d ${{Variables.containerName}}'
     - script: |
-        docker exec $containerName /bin/bash -c "mkdir -p reports && rm -rf reports/*"
+        docker exec ${{Variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
       displayName: Prepare web container for test run
     - script: |
        docker exec ${{Variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
