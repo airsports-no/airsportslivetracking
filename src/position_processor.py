@@ -210,5 +210,5 @@ if __name__ == "__main__":
             header=headers,
             cookie="; ".join(["%s=%s" % (i, j) for i, j in cookies.items()]),
         )
-        ws.run_forever(ping_interval=55, ping_timeout=10)
+        ws.run_forever(ping_interval=55)
         logger.warning("Websocket terminated, restarting")

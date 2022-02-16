@@ -5,6 +5,7 @@ import UpcomingContestsSignupTable from "../upcomingContestsSignupTable";
 import ContestRegistrationForm from "../contestRegistrationForm";
 import {fetchContests, fetchMyParticipatingContests} from "../../actions";
 import {withRouter} from "react-router-dom";
+import Navbar from "../navbar";
 
 export const mapStateToProps = (state, props) => ({
     currentContestRegistration: state.currentContestRegistration,
@@ -56,7 +57,8 @@ class ConnectedMyContestParticipationManagement extends Component {
             })
         }
         return <div>
-            <div className={"row"}>
+            <Navbar/>
+            <div className={"row container"}>
                 <div className={"col-lg-4"}>
                     <h2>My participation</h2>
                     <MyParticipatingEventsList currentParticipation={currentParticipation}

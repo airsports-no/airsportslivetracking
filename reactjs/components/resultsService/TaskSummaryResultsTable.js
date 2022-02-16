@@ -32,6 +32,7 @@ import {
 } from "../../constants/resultsServiceActionTypes";
 import {sortCaret, sortFunc} from "../resultsTableUtilities";
 import {Loading} from "../basicComponents";
+import Navbar from "../navbar";
 
 const {ExportCSVButton} = CSVExport;
 
@@ -300,8 +301,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 <Modal.Body>
                     <Container>
                         <Form.Group>
-                            <Form.Label style={{display:"none"}}>Task</Form.Label>
-                            <Form.Control style={{display:"none"}} as={"select"} onChange={(e) => {
+                            <Form.Label style={{display: "none"}}>Task</Form.Label>
+                            <Form.Control style={{display: "none"}} as={"select"} onChange={(e) => {
                                 this.setState({editTaskTest: {...this.state.editTaskTest, task: e.target.value}})
                             }} value={this.state.editTaskTest.task ? this.state.editTaskTest.task : -1}>
                                 <option key={-1} value={-1}>--</option>
@@ -726,81 +727,91 @@ class ConnectedTaskSummaryResultsTable extends Component {
         });
 
         return <div>
-            <div className={"row results-table"}>
-                <div className={"col-12"}>
-                    {
-                        this.state.zoomedTask ?
-                            <div><h2 className={"results-table-contest-name"}><a href={"#"} className={"text-dark"}
-                                                                                 onClick={() => this.collapseTask(this.state.zoomedTask)}><b>{this.props.contest.results.name}</b></a> -
-                                Tests
-                                for <i>{this.state.zoomedTask.name}</i>
-                                {this.props.contest.results.permission_change_contest ?
-                                    <Button onClick={(e) => {
-                                        this.setState({
-                                            displayNewTaskTestModal: true,
-                                            editTaskTest: this.defaultTaskTest(this.state.zoomedTask.id),
-                                            editMode: "new"
-                                        })
-                                    }
-                                    } style={{float: "right"}}>New test</Button> : null}</h2></div> :
-                            <div><h2 className={"results-table-contest-name"}><b>{this.props.contest.results.name}</b>
-                                {this.props.contest.results.permission_change_contest ?
-                                    <Button style={{float: "right"}} onClick={(e) => {
-                                        this.setState({
-                                            displayNewTaskModal: true,
-                                            editTask: this.defaultTask(),
-                                            editMode: "new"
-                                        })
-                                    }}>New task</Button> : null}</h2></div>
-                    }
-                </div>
-            </div>
-            <div className={"results-table"}>
-                <div className={""}>
-                    <ToolkitProvider
-                        keyField="key"
-                        data={d}
-                        columns={c}
-                        exportCSV
-                    >
+            <Navbar/>
+            <div className={"container"}>
+                <div className={"row results-table"}>
+                    <div className={"col-12"}>
                         {
-                            props => (
-                                <div>
-                                    <BootstrapTable {...props.baseProps} sort={defaultSorted}
-                                                    classes={"table-dark bg-dark-transparent"}
-                                                    wrapperClasses={"text-dark"}
-                                                    bootstrap4 striped condensed
-                                                    cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
-                                    />
-                                    {this.props.contest.results.permission_change_contest?<ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export
-                                        CSV</ExportCSVButton>:null}
-                                </div>
-                            )
+                            this.state.zoomedTask ?
+                                <div><h2 className={"results-table-contest-name"}><a href={"#"} className={"text-dark"}
+                                                                                     onClick={() => this.collapseTask(this.state.zoomedTask)}><b>{this.props.contest.results.name}</b></a> -
+                                    Tests
+                                    for <i>{this.state.zoomedTask.name}</i>
+                                    {this.props.contest.results.permission_change_contest ?
+                                        <Button onClick={(e) => {
+                                            this.setState({
+                                                displayNewTaskTestModal: true,
+                                                editTaskTest: this.defaultTaskTest(this.state.zoomedTask.id),
+                                                editMode: "new"
+                                            })
+                                        }
+                                        } style={{float: "right"}}>New test</Button> : null}</h2></div> :
+                                <div><h2 className={"results-table-contest-name"}>
+                                    <b>{this.props.contest.results.name}</b>
+                                    {this.props.contest.results.permission_change_contest ?
+                                        <Button style={{float: "right"}} onClick={(e) => {
+                                            this.setState({
+                                                displayNewTaskModal: true,
+                                                editTask: this.defaultTask(),
+                                                editMode: "new"
+                                            })
+                                        }}>New task</Button> : null}</h2></div>
                         }
-                    </ToolkitProvider>
+                    </div>
                 </div>
-                <div className={"alert alert-info alert-dismissable fade show"} style={{marginTop: "20px"}}>
-                    <button type="button" className="close" data-dismiss="alert" aria-hidden="true">&#215;</button>
-                    <h4 className="alert-heading">About the results table</h4>
-                    Contest results consists of one or more tasks, and each task contains one or more tests. The initial
-                    view shows the summary score for each task in the contest. By clicking on the magnifying glass you
-                    can zoom into the individual test results within the task. For instance, a precision navigation task
-                    will consist of three tests; a planning test, a navigation test, and an observation test. The total
-                    score of these three tests make up the score for the task.
-                    {this.props.contest.results.permission_change_contest?<p>
-                        <hr/>
-                        <a className={"alert-link"} href={"/static/documents/contest_results_admin.pdf"}>Administration how-to guide</a>
-                    </p>:null}
+                <div className={"results-table"}>
+                    <div className={""}>
+                        <ToolkitProvider
+                            keyField="key"
+                            data={d}
+                            columns={c}
+                            exportCSV
+                        >
+                            {
+                                props => (
+                                    <div>
+                                        <BootstrapTable {...props.baseProps} sort={defaultSorted}
+                                                        classes={"table-dark bg-dark-transparent"}
+                                                        wrapperClasses={"text-dark"}
+                                                        bootstrap4 striped condensed
+                                                        cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
+                                        />
+                                        {this.props.contest.results.permission_change_contest ?
+                                            <ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export
+                                                CSV</ExportCSVButton> : null}
+                                    </div>
+                                )
+                            }
+                        </ToolkitProvider>
+                    </div>
+                    <div className={"alert alert-info alert-dismissable fade show"} style={{marginTop: "20px"}}>
+                        <button type="button" className="close" data-dismiss="alert" aria-hidden="true">&#215;</button>
+                        <h4 className="alert-heading">About the results table</h4>
+                        Contest results consists of one or more tasks, and each task contains one or more tests. The
+                        initial
+                        view shows the summary score for each task in the contest. By clicking on the magnifying glass
+                        you
+                        can zoom into the individual test results within the task. For instance, a precision navigation
+                        task
+                        will consist of three tests; a planning test, a navigation test, and an observation test. The
+                        total
+                        score of these three tests make up the score for the task.
+                        {this.props.contest.results.permission_change_contest ? <p>
+                            <hr/>
+                            <a className={"alert-link"} href={"/static/documents/contest_results_admin.pdf"}>Administration
+                                how-to guide</a>
+                        </p> : null}
 
+                    </div>
+                    <div className={'text-dark'}>Photo by <a
+                        href="https://unsplash.com/@tadeu?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Tadeu
+                        Jnr</a> on <a
+                        href="https://unsplash.com/s/photos/propeller-airplane?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+                    </div>
                 </div>
-                <div className={'text-dark'}>Photo by <a
-                    href="https://unsplash.com/@tadeu?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Tadeu
-                    Jnr</a> on <a
-                    href="https://unsplash.com/s/photos/propeller-airplane?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
-                </div>
+                {this.newTaskModal()}
+                {this.newTaskTestModal()}
             </div>
-            {this.newTaskModal()}
-            {this.newTaskTestModal()}
         </div>
     }
 }

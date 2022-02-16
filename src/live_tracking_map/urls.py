@@ -74,5 +74,6 @@ urlpatterns = [
     ####
     re_path("djga/", include("google_analytics.urls")),
     path("api/v1/", include(api.urlpatters)),
-    url(r"^.?", global_map, name="globalmap"),
+    # re_path(r'^resultsservice/.?', results_service, name="resultsservice"),
+    re_path(r"^.?", global_map, name="globalmap"),
 ]

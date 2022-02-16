@@ -338,12 +338,12 @@ def global_map(request):
     return render(
         request,
         "display/globalmap.html",
-        {"skip_nav": False, "first_visit": not visited},
+        {"skip_nav": True, "first_visit": not visited},
     )
 
 
 def results_service(request):
-    return render(request, "display/resultsservice.html")
+    return render(request, "display/resultsservice.html", {"skip_nav": True})
 
 
 def manifest(request):

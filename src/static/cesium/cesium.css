@@ -1214,3 +1214,8 @@ div.ris-large {
 .thermometer--normal {
     width: 50px;
 }
+
+
+.navbar.transparent.navbar-dark .navbar-inner {
+   background: rgba(0,0,0,0.4);
+}
