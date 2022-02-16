@@ -16,7 +16,8 @@
         </button>
     </p>
     <p class="text-muted">Flight orders can only be generated for contestants with takeoff times in the future. If the
-        table below is empty it means that there are no contestants that match this and you need to update them. Generation can take a few minutes per contestant, so please be patient. Progress and any failures
+        table below is empty it means that there are no contestants that match this and you need to update them.
+        Generation can take a few minutes per contestant, so please be patient. Progress and any failures
         will continuously
         be reported in the table below.</p>
     <div id="loading" style="display: none">
@@ -41,7 +42,7 @@
         {% endfor %}
     </table>
     <div id="details"></div>
-    <div id="successful_menu">
+    <div id="successful_menu" style="display: none">
         {% if single_contestant %}
             <a class="btn btn-primary"
                href="{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}?contestant_pk={{ single_contestant.pk }}"
@@ -59,6 +60,7 @@
     </div>
     <script type="text/javascript">
         var generating = false
+        var first = true
 
         function clearStatus() {
             for (var key of {{ contestant_pks }}) {
@@ -108,11 +110,13 @@
         }
 
         function updateRunningStatus(data) {
-            var completed = true
+            var completed = false
             if (data.completed_flight_orders_map) {
+                completed = true
                 for (const [key, value] of Object.entries(data.completed_flight_orders_map)) {
                     if (!value) {
                         completed = false
+                        generating = true
                         document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/loading.gif' %}" style="width: 24px"/>'
                     } else {
                         document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/green_checkmark.png' %}"  style="width: 24px"/>'
@@ -123,7 +127,6 @@
             if (data.transmitted_flight_orders_map) {
                 for (const [key, value] of Object.entries(data.transmitted_flight_orders_map)) {
                     if (!value) {
-                        completed = false
                         document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/loading.gif' %}"  style="width: 24px"/>'
                     } else {
                         document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/green_checkmark.png' %}"  style="width: 24px"/>'
@@ -143,13 +146,18 @@
                     document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}"  style="width: 24px"/>'
                 }
             }
-            if (completed && generating) {
+            if (first && generating) {
+                document.getElementById("loading").removeAttribute("style")
+                disableGenerate()
+            }
+            if (completed && (generating || first)) {
                 generating = false
                 enableGenerate()
                 document.getElementById("loading").setAttribute("style", "display: none")
                 document.getElementById("successful_menu").removeAttribute("style")
                 {#setTimeout(redirect, 10000)#}
             }
+            first = false
         }
 
         function getFlightOrderProgress() {
