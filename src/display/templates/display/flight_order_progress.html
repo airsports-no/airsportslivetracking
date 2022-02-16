@@ -15,6 +15,10 @@
         <button class="btn btn-danger" onclick="generateFlightOrders()" id="generate_button">(Re)Generate flight orders
         </button>
     </p>
+    <p class="text-muted">Flight orders can only be generated for contestants with takeoff times in the future. If the
+        table below is empty it means that there are no contestants that match this and you need to update them. Generation can take a few minutes per contestant, so please be patient. Progress and any failures
+        will continuously
+        be reported in the table below.</p>
     <div id="loading" style="display: none">
         <img class="center" src="/static/img/loading_airplane.gif" alt="loading..."/>
     </div>
@@ -53,9 +57,6 @@
                role="button">Download</a>
         {% endif %}
     </div>
-    <p class="text-muted"> This can take a few minutes per contestant, so please be patient. Progress and any failures
-        will continuously
-        be reported above.</p>
     <script type="text/javascript">
         var generating = false
 
