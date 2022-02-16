@@ -11,9 +11,9 @@
     </p>
 
     <p>
+        <a class="btn btn-primary" href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
         <button class="btn btn-danger" onclick="generateFlightOrders()" id="generate_button">(Re)Generate flight orders
         </button>
-        <a class="btn btn-primary" href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
     </p>
     <div id="loading" style="display: none">
         <img class="center" src="/static/img/loading_airplane.gif" alt="loading..."/>

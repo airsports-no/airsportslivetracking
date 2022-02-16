@@ -849,7 +849,7 @@ def generatenavigation_task_orders_template(request, pk):
                    "contestant_pks": [item.pk for item in contestants]})
 
 
-def get_navigation_task_orders_status_object(pk)->Dict:
+def get_navigation_task_orders_status_object(pk) -> Dict:
     return {
         "total_flight_orders": cache.get(f"total_flight_orders_{pk}"),
         "completed_flight_orders_map": cache.get(f"completed_flight_orders_map_{pk}"),
@@ -1417,6 +1417,11 @@ class ContestantUpdateView(
     model = Contestant
     permission_required = ("display.change_contest",)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["redirect"] = self.get_success_url()
+        return context
+
     def get_form_kwargs(self):
         arguments = super().get_form_kwargs()
         arguments["navigation_task"] = self.get_object().navigation_task
@@ -1466,6 +1471,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["redirect"] = self.get_success_url()
         context["navigation_task"] = self.navigation_task
         return context
 
