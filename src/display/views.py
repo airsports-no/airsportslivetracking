@@ -836,16 +836,42 @@ def get_contestant_email_flying_orders_link(request, pk):
 @guardian_permission_required(
     "display.view_contest", (Contest, "navigationtask__pk", "pk")
 )
-def generate_navigation_task_orders(request, pk):
+def generatenavigation_task_orders_template(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     single_contestant_pk = request.GET.get("contestant_pk")
-    single_contestant = None
     contestants = navigation_task.contestant_set.filter(
         takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
     )
     if single_contestant_pk:
-        single_contestant = get_object_or_404(Contestant, pk=single_contestant_pk)
         contestants = contestants.filter(pk=single_contestant_pk)
+    return render(request, "display/flight_order_progress.html",
+                  {"navigation_task": navigation_task, "contestants": contestants,
+                   "contestant_pks": [item.pk for item in contestants]})
+
+
+def get_navigation_task_orders_status_object(pk)->Dict:
+    return {
+        "total_flight_orders": cache.get(f"total_flight_orders_{pk}"),
+        "completed_flight_orders_map": cache.get(f"completed_flight_orders_map_{pk}"),
+        "transmitted_flight_orders_map": cache.get(f"transmitted_flight_orders_map_{pk}"),
+        "generate_failed_flight_orders_map": cache.get(f"generate_failed_flight_orders_map_{pk}"),
+        "transmit_failed_flight_orders_map": cache.get(f"transmit_failed_flight_orders_map_{pk}"),
+    }
+
+
+@api_view(["GET"])
+@guardian_permission_required(
+    "display.view_contest", (Contest, "navigationtask__pk", "pk")
+)
+def generate_navigation_task_orders(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    contestant_pks = request.GET.get("contestant_pks")
+    if not contestant_pks or len(contestant_pks) == 0:
+        raise Http404
+    contestant_pks = contestant_pks.split(",")
+    contestants = navigation_task.contestant_set.filter(
+        pk__in=contestant_pks
+    )
     cache.set(f"total_flight_orders_{pk}", contestants.count())
     cache.set(f"completed_flight_orders_map_{navigation_task.pk}", {contestant.pk: False for contestant in contestants})
     cache.set(f"generate_failed_flight_orders_map_{navigation_task.pk}", {})
@@ -862,24 +888,22 @@ def generate_navigation_task_orders(request, pk):
                 False
             )
         )
-    return render(request, "display/flight_order_progress.html",
-                  {"navigation_task": navigation_task, "contestants": contestants,
-                   "single_contestant": single_contestant})
+    return Response(get_navigation_task_orders_status_object(pk))
 
 
+@api_view(["GET"])
 @guardian_permission_required(
     "display.view_contest", (Contest, "navigationtask__pk", "pk")
 )
 def broadcast_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    single_contestant_pk = request.GET.get("contestant_pk")
-    single_contestant = None
+    contestant_pks = request.GET.get("contestant_pks")
+    if not contestant_pks or len(contestant_pks) == 0:
+        raise Http404
+    contestant_pks = contestant_pks.split(",")
     contestants = navigation_task.contestant_set.filter(
-        takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
+        pk__in=contestant_pks
     )
-    if single_contestant_pk:
-        single_contestant = get_object_or_404(Contestant, pk=single_contestant_pk)
-        contestants = contestants.filter(pk=single_contestant_pk)
     cache.set(f"total_flight_orders_{pk}", contestants.count())
     cache.set(f"transmitted_flight_orders_map_{navigation_task.pk}",
               {contestant.pk: False for contestant in contestants})
@@ -892,9 +916,7 @@ def broadcast_navigation_task_orders(request, pk):
                 contestant.team.crew.member1.first_name,
             )
         )
-    return render(request, "display/flight_order_progress.html",
-                  {"navigation_task": navigation_task, "contestants": contestants,
-                   "single_contestant": single_contestant})
+    return Response(get_navigation_task_orders_status_object(pk))
 
 
 @guardian_permission_required(
@@ -934,14 +956,7 @@ def download_navigation_task_orders(request, pk):
     "display.view_contest", (Contest, "navigationtask__pk", "pk")
 )
 def get_broadcast_navigation_task_orders_status(request, pk):
-    data = {
-        "total_flight_orders": cache.get(f"total_flight_orders_{pk}"),
-        "completed_flight_orders_map": cache.get(f"completed_flight_orders_map_{pk}"),
-        "transmitted_flight_orders_map": cache.get(f"transmitted_flight_orders_map_{pk}"),
-        "generate_failed_flight_orders_map": cache.get(f"generate_failed_flight_orders_map_{pk}"),
-        "transmit_failed_flight_orders_map": cache.get(f"transmit_failed_flight_orders_map_{pk}"),
-    }
-    return Response(data)
+    return Response(get_navigation_task_orders_status_object(pk))
 
 
 # @guardian_permission_required(

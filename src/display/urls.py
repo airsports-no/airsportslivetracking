@@ -26,7 +26,8 @@ from display.views import frontend_view_map, \
     navigation_task_scorecard_override_view, navigation_task_gatescore_override_view, \
     update_flight_order_configurations, UserUploadedMapCreate, UserUploadedMapList, UserUploadedMapUpdate, \
     UserUploadedMapDelete, restart_contestant_calculator, get_running_calculators, \
-    get_broadcast_navigation_task_orders_status, broadcast_navigation_task_orders, download_navigation_task_orders
+    get_broadcast_navigation_task_orders_status, broadcast_navigation_task_orders, download_navigation_task_orders, \
+    generatenavigation_task_orders_template
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -77,6 +78,8 @@ urlpatterns = [
     path('navigationtask/<int:pk>/update/', NavigationTaskUpdateView.as_view(), name="navigationtask_update"),
     path('navigationtask/<int:pk>/delete/', NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),
     path('navigationtask/<int:pk>/share/', share_navigation_task, name="navigationtask_share"),
+    path('navigationtask/<int:pk>/flightordersprogress/', generatenavigation_task_orders_template,
+         name="navigationtask_flightordersprogress"),
     path('navigationtask/<int:pk>/generateflightorders/', generate_navigation_task_orders,
          name="navigationtask_generateflightorders"),
     path('navigationtask/<int:pk>/broadcastflightorders/', broadcast_navigation_task_orders,

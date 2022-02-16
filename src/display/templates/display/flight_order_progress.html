@@ -1,25 +1,32 @@
 {% extends "base.html" %}
 {% load static %}
 {% block content %}
-    <h2> Generating flight order for</h2>
-    {% if single_contestant %}
-    <h2>Contestant {{ single_contestant }}</h2>
-    {% else %}
-    <H2>Navigation task {{ navigation_task }}</H2>
-    {% endif %}
-    <a href="{% url 'navigationtask_detail' navigation_task.pk %}">Back to navigation task</a>
-    <h4> This can take a few minutes per contestant, so please be patient. Progress and any failures will continuously
-        be reported below.</h4>
+    <h5> Generating flight order for</h5>
     <p>
-    Please do not reload the page since this will restart the entire process.
+        {% if single_contestant %}
+            <h2>Contestant {{ single_contestant }}</h2>
+        {% else %}
+            <H2>Navigation task {{ navigation_task }}</H2>
+        {% endif %}
     </p>
-    <div id="loading">
+
+    <p>
+        <button class="btn btn-danger" onclick="generateFlightOrders()" id="generate_button">(Re)Generate flight orders
+        </button>
+        <a class="btn btn-primary" href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
+    </p>
+    <div id="loading" style="display: none">
         <img class="center" src="/static/img/loading_airplane.gif" alt="loading..."/>
     </div>
     <table class="table">
-    <thead>
-    <tr><th>Contestant</th><th>Generating</th><th>Sending</th><th>Errors</th></tr>
-    </thead>
+        <thead>
+        <tr>
+            <th>Contestant</th>
+            <th>Generating</th>
+            <th>Sending</th>
+            <th>Errors</th>
+        </tr>
+        </thead>
         {% for contestant in contestants %}
             <tr>
                 <td>{{ contestant }}</td>
@@ -30,20 +37,71 @@
         {% endfor %}
     </table>
     <div id="details"></div>
-    <div id="successful_menu" style="display: none">
-    {% if single_contestant %}
-        <a class="btn btn-primary" href="{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}?contestant_pk={{ single_contestant.pk }}" role="button">Broadcast</a>
-        <a class="btn btn-primary" href="{% url 'navigationtask_downloadflightorders' navigation_task.pk %}?contestant_pk={{ single_contestant.pk }}" role="button">Download</a>
-    {% else %}
-        <a class="btn btn-primary" href="{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}" role="button">Broadcast</a>
-        <a class="btn btn-primary" href="{% url 'navigationtask_downloadflightorders' navigation_task.pk %}" role="button">Download</a>
-    {% endif %}
+    <div id="successful_menu">
+        {% if single_contestant %}
+            <a class="btn btn-primary"
+               href="{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}?contestant_pk={{ single_contestant.pk }}"
+               role="button">Broadcast</a>
+            <a class="btn btn-primary"
+               href="{% url 'navigationtask_downloadflightorders' navigation_task.pk %}?contestant_pk={{ single_contestant.pk }}"
+               role="button">Download</a>
+        {% else %}
+            <button class="btn btn-primary" onclick="broadcastFlightOrders()"
+                    role="button">Broadcast
+            </button>
+            <a class="btn btn-primary" href="{% url 'navigationtask_downloadflightorders' navigation_task.pk %}"
+               role="button">Download</a>
+        {% endif %}
     </div>
-    <div id="failed">
-
-    </div>
-
+    <p class="text-muted"> This can take a few minutes per contestant, so please be patient. Progress and any failures
+        will continuously
+        be reported above.</p>
     <script type="text/javascript">
+        var generating = false
+
+        function clearStatus() {
+            for (var key of {{ contestant_pks }}) {
+                document.getElementById("generating_" + key).innerHTML = ""
+                document.getElementById("transmitting_" + key).innerHTML = ""
+                document.getElementById("errors_" + key).innerHTML = ""
+            }
+        }
+
+        function disableGenerate() {
+            document.getElementById("generate_button").disabled = true
+        }
+
+        function enableGenerate() {
+            document.getElementById("generate_button").disabled = false
+        }
+
+        function generateFlightOrders() {
+            document.getElementById("loading").removeAttribute("style")
+            document.getElementById("successful_menu").setAttribute("style", "display: none")
+            disableGenerate()
+            clearStatus()
+            generating = true
+            $.ajax({
+                url: "/display/navigationtask/{{ navigation_task.pk }}/generateflightorders/?contestant_pks={{ contestant_pks|join:"," }}",
+                type: 'get',
+                dataType: "json",
+                success: function (data) {
+                    updateRunningStatus(data)
+                }
+            });
+        }
+
+        function broadcastFlightOrders() {
+            $.ajax({
+                url: "/display/navigationtask/{{ navigation_task.pk }}/broadcastflightorders/?contestant_pks={{ contestant_pks|join:"," }}",
+                type: 'get',
+                dataType: "json",
+                success: function (data) {
+                    updateRunningStatus(data)
+                }
+            });
+        }
+
         function redirect() {
             location.href = "{% url 'navigationtask_detail' navigation_task.pk %}"
         }
@@ -75,17 +133,19 @@
             if (data.generate_failed_flight_orders_map) {
                 for (const [key, value] of Object.entries(data.generate_failed_flight_orders_map)) {
                     document.getElementById("errors_" + key).innerHTML = value
-                        document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}"  style="width: 24px"/>'
+                    document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}"  style="width: 24px"/>'
                 }
             }
             if (data.transmit_failed_flight_orders_map) {
                 for (const [key, value] of Object.entries(data.transmit_failed_flight_orders_map)) {
                     document.getElementById("errors_" + key).innerHTML = value
-                        document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}"  style="width: 24px"/>'
+                    document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}"  style="width: 24px"/>'
                 }
             }
-            if (completed) {
-                document.getElementById("loading").innerHTML = ""
+            if (completed && generating) {
+                generating = false
+                enableGenerate()
+                document.getElementById("loading").setAttribute("style", "display: none")
                 document.getElementById("successful_menu").removeAttribute("style")
                 {#setTimeout(redirect, 10000)#}
             }

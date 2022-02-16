@@ -32,7 +32,7 @@
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item" href="{% url 'navigationtask_flightorderconfiguration' object.pk %}"
                        title="Update scoring parameters">Flight order configuration</a>
-                    <a class="dropdown-item" href="{% url 'navigationtask_generateflightorders' object.pk %}"
+                    <a class="dropdown-item" href="{% url 'navigationtask_flightordersprogress' object.pk %}"
                        title="Regenerate flight orders for all future contestants. Warning: it takes a couple of minutes to generate each flight order so this will take some time.">Generate
                         flight
                         orders</a>
@@ -164,7 +164,7 @@
                             {% if "change_contest" in contest_permissions %}
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item"
-                                   href="{% url 'navigationtask_generateflightorders' object.pk %}?contestant_pk={{ contestant.pk }}"
+                                   href="{% url 'navigationtask_flightordersprogress' object.pk %}?contestant_pk={{ contestant.pk }}"
                                    title="Generate and download a new flight order.">Generate new flight
                                     order</a>
                                 <a class="dropdown-item" href="{% url 'contestant_uploadgpxtrack' contestant.pk %}"
