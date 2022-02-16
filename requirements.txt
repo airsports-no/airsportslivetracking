@@ -74,3 +74,4 @@ kubernetes
 kubernetes-job
 wagtail
 pymbtiles
+coverage
