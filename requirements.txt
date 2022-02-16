@@ -75,3 +75,4 @@ kubernetes-job
 wagtail
 pymbtiles
 coverage
+pep8
