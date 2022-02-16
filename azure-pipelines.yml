@@ -51,7 +51,7 @@ stages:
       inputs:
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'up'
-        arguments: '-d web'
+        arguments: '-d tracker_web'
     - script: |
         docker exec $containerName /bin/bash -c "mkdir -p reports && rm -rf reports/*"
       displayName: Prepare web container for test run
