@@ -21,24 +21,6 @@ variables:
   vmImageName: 'ubuntu-latest'
 
 stages:
-- stage: Build
-  displayName: Build and push stage
-  jobs:
-  - job: Build
-    steps:
-    - checkout: self
-      submodules: true
-      clean: true
-      persistCredentials: true
-    - task: DockerCompose@0
-      displayName: Build
-      inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-        dockerComposeFile: '**/docker-compose.yml'
-        action: 'Run a Docker Compose command'
-        dockerComposeCommand: 'build'
 - stage: Test
   jobs:
   - job: Test
@@ -47,19 +29,41 @@ stages:
       submodules: true
       persistCredentials: true
     - task: DockerCompose@0
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        dockerComposeFile: '**/docker-compose.yml'
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'pull'
+    - task: DockerCompose@0
+      displayName: Build services
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        dockerComposeFile: '**/docker-compose.yml'
+        action: 'Build services'
+        additionalImageTags: '${{Variables.tag}}'
+        includeLatestTag: true
+    - task: DockerCompose@0
       displayName: Start containers
       inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'up'
-        arguments: '-d web'
+        arguments: '-d ${{Variables.containerName}}'
     - script: |
-        docker exec $containerName /bin/bash -c "mkdir -p reports && rm -rf reports/*"
+        docker exec ${{Variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
       displayName: Prepare web container for test run
     - script: |
-       docker exec $containerName /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
-       docker exec $containerName /bin/bash -c "python3 manage.py jenkins --enable-coverage -v 2 --no-input || test -f reports/junit.xml"
+       docker exec ${{Variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
+       docker exec ${{Variables.containerName}} /bin/bash -c "python3 manage.py jenkins --enable-coverage -v 2 --no-input || test -f reports/junit.xml"
       displayName: Run main tests
-    - script: 'docker cp $containerName:/src/reports/. reports'
+    - script: 'docker cp ${{Variables.containerName}}:/src/reports/. reports'
       displayName: Get reports from container
     - task: PublishCodeCoverageResults@1
       inputs:
@@ -71,14 +75,6 @@ stages:
         testResultsFiles: 'reports/*.xml'
         mergeTestResults: true
         failTaskOnFailedTests: true
-- stage: Push
-  jobs:
-  - job: Push
-    condition: succeeded()
-    steps:
-    - checkout: self
-      submodules: true
-      persistCredentials: true
     - task: DockerCompose@0
       displayName: Push to docker registry
       inputs:
@@ -87,23 +83,14 @@ stages:
         azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Push services'
-
-
-- stage: Cleanup
-  condition: always()
-  jobs: 
-  - job: Cleanup
-    steps:
-    - checkout: self
-      submodules: true
-      persistCredentials: true
+        additionalImageTags: '${{Variables.tag}}'
+        includeLatestTag: true
     - task: DockerCompose@0
       inputs:
         containerregistrytype: 'Azure Container Registry'
         azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
         azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
-        projectName: '${{Variables.IMAGE_TAG}}'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'down'
     - script: |  
