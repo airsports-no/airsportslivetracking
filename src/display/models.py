@@ -1890,7 +1890,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         plt.legend(handles=[total_delay_line, transmission_delay_line, processor_queueing_delay_line,
                             calculator_queueing_delay_line, calculation_delay_line])
         plt.ylabel("Delay (s)")
-        plt.xylabel("Time since start (s)")
+        plt.xlabel("Time since start (s)")
         plt.title(f"Processing delays for {self}")
         figdata = BytesIO()
         plt.savefig(figdata, format='png')

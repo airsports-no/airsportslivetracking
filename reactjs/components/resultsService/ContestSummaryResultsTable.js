@@ -45,8 +45,10 @@ class ConnectedContestSummaryResultsTable extends Component {
         if (!this.props.contests || this.props.contests.length === 0) {
             return <div>
                 <Navbar/>
-                <div className={'row'}><h1>CONTEST RESULTS</h1></div>
-                <div className={'row'}><Loading/></div>
+                <div className={"container"}>
+                    <div className={'row'}><h1>CONTEST RESULTS</h1></div>
+                    <div className={'row'}><Loading/></div>
+                </div>
             </div>
         }
         const columns = [
@@ -75,23 +77,23 @@ class ConnectedContestSummaryResultsTable extends Component {
 
         return <div>
             <Navbar/>
-                <div className={'results-table container'}>
-                    <div className={''}><h1 className={"results-table-contest-name"}>CONTEST RESULTS</h1></div>
-                    <div className={''}>
-                        <div className={""}>
-                            <BootstrapTable keyField={"contestId"} columns={columns} data={this.buildData()}
-                                            classes={"table-dark bg-dark-transparent"}
-                                            wrapperClasses={"text-dark"}
-                                            bootstrap4 striped condensed
-                                            rowEvents={rowEvents}/>
-                        </div>
-                    </div>
-                    <div className={'text-dark'}>Photo by <a
-                        href="https://unsplash.com/@tadeu?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Tadeu
-                        Jnr</a> on <a
-                        href="https://unsplash.com/s/photos/propeller-airplane?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+            <div className={'results-table container'}>
+                <div className={''}><h1 className={"results-table-contest-name"}>CONTEST RESULTS</h1></div>
+                <div className={''}>
+                    <div className={""}>
+                        <BootstrapTable keyField={"contestId"} columns={columns} data={this.buildData()}
+                                        classes={"table-dark bg-dark-transparent"}
+                                        wrapperClasses={"text-dark"}
+                                        bootstrap4 striped condensed
+                                        rowEvents={rowEvents}/>
                     </div>
                 </div>
+                <div className={'text-dark'}>Photo by <a
+                    href="https://unsplash.com/@tadeu?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Tadeu
+                    Jnr</a> on <a
+                    href="https://unsplash.com/s/photos/propeller-airplane?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+                </div>
+            </div>
         </div>
     }
 }
