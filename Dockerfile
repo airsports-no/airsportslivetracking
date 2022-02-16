@@ -18,8 +18,8 @@ ENV LANGUAGE C.UTF-8
 ENV LANG C.UTF-8
 RUN pip3 install cython numpy
 COPY requirements.txt /
-RUN pip3 install -Ur /requirements.txt
 RUN pip3 install shapely cartopy==0.19.0.post1 --no-binary shapely --no-binary cartopy
+RUN pip3 install -Ur /requirements.txt
 
 #COPY django-rest-authemail /django-rest-authemail
 #RUN pip3 install -U -e /django-rest-authemail
