@@ -319,7 +319,7 @@ class Person(models.Model):
     def is_tracking_active(self):
         return (
             # We assume the tracker is active if we have seen it today
-            self.last_seen and datetime.datetime.now(datetime.timezone.utc).date() == self.last_seen.date()
+                self.last_seen and datetime.datetime.now(datetime.timezone.utc).date() == self.last_seen.date()
         )
 
     @property
@@ -1857,7 +1857,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         for position in stored_positions:
             if start_time is None:
                 start_time = position.time
-            elapsed.append((start_time - position.time).total_seconds())
+            elapsed.append((position.time - start_time).total_seconds())
             if position.websocket_transmitted_time:
                 total_delay.append((position.websocket_transmitted_time - position.time).total_seconds())
             else:
