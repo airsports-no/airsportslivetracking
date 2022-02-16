@@ -21,15 +21,21 @@ variables:
   vmImageName: 'ubuntu-latest'
 
 stages:
-- stage: Build
-  displayName: Build and push stage
+- stage: Test
   jobs:
-  - job: Build
+  - job: Test
     steps:
     - checkout: self
       submodules: true
-      clean: true
       persistCredentials: true
+    - task: DockerCompose@0
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        dockerComposeFile: '**/docker-compose.yml'
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'pull'
     - task: DockerCompose@0
       displayName: Build
       inputs:
@@ -39,19 +45,21 @@ stages:
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'build'
-- stage: Test
-  jobs:
-  - job: Test
-    steps:
-    - checkout: self
-      submodules: true
-      persistCredentials: true
     - task: DockerCompose@0
       displayName: Start containers
       inputs:
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'up'
-        arguments: '-d tracker_web'
+        arguments: '-d $containerName'
+    - task: DockerCompose@0
+      displayName: Build
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        dockerComposeFile: '**/docker-compose.yml'
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'build'
     - script: |
         docker exec $containerName /bin/bash -c "mkdir -p reports && rm -rf reports/*"
       displayName: Prepare web container for test run
@@ -71,14 +79,6 @@ stages:
         testResultsFiles: 'reports/*.xml'
         mergeTestResults: true
         failTaskOnFailedTests: true
-- stage: Push
-  jobs:
-  - job: Push
-    condition: succeeded()
-    steps:
-    - checkout: self
-      submodules: true
-      persistCredentials: true
     - task: DockerCompose@0
       displayName: Push to docker registry
       inputs:
@@ -87,16 +87,6 @@ stages:
         azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Push services'
-
-
-- stage: Cleanup
-  condition: always()
-  jobs: 
-  - job: Cleanup
-    steps:
-    - checkout: self
-      submodules: true
-      persistCredentials: true
     - task: DockerCompose@0
       inputs:
         containerregistrytype: 'Azure Container Registry'
