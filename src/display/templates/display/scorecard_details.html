@@ -12,8 +12,9 @@
     </h2>
     {% if "change_contest" in contest_permissions %}
         <a class="btn btn-outline-danger float-right" style="margin-top: 5px"
+           onclick="return confirm('Are you sure you want to reset the scorecard to the standard {{ navigation_task.original_scorecard }}?')"
            href="{% url 'navigationtask_restorescorecard' navigation_task.pk %}"
-           title="Update scoring parameters">Reset to original</a>
+           title="Update scoring parameters">Reset to standard</a>
     {% endif %}
     <p>
         Note that any changes to any scoring value will only take effect for contestants where the tracking time has not
