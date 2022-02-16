@@ -55,7 +55,7 @@ stages:
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'up'
-        arguments: '-d $containerName'
+        arguments: '-d ${{Variables.containerName}}'
     - script: |
         docker exec $containerName /bin/bash -c "mkdir -p reports && rm -rf reports/*"
       displayName: Prepare web container for test run
