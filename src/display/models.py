@@ -1839,6 +1839,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         gate_score.save()
 
     def reset_track_and_score(self):
+        PlayingCard.clear_cards(self)
         self.scorelogentry_set.all().delete()
         self.trackannotation_set.all().delete()
         self.gatecumulativescore_set.all().delete()
@@ -2172,6 +2173,28 @@ class PlayingCard(models.Model):
     def get_relative_score(cls, contestant: Contestant) -> Tuple[float, str]:
         score, hand_type = cls.evaluate_hand(contestant)
         return 10000 * score / cls.maximum_score(), hand_type
+
+    @classmethod
+    def clear_cards(cls, contestant: Contestant):
+        contestant.playingcard_set.all().delete()
+
+        relative_score, hand_description = cls.get_relative_score(contestant)
+        waypoint = contestant.navigation_task.route.waypoints[-1].name
+        message = "Removed card all cards"
+        ScoreLogEntry.create_and_push(
+            contestant=contestant,
+            time=datetime.datetime.now(datetime.timezone.utc),
+            gate=waypoint,
+            message=message,
+            points=relative_score,
+            string="{}: {}".format(waypoint, message),
+        )
+
+        contestant.contestanttrack.update_score(relative_score)
+        from websocket_channels import WebsocketFacade
+
+        ws = WebsocketFacade()
+        ws.transmit_playing_cards(contestant)
 
     @classmethod
     def remove_contestant_card(cls, contestant: Contestant, card_pk: int):

@@ -3,7 +3,7 @@ from datetime import timedelta, datetime
 from typing import Tuple, List, Optional
 
 from display.coordinate_utilities import line_intersect, fraction_of_leg, calculate_bearing, nv_intersect, \
-    Projector, bearing_difference
+    Projector, bearing_difference, cross_track_distance, calculate_distance_lat_lon, point_to_line_distance
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -108,6 +108,16 @@ class Gate:
             return get_intersect_time(projector, track[-3], track[-1], self.gate_line_extended[0],
                                       self.gate_line_extended[1])
         return None
+
+    def get_distance_to_gate_line(self, latitude: float, longitude: float) -> float:
+        """
+        Calculates the distance from the current position to the nearest point of the gate line.
+
+        :param latitude:
+        :param longitude:
+        :return:
+        """
+        return point_to_line_distance(*self.gate_line[0], *self.gate_line[1], latitude, longitude)
 
 
 def round_seconds(stamp: datetime) -> datetime:
