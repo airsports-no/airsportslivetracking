@@ -45,7 +45,7 @@ import {
     FETCH_INITIAL_TRACKS,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL
+    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL, GET_NAVIGATION_TASK_FAILED
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -127,7 +127,7 @@ export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) =
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_NAVIGATION_TASK_SUCCESSFUL, payload: value}),
-        error: error => console.log(error)
+        error: error => dispatch({type: GET_NAVIGATION_TASK_FAILED, payload: error, contestId: contestId, navigationTaskId: navigationTaskId}),
     });
 }
 

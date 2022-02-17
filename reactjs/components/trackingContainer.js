@@ -19,11 +19,13 @@ import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
 import TimeDisplay from "./timeDisplay";
 import {Link} from "react-router-dom";
+import Navbar from "./navbar";
 
 // import "leaflet/dist/leaflet.css"
 
 const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
+    navigationTaskError: state.navigationTaskError,
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
     displayLowerThirds: state.displayLowerThirds,
     contestants: state.contestants,
@@ -78,6 +80,15 @@ class ConnectedTrackingContainer extends Component {
     }
 
     render() {
+        if(this.props.navigationTaskError){
+            return <div>
+                <Navbar/>
+                <div className={"container-xl"}>
+                    <h4 className="alert alert-warning" role="alert">Failed loading
+                        contest: {this.props.navigationTaskError.statusText}</h4>
+                </div>
+            </div>
+        }
         const TableHeightLink = <a className={"heightLink taskTitle"} href={"#"}
                                    onClick={this.props.displayFullHeightTrackingTable ? this.props.halfHeightTable : this.props.fullHeightTable}>{this.props.displayFullHeightTrackingTable ?
             <i className={"mdi mdi-keyboard-arrow-up"}/> :

@@ -39,6 +39,7 @@ const {ExportCSVButton} = CSVExport;
 
 const mapStateToProps = (state, props) => ({
     contest: state.contestResults[props.contestId],
+    contestError: state.contestResultsErrors[props.contestId],
     tasks: state.tasks[props.contestId],
     taskTests: state.taskTests[props.contestId],
     teams: state.teams,
@@ -154,7 +155,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
             );
 
             this.timeout = this.timeout + this.timeout; //increment retry interval
-            this.connectInterval = setTimeout(() => this.check(), Math.min(10000, this.wsTimeOut)); //call check function after timeout
+            if (this.props.contestError === undefined)
+                this.connectInterval = setTimeout(() => this.check(), Math.min(10000, this.wsTimeOut)); //call check function after timeout
         };
         this.client.onerror = err => {
             console.error(
@@ -698,6 +700,15 @@ class ConnectedTaskSummaryResultsTable extends Component {
     }
 
     render() {
+        if (this.props.contestError) {
+            return <div>
+                <Navbar/>
+                <div className={"container-xl"}>
+                    <h4 className="alert alert-warning" role="alert">Failed loading
+                        contest: {this.props.contestError.statusText}</h4>
+                </div>
+            </div>
+        }
         if (!this.props.teams || !this.props.contest || !this.props.tasks || !this.props.taskTests) return <Loading/>
         const c = this.buildColumns()
         const d = this.buildData()
@@ -728,7 +739,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
 
         return <div>
             <Navbar/>
-            <div className={"container"}>
+            <div className={"container-xl"}>
                 <div className={"row results-table"}>
                     <div className={"col-12"}>
                         {

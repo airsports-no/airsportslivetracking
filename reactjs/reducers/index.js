@@ -39,14 +39,14 @@ import {
     FETCH_EDITABLE_ROUTE,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL
+    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL, GET_NAVIGATION_TASK_FAILED
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
     CREATE_TASK_SUCCESSFUL,
     CREATE_TASK_TEST_SUCCESSFUL, DELETE_RESULTS_TABLE_TEAM_SUCCESSFUL,
     DELETE_TASK_SUCCESSFUL,
-    DELETE_TASK_TEST_SUCCESSFUL,
+    DELETE_TASK_TEST_SUCCESSFUL, GET_CONTEST_RESULTS_FAILED,
     GET_CONTEST_RESULTS_SUCCESSFUL,
     GET_CONTEST_TEAMS_LIST_SUCCESSFUL,
     GET_TASK_TESTS_SUCCESSFUL,
@@ -57,6 +57,7 @@ import {fetchContestResults} from "../actions/resultsService";
 
 const initialState = {
     navigationTask: {route: {waypoints: []}},
+    navigationTaskError: null,
     contestantData: {},
     contestants: {},
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
@@ -79,6 +80,7 @@ const initialState = {
     tasks: {},
     taskTests: {},
     contestResults: {},
+    contestResultsErrors: {},
     teams: null,
     visibleTaskDetails: {},
     disclaimer: "",
@@ -103,6 +105,12 @@ function rootReducer(state = initialState, action) {
     if (action.type === SET_DISPLAY) {
         return Object.assign({}, state, {
             currentDisplay: action.payload
+        })
+    }
+    if (action.type === GET_NAVIGATION_TASK_FAILED) {
+        return Object.assign({}, state, {
+            ...state,
+            navigationTaskError: action.error,
         })
     }
     if (action.type === GET_NAVIGATION_TASK_SUCCESSFUL) {
@@ -140,6 +148,7 @@ function rootReducer(state = initialState, action) {
             ...state,
             contestantData: contestantData,
             navigationTask: action.payload,
+            navigationTaskError: null,
             contestants: contestants,
             // initialLoadingContestantData:initialLoading
         })
@@ -413,18 +422,6 @@ function rootReducer(state = initialState, action) {
         })
 
     }
-    if (action.type === GET_CONTEST_RESULTS_SUCCESSFUL) {
-        return Object.assign({}, state, {
-            ...state,
-            contestResults: {
-                ...state.contestResults,
-                [action.contestId]: {
-                    ...state.contestResults[action.contestId],
-                    results: action.payload
-                }
-            }
-        })
-    }
     if (action.type === CREATE_TASK_SUCCESSFUL) {
         const remaining = state.tasks[action.contestId].filter((task) => {
             return task.id !== action.payload.id
@@ -529,7 +526,7 @@ function rootReducer(state = initialState, action) {
         return state
     }
     if (action.type === GET_CONTEST_RESULTS_SUCCESSFUL) {
-        return Object.assign({}, state, {
+        const next = Object.assign({}, state, {
             ...state,
             contestResults: {
                 ...state.contestResults,
@@ -537,6 +534,17 @@ function rootReducer(state = initialState, action) {
                     ...state.contestResults[action.contestId],
                     results: action.payload
                 }
+            }
+        })
+        delete next.contestResultsErrors[action.contestId]
+        return next
+    }
+    if (action.type === GET_CONTEST_RESULTS_FAILED) {
+        return Object.assign({}, state, {
+            ...state,
+            contestResultsErrors: {
+                ...state.contestResultsErrors,
+                [action.contestId]: action.payload
             }
         })
     }

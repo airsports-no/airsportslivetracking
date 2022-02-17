@@ -12,7 +12,7 @@ import {
     DELETE_TASK_SUCCESSFUL,
     DELETE_TASK_TEST_SUCCESSFUL,
     PUT_TEST_RESULT_SUCCESSFUL,
-    DELETE_RESULTS_TABLE_TEAM_SUCCESSFUL
+    DELETE_RESULTS_TABLE_TEAM_SUCCESSFUL, GET_CONTEST_RESULTS_FAILED
 } from "../constants/resultsServiceActionTypes";
 
 export const teamsData = (data, contestId) => (dispatch) => dispatch({
@@ -42,7 +42,7 @@ export const fetchContestResults = (contestId) => (dispatch) => {
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_CONTEST_RESULTS_SUCCESSFUL, payload: value, contestId: contestId}),
-        error: error => console.log(error)
+        error: error => dispatch({type: GET_CONTEST_RESULTS_FAILED, payload: error, contestId: contestId})
     });
 }
 
