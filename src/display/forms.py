@@ -57,7 +57,7 @@ class MapForm(forms.Form):
     user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set", required=False)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
-    colour = forms.CharField(initial="#0000ff", max_length=7)
+    colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
     output_type = forms.ChoiceField(initial=PDF, choices=OUTPUT_TYPES)
 
 
@@ -73,7 +73,7 @@ class ContestantMapForm(forms.Form):
     include_annotations = forms.BooleanField(required=False, initial=True)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
-    colour = forms.CharField(initial="#0000ff", max_length=7)
+    colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
     output_type = forms.ChoiceField(initial=PDF, choices=OUTPUT_TYPES)
 
 
@@ -130,7 +130,8 @@ class FlightOrderConfigurationForm(forms.ModelForm):
             Field("map_line_colour", type="hidden"),
             HTML('<h3>Pick a colour for the map lines</h3><div id="picker" style="margin-bottom: 10px"></div>'),
             ButtonHolder(
-                Submit("submit", "Submit")
+                Submit("submit", "Submit"),
+                Submit('cancel', 'Cancel', css_class='btn-secondary')
             )
         )
 

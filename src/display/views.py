@@ -760,7 +760,8 @@ def get_contestant_map(request, pk):
     form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
                                                                contestant.navigation_task.get_available_user_maps()]
 
-    return render(request, "display/map_form.html", {"form": form})
+    return render(request, "display/map_form.html",
+                  {"form": form, "redirect": reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})})
 
 
 @guardian_permission_required(
@@ -1002,7 +1003,8 @@ def get_navigation_task_map(request, pk):
             return response
     form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
                                                                navigation_task.get_available_user_maps()]
-    return render(request, "display/map_form.html", {"form": form})
+    return render(request, "display/map_form.html",
+                  {"form": form, "redirect": reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})})
 
 
 @guardian_permission_required(

@@ -6,15 +6,16 @@
 
 {% block content %}
     <h2>Generate map</h2>
-    Map generation can take a minute or two...
     <form method="post" class="form">
         {% csrf_token %}
         {% bootstrap_form form %}
+        <h5>Pick a colour for the route</h5>
+        <div id="picker" style="margin-bottom: 15px"></div>
         {% buttons %}
             <button type="submit" class="btn btn-primary">Submit</button>
+            <a href="{{ redirect }}" class="btn btn-secondary">Cancel</a>
         {% endbuttons %}
-        <h3>Pick a colour for the route</h3>
-        <div id="picker"></div>
+        <p class="text-muted">Map generation can take a minute or two</p>
         <script src="{% static 'js/iro.min.js' %}"></script>
         <script>
             var colorPicker = new iro.ColorPicker('#picker', {
