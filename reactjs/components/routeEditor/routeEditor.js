@@ -228,7 +228,7 @@ class ConnectedRouteEditor extends Component {
         }
         let features = []
         let errors = []
-        if(this.drawnItems.getLayers().length===0){
+        if (this.drawnItems.getLayers().length === 0) {
             errors.push("The route contains no features. Add a track other or features before saving.")
         }
         for (let l of this.drawnItems.getLayers().filter((a) => a.layerType !== undefined)) {
@@ -967,7 +967,9 @@ class ConnectedRouteEditor extends Component {
                 </button>
                 &nbsp;
                 <button id="routeReturnButton" className={"btn btn-secondary"}
-                        onClick={() => window.location = "/display/editableroute/"}>Route list
+                        onClick={() => {
+                            this.state.globalEditingMode ? (confirm("Are you sure you want to leave without saving?") ? window.location = "/display/editableroute/" : null) : window.location = "/display/editableroute/"
+                        }}>Route list
                 </button>
             </div>
             {/*<IntroSlider slides={slides} size="fullscreen" handleDone={() => this.setState({displayTutorial: false})}*/}
