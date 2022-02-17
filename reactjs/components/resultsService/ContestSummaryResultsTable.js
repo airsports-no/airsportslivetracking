@@ -45,7 +45,7 @@ class ConnectedContestSummaryResultsTable extends Component {
         if (!this.props.contests || this.props.contests.length === 0) {
             return <div>
                 <Navbar/>
-                <div className={"container"}>
+                <div className={"container-xl"}>
                     <div className={'row'}><h1>CONTEST RESULTS</h1></div>
                     <div className={'row'}><Loading/></div>
                 </div>
@@ -77,7 +77,7 @@ class ConnectedContestSummaryResultsTable extends Component {
 
         return <div>
             <Navbar/>
-            <div className={'results-table container'}>
+            <div className={'results-table container-xl'}>
                 <div className={''}><h1 className={"results-table-contest-name"}>CONTEST RESULTS</h1></div>
                 <div className={''}>
                     <div className={""}>

@@ -58,7 +58,7 @@ class ConnectedMyContestParticipationManagement extends Component {
         }
         return <div>
             <Navbar/>
-            <div className={"row container"}>
+            <div className={"row container-xl"}>
                 <div className={"col-lg-4"}>
                     <h2>My participation</h2>
                     <MyParticipatingEventsList currentParticipation={currentParticipation}
