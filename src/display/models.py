@@ -2281,7 +2281,7 @@ class TaskTest(models.Model):
     ASCENDING = "asc"
     SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE, blank=True, null=True)
+    navigation_task = models.OneToOneField(NavigationTask, on_delete=models.SET_NULL, blank=True, null=True)
     weight = models.FloatField(default=1)
     name = models.CharField(max_length=100)
     heading = models.CharField(max_length=100)
@@ -2695,13 +2695,13 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
             ws.transmit_basic_information(c)
 
 
-@receiver(post_delete, sender=Task)
+@receiver(pre_delete, sender=Task)
 def update_contest_summary_on_task_delete(sender, instance: Task, **kwargs):
     for contest_summary in ContestSummary.objects.filter(contest=instance.contest):
         contest_summary.update_sum()
 
 
-@receiver(post_delete, sender=TaskTest)
+@receiver(pre_delete, sender=TaskTest)
 def update_task_summary_on_task_test_delete(sender, instance: TaskTest, **kwargs):
     for task_summary in TaskSummary.objects.filter(task=instance.task):
         task_summary.update_sum()
@@ -2829,21 +2829,9 @@ def validate_route(sender, instance: Route, **kwargs):
 @receiver(post_delete, sender=NavigationTask)
 def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, **kwargs):
     instance.route.delete()
-    if hasattr(instance, "tasktest"):
-        task = instance.tasktest.task
-        instance.tasktest.delete()
-        task.refresh_from_db()
-        logger.debug(f"Remaining task tests when deleting navigation task {instance}: {task.tasktest_set.all()}")
-        if task.tasktest_set.all().count() == 0:
-            task.delete()
     if instance.scorecard:
         instance.scorecard.delete()
 
-
-# @receiver(post_delete, sender=ContestantTrack)
-# def remove_route_from_deleted_navigation_task(sender, instance: ContestantTrack, **kwargs):
-#     if instance.contestant:
-#         instance.contestant.reset_track_and_score()
 
 @receiver(pre_save, sender=NavigationTask)
 def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
@@ -2869,14 +2857,15 @@ def initialise_navigation_task_dependencies(sender, instance: NavigationTask, cr
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 
 
-@receiver(post_delete, sender=NavigationTask)
+@receiver(pre_delete, sender=NavigationTask)
 def clear_navigation_task_results_service_test(sender, instance: NavigationTask, **kwargs):
-    if hasattr(instance, "tasktest"):
+    if hasattr(instance, "tasktest") and instance.tasktest:
         task = instance.tasktest.task
-        for test in instance.tasktest.teamtestscore_set.all():
+        for team_test_score in instance.tasktest.teamtestscore_set.all():
             # Must be explicitly called for the signal to recalculate summary to be called.
-            test.delete()
+            team_test_score.delete()
         instance.tasktest.delete()
+        task.refresh_from_db()
         if task.tasktest_set.all().count() == 0:
             for task_summary in task.tasksummary_set.all():
                 # Must be explicitly called for the signal to recalculate summary to be called.

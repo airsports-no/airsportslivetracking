@@ -452,7 +452,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             task.tasksummary_set.map((taskSummary) => {
                 if (data[taskSummary.team] !== undefined) {
                     Object.assign(data[taskSummary.team], {
-                        ["task_" + taskSummary.task.toFixed(0)]: taskSummary.points,
+                        ["task_" + taskSummary.task.toFixed(0)]: taskSummary.points.toFixed(0),
                     })
                 }
             })
@@ -462,7 +462,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         return
                     }
                     Object.assign(data[testScore.team], {
-                        ["test_" + taskTest.id.toFixed(0)]: testScore.points
+                        ["test_" + taskTest.id.toFixed(0)]: testScore.points.toFixed(0)
                     })
                 })
             })
@@ -472,7 +472,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 return
             }
             Object.assign(data[summary.team.id], {
-                contestSummary: summary.points.toFixed(2),
+                contestSummary: summary.points.toFixed(0),
             })
 
         })
