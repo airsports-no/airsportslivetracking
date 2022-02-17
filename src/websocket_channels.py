@@ -56,6 +56,10 @@ def generate_contestant_data_block(
 ):
     if not hasattr(contestant, "contestanttrack"):
         include_contestant_track = False
+    contestant_track = None
+    if include_contestant_track:
+        contestant_track = contestant.contestanttrack
+        contestant_track.refresh_from_db()
     data = {
         "contestant_id": contestant.id,
         "positions": positions or [],
@@ -67,7 +71,7 @@ def generate_contestant_data_block(
         "gate_times": gate_times,
         "gate_distance_and_estimate": gate_distance_and_estimate,
         "danger_level": danger_level,
-        "contestant_track": ContestantTrackSerialiser(contestant.contestanttrack).data
+        "contestant_track": ContestantTrackSerialiser(contestant_track).data
         if include_contestant_track
         else None,
     }

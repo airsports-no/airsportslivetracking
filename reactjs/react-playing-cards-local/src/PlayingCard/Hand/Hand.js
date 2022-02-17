@@ -20,18 +20,19 @@ class Hand extends Component {
             //setup for fanning
 
     }
-    componentWillReceiveProps(props) {
-        console.log('got some props: ', props)
-
-        this.setState({
-            cards : props.cards,
-            cardSize : props.cardSize,
-            elevated : props.elevated,
-            layout: props.layout
-        })
-        this.handLength = props.cards.length;
-
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        console.log('got some props: ', this.props)
+        if(this.props.cards!==prevProps.cards||this.props.elevated!==prevProps.elevated) {
+            this.setState({
+                cards: this.props.cards,
+                cardSize: this.props.cardSize,
+                elevated: this.props.elevated,
+                layout: this.props.layout
+            })
+            this.handLength = this.props.cards.length;
+        }
     }
+
     elevateOne(card){
 
     }

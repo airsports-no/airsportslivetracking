@@ -46,10 +46,6 @@ class GatekeeperPoker(Gatekeeper):
             if not already_terminated:
                 logger.info(f"{self.contestant}: Live processing and past finish time, terminating")
                 self.notify_termination()
-        if len(self.sorted_polygons) == 0:
-            if not already_terminated:
-                logger.info(f"{self.contestant}: No more gate polygons, terminating")
-                self.notify_termination()
 
     def check_gates(self):
         if len(self.sorted_polygons) > 0:

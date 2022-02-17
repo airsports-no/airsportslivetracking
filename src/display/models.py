@@ -2216,7 +2216,6 @@ class PlayingCard(models.Model):
             string="{}: {}".format(waypoint, message),
         )
 
-        contestant.contestanttrack.update_score(relative_score)
         pos = contestant.get_latest_position()
         longitude = 0
         latitude = 0
@@ -2833,6 +2832,8 @@ def remove_route_from_deleted_navigation_task(sender, instance: NavigationTask, 
     if hasattr(instance, "tasktest"):
         task = instance.tasktest.task
         instance.tasktest.delete()
+        task.refresh_from_db()
+        logger.debug(f"Remaining task tests when deleting navigation task {instance}: {task.tasktest_set.all()}")
         if task.tasktest_set.all().count() == 0:
             task.delete()
     if instance.scorecard:

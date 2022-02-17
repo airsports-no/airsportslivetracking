@@ -472,7 +472,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 return
             }
             Object.assign(data[summary.team.id], {
-                contestSummary: summary.points,
+                contestSummary: summary.points.toFixed(2),
             })
 
         })

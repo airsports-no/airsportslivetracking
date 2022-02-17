@@ -148,13 +148,13 @@ class ConnectedTrackingContainer extends Component {
                                         {/*id={"logoButtonWrapper"}>*/}
                                         <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
                                     </a>
-                                    <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
+                                    <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"} aria-controls={"insetMenu"} aria-expanded={true}
                                        data-target={"#insetMenu"}>{this.props.navigationTask.name ? this.props.navigationTask.name.toUpperCase() : null}</a>
                                     {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ? ExpandedTableLink : null}
                                     {/*{TableHeightLink}*/}
                                 </div>
                                 <div id={"insetMenu"}
-                                     aria-expanded={true} aria-controls={"insetMenu"} className={"collapse show"}>
+                                      className={"collapse show"}>
                                     <div
                                         className={"backdrop " + (this.props.displayExpandedTrackingTable ? "backdropFull" : "backdropHalf")}>
                                         <div className={"text-light bg-dark"}>

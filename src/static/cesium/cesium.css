@@ -984,13 +984,13 @@ html, body {
     margin-right: 0;
 }
 
-.collapse {
-    display: none;
-}
+/*.collapse {*/
+/*    display: none;*/
+/*}*/
 
-.collapse .show {
-    display: block;
-}
+/*.collapse .show {*/
+/*    display: block;*/
+/*}*/
 
 .modal-90w {
     width: 90vw;

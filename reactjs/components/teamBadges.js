@@ -247,9 +247,16 @@ class ConnectedLowerThirdTeam extends Component {
         if (this.props.team === null) return null
         return <div className={"lowerThirdsScale"}>
             <div className={this.singleCrew() ? "lowerThirdsSingle" : "lowerThirdsDouble"}>
-                <div className={"card-transparent"}>
-                    <PlayingCards contestantData={this.props.contestantData} contestant={this.props.contestant}/>
-                    <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}/>
+                <div className={"d-flex align-items-end justify-content-end"}>
+                    <div className={"p-2 gate-arrow-placeholder"} style={{marginBottom: "2px"}}>
+                    </div>
+                    <div
+                        className={(this.singleCrew() ? "lower-thirds-inner-single" : "lower-thirds-inner-double") + " card-transparent p-2"}
+                        style={{paddingLeft: "0px!important"}}>
+                        <PlayingCards contestantData={this.props.contestantData} contestant={this.props.contestant}/>
+                        <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}
+                                       toggleDetails={this.toggleRankDetailsDisplay}/>
+                    </div>
                 </div>
             </div>
         </div>
