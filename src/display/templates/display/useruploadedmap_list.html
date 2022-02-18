@@ -13,6 +13,7 @@
                         <a href="{% url 'useruploadedmap_permissions_list' object.pk %}">Permissions</a> |
                         <a href="{% url 'useruploadedmap_delete' object.pk %}">Delete</a>
                     </p>
+                    <footer class="blockquote-footer">Uploaded by {{ object.user.first_name }} {{ object.user.last_name }}</footer>
                 </div>
             </div>
         {% endfor %}
