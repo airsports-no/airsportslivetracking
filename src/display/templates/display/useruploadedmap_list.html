@@ -13,7 +13,8 @@
                         <a href="{% url 'useruploadedmap_permissions_list' object.pk %}">Permissions</a> |
                         <a href="{% url 'useruploadedmap_delete' object.pk %}">Delete</a>
                     </p>
-                    <footer class="blockquote-footer">Uploaded by {{ object.user.first_name }} {{ object.user.last_name }}</footer>
+                    <footer class="blockquote-footer">Uploaded
+                        by {{ object.user.first_name }} {{ object.user.last_name }}</footer>
                 </div>
             </div>
         {% endfor %}
@@ -30,7 +31,9 @@
                     for use
                     in the navigation maps.
                     For
-                    this purpose we support the <a href="https://docs.mapbox.com/help/glossary/mbtiles/#:~:text=MBTiles%20is%20a%20file%20format,from%20many%20different%20data%20sources.">mbtiles</a> format that can be exported from a wide the variety of
+                    this purpose we support the <a
+                        href="https://docs.mapbox.com/help/glossary/mbtiles/#:~:text=MBTiles%20is%20a%20file%20format,from%20many%20different%20data%20sources.">mbtiles</a>
+                    format that can be exported from a wide the variety of
                     applications. If
                     this
                     seems
@@ -38,6 +41,10 @@
                     places
                     perfect
                     for navigation.
+                </p>
+                <p>
+                    User maps are tied to the user that uploaded them, but they can also be sharedwith other specified
+                    users. However, if the user that uploaded the maps is deleted, the maps will be deleted as well.
                 </p>
             </div>
         </div>
@@ -48,7 +55,9 @@
 
                     <a href="https://www.maptiler.com/desktop/">MapTiles Desktop</a> comes in both free and paid
                     versions and
-                    supports easy georeferencing and exporting of existing maps in the <a href="https://docs.mapbox.com/help/glossary/mbtiles/#:~:text=MBTiles%20is%20a%20file%20format,from%20many%20different%20data%20sources.">mbtiles</a> format.
+                    supports easy georeferencing and exporting of existing maps in the <a
+                        href="https://docs.mapbox.com/help/glossary/mbtiles/#:~:text=MBTiles%20is%20a%20file%20format,from%20many%20different%20data%20sources.">mbtiles</a>
+                    format.
                 </p>
                 <h5 class="card-title">For the power user</h5>
                 <p class="card-text">

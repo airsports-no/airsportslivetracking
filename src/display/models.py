@@ -2537,17 +2537,17 @@ class EditableRoute(models.Model):
     def __str__(self):
         return self.name
 
-    def _get_features_type(self, feature_type: str) -> List[Dict]:
+    def get_features_type(self, feature_type: str) -> List[Dict]:
         return [item for item in self.route if item["feature_type"] == feature_type]
 
-    def _get_feature_type(self, feature_type: str) -> Optional[Dict]:
+    def get_feature_type(self, feature_type: str) -> Optional[Dict]:
         try:
-            return self._get_features_type(feature_type)[0]
+            return self.get_features_type(feature_type)[0]
         except IndexError:
             return None
 
     @staticmethod
-    def _get_feature_coordinates(feature: Dict, flip: bool = True) -> List[Tuple[float, float]]:
+    def get_feature_coordinates(feature: Dict, flip: bool = True) -> List[Tuple[float, float]]:
         """
         Switch lon, lat to lat, lon.
         :param feature:
@@ -2576,11 +2576,11 @@ class EditableRoute(models.Model):
         from display.convert_flightcontest_gpx import build_waypoint
         from display.convert_flightcontest_gpx import create_precision_route_from_waypoint_list
 
-        track = self._get_feature_type("track")
+        track = self.get_feature_type("track")
         waypoint_list = []
         if track is None:
             return None
-        coordinates = self._get_feature_coordinates(track)
+        coordinates = self.get_feature_coordinates(track)
         track_points = track["track_points"]
         for index, (latitude, longitude) in enumerate(coordinates):
             item = track_points[index]
@@ -2603,9 +2603,9 @@ class EditableRoute(models.Model):
         from display.convert_flightcontest_gpx import build_waypoint
         from display.convert_flightcontest_gpx import create_anr_corridor_route_from_waypoint_list
 
-        track = self._get_feature_type("track")
+        track = self.get_feature_type("track")
         waypoint_list = []
-        coordinates = self._get_feature_coordinates(track)
+        coordinates = self.get_feature_coordinates(track)
         track_points = track["track_points"]
         for index, (latitude, longitude) in enumerate(coordinates):
             item = track_points[index]
@@ -2630,9 +2630,9 @@ class EditableRoute(models.Model):
         from display.convert_flightcontest_gpx import build_waypoint
         from display.convert_flightcontest_gpx import create_anr_corridor_route_from_waypoint_list
 
-        track = self._get_feature_type("track")
+        track = self.get_feature_type("track")
         waypoint_list = []
-        coordinates = self._get_feature_coordinates(track)
+        coordinates = self.get_feature_coordinates(track)
         track_points = track["track_points"]
         for index, (latitude, longitude) in enumerate(coordinates):
             item = track_points[index]
@@ -2654,16 +2654,16 @@ class EditableRoute(models.Model):
     def extract_additional_features(self, route: Route):
         from display.convert_flightcontest_gpx import create_gate_from_line
 
-        takeoff_gate = self._get_feature_type("to")
+        takeoff_gate = self.get_feature_type("to")
         if takeoff_gate is not None:
-            takeoff_gate_line = self._get_feature_coordinates(takeoff_gate)
+            takeoff_gate_line = self.get_feature_coordinates(takeoff_gate)
             if len(takeoff_gate_line) != 2:
                 raise ValidationError("Take-off gate should have exactly 2 points")
             route.takeoff_gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
             route.takeoff_gate.gate_line = takeoff_gate_line
-        landing_gate = self._get_feature_type("ldg")
+        landing_gate = self.get_feature_type("ldg")
         if landing_gate is not None:
-            landing_gate_line = self._get_feature_coordinates(landing_gate)
+            landing_gate_line = self.get_feature_coordinates(landing_gate)
             if len(landing_gate_line) != 2:
                 raise ValidationError("Landing gate should have exactly 2 points")
             route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
@@ -2671,12 +2671,12 @@ class EditableRoute(models.Model):
         route.save()
         # Create prohibited zones
         for zone_type in ("info", "penalty", "prohibited", "gate"):
-            for feature in self._get_features_type(zone_type):
+            for feature in self.get_features_type(zone_type):
                 logger.debug(feature)
                 Prohibited.objects.create(
                     name=feature["name"],
                     route=route,
-                    path=self._get_feature_coordinates(feature, flip=True),
+                    path=self.get_feature_coordinates(feature, flip=True),
                     type=zone_type,
                     tooltip_position=feature.get("tooltip_position", [])
                 )

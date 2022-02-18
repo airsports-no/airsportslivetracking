@@ -12,7 +12,7 @@
         </thead>
         {% for object in object_list %}
             <tr>
-                <td>{% if object.thumbnail %}<img src="{{ object.thumbnail.url }}" style="width: 50px;margin-bottom: -20px;margin-top: -20px;margin-right: -20px">{% endif %}</td>
+                <td>{% if object.thumbnail %}<img class="zoom" src="{{ object.thumbnail.url }}" style="width: 50px;margin-bottom: -20px;margin-top: -20px;margin-right: -20px">{% endif %}</td>
                 <td><a href="/routeeditor/{{ object.id }}/">{{ object.name }}</a></td>
 {#                <td>{{ object.get_route_type_display }}</td>#}
                 <td>
