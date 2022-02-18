@@ -2507,7 +2507,7 @@ class UserUploadedMap(models.Model):
         with MBtiles(self.map_file.path) as src:
             print(src.meta)
             helper = MBTilesHelper(src)
-            image = helper.stitch()
+            image = helper.stitch(4096)
             width, height = image.size
             image = image.resize((400, int(400 * height / width)))
             temporary_file = BytesIO()
