@@ -947,7 +947,7 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
             path = np.array(track)
             ys, xs = path.T
             plt.plot(
-                xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1
+                xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=1
             )
     takeoff_gate = editable_route.get_feature_type("to")
     if takeoff_gate is not None:
@@ -963,7 +963,7 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
         path = np.array(landing_gate_line)
         ys, xs = path.T
         plt.plot(
-            xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=1
+            xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1
         )
     for zone_type in ("info", "penalty", "prohibited", "gate"):
         for feature in editable_route.get_features_type(zone_type):
