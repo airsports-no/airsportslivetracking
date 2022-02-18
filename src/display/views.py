@@ -106,7 +106,8 @@ from display.forms import (
     ANRCorridorParametersForm,
     AirsportsParametersForm,
     PersonPictureForm, ScorecardFormSetHelper, ScorecardForm, GateScoreForm, AirsportsImportRouteForm,
-    FlightOrderConfigurationForm, UserUploadedMapForm,
+    FlightOrderConfigurationForm, UserUploadedMapForm, AddUserUploadedMapPermissionsForm,
+    ChangeUserUploadedMapPermissionsForm,
 )
 from display.generate_flight_orders import generate_flight_orders
 from display.map_constants import PNG, A4
@@ -761,7 +762,8 @@ def get_contestant_map(request, pk):
                                                                contestant.navigation_task.get_available_user_maps()]
 
     return render(request, "display/map_form.html",
-                  {"form": form, "redirect": reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})})
+                  {"form": form,
+                   "redirect": reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})})
 
 
 @guardian_permission_required(
@@ -771,10 +773,12 @@ def update_flight_order_configurations(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     configuration = get_object_or_404(FlightOrderConfiguration, navigation_task__pk=pk)
     form = FlightOrderConfigurationForm(instance=configuration)
-    form.fields['map_user_source'].queryset = navigation_task.get_available_user_maps()
+    form.fields['map_user_source'].queryset = UserUploadedMap.objects.filter(
+            pk__in=[item.pk for item in navigation_task.get_available_user_maps()])
     if request.method == "POST":
         form = FlightOrderConfigurationForm(request.POST, instance=configuration)
-        form.fields['map_user_source'].queryset = navigation_task.get_available_user_maps()
+        form.fields['map_user_source'].queryset = UserUploadedMap.objects.filter(
+            pk__in=[item.pk for item in navigation_task.get_available_user_maps()])
         if form.is_valid():
             form.save()
             return redirect(reverse("navigationtask_detail", kwargs={"pk": pk}))
@@ -3426,16 +3430,21 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
         instance = form.save()  # type: UserUploadedMap
         instance.thumbnail.save(os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
                                 ContentFile(instance.create_thumbnail().getvalue()), save=True)
+        assign_perm("delete_useruploadedmap", self.request.user, instance)
+        assign_perm("view_useruploadedmap", self.request.user, instance)
+        assign_perm("add_useruploadedmap", self.request.user, instance)
+        assign_perm("change_useruploadedmap", self.request.user, instance)
+
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
-        return reverse("useruploadedmaps_list")
+        return reverse("useruploadedmap_list")
 
 
-class UserUploadedMapUpdate(PermissionRequiredMixin, UpdateView):
+class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
     model = UserUploadedMap
-    permission_required = ("display.add_contest",)
+    permission_required = ("display.change_useruploadedmap",)
     form_class = UserUploadedMapForm
 
     def form_valid(self, form):
@@ -3446,10 +3455,10 @@ class UserUploadedMapUpdate(PermissionRequiredMixin, UpdateView):
         return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
-        return reverse("useruploadedmaps_list")
+        return reverse("useruploadedmap_list")
 
-    def has_permission(self):
-        return super().has_permission() and self.get_object().user == self.request.user
+    def get_permission_object(self):
+        return self.get_object()
 
 
 class UserUploadedMapList(PermissionRequiredMixin, ListView):
@@ -3457,17 +3466,93 @@ class UserUploadedMapList(PermissionRequiredMixin, ListView):
     permission_required = ("display.add_contest",)
 
     def get_queryset(self):
-        return self.model.objects.filter(user=self.request.user)
+        # Important not to accept global permissions, otherwise any content creator can view everything
+        objects = get_objects_for_user(
+            self.request.user, "display.view_useruploadedmap", accept_global_perms=False
+        )
+        return objects
 
 
-class UserUploadedMapDelete(PermissionRequiredMixin, DeleteView):
+class UserUploadedMapDelete(GuardianPermissionRequiredMixin, DeleteView):
     model = UserUploadedMap
     permission_required = ("display.add_contest",)
     template_name = "model_delete.html"
-    success_url = reverse_lazy("useruploadedmaps_list")
+    success_url = reverse_lazy("useruploadedmap_list")
 
-    def has_permission(self):
-        return super().has_permission() and self.get_object().user == self.request.user
+    def get_permission_object(self):
+        return self.get_object()
+
+
+@guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
+def list_useruploadedmap_permissions(request, pk):
+    user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
+    users_and_permissions = get_users_with_perms(user_uploaded_map, attach_perms=True)
+    users = []
+    for user in users_and_permissions.keys():
+        if user == request.user:
+            continue
+        data = {item: True for item in users_and_permissions[user]}
+        data["email"] = user.email
+        data["pk"] = user.pk
+        users.append(data)
+    return render(
+        request,
+        "display/useruploadedmap_permissions.html",
+        {"users": users, "user_uploaded_map": user_uploaded_map},
+    )
+
+
+@guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
+def delete_user_useruploadedmap_permissions(request, pk, user_pk):
+    user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
+    user = get_object_or_404(MyUser, pk=user_pk)
+    permissions = ["change_useruploadedmap", "view_useruploadedmap", "delete_useruploadedmap"]
+    for permission in permissions:
+        remove_perm(f"display.{permission}", user, user_uploaded_map)
+    return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
+
+
+@guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
+def change_user_useruploadedmap_permissions(request, pk, user_pk):
+    user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
+    user = get_object_or_404(MyUser, pk=user_pk)
+    if request.method == "POST":
+        form = ChangeUserUploadedMapPermissionsForm(request.POST)
+        if form.is_valid():
+            permissions = ["change_useruploadedmap", "view_useruploadedmap", "delete_useruploadedmap"]
+            for permission in permissions:
+                if form.cleaned_data[permission]:
+                    assign_perm(f"display.{permission}", user, user_uploaded_map)
+                else:
+                    remove_perm(f"display.{permission}", user, user_uploaded_map)
+            return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
+    existing_permissions = get_user_perms(user, user_uploaded_map)
+    initial = {item: True for item in existing_permissions}
+    form = ChangeUserUploadedMapPermissionsForm(initial=initial)
+    return render(request, "display/useruploadedmap_permissions_form.html", {"form": form})
+
+
+@guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
+def add_user_useruploadedmap_permissions(request, pk):
+    user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
+    if request.method == "POST":
+        form = AddUserUploadedMapPermissionsForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data["email"]
+            try:
+                user = MyUser.objects.get(email=email)
+            except ObjectDoesNotExist:
+                messages.error(request, f"User '{email}' does not exist")
+                return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
+            permissions = ["change_useruploadedmap", "view_useruploadedmap", "delete_useruploadedmap"]
+            for permission in permissions:
+                if form.cleaned_data[permission]:
+                    assign_perm(f"display.{permission}", user, user_uploaded_map)
+                else:
+                    remove_perm(f"display.{permission}", user, user_uploaded_map)
+            return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
+    form = AddUserUploadedMapPermissionsForm()
+    return render(request, "display/useruploadedmap_permissions_form.html", {"form": form})
 
 
 ########## Results service ##########

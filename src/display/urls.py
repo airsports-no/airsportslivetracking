@@ -27,17 +27,26 @@ from display.views import frontend_view_map, \
     update_flight_order_configurations, UserUploadedMapCreate, UserUploadedMapList, UserUploadedMapUpdate, \
     UserUploadedMapDelete, restart_contestant_calculator, get_running_calculators, \
     get_broadcast_navigation_task_orders_status, broadcast_navigation_task_orders, download_navigation_task_orders, \
-    generatenavigation_task_orders_template
+    generatenavigation_task_orders_template, delete_user_useruploadedmap_permissions, \
+    change_user_useruploadedmap_permissions, add_user_useruploadedmap_permissions, list_useruploadedmap_permissions
 
 urlpatterns = [
     path('healthz/', healthz),
     path('readyz/', readyz),
     path('task/<int:pk>/map/', frontend_view_map, name="frontend_view_map"),
     path('task/<int:pk>/playbackmap/', frontend_playback_map, name="frontend_playback_map"),
-    path('useruploadedmaps/', UserUploadedMapList.as_view(), name="useruploadedmaps_list"),
-    path('useruploadedmaps/create/', UserUploadedMapCreate.as_view(), name="useruploadedmaps_add"),
-    path('useruploadedmaps/<int:pk>/update/', UserUploadedMapUpdate.as_view(), name="useruploadedmaps_change"),
-    path('useruploadedmaps/<int:pk>/delete/', UserUploadedMapDelete.as_view(), name="useruploadedmaps_delete"),
+    path('useruploadedmaps/', UserUploadedMapList.as_view(), name="useruploadedmap_list"),
+    path('useruploadedmaps/create/', UserUploadedMapCreate.as_view(), name="useruploadedmap_add"),
+    path('useruploadedmaps/<int:pk>/update/', UserUploadedMapUpdate.as_view(), name="useruploadedmap_change"),
+    path('useruploadedmaps/<int:pk>/delete/', UserUploadedMapDelete.as_view(), name="useruploadedmap_delete"),
+
+    path('useruploadedmaps/<int:pk>/permissions/', list_useruploadedmap_permissions, name="useruploadedmap_permissions_list"),
+    path('useruploadedmaps/<int:pk>/permissions/add/', add_user_useruploadedmap_permissions, name="useruploadedmap_permissions_add"),
+    path('useruploadedmaps/<int:pk>/permissions/<int:user_pk>/change/', change_user_useruploadedmap_permissions,
+         name="useruploadedmap_permissions_change"),
+    path('useruploadedmaps/<int:pk>/permissions/<int:user_pk>/delete', delete_user_useruploadedmap_permissions,
+         name="useruploadedmap_permissions_delete"),
+
     path('token/renew', renew_token, name="renewtoken"),
     path('users/emails/', get_contest_creators_emails, name="user_emails"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),

@@ -99,6 +99,19 @@ class UserUploadedMapForm(forms.ModelForm):
         )
 
 
+class AddUserUploadedMapPermissionsForm(forms.Form):
+    email = forms.EmailField()
+    change_useruploadedmap = forms.BooleanField(required=False, label="Modify map")
+    view_useruploadedmap = forms.BooleanField(required=False, label="View and use map")
+    delete_useruploadedmap = forms.BooleanField(required=False, label="Delete map")
+
+
+class ChangeUserUploadedMapPermissionsForm(forms.Form):
+    change_useruploadedmap = forms.BooleanField(required=False, label="Modify map")
+    view_useruploadedmap = forms.BooleanField(required=False, label="View and use map")
+    delete_useruploadedmap = forms.BooleanField(required=False, label="Delete map")
+
+
 class FlightOrderConfigurationForm(forms.ModelForm):
     class Meta:
         model = FlightOrderConfiguration

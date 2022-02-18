@@ -9,15 +9,16 @@
                 <div class="card-body">
                     <h5 class="card-title">{{ object.name }} ({{ object.map_file.size |filesizeformat }})</h5>
                     <p class="card-text">
-                        <a href="{% url 'useruploadedmaps_change' object.pk %}">Update</a> |
-                        <a href="{% url 'useruploadedmaps_delete' object.pk %}">Delete</a>
+                        <a href="{% url 'useruploadedmap_change' object.pk %}">Update</a> |
+                        <a href="{% url 'useruploadedmap_permissions_list' object.pk %}">Permissions</a> |
+                        <a href="{% url 'useruploadedmap_delete' object.pk %}">Delete</a>
                     </p>
                 </div>
             </div>
         {% endfor %}
     </div>
     <div class="row col">
-        <a class="btn btn-primary" href="{% url 'useruploadedmaps_add' %}" style="margin-bottom: 10px">Upload new map</a>
+        <a class="btn btn-primary" href="{% url 'useruploadedmap_add' %}" style="margin-bottom: 10px">Upload new map</a>
     </div>
     <div class="card-deck">
         <div class="card">

@@ -12,7 +12,7 @@ import random
 import uuid
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Set
 from unittest.mock import Mock
 
 import eval7 as eval7
@@ -771,12 +771,13 @@ class NavigationTask(models.Model):
             Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
         )
 
-    def get_available_user_maps(self) -> List["UserUploadedMap"]:
+    def get_available_user_maps(self) -> Set["UserUploadedMap"]:
         users = get_users_with_perms(self.contest, attach_perms=True)
-        print(users)
-        users = [user for user, permissions in users.items() if "change_contest" in permissions]
-        print(users)
-        return UserUploadedMap.objects.filter(user__in=users)
+        maps = set()
+        for user in users:
+            maps.update(get_objects_for_user(user, "display.view_useruploadedmap", klass=UserUploadedMap,
+                                          accept_global_perms=False))
+        return maps
 
     @property
     def is_poker_run(self) -> bool:
