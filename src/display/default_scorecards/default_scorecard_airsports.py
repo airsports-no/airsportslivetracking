@@ -14,10 +14,11 @@ from display.models import (
 
 
 def get_default_scorecard():
+    Scorecard.objects.filter(name="Airsports").update(name="Air Sports Race")
     scorecard, created = Scorecard.objects.update_or_create(
-        name="Airsports",
+        name="Air Sports Race",
         defaults={
-            "shortcut_name": "Airsports",
+            "shortcut_name": "Air Sports Race",
             "backtracking_penalty": 10,
             "backtracking_grace_time_seconds": 5,
             "backtracking_maximum_penalty": 100,

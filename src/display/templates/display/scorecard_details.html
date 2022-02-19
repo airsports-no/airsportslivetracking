@@ -6,20 +6,19 @@
 {% block content %}
     {% get_obj_perms request.user for navigation_task.contest as "contest_permissions" %}
     <h2 class="float-right">Scorecard</h2>
-    <h2><a
-            href="{% url 'navigationtask_detail' navigation_task.pk %}">{{ navigation_task.scorecard.get_calculator_display }}
-        task {{ navigation_task.name }}</a>
-    </h2>
+    <h2>{{ navigation_task.scorecard.get_calculator_display }}</h2>
+
     {% if "change_contest" in contest_permissions %}
         <a class="btn btn-outline-danger float-right" style="margin-top: 5px"
            onclick="return confirm('Are you sure you want to reset the scorecard to the standard {{ navigation_task.original_scorecard }}?')"
            href="{% url 'navigationtask_restorescorecard' navigation_task.pk %}"
            title="Update scoring parameters">Reset to standard</a>
     {% endif %}
-    <p>
-        Note that any changes to any scoring value will only take effect for contestants where the tracking time has not
-        started or the tracker has not been switched on.
-    </p>
+    <h1><a href="{% url 'navigationtask_detail' navigation_task.pk %}">task {{ navigation_task.name }}</a>
+    </h1><p>
+    Note that any changes to any scoring value will only take effect for contestants where the tracking time has not
+    started or the tracker has not been switched on.
+</p>
     <div class="card-deck">
         <div class="card border-dark" style="margin-bottom: 24px">
             <h5 class="card-header">Track rules</h5>
@@ -36,6 +35,7 @@
                             {% endfor %}
                         </table>
                     {% endfor %}
+                    {{ scorecard_form.free_text|safe }}
                 </div>
             </div>
             {% if "change_contest" in contest_permissions %}

@@ -776,7 +776,7 @@ class NavigationTask(models.Model):
         maps = set()
         for user in users:
             maps.update(get_objects_for_user(user, "display.view_useruploadedmap", klass=UserUploadedMap,
-                                          accept_global_perms=False))
+                                             accept_global_perms=False))
         return maps
 
     @property
@@ -938,9 +938,9 @@ class Scorecard(models.Model):
     CALCULATORS = (
         (PRECISION, "Precision"),
         (ANR_CORRIDOR, "ANR Corridor"),
-        (POKER, "Poker run"),
+        (POKER, "Pilot Poker Run"),
         (LANDING, "Landing"),
-        (AIRSPORTS, "Airsports"),
+        (AIRSPORTS, "Air Sports Race"),
     )
 
     name = models.CharField(max_length=255, default="default", unique=True)
@@ -953,6 +953,8 @@ class Scorecard(models.Model):
                                    help_text="Signifies that this has been created manually and is not a copy")
     included_fields = MyPickledObjectField(default=list,
                                            help_text="List of field names that should be visible in forms")
+    free_text = models.TextField(help_text="Free text (with HTML) that is included at the bottom of the scorecard box",
+                                 default="")
     calculator = models.CharField(
         choices=CALCULATORS,
         default=PRECISION,

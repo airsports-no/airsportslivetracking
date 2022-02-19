@@ -1734,6 +1734,7 @@ def navigation_task_view_detailed_score(request, pk):
             scorecard_form.fields.pop(key)
     scorecard_form.pk = navigation_task.scorecard.pk
     scorecard_form.content = content
+    scorecard_form.free_text=navigation_task.scorecard.free_text
     gate_score_forms = []
     for gate_score in navigation_task.scorecard.gatescore_set.all().order_by("gate_type"):
         if len(gate_score.visible_fields) > 0:
