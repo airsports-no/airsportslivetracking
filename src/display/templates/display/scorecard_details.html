@@ -14,14 +14,14 @@
            href="{% url 'navigationtask_restorescorecard' navigation_task.pk %}"
            title="Update scoring parameters">Reset to standard</a>
     {% endif %}
-    <h1><a href="{% url 'navigationtask_detail' navigation_task.pk %}">task {{ navigation_task.name }}</a>
+    <h1><a href="{% url 'navigationtask_detail' navigation_task.pk %}">{{ navigation_task.name }}</a>
     </h1><p>
     Note that any changes to any scoring value will only take effect for contestants where the tracking time has not
     started or the tracker has not been switched on.
 </p>
     <div class="card-deck">
         <div class="card border-dark" style="margin-bottom: 24px">
-            <h5 class="card-header">Track rules</h5>
+            <h5 class="card-header">Track Rules</h5>
             <div class="card-body">
                 <div class="card-text">
                     {% for c in scorecard_form.content %}

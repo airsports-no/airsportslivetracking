@@ -705,7 +705,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 <Navbar/>
                 <div className={"container-xl"}>
                     <h4 className="alert alert-warning" role="alert">Failed loading
-                        contest: {this.props.contestError.statusText}</h4>
+                        contest: {this.props.contestError.responseJSON.detail}</h4>
                 </div>
             </div>
         }

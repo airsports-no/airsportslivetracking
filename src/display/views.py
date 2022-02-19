@@ -774,7 +774,7 @@ def update_flight_order_configurations(request, pk):
     configuration = get_object_or_404(FlightOrderConfiguration, navigation_task__pk=pk)
     form = FlightOrderConfigurationForm(instance=configuration)
     form.fields['map_user_source'].queryset = UserUploadedMap.objects.filter(
-            pk__in=[item.pk for item in navigation_task.get_available_user_maps()])
+        pk__in=[item.pk for item in navigation_task.get_available_user_maps()])
     if request.method == "POST":
         form = FlightOrderConfigurationForm(request.POST, instance=configuration)
         form.fields['map_user_source'].queryset = UserUploadedMap.objects.filter(
@@ -1519,9 +1519,9 @@ def get_contestant_schedule(request, pk):
             {
                 "c": [
                     {"v": contestant.team.aeroplane.registration},
-                    {"v": str(contestant)},
-                    {"v": contestant.takeoff_time},
-                    {"v": contestant.finished_by_time},
+                    {"v": f"{contestant}{' (Adaptive)' if contestant.adaptive_start else ''}"},
+                    {"v": contestant.takeoff_time if not contestant.adaptive_start else contestant.tracker_start_time},
+                    {"v": contestant.landing_time_after_final_gate if not contestant.adaptive_start else contestant.finished_by_time},
                 ]
             }
         )
@@ -1735,7 +1735,7 @@ def navigation_task_view_detailed_score(request, pk):
             scorecard_form.fields.pop(key)
     scorecard_form.pk = navigation_task.scorecard.pk
     scorecard_form.content = content
-    scorecard_form.free_text=navigation_task.scorecard.free_text
+    scorecard_form.free_text = navigation_task.scorecard.free_text
     gate_score_forms = []
     for gate_score in navigation_task.scorecard.gatescore_set.all().order_by("gate_type"):
         if len(gate_score.visible_fields) > 0:
