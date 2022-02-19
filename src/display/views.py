@@ -1534,6 +1534,7 @@ def get_contestant_schedule(request, pk):
 )
 def render_contestants_timeline(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    timezone.activate(navigation_task.contest.time_zone)
     return render(
         request,
         "display/contestant_timeline.html",

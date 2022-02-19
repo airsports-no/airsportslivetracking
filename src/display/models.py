@@ -1275,15 +1275,22 @@ class Contestant(models.Model):
         ordering = ("takeoff_time",)
 
     @property
-    def starting_point_time_local(self) -> datetime.datetime:
-        starting_point_time = self.takeoff_time + datetime.timedelta(
+    def starting_point_time(self) -> datetime.datetime:
+        return self.takeoff_time + datetime.timedelta(
             minutes=self.navigation_task.minutes_to_starting_point
         )
-        return starting_point_time.astimezone(self.navigation_task.contest.time_zone)
+
+    @property
+    def starting_point_time_local(self) -> datetime.datetime:
+        return self.starting_point_time.astimezone(self.navigation_task.contest.time_zone)
 
     @property
     def tracker_start_time_local(self) -> datetime.datetime:
         return self.tracker_start_time.astimezone(self.navigation_task.contest.time_zone)
+
+    @property
+    def takeoff_time_local(self) -> datetime.datetime:
+        return self.takeoff_time.astimezone(self.navigation_task.contest.time_zone)
 
     @property
     def finished_by_time_local(self) -> datetime.datetime:
@@ -1297,14 +1304,24 @@ class Contestant(models.Model):
         final_gate = self.navigation_task.route.landing_gate or self.navigation_task.route.waypoints[-1]
         return self.gate_times.get(final_gate.name)
 
-    def calculate_finish_time(self) -> datetime.datetime:
-        print(self.gate_times)
-        print(self.navigation_task.route.landing_gate)
+    @property
+    def landing_time(self) -> datetime.datetime:
         if self.navigation_task.route.landing_gate:
             return self.gate_times[self.navigation_task.route.landing_gate.name]
         return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
             minutes=self.navigation_task.minutes_to_landing
         )
+
+    @property
+    def landing_time_after_final_gate(self) -> datetime.datetime:
+        return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
+            minutes=self.navigation_task.minutes_to_landing
+        )
+
+    @property
+    def landing_time_after_final_gate_local(self) -> datetime.datetime:
+        return self.landing_time_after_final_gate.astimezone(self.navigation_task.contest.time_zone)
+
 
     def blocking_request_calculator_termination(self):
         self.request_calculator_termination()

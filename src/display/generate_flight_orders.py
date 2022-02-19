@@ -175,7 +175,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     # pdf.text()
     heading = f"""
     <table width="100%">
-    <thead><tr><th width="20%"></th><th width="60%"></th><th width="20%"></td></tr></thead>
+    <thead><tr><th width="20%"></th><th width="60%"></th><th width="20%"></th></tr></thead>
     <tbody>
     <tr><td>&nbsp;</td><td align="center"><font size=18>Welcome to</font></td><td rowspan=5><img src="{logo}" width=80 /></td></tr>
     <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>

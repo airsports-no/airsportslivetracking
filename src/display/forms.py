@@ -543,9 +543,9 @@ class Member1SearchForm(forms.Form):
                      ),
             ButtonHolder(
                 StrictButton("Create new pilot",
-                             css_class='button white', type="submit"),
+                             css_class='btn btn-primary', type="submit"),
                 StrictButton("Use existing pilot", name='use_existing_pilot',
-                             css_class='button white', css_id="use_existing", type="submit")
+                             css_class='btn btn-primary', css_id="use_existing", type="submit")
             )
         )
 
@@ -574,11 +574,11 @@ class Member2SearchForm(Member1SearchForm):
                      ),
             ButtonHolder(
                 StrictButton("Skip copilot", name='skip_copilot',
-                             css_class='button white', type="submit"),
+                             css_class='btn btn-primary', type="submit"),
                 StrictButton("Create new copilot",
-                             css_class='button white', type="submit"),
+                             css_class='btn btn-primary', type="submit"),
                 StrictButton("Use existing copilot", name='use_existing_copilot',
-                             css_class='button white', css_id="use_existing", type="submit")
+                             css_class='btn btn-primary', css_id="use_existing", type="submit")
             )
         )
 
