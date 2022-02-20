@@ -28,7 +28,8 @@ from display.views import frontend_view_map, \
     UserUploadedMapDelete, restart_contestant_calculator, get_running_calculators, \
     get_broadcast_navigation_task_orders_status, broadcast_navigation_task_orders, download_navigation_task_orders, \
     generatenavigation_task_orders_template, delete_user_useruploadedmap_permissions, \
-    change_user_useruploadedmap_permissions, add_user_useruploadedmap_permissions, list_useruploadedmap_permissions
+    change_user_useruploadedmap_permissions, add_user_useruploadedmap_permissions, list_useruploadedmap_permissions, \
+    WelcomeEmailExample, ContestCreationEmailExample
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -49,6 +50,8 @@ urlpatterns = [
 
     path('token/renew', renew_token, name="renewtoken"),
     path('users/emails/', get_contest_creators_emails, name="user_emails"),
+    path('users/welcomeexample/', WelcomeEmailExample.as_view(), name="welcome_example"),
+    path('users/contestexample/', ContestCreationEmailExample.as_view(), name="contestcreation_example"),
     path('contest/create/', ContestCreateView.as_view(), name="contest_create"),
     path('contest/<int:pk>/', ContestDetailView.as_view(), name="contest_details"),
     path('contest/<int:pk>/clear_results/', clear_results_service, name="contest_clear_results"),

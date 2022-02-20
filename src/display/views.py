@@ -32,6 +32,7 @@ from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.views import View
 from django.views.generic import (
     ListView,
     DetailView,
@@ -215,6 +216,7 @@ from display.tasks import (
 )
 from display.traccar_factory import get_traccar_instance
 from display.utilities import get_country_code_from_location
+from display.welcome_emails import render_welcome_email, render_contest_creation_email
 from live_tracking_map import settings
 from live_tracking_map.settings import REDIS_HOST
 from websocket_channels import (
@@ -3555,6 +3557,21 @@ def add_user_useruploadedmap_permissions(request, pk):
             return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
     form = AddUserUploadedMapPermissionsForm()
     return render(request, "display/useruploadedmap_permissions_form.html", {"form": form})
+
+
+class WelcomeEmailExample(SuperuserRequiredMixin, View):
+
+    def get(self, request, *args, **kwargs):
+        person = get_object_or_404(Person, email=request.user.email)
+        return HttpResponse(render_welcome_email(person))
+
+
+class ContestCreationEmailExample(SuperuserRequiredMixin, View):
+
+    def get(self, request, *args, **kwargs):
+        person = get_object_or_404(Person, email=request.user.email)
+        return HttpResponse(render_contest_creation_email(person))
+
 
 
 ########## Results service ##########
