@@ -3,7 +3,7 @@ from django.template import Template, Context
 from display.wordpress_facade import get_page, WELCOME_EMAIL_PAGE, EMAIL_SIGNATURE_PAGE, CONTEST_CREATION_EMAIL_PAGE
 
 HEADER = """
-<html><body style="font-family: "Roboto condensed", "Lucida Grande", Verdana, Arial, sans-serif;">
+<html><body style='font-family: "Calibri", Arial, sans-serif;'>
 """
 FOOTER = """
 </body></html>

@@ -63,6 +63,7 @@ from display.poker_cards import PLAYING_CARDS
 from display.track_merger import merge_tracks
 from display.utilities import get_country_code_from_location
 from display.waypoint import Waypoint
+from display.welcome_emails import render_welcome_email, render_contest_creation_email
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
 from live_tracking_map import settings
@@ -136,8 +137,14 @@ class MyUser(BaseUser, GuardianUserMixin):
         return f"{self.first_name} {self.last_name} ({self.email})"
 
     def send_welcome_email(self, person: "Person"):
-        html = render_to_string("display/welcome_email.html",
-                                {"person": person})
+        try:
+            html = render_welcome_email(person)
+            if len(html) == 0:
+                raise Exception("Did not receive any text for welcome email")
+        except:
+            logger.exception("Failed to generate welcome email, fall back to earlier implementation.")
+            html = render_to_string("display/welcome_email.html",
+                                    {"person": person})
         converter = html2text.HTML2Text()
         plaintext = converter.handle(html)
         try:
@@ -152,11 +159,17 @@ class MyUser(BaseUser, GuardianUserMixin):
             logger.error(f"Failed sending email to {self}")
 
     def send_contest_creator_email(self, person: "Person"):
-        html = render_to_string("display/contestmanagement_email.html",
-                                {"person": person})
+        try:
+            html = render_contest_creation_email(person)
+            if len(html) == 0:
+                raise Exception("Did not receive any text for welcome email")
+        except:
+            logger.exception("Failed to generate contest creation email, fall back to earlier implementation.")
+            html = render_to_string("display/contestmanagement_email.html",
+                                    {"person": person})
         converter = html2text.HTML2Text()
         plaintext = converter.handle(html)
-        logger.debug(f'Sending welcome email to {person}')
+        logger.debug(f'Sending contest creation email to {person}')
         try:
             send_mail(
                 f"You have been granted contest creation privileges at Air Sports Live Tracking",
@@ -1321,7 +1334,6 @@ class Contestant(models.Model):
     @property
     def landing_time_after_final_gate_local(self) -> datetime.datetime:
         return self.landing_time_after_final_gate.astimezone(self.navigation_task.contest.time_zone)
-
 
     def blocking_request_calculator_termination(self):
         self.request_calculator_termination()

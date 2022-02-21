@@ -2,7 +2,7 @@ import requests
 from requests import Response
 from typing import Dict
 
-WORDPRESS_ROOT = "https://wiki.airsports.no"
+WORDPRESS_ROOT = "https://home.airsports.no"
 API_PATH = "/wp-json/wp/v2/"
 
 WELCOME_EMAIL_PAGE = 111

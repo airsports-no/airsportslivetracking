@@ -74,11 +74,9 @@ class ConnectedWikiLogoPopup extends Component {
 
     render() {
         return <div>
-            <a href={"#"} className={"wikiImage"} onClick={this.props.displayWikiModal}>
+            <a href={"https://home.airsports.no/"} className={"wikiImage"}>
                 <img src={"/static/img/news.png"} style={{width: "50px"}} alt={"About"}/>
             </a>
-            <WikiLogoModal show={this.props.wikiModalShow}
-                           onHide={() => this.props.hideWikiModal()}/>
         </div>
     }
 }

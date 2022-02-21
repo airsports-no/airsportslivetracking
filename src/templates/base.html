@@ -65,6 +65,9 @@
 
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://home.airsports.no/">Home</a>
+                    </li>
                     {#                    <li class="nav-item">#}
                     {#                        <a class="nav-link" href="{% url 'global_map' %}">Global map</a>#}
                     {#                    </li>#}
@@ -80,17 +83,9 @@
                                 {% if user.is_superuser  and user.is_staff %}
                                     <a class="dropdown-item" href="{% url 'user_emails' %}">User emails</a>
                                     <a class="dropdown-item" href="{% url 'welcome_example' %}">Welcome email</a>
-                                    <a class="dropdown-item" href="{% url 'contestcreation_example' %}">Contest creation email</a>
+                                    <a class="dropdown-item" href="{% url 'contestcreation_example' %}">Contest creation
+                                        email</a>
                                 {% endif %}
-                            </div>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="dropdown02"
-                               data-toggle="dropdown">Help</a>
-                            <div class="dropdown-menu">
-                                <a class="dropdown-item" href="/pages/faq/">FAQ</a>
-                                <a target="_blank" class="dropdown-item"
-                                   href="https://youtu.be/4ZPlDVjXabs">Tutorial</a>
                             </div>
                         </li>
                     {% endif %}
