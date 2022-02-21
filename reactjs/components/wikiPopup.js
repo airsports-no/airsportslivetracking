@@ -74,7 +74,7 @@ class ConnectedWikiLogoPopup extends Component {
 
     render() {
         return <div>
-            <a href={"https://home.airsports.no/"} className={"wikiImage"}>
+            <a target="_blank" href={"https://home.airsports.no/"} className={"wikiImage"}>
                 <img src={"/static/img/news.png"} style={{width: "50px"}} alt={"About"}/>
             </a>
         </div>
