@@ -618,6 +618,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     columnType: "task",
                     editable: !task.autosum_scores,
                     classes: "number-right " + (!task.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
+                    headerStyle: {verticalAlign: 'top', height: "1px", minWidth: "70px"},
                     task: task.id,
                     onSort: (field, order) => {
                         this.setState({
@@ -641,14 +642,16 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         // }).length === 0 && this.props.visibleTaskDetails[task.id]) {
                         //     this.props.hideTaskDetails(task.id)
                         // }
+                        let privilege_break = null
+                        let privileged = null
+                        let move = null
                         const common = <span>
                         {components.sortElement} {task.heading}
                     </span>
-                        let privileged = null
-                        let move = null
                         if (this.props.contest.results.permission_change_contest) {
+                            privilege_break=<span><br/>&nbsp;</span>
                             if (!this.state.zoomedTask) {
-                                move = <div style={{verticalAlign: "baseline", textAlign: "right"}}>
+                                move = <div style={{position: "absolute", bottom: "0", right: "0"}}>
                                     {taskIndex > 0 ?
                                         <a href={"#"} onClick={(e) => this.moveTaskLeft(e, task.id)}><Icon
                                             path={mdiChevronLeft} size={0.7}/></a> : null}
@@ -657,7 +660,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                             path={mdiChevronRight} size={0.7}/></a> : null}
                                 </div>
                             }
-                            privileged = <span>
+                            privileged = <span style={{position: "absolute", bottom: "0", left: "0"}}>
                                 <a href={"#"}
                                    onClick={(e) => {
                                        e.stopPropagation()
@@ -677,19 +680,29 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                         path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
                             </span>
                         }
-                        return <div>{common}{privileged}
-                            {this.props.visibleTaskDetails[task.id] ? <a href={"#"}
+                        return <div style={{position: "relative", height: "100%"}}>{this.props.visibleTaskDetails[task.id] ?<a href={"#"}
                                                                          onClick={(e) => {
                                                                              e.stopPropagation()
                                                                              this.collapseTask(task)
                                                                          }}
-                                ><Icon path={mdiMagnifyMinus} size={0.7}/></a> :
-                                <a href={"#"}
+                        >{common}</a>:<a href={"#"}
                                    onClick={(e) => {
                                        e.stopPropagation()
                                        this.expandTask(task)
                                    }}
-                                ><Icon path={mdiMagnifyPlus} size={0.7}/></a>}
+                        >{common}</a>}{privilege_break}{privileged}
+                            {/*{this.props.visibleTaskDetails[task.id] ? <a href={"#"}*/}
+                            {/*                                             onClick={(e) => {*/}
+                            {/*                                                 e.stopPropagation()*/}
+                            {/*                                                 this.collapseTask(task)*/}
+                            {/*                                             }}*/}
+                            {/*    ><Icon path={mdiMagnifyMinus} size={0.7}/></a> :*/}
+                            {/*    <a href={"#"}*/}
+                            {/*       onClick={(e) => {*/}
+                            {/*           e.stopPropagation()*/}
+                            {/*           this.expandTask(task)*/}
+                            {/*       }}*/}
+                            {/*    ><Icon path={mdiMagnifyPlus} size={0.7}/></a>}*/}
                             {move}
                         </div>
                     }
