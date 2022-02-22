@@ -5,7 +5,7 @@ import {
 } from "react-device-detect";
 import Icon from "@mdi/react";
 import {mdiGoKartTrack} from "@mdi/js";
-import {internalColour, ognColour, openSkyColour} from "../aircraft/aircraft";
+import {internalColour, ognColour, safeskyColour} from "../aircraft/aircraft";
 
 const aboutGlobalMap = <div>
     <img src={"/static/img/airsports_no_text.png"} style={{float: "right", width: "40px"}} alt={"Global logo"}/>
@@ -25,10 +25,7 @@ const aboutGlobalMap = <div>
                 <td rowSpan={4} style={{verticalAlign: "top"}}>Speed: GPS in KTS.<br/>Altitude: GPS nearest 100 feet</td>
             </tr>
             <tr>
-                <td style={{width: "300px"}}><i className="mdi mdi-airplanemode-active" style={{color: openSkyColour}}/> Active aircraft (OpenSky)</td>
-            </tr>
-            <tr>
-                <td style={{width: "300px"}}><i className="mdi mdi-airplanemode-active" style={{color: ognColour}}/> Active aircraft (OGN)</td>
+                <td style={{width: "300px"}}><i className="mdi mdi-airplanemode-active" style={{color: safeskyColour}}/> Active aircraft (Safesky)</td>
             </tr>
             <tr>
                 <td><i className="mdi mdi-airplanemode-active" style={{color: internalColour, opacity: 0.4}}/> &lt; 40 knots
@@ -53,7 +50,7 @@ const aboutGlobalMap = <div>
         Organizers can use this feature for free, so contact us at
         support[at]airsports.no to become an organizer. The contestants only need the app to compete in the contest, no hardware tracker required.
     <p>
-        Take a look at our <a href={"https://youtu.be/4ZPlDVjXabs"}>competition creation tutorial</a>, and
+        Take a look at our <a href={"https://www.youtube.com/watch?v=jywBZyqcL1Q"}>competition creation tutorial</a>, and
         please visit and subscribe to our YouTube Channel for more videos.
     </p>
     <hr/>

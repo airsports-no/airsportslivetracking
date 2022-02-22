@@ -12,7 +12,7 @@ import {
     glider,
     helicopter, internalColour,
     jet,
-    ognColour, openSkyColour,
+    ognColour, safeskyColour,
     paraglider,
     piston,
     skydiver,
@@ -487,7 +487,7 @@ class ConnectedGlobalMapMap
                         this.aircraft[position.deviceId] = new Aircraft(position.name, internalColour, position, this.map,
                             this.internalPositionIcons, this.internalPositionText, 20, position.traffic_source)
                     } else if (position.traffic_source === "opensky") {
-                        this.aircraft[position.deviceId] = new OGNAircraft(position.name, openSkyColour, position, this.map,
+                        this.aircraft[position.deviceId] = new OGNAircraft(position.name, safeskyColour, position, this.map,
                             this.externalPositionIcons, this.externalPositionText, 60, position.traffic_source, position.aircraft_type)
 
                     } else if (position.traffic_source === "ogn") {

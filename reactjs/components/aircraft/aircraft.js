@@ -1,5 +1,5 @@
 export const ognColour ="#2471a3"
-export const openSkyColour = "#7d3c98"
+export const safeskyColour = "#7d3c98"
 export const internalColour = "#C70039"
 
 export function glider(colour) {

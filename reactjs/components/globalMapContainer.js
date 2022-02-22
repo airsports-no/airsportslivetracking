@@ -7,7 +7,7 @@ import GlobalEventList from "./contests/globalEventList";
 import Disclaimer, {DisclaimerLong} from "./disclaimer";
 import AboutLogoPopup from "./aboutLogoPopup";
 import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
-import {internalColour, ognColour, openSkyColour} from "./aircraft/aircraft";
+import {internalColour, ognColour, safeskyColour} from "./aircraft/aircraft";
 import {withRouter} from "react-router-dom";
 import OngoingNavigationTicker from "./contests/ongoingNavigationTicker";
 import WikiLogoPopup from "./wikiPopup";
@@ -37,9 +37,7 @@ class ConnectedGlobalMapContainer extends Component {
                             <i className="mdi mdi-airplanemode-active"
                                style={{color: internalColour}}/> AirSports<br/>
                             <i className="mdi mdi-airplanemode-active"
-                               style={{color: openSkyColour}}/> OpenSky<br/>
-                            <i className="mdi mdi-airplanemode-active"
-                               style={{color: ognColour}}/> OGN<br/>
+                               style={{color: safeskyColour}}/> Safesky<br/>
                             <i className="mdi mdi-airplanemode-active"
                                style={{color: "#C70039", opacity: 0.4}}/> &lt;40kts<br/>
                             <i className="mdi mdi-airplanemode-active"
