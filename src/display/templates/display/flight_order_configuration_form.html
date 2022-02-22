@@ -18,6 +18,16 @@
                 console.log(color.hexString);
                 document.getElementById('id_map_line_colour').value = color.hexString;
             });
+            const customMap = document.getElementById("id_map_user_source")
+            customMap.onchange = function (e) {
+                if (customMap.value === "") {
+                    console.log("Selected nothing")
+                    document.getElementById("div_id_map_source").style.display=""
+                } else {
+                    document.getElementById("div_id_map_source").style.display = "none"
+                }
+                console.log(customMap.value)
+            }
         </script>
     </form>
 {% endblock %}

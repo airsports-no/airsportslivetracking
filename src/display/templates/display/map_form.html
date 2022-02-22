@@ -1,21 +1,18 @@
 {% extends "base.html" %}
 {% load static %}
 {% load i18n %}
-{% load bootstrap4 %}
+{% load crispy_forms_tags %}
 
 
 {% block content %}
     <h2>Generate map</h2>
     <form method="post" class="form">
         {% csrf_token %}
-        {% bootstrap_form form %}
+        {% crispy form %}
         <h5>Pick a colour for the route</h5>
         <div id="picker" style="margin-bottom: 15px"></div>
-        {% buttons %}
-            <button type="submit" class="btn btn-primary">Submit</button>
-            <a href="{{ redirect }}" class="btn btn-secondary">Back</a>
-        {% endbuttons %}
-        <p class="text-muted">Map generation can take a minute or two</p>
+        <button type="submit" class="btn btn-primary">Submit</button>
+        <a href="{{ redirect }}" class="btn btn-secondary">Back</a>
         <script src="{% static 'js/iro.min.js' %}"></script>
         <script>
             var colorPicker = new iro.ColorPicker('#picker', {
@@ -26,6 +23,14 @@
                 console.log(color.hexString);
                 document.getElementById('id_colour').value = color.hexString;
             });
+            const customMap = document.getElementById("id_user_map_source")
+            customMap.onchange = function (e) {
+                if (customMap.value === "") {
+                    document.getElementById("div_id_map_source").style.display = ""
+                } else {
+                    document.getElementById("div_id_map_source").style.display = "none"
+                }
+            }
         </script>
     </form>
 {% endblock %}

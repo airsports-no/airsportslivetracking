@@ -60,6 +60,11 @@ class MapForm(forms.Form):
     colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
     output_type = forms.ChoiceField(initial=PDF, choices=OUTPUT_TYPES)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+
 
 class ContestantMapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
@@ -75,6 +80,11 @@ class ContestantMapForm(forms.Form):
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
     output_type = forms.ChoiceField(initial=PDF, choices=OUTPUT_TYPES)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
 
 
 class UserUploadedMapForm(forms.ModelForm):
