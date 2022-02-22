@@ -551,6 +551,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     dataField: dataField,
                     text: taskTest.heading,
                     headerClasses: "text-muted",
+                    headerStyle: {verticalAlign: 'top', height: "1px", minWidth: "80px"},
                     sort: true,
                     hidden: !this.props.visibleTaskDetails[task.id],
                     classes: "number-right " + (this.props.contest.results.permission_change_contest ? "editableCell" : ""),
@@ -574,7 +575,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         let privileged = null
                         let move = null
                         if (this.props.contest.results.permission_change_contest) {
-                            move = <div style={{verticalAlign: "baseline", textAlign: "right"}}>
+                            move = <div style={{position: "absolute", bottom: "0", right: "0"}}>
                                 {taskTestIndex > 0 ?
                                     <a href={"#"} onClick={(e) => this.moveTestLeft(e, taskTest.id)}><Icon
                                         path={mdiChevronLeft} size={0.7}/></a> : null}
@@ -582,7 +583,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                     <a href={"#"} onClick={(e) => this.moveTestRight(e, taskTest.id)}><Icon
                                         path={mdiChevronRight} size={0.7}/></a> : null}
                             </div>
-                            privileged = <span>
+                            privileged = <span style={{position: "absolute", bottom: "0", left: "0"}}>
                                 <a href={"#"}
                                    onClick={(e) => {
                                        e.stopPropagation()
@@ -606,7 +607,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                         path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
                                     </span>
                         }
-                        return <div>{header}{privileged}{move}</div>
+                        return <div style={{position: "relative", height: "100%"}}>{header}{privileged}{move}</div>
                     }
                 })
             });
@@ -618,7 +619,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     columnType: "task",
                     editable: !task.autosum_scores,
                     classes: "number-right " + (!task.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
-                    headerStyle: {verticalAlign: 'top', height: "1px", minWidth: "70px"},
+                    headerStyle: {verticalAlign: 'top', height: "1px", minWidth: "80px"},
                     task: task.id,
                     onSort: (field, order) => {
                         this.setState({
@@ -649,7 +650,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         {components.sortElement} {task.heading}
                     </span>
                         if (this.props.contest.results.permission_change_contest) {
-                            privilege_break=<span><br/>&nbsp;</span>
+                            privilege_break = <span><br/>&nbsp;</span>
                             if (!this.state.zoomedTask) {
                                 move = <div style={{position: "absolute", bottom: "0", right: "0"}}>
                                     {taskIndex > 0 ?
@@ -680,17 +681,18 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                         path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
                             </span>
                         }
-                        return <div style={{position: "relative", height: "100%"}}>{this.props.visibleTaskDetails[task.id] ?<a href={"#"}
-                                                                         onClick={(e) => {
-                                                                             e.stopPropagation()
-                                                                             this.collapseTask(task)
-                                                                         }}
-                        >{common}</a>:<a href={"#"}
-                                   onClick={(e) => {
-                                       e.stopPropagation()
-                                       this.expandTask(task)
-                                   }}
-                        >{common}</a>}{privilege_break}{privileged}
+                        return <div style={{position: "relative", height: "100%"}}>{this.props.visibleTaskDetails[task.id] ?
+                            <a href={"#"}
+                               onClick={(e) => {
+                                   e.stopPropagation()
+                                   this.collapseTask(task)
+                               }}
+                            >{common}</a> : <a href={"#"}
+                                               onClick={(e) => {
+                                                   e.stopPropagation()
+                                                   this.expandTask(task)
+                                               }}
+                            >{common}</a>}{privilege_break}{privileged}
                             {/*{this.props.visibleTaskDetails[task.id] ? <a href={"#"}*/}
                             {/*                                             onClick={(e) => {*/}
                             {/*                                                 e.stopPropagation()*/}
@@ -755,12 +757,14 @@ class ConnectedTaskSummaryResultsTable extends Component {
             <div className={"container-xl"}>
                 <div className={"row results-table"}>
                     <div className={"col-12"}>
+
                         {
                             this.state.zoomedTask ?
-                                <div><h2 className={"results-table-contest-name"}><a href={"#"} className={"text-dark"}
-                                                                                     onClick={() => this.collapseTask(this.state.zoomedTask)}><b>{this.props.contest.results.name}</b></a> -
-                                    Tests
-                                    for <i>{this.state.zoomedTask.name}</i>
+                                <div><h3 className={"results-table-contest-name"}><Link className={"text-dark"}
+                                                                                        to={"/resultsservice/"}>Results</Link> -> <a
+                                    href={"#"} className={"text-dark"}
+                                    onClick={() => this.collapseTask(this.state.zoomedTask)}>{this.props.contest.results.name}</a><br/>
+                                    <b>{this.state.zoomedTask.name}</b>
                                     {this.props.contest.results.permission_change_contest ?
                                         <Button onClick={(e) => {
                                             this.setState({
@@ -769,8 +773,9 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                                 editMode: "new"
                                             })
                                         }
-                                        } style={{float: "right"}}>New test</Button> : null}</h2></div> :
-                                <div><h2 className={"results-table-contest-name"}>
+                                        } style={{float: "right"}}>New test</Button> : null}</h3></div> :
+                                <div><h3 className={"results-table-contest-name"}><Link className={"text-dark"}
+                                                                                        to={"/resultsservice/"}>Results</Link><br/>
                                     <b>{this.props.contest.results.name}</b>
                                     {this.props.contest.results.permission_change_contest ?
                                         <Button style={{float: "right"}} onClick={(e) => {
@@ -779,7 +784,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                                 editTask: this.defaultTask(),
                                                 editMode: "new"
                                             })
-                                        }}>New task</Button> : null}</h2></div>
+                                        }}>New task</Button> : null}</h3></div>
                         }
                     </div>
                 </div>
@@ -813,9 +818,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         <h4 className="alert-heading">About the results table</h4>
                         Contest results consists of one or more tasks, and each task contains one or more tests. The
                         initial
-                        view shows the summary score for each task in the contest. By clicking on the magnifying glass
+                        view shows the summary score for each task in the contest. By clicking on the task name
                         you
-                        can zoom into the individual test results within the task. For instance, a precision navigation
+                        can zoom into the individual test results within the task. Zoom out by clicking on the titles
+                        above the table or the same task name in the rightmost column. For instance, a precision
+                        navigation
                         task
                         will consist of three tests; a planning test, a navigation test, and an observation test. The
                         total
