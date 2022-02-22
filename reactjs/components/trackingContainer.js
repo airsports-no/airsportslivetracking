@@ -80,12 +80,15 @@ class ConnectedTrackingContainer extends Component {
     }
 
     render() {
-        if(this.props.navigationTaskError){
+        if (this.props.navigationTaskError) {
             return <div>
                 <Navbar/>
                 <div className={"container-xl"}>
                     <h4 className="alert alert-warning" role="alert">Failed loading
                         contest: {this.props.navigationTaskError.statusText}</h4>
+                    <p>Contact support or visit <a
+                        href={'https://home.airsports.no/faq/#contest-results-are-not-found'}>our FAQ</a> for more
+                        details.</p>
                 </div>
             </div>
         }
@@ -148,13 +151,14 @@ class ConnectedTrackingContainer extends Component {
                                         {/*id={"logoButtonWrapper"}>*/}
                                         <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
                                     </a>
-                                    <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"} aria-controls={"insetMenu"} aria-expanded={true}
+                                    <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
+                                       aria-controls={"insetMenu"} aria-expanded={true}
                                        data-target={"#insetMenu"}>{this.props.navigationTask.name ? this.props.navigationTask.name.toUpperCase() : null}</a>
                                     {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ? ExpandedTableLink : null}
                                     {/*{TableHeightLink}*/}
                                 </div>
                                 <div id={"insetMenu"}
-                                      className={"collapse show"}>
+                                     className={"collapse show"}>
                                     <div
                                         className={"backdrop " + (this.props.displayExpandedTrackingTable ? "backdropFull" : "backdropHalf")}>
                                         <div className={"text-light bg-dark"}>
