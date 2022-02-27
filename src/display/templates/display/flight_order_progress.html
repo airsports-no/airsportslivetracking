@@ -110,13 +110,12 @@
         }
 
         function updateRunningStatus(data) {
-            var completed = false
+            var ongoing = new Set()
             if (data.completed_flight_orders_map) {
                 completed = true
                 for (const [key, value] of Object.entries(data.completed_flight_orders_map)) {
                     if (!value) {
-                        completed = false
-                        generating = true
+                        ongoing.add(key)
                         document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/loading.gif' %}" style="width: 24px"/>'
                     } else {
                         document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/green_checkmark.png' %}"  style="width: 24px"/>'
@@ -136,6 +135,7 @@
             }
             if (data.generate_failed_flight_orders_map) {
                 for (const [key, value] of Object.entries(data.generate_failed_flight_orders_map)) {
+                    ongoing.delete(key)
                     document.getElementById("errors_" + key).innerHTML = value
                     document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}"  style="width: 24px"/>'
                 }
@@ -150,7 +150,7 @@
                 document.getElementById("loading").removeAttribute("style")
                 disableGenerate()
             }
-            if (completed && (generating || first)) {
+            if (ongoing.size === 0 && (generating || first)) {
                 generating = false
                 enableGenerate()
                 document.getElementById("loading").setAttribute("style", "display: none")

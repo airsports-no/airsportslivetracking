@@ -1553,7 +1553,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 ))
         # Validate maximum tracking time
         if self.finished_by_time - self.tracker_start_time > datetime.timedelta(hours=24):
-            pass
             raise ValidationError(
                 f"The maximum tracking time (from tracker start time to finished by time) is 24 hours (currently {self.finished_by_time - self.tracker_start_time}). Either start tracking later or finish earlier to solve this."
             )
@@ -2758,8 +2757,12 @@ def update_contest_summary_on_task_delete(sender, instance: Task, **kwargs):
 
 @receiver(pre_delete, sender=TaskTest)
 def update_task_summary_on_task_test_delete(sender, instance: TaskTest, **kwargs):
-    for task_summary in TaskSummary.objects.filter(task=instance.task):
-        task_summary.update_sum()
+    try:
+        for task_summary in TaskSummary.objects.filter(task=instance.task):
+            task_summary.update_sum()
+    except ObjectDoesNotExist:
+        # tasktest deleted already
+        pass
 
 
 @receiver(post_save, sender=ContestTeam)

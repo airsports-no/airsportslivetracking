@@ -3479,7 +3479,7 @@ class UserUploadedMapList(PermissionRequiredMixin, ListView):
 
 class UserUploadedMapDelete(GuardianPermissionRequiredMixin, DeleteView):
     model = UserUploadedMap
-    permission_required = ("display.add_contest",)
+    permission_required = ("display.delete_useruploadedmap",)
     template_name = "model_delete.html"
     success_url = reverse_lazy("useruploadedmap_list")
 
