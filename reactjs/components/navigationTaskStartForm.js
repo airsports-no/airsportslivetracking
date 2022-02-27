@@ -115,9 +115,9 @@ class ConnectedSelfRegistrationForm extends Component {
                             </Form.Row>
                             <Form.Row>
                                 <Col>
-                                    <Form.Text>If adaptive start is selected, you can cross the starting time at a whole
+                                    <Form.Text>If adaptive start is selected, you can cross the start gate at a whole
                                         minute anywhere between one hour before and one hour after the selected starting
-                                        point time</Form.Text>
+                                        point time (<a href={'https://home.airsports.no/faq/#adaptiv-start'}>FAQ</a>).</Form.Text>
                                 </Col>
                             </Form.Row>
                             <Form.Row>
