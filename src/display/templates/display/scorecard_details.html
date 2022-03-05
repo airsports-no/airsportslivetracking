@@ -7,7 +7,8 @@
     {% get_obj_perms request.user for navigation_task.contest as "contest_permissions" %}
     <h2 class="float-right">Scorecard</h2>
     <h2>{{ navigation_task.scorecard.get_calculator_display }}</h2>
-
+    <a class="btn btn-secondary float-right" style="margin-top: 5px;margin-left: 10px"
+       href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
     {% if "change_contest" in contest_permissions %}
         <a class="btn btn-outline-danger float-right" style="margin-top: 5px"
            onclick="return confirm('Are you sure you want to reset the scorecard to the standard {{ navigation_task.original_scorecard }}?')"
