@@ -43,6 +43,7 @@
     </script>
 {% endblock %}
 {% block content %}
+    <p>&nbsp;</p>
     <img style="float: right;width: 250px"
                           src="{% static 'img/AirsportsLiveTracking.png' %}"
                           alt="AirSports">
@@ -82,9 +83,10 @@
     </table>
     <p style="page-break-after: always;">&nbsp;</p>
     <p style="page-break-before: always;">
+    <p>The timeline shows takeoff time to landing time. If a contestant has adaptive start time, the timeline shows tracker start time to tracker finish time for that contestant, and it is marked with "Adaptive".</p>
+    <a href="#" onclick="print()" style="float: left;font-size: 2rem;margin-right: 10px"><i class="mdi mdi-print"></i></a>
     Print this page to get a nice scheduling overview. It contains page breaks so you should get the timeline and
         timetable on separate pages. Consider printing in landscape if space allows.</p>
-    <p>The timeline shows takeoff time to landing time. If a contestant has adaptive start time, the timeline shows tracker start time to tracker finish time for that contestant, and it is marked with "Adaptive".</p>
     <a class="btn btn-primary" href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
 
 {% endblock %}
