@@ -175,7 +175,7 @@ class ConnectedRouteEditor extends Component {
         if (!visited) {
             this.setState({displayTutorial: true})
         }
-        cookies.set(key, true)
+        cookies.set(key, true, {maxAge: 60*60*24*365})
         this.initialiseMap()
         if (this.props.routeId) {
             this.reloadMap()
