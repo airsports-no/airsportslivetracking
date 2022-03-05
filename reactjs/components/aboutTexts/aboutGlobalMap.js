@@ -58,7 +58,7 @@ const aboutGlobalMap = <div>
         <img src={"/static/img/airsports_help.png"} style={{float: "right", width: "40px", marginTop: "-10px"}} alt={"Global logo"}/>
         <b>Air Sports Race introduction</b>
         <div className="video-container">
-            <iframe src="https://www.youtube.com/watch?v=jywBZyqcL1Q"
+            <iframe src="https://www.youtube.com/embed/jywBZyqcL1Q"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     frameBorder="0" allowFullScreen className="video"/>
         </div>
