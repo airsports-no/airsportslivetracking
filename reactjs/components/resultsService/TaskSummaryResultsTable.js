@@ -688,7 +688,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                    e.stopPropagation()
                                    this.collapseTask(task)
                                }}
-                            >{common}</a> : <a href={"#"}
+                            >Σ {common}</a> : <a href={"#"}
                                                onClick={(e) => {
                                                    e.stopPropagation()
                                                    this.expandTask(task)
