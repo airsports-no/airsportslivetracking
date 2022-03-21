@@ -20,7 +20,7 @@ import {Container, Modal, Button, Form} from "react-bootstrap";
 import {
     mdiArrowCollapseHorizontal,
     mdiArrowExpandHorizontal, mdiChevronDown, mdiChevronLeft, mdiChevronRight, mdiChevronUp,
-    mdiClose, mdiMagnifyMinus, mdiMagnifyPlus, mdiDeleteForever,
+    mdiClose, mdiMagnifyMinus, mdiMagnifyPlus, mdiDeleteForever, mdiEarth,
     mdiPencilOutline, mdiPlusBox, mdiSort
 } from "@mdi/js";
 import Icon from "@mdi/react";
@@ -570,7 +570,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         let header = <span>{components.sortElement} {taskTest.heading}</span>
                         if (taskTest.navigation_task_link) {
                             header =
-                                <a href={taskTest.navigation_task_link}>{components.sortElement} {taskTest.heading}</a>
+                                <span>{components.sortElement} {taskTest.heading}<a href={taskTest.navigation_task_link}><Icon
+                                    path={mdiEarth} size={0.7}/></a></span>
                         }
                         let privileged = null
                         let move = null
@@ -721,7 +722,9 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 <div className={"container-xl"}>
                     <h4 className="alert alert-warning" role="alert">Failed loading
                         contest: {this.props.contestError.responseJSON.detail}</h4>
-                    <p>Contact support or visit <a href={'https://home.airsports.no/faq/#contest-results-are-not-found'}>our FAQ</a> for more details.</p>
+                    <p>Contact support or visit <a
+                        href={'https://home.airsports.no/faq/#contest-results-are-not-found'}>our FAQ</a> for more
+                        details.</p>
                 </div>
             </div>
         }
@@ -757,35 +760,47 @@ class ConnectedTaskSummaryResultsTable extends Component {
             <Navbar/>
             <div className={"container-xl"}>
                 <div className={"row results-table"}>
-                    <div className={"col-12"}>
-
+                    <div className={"col-2"}>
+                        <h2 className={"results-table-contest-name"} style={{float: "left"}}><Link
+                            className={"text-dark"}
+                            to={"/resultsservice/"}>Results</Link></h2>
+                    </div>
+                    <div className={"col-8"} style={{textAlign: 'center'}}>
                         {
                             this.state.zoomedTask ?
-                                <div><h3 className={"results-table-contest-name"}><Link className={"text-dark"}
-                                                                                        to={"/resultsservice/"}>Results</Link> -> <a
+                                <h3 className={"results-table-contest-name"}><a
                                     href={"#"} className={"text-dark"}
                                     onClick={() => this.collapseTask(this.state.zoomedTask)}>{this.props.contest.results.name}</a><br/>
                                     <b>{this.state.zoomedTask.name}</b>
-                                    {this.props.contest.results.permission_change_contest ?
-                                        <Button onClick={(e) => {
-                                            this.setState({
-                                                displayNewTaskTestModal: true,
-                                                editTaskTest: this.defaultTaskTest(this.state.zoomedTask.id),
-                                                editMode: "new"
-                                            })
-                                        }
-                                        } style={{float: "right"}}>New test</Button> : null}</h3></div> :
-                                <div><h3 className={"results-table-contest-name"}><Link className={"text-dark"}
-                                                                                        to={"/resultsservice/"}>Results</Link><br/>
+                                </h3>
+                                :
+                                <h3 className={"results-table-contest-name"}>
                                     <b>{this.props.contest.results.name}</b>
-                                    {this.props.contest.results.permission_change_contest ?
-                                        <Button style={{float: "right"}} onClick={(e) => {
-                                            this.setState({
-                                                displayNewTaskModal: true,
-                                                editTask: this.defaultTask(),
-                                                editMode: "new"
-                                            })
-                                        }}>New task</Button> : null}</h3></div>
+                                </h3>
+                        }
+                    </div>
+                    <div className={"col-2"}>
+                        {
+                            this.state.zoomedTask ?
+
+                                this.props.contest.results.permission_change_contest ?
+                                    <Button onClick={(e) => {
+                                        this.setState({
+                                            displayNewTaskTestModal: true,
+                                            editTaskTest: this.defaultTaskTest(this.state.zoomedTask.id),
+                                            editMode: "new"
+                                        })
+                                    }
+                                    } style={{float: "right"}}>New test</Button> : null
+                                :
+                                this.props.contest.results.permission_change_contest ?
+                                    <Button style={{float: "right"}} onClick={(e) => {
+                                        this.setState({
+                                            displayNewTaskModal: true,
+                                            editTask: this.defaultTask(),
+                                            editMode: "new"
+                                        })
+                                    }}>New task</Button> : null
                         }
                     </div>
                 </div>
@@ -806,6 +821,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                                         bootstrap4 striped condensed
                                                         cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
                                         />
+
                                         {this.props.contest.results.permission_change_contest ?
                                             <ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export
                                                 CSV</ExportCSVButton> : null}
