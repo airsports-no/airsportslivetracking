@@ -819,7 +819,7 @@ class ScorecardForm(forms.ModelForm):
 
     class Meta:
         model = Scorecard
-        exclude = ("name", "original", "included_fields", "calculator", "task_type", "use_procedure_turns")
+        exclude = ("name", "original", "included_fields", "calculator", "task_type", "use_procedure_turns", "free_text")
 
     def __init__(self, *args, **kwargs):
         instance = kwargs.get('instance', None)
