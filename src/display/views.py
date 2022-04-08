@@ -1523,7 +1523,8 @@ def get_contestant_schedule(request, pk):
                     {"v": contestant.team.aeroplane.registration},
                     {"v": f"{contestant}{' (Adaptive)' if contestant.adaptive_start else ''}"},
                     {"v": contestant.takeoff_time if not contestant.adaptive_start else contestant.tracker_start_time},
-                    {"v": contestant.landing_time_after_final_gate if not contestant.adaptive_start else contestant.finished_by_time},
+                    {
+                        "v": contestant.landing_time_after_final_gate if not contestant.adaptive_start else contestant.finished_by_time},
                 ]
             }
         )
@@ -3104,7 +3105,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 navigation_task=navigation_task,
                 tracker_start_time=tracker_start_time,
                 adaptive_start=adaptive_start,
-                finished_by_time=takeoff_time + datetime.timedelta(days=1),
+                finished_by_time=tracker_start_time + datetime.timedelta(days=1) - datetime.timedelta(minutes=1),
                 minutes_to_starting_point=navigation_task.minutes_to_starting_point,
                 air_speed=contest_team.air_speed,
                 contestant_number=contestant_number,
@@ -3571,7 +3572,6 @@ class ContestCreationEmailExample(SuperuserRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         person = get_object_or_404(Person, email=request.user.email)
         return HttpResponse(render_contest_creation_email(person))
-
 
 
 ########## Results service ##########

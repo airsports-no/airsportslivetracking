@@ -1521,9 +1521,14 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": task.pk})}">{task}</a>')
             start_time = min(item[1] for item in intervals)
             finish_time = max(item[2] for item in intervals)
-            raise ValidationError(mark_safe(
-                f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
-            ))
+            if self.navigation_task:
+                raise ValidationError(mark_safe(
+                    f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+                ))
+            else:
+                raise ValidationError(mark_safe(
+                    f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)}"
+                ))
 
         if self.team.crew.member2 is not None:
             overlapping2 = Contestant.objects.filter(
