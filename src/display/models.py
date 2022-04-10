@@ -936,8 +936,8 @@ class FlightOrderConfiguration(models.Model):
                                         help_text="Overrides whatever is chosen in map source")
     map_include_annotations = models.BooleanField(default=True)
     map_include_waypoints = models.BooleanField(default=True)
-    map_line_width = models.FloatField(default=0.5, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
-    map_minute_mark_line_width = models.FloatField(default=0.5,
+    map_line_width = models.FloatField(default=1, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
+    map_minute_mark_line_width = models.FloatField(default=1,
                                                    validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
     map_line_colour = models.CharField(default="#0000ff", max_length=7)
 
