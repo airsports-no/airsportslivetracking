@@ -1755,12 +1755,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             if contestant is None:
                 contestant, is_simulator = cls._try_to_get_copilot_tracking(device, stamp)
         if contestant:
-            currently_tracked = contestant.is_currently_tracked_by_device(device)
             # Only allow contestants with validated team members compete
-            if currently_tracked:
-                if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
-                    if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
-                        return contestant, is_simulator
+            if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
+                if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
+                    return contestant, is_simulator
         return None, is_simulator
 
     @classmethod
@@ -1827,6 +1825,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             key = f"latest_tracking_device_{self.pk}"
             previously_used_device_id = cache.get(key)
             if previously_used_device_id == device_id or previously_used_device_id is None:
+                if previously_used_device_id is None:
+                    logger.debug(f"{self}: Setting tracking device to {device_id}")
                 cache.set(key, device_id, TRACKING_DEVICE_TIMEOUT)
                 return True
             return False

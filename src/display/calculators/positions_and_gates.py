@@ -42,6 +42,7 @@ class Gate:
         self.gate_line_infinite = gate.gate_line_infinite
         self.gate_line_extended = gate_line_extended
 
+        self.gate_heading = gate.gate_heading
         self.type = gate.type
         self.latitude = gate.latitude
         self.longitude = gate.longitude
@@ -74,19 +75,10 @@ class Gate:
     def has_infinite_been_passed(self):
         return self.infinite_passing_time is not None
 
-    def is_passed_in_correct_direction_bearing_from_previous(self, track_bearing) -> bool:
-        return abs(bearing_difference(track_bearing, self.bearing_from_previous)) < 90
-
     def is_passed_in_correct_direction_bearing_to_next(self, track_bearing) -> bool:
-        return abs(bearing_difference(track_bearing, self.bearing)) < 90
+        return abs(bearing_difference(track_bearing, self.gate_heading)) < 90
 
-    def is_passed_in_correct_direction_track_from_previous(self, track) -> bool:
-        if len(track) > 1:
-            return self.is_passed_in_correct_direction_bearing_from_previous(
-                calculate_bearing((track[-2].latitude, track[-2].longitude), (track[-1].latitude, track[-1].longitude)))
-        return False
-
-    def is_passed_in_correct_direction_track_to_next(self, track) -> bool:
+    def is_passed_in_correct_direction_track(self, track) -> bool:
         if len(track) > 1:
             return self.is_passed_in_correct_direction_bearing_to_next(
                 calculate_bearing((track[-2].latitude, track[-2].longitude), (track[-1].latitude, track[-1].longitude)))

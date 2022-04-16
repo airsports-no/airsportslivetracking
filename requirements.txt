@@ -76,3 +76,4 @@ wagtail
 pymbtiles
 coverage
 pep8
+pykalman

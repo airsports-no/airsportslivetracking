@@ -124,7 +124,7 @@ class GatekeeperRoute(Gatekeeper):
             # A 2.2.14
             intersection_time = self.starting_line.get_gate_extended_intersection_time(self.projector, self.track)
             if intersection_time:
-                if not self.starting_line.is_passed_in_correct_direction_track_to_next(self.track):
+                if not self.starting_line.is_passed_in_correct_direction_track(self.track):
                     # Add penalty for crossing in the wrong direction
                     score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
                     # Add a grace time to prevent multiple backwards penalties for a single crossing
@@ -141,7 +141,7 @@ class GatekeeperRoute(Gatekeeper):
             # A 2.2.14
             intersection_time = self.starting_line.get_gate_infinite_intersection_time(self.projector, self.track)
             if intersection_time:
-                if self.starting_line.is_passed_in_correct_direction_track_to_next(self.track):
+                if self.starting_line.is_passed_in_correct_direction_track(self.track):
                     # Start the clock
                     if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
                         self.takeoff_gate.missed = True
@@ -200,7 +200,7 @@ class GatekeeperRoute(Gatekeeper):
             if extended_next_gate.type not in (
                     "sp", "ildg", "ito", "ldg", "to") and not extended_next_gate.maybe_missed_time:
                 intersection_time = extended_next_gate.get_gate_infinite_intersection_time(self.projector, self.track)
-                if intersection_time and extended_next_gate.is_passed_in_correct_direction_track_from_previous(
+                if intersection_time and extended_next_gate.is_passed_in_correct_direction_track(
                         self.track):
                     logger.info("{} {}: Crossed infinite gate {} (but maybe missed the gate)".format(self.contestant,
                                                                                                      intersection_time,

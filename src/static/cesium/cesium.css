@@ -361,10 +361,6 @@ tr.hidden {
         transform: scale(0.7);
     }
 
-    .gate-score-arrow {
-        transform: scale(0.8);
-    }
-
 }
 
 @media (min-width: 900px) and (max-width: 1024px) {
@@ -382,10 +378,6 @@ tr.hidden {
 
     .scalable {
         transform: scale(0.6);
-    }
-
-    .gate-score-arrow {
-        transform: scale(0.7);
     }
 
 }
@@ -409,10 +401,6 @@ tr.hidden {
         transform: scale(0.5);
     }
 
-    .gate-score-arrow {
-        transform: scale(0.6);
-    }
-
 
 }
 
@@ -434,10 +422,6 @@ tr.hidden {
         transform: scale(0.45);
     }
 
-    .gate-score-arrow {
-        transform: scale(0.5);
-    }
-
 }
 
 /* Landscape phones and down */
@@ -456,10 +440,6 @@ tr.hidden {
 
     .scalable {
         transform: scale(0.4);
-    }
-
-    .gate-score-arrow {
-        transform: scale(0.45);
     }
 
 }

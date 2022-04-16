@@ -100,7 +100,7 @@ class Waypoint:
     def get_centre_track_segments(self) -> List[Tuple[float, float]]:
         """
         Generate track segments for each waypoint where the track goes through the centre of the corridor (if it exists)
-    
+
         :param waypoint1:
         :param waypoint2:
         :return: Each waypoint is represented in a returned list of track segments
@@ -140,6 +140,15 @@ class Waypoint:
     @property
     def is_left_turn(self) -> bool:
         return bearing_difference(self.bearing_from_previous, self.bearing_next) < 0
+
+    @property
+    def gate_heading(self) -> float:
+        """
+        The direction the gate is facing
+        """
+        gate_line_bearing = calculate_bearing(self.get_gate_position_right_of_track(),
+                                              self.get_gate_position_left_of_track())
+        return (gate_line_bearing + 90) % 360
 
     @property
     def outer_corner_position(self) -> Tuple[Tuple[float, float], int]:

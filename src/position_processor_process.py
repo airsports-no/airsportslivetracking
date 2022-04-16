@@ -1,7 +1,7 @@
 from multiprocessing import Queue, Process
 
 import os
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 import logging
 
@@ -39,7 +39,7 @@ CONTESTANT_TYPE = 0
 PERSON_TYPE = 1
 
 
-def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> Tuple[Contestant, bool]:
+def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> Tuple[Optional[Contestant], bool]:
     try:
         contestant, is_simulator, valid_to = contestant_cache[device_name]
         if valid_to < device_time:
@@ -57,7 +57,9 @@ def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> 
                 else datetime.timedelta(seconds=CACHE_TTL),
             ),
         )
-    return contestant, is_simulator
+    if contestant.is_currently_tracked_by_device(device_name):
+        return contestant, is_simulator
+    return None, is_simulator
 
 
 def clean_db_positions():

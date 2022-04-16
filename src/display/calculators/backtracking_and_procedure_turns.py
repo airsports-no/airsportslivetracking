@@ -283,14 +283,14 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             backtracking = False
             if bearing_difference > self.backtracking_limit:
                 backtracking = True
-                logger.info("{}: Backtracking according to last gate {}".format(self.contestant, last_gate))
+                logger.debug("{}: Backtracking according to last gate {}".format(self.contestant, last_gate))
                 if in_range_of_gate is not None and in_range_of_gate != last_gate:
                     outgoing_bearing_difference = abs(get_heading_difference(bearing, in_range_of_gate.bearing))
                     if outgoing_bearing_difference <= self.scorecard.backtracking_bearing_difference and self.tracking_state != self.BACKTRACKING:
                         # We are not backtracking according to the outgoing gate, so ignore it
                         backtracking = False
-                        logger.info("{}: Not backtracking according to gate in range {}".format(self.contestant,
-                                                                                                in_range_of_gate))
+                        logger.debug("{}: Not backtracking according to gate in range {}".format(self.contestant,
+                                                                                                 in_range_of_gate))
 
             if backtracking:
                 if self.tracking_state == self.TRACKING:
