@@ -14,7 +14,7 @@ from pykalman import KalmanFilter
 
 from traccar_gpx.get_gpx import get_data
 
-TIME_STEP = datetime.timedelta(seconds=0.01)
+TIME_STEP = datetime.timedelta(seconds=0.1)
 
 
 class Position:
@@ -126,6 +126,33 @@ def smooth_with_covariance(combined_positions):
     )
 
     kalman_smoothed, state_cov = kf.smooth(measurement)
+    return kalman_smoothed[:, 0:2]
+
+
+def smooth_ikalman(combined_positions):
+    noise = 1
+    pos = 0.000001
+    observation_model = np.array([[1, 0, 0, 0], [0, 1, 0, 0]])
+    observation_noise = np.array(
+        ([[pos, 0, 0, 0], [0, pos, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+    )
+    observation_noise_covariance = np.array([[pos * noise, 0], [0, pos * noise]])
+
+    estimate_covariance = np.eye(4) * 1000 ** 4
+    measurements = build_masked(combined_positions)
+    initial_state = np.array([measurements[0, 0], measurements[0, 1], 0, 0])
+
+    kf = KalmanFilter(
+        initial_state_mean=initial_state,
+        observation_matrices=observation_model,
+
+        observation_covariance=observation_noise_covariance,
+        # transition_offsets=B,
+        transition_covariance=estimate_covariance,
+        transition_matrices=observation_noise,
+    )
+
+    kalman_smoothed, state_cov = kf.smooth(measurements)
     return kalman_smoothed[:, 0:2]
 
 
@@ -250,7 +277,8 @@ combined = sorted(
 )
 # smoothed = smooth(combined, tracks["Ottar"])
 # smoothed = smooth_simple(combined)
-smoothed = smooth_with_covariance(combined)
+# smoothed = smooth_with_covariance(combined)
+smoothed = smooth_ikalman(combined)
 plt.figure(figsize=(3, 3))
 imagery = OSM()
 ax = plt.axes(projection=imagery.crs)

@@ -26,7 +26,7 @@ class GatekeeperRoute(Gatekeeper):
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
     def __init__(self, contestant: "Contestant", calculators: List[Callable],
-                 live_processing: bool = True, queue_name_override: str=None):
+                 live_processing: bool = True, queue_name_override: str = None):
         super().__init__(contestant, calculators, live_processing, queue_name_override=queue_name_override)
         self.last_backwards = None
         self.recalculation_completed = not self.contestant.adaptive_start
@@ -244,8 +244,6 @@ class GatekeeperRoute(Gatekeeper):
         gate, estimated_crossing_time = self.estimate_crossing_time_of_next_timed_gate()
         if estimated_crossing_time is None:
             return
-        if abs((estimated_crossing_time - self.track[-1].time)).total_seconds() < 20:
-            estimated_crossing_time = self.estimate_crossing_time(gate, average_duration_seconds=6)
         planned_time_to_crossing = (self.track[-1].time - gate.expected_time).total_seconds()
         score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
                                                                    gate.expected_time, estimated_crossing_time)
@@ -331,9 +329,9 @@ class GatekeeperRoute(Gatekeeper):
                     break
                 index -= 1
             average_speed = speed / count  # kt
-            distance = cross_track_distance(gate.gate_line[0][0], gate.gate_line[0][1], gate.gate_line[1][0],
-                                            gate.gate_line[1][1], self.track[-1].latitude,
-                                            self.track[-1].longitude) / 1852  # NM
+            distance = abs(cross_track_distance(gate.gate_line[0][0], gate.gate_line[0][1], gate.gate_line[1][0],
+                                                gate.gate_line[1][1], self.track[-1].latitude,
+                                                self.track[-1].longitude) / 1852)  # NM
             # distance = calculate_distance_lat_lon((self.track[-1].latitude, self.track[-1].longitude),
             #                                       (gate.latitude, gate.longitude)) / 1852  # NM
             if average_speed > 0:

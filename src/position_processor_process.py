@@ -57,7 +57,7 @@ def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> 
                 else datetime.timedelta(seconds=CACHE_TTL),
             ),
         )
-    if contestant.is_currently_tracked_by_device(device_name):
+    if contestant and contestant.is_currently_tracked_by_device(device_name):
         return contestant, is_simulator
     return None, is_simulator
 
