@@ -98,7 +98,7 @@ class ConnectedMyParticipatingEventsList extends Component {
                     <div>
                         {/*<a href={task.future_contestants[0].default_map_url}>Map (slow)</a>*/}
                         <div>Starting point
-                            time: {formatDate(startingPointTime) + " " + formatTime(startingPointTime)}</div>
+                            time: {formatDate(startingPointTime) + " " + formatTime(startingPointTime)} {task.future_contestants.length > 0 && task.future_contestants[0].adaptive_start?"(adaptive)":null}</div>
 
                     </div> : null}</td>
                 <td>

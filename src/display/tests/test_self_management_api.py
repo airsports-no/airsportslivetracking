@@ -63,7 +63,7 @@ class TestContestantGatesCalculation(APITestCase):
         data = {
             "starting_point_time": "2021-05-13T09:00:00Z",
             "contest_team": self.contest_team.pk,
-            "adaptive_start": False,
+            "adaptive_start": True,
             "wind_speed": 5,
             "wind_direction": 170
         }
@@ -77,7 +77,8 @@ class TestContestantGatesCalculation(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
         self.assertEqual(1, Contestant.objects.all().count())
         contestant = Contestant.objects.first()
-        self.assertEqual(datetime.datetime(2021, 5, 13, 8, 55, tzinfo=datetime.timezone.utc), contestant.takeoff_time)
+        self.assertTrue(contestant.adaptive_start)
+        self.assertEqual(datetime.datetime(2021, 5, 13, 8, 0, tzinfo=datetime.timezone.utc), contestant.takeoff_time)
         self.assertEqual(datetime.datetime(2021, 5, 13, 10, 19, 52, 296336, tzinfo=datetime.timezone.utc),
                          contestant.finished_by_time)
 
