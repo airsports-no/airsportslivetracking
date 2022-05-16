@@ -55,7 +55,8 @@ from display.calculator_termination_utilities import request_termination
 from display.calculators.positions_and_gates import Position
 from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
-from display.map_constants import SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, MAP_SIZES, ORIENTATIONS, LANDSCAPE, A4
+from display.map_constants import SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, MAP_SIZES, ORIENTATIONS, LANDSCAPE, A4, \
+    PORTRAIT
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.mbtiles_stitch import MBTilesHelper
 from display.my_pickled_object_field import MyPickledObjectField
@@ -929,7 +930,7 @@ class FlightOrderConfiguration(models.Model):
     include_turning_points = models.BooleanField(default=True)
     map_dpi = models.IntegerField(default=300, validators=[MinValueValidator(100), MaxValueValidator(500)])
     map_zoom_level = models.IntegerField(default=12)
-    map_orientation = models.CharField(choices=ORIENTATIONS, default=LANDSCAPE, max_length=30)
+    map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
     map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
     map_source = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=50, blank=True)
     map_user_source = models.ForeignKey("UserUploadedMap", on_delete=models.SET_NULL, blank=True, null=True,
@@ -1521,7 +1522,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": task.pk})}">{task}</a>')
             start_time = min(item[1] for item in intervals)
             finish_time = max(item[2] for item in intervals)
-            if self.navigation_task:
+            if hasattr(self, "navigation_task") and self.navigation_task:
                 raise ValidationError(mark_safe(
                     f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
                 ))

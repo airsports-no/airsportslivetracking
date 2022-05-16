@@ -72,6 +72,8 @@ MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 
 REMOVE_BG_KEY = os.environ.get("REMOVE_BG_KEY", "")
 
+SLACK_DEVELOPMENT_WEBHOOK = os.environ.get("SLACK_DEVELOPMENT_WEBHOOK", "")
+
 REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
 # Application definition
 

@@ -45,7 +45,7 @@ import {
     FETCH_INITIAL_TRACKS,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL, GET_NAVIGATION_TASK_FAILED
+    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL, GET_NAVIGATION_TASK_FAILED, FETCH_INITIAL_TRACKS_FAILED
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -127,7 +127,12 @@ export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) =
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_NAVIGATION_TASK_SUCCESSFUL, payload: value}),
-        error: error => dispatch({type: GET_NAVIGATION_TASK_FAILED, payload: error, contestId: contestId, navigationTaskId: navigationTaskId}),
+        error: error => dispatch({
+            type: GET_NAVIGATION_TASK_FAILED,
+            payload: error,
+            contestId: contestId,
+            navigationTaskId: navigationTaskId
+        }),
     });
 }
 
@@ -258,6 +263,6 @@ export const fetchInitialTracks = (contestId, navigationTaskId, contestantId) =>
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: FETCH_INITIAL_TRACKS_SUCCESS, payload: value, contestantId: contestantId}),
-        error: error => console.log(error)
+        error: error => dispatch({type: FETCH_INITIAL_TRACKS_FAILED, payload: error, contestantId: contestantId})
     });
 }

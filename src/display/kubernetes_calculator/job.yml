@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: calculator-job
+  namespace: airsports
 spec:
   ttlSecondsAfterFinished: 259200  # Three days
   template:
@@ -13,12 +14,10 @@ spec:
       backoffLimit: 4
       containers:
       - image: airsportsacr.azurecr.io/tracker_processor:latest
-        requests:
-          cpu: 200m
-          memory: 200Mi
-        limits:
-          cpu: 400m
-          memory: 1Gi
+        resources:
+          requests:
+            cpu: 400m
+            memory: 500Mi
         name: calculator-job
         envFrom:
           - configMapRef:

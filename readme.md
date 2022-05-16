@@ -47,3 +47,6 @@ set global max_allowed_packet=10000000000;
 
 mysql -u root -p --max_allowed_packet=2000M tracker < tracker.sql
 mysql -u root -p --max_allowed_packet=2000M traccar < traccar.sql
+
+## Delete all jobs
+kubectl delete jobs `kubectl get jobs -o custom-columns=:.metadata.name -n airsports` -n airsports

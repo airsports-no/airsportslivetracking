@@ -1,6 +1,7 @@
 import datetime
 import os
 import time
+from typing import Tuple
 from urllib.parse import urlencode
 
 import requests
@@ -18,13 +19,14 @@ from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route
     TraccarCredentials, Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE, TRACKING_PILOT
 
 import os
-TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
-server = f"{TRACCAR_HOST}:5055"
+
+# TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
+# server = f"{TRACCAR_HOST}:5055"
+server = "traccar.airsports.no"
 
 NUMBER_OF_CONTESTANTS = 50
 TIME_OFFSET = datetime.timedelta(seconds=20)
 tracks = {}
-
 
 configuration = TraccarCredentials.objects.get()
 
@@ -32,11 +34,12 @@ traccar = Traccar.create_from_configuration(configuration)
 
 traccar.get_device_map()
 
+
 def create_contestant(index, start_time, navigation_task):
     person, _ = Person.objects.get_or_create(first_name=f"test_person_{index}", last_name=f"test_person_{index}",
                                              email=f"test_{index}@email.com")
-    traccar.delete_device(traccar.unique_id_map.get(person.app_tracking_id))
-    traccar.create_device(person.first_name, person.app_tracking_id)
+    traccar.delete_device(traccar.unique_id_map.get(person.simulator_tracking_id))
+    traccar.create_device(person.first_name, person.simulator_tracking_id)
     aircraft = Aeroplane.objects.get(registration="LN-YDB")
     club, _ = Club.objects.get_or_create(name="Kjeller Sportsflyklubb")
     crew, _ = Crew.objects.get_or_create(member1=person)
@@ -59,9 +62,9 @@ def offset_times(track, offset):
 
 
 def load_data_traccar(tracks, offset=30, leadtime=0):
-    def send(id, time, lat, lon, speed):
-        params = (('id', id), ('timestamp', int(time)), ('lat', lat), ('lon', lon), ('speed', speed))
-        requests.post("http://" + server + '/?' + urlencode(params))
+    def send(id, timestamp, lat, lon, speed):
+        params = (('id', id), ('timestamp', int(timestamp)), ('lat', lat), ('lon', lon), ('speed', speed))
+        requests.post("https://" + server + '/?' + urlencode(params))
 
     remaining = True
     count = 0
@@ -78,12 +81,14 @@ def load_data_traccar(tracks, offset=30, leadtime=0):
         duration = finish - start
         if duration < 1:
             time.sleep(1 - duration)
-        if count%10==0:
+        if count % 10 == 0:
             print(f"Cycle duration: {finish - start:.02f}")
 
 
-navigation_task = NavigationTask.get(pk=314)
+navigation_task = NavigationTask.objects.get(pk=314)
 navigation_task.contestant_set.all().delete()
+for contestant in navigation_task.contestant_set.all():
+    contestant.request_calculator_termination()
 track = load_traccar_track("/data/tracks/espen_poker.csv")
 actual_start_time = datetime.datetime.now(datetime.timezone.utc)
 current_start_time = track[0][0]
@@ -93,7 +98,6 @@ start_difference = actual_start_time - current_start_time
 print(f"start_difference {start_difference}")
 
 current_offset = datetime.timedelta()
-print(f"current_offset {current_offset}")
 
 for number in range(NUMBER_OF_CONTESTANTS):
     contestant_track = offset_times(track, start_difference + current_offset)

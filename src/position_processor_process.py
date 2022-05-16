@@ -1,3 +1,4 @@
+import time
 from multiprocessing import Queue, Process
 
 import os
@@ -9,6 +10,7 @@ import multiprocessing
 
 import datetime
 import dateutil
+import threading
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 
@@ -38,6 +40,18 @@ calculator_lock = multiprocessing.Lock()
 CONTESTANT_TYPE = 0
 PERSON_TYPE = 1
 
+DEBUG_INTERVAL = 60
+global_received_positions = 0
+
+
+def print_debug():
+    global global_received_positions
+    logger.debug(
+        f"Received {global_received_positions} positions last {DEBUG_INTERVAL} seconds ({(global_received_positions / DEBUG_INTERVAL):.2f} p/s)"
+    )
+    global_received_positions = 0
+    threading.Timer(DEBUG_INTERVAL, print_debug).start()
+
 
 def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> Tuple[Optional[Contestant], bool]:
     try:
@@ -46,6 +60,9 @@ def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> 
             raise KeyError
     except KeyError:
         contestant, is_simulator = Contestant.get_contestant_for_device_at_time(device_name, device_time)
+        if contestant:
+            logger.info(f"Found contestant for incoming position {contestant}{' (simulator)' if is_simulator else ''}")
+
         contestant_cache[device_name] = (
             contestant,
             is_simulator,
@@ -70,8 +87,14 @@ def clean_db_positions():
 def initial_processor(queue: Queue, global_map_queue: Queue):
     configuration = TraccarCredentials.objects.get()
     connections.close_all()
-    traccar = Traccar.create_from_configuration(configuration)
-
+    while True:
+        try:
+            traccar = Traccar.create_from_configuration(configuration)
+            break
+        except:
+            logger.exception(f"Initial processor failed to connect to traccer")
+            time.sleep(5)
+    print_debug()
     while True:
         clean_db_positions()
         data = queue.get()
@@ -79,10 +102,12 @@ def initial_processor(queue: Queue, global_map_queue: Queue):
 
 
 def build_and_push_position_data(data, traccar, global_map_queue):
+    global global_received_positions
     # logger.info("Received data")
     received_positions = map_positions_to_contestants(traccar, data.get("positions", []), global_map_queue)
     for contestant, positions in received_positions.items():
         # logger.info("Positions for {}".format(contestant))
+        global_received_positions += len(positions)
         add_positions_to_calculator(contestant, positions)
         # logger.info("Positions to calculator for {}".format(contestant))
     cleanup_calculators()
@@ -121,7 +146,10 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
             except AlreadyExists:
                 logger.warning(
                     f"Tried to start existing calculator job for contestant {contestant}. Attempting to restart.")
-                creator.delete_calculator(contestant.pk)
+                try:
+                    creator.delete_calculator(contestant.pk)
+                except:
+                    logger.error(f"Failed the deleting calculator job for contestant {contestant}")
                 try:
                     response = creator.spawn_calculator_job(contestant.pk)
                     calculator_is_alive(contestant.pk, 30)

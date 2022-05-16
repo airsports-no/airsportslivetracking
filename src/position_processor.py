@@ -2,6 +2,8 @@ import datetime
 import json
 import logging
 import os
+import threading
+import time
 from multiprocessing import Process, Queue
 
 # import sentry_sdk
@@ -36,6 +38,8 @@ global_map_queue = Queue()
 processing_queue = Queue()
 RESET_INTERVAL = 300
 
+received_messages = 0
+
 
 def live_position_transmitter_process(queue):
     django.db.connections.close_all()
@@ -49,6 +53,7 @@ def live_position_transmitter_process(queue):
         except KeyError:
             person = Person.objects.get(app_tracking_id=person_or_contestant)
             person_cache[person_or_contestant] = person
+            logger.info(f"Found person for live position {person}")
         return person
 
     def fetch_contestant(person_or_contestant):
@@ -57,7 +62,7 @@ def live_position_transmitter_process(queue):
         except KeyError:
             contestant = (
                 Contestant.objects.filter(pk=person_or_contestant)
-                    .select_related(
+                .select_related(
                     "navigation_task",
                     "team",
                     "team__crew",
@@ -65,8 +70,9 @@ def live_position_transmitter_process(queue):
                     "team__crew__member2",
                     "team__aeroplane",
                 )
-                    .first()
+                .first()
             )
+            logger.info(f"Found contestant for live position {contestant}")
             contestant_cache[person_or_contestant] = contestant
         return contestant
 
@@ -81,6 +87,7 @@ def live_position_transmitter_process(queue):
         if (datetime.datetime.now() - last_reset).total_seconds() > RESET_INTERVAL:
             person_cache = {}
             contestant_cache = {}
+            last_reset=datetime.datetime.now()
 
         navigation_task_id = None
         global_tracking_name = None
@@ -101,7 +108,9 @@ def live_position_transmitter_process(queue):
                 )
                 connection.connect()
             except Exception:
-                logger.exception(f"Something failed when trying to update person {person_or_contestant}")
+                logger.exception(
+                    f"Something failed when trying to update person {person_or_contestant}"
+                )
 
         else:
             try:
@@ -118,7 +127,9 @@ def live_position_transmitter_process(queue):
                         if person.is_public:
                             person_data = PersonLtdSerialiser(person).data
                     except:
-                        logger.exception(f"Failed fetching person data for contestant {contestant}")
+                        logger.exception(
+                            f"Failed fetching person data for contestant {contestant}"
+                        )
                     if contestant.navigation_task.everything_public:
                         navigation_task_id = contestant.navigation_task_id
             except OperationalError:
@@ -128,9 +139,10 @@ def live_position_transmitter_process(queue):
                 connection.connect()
         now = datetime.datetime.now(datetime.timezone.utc)
         if (
-                global_tracking_name is not None
-                and not is_simulator
-                and now < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
+            global_tracking_name is not None
+            and not is_simulator
+            and now
+            < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
         ):
             websocket_facade.transmit_global_position_data(
                 global_tracking_name,
@@ -148,14 +160,16 @@ def live_position_transmitter_process(queue):
 
 
 def on_message(ws, message):
+    global received_messages
     data = json.loads(message)
+    received_messages += 1
     # for item in data.get("positions", []):
     #     logger.debug(f"Received position ID {item['id']} for device ID {item['deviceId']}")
     processing_queue.put(data)
 
 
 def on_error(ws, error):
-    print(error)
+    logger.error(f"Websocket error: {error}")
 
 
 def on_close(ws, *args, **kwargs):
@@ -163,7 +177,19 @@ def on_close(ws, *args, **kwargs):
 
 
 def on_open(ws):
-    pass
+    logger.info(f"Websocket connected")
+
+
+DEBUG_INTERVAL = 60
+
+
+def print_debug():
+    global received_messages
+    logger.debug(
+        f"Received {received_messages} messages last {DEBUG_INTERVAL} seconds ({(received_messages/DEBUG_INTERVAL):.2f} m/s)"
+    )
+    received_messages = 0
+    threading.Timer(DEBUG_INTERVAL, print_debug).start()
 
 
 headers = {
@@ -197,9 +223,16 @@ if __name__ == "__main__":
     #     traces_sample_rate=1.0,
     # )
     cache.clear()
+
     configuration = TraccarCredentials.objects.get()
-    traccar = Traccar.create_from_configuration(configuration)
+    print_debug()
     while True:
+        try:
+            traccar = Traccar.create_from_configuration(configuration)
+        except Exception:
+            logger.exception("Connection error connecting to traccar")
+            time.sleep(5)
+            continue
         websocket.enableTrace(False)
         cookies = traccar.session.cookies.get_dict()
         ws = websocket.WebSocketApp(
@@ -212,3 +245,4 @@ if __name__ == "__main__":
         )
         ws.run_forever(ping_interval=55)
         logger.warning("Websocket terminated, restarting")
+        time.sleep(5)

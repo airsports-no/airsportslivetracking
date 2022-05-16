@@ -36,7 +36,18 @@ def get_default_scorecard():
                     "backtracking_penalty",
                     "backtracking_grace_time_seconds",
                     "backtracking_maximum_penalty",
-                ]
+                ],
+                [
+                    "Prohibited zone",
+                    "prohibited_zone_grace_time",
+                    "prohibited_zone_penalty",
+                ],
+                [
+                    "Penalty zone",
+                    "penalty_zone_grace_time",
+                    "penalty_zone_penalty_per_second",
+                    "penalty_zone_maximum",
+                ],
             ],
         },
     )

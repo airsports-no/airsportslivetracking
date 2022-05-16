@@ -15,6 +15,7 @@ from django.core.mail import send_mail
 from display.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
 from display.calculator_termination_utilities import is_termination_requested, cancel_termination_request
 from redis_queue import RedisQueue, RedisEmpty
+from slack_facade import post_slack_message
 from timed_queue import TimedQueue, TimedOut
 from websocket_channels import WebsocketFacade
 
@@ -92,13 +93,8 @@ class Gatekeeper(ABC):
         self.calculators = []
         self.websocket_facade = WebsocketFacade()
         self.timed_queue = TimedQueue()
-        try:
-            send_mail(f"Calculator started for {self.contestant}",
-                      f"<a href='{self.contestant.navigation_task.tracking_link}'>{self.contestant.navigation_task}</a>",
-                      None, ["frankose@ifi.uio.no", "espengronstad@gmail.com"],
-                      html_message=f"<a href='https://airsports.no{self.contestant.navigation_task.tracking_link}'>{self.contestant.navigation_task}</a>")
-        except:
-            logger.exception("Failed sending emails")
+        post_slack_message(
+            f"Calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>")
         logger.debug(f"{self.contestant}: Starting calculators")
         for calculator in calculators:
             self.calculators.append(
@@ -197,7 +193,7 @@ class Gatekeeper(ABC):
         logger.info("Started gatekeeper for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
                                                                         self.contestant.finished_by_time))
 
-        threading.Thread(target=self.enqueue_positions).start()
+        threading.Thread(target=self.enqueue_positions, daemon=True).start()
         receiving = False
         number_of_positions = 0
         while not self.track_terminated:
