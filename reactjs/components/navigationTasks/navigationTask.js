@@ -80,6 +80,7 @@ class ConnectedNavigationTask extends Component {
         this.waitingInitialLoading = []
         this.completedLoadingInitialTracks = false
         this.remainingTracks = 999999
+        this.renderedTracks = []
     }
 
 
@@ -149,7 +150,7 @@ class ConnectedNavigationTask extends Component {
                 }
             }
         }
-        this.playbackSecond += Math.max(1,this.tracklist.length / 3)
+        this.playbackSecond += Math.max(1, this.tracklist.length / 3)
         setTimeout(() => this.playBackData(), 300)
     }
 
@@ -215,7 +216,7 @@ class ConnectedNavigationTask extends Component {
         if (this.props.displayMap) {
             this.initialiseMap();
         }
-        if(this.props.playback){
+        if (this.props.playback) {
             require('./playbackstyle.css')
         }
     }
@@ -245,9 +246,14 @@ class ConnectedNavigationTask extends Component {
             }
         }
         if (this.props.playback) {
-            if (this.props.initialTracks !== previousProps.initialTracks) {
-                this.storePlaybackData(this.props.initialTracks)
-                this.remainingTracks--
+            if (this.props.initialTracks.length !== previousProps.initialTracks.length) {
+                Object.keys(this.props.initialTracks).forEach((key, index) => {
+                    if (!this.renderedTracks.includes(key)) {
+                        this.renderedTracks.push(key)
+                        this.storePlaybackData(this.props.initialTracks[key])
+                        this.remainingTracks--
+                    }
+                })
             }
             if (this.remainingTracks === 0) {
                 this.completedLoadingInitialTracks = true
@@ -256,8 +262,15 @@ class ConnectedNavigationTask extends Component {
             }
         } else {
             if (this.props.initialTracks !== previousProps.initialTracks) {
-                this.props.dispatchContestantData(this.props.initialTracks)
-                this.remainingTracks--
+                for(const [key, value] of Object.entries(this.props.initialTracks)){
+                // Object.keys(this.props.initialTracks).forEach((key, index) => {
+                    if (!this.renderedTracks.includes(key)) {
+                        this.renderedTracks.push(key)
+                        console.log(value)
+                        this.props.dispatchContestantData(value)
+                        this.remainingTracks--
+                    }
+                }
             }
             if (this.remainingTracks === 0) {
                 for (let data of this.waitingInitialLoading) {

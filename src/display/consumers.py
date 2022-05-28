@@ -68,7 +68,8 @@ class TrackingConsumer(WebsocketConsumer):
         timer.start()
 
     def receive(self, text_data, **kwargs):
-        message = json.loads(text_data)
+        pass
+        # message = json.loads(text_data)
 
     def tracking_data(self, event):
         data = event["data"]

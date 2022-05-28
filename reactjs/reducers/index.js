@@ -39,7 +39,7 @@ import {
     FETCH_EDITABLE_ROUTE,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL, GET_NAVIGATION_TASK_FAILED
+    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL, GET_NAVIGATION_TASK_FAILED, FETCH_INITIAL_TRACKS_FAILED
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -98,7 +98,7 @@ const initialState = {
     displayProfilePictures: true,
     editableRoutes: {},
     fetchingEditableRoute: false,
-    initialTracks: null
+    initialTracks: {}
 };
 
 function rootReducer(state = initialState, action) {
@@ -165,8 +165,18 @@ function rootReducer(state = initialState, action) {
     if (action.type === FETCH_INITIAL_TRACKS_SUCCESS) {
         return Object.assign({}, state, {
             ...state,
-            initialTracks: action.payload
+            initialTracks: {
+                ...state.initialTracks,
+                [action.contestantId]: action.payload
+            }
         })
+    }
+    if (action.type === FETCH_INITIAL_TRACKS_FAILED) {
+        return state
+        // return Object.assign({}, state, {
+        //     ...state,
+        //     failedInitialTracks
+        // })
     }
     if (action.type === INITIAL_LOADING_COMPLETE) {
         return Object.assign({}, state, {

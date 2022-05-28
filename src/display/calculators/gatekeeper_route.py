@@ -298,6 +298,8 @@ class GatekeeperRoute(Gatekeeper):
                 return None, None
             if abs((estimated_crossing_time - self.track[-1].time)).total_seconds() < 20:
                 estimated_crossing_time = self.estimate_crossing_time(gate, average_duration_seconds=6)
+            if estimated_crossing_time is None:
+                return None, None
             if gate.time_check:
                 return gate, estimated_crossing_time
             previous_planned_time = gate.expected_time
