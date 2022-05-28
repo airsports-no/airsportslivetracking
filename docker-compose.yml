@@ -116,6 +116,7 @@ services:
       - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
       - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
       - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+      - MODE=dev
     build:
       context: .
       dockerfile: Dockerfile

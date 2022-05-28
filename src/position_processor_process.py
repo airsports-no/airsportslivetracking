@@ -16,6 +16,7 @@ from django.core.mail import send_mail
 
 from display.calculator_running_utilities import is_calculator_running, calculator_is_alive
 from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
+from live_tracking_map import settings
 from redis_queue import RedisQueue
 
 if __name__ == "__main__":
@@ -136,37 +137,42 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
     with calculator_lock:
         if key not in processes or not is_calculator_running(key):
             q = RedisQueue(str(contestant.pk))
-            # Create kubernetes job for the calculator
-            creator = JobCreator()
-            processes[key] = (q, None)
-            try:
-                response = creator.spawn_calculator_job(contestant.pk)
-                calculator_is_alive(contestant.pk, 30)
-                logger.info(f"Successfully created calculator job for {contestant}")
-            except AlreadyExists:
-                logger.warning(
-                    f"Tried to start existing calculator job for contestant {contestant}. Attempting to restart.")
-                try:
-                    creator.delete_calculator(contestant.pk)
-                except:
-                    logger.error(f"Failed the deleting calculator job for contestant {contestant}")
+            if settings.PRODUCTION:
+                # Create kubernetes job for the calculator
+                creator = JobCreator()
+                processes[key] = (q, None)
                 try:
                     response = creator.spawn_calculator_job(contestant.pk)
                     calculator_is_alive(contestant.pk, 30)
                     logger.info(f"Successfully created calculator job for {contestant}")
                 except AlreadyExists:
                     logger.warning(
-                        f"Tried to start existing calculator job for contestant {contestant}. Ignoring.")
-            except:
-                logger.exception(f"Failed starting kubernetes calculator job for {contestant}")
-                try:
-                    send_mail("Failed starting kubernetes calculator job",
-                              f"Failed starting job for contestant {contestant}. Falling back to internal calculator.",
-                              None, ["frankose@ifi.uio.no"])
+                        f"Tried to start existing calculator job for contestant {contestant}. Attempting to restart.")
+                    try:
+                        creator.delete_calculator(contestant.pk)
+                    except:
+                        logger.error(f"Failed the deleting calculator job for contestant {contestant}")
+                    try:
+                        response = creator.spawn_calculator_job(contestant.pk)
+                        calculator_is_alive(contestant.pk, 30)
+                        logger.info(f"Successfully created calculator job for {contestant}")
+                    except AlreadyExists:
+                        logger.warning(
+                            f"Tried to start existing calculator job for contestant {contestant}. Ignoring.")
                 except:
-                    logger.exception("Failed sending error email")
-                # Create an internal process for the calculator
-                connections.close_all()
+                    logger.exception(f"Failed starting kubernetes calculator job for {contestant}")
+                    try:
+                        send_mail("Failed starting kubernetes calculator job",
+                                  f"Failed starting job for contestant {contestant}. Falling back to internal calculator.",
+                                  None, ["frankose@ifi.uio.no"])
+                    except:
+                        logger.exception("Failed sending error email")
+                    # Create an internal process for the calculator
+                    connections.close_all()
+                    p = Process(target=calculator_process, args=(contestant.pk,), daemon=True)
+                    p.start()
+                    processes[key] = (q, p)
+            else:
                 p = Process(target=calculator_process, args=(contestant.pk,), daemon=True)
                 p.start()
                 processes[key] = (q, p)
