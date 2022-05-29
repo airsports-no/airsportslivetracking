@@ -15,6 +15,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 
 from display.calculator_running_utilities import is_calculator_running, calculator_is_alive
+from display.calculator_termination_utilities import is_termination_requested
 from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
 from live_tracking_map import settings
 from redis_queue import RedisQueue
@@ -124,7 +125,7 @@ def calculator_process(contestant_pk: int):
     except ObjectDoesNotExist:
         logger.warning(f"Attempting to start new calculator for non-existent contestant {contestant_pk}")
         return
-    if not contestant.contestanttrack.calculator_finished:
+    if not contestant.contestanttrack.calculator_finished and not is_termination_requested(contestant_pk):
         calculator = calculator_factory(contestant, live_processing=True)
         calculator.run()
     else:
@@ -174,8 +175,9 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
                     processes[key] = (q, p)
             else:
                 p = Process(target=calculator_process, args=(contestant.pk,), daemon=True)
-                p.start()
+                calculator_is_alive(contestant.pk, 30)
                 processes[key] = (q, p)
+                p.start()
     redis_queue = processes[key][0]
     for position in positions:
         # logger.debug(f"Adding position ID {position['id']} for device ID {position['deviceId']} to calculator")

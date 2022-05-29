@@ -61,9 +61,7 @@ export default class GenericRenderer extends Component {
         }
         this.markers = []
 
-        const currentContestant = this.props.navigationTask.contestant_set.find((contestant) => {
-            return contestant.id === this.props.currentHighlightedContestant
-        })
+        const currentContestant = this.props.contestants[this.props.currentHighlightedContestant]
         this.filterWaypoints().map((waypoint) => {
             let waypointText = waypoint.name
             let time

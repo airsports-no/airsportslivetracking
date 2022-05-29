@@ -237,13 +237,17 @@ class ConnectedContestantRankTable extends Component {
         }
     }
 
+    getColour(contestantNumber) {
+        return this.props.colours[contestantNumber % this.props.colours.length]
+    }
+
 
     numberStyle(cell, row, rowIndex, colIndex) {
-        return {backgroundColor: this.props.colourMap[row.contestantNumber]}
+        return {backgroundColor: this.getColour(row.contestantNumber)}
     }
 
     rowStyle(row, rowIndex) {
-        return {backgroundColor: this.props.colourMap[row.contestantNumber]}
+        return {backgroundColor: this.getColour(row.contestantNumber)}
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {

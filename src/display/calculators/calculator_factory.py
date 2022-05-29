@@ -17,7 +17,6 @@ from display.models import Contestant, Scorecard
 
 def calculator_factory(contestant: "Contestant", live_processing: bool = True,
                        queue_name_override: str = None) -> "Gatekeeper":
-    cancel_termination_request(contestant.pk)
     if contestant.navigation_task.scorecard.calculator == Scorecard.PRECISION:
         return GatekeeperRoute(contestant,
                                [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator,

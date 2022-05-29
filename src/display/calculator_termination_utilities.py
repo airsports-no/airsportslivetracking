@@ -4,7 +4,7 @@ KEY_BASE = "CALCULATOR_TERMINATION_REQUESTED"
 
 
 def request_termination(contestant_pk: int):
-    cache.set(f"{KEY_BASE}_{contestant_pk}", True, timeout=60)
+    cache.set(f"{KEY_BASE}_{contestant_pk}", True)
 
 
 def cancel_termination_request(contestant_pk: int):

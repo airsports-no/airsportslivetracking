@@ -266,11 +266,11 @@ class Gatekeeper(ABC):
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
             self.check_termination()
-        calculator_is_terminated(self.contestant.pk)
         self.contestant.contestanttrack.set_calculator_finished()
         while not self.position_queue.empty():
             self.position_queue.pop()
         logger.info("Terminating calculator for {}".format(self.contestant))
+        calculator_is_terminated(self.contestant.pk)
 
     def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,
                      annotation_type: str, score_type: str, maximum_score: Optional[float] = None,
@@ -409,7 +409,6 @@ class Gatekeeper(ABC):
         termination_requested = is_termination_requested(self.contestant.pk)
         if termination_requested:
             logger.info(f"{self.contestant}: Termination request received")
-            cancel_termination_request(self.contestant.pk)
         return termination_requested is True
         # return False
 

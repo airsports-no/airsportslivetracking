@@ -1,9 +1,15 @@
 import React, {Component} from "react";
-
+import blackArrow from './gate_score_arrow_black.gif'; // with import
+import redArrow from './gate_score_arrow_red.gif'; // with import
 const ARROW_HEIGHT = 92, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 10, NUMBER_PADDING = 5, PADDING = 36,
     ARROW_ICON_WIDTH = 70, BELOW_LINE_TEXT_POSITION = 75, BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
     ANIMATION_TIME = 1000, ARROW_TOP_OFFSET = 0, TOP_OFFSET = 42
 const ARROW_ICON_HEIGHT = ARROW_ICON_WIDTH * 1.3
+
+const blackImage = new Image()
+blackImage.src = '/static/img/gate_score_arrow_black.gif';
+const redImage = new Image()
+redImage.src = '/static/img/gate_score_arrow_red.gif';
 
 export default class GateScoreArrowRenderer extends Component {
     constructor(props) {
@@ -65,30 +71,27 @@ export default class GateScoreArrowRenderer extends Component {
         //     return
         // }
         const start = x - ARROW_ICON_WIDTH / 2
-        const imageObj = new Image();
-        imageObj.src = '/static/img/gate_score_arrow_black.gif';
+        let imageObj = blackImage
         if (this.props.final) {
-            imageObj.src = '/static/img/gate_score_arrow_red.gif';
+            imageObj = redImage
         }
-        imageObj.addEventListener('load', () => {
-            if (this.previousArrowPosition) {
-                context.clearRect(this.previousArrowPosition - ARROW_ICON_WIDTH / 2, 0, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
-            }
-            this.previousArrowPosition = x
-            this.drawRerenderedBackground(context)
-            context.fillStyle = "#FFFFFF"
-            // if (this.props.final) {
-            //     context.fillStyle = "#000000"
-            // }
-            context.drawImage(imageObj, start, ARROW_TOP_OFFSET, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
-            context.font = "bold 18pt Verdana";
-            let string = "" + Math.round(value)
-            if (this.props.missed) {
-                context.font = "bold 13pt Verdana";
-                string = "MISS"
-            }
-            context.fillText(string, x - context.measureText(string).width / 2, 45 + ARROW_TOP_OFFSET)
-        })
+        if (this.previousArrowPosition) {
+            context.clearRect(this.previousArrowPosition - ARROW_ICON_WIDTH / 2, 0, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
+        }
+        this.previousArrowPosition = x
+        this.drawRerenderedBackground(context)
+        context.fillStyle = "#FFFFFF"
+        // if (this.props.final) {
+        //     context.fillStyle = "#000000"
+        // }
+        context.drawImage(imageObj, start, ARROW_TOP_OFFSET, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
+        context.font = "bold 18pt Verdana";
+        let string = "" + Math.round(value)
+        if (this.props.missed) {
+            context.font = "bold 13pt Verdana";
+            string = "MISS"
+        }
+        context.fillText(string, x - context.measureText(string).width / 2, 45 + ARROW_TOP_OFFSET)
     }
 
     drawNumberAtPosition(context, x, value, length) {

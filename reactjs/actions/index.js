@@ -45,7 +45,12 @@ import {
     FETCH_INITIAL_TRACKS,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL, GET_NAVIGATION_TASK_FAILED, FETCH_INITIAL_TRACKS_FAILED
+    DISPLAY_WIKI_MODAL,
+    TOGGLE_GATE_ARROW,
+    TOGGLE_DANGER_LEVEL,
+    GET_NAVIGATION_TASK_FAILED,
+    FETCH_INITIAL_TRACKS_FAILED,
+    CURRENT_TIME, NEW_CONTESTANT, DELETE_CONTESTANT
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -151,6 +156,16 @@ export const dispatchContestantData = (data) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: data})
 }
 
+export const dispatchCurrentTime = (data) => (dispatch) => {
+    dispatch({type: CURRENT_TIME, payload: data})
+}
+export const dispatchNewContestant = (data) => (dispatch) => {
+    dispatch({type: NEW_CONTESTANT, payload: data})
+}
+
+export const dispatchDeleteContestant = (data) => (dispatch) => {
+    dispatch({type: DELETE_CONTESTANT, payload: data})
+}
 
 // Global map
 export const dispatchTraccarData = (data) => (dispatch) => {

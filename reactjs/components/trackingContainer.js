@@ -58,7 +58,6 @@ class ConnectedTrackingContainer extends Component {
 
     fetchNavigationTask() {
         this.props.fetchNavigationTask(this.contestId, this.navigationTaskId);
-        setTimeout(() => this.fetchNavigationTask(), 300000)
     }
 
     componentDidMount() {
@@ -139,8 +138,8 @@ class ConnectedTrackingContainer extends Component {
             return (
                 <div id="map-holder">
                     <div id='main_div' className={"fill"}>
-                        {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
-                            numberOfContestants={this.props.navigationTask.contestant_set.length}/> : <div/>}
+                        {/*{this.props.navigationTask.contestant_set ? <TrackLoadingIndicator*/}
+                        {/*    numberOfContestants={this.props.contestants.length}/> : <div/>}*/}
                         <div className={"fill"}>
                             <div
                                 className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow scalable") + " " + (this.props.displayExpandedTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
@@ -193,7 +192,7 @@ class ConnectedTrackingContainer extends Component {
                             </div>
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             <div id="cesiumContainer"/>
-                            {this.props.displayLowerThirds !== null ?
+                            {this.props.displayLowerThirds !== null && this.props.contestants[this.props.displayLowerThirds] ?
                                 <div><LowerThirdTeam scorecard={this.props.navigationTask.scorecard}
                                                      contestant={this.props.contestants[this.props.displayLowerThirds]}
                                                      contestantId={this.props.displayLowerThirds}/>

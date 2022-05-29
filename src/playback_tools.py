@@ -8,6 +8,7 @@ import logging
 import requests
 import gpxpy
 
+from display.calculator_termination_utilities import cancel_termination_request
 from display.calculators.calculator_factory import calculator_factory
 from display.coordinate_utilities import calculate_distance_lat_lon, calculate_speed_between_points, calculate_bearing
 
@@ -113,6 +114,7 @@ def recalculate_traccar(contestant: "Contestant"):
         q.append(i)
     q.append(None)
     logger.debug(f"Loaded {len(track)} positions")
+    cancel_termination_request(contestant.pk)
     calculator = calculator_factory(contestant, live_processing=False, queue_name_override=queue_name)
     calculator.run()
     while not q.empty():
@@ -183,6 +185,7 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     for i in positions:
         q.append(i)
     q.append(None)
+    cancel_termination_request(contestant_object.pk)
     calculator = calculator_factory(contestant_object, live_processing=False, queue_name_override=queue_name)
     calculator.run()
     while not q.empty():

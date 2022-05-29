@@ -1347,8 +1347,6 @@ class Contestant(models.Model):
 
     def request_calculator_termination(self):
         logger.info(f"Signalling manual termination for contestant {self}")
-        # To prevent the calculation from restarting
-        self.contestanttrack.set_calculator_finished()
         request_termination(self.pk)
 
     def save(self, **kwargs):
@@ -2858,6 +2856,9 @@ def push_test_change(sender, instance: TaskTest, **kwargs):
 @receiver(post_save, sender=Contestant)
 def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs):
     ContestantTrack.objects.get_or_create(contestant=instance)
+    from websocket_channels import WebsocketFacade
+    ws = WebsocketFacade()
+    ws.transmit_contestant(instance)
 
 
 @receiver(pre_save, sender=Contestant)
@@ -2867,7 +2868,11 @@ def validate_contestant(sender, instance: Contestant, **kwargs):
 
 @receiver(pre_delete, sender=Contestant)
 def stop_any_calculators(sender, instance: Contestant, **kwargs):
+    from websocket_channels import WebsocketFacade
+    ws = WebsocketFacade()
+    ws.transmit_delete_contestant(instance)
     instance.blocking_request_calculator_termination()
+    ScoreLogEntry.objects.filter(contestant=instance).delete()
 
 
 @receiver(pre_save, sender=ContestTeam)

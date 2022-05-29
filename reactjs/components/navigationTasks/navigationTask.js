@@ -5,7 +5,7 @@ import {
     fetchInitialTracks,
     setDisplay,
     shrinkTrackingTable,
-    hideLowerThirds, dispatchContestantData
+    hideLowerThirds, dispatchContestantData, dispatchCurrentTime, dispatchNewContestant, dispatchDeleteContestant
 } from "../../actions";
 import {connect} from "react-redux";
 import ContestantTrack from "../contestantTrack";
@@ -49,6 +49,7 @@ const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{
 export const mapStateToProps = (state, props) => ({
     initialTracks: state.initialTracks,
     navigationTask: state.navigationTask,
+    contestants: state.contestants,
     currentDisplay: state.currentDisplay,
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
     displayOpenAip: state.displayOpenAip,
@@ -58,6 +59,9 @@ export const mapStateToProps = (state, props) => ({
 })
 export const mapDispatchToProps = {
     dispatchContestantData,
+    dispatchCurrentTime,
+    dispatchNewContestant,
+    dispatchDeleteContestant,
     setDisplay,
     displayAllTracks,
     expandTrackingTable,
@@ -74,13 +78,14 @@ class ConnectedNavigationTask extends Component {
         this.rendered = false
         this.client = null;
         this.connectInterval = null;
-        this.weTimeOut = 1000
+        this.timeout = 1000
         this.tracklist = []
         this.playbackSecond = -90
         this.waitingInitialLoading = []
         this.completedLoadingInitialTracks = false
         this.remainingTracks = 999999
         this.renderedTracks = []
+        this.colours = distinctColors({count: 25})
     }
 
 
@@ -91,9 +96,7 @@ class ConnectedNavigationTask extends Component {
     storePlaybackData(data) {
         data.lastAnnotationLength = 0
         data.lastScoreLength = 0
-        data.startTime = new Date(this.props.navigationTask.contestant_set.find((contestant) => {
-            return contestant.id === data.contestant_id
-        }).gate_times[this.props.navigationTask.route.waypoints[0].name])
+        data.startTime = new Date(this.props.contestants[data.contestant_id].gate_times[this.props.navigationTask.route.waypoints[0].name])
         this.tracklist.push(data)
     }
 
@@ -167,10 +170,18 @@ class ConnectedNavigationTask extends Component {
         };
         this.client.onmessage = (message) => {
             let data = JSON.parse(message.data);
-            if (!this.completedLoadingInitialTracks) {
-                this.cacheDataWhileLoading(data)
+            if (data.type === "current_time") {
+                this.props.dispatchCurrentTime(data.data)
+            } else if (data.type === "contestant") {
+                this.props.dispatchNewContestant(JSON.parse(data.data))
+            } else if (data.type === "contestant_delete") {
+                this.props.dispatchDeleteContestant(JSON.parse(data.data))
             } else {
-                this.props.dispatchContestantData(data)
+                if (!this.completedLoadingInitialTracks) {
+                    this.cacheDataWhileLoading(JSON.parse(data.data))
+                } else {
+                    this.props.dispatchContestantData(JSON.parse(data.data))
+                }
             }
         };
         this.client.onclose = (e) => {
@@ -221,17 +232,9 @@ class ConnectedNavigationTask extends Component {
         }
     }
 
-
-    buildColourMap() {
-        const colours = distinctColors({count: this.props.navigationTask.contestant_set.length})
-        this.props.navigationTask.contestant_set.sort(compareContestantNumber)
-        let colourMap = {}
-        this.props.navigationTask.contestant_set.map((contestant, index) => {
-            colourMap[contestant.contestant_number] = colours[index]
-        })
-        return colourMap
+    getColour(contestantNumber){
+        return this.colours[contestantNumber%this.colours.length]
     }
-
 
     componentDidUpdate(previousProps) {
         if (this.props.navigationTask.route !== previousProps.navigationTask.route) {
@@ -262,8 +265,8 @@ class ConnectedNavigationTask extends Component {
             }
         } else {
             if (this.props.initialTracks !== previousProps.initialTracks) {
-                for(const [key, value] of Object.entries(this.props.initialTracks)){
-                // Object.keys(this.props.initialTracks).forEach((key, index) => {
+                for (const [key, value] of Object.entries(this.props.initialTracks)) {
+                    // Object.keys(this.props.initialTracks).forEach((key, index) => {
                     if (!this.renderedTracks.includes(key)) {
                         this.renderedTracks.push(key)
                         console.log(value)
@@ -336,34 +339,38 @@ class ConnectedNavigationTask extends Component {
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard.task_type.includes("precision") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
+                                                       contestants={this.props.contestants}
                                                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
                                                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
                                                        displaySecretGates={this.props.displaySecretGates}/>
                 } else if (this.props.navigationTask.scorecard.task_type.includes("airsports") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <AirsportsRenderer map={this.map} navigationTask={this.props.navigationTask}
+                                                       contestants={this.props.contestants}
                                                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
                                                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
                                                        displaySecretGates={this.props.displaySecretGates}/>
                 } else if (this.props.navigationTask.scorecard.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}
+                                                         contestants={this.props.contestants}
                                                          currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}/>
                 } else if (this.props.navigationTask.scorecard.task_type.includes("landing")) {
-                    routeRenderer = <LandingRenderer map={this.map} navigationTask={this.props.navigationTask}/>
+                    routeRenderer = <LandingRenderer map={this.map} navigationTask={this.props.navigationTask}
+                                                     contestants={this.props.contestants}/>
                 }
-                prohibitedRender = <ProhibitedRenderer map={this.map} navigationTask={this.props.navigationTask}/>
+                prohibitedRender = <ProhibitedRenderer map={this.map} navigationTask={this.props.navigationTask}
+                                                       contestants={this.props.contestants}/>
             }
 
-            const colourMap = this.buildColourMap()
             let display = <div/>
             if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
                 if (this.props.displayExpandedTrackingTable) {
-                    display = <ContestRankTable colourMap={colourMap} contestId={this.props.contestId}
+                    display = <ContestRankTable contestId={this.props.contestId}
                                                 navigationTaskId={this.props.navigationTaskId}
-                                                numberOfContestants={this.props.navigationTask.contestant_set.length}/>
+                                                numberOfContestants={Object.keys(this.props.contestants).length}/>
                 } else {
-                    display = <ContestantRankTable colourMap={colourMap}
+                    display = <ContestantRankTable colours={this.colours}
                                                    scoreDecimals={this.props.navigationTask.scorecard.task_type.includes("poker") ? 0 : 0}
-                                                   numberOfContestants={this.props.navigationTask.contestant_set.length}/>
+                                                   numberOfContestants={Object.keys(this.props.contestants).length}/>
                 }
             } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                 display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}
@@ -371,24 +378,19 @@ class ConnectedNavigationTask extends Component {
                 this.props.shrinkTrackingTable();
             } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
                 display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}
-                                               colourMap={colourMap}/>
+                                               colours={this.colours}/>
                 this.props.shrinkTrackingTable();
             }
             const tableDisplay = <div>
-                {/*<div className={"card-body"}>*/}
-                {/*<div className={"card–text"}>*/}
-                {/*<div className={"card-title"}>*/}
-                {/*</div>*/}
                 {display}
-                {/*</div>*/}
-                {/*</div>*/}
             </div>
-            const mapDisplay = this.props.navigationTask.contestant_set.map((contestant, index) => {
-                return <ContestantTrack map={this.map} key={contestant.id} fetchInterval={10000}
+            const mapDisplay = Object.entries(this.props.contestants).map(([key, contestant], index) => {
+                // const contestant = this.props.contestants[key]
+                return <ContestantTrack map={this.map} key={contestant.id}
                                         contestant={contestant} contestId={this.props.contestId}
                                         navigationTask={this.props.navigationTask}
                                         displayMap={this.props.displayMap}
-                                        colour={colourMap[contestant.contestant_number]}/>
+                                        colour={this.getColour(contestant.contestant_number)}/>
             });
             return <div>
                 {routeRenderer}

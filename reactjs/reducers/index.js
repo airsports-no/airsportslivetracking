@@ -39,7 +39,12 @@ import {
     FETCH_EDITABLE_ROUTE,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL, TOGGLE_GATE_ARROW, TOGGLE_DANGER_LEVEL, GET_NAVIGATION_TASK_FAILED, FETCH_INITIAL_TRACKS_FAILED
+    DISPLAY_WIKI_MODAL,
+    TOGGLE_GATE_ARROW,
+    TOGGLE_DANGER_LEVEL,
+    GET_NAVIGATION_TASK_FAILED,
+    FETCH_INITIAL_TRACKS_FAILED,
+    CURRENT_TIME, NEW_CONTESTANT, DELETE_CONTESTANT
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -101,6 +106,25 @@ const initialState = {
     initialTracks: {}
 };
 
+function emptyContestantData() {
+    return Object.assign({}, {
+        latest_time: "1970-01-01T00:00:00Z",
+        positions: [],
+        annotations: [],
+        log_entries: [],
+        playing_cards: [],
+        gate_scores: [],
+        more_data: true,
+        progress: 0,
+        gate_distance_and_estimate: null,
+        danger_level: null,
+        contestant_track: Object.assign({}, {
+            current_state: "Waiting...",
+            score: 0
+        })
+    })
+}
+
 function rootReducer(state = initialState, action) {
     if (action.type === SET_DISPLAY) {
         return Object.assign({}, state, {
@@ -122,27 +146,9 @@ function rootReducer(state = initialState, action) {
         let contestants = {}
         let initialLoading = {}
         action.payload.contestant_set.map((contestant) => {
-
-            contestantData[contestant.id] = {
-                // latest_time: state.contestantData[contestant.id] ? state.contestantData[contestant.id].latest_time : "1970-01-01T00:00:00Z",
-                latest_time: state.contestantData[contestant.id] ? state.contestantData[contestant.id].latest_time : "1970-01-01T00:00:00Z",
-                positions: [],
-                annotations: state.contestantData[contestant.id] ? state.contestantData[contestant.id].annotations : [],
-                log_entries: state.contestantData[contestant.id] ? state.contestantData[contestant.id].log_entries : [],
-                playing_cards: state.contestantData[contestant.id] ? state.contestantData[contestant.id].playing_cards : [],
-                gate_scores: state.contestantData[contestant.id] ? state.contestantData[contestant.id].gate_scores : [],
-                more_data: true,
-                progress: state.contestantData[contestant.id] ? state.contestantData[contestant.id].progress : 0,
-                gate_distance_and_estimate: state.contestantData[contestant.id] ? state.contestantData[contestant.id].gate_distance_and_estimate : null,
-                danger_level: state.contestantData[contestant.id] ? state.contestantData[contestant.id].danger_level : null,
-                // contestant_track: contestant.contestanttrack
-                contestant_track: state.contestantData[contestant.id] ? state.contestantData[contestant.id].contestant_track : {
-                    current_state: "Waiting...",
-                    score: 0
-                }
-            }
+            contestantData[contestant.id] = emptyContestantData()
             contestants[contestant.id] = contestant
-            // initialLoading[contestant.id] = true
+            initialLoading[contestant.id] = true
         })
         return Object.assign({}, state, {
             ...state,
@@ -150,7 +156,7 @@ function rootReducer(state = initialState, action) {
             navigationTask: action.payload,
             navigationTaskError: null,
             contestants: contestants,
-            // initialLoadingContestantData:initialLoading
+            initialLoadingContestantData: initialLoading
         })
     }
     if (action.type === INITIAL_LOADING) {
@@ -205,13 +211,40 @@ function rootReducer(state = initialState, action) {
             }
         })
     }
+    if (action.type === CURRENT_TIME) {
+        return Object.assign({}, state, {
+            ...state,
+            currentTime: action.payload.current_time
+        })
+    }
+    if (action.type === NEW_CONTESTANT) {
+        return Object.assign({}, state, {
+            ...state,
+            contestantData: {
+                ...state.contestantData,
+                [action.payload.id]: emptyContestantData()
+            },
+            contestants: {
+                ...state.contestants,
+                [action.payload.id]: action.payload
+            }
+        })
+    }
+    if (action.type === DELETE_CONTESTANT) {
+        const newState= Object.assign({}, state, {
+            ...state,
+            contestantData: {
+                ...state.contestantData,
+            },
+            contestants: {
+                ...state.contestants,
+            }
+        })
+        delete newState.contestants[action.payload.contestant_id]
+        delete newState.contestantData[action.payload.contestant_id]
+        return newState
+    }
     if (action.type === GET_CONTESTANT_DATA_SUCCESSFUL) {
-        if (action.payload.current_time !== undefined) {
-            return Object.assign({}, state, {
-                ...state,
-                currentTime: action.payload.current_time
-            })
-        }
         if (Object.keys(action.payload).length === 0) {
             return {
                 ...state,
@@ -221,6 +254,10 @@ function rootReducer(state = initialState, action) {
                 }
             }
         }
+        // Handle the case where we get contestant data for an unknown contestant
+        if (state.contestants[action.payload.contestant_id] === undefined) {
+            return state
+        }
         return {
             ...state,
             contestantData: {
@@ -229,20 +266,24 @@ function rootReducer(state = initialState, action) {
                     annotations: action.payload.annotations,
                     positions: action.payload.positions,
 
-                    log_entries: action.payload.score_log_entries ? action.payload.score_log_entries : state.contestantData[action.payload.contestant_id].log_entries,
-                    gate_scores: action.payload.gate_scores ? action.payload.gate_scores : state.contestantData[action.payload.contestant_id].gate_scores,
-                    playing_cards: action.payload.playing_cards ? action.payload.playing_cards : state.contestantData[action.payload.contestant_id].playing_cards,
-                    latest_position_time: action.payload.positions.length > 0 ? new Date(action.payload.positions.slice(-1)[0].time) : null,
+                    log_entries: action.payload.score_log_entries !== undefined ? action.payload.score_log_entries : state.contestantData[action.payload.contestant_id].log_entries,
+                    gate_scores: action.payload.gate_scores !== undefined ? action.payload.gate_scores : state.contestantData[action.payload.contestant_id].gate_scores,
+                    playing_cards: action.payload.playing_cards !== undefined ? action.payload.playing_cards : state.contestantData[action.payload.contestant_id].playing_cards,
+                    latest_position_time: action.payload.positions !== undefined && action.payload.positions.length > 0 ? new Date(action.payload.positions.slice(-1)[0].time) : null,
                     progress: action.payload.progress !== undefined ? action.payload.progress : state.contestantData[action.payload.contestant_id].progress,
                     contestant_track: action.payload.contestant_track ? action.payload.contestant_track : state.contestantData[action.payload.contestant_id].contestant_track,
                     contestant_id: action.payload.contestant_id,
-                    latest_time: action.payload.latest_time,
+                    latest_time: action.payload.latest_time !== undefined ? action.payload.latest_time : null,
                     gate_distance_and_estimate: action.payload.gate_distance_and_estimate ? action.payload.gate_distance_and_estimate : state.contestantData[action.payload.contestant_id].gate_distance_and_estimate,
                     danger_level: action.payload.danger_level ? action.payload.danger_level : state.contestantData[action.payload.contestant_id].danger_level,
                 }
             },
             isFetchingContestantData: {
                 ...state.isFetchingContestantData,
+                [action.payload.contestant_id]: false
+            },
+            initialLoadingContestantData: {
+                ...state.initialLoadingContestantData,
                 [action.payload.contestant_id]: false
             }
         }

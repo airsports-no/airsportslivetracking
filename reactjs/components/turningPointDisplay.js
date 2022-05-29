@@ -37,8 +37,13 @@ class ConnectedTurningPointDisplay extends Component {
         this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
     }
 
+
+    getColour(contestantNumber) {
+        return this.props.colours[contestantNumber % this.props.colours.length]
+    }
+
     numberStyle(cell, row, rowIndex, colIndex) {
-        return {backgroundColor: this.props.colourMap[row.contestantNumber]}
+        return {backgroundColor: this.getColour(row.contestantNumber)}
     }
 
     handleContestantLinkClick(contestantId) {

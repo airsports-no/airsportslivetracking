@@ -84,7 +84,7 @@ navigation_task = NavigationTask.create(name=name, contest=contest,
 
 tracks = OrderedDict()
 now = datetime.datetime.now(datetime.timezone.utc)
-for index, file in enumerate(glob.glob("../data/tracks/*.gpx")):
+for index, file in enumerate(glob.glob("../data/tracks/*.gpx")[:-1]):
     print(file)
     contestant = os.path.splitext(os.path.basename(file))[0]
     if contestant in contestants:

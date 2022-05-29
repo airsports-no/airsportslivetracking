@@ -34,8 +34,6 @@ class ConnectedAboutLogoModal extends Component {
     loadSettings() {
         const cookies = new Cookies();
         this.settings = _.get(cookies.get("aslt_settings") || {}, [this.props.navigationTask.id], {})
-        console.log("Loaded settings")
-        console.log(this.settings)
         this.props.toggleSecretGates(_.get(this.settings, ["displaySecretGates"], true))
         this.props.toggleBackgroundMap(_.get(this.settings, ["displayBackgroundMap"], true))
         this.props.toggleProfilePictures(_.get(this.settings, ["displayProfilePictures"], true))

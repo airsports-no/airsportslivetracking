@@ -64,6 +64,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 from rest_framework.viewsets import ModelViewSet, ViewSet, GenericViewSet
 
 from display.calculator_running_utilities import is_calculator_running
+from display.calculator_termination_utilities import cancel_termination_request
 from display.convert_flightcontest_gpx import (
     create_precision_route_from_gpx,
     create_precision_route_from_csv,
@@ -1236,6 +1237,7 @@ def restart_contestant_calculator(request, pk):
     messages.success(request,
                      "Calculator should have been restarted. It may take a few minutes for it to come back to life.")
     contestant.reset_track_and_score()
+    cancel_termination_request(pk)
     return HttpResponseRedirect(
         reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
     )
