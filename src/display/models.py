@@ -1650,7 +1650,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     def gate_times(self) -> Dict:
         if not self.predefined_gate_times or not len(self.predefined_gate_times):
             self.predefined_gate_times = self.calculate_missing_gate_times({})
-            self.save()
+            if self.pk is not None:
+                self.save()
         return self.predefined_gate_times
 
     @gate_times.setter
@@ -2726,31 +2727,37 @@ class EditableRoute(models.Model):
 @receiver(post_save, sender=TeamTestScore)
 @receiver(post_delete, sender=TeamTestScore)
 def auto_summarise_tests(sender, instance: TeamTestScore, **kwargs):
-    if instance.task_test.task.autosum_scores:
-        task_summary, _ = TaskSummary.objects.get_or_create(
-            task=instance.task_test.task,
-            team=instance.team,
-            defaults={"points": instance.points},
-        )
-        task_summary.update_sum()
+    try:
+        if instance.task_test.task.autosum_scores:
+            task_summary, _ = TaskSummary.objects.get_or_create(
+                task=instance.task_test.task,
+                team=instance.team,
+                defaults={"points": instance.points},
+            )
+            task_summary.update_sum()
+    except ObjectDoesNotExist:
+        pass
 
 
 @receiver(post_save, sender=TaskSummary)
 @receiver(post_delete, sender=TaskSummary)
 def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
-    if instance.task.contest.autosum_scores:
-        contest_summary, _ = ContestSummary.objects.get_or_create(
-            contest=instance.task.contest,
-            team=instance.team,
-            defaults={"points": instance.points},
-        )
-        contest_summary.update_sum()
-        # Update contestants
-        from websocket_channels import WebsocketFacade
+    try:
+        if instance.task.contest.autosum_scores:
+            contest_summary, _ = ContestSummary.objects.get_or_create(
+                contest=instance.task.contest,
+                team=instance.team,
+                defaults={"points": instance.points},
+            )
+            contest_summary.update_sum()
+            # Update contestants
+            from websocket_channels import WebsocketFacade
 
-        ws = WebsocketFacade()
-        for c in instance.team.contestant_set.filter(navigation_task__contest=instance.task.contest):
-            ws.transmit_basic_information(c)
+            ws = WebsocketFacade()
+            for c in instance.team.contestant_set.filter(navigation_task__contest=instance.task.contest):
+                ws.transmit_basic_information(c)
+    except ObjectDoesNotExist:
+        pass
 
 
 @receiver(pre_delete, sender=Task)
@@ -2783,8 +2790,11 @@ def post_contest_team_change(sender, instance: ContestTeam, **kwargs):
 def post_team_test_score_change(sender, instance: TeamTestScore, **kwargs):
     from websocket_channels import WebsocketFacade
 
-    ws = WebsocketFacade()
-    ws.transmit_contest_results(None, instance.task_test.task.contest)
+    try:
+        ws = WebsocketFacade()
+        ws.transmit_contest_results(None, instance.task_test.task.contest)
+    except ObjectDoesNotExist:
+        pass
 
 
 @receiver(post_save, sender=TaskSummary)
@@ -2793,7 +2803,10 @@ def post_task_summary_change(sender, instance: TaskSummary, **kwargs):
     from websocket_channels import WebsocketFacade
 
     ws = WebsocketFacade()
-    ws.transmit_contest_results(None, instance.task.contest)
+    try:
+        ws.transmit_contest_results(None, instance.task.contest)
+    except ObjectDoesNotExist:
+        pass
 
 
 @receiver(post_save, sender=ContestSummary)
@@ -2838,7 +2851,10 @@ def push_test_change(sender, instance: TaskTest, **kwargs):
     from websocket_channels import WebsocketFacade
 
     ws = WebsocketFacade()
-    ws.transmit_tests(instance.task.contest)
+    try:
+        ws.transmit_tests(instance.task.contest)
+    except ObjectDoesNotExist:
+        pass
 
 
 #

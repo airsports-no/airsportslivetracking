@@ -54,7 +54,7 @@ def build_traccar_track(
     return positions
 
 
-def load_data_traccar(tracks, offset=30, leadtime=0, round_sleep=0.2):
+def load_data_traccar(tracks, offset=30, leadtime=0, round_sleep=0.2, contestant_map=None):
     def send(id, time, lat, lon, speed):
         params = (("id", id), ("timestamp", int(time)), ("lat", lat), ("lon", lon), ("speed", speed))
         requests.post("http://" + server + "/?" + urlencode(params))
@@ -85,6 +85,10 @@ def load_data_traccar(tracks, offset=30, leadtime=0, round_sleep=0.2):
                     speed = 0
                 previous_positions[contestant_name] = (stamp, latitude, longitude)
                 if not first_round:
+                    if contestant_map and contestant_name in contestant_map:
+                        print(f"Saving contestant {contestant_map[contestant_name]}")
+                        contestant_map[contestant_name].save()
+                        del contestant_map[contestant_name]
                     send(contestant_name, time.mktime(stamp.timetuple()), latitude, longitude, speed)
             remaining = remaining or len(positions) > 0
         print(count)

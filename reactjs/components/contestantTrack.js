@@ -108,7 +108,7 @@ class ConnectedContestantTrack extends Component {
     componentWillUnmount() {
         this.hideTrack()
         this.hideAnnotations()
-        if (this.props.highlight || this.props.displayTracks.includes(this.props.contestant.id)) {
+        if (this.props.highlight || (this.props.displayTracks && this.props.displayTracks.includes(this.props.contestant.id))) {
             this.resetToAllContestants()
         }
     }

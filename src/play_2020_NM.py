@@ -1,4 +1,3 @@
-
 import datetime
 import glob
 import os
@@ -20,7 +19,6 @@ from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
     TraccarCredentials, Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE
-
 
 maximum_index = 0
 tracks = {}
@@ -77,11 +75,13 @@ with open("/data/NM.csv", "r") as file:
     route = create_precision_route_from_csv("NM 2020", file.readlines()[1:], True)
 
 navigation_task = NavigationTask.create(name=name, contest=contest,
-                                                route=route,
-                                                original_scorecard=scorecard,
-                                                start_time=contest_start_time, finish_time=contest_finish_time,
-                                                is_public=True)
-
+                                        route=route,
+                                        original_scorecard=scorecard,
+                                        start_time=contest_start_time, finish_time=contest_finish_time,
+                                        is_public=True)
+print(f"Created navigation task {navigation_task.pk}")
+time.sleep(10)
+contestant_map = {}
 tracks = OrderedDict()
 now = datetime.datetime.now(datetime.timezone.utc)
 for index, file in enumerate(glob.glob("../data/tracks/*.gpx")[:-1]):
@@ -121,14 +121,16 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")[:-1]):
 
         minutes_starting = 6
         # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
-        contestant_object = Contestant.objects.create(navigation_task=navigation_task, team=team,
-                                                      takeoff_time=start_time,
-                                                      finished_by_time=start_time + datetime.timedelta(hours=3),
-                                                      tracker_start_time=start_time - datetime.timedelta(minutes=3),
-                                                      tracker_device_id=contestant, contestant_number=index,
-                                                      minutes_to_starting_point=minutes_starting,
-                                                      air_speed=speed, tracking_device=TRACKING_DEVICE,
-                                                      wind_direction=165, wind_speed=8)
+        contestant_object = Contestant(navigation_task=navigation_task, team=team,
+                                       takeoff_time=start_time,
+                                       finished_by_time=start_time + datetime.timedelta(hours=3),
+                                       tracker_start_time=start_time - datetime.timedelta(minutes=3),
+                                       tracker_device_id=contestant, contestant_number=index,
+                                       minutes_to_starting_point=minutes_starting,
+                                       air_speed=speed, tracking_device=TRACKING_DEVICE,
+                                       wind_direction=165, wind_speed=8)
+        print(contestant_object.pk)
+        contestant_map[contestant] = contestant_object
         print(f"{contestant_object} {start_time}")
         # with open(file, "r") as i:
         #     insert_gpx_file(contestant_object, i, influx)
@@ -138,4 +140,4 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")[:-1]):
 tracks = OrderedDict(sorted(tracks.items(), key=lambda item: contestants[item[0]][1], reverse=True))
 print("Sleeping for 10 seconds")
 time.sleep(10)
-load_data_traccar(tracks, offset=300, leadtime=90, round_sleep=0.8)
+load_data_traccar(tracks, offset=300, leadtime=90, round_sleep=0.8, contestant_map=contestant_map)

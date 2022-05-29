@@ -242,8 +242,12 @@ function rootReducer(state = initialState, action) {
             },
             contestants: {
                 ...state.contestants,
+            },
+            initialLoadingContestantData:{
+                ...state.initialLoadingContestantData
             }
         })
+        delete newState.initialLoadingContestantData[action.payload.contestant_id]
         delete newState.contestants[action.payload.contestant_id]
         delete newState.contestantData[action.payload.contestant_id]
         return newState
