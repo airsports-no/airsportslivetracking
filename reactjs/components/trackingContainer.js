@@ -138,8 +138,8 @@ class ConnectedTrackingContainer extends Component {
             return (
                 <div id="map-holder">
                     <div id='main_div' className={"fill"}>
-                        {/*{this.props.navigationTask.contestant_set ? <TrackLoadingIndicator*/}
-                        {/*    numberOfContestants={this.props.contestants.length}/> : <div/>}*/}
+                        {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
+                            numberOfContestants={Object.keys(this.props.contestants).length}/> : <div/>}
                         <div className={"fill"}>
                             <div
                                 className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow scalable") + " " + (this.props.displayExpandedTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>

@@ -227,6 +227,10 @@ function rootReducer(state = initialState, action) {
             contestants: {
                 ...state.contestants,
                 [action.payload.id]: action.payload
+            },
+            initialLoadingContestantData: {
+                ...state.initialLoadingContestantData,
+                [action.payload.id]: false
             }
         })
     }
