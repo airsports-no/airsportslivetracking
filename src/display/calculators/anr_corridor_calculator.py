@@ -24,7 +24,7 @@ class AnrCorridorCalculator(Calculator):
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
         position = track[-1]
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
-            self.check_and_apply_outside_penalty(position, self.crossed_outside_gate or last_gate)
+            self.check_and_apply_outside_penalty(position, self.crossed_outside_gate or last_gate, reset=True)
             self.corridor_state = self.INSIDE_CORRIDOR
 
     def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
@@ -54,6 +54,7 @@ class AnrCorridorCalculator(Calculator):
         self.existing_reference = None
         self.accumulated_score = 0
         self.plot_polygon()
+        self.previous_existing_reference = None
 
     def get_danger_level_and_accumulated_score(self, track: List["Position"]) -> Tuple[float, float]:
         """
@@ -119,7 +120,8 @@ class AnrCorridorCalculator(Calculator):
         return self.polygon_helper.distance_from_point_to_polygons([("test", self.track_polygon)], latitude, longitude)[
             "test"]
 
-    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate", next_gate: Optional["Gate"]):
+    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate",
+                          next_gate: Optional["Gate"]):
         self.enroute = True
         self.check_outside_corridor(track, last_gate)
 
@@ -129,30 +131,40 @@ class AnrCorridorCalculator(Calculator):
         penalty_gate = previous_gate or gate
         # Reset scoring to start counting again, but this time without grace time since we might be outside
         outside_time = (position.time - self.crossed_outside_time).total_seconds()
-        self.crossed_outside_position = position
-        self.crossed_outside_time = position.time
         # Correct for any remaining grace time if we exited the corridor immediately before the gate
         self.corridor_grace_time = max(0, self.corridor_grace_time - outside_time)
-        self.existing_reference = None
-        self.accumulated_score = 0
         if position == self.last_gate_missed_position:
             # If we are at the same position as the last missed the gate it means that we are missing several gates
             # in a row. We need to apply maximum penalty for each leg
+            self.crossed_outside_position = position
+            self.crossed_outside_time = position.time
+            self.existing_reference = None
+            self.accumulated_score = 0
             self.check_and_apply_outside_penalty(position, penalty_gate, apply_maximum_penalty=True)
+        else:
+            self.check_and_apply_outside_penalty(position, penalty_gate, reset=True)
+            self.crossed_outside_position = position
+            self.crossed_outside_time = position.time
         self.last_gate_missed_position = position
 
     def check_and_apply_outside_penalty(self, position: "Position", last_gate: Gate,
-                                        apply_maximum_penalty: bool = False):
+                                        apply_maximum_penalty: bool = False, reset: bool = False):
         if self.crossed_outside_time is None or last_gate is None:
             return
-        outside_time = (position.time - self.crossed_outside_time).total_seconds()
+        # If we are back inside the corridor because we must calculate the score for the previous second
+        if self.corridor_state == self.INSIDE_CORRIDOR:
+            current_time = position.time - datetime.timedelta(seconds=1)
+        else:
+            current_time = position.time
+        outside_time = (current_time - self.crossed_outside_time).total_seconds()
         penalty_time = np.round(outside_time - self.corridor_grace_time)
         self.accumulated_score = self.scorecard.corridor_outside_penalty * penalty_time if outside_time > self.corridor_grace_time else 0
         if apply_maximum_penalty:
             self.accumulated_score = max(self.scorecard.corridor_maximum_penalty, 0)
 
         # If this is called when we have crossed a gate, we need to reset the outside time to Grace time before now to start counting new points
-        if self.corridor_state == self.OUTSIDE_CORRIDOR or apply_maximum_penalty:
+        if (
+                self.corridor_state == self.OUTSIDE_CORRIDOR and self.previous_corridor_state == self.INSIDE_CORRIDOR) or apply_maximum_penalty:
             self.existing_reference = self.update_score(last_gate,
                                                         self.accumulated_score,
                                                         "outside corridor ({} s)".format(int(outside_time)),
@@ -162,15 +174,30 @@ class AnrCorridorCalculator(Calculator):
                                                         f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
                                                         maximum_score=self.scorecard.corridor_maximum_penalty,
                                                         existing_reference=self.existing_reference)
-        elif self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR:
-            # Do not print entering corridor if you are in the special case where we are cleaning up missed gates (indicated by apply maximum penalty)
+        elif (
+                self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR) or reset:
+            # Update initial score logged with the final score
             self.update_score(last_gate,
-                              0,
-                              "entering corridor",
-                              position.latitude, position.longitude,
-                              "information", f"entering_corridor")
-            self.corridor_grace_time = self.scorecard.corridor_grace_time
+                              self.accumulated_score,
+                              "outside corridor ({} s)".format(int(outside_time)),
+                              self.crossed_outside_position.latitude,
+                              self.crossed_outside_position.longitude,
+                              "anomaly",
+                              f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
+                              maximum_score=self.scorecard.corridor_maximum_penalty,
+                              existing_reference=self.previous_existing_reference)
+            if not reset:
+                # Do not print entering corridor if you are in the special case where we are cleaning up missed gates (indicated by apply maximum penalty)
+                self.update_score(last_gate,
+                                  0,
+                                  "entering corridor",
+                                  position.latitude, position.longitude,
+                                  "information", f"entering_corridor")
+                self.corridor_grace_time = self.scorecard.corridor_grace_time
+            self.existing_reference = None
             self.accumulated_score = 0
+
+        self.previous_existing_reference = self.existing_reference
 
     def check_outside_corridor(self, track: List["Position"], last_gate: "Gate"):
         self.previous_corridor_state = self.corridor_state

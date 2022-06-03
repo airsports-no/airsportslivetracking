@@ -505,6 +505,7 @@ class TestAccessNavigationTask(APITestCase):
                                                                                       'pk': self.navigation_task.id})).json()
         self.assertEqual(200, scorecard_data["backtracking_penalty"])
         scorecard_data["backtracking_penalty"] = 1234
+        scorecard_data["free_text"] = ""
         scorecard_data.pop("task_type")
         gate = scorecard_data["gatescore_set"][0]
         self.assertEqual("fp", gate["gate_type"])

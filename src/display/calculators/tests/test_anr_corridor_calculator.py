@@ -1,6 +1,7 @@
 import datetime
 import threading
 from multiprocessing import Queue
+from pprint import pprint
 from unittest.mock import Mock, patch, call
 
 import dateutil
@@ -111,7 +112,7 @@ class TestANRPerLeg(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
-        print(strings)
+        pprint(strings)
         a = [
             "Takeoff: 0.0 points missing gate\nplanned: 20:30:00\nactual: --",
             "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
@@ -154,14 +155,15 @@ class TestANRPerLeg(TransactionTestCase):
         fixed_strings = [item.split("\n")[0] for item in strings]
         fixed_strings[1] = fixed_strings[1][:10]
         fixed_strings[5] = fixed_strings[5][:20]
+        pprint(fixed_strings)
         self.assertListEqual(
             [
                 "Takeoff: 0.0 points missing gate",
                 "SP: 200.0 ",
-                "SP: 48.0 points outside corridor (21 s)",
-                "Waypoint 1: 9.0 points outside corridor (3 s)",
+                "SP: 50.0 points outside corridor (21 s) (capped)",
+                "Waypoint 1: 12.0 points outside corridor (4 s)",
                 "Waypoint 1: 0 points entering corridor",
-                "Waypoint 1: 41.0 poi",
+                "Waypoint 1: 38.0 poi",
                 "Waypoint 1: 200.0 points backtracking",
                 "Waypoint 2: 50.0 points outside corridor (0 s) (capped)",
                 "Waypoint 3: 50.0 points outside corridor (0 s) (capped)",
@@ -171,7 +173,7 @@ class TestANRPerLeg(TransactionTestCase):
             ],
             fixed_strings,
         )
-        self.assertEqual(848, contestant_track.score)
+        self.assertEqual(850, contestant_track.score)
 
     def test_manually_terminate_calculator(self, p, p2):
         cache.clear()
@@ -470,7 +472,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
                 call(
                     gate,
                     0,
-                    "outside corridor (1 s)",
+                    "outside corridor (2 s)",
                     60.5,
                     11,
                     "anomaly",
@@ -546,8 +548,8 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         gate = Mock()
         self.calculator.calculate_enroute([position], gate, gate, None)
         self.calculator.calculate_enroute([position2], gate, gate, None)
-        self.calculator.passed_finishpoint([position3], gate)
         er = self.calculator.existing_reference
+        self.calculator.passed_finishpoint([position3], gate)
 
         self.update_score.assert_called_with(
             gate,

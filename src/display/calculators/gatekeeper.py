@@ -339,8 +339,6 @@ class Gatekeeper(ABC):
                 self.contestant.contestanttrack.update_score(self.score)
             return entry.pk, annotation.pk, score
         else:
-            # todo: Temporarily switch off
-            # return existing_reference
             self.score = self.score - existing_reference[2] + score
             # if - existing_reference[2] + score > 0:
             ScoreLogEntry.update(existing_reference[0], message=message, points=score, string=string)

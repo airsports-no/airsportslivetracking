@@ -17,7 +17,7 @@ spec:
         resources:
           requests:
             cpu: 400m
-            memory: 500Mi
+            memory: 400Mi
         name: calculator-job
         envFrom:
           - configMapRef:

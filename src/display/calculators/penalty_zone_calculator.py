@@ -79,6 +79,7 @@ class PenaltyZoneCalculator(Calculator):
             self, track: List["Position"], last_gate: Optional["Gate"]
     ):
         position = track[-1]
+        already_inside = list(self.entered_polygon_times.keys())
         currently_inside = self.polygon_helper.check_inside_polygons(
             self.zone_polygons, position.latitude, position.longitude
         )
@@ -88,6 +89,21 @@ class PenaltyZoneCalculator(Calculator):
 
         for zone, start_time in dict(self.entered_polygon_times).items():
             if zone not in currently_inside:
+                # Exiting the penalty zone, update the entry score
+                self.running_penalty[zone] = self.scorecard.calculate_penalty_zone_score(
+                    start_time, position.time
+                )
+                self.existing_reference[zone] = self.update_score(
+                    last_gate or self.gates[0],
+                    self.running_penalty[zone],
+                    "inside penalty zone {}".format(zone),
+                    position.latitude,
+                    position.longitude,
+                    ANOMALY,
+                    self.INSIDE_PENALTY_ZONE_PENALTY_TYPE,
+                    existing_reference=self.existing_reference.get(zone),
+                )
+                # Clear information about being inside the zone
                 del self.entered_polygon_times[zone]
                 self.update_score(
                     last_gate or self.gates[0],
@@ -100,7 +116,7 @@ class PenaltyZoneCalculator(Calculator):
                 )
                 del self.existing_reference[zone]
                 del self.running_penalty[zone]
-            else:
+            elif zone not in already_inside:
                 self.running_penalty[zone] = self.scorecard.calculate_penalty_zone_score(
                     start_time, position.time
                 )

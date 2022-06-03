@@ -74,26 +74,18 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         for index in range(0, 30, 3):
             position.time = datetime.datetime(2020, 1, 1, second=index, tzinfo=datetime.timezone.utc)
             self.calculator.calculate_outside_route([position], gate)
-        expected_calls = [call(gate, 0, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=None),
-                          call(gate, 0, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=self.calculator.existing_reference["test"]),
-                          call(gate, 9, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=self.calculator.existing_reference["test"]),
-                          call(gate, 18, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=self.calculator.existing_reference["test"]),
-                          call(gate, 27, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=self.calculator.existing_reference["test"]),
-                          call(gate, 36, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=self.calculator.existing_reference["test"]),
-                          call(gate, 45, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=self.calculator.existing_reference["test"]),
-                          call(gate, 54, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=self.calculator.existing_reference["test"]),
-                          call(gate, 63, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=self.calculator.existing_reference["test"]),
-                          call(gate, 72, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
-                               existing_reference=self.calculator.existing_reference["test"])]
+        # outside_position = Mock()
+        # outside_position.latitude = 59.5
+        # outside_position.longitude = 11.5
+        # outside_position.time = datetime.datetime(2020, 1, 1, second=30, tzinfo=datetime.timezone.utc)
+        # reference=self.calculator.existing_reference["test"]
+        # self.calculator.calculate_outside_route([outside_position], gate)
+        expected_calls = [
+            call(gate, 0, 'inside penalty zone test', 60.5, 11.5, 'anomaly', 'inside_penalty_zone',
+                 existing_reference=None),
+            # call(gate, 81, 'inside penalty zone test', 59.5, 11.5, 'anomaly', 'inside_penalty_zone',
+            #      existing_reference=reference)
+        ]
         self.update_score.assert_has_calls(expected_calls)
 
         position = Mock()

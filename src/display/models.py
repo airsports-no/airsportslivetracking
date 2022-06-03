@@ -2215,7 +2215,10 @@ class PlayingCard(models.Model):
         contestant.playingcard_set.all().delete()
 
         relative_score, hand_description = cls.get_relative_score(contestant)
-        waypoint = contestant.navigation_task.route.waypoints[-1].name
+        try:
+            waypoint = contestant.navigation_task.route.waypoints[-1].name
+        except IndexError:
+            waypoint = ""
         message = "Removed card all cards"
         ScoreLogEntry.create_and_push(
             contestant=contestant,
