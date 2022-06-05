@@ -212,7 +212,7 @@ class ConnectedContestantTrack extends Component {
 
     createLiveEntities(positions) {
         const newest_position = positions.slice(-1)[0];
-        this.partialTrack = L.polyline([newest_position], {
+        this.partialTrack = L.polyline(positions, {
             color: this.props.colour,
             opacity: 1,
             weight: 3

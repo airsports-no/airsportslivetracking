@@ -81,8 +81,7 @@ class ConnectedNavigationTask extends Component {
         this.timeout = 1000
         this.tracklist = []
         this.playbackSecond = -90
-        this.waitingInitialLoading = []
-        this.completedLoadingInitialTracks = false
+        this.waitingInitialLoading = {}
         this.remainingTracks = 999999
         this.renderedTracks = []
         this.colours = distinctColors({count: 25})
@@ -100,8 +99,10 @@ class ConnectedNavigationTask extends Component {
         this.tracklist.push(data)
     }
 
-    cacheDataWhileLoading(data) {
-        this.waitingInitialLoading.push(data)
+    cacheDataWhileLoading(contestantId, data) {
+        if (this.waitingInitialLoading[contestantId] !== undefined) {
+            this.waitingInitialLoading[contestantId].push(data)
+        }
     }
 
     playBackData() {
@@ -177,10 +178,11 @@ class ConnectedNavigationTask extends Component {
             } else if (data.type === "contestant_delete") {
                 this.props.dispatchDeleteContestant(JSON.parse(data.data))
             } else {
-                if (!this.completedLoadingInitialTracks) {
-                    this.cacheDataWhileLoading(JSON.parse(data.data))
+                const trackData = JSON.parse(data.data)
+                if (this.waitingInitialLoading[trackData.contestant_id] !== undefined) {
+                    this.cacheDataWhileLoading(trackData.contestant_id, trackData)
                 } else {
-                    this.props.dispatchContestantData(JSON.parse(data.data))
+                    this.props.dispatchContestantData(trackData)
                 }
             }
         };
@@ -194,7 +196,7 @@ class ConnectedNavigationTask extends Component {
             );
 
             this.timeout = this.timeout + this.timeout; //increment retry interval
-            this.connectInterval = setTimeout(() => this.check(), Math.min(10000, this.wsTimeOut)); //call check function after timeout
+            this.connectInterval = setTimeout(() => this.check(), Math.min(10000, this.timeout)); //call check function after timeout
         };
         this.client.onerror = err => {
             console.error(
@@ -232,8 +234,8 @@ class ConnectedNavigationTask extends Component {
         }
     }
 
-    getColour(contestantNumber){
-        return this.colours[contestantNumber%this.colours.length]
+    getColour(contestantNumber) {
+        return this.colours[contestantNumber % this.colours.length]
     }
 
     componentDidUpdate(previousProps) {
@@ -243,13 +245,14 @@ class ConnectedNavigationTask extends Component {
                 this.remainingTracks = 0
                 this.props.navigationTask.contestant_set.map((contestant, index) => {
                     this.remainingTracks++
+                    this.waitingInitialLoading[contestant.id] = []
                     this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
                 })
                 this.initiateSession()
             }
         }
         if (this.props.playback) {
-            if (this.props.initialTracks.length !== previousProps.initialTracks.length) {
+            if (this.props.initialTracks !== previousProps.initialTracks) {
                 Object.keys(this.props.initialTracks).forEach((key, index) => {
                     if (!this.renderedTracks.includes(key)) {
                         this.renderedTracks.push(key)
@@ -259,7 +262,6 @@ class ConnectedNavigationTask extends Component {
                 })
             }
             if (this.remainingTracks === 0) {
-                this.completedLoadingInitialTracks = true
                 this.remainingTracks = 9999
                 setTimeout(() => this.playBackData(), 1000)
             }
@@ -271,16 +273,14 @@ class ConnectedNavigationTask extends Component {
                         this.renderedTracks.push(key)
                         console.log(value)
                         this.props.dispatchContestantData(value)
-                        this.remainingTracks--
+                        if (this.waitingInitialLoading[key] !== undefined) {
+                            for (let data of this.waitingInitialLoading[key]) {
+                                this.props.dispatchContestantData(data)
+                            }
+                            delete this.waitingInitialLoading[key]
+                        }
                     }
                 }
-            }
-            if (this.remainingTracks === 0) {
-                for (let data of this.waitingInitialLoading) {
-                    this.props.dispatchContestantData(data)
-                }
-                this.completedLoadingInitialTracks = true
-                this.remainingTracks = 9999
             }
         }
         if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map || this.props.displayBackgroundMap !== previousProps.displayBackgroundMap) {

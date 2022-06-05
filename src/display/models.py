@@ -1649,9 +1649,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     @property
     def gate_times(self) -> Dict:
         if not self.predefined_gate_times or not len(self.predefined_gate_times):
-            self.predefined_gate_times = self.calculate_missing_gate_times({})
+            times = self.calculate_missing_gate_times({})
             if self.pk is not None:
-                self.save()
+                Contestant.objects.filter(pk=self.pk).update(predefined_gate_times=times)
+            return times
         return self.predefined_gate_times
 
     @gate_times.setter
