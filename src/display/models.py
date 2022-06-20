@@ -1290,9 +1290,12 @@ class Contestant(models.Model):
 
     @property
     def starting_point_time(self) -> datetime.datetime:
-        return self.takeoff_time + datetime.timedelta(
-            minutes=self.navigation_task.minutes_to_starting_point
-        )
+        try:
+            return self.gate_times[self.navigation_task.route.waypoints[0].name]
+        except (KeyError, IndexError):
+            return self.takeoff_time + datetime.timedelta(
+                minutes=self.navigation_task.minutes_to_starting_point
+            )
 
     @property
     def starting_point_time_local(self) -> datetime.datetime:

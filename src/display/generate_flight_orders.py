@@ -19,6 +19,7 @@ from display.models import Scorecard, Contestant
 from display.waypoint import Waypoint
 import cartopy.crs as ccrs
 
+from display.wind_utilities import calculate_wind_correction_angle
 from live_tracking_map.settings import AZURE_ACCOUNT_NAME
 
 
@@ -141,6 +142,7 @@ def insert_turning_point_images(contestant, pdf: FPDF):
 def recode_text(text: str):
     return text.encode('latin-1', 'replace').decode('latin-1')
 
+
 def generate_flight_orders(contestant: "Contestant") -> bytes:
     """
     Returns a PDF report
@@ -231,6 +233,31 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.image(finish_point_file.name, x=110, y=180, w=90)
 
     pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
+    pdf.add_page()
+
+    table = """<h1>Turning point times</h1><table width='100%' border="1" align="left">
+    <thead><tr><th width="25%">Turning point</th><th width="25%">Distance</th><th width="20%">True track</th><th width="20%">Heading</th><th width="10%">Time</th></tr></thead><tbody>
+    """
+    first_line = True
+    for waypoint in contestant.navigation_task.route.waypoints:  # type: Waypoint
+        if waypoint.type != "secret" and waypoint.time_check:
+            bearing = waypoint.bearing_from_previous
+            wind_correction_angle = calculate_wind_correction_angle(
+                bearing, contestant.air_speed, contestant.wind_speed, contestant.wind_direction
+            )
+            wind_bearing = bearing - wind_correction_angle
+            gate_time = contestant.gate_times.get(waypoint.name, None)
+            local_waypoint_time = gate_time.astimezone(
+                contestant.navigation_task.contest.time_zone
+            )
+            if gate_time is not None:
+                table += f"<tr><td>{waypoint.name}</td><td>{f'{waypoint.distance_previous/1852:.2f} NM' if not first_line else '-'}</td><td>{f'{bearing:.0f}' if not first_line else '-'}</td><td>{f'{wind_bearing:.0f}' if not first_line else '-'}</td><td>{local_waypoint_time.strftime('%H:%M:%S')}</td></tr>"
+                first_line = False
+    table += "</tbody></table>"
+    pdf.set_font("Times", "B", 14)
+
+    pdf.write_html(recode_text(table))
+    pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
 
     pdf.add_page()
     map_image, pdf_image = plot_route(
@@ -244,7 +271,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         dpi=flight_order_configuration.map_dpi,
         scale=flight_order_configuration.map_scale,
         map_source=flight_order_configuration.map_source,
-        user_map_source=str(flight_order_configuration.map_user_source.map_file) if flight_order_configuration.map_user_source else "",
+        user_map_source=str(
+            flight_order_configuration.map_user_source.map_file) if flight_order_configuration.map_user_source else "",
         line_width=flight_order_configuration.map_line_width,
         minute_mark_line_width=flight_order_configuration.map_minute_mark_line_width,
         colour=flight_order_configuration.map_line_colour,
