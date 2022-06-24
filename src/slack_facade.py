@@ -8,14 +8,14 @@ from live_tracking_map.settings import SLACK_DEVELOPMENT_WEBHOOK
 logger = logging.getLogger(__name__)
 
 
-def post_slack_message(text: str):
+def post_slack_message(title: str, text: str):
     """
 
     :param text: Slack markdown format
     :return:
     """
     block = {
-        "text": "Air Sports message",
+        "text": title,
         "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": text}}],
     }
     try:

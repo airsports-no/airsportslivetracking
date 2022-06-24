@@ -5,7 +5,6 @@ import {render} from "react-dom";
 import {Provider} from "react-redux";
 import store from "../store/index";
 // import * as Sentry from "@sentry/react";
-import {Integrations} from "@sentry/tracing";
 import {BrowserRouter, Redirect, Route, withRouter} from "react-router-dom";
 import Router from "../config/Router";
 

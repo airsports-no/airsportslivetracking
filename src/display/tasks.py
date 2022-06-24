@@ -121,5 +121,4 @@ def notify_flight_order(contestant_pk: int, email: str, first_name: str):
 
 @app.task
 def delete_old_flight_orders():
-    EmailMapLink.objects.filter(
-        contestant__finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5))
+    EmailMapLink.objects.filter(contestant__finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)).delete()

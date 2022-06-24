@@ -29,7 +29,7 @@ COPY config /config
 COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh config/gunicorn_uvicorn.sh /
 RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /gunicorn_uvicorn.sh
 
-COPY package*.json /
+COPY package* /
 RUN npm install
 
 

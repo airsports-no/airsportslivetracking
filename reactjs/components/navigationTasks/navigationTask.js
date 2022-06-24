@@ -274,9 +274,10 @@ class ConnectedNavigationTask extends Component {
                         console.log(value)
                         this.props.dispatchContestantData(value)
                         if (this.waitingInitialLoading[key] !== undefined) {
-                            for (let data of this.waitingInitialLoading[key]) {
-                                this.props.dispatchContestantData(data)
-                            }
+                            // TODO: Has been removed to solve issue with missing historic track for ongoing contestants. There is probably a bug care that has to be fixed.
+                            // for (let data of this.waitingInitialLoading[key]) {
+                            //     this.props.dispatchContestantData(data)
+                            // }
                             delete this.waitingInitialLoading[key]
                         }
                     }

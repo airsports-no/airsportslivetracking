@@ -93,8 +93,8 @@ class Gatekeeper(ABC):
         self.calculators = []
         self.websocket_facade = WebsocketFacade()
         self.timed_queue = TimedQueue()
-        post_slack_message(
-            f"Calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>")
+        post_slack_message(str(self.contestant.navigation_task),
+                           f"Calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>")
         logger.debug(f"{self.contestant}: Starting calculators")
         for calculator in calculators:
             self.calculators.append(

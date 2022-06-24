@@ -18,10 +18,11 @@ from display.coordinate_utilities import (
 def get_normalised_track(
         track: List[Tuple[datetime, float, float, float]],
         step: timedelta = timedelta(seconds=1),
-) -> Tuple[datetime, datetime, List[Tuple[float, float]]]:
+) -> Tuple[datetime, datetime, List[Tuple[float, float]], List[float]]:
     # Make a copy
     track = list(track)
     interpolated = []
+    speeds = []
     start_time = track[0][0].replace(microsecond=0) + step
     current_time = start_time
     while len(track) > 1:
@@ -42,8 +43,9 @@ def get_normalised_track(
                 (track[0][1], track[0][2]), (track[1][1], track[1][2]), fraction
             )
         interpolated.append(new_position)
+        speeds.append(track[0][4])
         current_time = next_time
-    return start_time, current_time - step, interpolated
+    return start_time, current_time - step, interpolated, speeds
 
 
 class GPSTrack:
@@ -53,11 +55,29 @@ class GPSTrack:
         :param track: timestamp, Latitude, longitude, altitude (m)
         """
         self.name = name
-        self.track = track
+        self.track = self._insert_speed(track)
         self.step = timedelta(seconds=1)
-        self.start_time, self.finish_time, self.interpolated = get_normalised_track(
-            track, self.step
+        self.start_time, self.finish_time, self.interpolated, self.speeds = get_normalised_track(
+            self.track, self.step
         )
+
+    def _insert_speed(self, track):
+        """
+
+        :param track:
+        :return: m/s
+        """
+        new_track = []
+        for index in range(0, len(track) - 1):
+            distance = calculate_distance_lat_lon(
+                (track[index][1], track[index][2]), (track[index + 1][1], track[index + 1][2])
+            )
+            time_difference = (track[index + 1][0] - track[index][0]).total_seconds()
+            if time_difference > 0:
+                new_track.append(track[index] + (distance / time_difference,))
+            else:
+                new_track.append(track[index] + (0,))
+        return new_track
 
     def __str__(self):
         return self.name
@@ -80,6 +100,18 @@ class GPSTrack:
         index = (timestamp - self.start_time).total_seconds()
         assert index.is_integer(), "Index is not an integer"
         return self.interpolated[int(index)]
+
+    def get_normalised_speed_at_time(
+            self, timestamp: datetime
+    ) -> Optional[float]:
+        assert (
+                timestamp % self.step == timedelta()
+        ), f"Timestamp must be a whole number of {self.step}"
+        if timestamp < self.start_time or timestamp > self.finish_time:
+            return None
+        index = (timestamp - self.start_time).total_seconds()
+        assert index.is_integer(), "Index is not an integer"
+        return self.speeds[int(index)]
 
     def plot_track(self):
         plt.figure(figsize=(3, 3))
@@ -125,7 +157,7 @@ class GPSTrack:
                             ),
                             point.latitude,
                             point.longitude,
-                            point.elevation if point.elevation else 0,
+                            point.elevation if point.elevation else 0
                         )
                     )
         return cls(name, path)

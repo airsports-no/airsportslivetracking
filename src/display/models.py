@@ -1289,6 +1289,14 @@ class Contestant(models.Model):
         ordering = ("takeoff_time",)
 
     @property
+    def newest_flight_order_link(self):
+        return self.emailmaplink_set.all().order_by("-created_at").first()
+
+    @property
+    def has_flight_order_link(self):
+        return self.emailmaplink_set.all().exists()
+
+    @property
     def starting_point_time(self) -> datetime.datetime:
         try:
             return self.gate_times[self.navigation_task.route.waypoints[0].name]

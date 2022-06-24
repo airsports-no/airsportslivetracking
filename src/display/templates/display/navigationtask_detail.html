@@ -167,6 +167,12 @@
                                    href="{% url 'navigationtask_flightordersprogress' object.pk %}?contestant_pk={{ contestant.pk }}"
                                    title="Generate and download a new flight order.">Generate new flight
                                     order</a>
+                                {% if contestant.has_flight_order_link %}
+                                <a class="dropdown-item"
+                                   href="{% url 'email_map_link' contestant.newest_flight_order_link.id %}"
+                                   title="Generate and download a new flight order.">Download flight
+                                    order</a>
+                                {% endif %}
                                 <a class="dropdown-item" href="{% url 'contestant_uploadgpxtrack' contestant.pk %}"
                                    title="Upload a GPX track for scoring. This will delete any existing track for the contestant.">Upload
                                     gpx</a>

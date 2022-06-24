@@ -6,7 +6,6 @@ import {Provider} from "react-redux";
 import store from "../store/index";
 import TrackingContainer from "../components/trackingContainer";
 // import * as Sentry from "@sentry/react";
-import {Integrations} from "@sentry/tracing";
 
 // Sentry.init({
 // dsn: "https://fa1ab83945514f328a490f2cf96deb98@o568590.ingest.sentry.io/5713800",    integrations: [new Integrations.BrowserTracing()],

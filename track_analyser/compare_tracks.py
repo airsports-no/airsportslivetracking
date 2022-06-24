@@ -6,8 +6,53 @@ from track_analyser.gps_track import GPSTrack
 import numpy as np
 import matplotlib.pyplot as plt
 
-from track_analyser.track_comparator import get_track_differences
+from track_analyser.track_comparator import get_track_differences, get_track_differences_time
+import scipy.stats as st
 
+def compare_mean_with_confidences(
+    truths: List[GPSTrack], tracks: List[GPSTrack], desired_confidence: float, folder: str
+):
+    compared_to_truth={}
+    for truth_index, truth in enumerate(truths):
+        for index, track in enumerate(tracks):
+            if truth == track:
+                continue
+            differences = get_track_differences_time(track, truth)
+            try:
+                compared_to_truth[track.name].append(differences)
+            except KeyError:
+                compared_to_truth[track.name]=[differences]
+    total_confidence =np.zeros((2, len(tracks)))
+    total_mean=[]
+    for index, track in enumerate(tracks):
+        differences=compared_to_truth[track.name]
+        total_differences=np.concatenate(differences)
+        confidence=st.t.interval(alpha=desired_confidence, df=len(total_differences)-1, loc=np.mean(total_differences), scale=st.sem(total_differences))
+        print(confidence)
+        mean=np.mean(total_differences, axis=0)
+        total_mean.append(mean)
+        total_confidence[:, index]=confidence
+    fig, ax = plt.subplots()
+    plt.title(f"Mean time distance for confidence interval {int(100 * desired_confidence)}%")
+    r1 = np.arange(len(tracks))
+    plt.ylabel("Time distance (s)")
+    plt.bar(
+        r1,
+        total_mean,
+        yerr=total_confidence,
+        width=0.5,
+        color="blue",
+        edgecolor="black",
+        capsize=7,
+        label="poacee",
+    )
+    plt.xticks(np.arange(len(tracks)), [item.name for item in tracks], rotation=60)
+    plt.savefig(
+        f"{folder}/mean_confidence_bar_{int(100 * desired_confidence)}.png",
+        dpi=100,
+        bbox_inches="tight",
+    )
+    plt.close()
 
 def compare_maximum_confidences(
     truths: List[GPSTrack], tracks: List[GPSTrack], confidence: float, folder: str
@@ -99,7 +144,7 @@ def plot_difference_compared_to_single(
     print(f"Truth start: {truth.start_time}")
     fig, ax = plt.subplots()
     for index1 in range(len(tracks)):
-        print(f"{tracks[index1]} start: {tracks[index1].start_time}")
+        print(f"{tracks[index1]} start: {tracks[index1].start_time} finish: {tracks[index1].finish_time}")
         if tracks[index1] == truth:
             continue
         differences = get_track_differences(tracks[index1], truth)

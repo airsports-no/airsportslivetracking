@@ -236,10 +236,19 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.add_page()
 
     table = """<h1>Turning point times</h1><table width='100%' border="1" align="left">
-    <thead><tr><th width="25%">Turning point</th><th width="25%">Distance</th><th width="20%">True track</th><th width="20%">Heading</th><th width="10%">Time</th></tr></thead><tbody>
+    <thead><tr><th width="25%">Turning point</th><th width="25%">Distance</th><th width="15%">TT</th><th width="15%">TH</th><th width="20%">Time</th></tr></thead><tbody>
     """
     first_line = True
+    local_time = "-"
+    if contestant.navigation_task.route.takeoff_gate:
+        local_time = contestant.gate_times.get(contestant.navigation_task.route.takeoff_gate.name, None)
+        if local_time:
+            local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
+    table += f"<tr><td>Takeoff gate</td><td>-</td><td>-</td><td>-</td><td>{local_time}</td></tr>"
+    accumulated_distance=0
     for waypoint in contestant.navigation_task.route.waypoints:  # type: Waypoint
+        if not first_line:
+            accumulated_distance+=waypoint.distance_previous
         if waypoint.type != "secret" and waypoint.time_check:
             bearing = waypoint.bearing_from_previous
             wind_correction_angle = calculate_wind_correction_angle(
@@ -251,10 +260,17 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
                 contestant.navigation_task.contest.time_zone
             )
             if gate_time is not None:
-                table += f"<tr><td>{waypoint.name}</td><td>{f'{waypoint.distance_previous/1852:.2f} NM' if not first_line else '-'}</td><td>{f'{bearing:.0f}' if not first_line else '-'}</td><td>{f'{wind_bearing:.0f}' if not first_line else '-'}</td><td>{local_waypoint_time.strftime('%H:%M:%S')}</td></tr>"
+                table += f"<tr><td>{waypoint.name}</td><td>{f'{accumulated_distance / 1852:.2f} NM' if not first_line else '-'}</td><td>{f'{bearing:.0f}' if not first_line else '-'}</td><td>{f'{wind_bearing:.0f}' if not first_line else '-'}</td><td>{local_waypoint_time.strftime('%H:%M:%S')}</td></tr>"
+                accumulated_distance=0
                 first_line = False
+    local_time = "-"
+    if contestant.navigation_task.route.landing_gate:
+        local_time = contestant.gate_times.get(contestant.navigation_task.route.landing_gate.name, None)
+        if local_time:
+            local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
+    table += f"<tr><td>Landing gate</td><td>-</td><td>-</td><td>-</td><td>{local_time}</td></tr>"
     table += "</tbody></table>"
-    pdf.set_font("Times", "B", 14)
+    pdf.set_font("Times", "B", 18)
 
     pdf.write_html(recode_text(table))
     pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
