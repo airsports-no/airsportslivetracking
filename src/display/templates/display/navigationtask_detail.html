@@ -169,7 +169,7 @@
                                     order</a>
                                 {% if contestant.has_flight_order_link %}
                                 <a class="dropdown-item"
-                                   href="{% url 'email_map_link' contestant.newest_flight_order_link.id %}"
+                                   href="{% url 'email_map_link' contestant.newest_flight_order_link_uid %}"
                                    title="Generate and download a new flight order.">Download flight
                                     order</a>
                                 {% endif %}

@@ -1289,8 +1289,8 @@ class Contestant(models.Model):
         ordering = ("takeoff_time",)
 
     @property
-    def newest_flight_order_link(self):
-        return self.emailmaplink_set.all().order_by("-created_at").first()
+    def newest_flight_order_link_uid(self):
+        return self.emailmaplink_set.all().order_by("-created_at").values_list("id", flat=True).first()
 
     @property
     def has_flight_order_link(self):
