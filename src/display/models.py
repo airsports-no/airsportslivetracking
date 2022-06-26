@@ -1768,9 +1768,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 contestant, is_simulator = cls._try_to_get_copilot_tracking(device, stamp)
         if contestant:
             # Only allow contestants with validated team members compete
-            if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
-                if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
-                    return contestant, is_simulator
+            # if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
+            #     if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
+            #         return contestant, is_simulator
+            return contestant, is_simulator
         return None, is_simulator
 
     @classmethod
