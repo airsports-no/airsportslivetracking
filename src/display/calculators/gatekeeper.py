@@ -297,7 +297,7 @@ class Gatekeeper(ABC):
         if planned is not None and actual is not None:
             offset = (actual - planned).total_seconds()
             # Must use round, this is the same as used in the score calculation
-            offset_string = "{} s".format("+{}".format(round(offset)) if offset > 0 else int(offset))
+            offset_string = "{} s".format("+{}".format(round(offset)) if offset > 0 else round(offset))
         else:
             offset_string = ""
         if capped:
