@@ -156,7 +156,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
 
             if track_turn > 0 and difference > 0 or track_turn < 0 and difference < 0:
                 # If we are turning in the same direction of the turn, add the size of the turn to the turn limit
-                turn_limit = 180 + abs(track_turn)
+                turn_limit = 180 + abs(track_turn)  # TODO: Increase turn limit?
             else:
                 # Otherwise we set the limit to 180 in order to catch procedure turns where they should not be
                 turn_limit = 180

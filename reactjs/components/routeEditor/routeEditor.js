@@ -418,14 +418,14 @@ class ConnectedRouteEditor extends Component {
                         errors.push("The first gate cannot be secret")
                     } else if (i === layer.trackPoints.length - 1 && layer.trackPoints[i].gateType === "secret") {
                         errors.push("The last gate cannot be secret")
-                    } else if (layer.trackPoints[i].gateType === "secret") {
-                        // He we know there is at least one gate before and one after
-                        const bearingToThis = getBearing(positions[i - 1].lat, positions[i - 1].lng, positions[i].lat, positions[i].lng)
-                        const bearingFromThis = getBearing(positions[i].lat, positions[i].lng, positions[i + 1].lat, positions[i + 1].lng)
-                        const bearingDifference = getHeadingDifference(bearingToThis, bearingFromThis)
-                        if (Math.abs(bearingDifference) > 3) {
-                            errors.push("The secret gate " + layer.trackPoints[i].name + " must lie on a straight line between " + layer.trackPoints[i - 1].name + " and " + layer.trackPoints[i + 1].name + ". The current bearing difference is " + bearingDifference.toFixed(2))
-                        }
+                    // } else if (layer.trackPoints[i].gateType === "secret") {
+                    //     // He we know there is at least one gate before and one after
+                    //     const bearingToThis = getBearing(positions[i - 1].lat, positions[i - 1].lng, positions[i].lat, positions[i].lng)
+                    //     const bearingFromThis = getBearing(positions[i].lat, positions[i].lng, positions[i + 1].lat, positions[i + 1].lng)
+                    //     const bearingDifference = getHeadingDifference(bearingToThis, bearingFromThis)
+                    //     if (Math.abs(bearingDifference) > 3) {
+                    //         errors.push("The secret gate " + layer.trackPoints[i].name + " must lie on a straight line between " + layer.trackPoints[i - 1].name + " and " + layer.trackPoints[i + 1].name + ". The current bearing difference is " + bearingDifference.toFixed(2))
+                    //     }
                     }
                 }
             }
