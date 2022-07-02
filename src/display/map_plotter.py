@@ -22,7 +22,7 @@ from display.coordinate_utilities import (
     calculate_fractional_distance_point_lat_lon,
     get_heading_difference,
     project_position_lat_lon,
-    create_perpendicular_line_at_end_lonlat, utm_from_lat_lon, bearing_difference,
+    create_perpendicular_line_at_end_lonlat, utm_from_lat_lon, bearing_difference, normalise_bearing,
 )
 from display.map_constants import A3
 from display.wind_utilities import (
@@ -539,7 +539,7 @@ def plot_leg_bearing(
     )
     course_position = calculate_fractional_distance_point_lat_lon(left_of_leg_start, left_of_leg_finish, 0.5)
     course_text = "{:03.0f}".format(
-        current_waypoint.bearing_next - wind_correction_angle
+        normalise_bearing(current_waypoint.bearing_next - wind_correction_angle)
     )
     label = course_text + " " * (len(course_text) + 1)
     # Try to keep it out of the way of the next leg
@@ -663,7 +663,7 @@ def plot_waypoint_name(
             color=colour,
             horizontalalignment="center",
             transform=ccrs.PlateCarree(),
-            fontsize=8,
+            fontsize=12,
             rotation=rotation,
             # linespacing=2,
             family="monospace",
@@ -678,7 +678,7 @@ def plot_waypoint_name(
         color=colour,
         horizontalalignment="center",
         transform=ccrs.PlateCarree(),
-        fontsize=8,
+        fontsize=10,
         rotation=rotation,
         # linespacing=2,
         family="monospace",

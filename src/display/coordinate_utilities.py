@@ -99,6 +99,10 @@ def bearing_difference(bearing1, bearing2) -> float:
     return (bearing2 - bearing1 + 540) % 360 - 180
 
 
+def normalise_bearing(bearing: float) -> float:
+    return (bearing + 360) % 360
+
+
 def equirectangular_distance(
         start: Tuple[float, float], finish: Tuple[float, float]
 ) -> float:
