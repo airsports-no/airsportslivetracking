@@ -20,8 +20,8 @@ class Waypoint:
         self.planning_test = False
         self.end_curved = False
         self.type = ""
-        self.distance_next = -1  # type: float
-        self.distance_previous = -1  # type: float
+        self.distance_next = -1  # meters type: float
+        self.distance_previous = -1  # meters type: float
         self.bearing_from_previous = -1
         self.bearing_next = -1  # type: float
         self.is_procedure_turn = False

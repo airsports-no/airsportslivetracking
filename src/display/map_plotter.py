@@ -185,7 +185,7 @@ def create_minute_lines_track(
             time_to_next_line += resolution_seconds
         accumulated_time += leg_time
     for line in lines:
-        print(line)
+        logger.debug(line)
     return lines
 
 
@@ -847,9 +847,9 @@ def plot_precision_track(
     for waypoint in route.waypoints:  # type: Waypoint
         if waypoint.type == "isp":
             tracks.append([])
-        if waypoint.type in ("tp", "sp", "fp", "isp", "ifp"):
+        if waypoint.type in ("tp", "sp", "fp", "isp", "ifp", "secret"):
             tracks[-1].append(waypoint)
-    for track in tracks:
+    for track in tracks:  # type: List[Waypoint]
         line = []
         for index, waypoint in enumerate(track):  # type: int, Waypoint
             if waypoint.type != "secret":
@@ -883,19 +883,32 @@ def plot_precision_track(
                     line_width,
                     "red",
                 )
-                if contestant is not None:
-                    if index < len(track) - 1:
-                        if annotations:
-                            plot_leg_bearing(
-                                waypoint,
-                                track[index + 1],
-                                contestant.air_speed,
-                                contestant.wind_speed,
-                                contestant.wind_direction,
-                            )
-                            plot_minute_marks(
-                                waypoint, contestant, track, index, minute_mark_line_width, colour
-                            )
+            if contestant is not None:
+                if index < len(track) - 1:
+                    if annotations:
+                        if waypoint.type != "secret":
+                            # Only plot bearing if there is a straight line between one not secret gate and the next
+                            next_index = index + 1
+                            accumulated_distance = 0
+                            while next_index < len(track):
+                                if abs(bearing_difference(waypoint.bearing_next,
+                                                          track[next_index].bearing_from_previous)) > 3:
+                                    break
+                                accumulated_distance += track[next_index].distance_previous
+                                if track[
+                                    next_index].type != "secret" and accumulated_distance / 1852 > 1:  # Distance between waypoints must be more than 1 nautical miles
+                                    plot_leg_bearing(
+                                        waypoint,
+                                        track[next_index],
+                                        contestant.air_speed,
+                                        contestant.wind_speed,
+                                        contestant.wind_direction,
+                                    )
+                                    break
+                                next_index += 1
+                        plot_minute_marks(
+                            waypoint, contestant, track, index, minute_mark_line_width, colour
+                        )
 
             if waypoint.is_procedure_turn:
                 line.extend(waypoint.procedure_turn_points)
