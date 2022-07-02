@@ -11,7 +11,7 @@ from cartopy.io.img_tiles import GoogleTiles
 from fpdf import FPDF, HTMLMixin
 from shapely.geometry import Polygon
 
-from display.coordinate_utilities import utm_from_lat_lon
+from display.coordinate_utilities import utm_from_lat_lon, normalise_bearing
 from display.map_constants import LANDSCAPE
 from display.map_plotter import plot_route
 from display.map_plotter_shared_utilities import qr_code_image
@@ -254,7 +254,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
             wind_correction_angle = calculate_wind_correction_angle(
                 bearing, contestant.air_speed, contestant.wind_speed, contestant.wind_direction
             )
-            wind_bearing = bearing - wind_correction_angle
+            wind_bearing = normalise_bearing(bearing - wind_correction_angle)
             gate_time = contestant.gate_times.get(waypoint.name, None)
             local_waypoint_time = gate_time.astimezone(
                 contestant.navigation_task.contest.time_zone
@@ -273,6 +273,9 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.set_font("Times", "B", 18)
 
     pdf.write_html(recode_text(table))
+
+    pdf.set_font("Times", "B", 12)
+
     pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
 
     pdf.add_page()
