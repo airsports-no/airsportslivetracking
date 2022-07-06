@@ -43,7 +43,7 @@ class TestContestantValidation(TransactionTestCase):
 
     def test_overlapping_contestant_after(self, patch):
         with self.assertRaisesMessage(ValidationError,
-                                      '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01T10:00:00+00:00>, \'2020-01-01T11:00:00+00:00\', \'2020-01-01T12:00:00+00:00\')]"]'):
+                                      '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, \'2020-01-01T11:00:00+00:00\', \'2020-01-01T12:00:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
                                       navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 1, 10,
@@ -56,7 +56,7 @@ class TestContestantValidation(TransactionTestCase):
 
     def test_overlapping_contestant_before(self, patch):
         with self.assertRaisesMessage(ValidationError,
-                                      '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01T10:00:00+00:00>, \'2020-01-01T09:30:00+00:00\', \'2020-01-01T11:00:00+00:00\')]"]'):
+                                      '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, \'2020-01-01T09:30:00+00:00\', \'2020-01-01T11:00:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
                                       navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 1, 10,
@@ -82,7 +82,7 @@ class TestContestantValidation(TransactionTestCase):
 
     def test_overlapping_contestant_outside(self, patch):
         with self.assertRaisesMessage(ValidationError,
-                                      '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01T10:00:00+00:00>, \'2020-01-01T09:30:00+00:00\', \'2020-01-01T12:00:00+00:00\')]"]'):
+                                      '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, \'2020-01-01T09:30:00+00:00\', \'2020-01-01T12:00:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
                                       navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                       takeoff_time=datetime.datetime(2020, 1, 1, 10,

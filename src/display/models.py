@@ -1583,7 +1583,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         # Validate maximum tracking time
         if self.finished_by_time - self.tracker_start_time > datetime.timedelta(hours=24):
             raise ValidationError(
-                f"The maximum tracking time (from tracker start time to finished by time) is 24 hours (currently {self.finished_by_time - self.tracker_start_time}). Either start tracking later or finish earlier to solve this."
+                f"The maximum tracking time for {self} (from tracker start time to finished by time) is 24 hours (currently {self.finished_by_time - self.tracker_start_time}). Either start tracking later or finish earlier to solve this."
             )
         # Validate takeoff time after tracker start
         if self.tracker_start_time > self.takeoff_time:

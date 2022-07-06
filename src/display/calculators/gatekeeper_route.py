@@ -193,10 +193,6 @@ class GatekeeperRoute(Gatekeeper):
                 self.pop_gate(i,
                               not gate.missed)  # Only update the last gate with the one that was crossed, not the one we detect is missed because of it.
             i -= 1
-        # if len(missed_gates)>0:
-        #     missed_gates.reverse()
-        #     for gate in missed_gates:
-        #         self.missed_gate(gate, self.track[-1])
 
         if not crossed_gate and len(self.outstanding_gates) > 0:
             extended_next_gate = self.outstanding_gates[0]  # type: Gate

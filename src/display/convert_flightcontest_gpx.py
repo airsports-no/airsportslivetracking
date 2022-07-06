@@ -194,8 +194,8 @@ def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
     calculate_and_update_legs(waypoints, use_procedure_turns)
     insert_gate_ranges(waypoints)
 
-    object = Route(name=route_name, waypoints=waypoints, takeoff_gate=takeoff_gate,
-                   landing_gate=landing_gate, use_procedure_turns=use_procedure_turns)
+    object = Route(name=route_name, waypoints=waypoints, takeoff_gates=[takeoff_gate],
+                   landing_gates=[landing_gate], use_procedure_turns=use_procedure_turns)
     object.save()
     return object
 
