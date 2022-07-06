@@ -962,16 +962,16 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
             plt.plot(
                 xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=1
             )
-    takeoff_gate = editable_route.get_feature_type("to")
-    if takeoff_gate is not None:
+    takeoff_gates = editable_route.get_features_type("to")
+    for takeoff_gate in takeoff_gates:
         takeoff_gate_line = editable_route.get_feature_coordinates(takeoff_gate)
         path = np.array(takeoff_gate_line)
         ys, xs = path.T
         plt.plot(
             xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=1
         )
-    landing_gate = editable_route.get_feature_type("ldg")
-    if landing_gate is not None:
+    landing_gates = editable_route.get_features_type("ldg")
+    for landing_gate in landing_gates:
         landing_gate_line = editable_route.get_feature_coordinates(landing_gate)
         path = np.array(landing_gate_line)
         ys, xs = path.T

@@ -112,6 +112,34 @@ class Gate:
         return point_to_line_distance(*self.gate_line[0], *self.gate_line[1], latitude, longitude)
 
 
+class MultiGate:
+    def __init__(self, gates: List[Gate]):
+        self.gates = gates
+        self.intersected_gate = None
+
+    @property
+    def name(self):
+        return self.intersected_gate.name if self.intersected_gate is not None else self.gates[0].name
+
+    def has_been_passed(self) -> bool:
+        return any(gate.has_been_passed() for gate in self.gates)
+
+    def set_expected_time(self, expected_time: datetime):
+        for gate in self.gates:
+            gate.expected_time = expected_time
+
+    def get_gate_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
+        for gate in self.gates:
+            intersection_time = gate.get_gate_intersection_time(projector, track)
+            if intersection_time is not None:
+                gate.passing_time = intersection_time
+                gate.extended_passing_time = intersection_time
+                gate.infinite_passing_time = intersection_time
+                self.intersected_gate = gate
+            return intersection_time
+        return None
+
+
 def round_seconds(stamp: datetime) -> datetime:
     new_stamp = stamp
     if stamp.microsecond >= 500000:

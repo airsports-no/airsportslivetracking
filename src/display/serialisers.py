@@ -383,8 +383,8 @@ class RouteSerialiser(serializers.ModelSerializer):
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
         instance.waypoints = waypoints
-        instance.landing_gate = self._create_waypoint(validated_data.get("landing_gate"))
-        instance.takeoff_gate = self._create_waypoint(validated_data.get("takeoff_gate"))
+        instance.landing_gates = [self._create_waypoint(data) for data in validated_data.get("landing_gates")]
+        instance.takeoff_gates = [self._create_waypoint(data) for data in validated_data.get("takeoff_gates")]
         return instance
 
 

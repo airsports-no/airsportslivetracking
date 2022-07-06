@@ -240,8 +240,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     """
     first_line = True
     local_time = "-"
-    if contestant.navigation_task.route.takeoff_gate:
-        local_time = contestant.gate_times.get(contestant.navigation_task.route.takeoff_gate.name, None)
+    if contestant.navigation_task.route.first_takeoff_gate:
+        local_time = contestant.gate_times.get(contestant.navigation_task.route.first_takeoff_gate.name, None)
         if local_time:
             local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
     table += f"<tr><td>Takeoff gate</td><td>-</td><td>-</td><td>-</td><td>{local_time}</td></tr>"
@@ -264,8 +264,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
                 accumulated_distance=0
                 first_line = False
     local_time = "-"
-    if contestant.navigation_task.route.landing_gate:
-        local_time = contestant.gate_times.get(contestant.navigation_task.route.landing_gate.name, None)
+    if contestant.navigation_task.route.first_landing_gate:
+        local_time = contestant.gate_times.get(contestant.navigation_task.route.first_landing_gate.name, None)
         if local_time:
             local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
     table += f"<tr><td>Landing gate</td><td>-</td><td>-</td><td>-</td><td>{local_time}</td></tr>"

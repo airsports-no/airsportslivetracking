@@ -199,16 +199,30 @@ class Route(models.Model):
     rounded_corners = models.BooleanField(default=False, blank=True)
     corridor_width = models.FloatField(default=0.5, blank=True)
     waypoints = MyPickledObjectField(default=list)
-    takeoff_gate = MyPickledObjectField(default=None, null=True)
-    landing_gate = MyPickledObjectField(default=None, null=True)
+    takeoff_gates = MyPickledObjectField(default=list, null=False)
+    landing_gates = MyPickledObjectField(default=list, null=False)
+
+    @property
+    def first_takeoff_gate(self) -> Optional[Waypoint]:
+        try:
+            return self.takeoff_gates[0]
+        except IndexError:
+            return None
+
+    @property
+    def first_landing_gate(self) -> Optional[Waypoint]:
+        try:
+            return self.landing_gates[0]
+        except IndexError:
+            return None
 
     def get_location(self) -> Tuple[float, float]:
         if self.waypoints and len(self.waypoints) > 0:
             return self.waypoints[0].latitude, self.waypoints[0].longitude
-        if self.takeoff_gate:
-            return self.takeoff_gate.latitude, self.takeoff_gate.longitude
-        if self.landing_gate:
-            return self.landing_gate.latitude, self.landing_gate.longitude
+        if len(self.takeoff_gates) > 0:
+            return self.takeoff_gates[0].latitude, self.takeoff_gates[0].longitude
+        if len(self.landing_gates) > 0:
+            return self.landing_gates[0].latitude, self.landing_gates[0].longitude
         return 0, 0
 
     def clean(self):
@@ -1326,13 +1340,13 @@ class Contestant(models.Model):
         return self.gate_times.get(self.navigation_task.route.waypoints[0].name)
 
     def get_final_gate_time(self) -> Optional[datetime.datetime]:
-        final_gate = self.navigation_task.route.landing_gate or self.navigation_task.route.waypoints[-1]
+        final_gate = self.navigation_task.route.landing_gates or self.navigation_task.route.waypoints[-1]
         return self.gate_times.get(final_gate.name)
 
     @property
     def landing_time(self) -> datetime.datetime:
-        if self.navigation_task.route.landing_gate:
-            return self.gate_times[self.navigation_task.route.landing_gate.name]
+        if self.navigation_task.route.landing_gates:
+            return self.gate_times[self.navigation_task.route.landing_gates.name]
         return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
             minutes=self.navigation_task.minutes_to_landing
         )
@@ -1396,7 +1410,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 gives a penalty of {scorecard.backtracking_penalty} points.
 
 {self._prohibited_zone_text()} {self._penalty_zone_text()}
-{"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
+{"The route has a takeoff gate." if len(self.navigation_task.route.takeoff_gates) > 0 else ""} {"The route has a landing gate" if len(self.navigation_task.route.landing_gates) > 0 else ""}
 """
 
     def _anr_rule_description(self):
@@ -1407,7 +1421,7 @@ Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds
         if scorecard.corridor_maximum_penalty != -1:
             text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor per leg."""
         text += f"""
-{self._prohibited_zone_text()} {self._penalty_zone_text()} {"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
+{self._prohibited_zone_text()} {self._penalty_zone_text()} {"The route has a takeoff gate." if len(self.navigation_task.route.takeoff_gates) > 0 else ""} {"The route has a landing gate" if len(self.navigation_task.route.landing_gates) > 0 else ""}
 """
         return text
 
@@ -1432,7 +1446,7 @@ Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds
 There are timed gates on the track. The penalty for crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp")} point(s) per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp")} seconds. 
 Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.backtracking_grace_time_seconds} seconds gives a penalty of {scorecard.backtracking_penalty} points. 
 {self._prohibited_zone_text()} {self._penalty_zone_text()}
-{"The route has a takeoff gate." if self.navigation_task.route.takeoff_gate else ""} {"The route has a landing gate" if self.navigation_task.route.landing_gate else ""}
+{"The route has a takeoff gate." if len(self.navigation_task.route.takeoff_gates) > 0 else ""} {"The route has a landing gate" if len(self.navigation_task.route.landing_gates) > 0 else ""}
 
 """
         return text
@@ -1623,12 +1637,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     def _get_takeoff_and_landing_times(self):
         crossing_times = {}
-        if self.navigation_task.route.takeoff_gate is not None:
-            crossing_times[self.navigation_task.route.takeoff_gate.name] = self.takeoff_time
-        if self.navigation_task.route.landing_gate is not None:
-            crossing_times[self.navigation_task.route.landing_gate.name] = self.finished_by_time - datetime.timedelta(
-                minutes=1
-            )
+        for gate in self.navigation_task.route.takeoff_gates:
+            crossing_times[gate.name] = self.takeoff_time
+        for gate in self.navigation_task.route.landing_gates:
+            crossing_times[gate.name] = self.finished_by_time - datetime.timedelta(minutes=1)
         return crossing_times
 
     def calculate_missing_gate_times(self, predefined_gate_times: Dict,
@@ -1673,9 +1685,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     def get_gate_time_offset(self, gate_name):
         planned = self.gate_times.get(gate_name)
         if planned is None:
-            if self.navigation_task.route.takeoff_gate and gate_name == self.navigation_task.route.takeoff_gate.name:
+            if len(self.navigation_task.route.takeoff_gates) > 0 and gate_name in (gate.name for gate in
+                                                                                   self.navigation_task.route.takeoff_gates):
                 planned = self.takeoff_time
-            elif self.navigation_task.route.landing_gate and gate_name == self.navigation_task.route.landing_gate.name:
+            elif len(self.navigation_task.route.landing_gates) > 0 and gate_name in (gate.name for gate in
+                                                                                     self.navigation_task.route.landing_gates):
                 planned = self.finished_by_time
         actual = self.actualgatetime_set.filter(gate=gate_name).first()
         if planned and actual:
@@ -2617,9 +2631,9 @@ class EditableRoute(models.Model):
     def create_landing_route(self):
         route = Route.objects.create(name="", waypoints=[], use_procedure_turns=False)
         self.extract_additional_features(route)
-        if route.landing_gate is None:
+        if route.landing_gates is None:
             raise ValidationError("Route must have a landing gate")
-        route.waypoints = [route.landing_gate]
+        route.waypoints = [route.landing_gates]
         route.save()
         return route
 
@@ -2705,20 +2719,22 @@ class EditableRoute(models.Model):
     def extract_additional_features(self, route: Route):
         from display.convert_flightcontest_gpx import create_gate_from_line
 
-        takeoff_gate = self.get_feature_type("to")
-        if takeoff_gate is not None:
+        takeoff_gates = self.get_features_type("to")
+        for index, takeoff_gate in enumerate(takeoff_gates):
             takeoff_gate_line = self.get_feature_coordinates(takeoff_gate)
             if len(takeoff_gate_line) != 2:
                 raise ValidationError("Take-off gate should have exactly 2 points")
-            route.takeoff_gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
-            route.takeoff_gate.gate_line = takeoff_gate_line
-        landing_gate = self.get_feature_type("ldg")
-        if landing_gate is not None:
+            gate = create_gate_from_line(takeoff_gate_line, f"Takeoff {index + 1}", "to")
+            gate.gate_line = takeoff_gate_line
+            route.takeoff_gates.append(gate)
+        landing_gates = self.get_features_type("ldg")
+        for index, landing_gate in enumerate(landing_gates):
             landing_gate_line = self.get_feature_coordinates(landing_gate)
             if len(landing_gate_line) != 2:
                 raise ValidationError("Landing gate should have exactly 2 points")
-            route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
-            route.landing_gate.gate_line = landing_gate_line
+            gate = create_gate_from_line(landing_gate_line, f"Landing {index + 1}", "ldg")
+            gate.gate_line = landing_gate_line
+            route.landing_gates.append(gate)
         route.save()
         # Create prohibited zones
         for zone_type in ("info", "penalty", "prohibited", "gate"):

@@ -9,7 +9,7 @@ import pytz
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import round_time, distance_between_gates
 from display.calculators.gatekeeper import Gatekeeper
-from display.calculators.positions_and_gates import Gate, Position
+from display.calculators.positions_and_gates import Gate, Position, MultiGate
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
     calculate_fractional_distance_point_lat_lon, cross_track_distance, nv_intersect
@@ -33,24 +33,27 @@ class GatekeeperRoute(Gatekeeper):
         self.starting_line = Gate(self.gates[0].waypoint, self.gates[0].expected_time,
                                   calculate_extended_gate(self.gates[0].waypoint, self.scorecard))
         self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
-        self.takeoff_gate = Gate(self.contestant.navigation_task.route.takeoff_gate,
-                                 self.contestant.gate_times[self.contestant.navigation_task.route.takeoff_gate.name],
-                                 calculate_extended_gate(self.contestant.navigation_task.route.takeoff_gate,
-                                                         self.scorecard)) if self.contestant.navigation_task.route.takeoff_gate else None
-        self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
-                                 self.contestant.gate_times[self.contestant.navigation_task.route.landing_gate.name],
-                                 calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
-                                                         self.scorecard)) if self.contestant.navigation_task.route.landing_gate else None
-        if self.landing_gate is not None:
-            # If there is a landing gate we need to include this so that it can be scored and we do not terminate the
-            # tracker until this has been passed.
-            self.gates.append(self.landing_gate)
+        self.takeoff_gate = MultiGate([Gate(takeoff_gate,
+                                            self.contestant.gate_times[takeoff_gate.name],
+                                            calculate_extended_gate(takeoff_gate, self.scorecard)) for takeoff_gate in
+                                       self.contestant.navigation_task.route.takeoff_gates]) if len(
+            self.contestant.navigation_task.route.takeoff_gates) > 0 else None
+        self.landing_gate = MultiGate([Gate(landing_gate,
+                                            self.contestant.gate_times[landing_gate.name],
+                                            calculate_extended_gate(landing_gate, self.scorecard)) for landing_gate in
+                                       self.contestant.navigation_task.route.landing_gates]) if len(
+            self.contestant.navigation_task.route.landing_gates) > 0 else None
+
+        # if len(self.landing_gates) > 0:
+        #     # If there is a landing gate we need to include this so that it can be scored and we do not terminate the
+        #     # tracker until this has been passed.
+        #     self.gates.append(self.landing_gates)
         self.outstanding_gates = list(self.gates)
         # Take of gate is handled separately, so should not be part of outstanding gates
         if self.contestant.adaptive_start:
-            self.takeoff_gate = None
-        elif self.takeoff_gate is not None:
-            self.gates.insert(0, self.takeoff_gate)
+            self.takeoff_gate=None
+        # elif len(self.takeoff_gates) > 0:
+        #     self.gates.insert(0, self.takeoff_gates)
         self.in_range_of_gate = None
 
     def recalculate_gates_times_from_start_time(self, start_time: datetime.datetime):
@@ -60,7 +63,7 @@ class GatekeeperRoute(Gatekeeper):
         for item in self.outstanding_gates:  # type: Gate
             item.expected_time = gate_times[item.name]
         if self.landing_gate is not None:
-            self.landing_gate.expected_time = gate_times[self.landing_gate.name]
+            self.landing_gate.set_expected_time(gate_times[self.landing_gate.name])
         self.recalculation_completed = True
         self.contestant.save()
 
@@ -105,6 +108,9 @@ class GatekeeperRoute(Gatekeeper):
             item.maybe_missed_time = None
             item.maybe_missed_position = None
         self.outstanding_gates = []
+        if self.landing_gate:
+            if not self.landing_gate.has_been_passed():
+                self.landing_gate.set_missed()
 
     def check_intersections(self):
         # Check takeoff if exists
@@ -112,9 +118,6 @@ class GatekeeperRoute(Gatekeeper):
             intersection_time = self.takeoff_gate.get_gate_intersection_time(self.projector, self.track)
             # Miss is handled by starting line check
             if intersection_time:
-                self.takeoff_gate.passing_time = intersection_time
-                self.takeoff_gate.extended_passing_time = intersection_time
-                self.takeoff_gate.infinite_passing_time = intersection_time
                 self.contestant.record_actual_gate_time(self.takeoff_gate.name, intersection_time)
                 logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
 
@@ -221,6 +224,13 @@ class GatekeeperRoute(Gatekeeper):
         self.check_gate_in_range()
         if self.last_gate and self.last_gate.type == "fp":
             self.passed_finishpoint()
+        if self.has_passed_finishpoint:
+            if self.landing_gate is not None and not self.landing_gate.has_been_passed():
+                intersection_time = self.landing_gate.get_gate_intersection_time(self.projector, self.track)
+                # Miss is handled by miss_outstanding_gates
+                if intersection_time:
+                    self.contestant.record_actual_gate_time(self.landing_gate.name, intersection_time)
+                    logger.info("{} {}: Passing landing line".format(self.contestant, intersection_time))
 
     def transmit_actual_crossing(self, gate: Gate):
         estimated_crossing_time = self.track[-1].time

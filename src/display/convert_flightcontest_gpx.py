@@ -222,14 +222,16 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
     if takeoff_gate_line is not None:
         if len(takeoff_gate_line) != 2:
             raise ValidationError("Take-off gate should have exactly 2 points")
-        route.takeoff_gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
-        route.takeoff_gate.gate_line = takeoff_gate_line
+        gate = create_gate_from_line(takeoff_gate_line, "Takeoff", "to")
+        gate.gate_line = takeoff_gate_line
+        route.takeoff_gates.append(gate)
     landing_gate_line = features.get("ldg")
     if landing_gate_line is not None:
         if len(landing_gate_line) != 2:
             raise ValidationError("Landing gate should have exactly 2 points")
-        route.landing_gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
-        route.landing_gate.gate_line = landing_gate_line
+        gate = create_gate_from_line(landing_gate_line, "Landing", "ldg")
+        gate.gate_line = landing_gate_line
+        route.landing_gates.append(gate)
     route.save()
     # Create prohibited zones
     for name in features.keys():
@@ -337,7 +339,7 @@ def create_landing_line_from_kml(route_name: str, input_kml) -> Route:
         raise ValidationError("File is missing a 'to' line")
     route = Route.objects.create(name=route_name, waypoints=[], use_procedure_turns=False)
     extract_additional_features_from_kml_features(features, route)
-    route.waypoints = [route.landing_gate]
+    route.waypoints = [route.landing_gates]
     route.save()
     return route
 

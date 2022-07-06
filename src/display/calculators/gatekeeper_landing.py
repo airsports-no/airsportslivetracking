@@ -26,10 +26,10 @@ class GatekeeperLanding(Gatekeeper):
                  live_processing: bool = True, queue_name_override: str=None):
         super().__init__(contestant, calculators, live_processing, queue_name_override=queue_name_override)
         self.last_intersection = None
-        self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
+        self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gates,
                                  datetime.datetime.min,
-                                 calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
-                                                         self.scorecard)) if self.contestant.navigation_task.route.landing_gate else None
+                                 calculate_extended_gate(self.contestant.navigation_task.route.landing_gates,
+                                                         self.scorecard)) if self.contestant.navigation_task.route.landing_gates else None
         self.projector = Projector(self.landing_gate.latitude, self.landing_gate.longitude)
         for calculator in calculators:
             self.calculators.append(
