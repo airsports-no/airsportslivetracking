@@ -111,6 +111,7 @@ class GatekeeperRoute(Gatekeeper):
             if not self.landing_gate.has_been_passed():
                 self.landing_gate.missed = True
 
+
     def check_intersections(self):
         # Check takeoff if exists
         if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
@@ -376,6 +377,7 @@ class GatekeeperRoute(Gatekeeper):
         self.miss_outstanding_gates()
         self.calculate_gate_score()
         self.calculate_landing_gate_miss()
+
 
     def calculate_takeoff_gate_miss(self):
         if self.takeoff_gate and self.takeoff_gate.missed:

@@ -123,7 +123,7 @@ class MultiGate:
         return self.intersected_gate.name if self.intersected_gate is not None else self.gates[0].name
 
     def has_been_passed(self) -> bool:
-        return any(gate.has_been_passed() for gate in self.gates)
+        return self.missed or any(gate.has_been_passed() for gate in self.gates)
 
     def set_expected_time(self, expected_time: datetime):
         for gate in self.gates:

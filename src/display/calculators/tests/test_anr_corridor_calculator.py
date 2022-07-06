@@ -122,7 +122,6 @@ class TestANRPerLeg(TransactionTestCase):
              'Waypoint 1: 200.0 points backtracking',
              'Waypoint 1: 0 points entering corridor',
              'Waypoint 1: 0.0 points outside corridor (157 s) (capped)',
-             'FP: 30.0 points outside corridor (10 s)',
              'FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:10\nactual: 20:35:11',
              'Landing: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --']
 
@@ -167,7 +166,6 @@ class TestANRPerLeg(TransactionTestCase):
                 "Waypoint 2: 50.0 points outside corridor (0 s) (capped)",
                 "Waypoint 3: 50.0 points outside corridor (0 s) (capped)",
                 "FP: 200.0 points missing gate",
-                "FP: 50.0 points outside corridor (0 s) (capped)",
                 "Landing: 0.0 points missing landing gate",
             ],
             fixed_strings,
