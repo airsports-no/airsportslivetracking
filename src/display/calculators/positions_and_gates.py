@@ -116,6 +116,7 @@ class MultiGate:
     def __init__(self, gates: List[Gate]):
         self.gates = gates
         self.intersected_gate = None
+        self.missed = False
 
     @property
     def name(self):

@@ -1,6 +1,5 @@
 import datetime
 import logging
-import threading
 from multiprocessing.queues import Queue
 from typing import List, TYPE_CHECKING, Optional, Callable, Tuple
 
@@ -51,7 +50,7 @@ class GatekeeperRoute(Gatekeeper):
         self.outstanding_gates = list(self.gates)
         # Take of gate is handled separately, so should not be part of outstanding gates
         if self.contestant.adaptive_start:
-            self.takeoff_gate=None
+            self.takeoff_gate = None
         # elif len(self.takeoff_gates) > 0:
         #     self.gates.insert(0, self.takeoff_gates)
         self.in_range_of_gate = None
@@ -110,7 +109,7 @@ class GatekeeperRoute(Gatekeeper):
         self.outstanding_gates = []
         if self.landing_gate:
             if not self.landing_gate.has_been_passed():
-                self.landing_gate.set_missed()
+                self.landing_gate.missed = True
 
     def check_intersections(self):
         # Check takeoff if exists
@@ -118,8 +117,19 @@ class GatekeeperRoute(Gatekeeper):
             intersection_time = self.takeoff_gate.get_gate_intersection_time(self.projector, self.track)
             # Miss is handled by starting line check
             if intersection_time:
+                gate = self.takeoff_gate.gates[0]  # We choose an arbitrary gate since they will have the same times
+                current_position = self.track[-1]
                 self.contestant.record_actual_gate_time(self.takeoff_gate.name, intersection_time)
                 logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
+                gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
+                                                                                gate.expected_time,
+                                                                                gate.passing_time)
+                self.transmit_actual_crossing(gate)
+                self.update_score(gate, gate_score,
+                                  "passing takeoff gate",
+                                  current_position.latitude, current_position.longitude, "anomaly",
+                                  self.GATE_SCORE_TYPE,
+                                  planned=gate.expected_time, actual=gate.passing_time)
 
         if not self.starting_line.has_infinite_been_passed():
             # First check extended and see if we are in the correct direction
@@ -148,6 +158,7 @@ class GatekeeperRoute(Gatekeeper):
                     # Start the clock
                     if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
                         self.takeoff_gate.missed = True
+                        self.calculate_takeoff_gate_miss()
                     self.in_range_of_gate = self.gates[0]
                     logger.info("{}: Passing start line {}".format(self.contestant, intersection_time))
                     self.starting_line.infinite_passing_time = intersection_time
@@ -229,8 +240,19 @@ class GatekeeperRoute(Gatekeeper):
                 intersection_time = self.landing_gate.get_gate_intersection_time(self.projector, self.track)
                 # Miss is handled by miss_outstanding_gates
                 if intersection_time:
+                    gate = self.landing_gate.gates[0]
+                    current_position = self.track[-1]
                     self.contestant.record_actual_gate_time(self.landing_gate.name, intersection_time)
                     logger.info("{} {}: Passing landing line".format(self.contestant, intersection_time))
+                    gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
+                                                                                    gate.expected_time,
+                                                                                    gate.passing_time)
+                    self.transmit_actual_crossing(gate)
+                    self.update_score(gate, gate_score,
+                                      "passing landing gate",
+                                      current_position.latitude, current_position.longitude, "anomaly",
+                                      self.GATE_SCORE_TYPE,
+                                      planned=gate.expected_time, actual=gate.passing_time)
 
     def transmit_actual_crossing(self, gate: Gate):
         estimated_crossing_time = self.track[-1].time
@@ -357,6 +379,27 @@ class GatekeeperRoute(Gatekeeper):
             f"{self.contestant}: {'Live processing and past' if self.live_processing else 'Past'} finish time, terminating")
         self.miss_outstanding_gates()
         self.calculate_gate_score()
+        self.calculate_landing_gate_miss()
+
+    def calculate_takeoff_gate_miss(self):
+        if self.takeoff_gate and self.takeoff_gate.missed:
+            gate = self.takeoff_gate.gates[0]
+            current_position = self.track[-1]
+            score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
+                                                                       gate.expected_time, None)
+            self.update_score(gate, score, "missing takeoff gate", current_position.latitude,
+                              current_position.longitude, "anomaly", "gate_score",
+                              planned=gate.expected_time)
+
+    def calculate_landing_gate_miss(self):
+        if self.landing_gate and self.landing_gate.missed:
+            gate = self.landing_gate.gates[0]
+            current_position = self.track[-1]
+            score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
+                                                                       gate.expected_time, None)
+            self.update_score(gate, score, "missing landing gate", current_position.latitude,
+                              current_position.longitude, "anomaly", "gate_score",
+                              planned=gate.expected_time)
 
     def calculate_gate_score(self):
         if not len(self.track):
