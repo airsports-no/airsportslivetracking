@@ -43,16 +43,9 @@ class GatekeeperRoute(Gatekeeper):
                                        self.contestant.navigation_task.route.landing_gates]) if len(
             self.contestant.navigation_task.route.landing_gates) > 0 else None
 
-        # if len(self.landing_gates) > 0:
-        #     # If there is a landing gate we need to include this so that it can be scored and we do not terminate the
-        #     # tracker until this has been passed.
-        #     self.gates.append(self.landing_gates)
         self.outstanding_gates = list(self.gates)
-        # Take of gate is handled separately, so should not be part of outstanding gates
         if self.contestant.adaptive_start:
             self.takeoff_gate = None
-        # elif len(self.takeoff_gates) > 0:
-        #     self.gates.insert(0, self.takeoff_gates)
         self.in_range_of_gate = None
 
     def recalculate_gates_times_from_start_time(self, start_time: datetime.datetime):
