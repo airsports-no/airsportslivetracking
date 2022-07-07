@@ -122,11 +122,12 @@ class TestANRPerLeg(TransactionTestCase):
              'Waypoint 1: 200.0 points backtracking',
              'Waypoint 1: 0 points entering corridor',
              'Waypoint 1: 0.0 points outside corridor (157 s) (capped)',
+             'Waypoint 2: 50.0 points outside corridor (-1 s) (capped)',
              'FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:10\nactual: 20:35:11',
              'Landing: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --']
 
         self.assertListEqual(a, strings)
-        self.assertEqual(730, contestant_track.score)
+        self.assertEqual(750, contestant_track.score)
 
     def test_anr_miss_multiple_finish(self, p, p2):
         track = load_track_points_traccar_csv(
@@ -170,7 +171,7 @@ class TestANRPerLeg(TransactionTestCase):
             ],
             fixed_strings,
         )
-        self.assertEqual(850, contestant_track.score)
+        self.assertEqual(800, contestant_track.score)
 
     def test_manually_terminate_calculator(self, p, p2):
         cache.clear()
