@@ -134,8 +134,8 @@ def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
     gpx = gpxpy.parse(file)
     waypoints = []
     waypoint_map = {}
-    landing_gate = None
-    takeoff_gate = None
+    landing_gates = []
+    takeoff_gates = []
     route_name = ""
     for route in gpx.routes:
         for flightcontest in route.extensions:
@@ -178,12 +178,12 @@ def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
                 waypoint.end_curved = gate_extension.attrib["endcurved"] == "yes"
                 waypoint.type = gate_extension.attrib["type"].lower()
                 if waypoint.type == "to":
-                    assert not takeoff_gate
-                    takeoff_gate = waypoint
+                    assert not takeoff_gates
+                    takeoff_gates = [waypoint]
 
                 if waypoint.type == "ldg":
-                    assert not landing_gate
-                    landing_gate = waypoint
+                    assert not landing_gates
+                    landing_gates = [waypoint]
     if len(waypoints) < 2:
         raise ValidationError("A route must at least have a starting point and finish point")
     if waypoints[0].type != "sp":
@@ -194,8 +194,8 @@ def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
     calculate_and_update_legs(waypoints, use_procedure_turns)
     insert_gate_ranges(waypoints)
 
-    object = Route(name=route_name, waypoints=waypoints, takeoff_gates=[takeoff_gate],
-                   landing_gates=[landing_gate], use_procedure_turns=use_procedure_turns)
+    object = Route(name=route_name, waypoints=waypoints, takeoff_gates=takeoff_gates,
+                   landing_gates=landing_gates, use_procedure_turns=use_procedure_turns)
     object.save()
     return object
 
