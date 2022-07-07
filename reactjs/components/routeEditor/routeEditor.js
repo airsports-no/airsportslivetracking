@@ -85,7 +85,7 @@ const slides = [
         background: bgcolor
     }, {
         title: "Draw track",
-        description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created.",
+        description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created. Points closer than 1km to the last point will automatically be marked as secret without time check.",
         image: "/static/img/tutorial/2.png",
         background: bgcolor
     }, {
@@ -567,7 +567,7 @@ class ConnectedRouteEditor extends Component {
                     circle([p.lat, p.lng], {
                         radius: track.trackPoints[index].gateWidth * 1852 / 2,
                         index: index,
-                        color: track.trackPoints[index].gateType!=="secret" ? "blue" : "grey",
+                        color: track.trackPoints[index].gateType !== "secret" ? "blue" : "grey",
                         opacity: 0.05
                     }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
                         if (this.state.globalEditingMode) {
@@ -749,11 +749,17 @@ class ConnectedRouteEditor extends Component {
     }
 
     initialiseWaypoints(trackLayer) {
+        const distanceLimit = 1000
         return trackLayer.getLatLngs().map((position, index) => {
+            let distance = 100000000000
+            if (index > 0) {
+                const previousPosition = trackLayer.getLatLngs()[index - 1]
+                distance = getDistance(previousPosition.lat, previousPosition.lng, position.lat, position.lng)
+            }
             let defaultValue = {
                 name: "TP " + (index),
-                gateType: "tp",
-                timeCheck: true,
+                gateType: distance < distanceLimit ? "secret" : "tp",
+                timeCheck: distance >= distanceLimit,
                 gateWidth: 1,
                 position: position
             }
