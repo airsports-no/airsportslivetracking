@@ -37,8 +37,8 @@ const featureStyles = {
 
 const generalTypes = {
     "track": [1, 1],
-    "to": [0, 1],
-    "ldg": [0, 1],
+    "to": [0, 100],
+    "ldg": [0, 100],
     "prohibited": [0, 1000],
     "info": [0, 1000],
     "gate": [0, 1000],
@@ -51,8 +51,8 @@ const featureTypeCounts = {
     "poker": generalTypes,
     "landing": {
         "track": [0, 1],
-        "to": [0, 100],
-        "ldg": [1, 100],
+        "to": [0, 1],
+        "ldg": [1, 1],
         "prohibited": [0, 1000],
         "info": [0, 1000],
         "gate": [0, 1000],
