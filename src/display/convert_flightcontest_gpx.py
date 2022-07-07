@@ -407,7 +407,7 @@ def correct_gate_directions_to_the_right(waypoints: List[Waypoint]):
             # Change order of corridor lines
             temp = waypoint.left_corridor_line
             waypoint.left_corridor_line = waypoint.right_corridor_line
-            waypoint.left_corridor_line = temp
+            waypoint.right_corridor_line = temp
 
 
 def create_bisecting_line_between_gates(previous_gate: Waypoint, current_gate: Waypoint, next_gate: Waypoint,
