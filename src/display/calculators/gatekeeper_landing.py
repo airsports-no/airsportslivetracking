@@ -9,7 +9,7 @@ import pytz
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import round_time, distance_between_gates
 from display.calculators.gatekeeper import Gatekeeper
-from display.calculators.positions_and_gates import Gate, Position
+from display.calculators.positions_and_gates import Gate, Position, MultiGate
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
     calculate_fractional_distance_point_lat_lon
@@ -23,14 +23,14 @@ LOOP_TIME = 60
 
 class GatekeeperLanding(Gatekeeper):
     def __init__(self, contestant: "Contestant", calculators: List[Callable],
-                 live_processing: bool = True, queue_name_override: str=None):
+                 live_processing: bool = True, queue_name_override: str = None):
         super().__init__(contestant, calculators, live_processing, queue_name_override=queue_name_override)
         self.last_intersection = None
-        self.landing_gate = Gate(self.contestant.navigation_task.route.landing_gate,
-                                 datetime.datetime.min,
-                                 calculate_extended_gate(self.contestant.navigation_task.route.landing_gate,
-                                                         self.scorecard)) if self.contestant.navigation_task.route.landing_gate else None
-        self.projector = Projector(self.landing_gate.latitude, self.landing_gate.longitude)
+        self.landing_gate = MultiGate([Gate(landing_gate,
+                                            self.contestant.gate_times[landing_gate.name],
+                                            calculate_extended_gate(landing_gate, self.scorecard)) for landing_gate in
+                                       self.contestant.navigation_task.route.landing_gates])
+        self.projector = Projector(self.landing_gate.gates[0].latitude, self.landing_gate.gates[0].longitude)
         for calculator in calculators:
             self.calculators.append(
                 calculator(self.contestant, self.scorecard, self.gates, self.contestant.navigation_task.route,
@@ -44,7 +44,7 @@ class GatekeeperLanding(Gatekeeper):
                 if self.last_intersection is None or intersection_time > self.last_intersection + datetime.timedelta(
                         seconds=30):
                     self.last_intersection = intersection_time
-                    self.update_score(self.landing_gate, 1, "passed landing line", self.track[-1].latitude,
+                    self.update_score(self.landing_gate.gates[0], 1, "passed landing line", self.track[-1].latitude,
                                       self.track[-1].longitude, ANOMALY, "landing_line")
 
     def check_termination(self):

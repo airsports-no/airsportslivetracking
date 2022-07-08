@@ -37,8 +37,8 @@ line = {
 NAVIGATION_TASK_DATA = {"name": "Task", "start_time": datetime.datetime.now(datetime.timezone.utc),
                         "finish_time": datetime.datetime.now(datetime.timezone.utc), "route": {
         "waypoints": [],
-        "takeoff_gate": line,
-        "landing_gate": line,
+        "takeoff_gates": [line],
+        "landing_gates": [line],
         "name": "name"
     },
                         "original_scorecard": "FAI Precision"

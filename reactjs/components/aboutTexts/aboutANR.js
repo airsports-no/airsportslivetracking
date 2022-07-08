@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import {getGateValue, getTrackValue} from "./actualScoreUtilities";
 
-const aboutANR = (scorecard) => {
+const aboutANR = (scorecard, route) => {
     return <div>
         <h2>Air navigation race (ANR)</h2>
         <p>
@@ -35,6 +35,20 @@ const aboutANR = (scorecard) => {
             is {getGateValue(scorecard, "fp", "maximum_timing_penalty")} points.
 
         </p>
+        {route.takeoff_gates.length > 0 && getGateValue(scorecard, "to", "maximum_penalty") > 0 ?
+            <p>
+                The route has a takeoff gate. If this is passed before the takeoff time or more than one minute after
+                the
+                takeoff time a penalty
+                of {getGateValue(scorecard, "to", "maximum_penalty")} points
+                is applied.
+            </p> : null}
+        {route.landing_gates.length > 0 && getGateValue(scorecard, "ldg", "maximum_penalty") > 0 ?
+            <p>
+                The route has a landing gate. If this is not passed by the finish time for the contestant, a penalty
+                of {getGateValue(scorecard, "ldg", "maximum_penalty")} points is applied.
+            </p> : null}
+
     </div>
 }
 
