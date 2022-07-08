@@ -27,6 +27,7 @@ import 'react-circular-progressbar/dist/styles.css';
 import {mdiLogout, mdiMagnify} from "@mdi/js";
 import Icon from "@mdi/react";
 import throttle from 'react-throttle-render'
+import {sortCaret} from "./resultsTableUtilities";
 
 var moment = require("moment");
 var momentDurationFormatSetup = require("moment-duration-format");
@@ -81,16 +82,15 @@ class ConnectedContestantRankTable extends Component {
                 //     }
                 // },
                 classes: "align-middle",
-                sort: true,
-                formatter: (cell, row) => {
-                    return <span> {cell}</span>
+                sort: false,
+                formatter: (cell, row, rowIndex) => {
+                    return <span>{rowIndex + 1}</span>
                 }
-
             },
             {
                 dataField: "contestantNumber",
                 text: "#",
-                hidden: true
+                hidden: true,
             },
             {
                 dataField: "contestantId",
@@ -100,7 +100,7 @@ class ConnectedContestantRankTable extends Component {
             {
                 dataField: "pilotName",
                 text: "CREW",
-                sort: true,
+                sort: false,
                 classes: "align-middle crew-name",
                 formatter: (cell, row) => {
                     return <div className={"align-middle crew-name"}>{teamRankingTable(row.contestant.team)}</div>
@@ -111,6 +111,12 @@ class ConnectedContestantRankTable extends Component {
                 text: "SCORE",
                 classes: "align-middle",
                 sort: true,
+                sortCaret: sortCaret,
+                headerFormatter: (column, colIndex, components) => {
+                    return <span>
+                    SCORE{components.sortElement}
+                </span>
+                },
                 formatter: (cell, row) => {
                     if (!row.hasStarted) {
                         return "--"
@@ -124,6 +130,12 @@ class ConnectedContestantRankTable extends Component {
                 classes: "align-middle",
                 sort: true,
                 hidden: !this.props.navigationTask.display_contestant_rank_summary,
+                sortCaret: sortCaret,
+                headerFormatter: (column, colIndex, components) => {
+                    return <span>
+                    Σ{components.sortElement}
+                </span>
+                },
                 formatter: (cell, row) => {
                     if (cell != null) {
                         return cell.toFixed(this.props.scoreDecimals)
@@ -139,6 +151,13 @@ class ConnectedContestantRankTable extends Component {
                 style: (cell, row, rowIndex, colIndex) => {
                     return {color: "orange"}
                 },
+                sortCaret: sortCaret,
+                headerFormatter: (column, colIndex, components) => {
+                    return <span>
+                    EST{components.sortElement}
+                </span>
+                },
+
                 formatter: (cell, row) => {
                     let value = cell.toFixed(0)
                     if (value === "99999") {
