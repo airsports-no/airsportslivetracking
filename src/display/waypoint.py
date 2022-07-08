@@ -121,6 +121,7 @@ class Waypoint:
         line = self.gate_line if not original else self.original_gate_line
         gate_line_bearing = calculate_bearing(line[0], line[1])
         waypoint_bearing = self.bearing_from_previous if self.bearing_from_previous >= 0 else self.bearing_next
+        # This should be close to 90 if pointing right for a precision track
         return bearing_difference(waypoint_bearing, gate_line_bearing) > 0
 
     def get_gate_position_right_of_track(self, original: bool = False):

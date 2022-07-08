@@ -336,8 +336,8 @@ class ProhibitedSerialiser(serializers.ModelSerializer):
 
 class RouteSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
-    landing_gate = WaypointSerialiser(required=False, help_text="Optional landing gate")
-    takeoff_gate = WaypointSerialiser(required=False, help_text="Optional takeoff gate")
+    landing_gates = WaypointSerialiser(required=False, help_text="Optional landing gate", many=True)
+    takeoff_gates = WaypointSerialiser(required=False, help_text="Optional takeoff gate", many=True)
     prohibited_set = ProhibitedSerialiser(many=True, required=False)
 
     class Meta:
@@ -372,8 +372,8 @@ class RouteSerialiser(serializers.ModelSerializer):
             waypoints.append(self._create_waypoint(waypoint_data))
         route = Route.objects.create(
             waypoints=waypoints,
-            landing_gate=self._create_waypoint(validated_data.pop("landing_gate")),
-            takeoff_gate=self._create_waypoint(validated_data.pop("takeoff_gate")),
+            landing_gates=[self._create_waypoint(data) for data in validated_data.pop("landing_gates")],
+            takeoff_gates=[self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")],
             **validated_data,
         )
         return route
@@ -383,8 +383,8 @@ class RouteSerialiser(serializers.ModelSerializer):
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
         instance.waypoints = waypoints
-        instance.landing_gate = self._create_waypoint(validated_data.get("landing_gate"))
-        instance.takeoff_gate = self._create_waypoint(validated_data.get("takeoff_gate"))
+        instance.landing_gates = [self._create_waypoint(data) for data in validated_data.pop("landing_gates")]
+        instance.takeoff_gates = [self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")]
         return instance
 
 

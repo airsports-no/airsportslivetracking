@@ -2,8 +2,8 @@ import React, {Component} from "react";
 import {getGate, getGateValue, getTrackValue} from "./actualScoreUtilities";
 
 
-const aboutPrecisionFlying = (scorecard, waypoints) => {
-    const gateWidths = waypoints.map((waypoint) => {
+const aboutPrecisionFlying = (scorecard, route) => {
+    const gateWidths = route.waypoints.map((waypoint) => {
         return waypoint.width
     })
     return <div>
@@ -32,15 +32,15 @@ const aboutPrecisionFlying = (scorecard, waypoints) => {
             backwards gives a penalty
             of {getGateValue(scorecard, "sp", "bad_crossing_extended_gate_penalty")} points.
         </p>
-        {getGate(waypoints, "to") && getGateValue(scorecard, "to", "maximum_penalty") > 0 ?
+        {route.takeoff_gates.length > 0 && getGateValue(scorecard, "to", "maximum_penalty") > 0 ?
             <p>
                 The route has a takeoff gate. If this is passed before the takeoff time or more than one minute after
                 the
                 takeoff time a penalty
-                of {getGateValue(scorecard.gates, "to", "maximum_penalty")} points
+                of {getGateValue(scorecard, "to", "maximum_penalty")} points
                 is applied.
             </p> : null}
-        {getGate(waypoints, "ldg") && getGateValue(scorecard, "ldg", "maximum_penalty") > 0 ?
+        {route.landing_gates.length > 0 && getGateValue(scorecard, "ldg", "maximum_penalty") > 0 ?
             <p>
                 The route has a landing gate. If this is not passed by the finish time for the contestant, a penalty
                 of {getGateValue(scorecard, "ldg", "maximum_penalty")} points is applied.

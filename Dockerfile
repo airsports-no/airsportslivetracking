@@ -25,6 +25,7 @@ RUN pip3 install -Ur /requirements.txt
 #RUN pip3 install -U -e /django-rest-authemail
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
+COPY documentation /documentation
 COPY config /config
 COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh config/gunicorn_uvicorn.sh /
 RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /gunicorn_uvicorn.sh

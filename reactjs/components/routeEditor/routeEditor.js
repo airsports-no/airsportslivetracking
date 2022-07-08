@@ -37,8 +37,8 @@ const featureStyles = {
 
 const generalTypes = {
     "track": [1, 1],
-    "to": [0, 1],
-    "ldg": [0, 1],
+    "to": [0, 100],
+    "ldg": [0, 100],
     "prohibited": [0, 1000],
     "info": [0, 1000],
     "gate": [0, 1000],
@@ -85,7 +85,7 @@ const slides = [
         background: bgcolor
     }, {
         title: "Draw track",
-        description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created.",
+        description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created. Points closer than 1km to the last point will automatically be marked as secret without time check.",
         image: "/static/img/tutorial/2.png",
         background: bgcolor
     }, {
@@ -175,7 +175,7 @@ class ConnectedRouteEditor extends Component {
         if (!visited) {
             this.setState({displayTutorial: true})
         }
-        cookies.set(key, true, {maxAge: 60*60*24*365})
+        cookies.set(key, true, {maxAge: 60 * 60 * 24 * 365})
         this.initialiseMap()
         if (this.props.routeId) {
             this.reloadMap()
@@ -418,14 +418,14 @@ class ConnectedRouteEditor extends Component {
                         errors.push("The first gate cannot be secret")
                     } else if (i === layer.trackPoints.length - 1 && layer.trackPoints[i].gateType === "secret") {
                         errors.push("The last gate cannot be secret")
-                    // } else if (layer.trackPoints[i].gateType === "secret") {
-                    //     // He we know there is at least one gate before and one after
-                    //     const bearingToThis = getBearing(positions[i - 1].lat, positions[i - 1].lng, positions[i].lat, positions[i].lng)
-                    //     const bearingFromThis = getBearing(positions[i].lat, positions[i].lng, positions[i + 1].lat, positions[i + 1].lng)
-                    //     const bearingDifference = getHeadingDifference(bearingToThis, bearingFromThis)
-                    //     if (Math.abs(bearingDifference) > 3) {
-                    //         errors.push("The secret gate " + layer.trackPoints[i].name + " must lie on a straight line between " + layer.trackPoints[i - 1].name + " and " + layer.trackPoints[i + 1].name + ". The current bearing difference is " + bearingDifference.toFixed(2))
-                    //     }
+                        // } else if (layer.trackPoints[i].gateType === "secret") {
+                        //     // He we know there is at least one gate before and one after
+                        //     const bearingToThis = getBearing(positions[i - 1].lat, positions[i - 1].lng, positions[i].lat, positions[i].lng)
+                        //     const bearingFromThis = getBearing(positions[i].lat, positions[i].lng, positions[i + 1].lat, positions[i + 1].lng)
+                        //     const bearingDifference = getHeadingDifference(bearingToThis, bearingFromThis)
+                        //     if (Math.abs(bearingDifference) > 3) {
+                        //         errors.push("The secret gate " + layer.trackPoints[i].name + " must lie on a straight line between " + layer.trackPoints[i - 1].name + " and " + layer.trackPoints[i + 1].name + ". The current bearing difference is " + bearingDifference.toFixed(2))
+                        //     }
                     }
                 }
             }
@@ -563,16 +563,18 @@ class ConnectedRouteEditor extends Component {
                         this.setState({selectedWaypoint: item.target.options.index})
                     }
                 })
-                circle([p.lat, p.lng], {
-                    radius: track.trackPoints[index].gateWidth * 1852 / 2,
-                    index: index,
-                    color: track.trackPoints[index].timeCheck ? "blue" : "grey",
-                    opacity: 0.05
-                }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
-                    if (this.state.globalEditingMode) {
-                        this.setState({selectedWaypoint: item.target.options.index})
-                    }
-                })
+                if (track.trackPoints[index].timeCheck) {
+                    circle([p.lat, p.lng], {
+                        radius: track.trackPoints[index].gateWidth * 1852 / 2,
+                        index: index,
+                        color: track.trackPoints[index].gateType !== "secret" ? "blue" : "grey",
+                        opacity: 0.05
+                    }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
+                        if (this.state.globalEditingMode) {
+                            this.setState({selectedWaypoint: item.target.options.index})
+                        }
+                    })
+                }
                 index += 1
             }
         } else if (Object.keys(generalTypes).includes(track.featureType)) {
@@ -747,11 +749,17 @@ class ConnectedRouteEditor extends Component {
     }
 
     initialiseWaypoints(trackLayer) {
+        const distanceLimit = 1000
         return trackLayer.getLatLngs().map((position, index) => {
+            let distance = 100000000000
+            if (index > 0) {
+                const previousPosition = trackLayer.getLatLngs()[index - 1]
+                distance = getDistance(previousPosition.lat, previousPosition.lng, position.lat, position.lng)
+            }
             let defaultValue = {
                 name: "TP " + (index),
-                gateType: "tp",
-                timeCheck: true,
+                gateType: distance < distanceLimit ? "secret" : "tp",
+                timeCheck: distance >= distanceLimit,
                 gateWidth: 1,
                 position: position
             }

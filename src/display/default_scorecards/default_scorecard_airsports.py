@@ -30,9 +30,10 @@ def get_default_scorecard():
             "corridor_grace_time": 5,  # verified
             "below_minimum_altitude_penalty": 500,  # verified
             "below_minimum_altitude_maximum_penalty": 500,  # verified
-            "prohibited_zone_penalty": 100,
-            "penalty_zone_grace_time": 0,
-            "penalty_zone_penalty_per_second": 1,
+            "prohibited_zone_penalty": 200,
+            "prohibited_zone_grace_time": 5,
+            "penalty_zone_grace_time": 5,
+            "penalty_zone_penalty_per_second": 3,
             "penalty_zone_maximum": 100,
             "included_fields": [
                 [
@@ -66,7 +67,7 @@ def get_default_scorecard():
             "graceperiod_after": 1,
             "maximum_penalty": 200,
             "penalty_per_second": 2,
-            "missed_penalty": 200,
+            "missed_penalty": 100,
             "backtracking_after_steep_gate_grace_period_seconds": 0,
             "backtracking_before_gate_grace_period_nm": 0.5,
             "backtracking_after_gate_grace_period_nm": 0.5,
