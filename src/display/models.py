@@ -830,7 +830,7 @@ class NavigationTask(models.Model):
 
     @property
     def display_contestant_rank_summary(self):
-        return TaskTest.objects.filter(task__contest=self.contest).count() > 1
+        return Task.objects.filter(contest=self.contest).count() > 1
 
     class Meta:
         ordering = ("start_time", "finish_time")
