@@ -782,6 +782,6 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         for s in strings:
             print(s)
-        self.assertEqual(3148, self.contestant.contestanttrack.score)
+        self.assertEqual(3348, self.contestant.contestanttrack.score)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertTrue("SP: 200.0 points circling start" in strings)
