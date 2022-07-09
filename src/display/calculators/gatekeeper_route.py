@@ -70,7 +70,7 @@ class GatekeeperRoute(Gatekeeper):
             if distance_to_gate > self.in_range_of_gate.outside_distance:
                 logger.info("{}: Moved out of range of gate {} at {}".format(self.contestant, self.in_range_of_gate,
                                                                              last_position.time))
-                if self.in_range_of_gate.passing_time is None and not self.in_range_of_gate.missed:
+                if self.in_range_of_gate.passing_time is None and not self.in_range_of_gate.missed and self.starting_line.has_infinite_been_passed():
                     # Moving out of range of the gate, let's assume we have missed it
                     logger.info("{}: Missing gate {} since it has not been passed or detected missed before.".format(
                         self.contestant, self.in_range_of_gate))
