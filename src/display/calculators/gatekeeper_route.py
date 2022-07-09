@@ -82,7 +82,7 @@ class GatekeeperRoute(Gatekeeper):
 
         else:
             next_gate = self.outstanding_gates[0]
-            if next_gate.type != "tp":
+            if next_gate.type not in ("secret", "sp", "fp", "tp"):
                 return
             distance_to_gate = calculate_distance_lat_lon((last_position.latitude, last_position.longitude),
                                                           (next_gate.latitude, next_gate.longitude))

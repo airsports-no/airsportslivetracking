@@ -122,7 +122,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         next_position = track[-1]
         now = next_position.time
         if self.earliest_circle_check is None or last_gate is None or self.tracking_state in (
-                self.BACKTRACKING, self.PROCEDURE_TURN) or in_range_of_gate is None:
+                self.BACKTRACKING, self.PROCEDURE_TURN) or in_range_of_gate is None:  # Why the last one?
             self.mark_circling_finished_if_ongoing(last_gate, now, next_position)
             self.earliest_circle_check = now
             return
