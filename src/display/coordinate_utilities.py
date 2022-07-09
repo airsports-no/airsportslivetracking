@@ -497,49 +497,45 @@ def create_rounded_corridor_corner(
     :return: List of points that make up the left-hand corridor line, list of points that make up the right-hand corridor line (lon, lat), the new gate line
     """
     if corner_degrees == 0:
-        return [bisecting_line[0]], [bisecting_line[1]]
+        return [bisecting_line[0]], [bisecting_line[1]], bisecting_line
+
+    # Correct the length of the bisecting line
+    corridor_width_metres = corridor_width * 1852
+    right_end=calculate_fractional_distance_point_lat_lon(bisecting_line[0], bisecting_line[1], 0.5+(corridor_width_metres/2) / calculate_distance_lat_lon(
+                                                                                    *bisecting_line))
+    left_end=calculate_fractional_distance_point_lat_lon(bisecting_line[1], bisecting_line[0], 0.5+(corridor_width_metres/2) / calculate_distance_lat_lon(
+                                                                                    *bisecting_line))
+    bisecting_line=[left_end, right_end]
     print(f"bisecting_line: {bisecting_line}")
     print(f"turn_degrees: {corner_degrees}")
-    corridor_width_metres = corridor_width * 1852
+    print(f"corridor_width: {corridor_width}")
+    print(f"Gate line length: {calculate_distance_lat_lon(*bisecting_line)/1852}")
     left_turn = corner_degrees < 0
     turn_degrees = corner_degrees
     if left_turn:
-        bisection_bearing = calculate_bearing(*bisecting_line)
         circle_centre = bisecting_line[0]
         circle_perimeter = bisecting_line[1]
     else:
-        bisection_bearing = calculate_bearing(*list(reversed(bisecting_line)))
         circle_centre = bisecting_line[1]
         circle_perimeter = bisecting_line[0]
+    # Calculate a new gate line to span the corridor
     corrected_gate_line_perimeter = calculate_fractional_distance_point_lat_lon(circle_centre, circle_perimeter,
                                                                                 corridor_width_metres / calculate_distance_lat_lon(
                                                                                     circle_centre, circle_perimeter))
     corrected_gate_line = (circle_centre, corrected_gate_line_perimeter)
-    initial_offset = -1 * turn_degrees / 2
+    # Project coordinates to metric
     pc = ccrs.PlateCarree()
     utm = utm_from_lat_lon(*circle_centre)
     centre = np.array(utm.transform_point(*reversed(circle_centre), pc))
     perimeter = np.array(utm.transform_point(*reversed(circle_perimeter), pc))
 
-    unit_circle = perimeter - centre
-    bisection_length = len_v(unit_circle)
 
-    bisection_corridor_difference = (bisection_length - corridor_width_metres) / 2
-    # We override everything to set the inner portion of the turn to be just the angle. This makes the turn lineup better with the other terms.focus of
+    normalised_gate = norm_v(perimeter - centre)
 
-    bisection_corridor_difference = 1
-    unit_circle = norm_v(unit_circle)
-    # turn_radius = bisection_length / 2
-    turn_radius = 0
 
-    new_centre = (
-                         norm_v(rotate_vector_angle(unit_circle[0], unit_circle[1], 180)) * turn_radius
-                 ) + centre
-
-    track_point = unit_circle
-
+    initial_offset = -1 * turn_degrees / 2
     starting_point = norm_v(
-        rotate_vector_angle(track_point[0], track_point[1], initial_offset)
+        rotate_vector_angle(normalised_gate[0], normalised_gate[1], initial_offset)
     )
     outer_edge = []
     inner_edge = []
@@ -547,16 +543,8 @@ def create_rounded_corridor_corner(
         rotated = norm_v(
             rotate_vector_angle(starting_point[0], starting_point[1], angle)
         )
-        outer_edge.append(
-            (
-                    rotated
-                    * (turn_radius + bisection_corridor_difference + corridor_width_metres)
-            )
-            + new_centre
-        )
-        inner_edge.append(
-            (rotated * (turn_radius + bisection_corridor_difference)) + new_centre
-        )
+        outer_edge.append((rotated*corridor_width_metres)+ centre)
+    inner_edge.append(centre)
     if left_turn:
         left_edge = np.array(inner_edge)
         right_edge = np.array(outer_edge)
@@ -567,6 +555,9 @@ def create_rounded_corridor_corner(
     print(f"left_edge.shape: {left_edge.shape}")
     left_edge_lonlat = pc.transform_points(utm, left_edge[:, 0], left_edge[:, 1])
     right_edge_lonlat = pc.transform_points(utm, right_edge[:, 0], right_edge[:, 1])
+    # Reverse longitude, latitude
+    print(f"left_edge_lonlat: {left_edge_lonlat}")
+    print(f"left_edge_lonlat.shape: {left_edge_lonlat.shape}")
     left_edge_lonlat[:, [0, 1]] = left_edge_lonlat[:, [1, 0]]
     right_edge_lonlat[:, [0, 1]] = right_edge_lonlat[:, [1, 0]]
     print(f"left_edge_lonlat: {left_edge_lonlat}")
