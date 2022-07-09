@@ -243,7 +243,7 @@ class Test2017WPFC(TransactionTestCase):
                                                     wind_speed=18)
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1065,  # 1152,
+        self.assertEqual(1265,  # 1152,
                          contestant_track.score)  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 

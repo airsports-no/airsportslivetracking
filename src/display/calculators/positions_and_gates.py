@@ -66,14 +66,26 @@ class Gate:
     def __str__(self):
         return self.name
 
+    def pass_gate(self, passing_time: datetime):
+        self.passing_time = passing_time
+        self.extended_passing_time = passing_time
+        self.infinite_passing_time = passing_time
+
+    def pass_extended_gate(self, passing_time: datetime):
+        self.extended_passing_time = passing_time
+        self.infinite_passing_time = passing_time
+
+    def pass_infinite_gate(self, passing_time: datetime):
+        self.infinite_passing_time = passing_time
+
     def has_been_passed(self):
         return self.missed or self.passing_time is not None
 
     def has_extended_been_passed(self):
-        return self.extended_passing_time is not None
+        return self.missed or self.extended_passing_time is not None
 
     def has_infinite_been_passed(self):
-        return self.infinite_passing_time is not None
+        return self.missed or self.infinite_passing_time is not None
 
     def is_passed_in_correct_direction_bearing_to_next(self, track_bearing) -> bool:
         return abs(bearing_difference(track_bearing, self.gate_heading)) < 90

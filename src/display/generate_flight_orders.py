@@ -198,7 +198,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 <tr><td><b>Start point:</b></td><td>{starting_point_text}</td><td></td></tr>
 <tr><td><b>Finish by:</b></td><td>{finish_tracking_time} (tracking will stop)</td><td></td></tr>
 </tbody>
-</table>{f"<p>Using adaptive start, you can cross the starting time at a whole minute (master time) anywhere between one hour before and one hour after the selected starting point time." if contestant.adaptive_start else ""}
+</table>{f"<p>Using adaptive start, your start time will be set to the nearest whole minute you cross the infinite line going through the starting gate anywhere between one hour before and one hour after the selected starting point time (https://home.airsports.no/faq/#adaptiv-start)." if contestant.adaptive_start else ""}
 <p><p><b>Rules</b><br/>{contestant.get_formatted_rules_description()}<p><center><h2>Good luck</h2></center>
 """
 

@@ -1231,7 +1231,7 @@ class Contestant(models.Model):
     navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE)
     adaptive_start = models.BooleanField(
         default=False,
-        help_text="If true, takeoff time and minutes to starting point is ignored. Start time is set to the closest minute to the time crossing the starting line. This is typically used for a case where it is difficult to control the start time because of external factors such as ATC.",
+        help_text="If true, takeoff time and minutes to starting point is ignored. Start time is set to the closest minute to the time crossing the infinite starting line in the correct direction. This is typically used for a case where it is difficult to control the start time because of external factors such as ATC.",
     )
     takeoff_time = models.DateTimeField(
         help_text="The time the take of gate (if it exists) should be crossed. Otherwise it is the time power should be applied"
