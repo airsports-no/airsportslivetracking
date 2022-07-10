@@ -261,12 +261,11 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             if self.last_bearing:
                 self.current_procedure_turn_slices.append(get_heading_difference(self.last_bearing, bearing))
                 total_turn = sum(self.current_procedure_turn_slices)
-                # logger.info(
-                #     "{}: Turned a total of {} degrees as part of procedure turn of {} at gate {} ".format(
-                #         self.contestant, total_turn,
-                #         self.current_procedure_turn_bearing_difference,
-                #         self.current_procedure_turn_gate))
-                if abs(total_turn - self.current_procedure_turn_bearing_difference) < 60:
+                if abs(total_turn - self.current_procedure_turn_bearing_difference) < 5:
+                    self.update_tracking_state(self.TRACKING)
+                    logger.info("{}: Procedure turn completed successfully".format(self.contestant))
+                if abs(total_turn - self.current_procedure_turn_bearing_difference) < 60 and (
+                        last_position.time - self.current_procedure_turn_start_time).total_seconds() > 180:
                     self.update_tracking_state(self.TRACKING)
                     logger.info("{}: Procedure turn completed successfully".format(self.contestant))
 
