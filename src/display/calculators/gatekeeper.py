@@ -335,7 +335,7 @@ class Gatekeeper(ABC):
                                                          time=self.track[-1].time if len(
                                                              self.track) > 0 else self.contestant.navigation_task.start_time,
                                                          score_log_entry=entry)
-            if score > 0:
+            if score != 0:
                 self.contestant.contestanttrack.update_score(self.score)
             return entry.pk, annotation.pk, score
         else:
