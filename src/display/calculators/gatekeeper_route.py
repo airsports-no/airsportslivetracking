@@ -131,7 +131,7 @@ class GatekeeperRoute(Gatekeeper):
                                   self.GATE_SCORE_TYPE,
                                   planned=gate.expected_time, actual=gate.passing_time)
 
-        if not self.starting_line.has_infinite_been_passed():
+        if not self.any_gate_passed():
             # First check extended and see if we are in the correct direction
             # Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
             # A 2.2.14
@@ -143,12 +143,12 @@ class GatekeeperRoute(Gatekeeper):
                     if self.last_backwards is None or intersection_time > self.last_backwards + datetime.timedelta(
                             seconds=15):
                         self.last_backwards = intersection_time
-                        if score > 0:
+                        if score != 0:
                             self.update_score(self.starting_line, score,
                                               "crossing extended starting gate backwards",
                                               self.track[-1].latitude, self.track[-1].longitude, "anomaly",
                                               self.BACKWARD_STARTING_LINE_SCORE_TYPE)
-            else:
+            elif not self.starting_line.has_infinite_been_passed():
                 # Handle resetting adaptive start, and record that the infinite line has been crossed
                 intersection_time = self.starting_line.get_gate_infinite_intersection_time(self.projector, self.track)
                 if intersection_time and self.starting_line.is_passed_in_correct_direction_track(self.track):
