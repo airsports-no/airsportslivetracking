@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 import os
 import time
 from copy import deepcopy
@@ -14,6 +15,7 @@ AKS_TOKEN = "eyJhbGciOiJSUzI1NiIsImtpZCI6IlFUOVdrdXJ0V0lyRlFqWW9UWEJEbEZDNlNTTS0
 LOCALHOST = "http://localhost:8080"
 AKS_HOST = "https://airsports-dns-b66fdeca.hcp.northeurope.azmk8s.io:443"
 
+logger=logging.getLogger(__name__)
 
 class AlreadyExists(Exception):
     pass
@@ -59,6 +61,7 @@ class JobCreator:
             api_response = create_from_dict(self.client, configuration, verbose=True)
         except FailToCreateError as e:
             for reason in e.api_exceptions:
+                logger.debug(f"Failure reason: {reason.body}")
                 body = json.loads(reason.body)
                 if body["reason"] == "AlreadyExists":
                     raise AlreadyExists
