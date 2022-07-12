@@ -846,11 +846,16 @@ def plot_precision_track(
     tracks = [[]]
     previous_waypoint = None  # type: Optional[Waypoint]
     includes_unknown_legs = any(waypoint.type == "ul" for waypoint in route.waypoints)
+    on_unknown_leg = False
     for index, waypoint in enumerate(route.waypoints):
         if index < len(route.waypoints) - 1:
             next_waypoint = route.waypoints[index + 1]
         else:
             next_waypoint = None
+        if waypoint.type == "ul":
+            on_unknown_leg = True
+        if waypoint.type in ("tp", "sp", "fp", "isp", "ifp"):
+            on_unknown_leg = False
         if previous_waypoint and previous_waypoint.type in ("dummy", "ul") and waypoint.type != "dummy":
             tracks.append([])
         if waypoint.type == "isp":
@@ -858,6 +863,9 @@ def plot_precision_track(
         if waypoint.type in ("tp", "sp", "fp", "isp", "ifp", "secret", "dummy", "ul"):
             # Do not show unknown leg gates, these are to be considered secret unless followed by a dummy
             if waypoint.type == "ul" and next_waypoint and next_waypoint.type != "dummy":
+                continue
+            # Secret checkpoints on unknown legs should not be displayed
+            if on_unknown_leg and waypoint.type=="secret":
                 continue
             tracks[-1].append(waypoint)
         previous_waypoint = waypoint

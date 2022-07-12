@@ -507,7 +507,7 @@ class TestAccessNavigationTask(APITestCase):
         scorecard_data["backtracking_penalty"] = 1234
         scorecard_data["free_text"] = "asdf"
         scorecard_data.pop("task_type")
-        gate = scorecard_data["gatescore_set"][0]
+        gate = scorecard_data["gatescore_set"][1]
         self.assertEqual("fp", gate["gate_type"])
         self.assertEqual(2, gate["graceperiod_before"])
         gate["graceperiod_before"] = 4321

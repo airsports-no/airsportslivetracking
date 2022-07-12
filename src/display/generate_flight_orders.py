@@ -109,7 +109,7 @@ def insert_turning_point_images(contestant, pdf: FPDF):
             "index": index
         }
         accounted_waypoints.append(waypoint)
-        if waypoint.type != "secret" and (waypoint.gate_check or waypoint.time_check):
+        if waypoint.type not in ("secret", "ul") and (waypoint.gate_check or waypoint.time_check):
             render_waypoints.append(object)
     rows_per_page = 3
     number_of_images = len(render_waypoints)
@@ -155,7 +155,7 @@ def insert_unknown_leg_images(contestant, pdf: FPDF):
             "index": index
         }
         accounted_waypoints.append(waypoint)
-        if waypoint.type == "ul" and (waypoint.gate_check or waypoint.time_check):
+        if waypoint.type == "ul":
             render_waypoints.append(object)
     # Randomise the images to make things more difficult
     random.shuffle(render_waypoints)
