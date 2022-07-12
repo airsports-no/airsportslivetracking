@@ -304,7 +304,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     for waypoint in contestant.navigation_task.route.waypoints:  # type: Waypoint
         if not first_line:
             accumulated_distance += waypoint.distance_previous
-        if waypoint.type not in ("secret", "dummy") and waypoint.time_check:
+        if waypoint.type not in ("secret", "dummy", "ul") and waypoint.time_check:
             bearing = waypoint.bearing_from_previous
             wind_correction_angle = calculate_wind_correction_angle(
                 bearing, contestant.air_speed, contestant.wind_speed, contestant.wind_direction
