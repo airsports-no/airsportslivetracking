@@ -137,17 +137,17 @@ class GatekeeperRoute(Gatekeeper):
             # A 2.2.14
             intersection_time = self.starting_line.get_gate_extended_intersection_time(self.projector, self.track)
             if intersection_time and not self.starting_line.is_passed_in_correct_direction_track(self.track):
-                    # Add penalty for crossing in the wrong direction
-                    score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
-                    # Add a grace time to prevent multiple backwards penalties for a single crossing
-                    if self.last_backwards is None or intersection_time > self.last_backwards + datetime.timedelta(
-                            seconds=15):
-                        self.last_backwards = intersection_time
-                        if score != 0:
-                            self.update_score(self.starting_line, score,
-                                              "crossing extended starting gate backwards",
-                                              self.track[-1].latitude, self.track[-1].longitude, "anomaly",
-                                              self.BACKWARD_STARTING_LINE_SCORE_TYPE)
+                # Add penalty for crossing in the wrong direction
+                score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
+                # Add a grace time to prevent multiple backwards penalties for a single crossing
+                if self.last_backwards is None or intersection_time > self.last_backwards + datetime.timedelta(
+                        seconds=15):
+                    self.last_backwards = intersection_time
+                    if score != 0:
+                        self.update_score(self.starting_line, score,
+                                          "crossing extended starting gate backwards",
+                                          self.track[-1].latitude, self.track[-1].longitude, "anomaly",
+                                          self.BACKWARD_STARTING_LINE_SCORE_TYPE)
             elif not self.starting_line.has_infinite_been_passed():
                 # Handle resetting adaptive start, and record that the infinite line has been crossed
                 intersection_time = self.starting_line.get_gate_infinite_intersection_time(self.projector, self.track)
@@ -161,7 +161,8 @@ class GatekeeperRoute(Gatekeeper):
         while i >= 0:
             gate = self.outstanding_gates[i]
             intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
-            if intersection_time:
+            if intersection_time and gate.is_passed_in_correct_direction_track(
+                        self.track):
                 logger.info("{} {}: Crossed gate {}".format(self.contestant, intersection_time, gate))
                 if not self.starting_line.has_infinite_been_passed():
                     self.starting_line.missed = True
@@ -174,7 +175,7 @@ class GatekeeperRoute(Gatekeeper):
                     gate.missed = True
                     logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))
                 # Only update the last gate with the one that was crossed, not the one we detect is missed because of it.
-                self.pop_gate(i,not gate.missed)
+                self.pop_gate(i, not gate.missed)
             i -= 1
         # Do not look for misses further out if we have not crossed the starting line at some point.
         if not crossed_gate and len(self.outstanding_gates) > 0 and self.starting_line.has_infinite_been_passed():
@@ -183,7 +184,8 @@ class GatekeeperRoute(Gatekeeper):
                                                "ito", "ldg",
                                                "to") and not extended_next_gate.extended_passing_time and extended_next_gate.is_procedure_turn:
                 intersection_time = extended_next_gate.get_gate_extended_intersection_time(self.projector, self.track)
-                if intersection_time:
+                if intersection_time and extended_next_gate.is_passed_in_correct_direction_track(
+                        self.track):
                     extended_next_gate.pass_extended_gate(intersection_time)
                     logger.info("{} {}: Crossed extended gate {} (but maybe missed the gate)".format(self.contestant,
                                                                                                      intersection_time,
