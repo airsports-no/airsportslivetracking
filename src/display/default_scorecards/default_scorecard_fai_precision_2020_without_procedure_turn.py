@@ -9,18 +9,18 @@ from display.models import (
     STARTINGPOINT,
     LANDING_GATE,
     SECRETPOINT,
-    FINISHPOINT, DUMMY, UNKNOWN_LEG,
+    FINISHPOINT, UNKNOWN_LEG, DUMMY,
 )
 
 
 def get_default_scorecard():
     scorecard, created = Scorecard.objects.update_or_create(
-        name="FAI Precision 2020",
+        name="FAI Precision 2020 (without procedure turns)",
         defaults={
-            "shortcut_name": "FAI Precision",
+            "shortcut_name": "FAI Precision no procedure turns",
             "backtracking_penalty": 200,
             "backtracking_grace_time_seconds": 5,
-            "use_procedure_turns": True,
+            "use_procedure_turns": False,
             "task_type": [NavigationTask.PRECISION],
             "calculator": Scorecard.PRECISION,
             "prohibited_zone_penalty": 0,
@@ -133,11 +133,11 @@ def get_default_scorecard():
             ],
         },
     )
-    scorecard.gatescore_set.filter(gate_type__in=(SECRETPOINT, FINISHPOINT)).delete()
-    simple_clone(regular_gate_score, {"gate_type": SECRETPOINT})
-    simple_clone(regular_gate_score, {"gate_type": FINISHPOINT})
     scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
     simple_clone(regular_gate_score, {"gate_type": DUMMY})
     simple_clone(regular_gate_score, {"gate_type": UNKNOWN_LEG})
+    scorecard.gatescore_set.filter(gate_type__in=(SECRETPOINT, FINISHPOINT)).delete()
+    simple_clone(regular_gate_score, {"gate_type": SECRETPOINT})
+    simple_clone(regular_gate_score, {"gate_type": FINISHPOINT})
 
     return scorecard

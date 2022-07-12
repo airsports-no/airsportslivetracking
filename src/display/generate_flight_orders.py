@@ -1,10 +1,11 @@
 import datetime
+import random
 import urllib
 from io import BytesIO
 from tempfile import NamedTemporaryFile
 from typing import List
 import matplotlib.pyplot as plt
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from cartopy import geodesic
 
 from cartopy.io.img_tiles import GoogleTiles
@@ -27,7 +28,7 @@ class MyFPDF(FPDF, HTMLMixin):
     pass
 
 
-def generate_turning_point_image(waypoints: List[Waypoint], index):
+def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: bool = False):
     waypoint = waypoints[index]
     imagery = GoogleTiles(style="satellite")
     plt.figure(figsize=(10, 10))
@@ -36,22 +37,23 @@ def generate_turning_point_image(waypoints: List[Waypoint], index):
     ax.add_image(imagery, 15)
     ax.set_aspect("auto")
     plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree())
-    if index > 0:
-        plt.plot(
-            [waypoints[index - 1].longitude, waypoints[index].longitude],
-            [waypoints[index - 1].latitude, waypoints[index].latitude],
-            transform=ccrs.PlateCarree(),
-            color="blue",
-            linewidth=2,
-        )
-    if index < len(waypoints) - 1:
-        plt.plot(
-            [waypoints[index].longitude, waypoints[index + 1].longitude],
-            [waypoints[index].latitude, waypoints[index + 1].latitude],
-            transform=ccrs.PlateCarree(),
-            color="blue",
-            linewidth=2,
-        )
+    if not unknown_leg:
+        if index > 0:
+            plt.plot(
+                [waypoints[index - 1].longitude, waypoints[index].longitude],
+                [waypoints[index - 1].latitude, waypoints[index].latitude],
+                transform=ccrs.PlateCarree(),
+                color="blue",
+                linewidth=2,
+            )
+        if index < len(waypoints) - 1:
+            plt.plot(
+                [waypoints[index].longitude, waypoints[index + 1].longitude],
+                [waypoints[index].latitude, waypoints[index + 1].latitude],
+                transform=ccrs.PlateCarree(),
+                color="blue",
+                linewidth=2,
+            )
     proj = ccrs.PlateCarree()
     utm = utm_from_lat_lon(waypoint.latitude, waypoint.longitude)
     centre_x, centre_y = utm.transform_point(
@@ -87,6 +89,10 @@ def generate_turning_point_image(waypoints: List[Waypoint], index):
     width, height = img2.size
     overlap = 500
     cropped = img2.crop((overlap, overlap, width - overlap, height - overlap))
+    draw = ImageDraw.Draw(cropped)
+    if unknown_leg:
+        fnt = ImageFont.truetype("/src/OpenSans-Bold.ttf", 100)
+        draw.text((10, 10), f"{int(round(waypoint.bearing_next))}", font=fnt, fill=(255, 0, 0, 0))
     image_data = BytesIO()
     cropped.save(image_data, "PNG")
     image_data.seek(0)
@@ -132,6 +138,54 @@ def insert_turning_point_images(contestant, pdf: FPDF):
         y = row_start + row_number * row_step
         pdf.text(x, y, render_waypoints[index]["waypoint"].name)
         image = generate_turning_point_image(accounted_waypoints, waypoint_object["index"])
+        file = NamedTemporaryFile(suffix=".png")
+        file.write(image.read())
+        file.seek(0)
+        pdf.image(file.name, x=x, y=y + 1, h=image_height)
+    pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
+
+
+def insert_unknown_leg_images(contestant, pdf: FPDF):
+    navigation = contestant.navigation_task  # type: NavigationTask
+    accounted_waypoints = []
+    render_waypoints = []
+    for index, waypoint in enumerate(navigation.route.waypoints):
+        object = {
+            "waypoint": waypoint,
+            "index": index
+        }
+        accounted_waypoints.append(waypoint)
+        if waypoint.type == "ul" and (waypoint.gate_check or waypoint.time_check):
+            render_waypoints.append(object)
+    # Randomise the images to make things more difficult
+    random.shuffle(render_waypoints)
+    rows_per_page = 3
+    number_of_images = len(render_waypoints)
+    number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
+    current_page = -1
+    image_height = 230 / rows_per_page
+    title_offset = 5
+    row_step = image_height + title_offset
+    row_start = 30
+    for index in range(number_of_images):
+        waypoint_object = render_waypoints[index]
+        if index % (rows_per_page * 2) == 0:
+            if index > 0:
+                pdf.image("static/img/AirSportsLiveTracking.png", x=65, y=280, w=80)
+            pdf.add_page()
+            page_text = (
+                f" {current_page + 2}/{number_of_pages}" if number_of_pages > 1 else ""
+            )
+            pdf.write_html(f"<font size=14>Unknown leg images{page_text}</font>")
+            current_page += 1
+        if index % 2 == 0:  # left column
+            x = 18
+        else:
+            x = 118
+        row_number = (index - (current_page * rows_per_page * 2)) // 2
+        y = row_start + row_number * row_step
+        # pdf.text(x, y, render_waypoints[index]["waypoint"].name)
+        image = generate_turning_point_image(accounted_waypoints, waypoint_object["index"], unknown_leg=True)
         file = NamedTemporaryFile(suffix=".png")
         file.write(image.read())
         file.seek(0)
@@ -223,9 +277,10 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.text(110, 178, "Finish point")
     pdf.set_font("Arial", "B", 12)
     pdf.image(starting_point_file.name, x=10, y=180, w=90)
+    waypoints = list(filter(lambda waypoint: waypoint.type != "dummy", contestant.navigation_task.route.waypoints))
     finish_point = generate_turning_point_image(
-        contestant.navigation_task.route.waypoints,
-        len(contestant.navigation_task.route.waypoints) - 1,
+        waypoints,
+        len(waypoints) - 1,
     )
     finish_point_file = NamedTemporaryFile(suffix=".png")
     finish_point_file.write(finish_point.read())
@@ -245,11 +300,11 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         if local_time:
             local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
     table += f"<tr><td>Takeoff gate</td><td>-</td><td>-</td><td>-</td><td>{local_time}</td></tr>"
-    accumulated_distance=0
+    accumulated_distance = 0
     for waypoint in contestant.navigation_task.route.waypoints:  # type: Waypoint
         if not first_line:
-            accumulated_distance+=waypoint.distance_previous
-        if waypoint.type != "secret" and waypoint.time_check:
+            accumulated_distance += waypoint.distance_previous
+        if waypoint.type not in ("secret", "dummy") and waypoint.time_check:
             bearing = waypoint.bearing_from_previous
             wind_correction_angle = calculate_wind_correction_angle(
                 bearing, contestant.air_speed, contestant.wind_speed, contestant.wind_direction
@@ -261,7 +316,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
             )
             if gate_time is not None:
                 table += f"<tr><td>{waypoint.name}</td><td>{f'{accumulated_distance / 1852:.2f} NM' if not first_line else '-'}</td><td>{f'{bearing:.0f}' if not first_line else '-'}</td><td>{f'{wind_bearing:.0f}' if not first_line else '-'}</td><td>{local_waypoint_time.strftime('%H:%M:%S')}</td></tr>"
-                accumulated_distance=0
+                accumulated_distance = 0
                 first_line = False
     local_time = "-"
     if contestant.navigation_task.route.first_landing_gate:
@@ -304,4 +359,6 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.image("static/img/AirSportsLiveTrackingWhiteBG.png", x=150, y=288, w=50)
     if contestant.navigation_task.scorecard.calculator != Scorecard.ANR_CORRIDOR and flight_order_configuration.include_turning_points:
         insert_turning_point_images(contestant, pdf)
+    if any(waypoint.type == "ul" for waypoint in contestant.navigation_task.route.waypoints):
+        insert_unknown_leg_images(contestant, pdf)
     return pdf.output()

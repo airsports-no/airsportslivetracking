@@ -368,13 +368,45 @@ def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_pro
         raise ValidationError("The first waypoint must be of type starting point")
     if waypoint_list[-1].type != "fp":
         raise ValidationError("The last waypoint must be of type finish point")
+    # First give everything a line according to the  drawn track
     gates = waypoint_list
     for index in range(len(gates) - 1):
-        gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
-                                                                             gates[index].latitude,
-                                                                             gates[index + 1].longitude,
-                                                                             gates[index + 1].latitude,
-                                                                             gates[index + 1].width * 1852)
+        if index < len(gates) - 2 and (
+                gates[index + 1].type == "isp"):
+            # or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index + 2].longitude,
+                                                                                 gates[index + 2].latitude,
+                                                                                 gates[index + 1].longitude,
+                                                                                 gates[index + 1].latitude,
+                                                                                 gates[index + 1].width * 1852)
+            gates[index + 1].gate_line.reverse()  # Reverse since created backwards
+        else:
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
+                                                                                 gates[index].latitude,
+                                                                                 gates[index + 1].longitude,
+                                                                                 gates[index + 1].latitude,
+                                                                                 gates[index + 1].width * 1852)
+        # Switch from longitude, Latitude tool attitude, longitude
+        gates[index + 1].gate_line[0].reverse()
+        gates[index + 1].gate_line[1].reverse()
+    # Then correct the lines for the actual track
+    gates = list(filter(lambda waypoint: waypoint.type != "dummy", waypoint_list))
+    for index in range(len(gates) - 1):
+        if index < len(gates) - 2 and (
+                gates[index + 1].type == "isp"):
+                #or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index + 2].longitude,
+                                                                                 gates[index + 2].latitude,
+                                                                                 gates[index + 1].longitude,
+                                                                                 gates[index + 1].latitude,
+                                                                                 gates[index + 1].width * 1852)
+            gates[index + 1].gate_line.reverse()  # Reverse since created backwards
+        else:
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
+                                                                                 gates[index].latitude,
+                                                                                 gates[index + 1].longitude,
+                                                                                 gates[index + 1].latitude,
+                                                                                 gates[index + 1].width * 1852)
         # Switch from longitude, Latitude tool attitude, longitude
         gates[index + 1].gate_line[0].reverse()
         gates[index + 1].gate_line[1].reverse()
@@ -516,7 +548,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
 
 def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bool):
     # gates = [item for item in waypoints if item.type in ("fp", "sp", "tp", "secret")]  # type: List[Waypoint]
-    gates = waypoints
+    gates = list(filter(lambda waypoint: waypoint.type not in ("dummy",), waypoints))
     for index in range(0, len(gates) - 1):
         current_gate = gates[index]
         next_gate = gates[index + 1]
@@ -531,7 +563,7 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
                                                                     (previous_gate.latitude, previous_gate.longitude))
         current_gate.bearing_from_previous = calculate_bearing((previous_gate.latitude, previous_gate.longitude),
                                                                (current_gate.latitude, current_gate.longitude))
-        for index in range(0, len(waypoints) - 1):
+        for index in range(0, len(gates) - 1):
             current_gate = gates[index]
             next_gate = gates[index + 1]
             if next_gate.type in ("fp", "ifp", "sp", "isp", "ldg", "ildg"):

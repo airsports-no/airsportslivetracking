@@ -95,6 +95,8 @@ FINISHPOINT = "fp"
 SECRETPOINT = "secret"
 TAKEOFF_GATE = "to"
 LANDING_GATE = "ldg"
+DUMMY = "dummy"
+UNKNOWN_LEG = "ul"
 INTERMEDIARY_STARTINGPOINT = "isp"
 INTERMEDIARY_FINISHPOINT = "ifp"
 GATE_TYPES = (
@@ -106,6 +108,8 @@ GATE_TYPES = (
     (LANDING_GATE, "Landing Gate"),
     (INTERMEDIARY_STARTINGPOINT, "Intermediary Starting Point"),
     (INTERMEDIARY_FINISHPOINT, "Intermediary Finish Point"),
+    (DUMMY, "Dummy"),
+    (UNKNOWN_LEG, "Unknown leg")
 )
 
 TRACKING_DEVICE_TIMEOUT = 10

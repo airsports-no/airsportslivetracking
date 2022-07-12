@@ -758,7 +758,7 @@ def plot_anr_corridor_track(
     path = np.array(outer_track)
     ys, xs = path.T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
-    return path
+    return [path]
 
 
 def plot_minute_marks(
@@ -844,15 +844,28 @@ def plot_precision_track(
         colour: str,
 ):
     tracks = [[]]
-    for waypoint in route.waypoints:  # type: Waypoint
+    previous_waypoint = None  # type: Optional[Waypoint]
+    includes_unknown_legs = any(waypoint.type == "ul" for waypoint in route.waypoints)
+    for index, waypoint in enumerate(route.waypoints):
+        if index < len(route.waypoints) - 1:
+            next_waypoint = route.waypoints[index + 1]
+        else:
+            next_waypoint = None
+        if previous_waypoint and previous_waypoint.type in ("dummy", "ul") and waypoint.type != "dummy":
+            tracks.append([])
         if waypoint.type == "isp":
             tracks.append([])
-        if waypoint.type in ("tp", "sp", "fp", "isp", "ifp", "secret"):
+        if waypoint.type in ("tp", "sp", "fp", "isp", "ifp", "secret", "dummy", "ul"):
+            # Do not show unknown leg gates, these are to be considered secret unless followed by a dummy
+            if waypoint.type == "ul" and next_waypoint and next_waypoint.type != "dummy":
+                continue
             tracks[-1].append(waypoint)
+        previous_waypoint = waypoint
+    paths = []
     for track in tracks:  # type: List[Waypoint]
         line = []
         for index, waypoint in enumerate(track):  # type: int, Waypoint
-            if waypoint.type != "secret":
+            if waypoint.type not in ("secret", "ul", "dummy"):
                 bearing = waypoint_bearing(waypoint, index)
                 ys, xs = np.array(waypoint.gate_line).T
                 if not waypoints_only:
@@ -896,7 +909,8 @@ def plot_precision_track(
                                     break
                                 accumulated_distance += track[next_index].distance_previous
                                 if track[
-                                    next_index].type != "secret" and accumulated_distance / 1852 > 1:  # Distance between waypoints must be more than 1 nautical miles
+                                    next_index].type not in ("secret", "ul",
+                                                             "dummy") and accumulated_distance / 1852 > 1:  # Distance between waypoints must be more than 1 nautical miles
                                     plot_leg_bearing(
                                         waypoint,
                                         track[next_index],
@@ -906,21 +920,24 @@ def plot_precision_track(
                                     )
                                     break
                                 next_index += 1
-                        plot_minute_marks(
-                            waypoint, contestant, track, index, minute_mark_line_width, colour
-                        )
+                        if not includes_unknown_legs:
+                            plot_minute_marks(
+                                waypoint, contestant, track, index, minute_mark_line_width, colour
+                            )
 
             if waypoint.is_procedure_turn:
                 line.extend(waypoint.procedure_turn_points)
             else:
                 line.append((waypoint.latitude, waypoint.longitude))
-        path = np.array(line)
-        if not waypoints_only:
-            ys, xs = path.T
-            plt.plot(
-                xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width
-            )
-        return path
+        if len(line):
+            path = np.array(line)
+            paths.append(path)
+            if not waypoints_only:
+                ys, xs = path.T
+                plt.plot(
+                    xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width
+                )
+    return paths
 
 
 # def add_geotiff_background(path: str, ax):
@@ -1054,19 +1071,19 @@ def plot_route(
     # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
     ax.set_aspect("auto")
     if NavigationTask.PRECISION in task.scorecard.task_type or NavigationTask.POKER in task.scorecard.task_type:
-        path = plot_precision_track(
+        paths = plot_precision_track(
             route, contestant, waypoints_only, annotations, line_width, minute_mark_line_width, colour
         )
     elif NavigationTask.ANR_CORRIDOR in task.scorecard.task_type:
-        path = plot_anr_corridor_track(
+        paths = plot_anr_corridor_track(
             route, contestant, annotations, line_width, minute_mark_line_width, colour, False
         )
     elif NavigationTask.AIRSPORTS in task.scorecard.task_type:
-        path = plot_anr_corridor_track(
+        paths = plot_anr_corridor_track(
             route, contestant, annotations, line_width, minute_mark_line_width, colour, True
         )
     else:
-        path = []
+        paths = []
     plot_prohibited_zones(route, imagery.crs, ax)
     ax.gridlines(draw_labels=False, dms=True)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
@@ -1092,10 +1109,10 @@ def plot_route(
     # plt.tight_layout()
     fig = plt.gcf()
     print(f"Figure size (cm): ({figure_width}, {figure_height})")
-    minimum_latitude = np.min(path[:, 0])
-    minimum_longitude = np.min(path[:, 1])
-    maximum_latitude = np.max(path[:, 0])
-    maximum_longitude = np.max(path[:, 1])
+    minimum_latitude = min(np.min(path[:, 0]) for path in paths)
+    minimum_longitude = min(np.min(path[:, 1]) for path in paths)
+    maximum_latitude = max(np.max(path[:, 0]) for path in paths)
+    maximum_longitude = max(np.max(path[:, 1]) for path in paths)
     print(f"minimum: {minimum_latitude}, {minimum_longitude}")
     print(f"maximum: {maximum_latitude}, {maximum_longitude}")
     if scale == 0:

@@ -51,7 +51,7 @@ export default class GenericRenderer extends Component {
 
     filterWaypoints() {
         return this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return (waypoint.gate_check || waypoint.time_check) && ((this.props.navigationTask.display_secrets && this.props.displaySecretGates) || waypoint.type !== "secret")
+            return ((waypoint.gate_check || waypoint.time_check) && ((this.props.navigationTask.display_secrets && this.props.displaySecretGates) || waypoint.type !== "secret") && waypoint.type!=="dummy")
         })
     }
 

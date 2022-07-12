@@ -22,7 +22,9 @@ const gateTypes = [
     ["Starting point", "sp"],
     ["Finish point", "fp"],
     ["Turning point", "tp"],
-    ["Secret gate", "secret"]
+    ["Secret gate", "secret"],
+    ["Unknown leg", "ul"],
+    ["Dummy", "dummy"]
 ]
 
 const featureStyles = {
@@ -529,7 +531,7 @@ class ConnectedRouteEditor extends Component {
             for (let p of track.getLatLngs()) {
                 let distanceNext
                 let bearingNext
-                let waypointText = track.trackPoints[index].name
+                let waypointText = track.trackPoints[index].name+" ("+track.trackPoints[index].gateType+")"
                 if (index < track.getLatLngs().length - 1) {
                     const nextPosition = track.getLatLngs()[index + 1]
                     distanceNext = getDistance(p.lat, p.lng, nextPosition.lat, nextPosition.lng) / 1852

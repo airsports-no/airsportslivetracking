@@ -371,8 +371,10 @@ class Gatekeeper(ABC):
         expected_times = self.contestant.gate_times
         gates = []
         for item in waypoints:  # type: Waypoint
-            gates.append(Gate(item, expected_times[item.name],
-                              calculate_extended_gate(item, self.scorecard)))
+            # Dummy gates are not part of the actual route
+            if item.type != "dummy":
+                gates.append(Gate(item, expected_times[item.name],
+                                  calculate_extended_gate(item, self.scorecard)))
         return gates
 
     def pop_gate(self, index, update_last: bool = True):
