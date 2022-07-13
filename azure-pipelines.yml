@@ -129,6 +129,11 @@ stages:
           inputs:
             helmVersion: '2.14.1'
             installKubectl: true
+        - task: DownloadSecureFile@1
+          name: privateValues
+          displayName: 'Download private values'
+          inputs:
+            secureFile: 'private_values.yml'
         - task: HelmDeploy@0
           inputs:
             connectionType: 'Azure Resource Manager'
@@ -140,3 +145,4 @@ stages:
             chartType: 'Name'
             chartName: 'live_tracking_helm_chart'
             releaseName: 'airsportsrelease'
+            valueFile: '$(privateValues.secureFilePath)'
