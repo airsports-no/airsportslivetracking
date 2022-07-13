@@ -48,7 +48,7 @@ stages:
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Build services'
         additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: false
+        includeLatestTag: true
     - task: DockerCompose@0
       displayName: Push to docker registry
       inputs:
