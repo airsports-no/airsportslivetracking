@@ -63,6 +63,7 @@ stages:
   condition: succeeded()
   jobs:
   - job: Test
+    pool: server
     steps:
     - checkout: self
       submodules: true
