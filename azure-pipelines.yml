@@ -6,7 +6,10 @@
 # - master
 
 resources:
-- repo: self
+  repositories:
+    - repository: pipelinesTemplates
+      type: git
+      name: pipelines_templates
 
 variables:
   containerName: tracker_web
@@ -21,9 +24,9 @@ variables:
   vmImageName: 'ubuntu-latest'
 
 stages:
-- stage: Test
+- stage: Build
   jobs:
-  - job: Test
+  - job: Build
     steps:
     - checkout: self
       submodules: true
@@ -46,6 +49,23 @@ stages:
         action: 'Build services'
         additionalImageTags: '${{Variables.tag}}'
         includeLatestTag: true
+    - task: DockerCompose@0
+      displayName: Push to docker registry
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        dockerComposeFile: '**/docker-compose.yml'
+        action: 'Push services'
+        additionalImageTags: '${{Variables.tag}}'
+        includeLatestTag: true
+- stage: Test
+  jobs:
+  - job: Test
+    steps:
+    - checkout: self
+      submodules: true
+      persistCredentials: true
     - task: DockerCompose@0
       displayName: Start containers
       inputs:
@@ -76,16 +96,6 @@ stages:
         mergeTestResults: true
         failTaskOnFailedTests: true
     - task: DockerCompose@0
-      displayName: Push to docker registry
-      inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-        dockerComposeFile: '**/docker-compose.yml'
-        action: 'Push services'
-        additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: true
-    - task: DockerCompose@0
       inputs:
         containerregistrytype: 'Azure Container Registry'
         azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
@@ -96,3 +106,23 @@ stages:
     - script: |  
         rm -rf reports/*
       displayName: 'Clear reports'
+- stage: Deploy
+  dependsOn: Build
+  jobs:
+  - job: Deploy
+    steps:
+    - task: HelmInstaller@0
+      inputs:
+        helmVersion: '2.14.1'
+        installKubectl: true
+    - task: HelmDeploy@0
+      inputs:
+        connectionType: 'Azure Resource Manager'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureResourceGroup: 'airsports_group'
+        kubernetesCluster: 'airsports2'
+        namespace: 'airsports'
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'live_tracking_helm_chart'
+        releaseName: 'airsportsrelease'
