@@ -62,6 +62,18 @@ stages:
 - stage: Test
   condition: succeeded()
   jobs:
+  - job: ApproveTest
+    pool: server
+    steps:
+    - task: ManualValidation@0
+      displayName: 'Wait for validation'
+      timeoutInMinutes: 1440 # task times out in 1 day
+      inputs:
+        notifyUsers: 'kolaf@airsportslt.onmicrosoft.com'
+        instructions: 'Approve running tests'
+- stage: Test
+  condition: succeeded()
+  jobs:
   - job: Test
     pool: server
     steps:
