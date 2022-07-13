@@ -109,20 +109,34 @@ stages:
 - stage: Deploy
   dependsOn: Build
   jobs:
-  - job: Deploy
-    steps:
-    - task: HelmInstaller@0
-      inputs:
-        helmVersion: '2.14.1'
-        installKubectl: true
-    - task: HelmDeploy@0
-      inputs:
-        connectionType: 'Azure Resource Manager'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureResourceGroup: 'airsports_group'
-        kubernetesCluster: 'airsports2'
-        namespace: 'airsports'
-        command: 'upgrade'
-        chartType: 'Name'
-        chartName: 'live_tracking_helm_chart'
-        releaseName: 'airsportsrelease'
+  - deployment: live_tracking_deployment
+  # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/deployment-jobs?view=azure-devops
+    displayName: 'Deploy'
+    environment: 'aks-release'
+    strategy:
+      runOnce:
+      preDeploy:
+        pool: server
+        steps:
+        - task: ManualValidation@0
+          displayName: 'Wait for validation'
+          timeoutInMinutes: 1440 # task times out in 1 day
+          inputs:
+            notifyUsers: 'kolaf@airsportslt.onmicrosoft.com'
+            instructions: 'Approve deployment'
+        deploy:
+        - task: HelmInstaller@0
+          inputs:
+            helmVersion: '2.14.1'
+            installKubectl: true
+        - task: HelmDeploy@0
+          inputs:
+            connectionType: 'Azure Resource Manager'
+            azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+            azureResourceGroup: 'airsports_group'
+            kubernetesCluster: 'airsports2'
+            namespace: 'airsports'
+            command: 'upgrade'
+            chartType: 'Name'
+            chartName: 'live_tracking_helm_chart'
+            releaseName: 'airsportsrelease'
