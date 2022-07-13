@@ -60,7 +60,7 @@ stages:
         additionalImageTags: '${{Variables.tag}}'
         includeLatestTag: true
 - stage: Test
-  condition: success()
+  condition: succeeded()
   jobs:
   - job: Test
     steps:
@@ -109,7 +109,7 @@ stages:
       displayName: 'Clear reports'
 - stage: Deploy
   dependsOn: Build
-  condition: success()
+  condition: succeeded()
   jobs:
   - deployment: live_tracking_deployment
   # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/deployment-jobs?view=azure-devops
