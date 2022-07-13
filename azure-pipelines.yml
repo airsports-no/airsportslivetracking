@@ -59,7 +59,7 @@ stages:
         action: 'Push services'
         additionalImageTags: '${{Variables.tag}}'
         includeLatestTag: false
-- stage: Test
+- stage: ApproveTest
   condition: succeeded()
   jobs:
   - job: ApproveTest
