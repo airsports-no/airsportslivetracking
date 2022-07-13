@@ -75,17 +75,10 @@ stages:
   condition: succeeded()
   jobs:
   - job: Test
-    pool: server
     steps:
     - checkout: self
       submodules: true
       persistCredentials: true
-    - task: ManualValidation@0
-      displayName: 'Wait for validation'
-      timeoutInMinutes: 1440 # task times out in 1 day
-      inputs:
-        notifyUsers: 'kolaf@airsportslt.onmicrosoft.com'
-        instructions: 'Approve running tests'
     - task: DockerCompose@0
       displayName: Start containers
       inputs:
