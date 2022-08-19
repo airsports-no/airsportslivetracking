@@ -125,7 +125,7 @@ class ChangeUserUploadedMapPermissionsForm(forms.Form):
 class FlightOrderConfigurationForm(forms.ModelForm):
     class Meta:
         model = FlightOrderConfiguration
-        exclude = ("navigation_task",)
+        exclude = ("navigation_task","document_size")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -134,7 +134,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
         self.helper.layout = Layout(
             Fieldset(
                 "Flight order options",
-                "document_size",
+                # "document_size",
                 "include_turning_points"
             ),
             Fieldset(
