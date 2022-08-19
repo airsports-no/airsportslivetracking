@@ -220,8 +220,10 @@ class Gatekeeper(ABC):
             calculator_is_alive(self.contestant.pk, 30)
             now = datetime.datetime.now(datetime.timezone.utc)
             if self.live_processing and now > self.contestant.finished_by_time:
-                self.notify_termination()
-                break
+                data = self.timed_queue.peek()
+                if data is None or data["device_time"] > now:
+                    self.notify_termination()
+                    break
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
                 self.refresh_scores()
                 try:

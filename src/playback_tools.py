@@ -152,7 +152,7 @@ def insert_gpx_file(contestant_object: "Contestant", file):
                                 (previous_point["latitude"], previous_point["longitude"]),
                                 (float(point.latitude), float(point.longitude)),
                                 previous_point["device_time"], point.time)
-                            logger.debug(f"speed: {speed}")
+                            # logger.debug(f"speed: {speed}")
                             course = calculate_bearing((previous_point["latitude"], previous_point["longitude"]),
                                                        (point.latitude, point.longitude))
                         positions.append(

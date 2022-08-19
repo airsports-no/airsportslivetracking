@@ -162,7 +162,7 @@ class GatekeeperRoute(Gatekeeper):
             gate = self.outstanding_gates[i]
             intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
             if intersection_time and gate.is_passed_in_correct_direction_track(
-                        self.track):
+                    self.track):
                 logger.info("{} {}: Crossed gate {}".format(self.contestant, intersection_time, gate))
                 if not self.starting_line.has_infinite_been_passed():
                     self.starting_line.missed = True
@@ -352,6 +352,8 @@ class GatekeeperRoute(Gatekeeper):
             #                                       (gate.latitude, gate.longitude)) / 1852  # NM
             if average_speed > 0:
                 time_to_intercept = distance / average_speed  # hours
+                if time_to_intercept > 2:
+                    return None
                 return self.track[-1].time + datetime.timedelta(hours=time_to_intercept)
         return None
 

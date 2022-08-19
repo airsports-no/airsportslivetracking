@@ -23,6 +23,12 @@ class TimedQueue:
             self._queue.append((data, stamp))
             self._ready_event.set()
 
+    def peek(self):
+        try:
+            return self._queue[0][0]
+        except IndexError:
+            return None
+
     def get(self, timeout: float = None):
         start = datetime.datetime.now(datetime.timezone.utc)
         now = datetime.datetime.now(datetime.timezone.utc)
