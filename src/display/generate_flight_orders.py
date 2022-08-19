@@ -13,7 +13,7 @@ from fpdf import FPDF, HTMLMixin
 from shapely.geometry import Polygon
 
 from display.coordinate_utilities import utm_from_lat_lon, normalise_bearing
-from display.map_constants import LANDSCAPE
+from display.map_constants import LANDSCAPE, A4
 from display.map_plotter import plot_route
 from display.map_plotter_shared_utilities import qr_code_image
 from display.models import Scorecard, Contestant
@@ -256,7 +256,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
 <p><p><b>Rules</b><br/>{contestant.get_formatted_rules_description()}<p><center><h2>Good luck</h2></center>
 """
 
-    pdf = MyFPDF(orientation="P", unit="mm", format=flight_order_configuration.document_size)
+    pdf = MyFPDF(orientation="P", unit="mm", format=A4)  # TODO: flight_order_configuration.document_size)
     # 210 x 297 mm
     pdf.add_page()
     pdf.set_font("Times", "B", 12)
@@ -336,7 +336,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     pdf.add_page()
     map_image, pdf_image = plot_route(
         contestant.navigation_task,
-        flight_order_configuration.document_size,
+        A4,  # flight_order_configuration.document_size,
         zoom_level=flight_order_configuration.map_zoom_level,
         landscape=flight_order_configuration.map_orientation == LANDSCAPE,
         contestant=contestant,
