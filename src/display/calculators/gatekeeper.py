@@ -169,23 +169,24 @@ class Gatekeeper(ABC):
         device_ids = self.traccar.get_device_ids_for_contestant(self.contestant)
         current_time = datetime.datetime.now(datetime.timezone.utc)
         device_positions = {}
-        for device_id in device_ids:
-            positions = self.traccar.get_positions_for_device_id(device_id,
-                                                                 self.contestant.tracker_start_time,
-                                                                 current_time)
-            for item in positions:
-                item["device_time"] = dateutil.parser.parse(item["deviceTime"])
-                item["server_time"] = dateutil.parser.parse(item["serverTime"])
-                item["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
-            device_positions[device_id] = positions
-        try:
-            # Select the longest track
-            positions_to_use = sorted(device_positions.values(), key=lambda k: len(k), reverse=True)[0]
-            logger.info(f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator")
-            for position in positions_to_use:
-                self.timed_queue.put(position, datetime.datetime.now(datetime.timezone.utc))
-        except IndexError:
-            pass
+        if not self.live_processing:
+            for device_id in device_ids:
+                positions = self.traccar.get_positions_for_device_id(device_id,
+                                                                     self.contestant.tracker_start_time,
+                                                                     current_time)
+                for item in positions:
+                    item["device_time"] = dateutil.parser.parse(item["deviceTime"])
+                    item["server_time"] = dateutil.parser.parse(item["serverTime"])
+                    item["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
+                device_positions[device_id] = positions
+            try:
+                # Select the longest track
+                positions_to_use = sorted(device_positions.values(), key=lambda k: len(k), reverse=True)[0]
+                logger.info(f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator")
+                for position in positions_to_use:
+                    self.timed_queue.put(position, datetime.datetime.now(datetime.timezone.utc))
+            except IndexError:
+                pass
 
         receiving = False
         while not self.track_terminated:
