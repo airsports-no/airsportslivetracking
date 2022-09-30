@@ -87,11 +87,12 @@ def live_position_transmitter_process(queue):
         if (datetime.datetime.now() - last_reset).total_seconds() > RESET_INTERVAL:
             person_cache = {}
             contestant_cache = {}
-            last_reset=datetime.datetime.now()
+            last_reset = datetime.datetime.now()
 
         navigation_task_id = None
         global_tracking_name = None
         person_data = None
+        push_global = True
         if data_type == PERSON_TYPE:
             try:
                 person = fetch_person(person_or_contestant)
@@ -118,7 +119,7 @@ def live_position_transmitter_process(queue):
                 if contestant is not None:
                     # Check for delayed tracking, do not push global positions if there is delay
                     if contestant.navigation_task.calculation_delay_minutes != 0:
-                        continue
+                        push_global = False
                     global_tracking_name = contestant.team.aeroplane.registration
                     try:
                         person = contestant.team.crew.member1
@@ -144,13 +145,14 @@ def live_position_transmitter_process(queue):
             and now
             < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
         ):
-            websocket_facade.transmit_global_position_data(
-                global_tracking_name,
-                person_data,
-                position_data,
-                device_time,
-                navigation_task_id,
-            )
+            if push_global:
+                websocket_facade.transmit_global_position_data(
+                    global_tracking_name,
+                    person_data,
+                    position_data,
+                    device_time,
+                    navigation_task_id,
+                )
             websocket_facade.transmit_airsports_position_data(
                 global_tracking_name,
                 position_data,
