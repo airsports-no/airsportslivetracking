@@ -169,7 +169,7 @@ class Gatekeeper(ABC):
         device_ids = self.traccar.get_device_ids_for_contestant(self.contestant)
         current_time = datetime.datetime.now(datetime.timezone.utc)
         device_positions = {}
-        if not self.live_processing:
+        if self.live_processing:
             for device_id in device_ids:
                 positions = self.traccar.get_positions_for_device_id(device_id,
                                                                      self.contestant.tracker_start_time,

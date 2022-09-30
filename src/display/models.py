@@ -1419,7 +1419,7 @@ gives a penalty of {scorecard.backtracking_penalty} points.
 
     def _anr_rule_description(self):
         scorecard = self.navigation_task.scorecard
-        text = f"""For this task the corridor width is {"{:.1f}".format(self.navigation_task.route.corridor_width)} nm. 
+        text = f"""For this task the corridor width is {"{:.2f}".format(self.navigation_task.route.corridor_width)} nm. 
 Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds gives a penalty of 
 {"{:.0f}".format(scorecard.corridor_outside_penalty)} point(s) per second."""
         if scorecard.corridor_maximum_penalty != -1:

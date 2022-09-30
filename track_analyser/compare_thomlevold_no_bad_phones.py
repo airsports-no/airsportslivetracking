@@ -8,7 +8,7 @@ from track_analyser.compare_tracks import (
 from track_analyser.gps_track import GPSTrack
 from datetime_modulo import datetime
 
-folder = "tracks/thomlevold"
+folder = "tracks/thomlevold_no_bad_phones"
 
 loggers = [
     GPSTrack.load_gpx("Logger 1", f"{folder}/05.gpx"),
@@ -24,8 +24,8 @@ androids = [
 
 iphones = [
     GPSTrack.load_gpx("Iphone1 (1 sek)", f"{folder}/espen.gpx"),
-    GPSTrack.load_gpx("Iphone2 (1 sek)", f"{folder}/andersmagnus.gpx"),
-    GPSTrack.load_gpx("Iphone3 (1 sek)", f"{folder}/hedvig.gpx"),
+    # GPSTrack.load_gpx("Iphone2 (1 sek)", f"{folder}/andersmagnus.gpx"),
+    # GPSTrack.load_gpx("Iphone3 (1 sek)", f"{folder}/hedvig.gpx"),
     # GPSTrack.load_gpx("Iphone4 (5 sek)", f"{folder}/rune.gpx"),
     GPSTrack.load_gpx("Iphone5 (1 sek)", f"{folder}/mikael.gpx"),
 ]
@@ -35,14 +35,14 @@ finish_time = datetime(2022, 6, 4, 15, 0, tzinfo=timezone.utc)
 for tracker in loggers + androids + iphones:
     tracker.clip_track(start_time, finish_time)
 
-compare_mean_with_confidences(loggers, loggers + androids + iphones, 0.95, folder)
+# compare_mean_with_confidences(loggers, loggers + androids + iphones, 0.95, folder)
 # compare_mean_with_confidences(loggers, loggers + androids + iphones, 0.2, folder)
 # compare_mean_with_confidences(androids + iphones, androids + iphones, 0.95, folder)
 # compare_mean_with_confidences(androids + iphones, androids + iphones, 0.2, folder)
 #
 #
 # plot_difference_compared_to_single(loggers[0], loggers + androids + iphones, folder)
-# plot_difference_compared_to_single(loggers[1], loggers + androids + iphones, folder)
+plot_difference_compared_to_single(loggers[1], loggers + androids + iphones, folder)
 # plot_difference_compared_to_single(loggers[2], loggers + androids + iphones, folder)
 # plot_difference_compared_to_single(loggers[3], loggers + androids + iphones, folder)
 #
@@ -52,5 +52,5 @@ compare_mean_with_confidences(loggers, loggers + androids + iphones, 0.95, folde
 #
 # compare_maximum_confidences(loggers, loggers + androids + iphones, 0.99, folder)
 # compare_maximum_confidences(loggers, loggers + androids + iphones, 0.95, folder)
-# compare_maximum_confidences(loggers, loggers + androids + iphones, 0.2, folder)
+compare_maximum_confidences(loggers, loggers + androids + iphones, 0.2, folder)
 # compare_mean_with_confidences(loggers, loggers + androids + iphones, 0.95, folder)

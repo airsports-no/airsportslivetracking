@@ -130,9 +130,9 @@ class AnrCorridorCalculator(Calculator):
             return
         penalty_gate = previous_gate or gate
         # Reset scoring to start counting again, but this time without grace time since we might be outside
-        outside_time = (position.time - self.crossed_outside_time).total_seconds()
+        # outside_time = (position.time - self.crossed_outside_time).total_seconds()
         # Correct for any remaining grace time if we exited the corridor immediately before the gate
-        self.corridor_grace_time = max(0, self.corridor_grace_time - outside_time)
+        # self.corridor_grace_time = max(0, self.corridor_grace_time - outside_time)
         if position == self.last_gate_missed_position:
             # If we are at the same position as the last missed the gate it means that we are missing several gates
             # in a row. We need to apply maximum penalty for each leg
@@ -194,6 +194,10 @@ class AnrCorridorCalculator(Calculator):
                                   position.latitude, position.longitude,
                                   "information", f"entering_corridor")
                 self.corridor_grace_time = self.scorecard.corridor_grace_time
+            else:
+                # Correct for any remaining grace time if we exited the corridor immediately before the gate
+                self.corridor_grace_time = max(0, self.corridor_grace_time - outside_time)
+
             self.existing_reference = None
             self.accumulated_score = 0
 
@@ -220,4 +224,8 @@ class AnrCorridorCalculator(Calculator):
                 "{} {}: Back inside the corridor".format(self.contestant, position.time))
             self.corridor_state = self.INSIDE_CORRIDOR
             self.check_and_apply_outside_penalty(position, last_gate)
+            self.corridor_grace_time = self.scorecard.corridor_grace_time
+            self.crossed_outside_position = None
+            self.crossed_outside_time = None
+
         self.previous_last_gate = last_gate

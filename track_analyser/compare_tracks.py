@@ -12,30 +12,63 @@ import scipy.stats as st
 def compare_mean_with_confidences(
     truths: List[GPSTrack], tracks: List[GPSTrack], desired_confidence: float, folder: str
 ):
+    compared_to_truth_time={}
     compared_to_truth={}
     for truth_index, truth in enumerate(truths):
         for index, track in enumerate(tracks):
             if truth == track:
                 continue
-            differences = get_track_differences_time(track, truth)
+            differences_time = get_track_differences_time(track, truth)
+            differences = get_track_differences(track, truth)
             try:
+                compared_to_truth_time[track.name].append(differences_time)
                 compared_to_truth[track.name].append(differences)
             except KeyError:
-                compared_to_truth[track.name]=[differences]
+                compared_to_truth_time[track.name]=[differences_time]
+                compared_to_truth[track.name] = [differences]
+    total_confidence_time =np.zeros((2, len(tracks)))
     total_confidence =np.zeros((2, len(tracks)))
+    total_mean_time=[]
     total_mean=[]
     for index, track in enumerate(tracks):
+        differences_time=compared_to_truth_time[track.name]
         differences=compared_to_truth[track.name]
+        total_differences_time=np.concatenate(differences_time)
         total_differences=np.concatenate(differences)
+        confidence_time=st.t.interval(alpha=desired_confidence, df=len(total_differences_time)-1, loc=np.mean(total_differences_time), scale=st.sem(total_differences_time))
         confidence=st.t.interval(alpha=desired_confidence, df=len(total_differences)-1, loc=np.mean(total_differences), scale=st.sem(total_differences))
-        print(confidence)
+        mean_time=np.mean(total_differences_time, axis=0)
         mean=np.mean(total_differences, axis=0)
+        total_mean_time.append(mean_time)
         total_mean.append(mean)
-        total_confidence[:, index]=confidence
+        total_confidence_time[:, index]=confidence_time
+        total_confidence[:, index] = confidence
     fig, ax = plt.subplots()
     plt.title(f"Mean time distance for confidence interval {int(100 * desired_confidence)}%")
     r1 = np.arange(len(tracks))
     plt.ylabel("Time distance (s)")
+    plt.bar(
+        r1,
+        total_mean_time,
+        yerr=total_confidence_time,
+        width=0.5,
+        color="blue",
+        edgecolor="black",
+        capsize=7,
+        label="poacee",
+    )
+    plt.xticks(np.arange(len(tracks)), [item.name for item in tracks], rotation=60)
+    plt.savefig(
+        f"{folder}/mean_confidence_time_bar_{int(100 * desired_confidence)}.png",
+        dpi=100,
+        bbox_inches="tight",
+    )
+    plt.close()
+
+    fig, ax = plt.subplots()
+    plt.title(f"Mean distance for confidence interval {int(100 * desired_confidence)}%")
+    r1 = np.arange(len(tracks))
+    plt.ylabel("Distance (m)")
     plt.bar(
         r1,
         total_mean,
@@ -48,11 +81,12 @@ def compare_mean_with_confidences(
     )
     plt.xticks(np.arange(len(tracks)), [item.name for item in tracks], rotation=60)
     plt.savefig(
-        f"{folder}/mean_confidence_bar_{int(100 * desired_confidence)}.png",
+        f"{folder}/mean_confidence_distance_bar_{int(100 * desired_confidence)}.png",
         dpi=100,
         bbox_inches="tight",
     )
     plt.close()
+
 
 def compare_maximum_confidences(
     truths: List[GPSTrack], tracks: List[GPSTrack], confidence: float, folder: str
@@ -151,6 +185,8 @@ def plot_difference_compared_to_single(
         plt.plot(differences, label=f"{tracks[index1]}")
     plt.title(f"Compare tracks to {truth}")
     ax.legend()
+    plt.ylabel("Position offset (m)")
+    plt.xlabel("Time since start (s)")
     plt.savefig(f"{folder}/track_difference_vs_{truth}.png", dpi=100)
     plt.close()
 
