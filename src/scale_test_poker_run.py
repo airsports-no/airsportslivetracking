@@ -1,7 +1,6 @@
 import datetime
 import os
 import time
-from typing import Tuple
 from urllib.parse import urlencode
 
 import requests
@@ -16,7 +15,7 @@ if __name__ == "__main__":
     django.setup()
 
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
-    TraccarCredentials, Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE, TRACKING_PILOT
+    Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE, TRACKING_PILOT
 
 import os
 
@@ -28,9 +27,7 @@ NUMBER_OF_CONTESTANTS = 50
 TIME_OFFSET = datetime.timedelta(seconds=20)
 tracks = {}
 
-configuration = TraccarCredentials.objects.get()
-
-traccar = Traccar.create_from_configuration(configuration)
+traccar = Traccar.create_from_configuration()
 
 traccar.get_device_map()
 

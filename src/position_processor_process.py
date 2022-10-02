@@ -30,7 +30,7 @@ from django.core.cache import cache
 from django.db import connections, OperationalError, connection
 
 from display.calculators.calculator_factory import calculator_factory
-from display.models import TraccarCredentials, Contestant
+from display.models import Contestant
 from traccar_facade import Traccar
 
 CACHE_TTL = 60
@@ -87,11 +87,10 @@ def clean_db_positions():
 
 
 def initial_processor(queue: Queue, global_map_queue: Queue):
-    configuration = TraccarCredentials.objects.get()
     connections.close_all()
     while True:
         try:
-            traccar = Traccar.create_from_configuration(configuration)
+            traccar = Traccar.create_from_configuration()
             break
         except:
             logger.exception(f"Initial processor failed to connect to traccer")

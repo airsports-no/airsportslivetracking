@@ -58,6 +58,8 @@ TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
 TRACCAR_PORT = os.environ.get("TRACCAR_PORT", 8082)
 TRACCAR_PROTOCOL = os.environ.get("TRACCAR_PROTOCOL", "http")
 TRACCAR_TOKEN = os.environ.get("TRACCAR_TOKEN", "")
+TRACCAR_USERNAME = os.environ.get("TRACCAR_USERNAME", "frankose@ifi.uio.no")
+TRACCAR_PASSWORD = os.environ.get("TRACCAR_PASSWORD", "password")
 
 MYSQL_HOST = os.environ.get("MYSQL_HOST", "mysql")
 MYSQL_PORT = os.environ.get("MYSQL_PORT", 3306)

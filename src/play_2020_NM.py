@@ -4,8 +4,6 @@ import os
 import time
 from collections import OrderedDict
 
-import gpxpy
-import requests
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -18,7 +16,7 @@ from playback_tools import build_traccar_track, load_data_traccar
 from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
-    TraccarCredentials, Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE
+    Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE
 
 maximum_index = 0
 tracks = {}
@@ -48,9 +46,8 @@ contestants = {
     "TorHelge": (datetime.datetime(2020, 8, 1, 12, 40), 70, 2)
 }
 
-configuration = TraccarCredentials.objects.get()
 
-traccar = Traccar.create_from_configuration(configuration)
+traccar = Traccar.create_from_configuration()
 
 devices = traccar.update_and_get_devices()
 # Group ID = 1

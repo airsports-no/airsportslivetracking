@@ -25,7 +25,7 @@ from websocket_channels import WebsocketFacade
 from position_processor_process import initial_processor, PERSON_TYPE
 
 import websocket
-from display.models import Contestant, TraccarCredentials, Person
+from display.models import Contestant, Person
 
 logger = logging.getLogger(__name__)
 
@@ -118,8 +118,8 @@ def live_position_transmitter_process(queue):
                 contestant = fetch_contestant(person_or_contestant)
                 if contestant is not None:
                     # Check for delayed tracking, do not push global positions if there is delay
-                    if contestant.navigation_task.calculation_delay_minutes != 0:
-                        push_global = False
+                    # if contestant.navigation_task.calculation_delay_minutes != 0:
+                    #     push_global = False
                     global_tracking_name = contestant.team.aeroplane.registration
                     try:
                         person = contestant.team.crew.member1
@@ -226,11 +226,10 @@ if __name__ == "__main__":
     # )
     cache.clear()
 
-    configuration = TraccarCredentials.objects.get()
     print_debug()
     while True:
         try:
-            traccar = Traccar.create_from_configuration(configuration)
+            traccar = Traccar.create_from_configuration()
         except Exception:
             logger.exception("Connection error connecting to traccar")
             time.sleep(5)

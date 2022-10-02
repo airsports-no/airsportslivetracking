@@ -5,7 +5,6 @@ import dateutil.parser
 import html2text as html2text
 import numpy as np
 import requests
-import rest_framework.exceptions as drf_exceptions
 import datetime
 import logging
 import random
@@ -68,7 +67,6 @@ from display.welcome_emails import render_welcome_email, render_contest_creation
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
 from live_tracking_map import settings
-from live_tracking_map.settings import SERVER_ROOT
 
 from phonenumbers.phonenumber import PhoneNumber
 
@@ -1864,7 +1862,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return True
 
     def get_traccar_track(self) -> List[Dict]:
-        traccar = Traccar.create_from_configuration(TraccarCredentials.get_solo())
+        traccar = Traccar.create_from_configuration()
         device_ids = traccar.get_device_ids_for_contestant(self)
 
         tracks = []
