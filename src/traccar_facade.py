@@ -14,7 +14,7 @@ from live_tracking_map.settings import (
 )
 
 if TYPE_CHECKING:
-    from display.models import TraccarCredentials, Contestant
+    from display.models import Contestant
 
 logger = logging.getLogger(__name__)
 

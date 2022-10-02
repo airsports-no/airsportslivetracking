@@ -119,19 +119,6 @@ def user_directory_path(instance, filename):
     return "aeroplane_{0}/{1}".format(instance.registration, filename)
 
 
-class TraccarCredentials(SingletonModel):
-    server_name = models.CharField(max_length=100, default="A name")
-    protocol = models.CharField(max_length=10, default="http")
-    address = models.CharField(max_length=100, default="traccar:8082")
-    token = models.CharField(max_length=100, default="REPLACE_ME")
-
-    def __str__(self):
-        return "Traccar credentials: {}".format(self.address)
-
-    class Meta:
-        verbose_name = "Traccar credentials"
-
-
 class MyUser(BaseUser, GuardianUserMixin):
     username = models.CharField(max_length=50, default="not_applicable")
     objects = BaseUserManager()
