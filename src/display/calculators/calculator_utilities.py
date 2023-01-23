@@ -45,7 +45,7 @@ def load_track_points_traccar_csv(points: List[Tuple[datetime.datetime, float, f
     return positions
 
 
-def round_time(dt=None, round_to=60):
+def round_time_minute(dt=None, round_to=60):
     """Round a datetime object to any time laps in seconds
     dt : datetime.datetime object, default now.
     roundTo : Closest number of seconds to round to, default 1 minute.
@@ -56,6 +56,10 @@ def round_time(dt=None, round_to=60):
     rounding = (seconds + round_to / 2) // round_to * round_to
     return dt + datetime.timedelta(0, rounding - seconds, -dt.microsecond)
 
+def round_time_second(obj: datetime.datetime) -> datetime.datetime:
+    if obj.microsecond >= 500_000:
+        obj += datetime.timedelta(seconds=1)
+    return obj.replace(microsecond=0)
 
 class PolygonHelper:
     def __init__(self, latitude, longitude):

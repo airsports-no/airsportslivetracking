@@ -237,7 +237,7 @@ if __name__ == "__main__":
         websocket.enableTrace(False)
         cookies = traccar.session.cookies.get_dict()
         ws = websocket.WebSocketApp(
-            "ws://{}/api/socket".format(configuration.address),
+            "ws://{}/api/socket".format(traccar.address),
             on_message=on_message,
             on_error=on_error,
             on_close=on_close,

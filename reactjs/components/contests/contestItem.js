@@ -2,7 +2,6 @@ import React, {Component} from "react";
 import TaskItem from "./taskItem";
 import {zoomFocusContest} from "../../actions";
 import {connect} from "react-redux";
-import EllipsisWithTooltip from "react-ellipsis-with-tooltip";
 
 
 export const mapStateToProps = (state, props) => ({

@@ -269,7 +269,7 @@ class Test2017WPFC(TransactionTestCase):
 #         request.user = user
 #         serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=task_data, context={"contest": contest,
 #                                                                                          "request": request})
-#         serialiser.is_valid(True)
+#         serialiser.is_valid()
 #         self.navigation_task = serialiser.save()
 #         # Required to make the time zone save correctly
 #         self.navigation_task.refresh_from_db()

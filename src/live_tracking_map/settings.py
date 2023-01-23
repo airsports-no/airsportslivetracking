@@ -109,23 +109,6 @@ INSTALLED_APPS = [
     "firebase.apps.FirebaseConfig",
     "multiselectfield",
     'storages',
-    #### Wagtail
-    # 'wagtail.contrib.forms',
-    # 'wagtail.contrib.redirects',
-    # 'wagtail.embeds',
-    # 'wagtail.sites',
-    # 'wagtail.users',
-    # 'wagtail.snippets',
-    # 'wagtail.documents',
-    # 'wagtail.images',
-    # 'wagtail.search',
-    # 'wagtail.admin',
-    # 'wagtail.core',
-    # 'wagtail.api.v2',
-    # 'modelcluster',
-    # 'taggit',
-    # 'wiki',
-    ####
 ]
 if os.environ.get("MODE") != "dev":
     INSTALLED_APPS.append("drf_firebase_auth")

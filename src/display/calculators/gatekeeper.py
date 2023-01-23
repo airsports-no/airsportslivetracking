@@ -21,7 +21,7 @@ from websocket_channels import WebsocketFacade
 
 from display.traccar_factory import get_traccar_instance
 
-from display.calculators.calculator_utilities import round_time, distance_between_gates
+from display.calculators.calculator_utilities import round_time_minute, distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \

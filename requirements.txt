@@ -1,5 +1,4 @@
-#twisted==21.2.0
-twisted==20.3.0
+twisted
 numpy
 scipy
 pandas
@@ -10,10 +9,8 @@ django
 djangorestframework
 gunicorn
 requests
-django-webpack-loader==0.7.0
+django-webpack-loader
 Pillow
-numpy
-scipy
 drf-yasg
 fastkml
 websocket-client
@@ -28,7 +25,6 @@ django-redis-cache
 python-redis-lock
 gpx_converter
 lxml
-drf-yasg
 django-guardian
 djangorestframework-guardian
 drf-nested-routers
@@ -43,7 +39,7 @@ phonenumbers
 Babel
 django-phonenumber-field
 django-crispy-forms
-celery==4.4.6
+celery
 segno
 django-qr-code
 django-google-analytics-app
@@ -59,7 +55,6 @@ django-use-email-as-username
 SimConnect
 eval7
 utm
-sentry-sdk
 ogn-client
 uvicorn[standard]
 fpdf2
@@ -72,8 +67,8 @@ django-storages[azure]
 html2text
 kubernetes
 kubernetes-job
-wagtail
 pymbtiles
 coverage
 pep8
 pykalman
+pylatex

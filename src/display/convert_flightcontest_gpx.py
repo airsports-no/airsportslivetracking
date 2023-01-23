@@ -4,9 +4,9 @@ from typing import List, Tuple, Optional, Dict
 from zipfile import ZipFile
 
 import gpxpy
+import pygeoif
 from django.core.exceptions import ValidationError
 from fastkml import kml, Placemark
-from shapely import geometry
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
     create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat, \
@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 
 
 def add_line(place_mark):
-    return list(zip(*reversed(place_mark.geometry.xy)))
+    return [tuple(reversed(item[:2]))  for item in place_mark.geometry.coords]
 
 
 def add_polygon(place_mark):
-    return list(zip(*reversed(place_mark.geometry.exterior.xy)))
+    return [tuple(reversed(item[:2]))  for item in place_mark.geometry.exterior.coords]
 
 
 def open_kmz(file):
@@ -50,14 +50,14 @@ def open_kml(file):
 
 def parse_geometries(placemark):
     if hasattr(placemark, "geometry"):  # check if the placemark has a geometry or not
-        if isinstance(placemark.geometry, geometry.Point):
+        if isinstance(placemark.geometry, pygeoif.Point):
             # add_point(placemark)
             pass
-        elif isinstance(placemark.geometry, geometry.LineString):
+        elif isinstance(placemark.geometry, pygeoif.LineString):
             return add_line(placemark)
-        elif isinstance(placemark.geometry, geometry.LinearRing):
+        elif isinstance(placemark.geometry, pygeoif.LinearRing):
             return add_line(placemark)  # LinearRing can be plotted through LineString
-        elif isinstance(placemark.geometry, geometry.Polygon):
+        elif isinstance(placemark.geometry, pygeoif.Polygon):
             return add_polygon(placemark)
         # elif isinstance(placemark.geometry, geometry.MultiPoint):
         #     for geom in placemark.geometry.geoms:
@@ -127,7 +127,7 @@ def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
     # print(features)
     placemark = list(features.features())[0]
     geometry = placemark.geometry
-    return list(zip(*reversed(geometry.xy)))
+    return [tuple(reversed(item[0:2])) for item in geometry.coords]
 
 
 def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:

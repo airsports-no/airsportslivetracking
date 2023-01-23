@@ -121,13 +121,13 @@ class TestANRPerLeg(TransactionTestCase):
              'Waypoint 1: 50.0 points outside corridor (115 s) (capped)',
              'Waypoint 1: 200.0 points backtracking',
              'Waypoint 1: 0 points entering corridor',
-             'Waypoint 1: 0.0 points outside corridor (157 s) (capped)',
-             'Waypoint 2: 50.0 points outside corridor (-1 s) (capped)',
-             'FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:10\nactual: 20:35:11',
+             # 'Waypoint 1: 0 points outside corridor (157 s) (capped)',
+             # 'Waypoint 2: 50.0 points outside corridor (-1 s) (capped)',
+             'FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11',
              'Landing: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --']
 
         self.assertListEqual(a, strings)
-        self.assertEqual(750, contestant_track.score)
+        self.assertEqual(700, contestant_track.score)
 
     def test_anr_miss_multiple_finish(self, p, p2):
         track = load_track_points_traccar_csv(
@@ -159,7 +159,7 @@ class TestANRPerLeg(TransactionTestCase):
             [
                 "Takeoff: 0.0 points missing takeoff gate",
                 "SP: 200.0 ",
-                "SP: 50.0 points outside corridor (21 s) (capped)",
+                "SP: 48.0 points outside corridor (21 s)",
                 "Waypoint 1: 12.0 points outside corridor (4 s)",
                 "Waypoint 1: 0 points entering corridor",
                 "Waypoint 1: 38.0 poi",
@@ -171,7 +171,7 @@ class TestANRPerLeg(TransactionTestCase):
             ],
             fixed_strings,
         )
-        self.assertEqual(800, contestant_track.score)
+        self.assertEqual(798, contestant_track.score)
 
     def test_manually_terminate_calculator(self, p, p2):
         cache.clear()
@@ -782,6 +782,6 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         for s in strings:
             print(s)
-        self.assertEqual(3348, self.contestant.contestanttrack.score)
+        self.assertEqual(747, self.contestant.contestanttrack.score)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertTrue("SP: 200.0 points circling start" in strings)

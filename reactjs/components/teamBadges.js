@@ -1,6 +1,5 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
 import Hand from "../react-playing-cards-local/src/PlayingCard/Hand/Hand";
 import {teamLongForm} from "../utilities";
 import {setDisplay, toggleDangerLevel, toggleGateArrow} from "../actions";
@@ -48,12 +47,8 @@ function memberTwoPicture(crew) {
 
 function memberName(member) {
     return <h4 className={"lower-thirds-pilot-names"}>
-        <EllipsisWithTooltip>
-            {member.last_name ? member.last_name.toUpperCase() : ""}
-        </EllipsisWithTooltip>
-        <EllipsisWithTooltip>
+            {member.last_name ? member.last_name.toUpperCase() : ""}<br/>
             {member.first_name ? member.first_name : ""}
-        </EllipsisWithTooltip>
     </h4>
 }
 

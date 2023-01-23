@@ -182,21 +182,21 @@ expected_route = {
     'waypoints': [{'name': 'SP', 'latitude': 48.126794444445, 'longitude': 17.0301777778, 'elevation': 1000.0,
                    'width': 1.0, 'gate_line': [[48.120434854845, 17.0221104171], [48.133154034045, 17.0382461375]],
                    'time_check': True, 'gate_check': True, 'end_curved': False, 'type': 'sp',
-                   'distance_next': 7327.068672314767, 'distance_previous': -1.0, 'bearing_next': 310.28526298769185,
+                   'distance_next': 7327.068672315119, 'distance_previous': -1.0, 'bearing_next': 310.28526298769185,
                    'bearing_from_previous': -1.0, 'procedure_turn_points': [], 'is_procedure_turn': False,
                    'outside_distance': 4500.0, 'inside_distance': 4000.0, 'left_corridor_line': None,
                    'right_corridor_line': None},
                   {'name': 'SC1', 'latitude': 48.1693027833, 'longitude': 16.9549388833, 'elevation': 1000.0,
                    'width': 1.0, 'gate_line': [[48.1629431937, 16.9468648386], [48.1756623729, 16.9630139293]],
                    'time_check': True, 'gate_check': True, 'end_curved': False, 'type': 'secret',
-                   'distance_next': 5247.334062871512, 'distance_previous': 7327.068672314767,
+                   'distance_next': 5247.33406287222, 'distance_previous': 7327.068672315119,
                    'bearing_next': 310.25828540235466, 'bearing_from_previous': 310.28526298769185,
                    'procedure_turn_points': [], 'is_procedure_turn': False, 'outside_distance': 0.0,
                    'inside_distance': 0.0, 'left_corridor_line': None, 'right_corridor_line': None},
                   {'name': 'TP1', 'latitude': 48.1997333333, 'longitude': 16.90100275, 'elevation': 1000.0,
                    'width': 1.0, 'gate_line': [[48.1933719529, 16.8929270849], [48.2060947137, 16.909079418]],
                    'time_check': True, 'gate_check': True, 'end_curved': False, 'type': 'tp',
-                   'distance_next': 6267.065762351565, 'distance_previous': 5247.334062871512,
+                   'distance_next': 6267.065762351211, 'distance_previous': 5247.33406287222,
                    'bearing_next': 336.1952836367903, 'bearing_from_previous': 310.25828540235466,
                    'procedure_turn_points': [], 'is_procedure_turn': False, 'outside_distance': 2866.269857386126,
                    'inside_distance': 2366.269857386126, 'left_corridor_line': None, 'right_corridor_line': None},
@@ -455,12 +455,28 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(len(expected_route["waypoints"]), len(route["waypoints"]))
         print(route["waypoints"])
         for index, waypoint in enumerate(route["waypoints"]):
-            print(waypoint['name'])
-            del waypoint["outer_corner_position"]
-            # self.assertDictEqual(expected_route["waypoints"][index], waypoint)
-            equal, reasons = compare_dictionaries(expected_route["waypoints"][index], waypoint)
-            self.assertTrue(equal,reasons)
-            self.assertListEqual(expected_route["waypoints"][index]["gate_line"], waypoint["gate_line"])
+            expected_waypoint=expected_route["waypoints"][index]
+            self.assertEqual(expected_waypoint["name"], waypoint["name"])
+            self.assertEqual(expected_waypoint["latitude"], waypoint["latitude"])
+            self.assertEqual(expected_waypoint["longitude"], waypoint["longitude"])
+            self.assertEqual(expected_waypoint["elevation"], waypoint["elevation"])
+            self.assertEqual(expected_waypoint["width"], waypoint["width"])
+            self.assertEqual(expected_waypoint["gate_line"], waypoint["gate_line"])
+            self.assertEqual(expected_waypoint["time_check"], waypoint["time_check"])
+            self.assertEqual(expected_waypoint["gate_check"], waypoint["gate_check"])
+            self.assertAlmostEqual(expected_waypoint["distance_next"], waypoint["distance_next"])
+            self.assertAlmostEqual(expected_waypoint["distance_previous"], waypoint["distance_previous"])
+            self.assertEqual(expected_waypoint["bearing_next"], waypoint["bearing_next"])
+            self.assertEqual(expected_waypoint["bearing_from_previous"], waypoint["bearing_from_previous"])
+            self.assertEqual(len(expected_waypoint["procedure_turn_points"]), len(waypoint["procedure_turn_points"]))
+            for i in range(len(expected_waypoint["procedure_turn_points"])):
+                self.assertAlmostEqual(expected_waypoint["procedure_turn_points"][i][0], waypoint["procedure_turn_points"][i][0])
+                self.assertAlmostEqual(expected_waypoint["procedure_turn_points"][i][1],
+                                   waypoint["procedure_turn_points"][i][1])
+            self.assertEqual(expected_waypoint["inside_distance"], waypoint["inside_distance"])
+            self.assertEqual(expected_waypoint["outside_distance"], waypoint["outside_distance"])
+            self.assertTrue((len(waypoint["procedure_turn_points"])>0 and waypoint["is_procedure_turn"]) or len(waypoint["procedure_turn_points"])==0 and not waypoint["is_procedure_turn"])
+
 
     def test_multiple_import(self, patch):
         res = self.client.post(

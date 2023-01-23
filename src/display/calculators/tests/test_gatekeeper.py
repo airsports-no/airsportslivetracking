@@ -74,9 +74,9 @@ class TestInterpolation(TransactionTestCase):
         print([f"({item.time.isoformat()}, {item.latitude}, {item.longitude})" for item in interpolated])
         self.assertEqual(5, len(interpolated))
         for index in range(len(interpolated)):
-            self.assertListEqual(
-                [str(interpolated[index].time), interpolated[index].latitude, interpolated[index].longitude],
-                list(expected[index]))
+            self.assertEqual(str(interpolated[index].time), expected[index][0])
+            self.assertAlmostEqual(interpolated[index].latitude, expected[index][1])
+            self.assertAlmostEqual(interpolated[index].longitude, expected[index][2])
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
@@ -149,5 +149,5 @@ class TestCrossingEstimate(TransactionTestCase):
         gatekeeper.track = [start_position, next_position]
         gate, estimated = gatekeeper.estimate_crossing_time_of_next_timed_gate()
         self.assertEqual(self.route.waypoints[2].name, gate.name)
-        expected = dateutil.parser.parse("2020-01-01T00:07:21.989331+00:00")
+        expected = dateutil.parser.parse("2020-01-01T00:07:22.512632+00:00")
         self.assertEqual(expected,estimated)

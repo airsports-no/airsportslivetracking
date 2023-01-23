@@ -1,4 +1,3 @@
-import EllipsisWithTooltip from 'react-ellipsis-with-tooltip'
 import React, {Component} from "react";
 
 const R = 6371e3; // metres
@@ -125,7 +124,7 @@ export function contestantTwoLines(contestant) {
     const memberOne = contestant.team.crew.member1.last_name.toUpperCase()
     const memberTwo = contestant.team.crew.member2 ? contestant.team.crew.member2.last_name.toUpperCase() : ""
     return <div>
-        <EllipsisWithTooltip>{memberOne}</EllipsisWithTooltip><EllipsisWithTooltip>{memberTwo}</EllipsisWithTooltip>
+        {memberOne}<br/>{memberTwo}
     </div>
 
 }

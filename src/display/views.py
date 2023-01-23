@@ -111,7 +111,7 @@ from display.forms import (
     FlightOrderConfigurationForm, UserUploadedMapForm, AddUserUploadedMapPermissionsForm,
     ChangeUserUploadedMapPermissionsForm,
 )
-from display.generate_flight_orders import generate_flight_orders
+from display.generate_flight_orders import generate_flight_orders, generate_flight_orders_latex
 from display.map_constants import PNG, A4
 from display.map_plotter import (
     plot_route,
@@ -835,7 +835,7 @@ def get_contestant_email_flight_orders_link(request, key):
 
 def get_contestant_email_flying_orders_link(request, pk):
     contestant = get_object_or_404(Contestant, id=pk)
-    report = generate_flight_orders(contestant)
+    report = generate_flight_orders_latex(contestant)
     response = HttpResponse(bytes(report), content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
     return response
@@ -2777,7 +2777,7 @@ class ContestViewSet(ModelViewSet):
         """
         contest = self.get_object()
         serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
-        if serialiser.is_valid(True):
+        if serialiser.is_valid():
             if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
                 contest.make_public()
             elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
@@ -2902,7 +2902,7 @@ class ContestViewSet(ModelViewSet):
         if request.method == "POST":
             contest = None
         serialiser = self.get_serializer(instance=contest, data=request.data)
-        serialiser.is_valid(True)
+        serialiser.is_valid()
         contest_team = serialiser.save()
         return Response(
             ContestTeamSerialiser(contest_team).data, status=status.HTTP_201_CREATED
@@ -3052,7 +3052,7 @@ class NavigationTaskViewSet(ModelViewSet):
         navigation_task = self.get_object()  # type: NavigationTask
         if request.method == "PUT":
             serialiser = self.get_serializer(instance=navigation_task.scorecard, data=request.data)
-            serialiser.is_valid(True)
+            serialiser.is_valid()
             serialiser.save()
             return Response(serialiser.data, status=status.HTTP_200_OK)
         else:
@@ -3075,7 +3075,7 @@ class NavigationTaskViewSet(ModelViewSet):
         navigation_task = self.get_object()  # type: NavigationTask
         if request.method == "PUT":
             serialiser = self.get_serializer(data=request.data)
-            serialiser.is_valid(True)
+            serialiser.is_valid()
             contest_team = serialiser.validated_data["contest_team"]
             if contest_team.team.crew.member1.email != request.user.email:
                 raise ValidationError(
@@ -3172,7 +3172,7 @@ class NavigationTaskViewSet(ModelViewSet):
         """
         navigation_task = self.get_object()
         serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
-        if serialiser.is_valid(True):
+        if serialiser.is_valid():
             if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
                 navigation_task.make_public()
             elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:

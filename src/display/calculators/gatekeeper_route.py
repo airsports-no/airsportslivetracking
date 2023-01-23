@@ -6,7 +6,7 @@ from typing import List, TYPE_CHECKING, Optional, Callable, Tuple
 import pytz
 
 from display.calculators.calculator import Calculator
-from display.calculators.calculator_utilities import round_time, distance_between_gates
+from display.calculators.calculator_utilities import round_time_minute, distance_between_gates
 from display.calculators.gatekeeper import Gatekeeper
 from display.calculators.positions_and_gates import Gate, Position, MultiGate
 from display.convert_flightcontest_gpx import calculate_extended_gate
@@ -154,7 +154,7 @@ class GatekeeperRoute(Gatekeeper):
                 if intersection_time and self.starting_line.is_passed_in_correct_direction_track(self.track):
                     self.starting_line.pass_infinite_gate(intersection_time)
                     if self.contestant.adaptive_start:
-                        self.recalculate_gates_times_from_start_time(round_time(intersection_time))
+                        self.recalculate_gates_times_from_start_time(round_time_minute(intersection_time))
 
         i = len(self.outstanding_gates) - 1
         crossed_gate = False

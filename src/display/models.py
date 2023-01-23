@@ -51,6 +51,7 @@ from solo.models import SingletonModel
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.calculator_running_utilities import is_calculator_running
 from display.calculator_termination_utilities import request_termination
+from display.calculators.calculator_utilities import round_time_second
 from display.calculators.positions_and_gates import Position
 from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
@@ -1215,6 +1216,10 @@ class GateScore(models.Model):
             return score
 
 
+def round_gate_times(times: dict) -> dict:
+    return {key: round_time_second(value) for key, value in times.items()}
+
+
 class Contestant(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE)
@@ -1661,7 +1666,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     @property
     def gate_times(self) -> Dict:
         if not self.predefined_gate_times or not len(self.predefined_gate_times):
-            times = self.calculate_missing_gate_times({})
+            times = round_gate_times(self.calculate_missing_gate_times({}))
             if self.pk is not None:
                 Contestant.objects.filter(pk=self.pk).update(predefined_gate_times=times)
             return times

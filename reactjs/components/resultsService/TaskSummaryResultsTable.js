@@ -14,7 +14,7 @@ import 'react-bootstrap-table2-toolkit/dist/react-bootstrap-table2-toolkit.min.c
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Link} from "react-router-dom";
 
-import ToolkitProvider, {CSVExport} from 'react-bootstrap-table2-toolkit';
+// import ToolkitProvider, {CSVExport} from 'react-bootstrap-table2-toolkit';
 import cellEditFactory from 'react-bootstrap-table2-editor';
 import {Container, Modal, Button, Form} from "react-bootstrap";
 import {
@@ -34,7 +34,7 @@ import {sortCaret, sortFunc} from "../resultsTableUtilities";
 import {Loading} from "../basicComponents";
 import Navbar from "../navbar";
 
-const {ExportCSVButton} = CSVExport;
+// const {ExportCSVButton} = CSVExport;
 
 
 const mapStateToProps = (state, props) => ({
@@ -806,29 +806,29 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 </div>
                 <div className={"results-table"}>
                     <div className={""}>
-                        <ToolkitProvider
-                            keyField="key"
-                            data={d}
-                            columns={c}
-                            exportCSV
-                        >
-                            {
-                                props => (
+                        {/*<ToolkitProvider*/}
+                        {/*    keyField="key"*/}
+                        {/*    data={d}*/}
+                        {/*    columns={c}*/}
+                        {/*    exportCSV*/}
+                        {/*>*/}
+                        {/*    {*/}
+                        {/*        props => (*/}
                                     <div>
-                                        <BootstrapTable {...props.baseProps} sort={defaultSorted}
+                                        <BootstrapTable keyField={"key"} data={d} columns={c} sort={defaultSorted}
                                                         classes={"table-dark bg-dark-transparent"}
                                                         wrapperClasses={"text-dark"}
                                                         bootstrap4 striped condensed
                                                         cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
                                         />
 
-                                        {this.props.contest.results.permission_change_contest ?
-                                            <ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export
-                                                CSV</ExportCSVButton> : null}
+                                        {/*{this.props.contest.results.permission_change_contest ?*/}
+                                        {/*    <ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export*/}
+                                        {/*        CSV</ExportCSVButton> : null}*/}
                                     </div>
-                                )
-                            }
-                        </ToolkitProvider>
+                                {/*)*/}
+                        {/*    }*/}
+                        {/*</ToolkitProvider>*/}
                     </div>
                     <div className={"alert alert-info alert-dismissable fade show"} style={{marginTop: "20px"}}>
                         <button type="button" className="close" data-dismiss="alert" aria-hidden="true">&#215;</button>

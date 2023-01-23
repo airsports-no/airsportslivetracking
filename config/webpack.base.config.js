@@ -2,14 +2,6 @@ const path = require("path");
 const fs = require("fs");
 const webpack = require('webpack');
 const BundleTracker = require('webpack-bundle-tracker');
-const BrotliPlugin = require('brotli-webpack-plugin');
-const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
-// const CopyWebpackPlugin = require('copy-webpack-plugin');
-// const HtmlWebpackPlugin = require('html-webpack-plugin');
-// var CompressionPlugin = require("compression-webpack-plugin");
-// var BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
-// const cesiumSource = 'node_modules/cesium/Source';
-// const cesiumWorkers = '../Build/Cesium/Workers';
 module.exports = {
     context: path.resolve(__dirname, '../'),
     mode: 'development',
@@ -18,19 +10,9 @@ module.exports = {
         .map(f => ({[path.basename(f, ".jsx")]: path.resolve(__dirname, `../reactjs/containers/${f}`)}))
         .reduce((a, b) => Object.assign(a, b), {}),
 
-    node: {
-        fs: 'empty'
-    },
-
-
-    amd: {
-        // Enable webpack-friendly use of require in Cesium
-        toUrlUndefined: true
-    },
-
     output: {
         path: path.resolve('/assets/bundles/local/'),
-        filename: "[name]-[hash].js",
+        filename: "[name]-[fullhash].js",
         // Needed to compile multiline strings in Cesium
         sourcePrefix: ''
     },
@@ -48,51 +30,7 @@ module.exports = {
         }
     },
     plugins: [
-        // new UglifyJsPlugin(),
-        // new BrotliPlugin({
-        //     asset: '[path].br[query]',
-        //     test: /\.(js|css|html|svg)$/,
-        //     threshold: 10240,
-        //     minRatio: 0.8
-        // }),
-        // new webpack.optimize.OccurenceOrderPlugin(true),
-        // new webpack.optimize.DedupePlugin(),
-        // new HtmlWebpackPlugin({
-        //     template: 'src/index.html'
-        // }),
-        // Copy Cesium Assets, Widgets, and Workers to a static directory
-        // new CopyWebpackPlugin([{from: path.join(cesiumSource, cesiumWorkers), to: 'Workers'}]),
-        // new CopyWebpackPlugin([{from: path.join(cesiumSource, 'Assets'), to: 'Assets'}]),
-        // new CopyWebpackPlugin([{from: path.join(cesiumSource, 'Widgets'), to: 'Widgets'}]),
-        // new webpack.DefinePlugin({
-        //     // Define relative base path in cesium for loading assets
-        //     CESIUM_BASE_URL: JSON.stringify('')
-        // }),
         new BundleTracker({filename: path.resolve(__dirname, '../webpack-stats-local.json')}),
-        // new webpack.DefinePlugin({ // <-- key to reducing React's size
-        //     'process.env': {
-        //         'NODE_ENV': JSON.stringify('production')
-        //     }
-        // }),
-        // new webpack.optimize.UglifyJsPlugin({
-        //     compress: {
-        //         warnings: false,
-        //         screw_ie8: true,
-        //         conditionals: true,
-        //         unused: true,
-        //         comparisons: true,
-        //         sequences: true,
-        //         dead_code: true,
-        //         evaluate: true,
-        //         if_return: true,
-        //         join_vars: true
-        //     },
-        //     output: {
-        //         comments: false
-        //     }
-        // }),
-        // new webpack.HashedModuleIdsPlugin(),
-        // new webpack.optimize.AggressiveMergingPlugin()//Merge chunks
     ], // add all common plugins here
 
     module: {
@@ -122,7 +60,7 @@ module.exports = {
                         options: {
                             modules: {
                                 mode: 'local',
-                                localIdentName: '[path][name]__[local]--[hash:base64:5]',
+                                localIdentName: '[path][name]__[local]--[fullhash:base64:5]',
                             },
                         },
                     },
@@ -147,17 +85,13 @@ module.exports = {
                             importLoaders: 1,
                             modules: {
                                 mode: 'local',
-                                localIdentName: '[path][name]__[local]--[hash:base64:5]',
+                                localIdentName: '[path][name]__[local]--[fullhash:base64:5]',
                             },
                         },
                     },
                     'sass-loader',
                 ],
             },
-// {
-//     test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
-//     use: ['url-loader']
-// }
         ]
     },
 
@@ -166,11 +100,6 @@ module.exports = {
         modules: ['node_modules', 'bower_components'],
         extensions:
             ['.js', '.jsx'],
-        // alias:
-        //     {
-        //         // CesiumJS module name
-        //         cesium: path.resolve(__dirname + "../../", cesiumSource)
-        //     }
     }
     ,
 };

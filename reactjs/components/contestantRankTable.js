@@ -11,6 +11,7 @@ import {
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import "bootstrap/dist/css/bootstrap.min.css"
+import 'react-bootstrap-table-next/dist/react-bootstrap-table2.min.css';
 import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
     displayAllTracks,
@@ -24,9 +25,6 @@ import {
 import {Loading} from "./basicComponents";
 import {ProgressCircle, ProjectedScore} from "./contestantProgress";
 import 'react-circular-progressbar/dist/styles.css';
-import {mdiLogout, mdiMagnify} from "@mdi/js";
-import Icon from "@mdi/react";
-import throttle from 'react-throttle-render'
 import {sortCaret} from "./resultsTableUtilities";
 
 var moment = require("moment");
@@ -330,6 +328,11 @@ class ConnectedContestantRankTable extends Component {
 
     }
 
+    debouncedBuildData(){
+        return this.buildData()
+        // return debounce(this.buildData(), 500)
+    }
+
     render() {
         const rowClasses = (row, rowIndex) => {
             if (this.props.highlight.includes(row.contestantId)) {
@@ -337,7 +340,7 @@ class ConnectedContestantRankTable extends Component {
             }
         }
 
-        return <BootstrapTable keyField={"key"} data={this.buildData()} columns={this.columns}
+        return <BootstrapTable keyField={"key"} data={this.debouncedBuildData()} columns={this.columns}
                                rowClasses={rowClasses}
                                defaultSorted={[{dataField: "rank", order: "asc"}]}
                                classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
@@ -358,5 +361,5 @@ const
         removeHighlightContestantTrack,
         highlightContestantTable,
         removeHighlightContestantTable
-    })(throttle(500)(ConnectedContestantRankTable))
+    })(ConnectedContestantRankTable)
 export default ContestantRankTable
