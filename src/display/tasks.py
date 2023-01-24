@@ -8,7 +8,7 @@ from django.db import connections
 from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
 
-from display.generate_flight_orders import generate_flight_orders
+from display.generate_flight_orders import generate_flight_orders_latex
 from display.models import Contestant, EmailMapLink, MyUser
 from live_tracking_map.celery import app
 from playback_tools import insert_gpx_file, recalculate_traccar
@@ -79,7 +79,7 @@ def generate_and_maybe_notify_flight_order(contestant_pk: int, email: str, first
             logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
             return
         try:
-            orders = generate_flight_orders(contestant)
+            orders = generate_flight_orders_latex(contestant)
             for c in connections.all():
                 c.close_if_unusable_or_obsolete()
             contestant.emailmaplink_set.all().delete()

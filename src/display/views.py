@@ -111,7 +111,7 @@ from display.forms import (
     FlightOrderConfigurationForm, UserUploadedMapForm, AddUserUploadedMapPermissionsForm,
     ChangeUserUploadedMapPermissionsForm,
 )
-from display.generate_flight_orders import generate_flight_orders, generate_flight_orders_latex
+from display.generate_flight_orders import generate_flight_orders_latex
 from display.map_constants import PNG, A4
 from display.map_plotter import (
     plot_route,
