@@ -147,6 +147,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
                 "map_dpi",
                 "map_include_annotations",
                 "map_include_waypoints",
+                "map_include_meridians_and_parallels_lines",
                 "map_line_width",
                 "map_minute_mark_line_width",
             ),

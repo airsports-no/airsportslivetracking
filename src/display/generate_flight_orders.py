@@ -496,6 +496,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         line_width=flight_order_configuration.map_line_width,
         minute_mark_line_width=flight_order_configuration.map_minute_mark_line_width,
         colour=flight_order_configuration.map_line_colour,
+        include_meridians_and_parallels_lines=flight_order_configuration.map_include_meridians_and_parallels_lines,
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")
     mapimage_file.write(map_image.read())

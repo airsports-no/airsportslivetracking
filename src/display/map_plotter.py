@@ -22,7 +22,10 @@ from display.coordinate_utilities import (
     calculate_fractional_distance_point_lat_lon,
     get_heading_difference,
     project_position_lat_lon,
-    create_perpendicular_line_at_end_lonlat, utm_from_lat_lon, bearing_difference, normalise_bearing,
+    create_perpendicular_line_at_end_lonlat,
+    utm_from_lat_lon,
+    bearing_difference,
+    normalise_bearing,
 )
 from display.map_constants import A3
 from display.wind_utilities import (
@@ -46,15 +49,15 @@ logger = logging.getLogger(__name__)
 
 
 def create_minute_lines(
-        start: Tuple[float, float],
-        finish: Tuple[float, float],
-        air_speed: float,
-        wind_speed: float,
-        wind_direction: float,
-        gate_start_time: datetime.datetime,
-        route_start_time: datetime.datetime,
-        resolution_seconds: int = 60,
-        line_width_nm=0.5,
+    start: Tuple[float, float],
+    finish: Tuple[float, float],
+    air_speed: float,
+    wind_speed: float,
+    wind_direction: float,
+    gate_start_time: datetime.datetime,
+    route_start_time: datetime.datetime,
+    resolution_seconds: int = 60,
+    line_width_nm=0.5,
 ) -> List[
     Tuple[
         Tuple[Tuple[float, float], Tuple[float, float]],
@@ -108,16 +111,16 @@ def create_minute_lines(
 
 
 def create_minute_lines_track(
-        track: List[Tuple[float, float]],
-        air_speed: float,
-        wind_speed: float,
-        wind_direction: float,
-        gate_start_time: datetime.datetime,
-        route_start_time: datetime.datetime,
-        start_offset: Optional[float] = None,
-        end_offset: Optional[float] = None,
-        resolution_seconds: int = 60,
-        line_width_nm=0.5,
+    track: List[Tuple[float, float]],
+    air_speed: float,
+    wind_speed: float,
+    wind_direction: float,
+    gate_start_time: datetime.datetime,
+    route_start_time: datetime.datetime,
+    start_offset: Optional[float] = None,
+    end_offset: Optional[float] = None,
+    resolution_seconds: int = 60,
+    line_width_nm=0.5,
 ) -> List[
     Tuple[
         Tuple[Tuple[float, float], Tuple[float, float]],
@@ -169,12 +172,17 @@ def create_minute_lines_track(
             elif end_offset is None:
                 number_distance = start_offset
             else:
-                number_distance = start_offset + (fraction * (end_offset - start_offset))
+                number_distance = start_offset + (
+                    fraction * (end_offset - start_offset)
+                )
                 if number_distance > 2:
                     number_distance = line_width_nm
 
-            text_position = extend_point_to_the_right(bearing, (
-                tuple(reversed(minute_mark[0])), tuple(reversed(minute_mark[1]))), 1852 * number_distance / 2)
+            text_position = extend_point_to_the_right(
+                bearing,
+                (tuple(reversed(minute_mark[0])), tuple(reversed(minute_mark[1]))),
+                1852 * number_distance / 2,
+            )
             lines.append(
                 (
                     minute_mark,
@@ -321,14 +329,14 @@ class LocalImages(GoogleWTS):
 
 
 def scale_bar(
-        ax,
-        proj,
-        length,
-        location=(0.5, 0.05),
-        linewidth=3,
-        units="km",
-        m_per_unit=1000,
-        scale=0,
+    ax,
+    proj,
+    length,
+    location=(0.5, 0.05),
+    linewidth=3,
+    units="km",
+    m_per_unit=1000,
+    scale=0,
 ):
     """
     http://stackoverflow.com/a/35705477/1072212
@@ -402,14 +410,14 @@ def scale_bar(
 
 
 def scale_bar_y(
-        ax,
-        proj,
-        length,
-        location=(0.05, 0.5),
-        linewidth=3,
-        units="km",
-        m_per_unit=1000,
-        scale=0,
+    ax,
+    proj,
+    length,
+    location=(0.05, 0.5),
+    linewidth=3,
+    units="km",
+    m_per_unit=1000,
+    scale=0,
 ):
     """
     http://stackoverflow.com/a/35705477/1072212
@@ -516,13 +524,13 @@ def calculate_extent(width: float, height: float, centre: Tuple[float, float]):
 
 
 def plot_leg_bearing(
-        current_waypoint,
-        next_waypoint,
-        air_speed,
-        wind_speed,
-        wind_direction,
-        character_offset: int = 4,
-        fontsize: int = 14,
+    current_waypoint,
+    next_waypoint,
+    air_speed,
+    wind_speed,
+    wind_direction,
+    character_offset: int = 4,
+    fontsize: int = 14,
 ):
     left_of_leg_start = current_waypoint.get_gate_position_left_of_track(True)
     left_of_leg_finish = next_waypoint.get_gate_position_left_of_track(True)
@@ -537,7 +545,9 @@ def plot_leg_bearing(
     bearing_difference_previous = get_heading_difference(
         current_waypoint.bearing_from_previous, current_waypoint.bearing_next
     )
-    course_position = calculate_fractional_distance_point_lat_lon(left_of_leg_start, left_of_leg_finish, 0.5)
+    course_position = calculate_fractional_distance_point_lat_lon(
+        left_of_leg_start, left_of_leg_finish, 0.5
+    )
     course_text = "{:03.0f}".format(
         normalise_bearing(current_waypoint.bearing_next - wind_correction_angle)
     )
@@ -577,7 +587,9 @@ PROHIBITED_COLOURS = {
 }
 
 
-def plot_prohibited_polygon(target_projection, ax, polygon_path, fill_colour: str, line_colour: str, name):
+def plot_prohibited_polygon(
+    target_projection, ax, polygon_path, fill_colour: str, line_colour: str, name
+):
     line = []
     for element in polygon_path:
         line.append(
@@ -593,19 +605,31 @@ def plot_prohibited_polygon(target_projection, ax, polygon_path, fill_colour: st
         facecolor=fill_colour,
         alpha=0.4,
         # linewidth=2,
-        edgecolor=line_colour
+        edgecolor=line_colour,
     )
     plt.text(centre.x, centre.y, name, horizontalalignment="center")
 
 
 def plot_prohibited_zones(route: Route, target_projection, ax):
     for prohibited in route.prohibited_set.all():
-        fill_colour, line_colour = PROHIBITED_COLOURS.get(prohibited.type, ("blue", "darkblue"))
-        plot_prohibited_polygon(target_projection, ax, prohibited.path, fill_colour, line_colour, prohibited.name)
+        fill_colour, line_colour = PROHIBITED_COLOURS.get(
+            prohibited.type, ("blue", "darkblue")
+        )
+        plot_prohibited_polygon(
+            target_projection,
+            ax,
+            prohibited.path,
+            fill_colour,
+            line_colour,
+            prohibited.name,
+        )
 
 
-def extend_point_to_the_right(track_bearing: float, line: Tuple[Tuple[float, float], Tuple[float, float]],
-                              distance: float) -> Tuple[float, float]:
+def extend_point_to_the_right(
+    track_bearing: float,
+    line: Tuple[Tuple[float, float], Tuple[float, float]],
+    distance: float,
+) -> Tuple[float, float]:
     gate_line_bearing = calculate_bearing(*line)
     right = (gate_line_bearing - track_bearing) % 360.0 > 0
     if not right:
@@ -617,15 +641,15 @@ def extend_point_to_the_right(track_bearing: float, line: Tuple[Tuple[float, flo
 
 
 def plot_waypoint_name(
-        route: Route,
-        waypoint: Waypoint,
-        bearing: float,
-        annotations: bool,
-        waypoints_only: bool,
-        contestant: Optional[Contestant],
-        line_width: float,
-        colour: str,
-        character_padding: int = 2,
+    route: Route,
+    waypoint: Waypoint,
+    bearing: float,
+    annotations: bool,
+    waypoints_only: bool,
+    contestant: Optional[Contestant],
+    line_width: float,
+    colour: str,
+    character_padding: int = 2,
 ):
     if not waypoint.time_check and not waypoint.gate_check:
         return
@@ -687,13 +711,13 @@ def plot_waypoint_name(
 
 
 def plot_anr_corridor_track(
-        route: Route,
-        contestant: Optional[Contestant],
-        annotations,
-        line_width: float,
-        minute_mark_line_width: float,
-        colour: str,
-        plot_center_line: bool
+    route: Route,
+    contestant: Optional[Contestant],
+    annotations,
+    line_width: float,
+    minute_mark_line_width: float,
+    colour: str,
+    plot_center_line: bool,
 ):
     inner_track = []
     outer_track = []
@@ -721,7 +745,7 @@ def plot_anr_corridor_track(
             inner_track.append(waypoint.gate_line[0])
             outer_track.append(waypoint.gate_line[1])
         center_track.append((waypoint.latitude, waypoint.longitude))
-        if waypoint.type not in ('secret',) and waypoint.time_check:
+        if waypoint.type not in ("secret",) and waypoint.time_check:
             plt.plot(
                 xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width
             )
@@ -735,7 +759,7 @@ def plot_anr_corridor_track(
                 colour,
                 mark_offset=2,
                 line_width_nm=0.5,
-                adaptive=True
+                adaptive=True,
             )
             plot_leg_bearing(
                 waypoint,
@@ -762,15 +786,15 @@ def plot_anr_corridor_track(
 
 
 def plot_minute_marks(
-        waypoint: Waypoint,
-        contestant: Contestant,
-        track: List[Waypoint],
-        index,
-        line_width: float,
-        colour: str,
-        mark_offset=1,
-        line_width_nm: float = 0.5,
-        adaptive: bool = False
+    waypoint: Waypoint,
+    contestant: Contestant,
+    track: List[Waypoint],
+    index,
+    line_width: float,
+    colour: str,
+    mark_offset=1,
+    line_width_nm: float = 0.5,
+    adaptive: bool = False,
 ):
     """
 
@@ -792,8 +816,8 @@ def plot_minute_marks(
     first_segments = waypoint.get_centre_track_segments()
     last_segments = track[index + 1].get_centre_track_segments()
     track_points = (
-            first_segments[len(first_segments) // 2:]
-            + last_segments[: (len(last_segments) // 2) + 1]
+        first_segments[len(first_segments) // 2 :]
+        + last_segments[: (len(last_segments) // 2) + 1]
     )
     # print(f"track_points: {track_points}")
     ys, xs = np.array(track_points).T
@@ -807,7 +831,7 @@ def plot_minute_marks(
         contestant.gate_times.get(track[0].name),
         line_width_nm=line_width_nm,
         start_offset=waypoint.width if adaptive else line_width_nm,
-        end_offset=next_waypoint.width if adaptive else None
+        end_offset=next_waypoint.width if adaptive else None,
     )
     for mark_line, text_position, timestamp in minute_lines:
         xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat
@@ -835,13 +859,13 @@ def plot_minute_marks(
 
 
 def plot_precision_track(
-        route: Route,
-        contestant: Optional[Contestant],
-        waypoints_only: bool,
-        annotations: bool,
-        line_width: float,
-        minute_mark_line_width: float,
-        colour: str,
+    route: Route,
+    contestant: Optional[Contestant],
+    waypoints_only: bool,
+    annotations: bool,
+    line_width: float,
+    minute_mark_line_width: float,
+    colour: str,
 ):
     tracks = [[]]
     previous_waypoint = None  # type: Optional[Waypoint]
@@ -856,16 +880,24 @@ def plot_precision_track(
             on_unknown_leg = True
         if waypoint.type in ("tp", "sp", "fp", "isp", "ifp"):
             on_unknown_leg = False
-        if previous_waypoint and previous_waypoint.type in ("dummy", "ul") and waypoint.type != "dummy":
+        if (
+            previous_waypoint
+            and previous_waypoint.type in ("dummy", "ul")
+            and waypoint.type != "dummy"
+        ):
             tracks.append([])
         if waypoint.type == "isp":
             tracks.append([])
         if waypoint.type in ("tp", "sp", "fp", "isp", "ifp", "secret", "dummy", "ul"):
             # Do not show unknown leg gates, these are to be considered secret unless followed by a dummy
-            if waypoint.type == "ul" and next_waypoint and next_waypoint.type != "dummy":
+            if (
+                waypoint.type == "ul"
+                and next_waypoint
+                and next_waypoint.type != "dummy"
+            ):
                 continue
             # Secret checkpoints on unknown legs should not be displayed
-            if on_unknown_leg and waypoint.type=="secret":
+            if on_unknown_leg and waypoint.type == "secret":
                 continue
             tracks[-1].append(waypoint)
         previous_waypoint = waypoint
@@ -912,13 +944,24 @@ def plot_precision_track(
                             next_index = index + 1
                             accumulated_distance = 0
                             while next_index < len(track):
-                                if abs(bearing_difference(waypoint.bearing_next,
-                                                          track[next_index].bearing_from_previous)) > 3:
+                                if (
+                                    abs(
+                                        bearing_difference(
+                                            waypoint.bearing_next,
+                                            track[next_index].bearing_from_previous,
+                                        )
+                                    )
+                                    > 3
+                                ):
                                     break
-                                accumulated_distance += track[next_index].distance_previous
-                                if track[
-                                    next_index].type not in ("secret", "ul",
-                                                             "dummy") and accumulated_distance / 1852 > 1:  # Distance between waypoints must be more than 1 nautical miles
+                                accumulated_distance += track[
+                                    next_index
+                                ].distance_previous
+                                if (
+                                    track[next_index].type
+                                    not in ("secret", "ul", "dummy")
+                                    and accumulated_distance / 1852 > 1
+                                ):  # Distance between waypoints must be more than 1 nautical miles
                                     plot_leg_bearing(
                                         waypoint,
                                         track[next_index],
@@ -930,7 +973,12 @@ def plot_precision_track(
                                 next_index += 1
                         if not includes_unknown_legs:
                             plot_minute_marks(
-                                waypoint, contestant, track, index, minute_mark_line_width, colour
+                                waypoint,
+                                contestant,
+                                track,
+                                index,
+                                minute_mark_line_width,
+                                colour,
                             )
 
             if waypoint.is_procedure_turn:
@@ -943,7 +991,11 @@ def plot_precision_track(
             if not waypoints_only:
                 ys, xs = path.T
                 plt.plot(
-                    xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width
+                    xs,
+                    ys,
+                    transform=ccrs.PlateCarree(),
+                    color=colour,
+                    linewidth=line_width,
                 )
     return paths
 
@@ -984,30 +1036,32 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
         for track in tracks:
             path = np.array(track)
             ys, xs = path.T
-            plt.plot(
-                xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=1
-            )
+            plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=1)
     takeoff_gates = editable_route.get_features_type("to")
     for takeoff_gate in takeoff_gates:
         takeoff_gate_line = editable_route.get_feature_coordinates(takeoff_gate)
         path = np.array(takeoff_gate_line)
         ys, xs = path.T
-        plt.plot(
-            xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=1
-        )
+        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=1)
     landing_gates = editable_route.get_features_type("ldg")
     for landing_gate in landing_gates:
         landing_gate_line = editable_route.get_feature_coordinates(landing_gate)
         path = np.array(landing_gate_line)
         ys, xs = path.T
-        plt.plot(
-            xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1
-        )
+        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1)
     for zone_type in ("info", "penalty", "prohibited", "gate"):
         for feature in editable_route.get_features_type(zone_type):
-            fill_colour, line_colour = PROHIBITED_COLOURS.get(zone_type, ("blue", "darkblue"))
-            plot_prohibited_polygon(imagery.crs, ax, editable_route.get_feature_coordinates(feature, flip=True),
-                                    fill_colour, line_colour, feature["name"])
+            fill_colour, line_colour = PROHIBITED_COLOURS.get(
+                zone_type, ("blue", "darkblue")
+            )
+            plot_prohibited_polygon(
+                imagery.crs,
+                ax,
+                editable_route.get_feature_coordinates(feature, flip=True),
+                fill_colour,
+                line_colour,
+                feature["name"],
+            )
     ax.add_image(imagery, 11)
     figdata = BytesIO()
     plt.savefig(
@@ -1018,20 +1072,21 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
 
 
 def plot_route(
-        task: NavigationTask,
-        map_size: str,
-        zoom_level: Optional[int] = None,
-        landscape: bool = True,
-        contestant: Optional[Contestant] = None,
-        waypoints_only: bool = False,
-        annotations: bool = True,
-        scale: int = 200,
-        dpi: int = 300,
-        map_source: str = "osm",
-        user_map_source: str = "",
-        line_width: float = 0.5,
-        minute_mark_line_width: float = 0.5,
-        colour: str = "#0000ff",
+    task: NavigationTask,
+    map_size: str,
+    zoom_level: Optional[int] = None,
+    landscape: bool = True,
+    contestant: Optional[Contestant] = None,
+    waypoints_only: bool = False,
+    annotations: bool = True,
+    scale: int = 200,
+    dpi: int = 300,
+    map_source: str = "osm",
+    user_map_source: str = "",
+    line_width: float = 0.5,
+    minute_mark_line_width: float = 0.5,
+    colour: str = "#0000ff",
+    include_meridians_and_parallels_lines: bool = True,
 ):
     route = task.route
     A4_width = 21.0
@@ -1078,22 +1133,44 @@ def plot_route(
     ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
     # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
     ax.set_aspect("auto")
-    if NavigationTask.PRECISION in task.scorecard.task_type or NavigationTask.POKER in task.scorecard.task_type:
+    if (
+        NavigationTask.PRECISION in task.scorecard.task_type
+        or NavigationTask.POKER in task.scorecard.task_type
+    ):
         paths = plot_precision_track(
-            route, contestant, waypoints_only, annotations, line_width, minute_mark_line_width, colour
+            route,
+            contestant,
+            waypoints_only,
+            annotations,
+            line_width,
+            minute_mark_line_width,
+            colour,
         )
     elif NavigationTask.ANR_CORRIDOR in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
-            route, contestant, annotations, line_width, minute_mark_line_width, colour, False
+            route,
+            contestant,
+            annotations,
+            line_width,
+            minute_mark_line_width,
+            colour,
+            False,
         )
     elif NavigationTask.AIRSPORTS in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
-            route, contestant, annotations, line_width, minute_mark_line_width, colour, True
+            route,
+            contestant,
+            annotations,
+            line_width,
+            minute_mark_line_width,
+            colour,
+            True,
         )
     else:
         paths = []
     plot_prohibited_zones(route, imagery.crs, ax)
-    ax.gridlines(draw_labels=False, dms=True)
+    if include_meridians_and_parallels_lines:
+        ax.gridlines(draw_labels=False, dms=True)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
         plt.title(
@@ -1181,7 +1258,7 @@ def plot_route(
         # Projection in metres
         utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
         centre_longitude = (
-                minimum_longitude + (maximum_longitude - minimum_longitude) / 2
+            minimum_longitude + (maximum_longitude - minimum_longitude) / 2
         )
         centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
         centre_x, centre_y = utm.transform_point(
