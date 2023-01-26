@@ -33,6 +33,11 @@ from display.wind_utilities import (
     calculate_wind_correction_angle,
 )
 
+A4_WIDTH = 21.0
+A4_HEIGHT = 29.7
+A3_HEIGHT = 42
+A3_WIDTH = 29.7
+
 if __name__ == "__main__":
     sys.path.append("../")
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -1090,10 +1095,6 @@ def plot_route(
     margins_mm: float = 0,
 ):
     route = task.route
-    A4_width = 21.0
-    A4_height = 29.7
-    A3_height = 42
-    A3_width = 29.7
     if user_map_source and len(user_map_source):
         imagery = UserUploadedMBTiles(user_map_source)
     else:
@@ -1111,20 +1112,20 @@ def plot_route(
         if zoom_level is None:
             zoom_level = 12
         if landscape:
-            figure_width = A3_height
-            figure_height = A3_width
+            figure_width = A3_HEIGHT
+            figure_height = A3_WIDTH
         else:
-            figure_width = A3_width
-            figure_height = A3_height
+            figure_width = A3_WIDTH
+            figure_height = A3_HEIGHT
     else:
         if zoom_level is None:
             zoom_level = 11
         if landscape:
-            figure_width = A4_height
-            figure_height = A4_width
+            figure_width = A4_HEIGHT
+            figure_height = A4_WIDTH
         else:
-            figure_width = A4_width
-            figure_height = A4_height
+            figure_width = A4_WIDTH
+            figure_height = A4_HEIGHT
     figure_width -= 0.2 * margins_mm
     figure_height -= 0.2 * margins_mm
     fig = plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)))
@@ -1305,14 +1306,8 @@ def plot_route(
         rotated.save(rotated_data, format="PNG")
         rotated_data.seek(0)
         figdata = rotated_data
-    pdfdata = BytesIO()
-    plt.savefig(
-        pdfdata, format="pdf", dpi=dpi, transparent=True
-    )  # , bbox_inches="tight", pad_inches=margin_inches/2)
     plt.close()
-    pdfdata.seek(0)
-
-    return figdata, pdfdata
+    return figdata
 
 
 def get_basic_track(positions: List[Tuple[float, float]]):

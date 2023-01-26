@@ -3,7 +3,7 @@ import urllib
 import urllib.request
 from io import BytesIO
 from tempfile import NamedTemporaryFile
-from typing import List
+from typing import List, Literal
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 from cartopy import geodesic
@@ -285,7 +285,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         Command(
             "usepackage",
             "geometry",
-            "a4paper,head=40pt,left=10mm,right=10mm,top=10mm,bottom=15mm,includeheadfoot=False",
+            "a4paper,head=40pt,left=10mm,right=10mm,top=10mm,bottom=15mm",
         )
     )
     document.preamble.append(Command("usepackage", "caption"))
@@ -497,7 +497,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         ).strftime("%H:%M:%S")
                 data_table.add_row(["Landing gate", "-", "-", "-", local_time])
 
-    map_image, pdf_image = plot_route(
+    map_image = plot_route(
         contestant.navigation_task,
         A4,  # flight_order_configuration.document_size,
         zoom_level=flight_order_configuration.map_zoom_level,
@@ -529,7 +529,9 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         document.append(
             StandAloneGraphic(
                 mapimage_file.name,
-                rf"width=190mm" if flight_order_configuration.map_orientation != LANDSCAPE else rf"height=277mm"
+                rf"width=190mm"
+                if flight_order_configuration.map_orientation != LANDSCAPE
+                else rf"height=277mm",
             )
         )  # f"resolution={flight_order_configuration.map_dpi}"))
     document.append(NewPage())
@@ -549,8 +551,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.generate_tex(pdf_file.name)
     with open(pdf_file.name + ".tex", "r") as f:
         print(f.read())
-    document.generate_pdf(pdf_file.name, clean=False, compiler_args=["-f"])
-    pdf_file.close()
+    document.generate_pdf(pdf_file.name, clean=True, compiler_args=["-f"])
     with open(pdf_file.name + ".pdf", "rb") as f:
         return f.read()
 
@@ -565,3 +566,44 @@ def get_turning_point_image(
     temporary_file.write(turning_point.read())
     temporary_file.seek(0)
     return temporary_file
+
+
+def embed_map_in_pdf(
+    paper: Literal["a4paper", "a3paper"],
+    map_image: bytes,
+    width_mm: float,
+    height_mm: float,
+    landscape: bool,
+) -> bytes:
+    document = Document(indent=False)
+    document.preamble.append(
+        Command(
+            "usepackage",
+            "geometry",
+            f"{paper},head=0pt,left=10mm,right=10mm,top=10mm,bottom=15mm",
+        )
+    )
+    map_header = PageStyle("mapheader")
+    with map_header.create(Foot("R")):
+        map_header.append(
+            StandAloneGraphic(
+                image_options=r"width=0.3\linewidth",
+                filename="/src/static/img/AirSportsLiveTracking.png",
+            )
+        )
+    document.preamble.append(map_header)
+    document.change_document_style("mapheader")
+    mapimage_file = NamedTemporaryFile(suffix=".png")
+    mapimage_file.write(map_image)
+    mapimage_file.seek(0)
+    with document.create(Figure()):
+        document.append(
+            StandAloneGraphic(
+                mapimage_file.name,
+                rf"width={width_mm}mm" if not landscape else rf"height={height_mm}mm",
+            )
+        )
+    pdf_file = NamedTemporaryFile()
+    document.generate_pdf(pdf_file.name, clean=True, compiler_args=["-f"])
+    with open(pdf_file.name + ".pdf", "rb") as f:
+        return f.read()
