@@ -1,10 +1,10 @@
-FROM python:3.10 as tracker_base
+FROM python:3.10-slim-bullseye as tracker_base
 ENV PYTHONUNBUFFERED 1
 
 ###### SETUP BASE INFRASTRUCTURE ######
 RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone &&\
     apt update && apt -y upgrade &&\
-    apt -y install curl build-essential vim libproj-dev proj-data proj-bin libgeos-dev libgdal-dev redis-server daphne libcliquer1 libgslcblas0 libtbb2 latexmk texlive texlive-full libproj19
+    apt -y install curl build-essential vim libproj-dev proj-data proj-bin libgeos-dev libgdal-dev redis-server daphne libcliquer1 libgslcblas0 libtbb2 latexmk texlive texlive-latex-base texlive-latex-extra texlive-latex-recommended libproj19
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt install -y nodejs
 RUN npm install -g npm@9.3.1
 RUN addgroup --system django \

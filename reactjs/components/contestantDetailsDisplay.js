@@ -100,6 +100,7 @@ class ConnectedContestantDetailsDisplay extends Component {
 
                 },
                 headerClasses: "text-center",
+                headerStyle: {width: "150px"},
                 dataField: "message.gate",
                 formatter: (cell, row) => {
                     return <b>{cell}</b>
@@ -130,9 +131,12 @@ class ConnectedContestantDetailsDisplay extends Component {
                         </div>
                     </div>
                 },
-                headerAttrs: (column, colIndex) => ({
+                headerAttrs: {
                     colSpan: 2
-                }),
+                },
+                style: {
+                    width: "100px"
+                },
                 formatter: (cell, row) => {
                     return cell.toFixed(2)
                 },
@@ -146,6 +150,9 @@ class ConnectedContestantDetailsDisplay extends Component {
             {
                 dataField: "message",
                 text: "",
+                headerAttrs: {
+                    hidden: true
+                },
                 formatter: (cell, row) => {
                     return <div className={"preWrap"}><FormatMessage message={cell}/></div>
                 },

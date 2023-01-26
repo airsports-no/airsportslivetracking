@@ -67,9 +67,9 @@ class ConnectedContestantRankTable extends Component {
         this.columns = [
             {
                 dataField: "colour",
-                text: "  ",
-                style: this.numberStyle
-
+                text: "",
+                style: this.numberStyle,
+                headerStyle:{width:'20px'}
             },
             {
                 dataField: "rank",
@@ -80,6 +80,7 @@ class ConnectedContestantRankTable extends Component {
                 //     }
                 // },
                 classes: "align-middle",
+                headerStyle:{width:'50px'},
                 sort: false,
                 formatter: (cell, row, rowIndex) => {
                     return <span>{rowIndex + 1}</span>
