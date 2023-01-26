@@ -120,7 +120,15 @@ def generate_turning_point_image(
         img2 = img.rotate(waypoint.bearing_next)
     width, height = img2.size
     overlap = 500
-    cropped = img2.crop((overlap, overlap, width - overlap, height - overlap))
+    left = overlap
+    right = width - overlap
+    new_width = right - left
+    aspect = 16 / 13
+    vertical_centre = height / 2
+    vertical = new_width / (2 * aspect)
+    top = int(vertical_centre - vertical)
+    bottom = int(vertical_centre + vertical)
+    cropped = img2.crop((left, top, right, bottom))
     draw = ImageDraw.Draw(cropped)
     if unknown_leg:
         fnt = ImageFont.truetype("/src/OpenSans-Bold.ttf", 100)
@@ -169,7 +177,7 @@ def render_turning_point_images(
     header_prefix: str,
     unknown_leg: bool = False,
 ):
-    rows_per_page = 2
+    rows_per_page = 3
     number_of_images = len(render_waypoints)
     number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
     current_page = -1
@@ -266,11 +274,20 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     geometry_options = {
         "a4paper": True,
         "head": "40pt",
-        "margin": "0.5in",
-        "bottom": "0.6in",
+        "left": "10mm",
+        "right": "10mm",
+        "top": "10mm",
+        "bottom": "15mm",
         "includeheadfoot": False,
     }
-    document = Document(geometry_options=geometry_options, indent=False)
+    document = Document(indent=False)
+    document.preamble.append(
+        Command(
+            "usepackage",
+            "geometry",
+            "a4paper,head=40pt,left=10mm,right=10mm,top=10mm,bottom=15mm,includeheadfoot=False",
+        )
+    )
     document.preamble.append(Command("usepackage", "caption"))
     document.preamble.append(Command("usepackage", "xassoccnt"))
     document.preamble.append(Command("usepackage", "zref", "abspage,user,lastpage"))
@@ -380,6 +397,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.append(VerticalSpace("50pt"))
     with document.create(Section("Rules", numbering=False)):
         document.append(contestant.get_formatted_rules_description().replace("\n", ""))
+    document.append(VerticalSpace("30pt"))
     with document.create(Center()):
         document.append(HugeText(bold("Good luck")))
     document.append(VerticalSpace("30pt"))
@@ -497,18 +515,25 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         minute_mark_line_width=flight_order_configuration.map_minute_mark_line_width,
         colour=flight_order_configuration.map_line_colour,
         include_meridians_and_parallels_lines=flight_order_configuration.map_include_meridians_and_parallels_lines,
+        margins_mm=10,
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")
     mapimage_file.write(map_image.read())
     mapimage_file.seek(0)
     document.append(NewPage())
-    document.append(Command("newgeometry", "left=0pt,bottom=0pt,top=0pt,right=0pt"))
+    # document.append(Command("newgeometry", "left=0pt,bottom=0pt,top=0pt,right=0pt"))
     document.change_document_style("mapheader")
-    document.append(
-        StandAloneGraphic(mapimage_file.name, "")
-    )  # f"resolution={flight_order_configuration.map_dpi}"))
+    # with document.create(Figure(position="!ht")):
+    with document.create(MiniPage()):
+        document.append(Command("centering"))
+        document.append(
+            StandAloneGraphic(
+                mapimage_file.name,
+                r"width=190mm",
+            )
+        )  # f"resolution={flight_order_configuration.map_dpi}"))
     document.append(NewPage())
-    document.append(Command("restoregeometry"))
+    # document.append(Command("restoregeometry"))
 
     document.change_document_style("header")
     # document.change_document_style("turningpointheader")
