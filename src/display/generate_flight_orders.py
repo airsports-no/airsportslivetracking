@@ -529,7 +529,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         document.append(
             StandAloneGraphic(
                 mapimage_file.name,
-                r"width=190mm",
+                rf"width=190mm" if flight_order_configuration.map_orientation != LANDSCAPE else rf"height=277mm"
             )
         )  # f"resolution={flight_order_configuration.map_dpi}"))
     document.append(NewPage())
