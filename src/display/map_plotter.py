@@ -1172,7 +1172,8 @@ def plot_route(
     else:
         paths = []
     plot_prohibited_zones(route, imagery.crs, ax)
-    ax.gridlines(draw_labels=False, dms=True)
+    if include_meridians_and_parallels_lines:
+        ax.gridlines(draw_labels=False, dms=True)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
         plt.title(
