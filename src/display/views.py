@@ -1,8 +1,6 @@
 import base64
 import datetime
-import json
 import os
-import time
 from io import BytesIO
 from typing import Optional, Dict, Tuple, List
 
@@ -27,6 +25,8 @@ from django.core.files.storage import FileSystemStorage
 from django.db import transaction, connection
 from django.db.models import Q
 from django.forms import formset_factory, inlineformset_factory, FloatField
+from django import forms
+
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
@@ -2180,8 +2180,39 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             )
         return context
 
+    #### Hack to avoid get_form_list() which leads to recursion error with conditional steps.
+    def super_get_form(self, step=None, data=None, files=None):
+        """
+        Constructs the form for a given `step`. If no `step` is defined, the
+        current step will be determined automatically.
+
+        The form will be initialized using the `data` argument to prefill the
+        new form. If needed, instance or queryset (for `ModelForm` or
+        `ModelFormSet`) will be added too.
+        """
+        if step is None:
+            step = self.steps.current
+        form_class = self.form_list[step]
+        # prepare the kwargs for the form instance.
+        kwargs = self.get_form_kwargs(step)
+        kwargs.update({
+            'data': data,
+            'files': files,
+            'prefix': self.get_form_prefix(step, form_class),
+            'initial': self.get_form_initial(step),
+        })
+        if issubclass(form_class, (forms.ModelForm, forms.models.BaseInlineFormSet)):
+            # If the form is based on ModelForm or InlineFormSet,
+            # add instance if available and not previously set.
+            kwargs.setdefault('instance', self.get_form_instance(step))
+        elif issubclass(form_class, forms.models.BaseModelFormSet):
+            # If the form is based on ModelFormSet, add queryset if available
+            # and not previous set.
+            kwargs.setdefault('queryset', self.get_form_instance(step))
+        return form_class(**kwargs)
+
     def get_form(self, step=None, data=None, files=None):
-        form = super().get_form(step, data, files)
+        form = self.super_get_form(step, data, files)
         if step == "waypoint_definition":
             print(len(form))
         if step in (
