@@ -119,7 +119,7 @@ stages:
     - script: |  
         rm -rf reports/*
       displayName: 'Clear reports'
-- stage: Deploy
+- stage: Build
   dependsOn: Test
   condition: succeeded()
   jobs:
