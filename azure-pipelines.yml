@@ -80,6 +80,14 @@ stages:
       submodules: true
       persistCredentials: true
     - task: DockerCompose@0
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        dockerComposeFile: '**/docker-compose.yml'
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'pull'
+    - task: DockerCompose@0
       displayName: Start containers
       inputs:
         containerregistrytype: 'Azure Container Registry'
