@@ -1,5 +1,6 @@
 #
-from display.models import GateScore, Scorecard, NavigationTask, LANDING_GATE
+from display.clone_object import simple_clone
+from display.models import GateScore, Scorecard, NavigationTask, LANDING_GATE, DUMMY, UNKNOWN_LEG
 
 
 def get_default_scorecard():
@@ -16,7 +17,7 @@ def get_default_scorecard():
         },
     )
 
-    GateScore.objects.update_or_create(
+    regular_gate_score, _ = GateScore.objects.update_or_create(
         scorecard=scorecard,
         gate_type=LANDING_GATE,
         defaults={
@@ -31,5 +32,8 @@ def get_default_scorecard():
             "backtracking_after_steep_gate_grace_period_seconds": 0,
         },
     )
+    scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
+    simple_clone(regular_gate_score, {"gate_type": DUMMY})
+    simple_clone(regular_gate_score, {"gate_type": UNKNOWN_LEG})
 
     return scorecard

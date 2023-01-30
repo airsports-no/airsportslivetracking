@@ -15,7 +15,7 @@ def get_segment_time(start, finish, air_speed, wind_speed, wind_direction) -> da
 
 def calculate_and_get_relative_gate_times(route, air_speed, wind_speed, wind_direction) -> List[
     Tuple[str, datetime.timedelta]]:
-    waypoints = route.waypoints  # type: List[Waypoint]
+    waypoints = list(filter(lambda waypoint: waypoint.type not in ("dummy",), route.waypoints))  # type: List[Waypoint]
     if len(waypoints) == 0:
         return []
     centre_tracks = []

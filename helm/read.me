@@ -1,0 +1,43 @@
+Delete fail jobs:
+
+kubectl delete jobs $(kubectl get jobs -o=jsonpath='{.items[?(@.status.failed>0)].metadata.name}')
+
+Delete completed jobs
+
+kubectl delete pod --field-selector=status.phase==Succeeded
+kubectl delete job $(kubectl get job -o=jsonpath='{.items[?(@.status.succeeded==1)].metadata.name}')
+
+Restart pod:
+
+kubectl get pod traccar-976c9fb8f-mj4j4 -o yaml | kubectl replace --force -f -
+
+
+# set this to the name of your Azure Container Registry.  It must be globally unique
+MYACR=airsportsacr
+
+az aks update -n airsports -g airsports_group --attach-acr airsportsacr
+
+
+# Wordpress
+kubectl create namespace wordpress
+# Production WordPress chart version
+helm install wordpress bitnami/wordpress -f wordpress/private-values.yaml --namespace wordpress --version 13.0.11
+
+# Airsports
+kubectl apply -f cluster-issuer.yaml --namespace ingress-basic
+kubectl create namespace airsports
+helm install -f private_values.yml airsportsrelease . --namespace airsports
+
+az aks update -n airsports2 -g airsports_group --attach-acr airsportsacr
+
+# Service principle for calculator job
+az ad sp create-for-rbac --name calculator-service-principal
+{
+  "appId": "61653234-d195-4786-916d-8da78060f30a",
+  "displayName": "calculator-service-principal",
+  "password": "p7KS0rJJEqfD9BAI8tJ1~ok4t-NfoGUQKW",
+  "tenant": "210ed8f8-2049-4fd2-b61d-b34cfa01fa9c"
+}
+
+helm upgrade -f private_values.yml airsportsrelease . --namespace airsports
+

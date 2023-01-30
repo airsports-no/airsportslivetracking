@@ -15,7 +15,6 @@ import {
     isAndroid,
     isIOS
 } from "react-device-detect";
-import {popup} from "leaflet/dist/leaflet-src.esm";
 import {Link, withRouter} from "react-router-dom";
 
 export const mapStateToProps = (state, props) => ({

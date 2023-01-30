@@ -48,7 +48,7 @@ stages:
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Build services'
         additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: false
+        includeLatestTag: true
     - task: DockerCompose@0
       displayName: Push to docker registry
       inputs:
@@ -119,8 +119,8 @@ stages:
     - script: |  
         rm -rf reports/*
       displayName: 'Clear reports'
-- stage: Deploy
-  dependsOn: Build
+- stage: Build
+  dependsOn: Test
   condition: succeeded()
   jobs:
   - deployment: live_tracking_deployment

@@ -21,7 +21,7 @@ from websocket_channels import WebsocketFacade
 
 from display.traccar_factory import get_traccar_instance
 
-from display.calculators.calculator_utilities import round_time, distance_between_gates
+from display.calculators.calculator_utilities import round_time_minute, distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
 from display.convert_flightcontest_gpx import calculate_extended_gate
 from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
@@ -169,23 +169,24 @@ class Gatekeeper(ABC):
         device_ids = self.traccar.get_device_ids_for_contestant(self.contestant)
         current_time = datetime.datetime.now(datetime.timezone.utc)
         device_positions = {}
-        for device_id in device_ids:
-            positions = self.traccar.get_positions_for_device_id(device_id,
-                                                                 self.contestant.tracker_start_time,
-                                                                 current_time)
-            for item in positions:
-                item["device_time"] = dateutil.parser.parse(item["deviceTime"])
-                item["server_time"] = dateutil.parser.parse(item["serverTime"])
-                item["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
-            device_positions[device_id] = positions
-        try:
-            # Select the longest track
-            positions_to_use = sorted(device_positions.values(), key=lambda k: len(k), reverse=True)[0]
-            logger.info(f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator")
-            for position in positions_to_use:
-                self.timed_queue.put(position, datetime.datetime.now(datetime.timezone.utc))
-        except IndexError:
-            pass
+        if self.live_processing:
+            for device_id in device_ids:
+                positions = self.traccar.get_positions_for_device_id(device_id,
+                                                                     self.contestant.tracker_start_time,
+                                                                     current_time)
+                for item in positions:
+                    item["device_time"] = dateutil.parser.parse(item["deviceTime"])
+                    item["server_time"] = dateutil.parser.parse(item["serverTime"])
+                    item["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
+                device_positions[device_id] = positions
+            try:
+                # Select the longest track
+                positions_to_use = sorted(device_positions.values(), key=lambda k: len(k), reverse=True)[0]
+                logger.info(f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator")
+                for position in positions_to_use:
+                    self.timed_queue.put(position, datetime.datetime.now(datetime.timezone.utc))
+            except IndexError:
+                pass
 
         receiving = False
         while not self.track_terminated:
@@ -220,8 +221,10 @@ class Gatekeeper(ABC):
             calculator_is_alive(self.contestant.pk, 30)
             now = datetime.datetime.now(datetime.timezone.utc)
             if self.live_processing and now > self.contestant.finished_by_time:
-                self.notify_termination()
-                break
+                data = self.timed_queue.peek()
+                if data is None or data["device_time"] > now:
+                    self.notify_termination()
+                    break
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
                 self.refresh_scores()
                 try:
@@ -371,8 +374,10 @@ class Gatekeeper(ABC):
         expected_times = self.contestant.gate_times
         gates = []
         for item in waypoints:  # type: Waypoint
-            gates.append(Gate(item, expected_times[item.name],
-                              calculate_extended_gate(item, self.scorecard)))
+            # Dummy gates are not part of the actual route
+            if item.type != "dummy":
+                gates.append(Gate(item, expected_times[item.name],
+                                  calculate_extended_gate(item, self.scorecard)))
         return gates
 
     def pop_gate(self, index, update_last: bool = True):

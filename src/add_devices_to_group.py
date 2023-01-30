@@ -7,11 +7,9 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.models import TraccarCredentials
 from traccar_facade import Traccar
 
-configuration = TraccarCredentials.objects.get()
-traccar = Traccar.create_from_configuration(configuration)
+traccar = Traccar.create_from_configuration()
 
 devices = traccar.update_and_get_devices()
 # Group ID = 1

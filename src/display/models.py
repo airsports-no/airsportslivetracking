@@ -5,7 +5,6 @@ import dateutil.parser
 import html2text as html2text
 import numpy as np
 import requests
-import rest_framework.exceptions as drf_exceptions
 import datetime
 import logging
 import random
@@ -52,6 +51,7 @@ from solo.models import SingletonModel
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.calculator_running_utilities import is_calculator_running
 from display.calculator_termination_utilities import request_termination
+from display.calculators.calculator_utilities import round_time_second
 from display.calculators.positions_and_gates import Position
 from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
@@ -68,7 +68,6 @@ from display.welcome_emails import render_welcome_email, render_contest_creation
 from display.wind_utilities import calculate_ground_speed_combined
 from display.traccar_factory import get_traccar_instance
 from live_tracking_map import settings
-from live_tracking_map.settings import SERVER_ROOT
 
 from phonenumbers.phonenumber import PhoneNumber
 
@@ -95,6 +94,8 @@ FINISHPOINT = "fp"
 SECRETPOINT = "secret"
 TAKEOFF_GATE = "to"
 LANDING_GATE = "ldg"
+DUMMY = "dummy"
+UNKNOWN_LEG = "ul"
 INTERMEDIARY_STARTINGPOINT = "isp"
 INTERMEDIARY_FINISHPOINT = "ifp"
 GATE_TYPES = (
@@ -106,6 +107,8 @@ GATE_TYPES = (
     (LANDING_GATE, "Landing Gate"),
     (INTERMEDIARY_STARTINGPOINT, "Intermediary Starting Point"),
     (INTERMEDIARY_FINISHPOINT, "Intermediary Finish Point"),
+    (DUMMY, "Dummy"),
+    (UNKNOWN_LEG, "Unknown leg")
 )
 
 TRACKING_DEVICE_TIMEOUT = 10
@@ -115,19 +118,6 @@ logger = logging.getLogger(__name__)
 
 def user_directory_path(instance, filename):
     return "aeroplane_{0}/{1}".format(instance.registration, filename)
-
-
-class TraccarCredentials(SingletonModel):
-    server_name = models.CharField(max_length=100, default="A name")
-    protocol = models.CharField(max_length=10, default="http")
-    address = models.CharField(max_length=100, default="traccar:8082")
-    token = models.CharField(max_length=100, default="REPLACE_ME")
-
-    def __str__(self):
-        return "Traccar credentials: {}".format(self.address)
-
-    class Meta:
-        verbose_name = "Traccar credentials"
 
 
 class MyUser(BaseUser, GuardianUserMixin):
@@ -942,6 +932,7 @@ class FlightOrderConfiguration(models.Model):
     navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE)
     document_size = models.CharField(choices=MAP_SIZES, default=A4, max_length=50)
     include_turning_points = models.BooleanField(default=True)
+    map_include_meridians_and_parallels_lines = models.BooleanField(default=True, help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this")
     map_dpi = models.IntegerField(default=300, validators=[MinValueValidator(100), MaxValueValidator(500)])
     map_zoom_level = models.IntegerField(default=12)
     map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
@@ -1226,6 +1217,10 @@ class GateScore(models.Model):
             return score
 
 
+def round_gate_times(times: dict) -> dict:
+    return {key: round_time_second(value) for key, value in times.items()}
+
+
 class Contestant(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     navigation_task = models.ForeignKey(NavigationTask, on_delete=models.CASCADE)
@@ -1415,7 +1410,7 @@ gives a penalty of {scorecard.backtracking_penalty} points.
 
     def _anr_rule_description(self):
         scorecard = self.navigation_task.scorecard
-        text = f"""For this task the corridor width is {"{:.1f}".format(self.navigation_task.route.corridor_width)} nm. 
+        text = f"""For this task the corridor width is {"{:.2f}".format(self.navigation_task.route.corridor_width)} nm. 
 Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds gives a penalty of 
 {"{:.0f}".format(scorecard.corridor_outside_penalty)} point(s) per second."""
         if scorecard.corridor_maximum_penalty != -1:
@@ -1672,7 +1667,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     @property
     def gate_times(self) -> Dict:
         if not self.predefined_gate_times or not len(self.predefined_gate_times):
-            times = self.calculate_missing_gate_times({})
+            times = round_gate_times(self.calculate_missing_gate_times({}))
             if self.pk is not None:
                 Contestant.objects.filter(pk=self.pk).update(predefined_gate_times=times)
             return times
@@ -1860,7 +1855,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return True
 
     def get_traccar_track(self) -> List[Dict]:
-        traccar = Traccar.create_from_configuration(TraccarCredentials.get_solo())
+        traccar = Traccar.create_from_configuration()
         device_ids = traccar.get_device_ids_for_contestant(self)
 
         tracks = []

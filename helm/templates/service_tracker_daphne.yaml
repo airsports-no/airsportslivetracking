@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tracker-daphne-service
+spec:
+  ports:
+  - port: 80
+    targetPort: 8003
+    protocol: TCP
+  selector:
+    service: tracker-daphne
+  type: ClusterIP

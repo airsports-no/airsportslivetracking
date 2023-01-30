@@ -10,7 +10,7 @@ if __name__ == "__main__":
     import django
 
     django.setup()
-from display.models import Team, Aeroplane, NavigationTask, Route, Contestant, Scorecard, TraccarCredentials, Crew, \
+from display.models import Team, Aeroplane, NavigationTask, Route, Contestant, Scorecard, Crew, \
     Contest, Task, TaskTest, TaskSummary, ContestSummary, TeamTestScore, Person, ContestTeam
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 

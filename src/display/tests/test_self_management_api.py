@@ -112,7 +112,7 @@ class TestContestantGatesCalculation(APITestCase):
         self.assertEqual(1, Contestant.objects.all().count())
         contestant = Contestant.objects.first()
         self.assertEqual(datetime.datetime(2021, 5, 13, 8, 55, tzinfo=datetime.timezone.utc), contestant.takeoff_time)
-        self.assertEqual(datetime.datetime(2021, 5, 13, 10, 19, 52, 296336, tzinfo=datetime.timezone.utc),
+        self.assertEqual(datetime.datetime(2021, 5, 13, 10, 19, 52, tzinfo=datetime.timezone.utc),
                          contestant.finished_by_time)
 
     def test_self_management_signup_not_available(self, p):

@@ -9,7 +9,7 @@ from display.models import (
     LANDING_GATE,
     STARTINGPOINT,
     SECRETPOINT,
-    FINISHPOINT,
+    FINISHPOINT, DUMMY, UNKNOWN_LEG,
 )
 
 
@@ -133,5 +133,8 @@ def get_default_scorecard():
     scorecard.gatescore_set.filter(gate_type__in=(SECRETPOINT, FINISHPOINT)).delete()
     simple_clone(regular_gate_score, {"gate_type": SECRETPOINT})
     simple_clone(regular_gate_score, {"gate_type": FINISHPOINT})
+    scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
+    simple_clone(regular_gate_score, {"gate_type": DUMMY})
+    simple_clone(regular_gate_score, {"gate_type": UNKNOWN_LEG})
 
     return scorecard

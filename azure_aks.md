@@ -5,6 +5,9 @@ Install Azure CLI:
 Login: 
 > az login
 
+Set subscription:
+> az account set --subscription 025b77b1-c02b-4961-a548-38caf9cbffcd
+
 Create container registry: 
 > az acr create --resource-group airsports_group --name airsportsacr --sku Basic
 

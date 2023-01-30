@@ -1,0 +1,2 @@
+serviceAccountSecretName: calculator-scheduler-token-tlh5t
+k8sApi: https://airsports-dns-b66fdeca.hcp.northeurope.azmk8s.io:443

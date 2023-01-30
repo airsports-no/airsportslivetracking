@@ -10,12 +10,11 @@ if __name__ == "__main__":
     import django
 
     django.setup()
-from display.models import Team, Aeroplane, NavigationTask, Route, Contestant, Scorecard, TraccarCredentials, Crew, \
+from display.models import Team, Aeroplane, NavigationTask, Route, Contestant, Scorecard, Crew, \
     Contest
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 
-configuration = TraccarCredentials.objects.get()
-traccar = Traccar.create_from_configuration(configuration)
+traccar = Traccar.create_from_configuration()
 
 Contest.objects.filter(name="NM 2020").delete()
 aeroplane = Aeroplane.objects.first()

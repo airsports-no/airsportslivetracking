@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: tracker-web
+  name: tracker-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: tracker-web
+  template:
+    metadata:
+      labels:
+        service: tracker-web
+        date: "{{ now | unixEpoch }}"
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: wait-for-db
+          image: "alpine:3.6"
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z -w 2 {{ include "live_tracking.mysqlHost" . }} 3306 && echo mysql ok;
+                do sleep 2;
+              done
+        - name: wait-for-redis
+          image: "alpine:3.6"
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z -w 2 {{ include "live_tracking.redisHost" . }} 6379 && echo redis ok;
+                do sleep 2;
+              done
+      containers:
+      - image: airsportsacr.azurecr.io/tracker_web:{{ .Values.image.tag }}
+        #        command: ["/bin/bash", "-c",  "sleep 1h"]
+        name: tracker-web
+        ports:
+          - name: gunicorn
+            containerPort: 8002
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        resources:
+          requests:
+            cpu: 100m
+            memory: 400Mi  # Uses 940 Mi
+          limits:
+            cpu: 2000m
+            memory: 2024Mi
+        volumeMounts:
+          - mountPath: /secret
+            readOnly: true
+            name: firebase
+          - mountPath: /maptiles
+            readOnly: false
+            name: maps-azurefile
+        livenessProbe:
+          httpGet:
+            path: /display/healthz/
+            port: gunicorn
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 2
+          failureThreshold: 2
+        readinessProbe:
+          httpGet:
+            path: /display/readyz/
+            port: gunicorn
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 2
+      restartPolicy: Always
+      volumes:
+        - name: firebase
+          secret:
+            secretName: firebase-secrets
+        - name: maps-azurefile
+          persistentVolumeClaim:
+            claimName: maps-azurefile

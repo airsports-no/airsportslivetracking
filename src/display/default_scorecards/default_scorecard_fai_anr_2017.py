@@ -9,7 +9,7 @@ from display.models import (
     TAKEOFF_GATE,
     LANDING_GATE,
     SECRETPOINT,
-    FINISHPOINT,
+    FINISHPOINT, DUMMY, UNKNOWN_LEG,
 )
 
 
@@ -115,7 +115,7 @@ def get_default_scorecard():
         },
     )
     # Uses secret gates for all turning points along the track
-    GateScore.objects.update_or_create(
+    regular_gate_score, _ = GateScore.objects.update_or_create(
         scorecard=scorecard,
         gate_type=SECRETPOINT,
         defaults={
@@ -149,5 +149,8 @@ def get_default_scorecard():
             ],
         },
     )
+    scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
+    simple_clone(regular_gate_score, {"gate_type": DUMMY})
+    simple_clone(regular_gate_score, {"gate_type": UNKNOWN_LEG})
 
     return scorecard

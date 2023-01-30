@@ -7,7 +7,7 @@ from typing import List, TYPE_CHECKING, Optional, Callable
 import pytz
 
 from display.calculators.calculator import Calculator
-from display.calculators.calculator_utilities import round_time, distance_between_gates
+from display.calculators.calculator_utilities import round_time_minute, distance_between_gates
 from display.calculators.gatekeeper import Gatekeeper
 from display.calculators.positions_and_gates import Gate, Position, MultiGate
 from display.convert_flightcontest_gpx import calculate_extended_gate

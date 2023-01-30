@@ -25,7 +25,7 @@ from websocket_channels import WebsocketFacade
 from position_processor_process import initial_processor, PERSON_TYPE
 
 import websocket
-from display.models import Contestant, TraccarCredentials, Person
+from display.models import Contestant, Person
 
 logger = logging.getLogger(__name__)
 
@@ -87,11 +87,12 @@ def live_position_transmitter_process(queue):
         if (datetime.datetime.now() - last_reset).total_seconds() > RESET_INTERVAL:
             person_cache = {}
             contestant_cache = {}
-            last_reset=datetime.datetime.now()
+            last_reset = datetime.datetime.now()
 
         navigation_task_id = None
         global_tracking_name = None
         person_data = None
+        push_global = True
         if data_type == PERSON_TYPE:
             try:
                 person = fetch_person(person_or_contestant)
@@ -117,8 +118,8 @@ def live_position_transmitter_process(queue):
                 contestant = fetch_contestant(person_or_contestant)
                 if contestant is not None:
                     # Check for delayed tracking, do not push global positions if there is delay
-                    if contestant.navigation_task.calculation_delay_minutes != 0:
-                        continue
+                    # if contestant.navigation_task.calculation_delay_minutes != 0:
+                    #     push_global = False
                     global_tracking_name = contestant.team.aeroplane.registration
                     try:
                         person = contestant.team.crew.member1
@@ -144,13 +145,14 @@ def live_position_transmitter_process(queue):
             and now
             < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
         ):
-            websocket_facade.transmit_global_position_data(
-                global_tracking_name,
-                person_data,
-                position_data,
-                device_time,
-                navigation_task_id,
-            )
+            if push_global:
+                websocket_facade.transmit_global_position_data(
+                    global_tracking_name,
+                    person_data,
+                    position_data,
+                    device_time,
+                    navigation_task_id,
+                )
             websocket_facade.transmit_airsports_position_data(
                 global_tracking_name,
                 position_data,
@@ -224,11 +226,10 @@ if __name__ == "__main__":
     # )
     cache.clear()
 
-    configuration = TraccarCredentials.objects.get()
     print_debug()
     while True:
         try:
-            traccar = Traccar.create_from_configuration(configuration)
+            traccar = Traccar.create_from_configuration()
         except Exception:
             logger.exception("Connection error connecting to traccar")
             time.sleep(5)
@@ -236,7 +237,7 @@ if __name__ == "__main__":
         websocket.enableTrace(False)
         cookies = traccar.session.cookies.get_dict()
         ws = websocket.WebSocketApp(
-            "ws://{}/api/socket".format(configuration.address),
+            "ws://{}/api/socket".format(traccar.address),
             on_message=on_message,
             on_error=on_error,
             on_close=on_close,

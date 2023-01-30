@@ -35,8 +35,10 @@ finish_time = datetime(2022, 6, 4, 15, 0, tzinfo=timezone.utc)
 for tracker in loggers + androids + iphones:
     tracker.clip_track(start_time, finish_time)
 
-# compare_mean_with_confidences(loggers, loggers + androids + iphones, 0.95, folder)
-compare_mean_with_confidences(androids + iphones, androids + iphones, 0.95, folder)
+compare_mean_with_confidences(loggers, loggers + androids + iphones, 0.95, folder)
+# compare_mean_with_confidences(loggers, loggers + androids + iphones, 0.2, folder)
+# compare_mean_with_confidences(androids + iphones, androids + iphones, 0.95, folder)
+# compare_mean_with_confidences(androids + iphones, androids + iphones, 0.2, folder)
 #
 #
 # plot_difference_compared_to_single(loggers[0], loggers + androids + iphones, folder)
@@ -50,4 +52,5 @@ compare_mean_with_confidences(androids + iphones, androids + iphones, 0.95, fold
 #
 # compare_maximum_confidences(loggers, loggers + androids + iphones, 0.99, folder)
 # compare_maximum_confidences(loggers, loggers + androids + iphones, 0.95, folder)
+# compare_maximum_confidences(loggers, loggers + androids + iphones, 0.2, folder)
 # compare_mean_with_confidences(loggers, loggers + androids + iphones, 0.95, folder)

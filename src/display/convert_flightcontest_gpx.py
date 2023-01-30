@@ -4,9 +4,9 @@ from typing import List, Tuple, Optional, Dict
 from zipfile import ZipFile
 
 import gpxpy
+import pygeoif
 from django.core.exceptions import ValidationError
 from fastkml import kml, Placemark
-from shapely import geometry
 
 from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
     create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat, \
@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 
 
 def add_line(place_mark):
-    return list(zip(*reversed(place_mark.geometry.xy)))
+    return [tuple(reversed(item[:2]))  for item in place_mark.geometry.coords]
 
 
 def add_polygon(place_mark):
-    return list(zip(*reversed(place_mark.geometry.exterior.xy)))
+    return [tuple(reversed(item[:2]))  for item in place_mark.geometry.exterior.coords]
 
 
 def open_kmz(file):
@@ -50,14 +50,14 @@ def open_kml(file):
 
 def parse_geometries(placemark):
     if hasattr(placemark, "geometry"):  # check if the placemark has a geometry or not
-        if isinstance(placemark.geometry, geometry.Point):
+        if isinstance(placemark.geometry, pygeoif.Point):
             # add_point(placemark)
             pass
-        elif isinstance(placemark.geometry, geometry.LineString):
+        elif isinstance(placemark.geometry, pygeoif.LineString):
             return add_line(placemark)
-        elif isinstance(placemark.geometry, geometry.LinearRing):
+        elif isinstance(placemark.geometry, pygeoif.LinearRing):
             return add_line(placemark)  # LinearRing can be plotted through LineString
-        elif isinstance(placemark.geometry, geometry.Polygon):
+        elif isinstance(placemark.geometry, pygeoif.Polygon):
             return add_polygon(placemark)
         # elif isinstance(placemark.geometry, geometry.MultiPoint):
         #     for geom in placemark.geometry.geoms:
@@ -127,7 +127,7 @@ def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
     # print(features)
     placemark = list(features.features())[0]
     geometry = placemark.geometry
-    return list(zip(*reversed(geometry.xy)))
+    return [tuple(reversed(item[0:2])) for item in geometry.coords]
 
 
 def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
@@ -368,13 +368,45 @@ def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_pro
         raise ValidationError("The first waypoint must be of type starting point")
     if waypoint_list[-1].type != "fp":
         raise ValidationError("The last waypoint must be of type finish point")
+    # First give everything a line according to the  drawn track
     gates = waypoint_list
     for index in range(len(gates) - 1):
-        gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
-                                                                             gates[index].latitude,
-                                                                             gates[index + 1].longitude,
-                                                                             gates[index + 1].latitude,
-                                                                             gates[index + 1].width * 1852)
+        if index < len(gates) - 2 and (
+                gates[index + 1].type == "isp"):
+            # or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index + 2].longitude,
+                                                                                 gates[index + 2].latitude,
+                                                                                 gates[index + 1].longitude,
+                                                                                 gates[index + 1].latitude,
+                                                                                 gates[index + 1].width * 1852)
+            gates[index + 1].gate_line.reverse()  # Reverse since created backwards
+        else:
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
+                                                                                 gates[index].latitude,
+                                                                                 gates[index + 1].longitude,
+                                                                                 gates[index + 1].latitude,
+                                                                                 gates[index + 1].width * 1852)
+        # Switch from longitude, Latitude tool attitude, longitude
+        gates[index + 1].gate_line[0].reverse()
+        gates[index + 1].gate_line[1].reverse()
+    # Then correct the lines for the actual track
+    gates = list(filter(lambda waypoint: waypoint.type != "dummy", waypoint_list))
+    for index in range(len(gates) - 1):
+        if index < len(gates) - 2 and (
+                gates[index + 1].type == "isp"):
+                #or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index + 2].longitude,
+                                                                                 gates[index + 2].latitude,
+                                                                                 gates[index + 1].longitude,
+                                                                                 gates[index + 1].latitude,
+                                                                                 gates[index + 1].width * 1852)
+            gates[index + 1].gate_line.reverse()  # Reverse since created backwards
+        else:
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
+                                                                                 gates[index].latitude,
+                                                                                 gates[index + 1].longitude,
+                                                                                 gates[index + 1].latitude,
+                                                                                 gates[index + 1].width * 1852)
         # Switch from longitude, Latitude tool attitude, longitude
         gates[index + 1].gate_line[0].reverse()
         gates[index + 1].gate_line[1].reverse()
@@ -516,7 +548,7 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
 
 def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bool):
     # gates = [item for item in waypoints if item.type in ("fp", "sp", "tp", "secret")]  # type: List[Waypoint]
-    gates = waypoints
+    gates = list(filter(lambda waypoint: waypoint.type not in ("dummy",), waypoints))
     for index in range(0, len(gates) - 1):
         current_gate = gates[index]
         next_gate = gates[index + 1]
@@ -531,7 +563,7 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
                                                                     (previous_gate.latitude, previous_gate.longitude))
         current_gate.bearing_from_previous = calculate_bearing((previous_gate.latitude, previous_gate.longitude),
                                                                (current_gate.latitude, current_gate.longitude))
-        for index in range(0, len(waypoints) - 1):
+        for index in range(0, len(gates) - 1):
             current_gate = gates[index]
             next_gate = gates[index + 1]
             if next_gate.type in ("fp", "ifp", "sp", "isp", "ldg", "ildg"):

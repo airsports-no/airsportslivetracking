@@ -2,17 +2,14 @@ from django.contrib import admin
 
 # Register your models here.
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import User
 from django_use_email_as_username.admin import BaseUserAdmin
 from guardian.admin import GuardedModelAdmin
 from guardian.shortcuts import assign_perm
 
-from display.models import NavigationTask, Route, Aeroplane, Team, Contestant, TraccarCredentials, ContestantTrack, \
+from display.models import NavigationTask, Route, Aeroplane, Team, Contestant, ContestantTrack, \
     Scorecard, \
     GateScore, Contest, Crew, Person, Club, MyUser, EditableRoute, EmailMapLink
 from solo.admin import SingletonModelAdmin
-
-admin.site.register(TraccarCredentials, SingletonModelAdmin)
 
 
 class ContestantTrackInline(admin.TabularInline):

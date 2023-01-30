@@ -1,8 +1,6 @@
 import base64
 import datetime
-import json
 import os
-import time
 from io import BytesIO
 from typing import Optional, Dict, Tuple, List
 
@@ -27,6 +25,8 @@ from django.core.files.storage import FileSystemStorage
 from django.db import transaction, connection
 from django.db.models import Q
 from django.forms import formset_factory, inlineformset_factory, FloatField
+from django import forms
+
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
@@ -42,7 +42,7 @@ from django.views.generic import (
 )
 import logging
 
-from formtools.wizard.views import SessionWizardView, CookieWizardView
+from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required as guardian_permission_required
 from guardian.mixins import PermissionRequiredMixin as GuardianPermissionRequiredMixin
 from guardian.shortcuts import (
@@ -107,16 +107,29 @@ from display.forms import (
     ContestSelectForm,
     ANRCorridorParametersForm,
     AirsportsParametersForm,
-    PersonPictureForm, ScorecardFormSetHelper, ScorecardForm, GateScoreForm, AirsportsImportRouteForm,
-    FlightOrderConfigurationForm, UserUploadedMapForm, AddUserUploadedMapPermissionsForm,
+    PersonPictureForm,
+    ScorecardFormSetHelper,
+    ScorecardForm,
+    GateScoreForm,
+    AirsportsImportRouteForm,
+    FlightOrderConfigurationForm,
+    UserUploadedMapForm,
+    AddUserUploadedMapPermissionsForm,
     ChangeUserUploadedMapPermissionsForm,
 )
-from display.generate_flight_orders import generate_flight_orders
+from display.generate_flight_orders import (
+    generate_flight_orders_latex,
+    embed_map_in_pdf,
+)
 from display.map_constants import PNG, A4
 from display.map_plotter import (
     plot_route,
     get_basic_track,
     country_code_to_map_source,
+    A4_WIDTH,
+    A3_HEIGHT,
+    A4_HEIGHT,
+    A3_WIDTH,
 )
 from display.models import (
     NavigationTask,
@@ -145,7 +158,10 @@ from display.models import (
     ScoreLogEntry,
     EmailMapLink,
     EditableRoute,
-    ANOMALY, GateScore, FlightOrderConfiguration, UserUploadedMap,
+    ANOMALY,
+    GateScore,
+    FlightOrderConfiguration,
+    UserUploadedMap,
 )
 from display.permissions import (
     ContestPermissions,
@@ -208,12 +224,15 @@ from display.serialisers import (
     SelfManagementSerialiser,
     OngoingNavigationSerialiser,
     EditableRouteSerialiser,
-    PositionSerialiser, ScorecardNestedSerialiser,
+    PositionSerialiser,
+    ScorecardNestedSerialiser,
 )
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
     import_gpx_track,
-    revert_gpx_track_to_traccar, generate_and_maybe_notify_flight_order, notify_flight_order,
+    revert_gpx_track_to_traccar,
+    generate_and_maybe_notify_flight_order,
+    notify_flight_order,
 )
 from display.traccar_factory import get_traccar_instance
 from display.utilities import get_country_code_from_location
@@ -693,8 +712,8 @@ def view_contest_team_images(request, pk):
                 Q(crewmember_two__team__contest=contest)
                 | Q(crewmember_one__team__contest=contest)
             )
-                .distinct()
-                .order_by("last_name", "first_name"),
+            .distinct()
+            .order_by("last_name", "first_name"),
         },
     )
 
@@ -736,10 +755,13 @@ def get_contestant_map(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     if request.method == "POST":
         form = ContestantMapForm(request.POST)
-        form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
-                                                                   contestant.navigation_task.get_available_user_maps()]
+        form.fields["user_map_source"].choices = [("", "----")] + [
+            (item.map_file, item.name)
+            for item in contestant.navigation_task.get_available_user_maps()
+        ]
         if form.is_valid():
-            map_image, pdf_image = plot_route(
+            margin = 10
+            map_image = plot_route(
                 contestant.navigation_task,
                 form.cleaned_data["size"],
                 zoom_level=form.cleaned_data["zoom_level"],
@@ -753,20 +775,42 @@ def get_contestant_map(request, pk):
                 user_map_source=form.cleaned_data["user_map_source"],
                 line_width=float(form.cleaned_data["line_width"]),
                 colour=form.cleaned_data["colour"],
+                margins_mm=margin,
             )
             if int(form.cleaned_data["output_type"]) == PNG:
                 response = HttpResponse(map_image, content_type="image/png")
                 response["Content-Disposition"] = f"attachment; filename=map.png"
             else:
-                response = HttpResponse(pdf_image, content_type="application/pdf")
+                pdf = embed_map_in_pdf(
+                    "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
+                    map_image.read(),
+                    10 * A4_WIDTH - 2 * margin
+                    if form.cleaned_data["size"]
+                    else 10 * A3_WIDTH - 2 * margin,
+                    10 * A4_HEIGHT - 2 * margin
+                    if form.cleaned_data["size"] == A4
+                    else 10 * A3_HEIGHT - 2 * margin,
+                    form.cleaned_data["orientation"] == LANDSCAPE,
+                )
+
+                response = HttpResponse(pdf, content_type="application/pdf")
                 response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
-    form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
-                                                               contestant.navigation_task.get_available_user_maps()]
+    form.fields["user_map_source"].choices = [("", "----")] + [
+        (item.map_file, item.name)
+        for item in contestant.navigation_task.get_available_user_maps()
+    ]
 
-    return render(request, "display/map_form.html",
-                  {"form": form,
-                   "redirect": reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})})
+    return render(
+        request,
+        "display/map_form.html",
+        {
+            "form": form,
+            "redirect": reverse(
+                "navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}
+            ),
+        },
+    )
 
 
 @guardian_permission_required(
@@ -776,17 +820,26 @@ def update_flight_order_configurations(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     configuration = get_object_or_404(FlightOrderConfiguration, navigation_task__pk=pk)
     form = FlightOrderConfigurationForm(instance=configuration)
-    form.fields['map_user_source'].queryset = UserUploadedMap.objects.filter(
-        pk__in=[item.pk for item in navigation_task.get_available_user_maps()])
+    form.fields["map_user_source"].queryset = UserUploadedMap.objects.filter(
+        pk__in=[item.pk for item in navigation_task.get_available_user_maps()]
+    )
     if request.method == "POST":
         form = FlightOrderConfigurationForm(request.POST, instance=configuration)
-        form.fields['map_user_source'].queryset = UserUploadedMap.objects.filter(
-            pk__in=[item.pk for item in navigation_task.get_available_user_maps()])
+        form.fields["map_user_source"].queryset = UserUploadedMap.objects.filter(
+            pk__in=[item.pk for item in navigation_task.get_available_user_maps()]
+        )
         if form.is_valid():
             form.save()
             return redirect(reverse("navigationtask_detail", kwargs={"pk": pk}))
-    return render(request, "display/flight_order_configuration_form.html",
-                  {"form": form, "navigation_task": navigation_task, "initial_color": configuration.map_line_colour})
+    return render(
+        request,
+        "display/flight_order_configuration_form.html",
+        {
+            "form": form,
+            "navigation_task": navigation_task,
+            "initial_color": configuration.map_line_colour,
+        },
+    )
 
 
 @guardian_permission_required(
@@ -805,7 +858,8 @@ def get_contestant_processing_statistics(request, pk):
 def get_contestant_default_map(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     configuration = contestant.navigation_task.flightorderconfiguration
-    map_image, pdf_image = plot_route(
+    margin = 10
+    map_image = plot_route(
         contestant.navigation_task,
         configuration.document_size,
         zoom_level=configuration.map_zoom_level,
@@ -816,11 +870,26 @@ def get_contestant_default_map(request, pk):
         dpi=configuration.map_dpi,
         scale=configuration.map_scale,
         map_source=configuration.map_source,
-        user_map_source=configuration.map_user_source.map_file if configuration.map_user_source else "",
+        user_map_source=configuration.map_user_source.map_file
+        if configuration.map_user_source
+        else "",
         line_width=configuration.map_line_width,
         colour=configuration.map_line_colour,
+        include_meridians_and_parallels_lines=configuration.map_include_meridians_and_parallels_lines,
+        margins_mm=margin,
     )
-    response = HttpResponse(pdf_image, content_type="application/pdf")
+    pdf = embed_map_in_pdf(
+        "a4paper" if configuration.document_size == A4 else "a3paper",
+        map_image.read(),
+        10 * A4_WIDTH - 2 * margin
+        if configuration.document_size == A4
+        else 10 * A3_WIDTH - 2 * margin,
+        10 * A4_HEIGHT - 2 * margin
+        if configuration.document_size == A4
+        else 10 * A3_HEIGHT - 2 * margin,
+        configuration.map_orientation == LANDSCAPE,
+    )
+    response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=map.pdf"
     return response
 
@@ -835,7 +904,7 @@ def get_contestant_email_flight_orders_link(request, key):
 
 def get_contestant_email_flying_orders_link(request, pk):
     contestant = get_object_or_404(Contestant, id=pk)
-    report = generate_flight_orders(contestant)
+    report = generate_flight_orders_latex(contestant)
     response = HttpResponse(bytes(report), content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
     return response
@@ -852,18 +921,30 @@ def generatenavigation_task_orders_template(request, pk):
     )
     if single_contestant_pk:
         contestants = contestants.filter(pk=single_contestant_pk)
-    return render(request, "display/flight_order_progress.html",
-                  {"navigation_task": navigation_task, "contestants": contestants,
-                   "contestant_pks": [item.pk for item in contestants]})
+    return render(
+        request,
+        "display/flight_order_progress.html",
+        {
+            "navigation_task": navigation_task,
+            "contestants": contestants,
+            "contestant_pks": [item.pk for item in contestants],
+        },
+    )
 
 
 def get_navigation_task_orders_status_object(pk) -> Dict:
     return {
         "total_flight_orders": cache.get(f"total_flight_orders_{pk}"),
         "completed_flight_orders_map": cache.get(f"completed_flight_orders_map_{pk}"),
-        "transmitted_flight_orders_map": cache.get(f"transmitted_flight_orders_map_{pk}"),
-        "generate_failed_flight_orders_map": cache.get(f"generate_failed_flight_orders_map_{pk}"),
-        "transmit_failed_flight_orders_map": cache.get(f"transmit_failed_flight_orders_map_{pk}"),
+        "transmitted_flight_orders_map": cache.get(
+            f"transmitted_flight_orders_map_{pk}"
+        ),
+        "generate_failed_flight_orders_map": cache.get(
+            f"generate_failed_flight_orders_map_{pk}"
+        ),
+        "transmit_failed_flight_orders_map": cache.get(
+            f"transmit_failed_flight_orders_map_{pk}"
+        ),
     }
 
 
@@ -877,11 +958,12 @@ def generate_navigation_task_orders(request, pk):
     if not contestant_pks or len(contestant_pks) == 0:
         raise Http404
     contestant_pks = contestant_pks.split(",")
-    contestants = navigation_task.contestant_set.filter(
-        pk__in=contestant_pks
-    )
+    contestants = navigation_task.contestant_set.filter(pk__in=contestant_pks)
     cache.set(f"total_flight_orders_{pk}", contestants.count())
-    cache.set(f"completed_flight_orders_map_{navigation_task.pk}", {contestant.pk: False for contestant in contestants})
+    cache.set(
+        f"completed_flight_orders_map_{navigation_task.pk}",
+        {contestant.pk: False for contestant in contestants},
+    )
     cache.set(f"generate_failed_flight_orders_map_{navigation_task.pk}", {})
     cache.delete(f"transmitted_flight_orders_map_{navigation_task.pk}")
     cache.delete(f"transmit_failed_flight_orders_map_{navigation_task.pk}")
@@ -893,7 +975,7 @@ def generate_navigation_task_orders(request, pk):
                 contestant.pk,
                 contestant.team.crew.member1.email,
                 contestant.team.crew.member1.first_name,
-                False
+                False,
             )
         )
     return Response(get_navigation_task_orders_status_object(pk))
@@ -909,12 +991,12 @@ def broadcast_navigation_task_orders(request, pk):
     if not contestant_pks or len(contestant_pks) == 0:
         raise Http404
     contestant_pks = contestant_pks.split(",")
-    contestants = navigation_task.contestant_set.filter(
-        pk__in=contestant_pks
-    )
+    contestants = navigation_task.contestant_set.filter(pk__in=contestant_pks)
     cache.set(f"total_flight_orders_{pk}", contestants.count())
-    cache.set(f"transmitted_flight_orders_map_{navigation_task.pk}",
-              {contestant.pk: False for contestant in contestants})
+    cache.set(
+        f"transmitted_flight_orders_map_{navigation_task.pk}",
+        {contestant.pk: False for contestant in contestants},
+    )
 
     for contestant in contestants:
         notify_flight_order.apply_async(
@@ -949,8 +1031,10 @@ def download_navigation_task_orders(request, pk):
         for order in EmailMapLink.objects.filter(contestant__in=contestants):
             zf.writestr(f"{order.contestant}.pdf", order.orders)
         zf.close()
-        response = HttpResponse(byte_stream.getvalue(), content_type="application/x-zip-compressed")
-        response['Content-Disposition'] = 'attachment; filename=%s' % zip_filename
+        response = HttpResponse(
+            byte_stream.getvalue(), content_type="application/x-zip-compressed"
+        )
+        response["Content-Disposition"] = "attachment; filename=%s" % zip_filename
         return response
     elif orders.count() == 1:
         response = HttpResponse(orders.first().orders, content_type="application/pdf")
@@ -983,12 +1067,14 @@ def get_navigation_task_map(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if request.method == "POST":
         form = MapForm(request.POST)
-        form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
-                                                                   navigation_task.get_available_user_maps()]
+        form.fields["user_map_source"].choices = [("", "----")] + [
+            (item.map_file, item.name)
+            for item in navigation_task.get_available_user_maps()
+        ]
 
         if form.is_valid():
-            print(form.cleaned_data)
-            map_image, pdf_image = plot_route(
+            margin = 10
+            map_image = plot_route(
                 navigation_task,
                 form.cleaned_data["size"],
                 zoom_level=form.cleaned_data["zoom_level"],
@@ -1000,18 +1086,41 @@ def get_navigation_task_map(request, pk):
                 user_map_source=form.cleaned_data["user_map_source"],
                 line_width=float(form.cleaned_data["line_width"]),
                 colour=form.cleaned_data["colour"],
+                margins_mm=margin,
             )
             if int(form.cleaned_data["output_type"]) == PNG:
-                response = HttpResponse(map_image, content_type="image/png")
+                response = HttpResponse(map_image.read(), content_type="image/png")
                 response["Content-Disposition"] = f"attachment; filename=map.png"
             else:
-                response = HttpResponse(pdf_image, content_type="application/pdf")
+                pdf = embed_map_in_pdf(
+                    "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
+                    map_image.read(),
+                    10*A4_WIDTH - 2 * margin
+                    if form.cleaned_data["size"]
+                    else 10*A3_WIDTH - 2 * margin,
+                    10*A4_HEIGHT - 2 * margin
+                    if form.cleaned_data["size"] == A4
+                    else 10*A3_HEIGHT - 2 * margin,
+                    form.cleaned_data["orientation"] == LANDSCAPE,
+                )
+
+                response = HttpResponse(pdf, content_type="application/pdf")
+
                 response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
-    form.fields['user_map_source'].choices = [("", "----")] + [(item.map_file, item.name) for item in
-                                                               navigation_task.get_available_user_maps()]
-    return render(request, "display/map_form.html",
-                  {"form": form, "redirect": reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})})
+    form.fields["user_map_source"].choices = [("", "----")] + [
+        (item.map_file, item.name) for item in navigation_task.get_available_user_maps()
+    ]
+    return render(
+        request,
+        "display/map_form.html",
+        {
+            "form": form,
+            "redirect": reverse(
+                "navigationtask_detail", kwargs={"pk": navigation_task.pk}
+            ),
+        },
+    )
 
 
 @guardian_permission_required(
@@ -1024,8 +1133,8 @@ def upload_gpx_track_for_contesant(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
         if (
-                not contestant.contestanttrack.calculator_finished
-                and contestant.contestanttrack.calculator_started
+            not contestant.contestanttrack.calculator_finished
+            and contestant.contestanttrack.calculator_started
         ):
             messages.error(
                 request,
@@ -1103,8 +1212,8 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
         if (
-                not contestant.contestanttrack.calculator_finished
-                and contestant.contestanttrack.calculator_started
+            not contestant.contestanttrack.calculator_finished
+            and contestant.contestanttrack.calculator_started
         ):
             messages.error(
                 request,
@@ -1222,7 +1331,9 @@ def terminate_contestant_calculator(request, pk):
         contestant.blocking_request_calculator_termination()
         messages.success(request, "Calculator terminated successfully")
     except TimeoutError:
-        messages.info(request, "Calculator termination requested, but not stopped in time")
+        messages.info(
+            request, "Calculator termination requested, but not stopped in time"
+        )
     return HttpResponseRedirect(
         reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
     )
@@ -1234,8 +1345,10 @@ def terminate_contestant_calculator(request, pk):
 def restart_contestant_calculator(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     contestant.blocking_request_calculator_termination()
-    messages.success(request,
-                     "Calculator should have been restarted. It may take a few minutes for it to come back to life.")
+    messages.success(
+        request,
+        "Calculator should have been restarted. It may take a few minutes for it to come back to life.",
+    )
     contestant.reset_track_and_score()
     cancel_termination_request(pk)
     return HttpResponseRedirect(
@@ -1523,10 +1636,19 @@ def get_contestant_schedule(request, pk):
             {
                 "c": [
                     {"v": contestant.team.aeroplane.registration},
-                    {"v": f"{contestant}{' (Adaptive)' if contestant.adaptive_start else ''}"},
-                    {"v": contestant.takeoff_time if not contestant.adaptive_start else contestant.tracker_start_time},
                     {
-                        "v": contestant.landing_time_after_final_gate if not contestant.adaptive_start else contestant.finished_by_time},
+                        "v": f"{contestant}{' (Adaptive)' if contestant.adaptive_start else ''}"
+                    },
+                    {
+                        "v": contestant.takeoff_time
+                        if not contestant.adaptive_start
+                        else contestant.tracker_start_time
+                    },
+                    {
+                        "v": contestant.landing_time_after_final_gate
+                        if not contestant.adaptive_start
+                        else contestant.finished_by_time
+                    },
                 ]
             }
         )
@@ -1636,8 +1758,8 @@ def add_contest_teams_to_navigation_task(request, pk):
         [
             (item, str(item), False)
             for item in navigation_task.contest.contestteam_set.exclude(
-            pk__in=used_contest_teams
-        )
+                pk__in=used_contest_teams
+            )
         ]
     )
     # initial = navigation_task.contest.contestteam_set.filter(
@@ -1663,7 +1785,9 @@ def navigation_task_restore_original_scorecard_view(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     navigation_task.assign_scorecard_from_original(force=True)
     messages.success(request, "Original scorecard values have been restored")
-    return redirect(reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk}))
+    return redirect(
+        reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
+    )
 
 
 @guardian_permission_required(
@@ -1675,13 +1799,17 @@ def navigation_task_scorecard_override_view(request, pk):
     if request.method == "POST":
         if "cancel" in request.POST:
             return redirect(
-                reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
+                reverse(
+                    "navigationtask_scoredetails", kwargs={"pk": navigation_task.pk}
+                )
             )
         form = ScorecardForm(request.POST, instance=navigation_task.scorecard)
         if form.is_valid():
             form.save()
             return redirect(
-                reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
+                reverse(
+                    "navigationtask_scoredetails", kwargs={"pk": navigation_task.pk}
+                )
             )
     return render(
         request,
@@ -1700,13 +1828,17 @@ def navigation_task_gatescore_override_view(request, pk, gate_score_pk):
     if request.method == "POST":
         if "cancel" in request.POST:
             return redirect(
-                reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
+                reverse(
+                    "navigationtask_scoredetails", kwargs={"pk": navigation_task.pk}
+                )
             )
         form = GateScoreForm(request.POST, instance=gate_score)
         if form.is_valid():
             form.save()
             return redirect(
-                reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk})
+                reverse(
+                    "navigationtask_scoredetails", kwargs={"pk": navigation_task.pk}
+                )
             )
     return render(
         request,
@@ -1725,7 +1857,11 @@ def _extract_values_from_form(form: "Form") -> List:
             data = {"legend": field.legend, "values": []}
             for internal_field in field.fields:
                 data["values"].append(
-                    {"label": form.fields[internal_field].label, "value": getattr(form.instance, internal_field)})
+                    {
+                        "label": form.fields[internal_field].label,
+                        "value": getattr(form.instance, internal_field),
+                    }
+                )
             content.append(data)
     return content
 
@@ -1742,7 +1878,9 @@ def navigation_task_view_detailed_score(request, pk):
     scorecard_form.content = content
     scorecard_form.free_text = navigation_task.scorecard.free_text
     gate_score_forms = []
-    for gate_score in navigation_task.scorecard.gatescore_set.all().order_by("gate_type"):
+    for gate_score in navigation_task.scorecard.gatescore_set.all().order_by(
+        "gate_type"
+    ):
         if len(gate_score.visible_fields) > 0:
             form = GateScoreForm(instance=gate_score)
             form.pk = gate_score.pk
@@ -1757,9 +1895,15 @@ def navigation_task_view_detailed_score(request, pk):
             print(content)
             form.content = content
             gate_score_forms.append(form)
-    return render(request, "display/scorecard_details.html",
-                  {"navigation_task": navigation_task, "scorecard_form": scorecard_form,
-                   "gate_score_forms": gate_score_forms})
+    return render(
+        request,
+        "display/scorecard_details.html",
+        {
+            "navigation_task": navigation_task,
+            "scorecard_form": scorecard_form,
+            "gate_score_forms": gate_score_forms,
+        },
+    )
 
 
 def cached_generate_data(contestant_pk) -> Dict:
@@ -1815,14 +1959,10 @@ def show_route_definition_step(wizard):
     else:
         cleaned_data = {}
     return (
-            not cleaned_data.get("internal_route")
-            and (cleaned_data.get("file_type") == FILE_TYPE_KML or show_anr_path(wizard))
-            and wizard.get_cleaned_data_for_step("task_type").get("task_type")
-            in (
-                NavigationTask.PRECISION,
-                NavigationTask.POKER,
-                NavigationTask.ANR_CORRIDOR
-            )
+        not cleaned_data.get("internal_route")
+        and (cleaned_data.get("file_type") == FILE_TYPE_KML or show_anr_path(wizard))
+        and wizard.get_cleaned_data_for_step("task_type").get("task_type")
+        in (NavigationTask.PRECISION, NavigationTask.POKER, NavigationTask.ANR_CORRIDOR)
     )
 
 
@@ -1850,8 +1990,41 @@ def show_landing_path(wizard):
         NavigationTask.LANDING,
     )
 
+class SessionWizardOverrideView(SessionWizardView):
+    #### Hack to avoid get_form_list() which leads to recursion error with conditional steps.
+    def get_form(self, step=None, data=None, files=None):
+        """
+        Constructs the form for a given `step`. If no `step` is defined, the
+        current step will be determined automatically.
 
-class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
+        The form will be initialized using the `data` argument to prefill the
+        new form. If needed, instance or queryset (for `ModelForm` or
+        `ModelFormSet`) will be added too.
+        """
+        if step is None:
+            step = self.steps.current
+        form_class = self.form_list[step]
+        # prepare the kwargs for the form instance.
+        kwargs = self.get_form_kwargs(step)
+        kwargs.update({
+            'data': data,
+            'files': files,
+            'prefix': self.get_form_prefix(step, form_class),
+            'initial': self.get_form_initial(step),
+        })
+        if issubclass(form_class, (forms.ModelForm, forms.models.BaseInlineFormSet)):
+            # If the form is based on ModelForm or InlineFormSet,
+            # add instance if available and not previously set.
+            kwargs.setdefault('instance', self.get_form_instance(step))
+        elif issubclass(form_class, forms.models.BaseModelFormSet):
+            # If the form is based on ModelFormSet, add queryset if available
+            # and not previous set.
+            kwargs.setdefault('queryset', self.get_form_instance(step))
+        return form_class(**kwargs)
+
+
+
+class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideView):
     permission_required = ("display.change_contest",)
 
     def setup(self, request, *args, **kwargs):
@@ -1962,7 +2135,11 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 data.seek(0)
                 second_step_data = self.get_cleaned_data_for_step("waypoint_definition")
                 route = create_anr_corridor_route_from_kml(
-                    "route", data, corridor_width, rounded_corners, first_and_last_gates=second_step_data,
+                    "route",
+                    data,
+                    corridor_width,
+                    rounded_corners,
+                    first_and_last_gates=second_step_data,
                 )
         elif task_type == NavigationTask.AIRSPORTS:
             initial_step_data = self.get_cleaned_data_for_step("airsports_route_import")
@@ -1973,7 +2150,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
                 )
                 editable_route = initial_step_data["internal_route"]
             else:
-                raise ValidationError("Air Sports Race is not supported with imported routes")
+                raise ValidationError(
+                    "Air Sports Race is not supported with imported routes"
+                )
         elif task_type == NavigationTask.LANDING:
             initial_step_data = self.get_cleaned_data_for_step("landing_route_import")
             if initial_step_data["internal_route"]:
@@ -2022,26 +2201,27 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView
             useful_cards = []
             for scorecard in Scorecard.get_originals():
                 if (
-                        self.get_cleaned_data_for_step("task_type")["task_type"]
-                        in scorecard.task_type
+                    self.get_cleaned_data_for_step("task_type")["task_type"]
+                    in scorecard.task_type
                 ):
                     useful_cards.append(scorecard.pk)
-            form.fields["original_scorecard"].queryset = Scorecard.get_originals().filter(
-                pk__in=useful_cards
+            form.fields[
+                "original_scorecard"
+            ].queryset = Scorecard.get_originals().filter(pk__in=useful_cards)
+            form.fields["original_scorecard"].initial = (
+                Scorecard.get_originals().filter(pk__in=useful_cards).first()
             )
-            form.fields["original_scorecard"].initial = Scorecard.get_originals().filter(
-                pk__in=useful_cards
-            ).first()
         return context
 
+
     def get_form(self, step=None, data=None, files=None):
-        form = super().get_form(step, data, files)
+        form = self.get_form(step, data, files)
         if step == "waypoint_definition":
             print(len(form))
         if step in (
-                "anr_route_import",
-                "precision_route_import",
-                "landing_route_import",
+            "anr_route_import",
+            "precision_route_import",
+            "landing_route_import",
         ):
             form.fields["internal_route"].queryset = get_objects_for_user(
                 self.request.user,
@@ -2125,7 +2305,7 @@ def airsports_task_type(wizard):
     ) == NavigationTask.AIRSPORTS
 
 
-class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardView):
+class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideView):
     permission_required = ("display.change_editableroute",)
     file_storage = FileSystemStorage(
         location=os.path.join(settings.TEMPORARY_FOLDER, "unneeded")
@@ -2269,12 +2449,12 @@ def create_new_pilot(wizard):
 def create_new_copilot(wizard):
     cleaned = wizard.get_post_data_for_step("member2search") or {}
     return (
-            cleaned.get("use_existing_copilot") is None
-            and cleaned.get("skip_copilot") is None
+        cleaned.get("use_existing_copilot") is None
+        and cleaned.get("skip_copilot") is None
     )
 
 
-class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardView):
+class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideView):
     permission_required = ("display.change_contest",)
 
     def get_permission_object(self):
@@ -2580,7 +2760,7 @@ class UserPersonViewSet(GenericViewSet):
             defaults={
                 "first_name": self.request.user.first_name
                 if self.request.user.first_name
-                   and len(self.request.user.first_name) > 0
+                and len(self.request.user.first_name) > 0
                 else "",
                 "last_name": self.request.user.last_name
                 if self.request.user.last_name and len(self.request.user.last_name) > 0
@@ -2617,8 +2797,8 @@ class UserPersonViewSet(GenericViewSet):
                 | Q(team__crew__member2=self.get_object()),
                 contest__in=available_contests,
             )
-                .order_by("contest__start_time")
-                .distinct()
+            .order_by("contest__start_time")
+            .distinct()
         )
         teams = []
         for team in contest_teams:
@@ -2704,17 +2884,22 @@ class EditableRouteViewSet(ModelViewSet):
     def perform_update(self, serializer):
         super().perform_update(serializer)
         try:
-            self.get_object().thumbnail.save(self.get_object().name + "_thumbnail.png",
-                                             ContentFile(self.get_object().create_thumbnail().getvalue()), save=True)
+            self.get_object().thumbnail.save(
+                self.get_object().name + "_thumbnail.png",
+                ContentFile(self.get_object().create_thumbnail().getvalue()),
+                save=True,
+            )
         except:
             logger.exception("Failed creating editable route thumbnail")
 
     def perform_create(self, serializer):
         super().perform_create(serializer)
         try:
-            serializer.instance.thumbnail.save(serializer.instance.name + "_thumbnail.png",
-                                               ContentFile(serializer.instance.create_thumbnail().getvalue()),
-                                               save=True)
+            serializer.instance.thumbnail.save(
+                serializer.instance.name + "_thumbnail.png",
+                ContentFile(serializer.instance.create_thumbnail().getvalue()),
+                save=True,
+            )
         except:
             logger.exception("Failed creating editable route thumbnail")
 
@@ -2749,13 +2934,13 @@ class ContestViewSet(ModelViewSet):
 
     def get_queryset(self):
         return (
-                get_objects_for_user(
-                    self.request.user,
-                    "display.view_contest",
-                    klass=self.queryset,
-                    accept_global_perms=False,
-                )
-                | self.queryset.filter(is_public=True, is_featured=True)
+            get_objects_for_user(
+                self.request.user,
+                "display.view_contest",
+                klass=self.queryset,
+                accept_global_perms=False,
+            )
+            | self.queryset.filter(is_public=True, is_featured=True)
         )
 
     @action(detail=True, methods=["get"])
@@ -2766,8 +2951,8 @@ class ContestViewSet(ModelViewSet):
         contest = self.get_object()
         return Response(
             datetime.datetime.now(datetime.timezone.utc)
-                .astimezone(contest.time_zone)
-                .strftime("%H:%M:%S")
+            .astimezone(contest.time_zone)
+            .strftime("%H:%M:%S")
         )
 
     @action(detail=True, methods=["put"])
@@ -2777,7 +2962,7 @@ class ContestViewSet(ModelViewSet):
         """
         contest = self.get_object()
         serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
-        if serialiser.is_valid(True):
+        if serialiser.is_valid():
             if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
                 contest.make_public()
             elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
@@ -2790,11 +2975,14 @@ class ContestViewSet(ModelViewSet):
     def ongoing_navigation(self, request, *args, **kwargs):
         navigation_tasks = (
             NavigationTask.get_visible_navigation_tasks(self.request.user)
-                .filter(
+            .filter(
                 contestant__contestanttrack__calculator_started=True,
                 contestant__contestanttrack__calculator_finished=False,
-                contestant__finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc)
-            ).distinct()
+                contestant__finished_by_time__gt=datetime.datetime.now(
+                    datetime.timezone.utc
+                ),
+            )
+            .distinct()
         )
         data = self.get_serializer_class()(
             navigation_tasks, many=True, context={"request": self.request}
@@ -2902,7 +3090,7 @@ class ContestViewSet(ModelViewSet):
         if request.method == "POST":
             contest = None
         serialiser = self.get_serializer(instance=contest, data=request.data)
-        serialiser.is_valid(True)
+        serialiser.is_valid()
         contest_team = serialiser.save()
         return Response(
             ContestTeamSerialiser(contest_team).data, status=status.HTTP_201_CREATED
@@ -2992,7 +3180,7 @@ class NavigationTaskViewSet(ModelViewSet):
     serializer_classes = {
         "share": SharingSerialiser,
         "contestant_self_registration": SelfManagementSerialiser,
-        "scorecard": ScorecardNestedSerialiser
+        "scorecard": ScorecardNestedSerialiser,
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -3046,13 +3234,20 @@ class NavigationTaskViewSet(ModelViewSet):
             "It is not possible to modify existing navigation tasks except to publish or hide them"
         )
 
-    @action(detail=True, methods=["get", "put"],
-            permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions])
+    @action(
+        detail=True,
+        methods=["get", "put"],
+        permission_classes=[
+            permissions.IsAuthenticated & NavigationTaskContestPermissions
+        ],
+    )
     def scorecard(self, request, *args, **kwargs):
         navigation_task = self.get_object()  # type: NavigationTask
         if request.method == "PUT":
-            serialiser = self.get_serializer(instance=navigation_task.scorecard, data=request.data)
-            serialiser.is_valid(True)
+            serialiser = self.get_serializer(
+                instance=navigation_task.scorecard, data=request.data
+            )
+            serialiser.is_valid()
             serialiser.save()
             return Response(serialiser.data, status=status.HTTP_200_OK)
         else:
@@ -3066,8 +3261,8 @@ class NavigationTaskViewSet(ModelViewSet):
             permissions.IsAuthenticated
             & NavigationTaskSelfManagementPermissions
             & (
-                    NavigationTaskPublicPutDeletePermissions
-                    | NavigationTaskContestPermissions
+                NavigationTaskPublicPutDeletePermissions
+                | NavigationTaskContestPermissions
             )
         ],
     )
@@ -3075,7 +3270,7 @@ class NavigationTaskViewSet(ModelViewSet):
         navigation_task = self.get_object()  # type: NavigationTask
         if request.method == "PUT":
             serialiser = self.get_serializer(data=request.data)
-            serialiser.is_valid(True)
+            serialiser.is_valid()
             contest_team = serialiser.validated_data["contest_team"]
             if contest_team.team.crew.member1.email != request.user.email:
                 raise ValidationError(
@@ -3092,7 +3287,7 @@ class NavigationTaskViewSet(ModelViewSet):
             existing_contestants = navigation_task.contestant_set.all()
             if existing_contestants.exists():
                 contestant_number = (
-                        max([item.contestant_number for item in existing_contestants]) + 1
+                    max([item.contestant_number for item in existing_contestants]) + 1
                 )
             else:
                 contestant_number = 1
@@ -3107,7 +3302,9 @@ class NavigationTaskViewSet(ModelViewSet):
                 navigation_task=navigation_task,
                 tracker_start_time=tracker_start_time,
                 adaptive_start=adaptive_start,
-                finished_by_time=tracker_start_time + datetime.timedelta(days=1) - datetime.timedelta(minutes=1),
+                finished_by_time=tracker_start_time
+                + datetime.timedelta(days=1)
+                - datetime.timedelta(minutes=1),
                 minutes_to_starting_point=navigation_task.minutes_to_starting_point,
                 air_speed=contest_team.air_speed,
                 contestant_number=contestant_number,
@@ -3121,13 +3318,13 @@ class NavigationTaskViewSet(ModelViewSet):
             if adaptive_start:
                 # Properly account for how final time is created when adaptive start is active
                 final_time = (
-                        starting_point_time
-                        + datetime.timedelta(hours=1)
-                        + datetime.timedelta(
-                    hours=final_time.hour,
-                    minutes=final_time.minute,
-                    seconds=final_time.second,
-                )
+                    starting_point_time
+                    + datetime.timedelta(hours=1)
+                    + datetime.timedelta(
+                        hours=final_time.hour,
+                        minutes=final_time.minute,
+                        seconds=final_time.second,
+                    )
                 )
             logger.debug(f"Take-off time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")
@@ -3145,7 +3342,9 @@ class NavigationTaskViewSet(ModelViewSet):
             )
             return Response(status=status.HTTP_201_CREATED)
         elif request.method == "DELETE":
-            my_contestants = navigation_task.contestant_set.filter(team__crew__member1__email=request.user.email)
+            my_contestants = navigation_task.contestant_set.filter(
+                team__crew__member1__email=request.user.email
+            )
             # Delete all contestants that have not started yet where I am the pilot
             my_contestants.filter(
                 contestanttrack__calculator_started=False,
@@ -3156,8 +3355,8 @@ class NavigationTaskViewSet(ModelViewSet):
             ).delete()
             # Terminate ongoing contestants where the time has passed the takeoff time
             for c in my_contestants.filter(
-                    finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
-                    contestanttrack__calculator_started=True,
+                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+                contestanttrack__calculator_started=True,
             ):
                 # We know the takeoff time is in the past, so we can freely set it to now.
                 c.finished_by_time = datetime.datetime.now(datetime.timezone.utc)
@@ -3172,7 +3371,7 @@ class NavigationTaskViewSet(ModelViewSet):
         """
         navigation_task = self.get_object()
         serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
-        if serialiser.is_valid(True):
+        if serialiser.is_valid():
             if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
                 navigation_task.make_public()
             elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
@@ -3349,7 +3548,10 @@ class ContestantViewSet(ModelViewSet):
         if not track_file:
             raise ValidationError("Missing track_file")
         import_gpx_track.apply_async(
-            (contestant.pk, base64.decodebytes(bytes(track_file, "utf-8")).decode("utf-8"))
+            (
+                contestant.pk,
+                base64.decodebytes(bytes(track_file, "utf-8")).decode("utf-8"),
+            )
         )
         return Response({}, status=status.HTTP_201_CREATED)
 
@@ -3435,8 +3637,11 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
-        instance.thumbnail.save(os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
-                                ContentFile(instance.create_thumbnail().getvalue()), save=True)
+        instance.thumbnail.save(
+            os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
+            ContentFile(instance.create_thumbnail().getvalue()),
+            save=True,
+        )
         assign_perm("delete_useruploadedmap", self.request.user, instance)
         assign_perm("view_useruploadedmap", self.request.user, instance)
         assign_perm("add_useruploadedmap", self.request.user, instance)
@@ -3456,8 +3661,11 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
-        instance.thumbnail.save(os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
-                                ContentFile(instance.create_thumbnail().getvalue()), save=True)
+        instance.thumbnail.save(
+            os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
+            ContentFile(instance.create_thumbnail().getvalue()),
+            save=True,
+        )
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
 
@@ -3490,7 +3698,9 @@ class UserUploadedMapDelete(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object()
 
 
-@guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
+@guardian_permission_required(
+    "display.change_useruploadedmap", (UserUploadedMap, "pk", "pk")
+)
 def list_useruploadedmap_permissions(request, pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     users_and_permissions = get_users_with_perms(user_uploaded_map, attach_perms=True)
@@ -3509,37 +3719,55 @@ def list_useruploadedmap_permissions(request, pk):
     )
 
 
-@guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
+@guardian_permission_required(
+    "display.change_useruploadedmap", (UserUploadedMap, "pk", "pk")
+)
 def delete_user_useruploadedmap_permissions(request, pk, user_pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
-    permissions = ["change_useruploadedmap", "view_useruploadedmap", "delete_useruploadedmap"]
+    permissions = [
+        "change_useruploadedmap",
+        "view_useruploadedmap",
+        "delete_useruploadedmap",
+    ]
     for permission in permissions:
         remove_perm(f"display.{permission}", user, user_uploaded_map)
     return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
 
 
-@guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
+@guardian_permission_required(
+    "display.change_useruploadedmap", (UserUploadedMap, "pk", "pk")
+)
 def change_user_useruploadedmap_permissions(request, pk, user_pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
     if request.method == "POST":
         form = ChangeUserUploadedMapPermissionsForm(request.POST)
         if form.is_valid():
-            permissions = ["change_useruploadedmap", "view_useruploadedmap", "delete_useruploadedmap"]
+            permissions = [
+                "change_useruploadedmap",
+                "view_useruploadedmap",
+                "delete_useruploadedmap",
+            ]
             for permission in permissions:
                 if form.cleaned_data[permission]:
                     assign_perm(f"display.{permission}", user, user_uploaded_map)
                 else:
                     remove_perm(f"display.{permission}", user, user_uploaded_map)
-            return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
+            return redirect(
+                reverse("useruploadedmap_permissions_list", kwargs={"pk": pk})
+            )
     existing_permissions = get_user_perms(user, user_uploaded_map)
     initial = {item: True for item in existing_permissions}
     form = ChangeUserUploadedMapPermissionsForm(initial=initial)
-    return render(request, "display/useruploadedmap_permissions_form.html", {"form": form})
+    return render(
+        request, "display/useruploadedmap_permissions_form.html", {"form": form}
+    )
 
 
-@guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
+@guardian_permission_required(
+    "display.change_useruploadedmap", (UserUploadedMap, "pk", "pk")
+)
 def add_user_useruploadedmap_permissions(request, pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     if request.method == "POST":
@@ -3550,27 +3778,35 @@ def add_user_useruploadedmap_permissions(request, pk):
                 user = MyUser.objects.get(email=email)
             except ObjectDoesNotExist:
                 messages.error(request, f"User '{email}' does not exist")
-                return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
-            permissions = ["change_useruploadedmap", "view_useruploadedmap", "delete_useruploadedmap"]
+                return redirect(
+                    reverse("useruploadedmap_permissions_list", kwargs={"pk": pk})
+                )
+            permissions = [
+                "change_useruploadedmap",
+                "view_useruploadedmap",
+                "delete_useruploadedmap",
+            ]
             for permission in permissions:
                 if form.cleaned_data[permission]:
                     assign_perm(f"display.{permission}", user, user_uploaded_map)
                 else:
                     remove_perm(f"display.{permission}", user, user_uploaded_map)
-            return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
+            return redirect(
+                reverse("useruploadedmap_permissions_list", kwargs={"pk": pk})
+            )
     form = AddUserUploadedMapPermissionsForm()
-    return render(request, "display/useruploadedmap_permissions_form.html", {"form": form})
+    return render(
+        request, "display/useruploadedmap_permissions_form.html", {"form": form}
+    )
 
 
 class WelcomeEmailExample(SuperuserRequiredMixin, View):
-
     def get(self, request, *args, **kwargs):
         person = get_object_or_404(Person, email=request.user.email)
         return HttpResponse(render_welcome_email(person))
 
 
 class ContestCreationEmailExample(SuperuserRequiredMixin, View):
-
     def get(self, request, *args, **kwargs):
         person = get_object_or_404(Person, email=request.user.email)
         return HttpResponse(render_contest_creation_email(person))

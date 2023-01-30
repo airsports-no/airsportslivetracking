@@ -25,3 +25,4 @@ data
 FC
 *.zip
 *.sqlite3
+private_values.yml

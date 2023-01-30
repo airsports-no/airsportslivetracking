@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tracker-migrate-db-{{ now | unixEpoch }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    metadata:
+      labels:
+        date: "{{ now | unixEpoch }}"
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: wait-for-db
+          image: "alpine:3.6"
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z -w 2 {{ include "live_tracking.mysqlHost" . }} 3306 && echo mysql ok;
+                do sleep 2;
+              done
+        - name: wait-for-redis
+          image: "alpine:3.6"
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z -w 2 {{ include "live_tracking.redisHost" . }} 6379 && echo redis ok;
+                do sleep 2;
+              done
+      containers:
+      - image: airsportsacr.azurecr.io/tracker_web:{{ .Values.image.tag }}
+        command: [ "bash", "-c", "python3 manage.py migrate && python3 manage.py createdefaultscores" ]
+        name: tracker-migrate-db
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        volumeMounts:
+          - mountPath: /secret
+            readOnly: true
+            name: firebase
+      volumes:
+        - name: firebase
+          secret:
+            secretName: firebase-secrets

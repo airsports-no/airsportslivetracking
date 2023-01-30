@@ -10,7 +10,7 @@ from display.models import (
     FINISHPOINT,
     TAKEOFF_GATE,
     LANDING_GATE,
-    GATE_TYPES,
+    GATE_TYPES, DUMMY, UNKNOWN_LEG,
 )
 
 
@@ -53,5 +53,8 @@ def get_default_scorecard():
         if gate_type != TURNPOINT:
             scorecard.gatescore_set.filter(gate_type=gate_type).delete()
             simple_clone(turning_point, {"gate_type": gate_type})
+    scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
+    simple_clone(turning_point, {"gate_type": DUMMY})
+    simple_clone(turning_point, {"gate_type": UNKNOWN_LEG})
 
     return scorecard
