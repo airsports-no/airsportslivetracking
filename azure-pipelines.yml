@@ -201,7 +201,7 @@ stages:
               namespace: 'airsports'
               command: 'upgrade'
               chartType: 'Name'
-              chartName: '$(Agent.BuildDirectory)/s/live_tracking/helm/'
+              chartName: '$(Agent.BuildDirectory)/s/helm/'
               releaseName: 'airsportsrelease'
               overrideValues: 'image.tag=${{ variables.tag }}'
               valueFile: '$(privateValues.secureFilePath)'
