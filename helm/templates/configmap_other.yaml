@@ -26,4 +26,3 @@ data:
   K8S_API: {{ .Values.k8sApi }}
 
   TRACCAR_USERNAME: {{ .Values.traccarUsername }}
-  TRACCAR_PASSWORD: {{ .Values.traccarPassword }}
