@@ -32,6 +32,7 @@ stages:
       submodules: true
       persistCredentials: true
     - task: DockerCompose@0
+      displayName: Pull
       inputs:
         containerregistrytype: 'Azure Container Registry'
         azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
@@ -80,6 +81,7 @@ stages:
       submodules: true
       persistCredentials: true
     - task: DockerCompose@0
+      displayName: Pull
       inputs:
         containerregistrytype: 'Azure Container Registry'
         azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
