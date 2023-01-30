@@ -139,7 +139,7 @@ stages:
               notifyUsers: 'kolaf@airsportslt.onmicrosoft.com'
               instructions: 'Approve deployment'
         deploy:
-          # steps:
+          steps:
           # - checkout: helmChart
           - task: HelmInstaller@0
             inputs:
