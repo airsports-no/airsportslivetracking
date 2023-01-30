@@ -119,8 +119,8 @@ stages:
     - script: |  
         rm -rf reports/*
       displayName: 'Clear reports'
-- stage: Build
-  dependsOn: Test
+- stage: Deploy
+  dependsOn: Build
   condition: succeeded()
   jobs:
   - deployment: live_tracking_deployment
