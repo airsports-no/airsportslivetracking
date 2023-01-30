@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: ogn-consumer
+  name: ogn-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: ogn-consumer
+  template:
+    metadata:
+      labels:
+        service: ogn-consumer
+#        date: "{{ now | unixEpoch }}"
+    spec:
+      initContainers:
+        - name: wait-for-redis
+          image: "alpine:3.6"
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z -w 2 {{ include "live_tracking.redisHost" . }} 6379 && echo redis ok;
+                do sleep 2;
+              done
+      containers:
+      - image: airsportsacr.azurecr.io/ogn_consumer:latest
+        name: ogn-consumer
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        resources:
+          requests:
+            cpu: 300m
+            memory: 500Mi
+          limits:
+            cpu: 600m
+            memory: 800Mi
+        volumeMounts:
+          - mountPath: /secret
+            readOnly: true
+            name: firebase
+      restartPolicy: Always
+      volumes:
+        - name: firebase
+          secret:
+            secretName: firebase-secrets

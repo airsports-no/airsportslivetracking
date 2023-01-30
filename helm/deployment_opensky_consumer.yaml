@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: opensky-consumer
+  name: opensky-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: opensky-consumer
+  template:
+    metadata:
+      labels:
+        service: opensky-consumer
+#        date: "{{ now | unixEpoch }}"
+    spec:
+      initContainers:
+        - name: wait-for-redis
+          image: "alpine:3.6"
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z -w 2 {{ include "live_tracking.redisHost" . }} 6379 && echo redis ok;
+                do sleep 2;
+              done
+      containers:
+      - image: airsportsacr.azurecr.io/opensky_consumer:latest
+        name: opensky-consumer
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        resources:
+          requests:
+            cpu: 200m
+            memory: 500Mi
+          limits:
+            cpu: 800m
+            memory: 1024Mi
+        volumeMounts:
+          - mountPath: /secret
+            readOnly: true
+            name: firebase
+      restartPolicy: Always
+      volumes:
+        - name: firebase
+          secret:
+            secretName: firebase-secrets
