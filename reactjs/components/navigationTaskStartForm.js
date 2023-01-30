@@ -1,5 +1,5 @@
 import React, {Component} from "react";
-import {Button, Col, Container, Form, Modal} from "react-bootstrap";
+import {Button, Col, Container, Form, Modal, Row} from "react-bootstrap";
 import axios from 'axios'
 import {ErrorMessage, Formik} from 'formik';
 import {connect} from "react-redux";
@@ -84,7 +84,7 @@ class ConnectedSelfRegistrationForm extends Component {
                 <Formik {...formikProps}>
                     {props => (
                         <Form onSubmit={props.handleSubmit} onAbort={() => this.props.history.push("/participation/")}>
-                            <Form.Row>
+                            <Row>
                                 <Col>
                                     <Form.Label>Starting point time: </Form.Label>&nbsp;
                                     <DatePicker
@@ -97,14 +97,10 @@ class ConnectedSelfRegistrationForm extends Component {
                                         timeCaption="time"
                                         dateFormat="MMMM d, yyyy HH:mm"
                                     />
-                                    {/*<DateTimePicker value={props.values.starting_point_time}*/}
-                                    {/*            name={"starting_point_time"} disableClock clearIcon={null} showLeadingZeros={true}*/}
-                                    {/*            onChange={value => props.setFieldValue("starting_point_time", value)}*/}
-                                    {/*/>*/}
                                     <ErrorMessage name={"starting_point_time"} component={"div"}/>
                                 </Col>
-                            </Form.Row>
-                            <Form.Row>
+                            </Row>
+                            <Row>
                                 <Col>
                                     <Form.Check name={"adaptive_start"} type={"checkbox"}
                                                 onChange={props.handleChange}
@@ -112,15 +108,15 @@ class ConnectedSelfRegistrationForm extends Component {
                                                 defaultValue={props.initialValues.adaptive_start}/>
                                     <ErrorMessage name={"adaptive_start"} component={"div"}/>
                                 </Col>
-                            </Form.Row>
-                            <Form.Row>
+                            </Row>
+                            <Row>
                                 <Col>
                                     <Form.Text>If adaptive start is selected, your start time will be set to the nearest whole minute you
                                         cross the infinite line going through the starting gate anywhere between one hour before and one hour after the selected starting
                                         point time (<a href={'https://home.airsports.no/faq/#adaptiv-start'}>FAQ</a>).</Form.Text>
                                 </Col>
-                            </Form.Row>
-                            <Form.Row>
+                            </Row>
+                            <Row>
                                 <Col>
                                     <Form.Label>Wind direction</Form.Label>
                                     <Form.Control name={"wind_direction"} type={"number"} placeholder={"Direction"}
@@ -135,12 +131,12 @@ class ConnectedSelfRegistrationForm extends Component {
                                                   defaultValue={props.initialValues.wind_speed}/>
                                     <ErrorMessage name={"wind_speed"} component={"div"}/>
                                 </Col>
-                            </Form.Row>
-                            <Form.Row>
+                            </Row>
+                            <Row>
                                 <Form.Text>After clicking "Register" you will receive an email with a link to an
                                     annotated navigation map that can be used to fly the task.</Form.Text>
-                            </Form.Row>
-                            <Form.Row>
+                            </Row>
+                            <Row>
                                 <Button variant="primary" type="submit" disabled={props.isSubmitting}>
                                     Register
                                 </Button>
@@ -151,7 +147,7 @@ class ConnectedSelfRegistrationForm extends Component {
                                 {props.errors && _.has(props.errors, ["api"]) &&
                                 <div className="text-danger">{_.get(props.errors, ["api"])}</div>}
                                 {props.status && <div className="text-success">{props.status}</div>}
-                            </Form.Row>
+                            </Row>
                         </Form>)}
                 </Formik>
             </div>

@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bullseye as tracker_base
+FROM python:3.10-bullseye as tracker_base
 ENV PYTHONUNBUFFERED 1
 
 ###### SETUP BASE INFRASTRUCTURE ######
