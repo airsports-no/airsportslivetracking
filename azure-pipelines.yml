@@ -179,6 +179,9 @@ stages:
               instructions: 'Approve deployment'
         deploy:
           steps:
+          - checkout: self
+            submodules: true
+            persistCredentials: true
           # - checkout: helmChart
           - task: HelmInstaller@0
             inputs:
