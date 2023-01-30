@@ -5,11 +5,11 @@
 # trigger:
 # - master
 
-resources:
-  repositories:
-    - repository: helmChart
-      type: git
-      name: live_tracking_helm_chart
+# resources:
+#   repositories:
+#     - repository: helmChart
+#       type: git
+#       name: live_tracking_helm_chart
 
 variables:
   containerName: tracker_web
@@ -139,8 +139,8 @@ stages:
               notifyUsers: 'kolaf@airsportslt.onmicrosoft.com'
               instructions: 'Approve deployment'
         deploy:
-          steps:
-          - checkout: helmChart
+          # steps:
+          # - checkout: helmChart
           - task: HelmInstaller@0
             inputs:
               helmVersion: '2.14.1'
@@ -159,7 +159,7 @@ stages:
               namespace: 'airsports'
               command: 'upgrade'
               chartType: 'Name'
-              chartName: '$(Agent.BuildDirectory)/s/live_tracking_helm_chart/'
+              chartName: '$(Agent.BuildDirectory)/s/live_tracking/helm/'
               releaseName: 'airsportsrelease'
               overrideValues: 'image.tag=${{ variables.tag }}'
               valueFile: '$(privateValues.secureFilePath)'
