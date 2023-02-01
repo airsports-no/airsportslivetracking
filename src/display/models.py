@@ -849,7 +849,7 @@ class NavigationTask(models.Model):
         if self.scorecard.calculator in (Scorecard.PRECISION, Scorecard.POKER):
             route = self.editable_route.create_precision_route(self.route.use_procedure_turns)
         elif self.scorecard.calculator == Scorecard.ANR_CORRIDOR:
-            route = self.editable_route.create_anr_route(self.route.rounded_corners, self.route.corridor_width)
+            route = self.editable_route.create_anr_route(self.route.rounded_corners, self.route.corridor_width, self.scorecard)
         elif self.scorecard.calculator == Scorecard.AIRSPORTS:
             route = self.editable_route.create_airsports_route(self.route.rounded_corners)
         if route:
@@ -2659,7 +2659,7 @@ class EditableRoute(models.Model):
         self.extract_additional_features(route)
         return route
 
-    def create_anr_route(self, rounded_corners: bool, corridor_width: float) -> Route:
+    def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: Scorecard) -> Route:
         from display.convert_flightcontest_gpx import build_waypoint
         from display.convert_flightcontest_gpx import create_anr_corridor_route_from_waypoint_list
 
@@ -2675,10 +2675,12 @@ class EditableRoute(models.Model):
         waypoint_list[0].type = "sp"
         waypoint_list[0].gate_check = True
         waypoint_list[0].time_check = True
+        waypoint_list[0].width = scorecard.get_extended_gate_width_for_gate_type("sp")
 
         waypoint_list[-1].type = "fp"
         waypoint_list[-1].gate_check = True
         waypoint_list[-1].time_check = True
+        waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type("fp")
 
         logger.debug(f"Created waypoints {waypoint_list}")
         route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners,

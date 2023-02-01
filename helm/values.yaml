@@ -61,6 +61,7 @@ openskyPassword: password
 
 storageAccountName: airsportsstorage2
 mediaLocation: media
+traccarUsername: frankose@ifi.uio.no
 
 serviceAccountSecretName: calculator-scheduler-token-j9nmc
 k8sApi: https://airsports2-dns-3bdbed7d.hcp.northeurope.azmk8s.io:443 #https://airsports-dns-b66fdeca.hcp.northeurope.azmk8s.io:443

@@ -2365,7 +2365,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             rounded_corners = initial_step_data["rounded_corners"]
             corridor_width = initial_step_data["corridor_width"]
             route = self.editable_route.create_anr_route(
-                rounded_corners, corridor_width
+                rounded_corners, corridor_width, scorecard
             )
         elif task_type == Scorecard.AIRSPORTS:
             initial_step_data = self.get_cleaned_data_for_step("airsports_parameters")
