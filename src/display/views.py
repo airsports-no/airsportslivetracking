@@ -2078,7 +2078,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
                 "task_type", self.get_form_instance("task_type"), **kwargs
             )
 
-    def create_route(self) -> Tuple[Route, Optional[EditableRoute]]:
+    def create_route(self, scorecard: Scorecard) -> Tuple[Route, Optional[EditableRoute]]:
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
         editable_route = None
         route = None
@@ -2127,7 +2127,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             corridor_width = initial_step_data["corridor_width"]
             if initial_step_data["internal_route"]:
                 route = initial_step_data["internal_route"].create_anr_route(
-                    rounded_corners, corridor_width
+                    rounded_corners, corridor_width, scorecard
                 )
                 editable_route = initial_step_data["internal_route"]
             else:
@@ -2168,7 +2168,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
 
     def done(self, form_list, **kwargs):
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
-        route, ediable_route = self.create_route()
+        scorecard=self.get_cleaned_data_for_step("task_content")["original_scorecard"]
+        route, ediable_route = self.create_route(scorecard)
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.create(
             **final_data,

@@ -1061,6 +1061,9 @@ class Scorecard(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        ordering = ("-valid_from",)
+
     @property
     def visible_fields(self) -> List[str]:
         return [field for block in self.included_fields for field in block[1:]]
