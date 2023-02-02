@@ -1,4 +1,6 @@
 #
+import datetime
+
 from display.clone_object import simple_clone
 from display.models import (
     GateScore,
@@ -23,6 +25,7 @@ def get_default_scorecard():
         name="FAI Air Rally 2020",
         defaults={
             "shortcut_name": "FAI Air Rally",
+            "valid_from": datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc),
             "backtracking_penalty": 100,
             "backtracking_grace_time_seconds": 5,
             "backtracking_maximum_penalty": 1000,

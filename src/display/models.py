@@ -55,8 +55,17 @@ from display.calculators.calculator_utilities import round_time_second
 from display.calculators.positions_and_gates import Position
 from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
-from display.map_constants import SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, MAP_SIZES, ORIENTATIONS, LANDSCAPE, A4, \
-    PORTRAIT
+from display.map_constants import (
+    SCALES,
+    SCALE_TO_FIT,
+    PDF,
+    OUTPUT_TYPES,
+    MAP_SIZES,
+    ORIENTATIONS,
+    LANDSCAPE,
+    A4,
+    PORTRAIT,
+)
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.mbtiles_stitch import MBTilesHelper
 from display.my_pickled_object_field import MyPickledObjectField
@@ -108,7 +117,7 @@ GATE_TYPES = (
     (INTERMEDIARY_STARTINGPOINT, "Intermediary Starting Point"),
     (INTERMEDIARY_FINISHPOINT, "Intermediary Finish Point"),
     (DUMMY, "Dummy"),
-    (UNKNOWN_LEG, "Unknown leg")
+    (UNKNOWN_LEG, "Unknown leg"),
 )
 
 TRACKING_DEVICE_TIMEOUT = 10
@@ -134,8 +143,7 @@ class MyUser(BaseUser, GuardianUserMixin):
                 raise Exception("Did not receive any text for welcome email")
         except:
             logger.exception("Failed to generate welcome email, fall back to earlier implementation.")
-            html = render_to_string("display/welcome_email.html",
-                                    {"person": person})
+            html = render_to_string("display/welcome_email.html", {"person": person})
         converter = html2text.HTML2Text()
         plaintext = converter.handle(html)
         try:
@@ -144,7 +152,7 @@ class MyUser(BaseUser, GuardianUserMixin):
                 plaintext,
                 None,  # Should default to system from email
                 recipient_list=[self.email, "support@airsports.no"],
-                html_message=html
+                html_message=html,
             )
         except:
             logger.error(f"Failed sending email to {self}")
@@ -156,18 +164,17 @@ class MyUser(BaseUser, GuardianUserMixin):
                 raise Exception("Did not receive any text for welcome email")
         except:
             logger.exception("Failed to generate contest creation email, fall back to earlier implementation.")
-            html = render_to_string("display/contestmanagement_email.html",
-                                    {"person": person})
+            html = render_to_string("display/contestmanagement_email.html", {"person": person})
         converter = html2text.HTML2Text()
         plaintext = converter.handle(html)
-        logger.debug(f'Sending contest creation email to {person}')
+        logger.debug(f"Sending contest creation email to {person}")
         try:
             send_mail(
                 f"You have been granted contest creation privileges at Air Sports Live Tracking",
                 plaintext,
                 None,  # Should default to system from email
                 recipient_list=[self.email, "support@airsports.no"],
-                html_message=html
+                html_message=html,
             )
         except:
             logger.error(f"Failed sending email to {self}")
@@ -302,11 +309,11 @@ class Person(models.Model):
     validated = models.BooleanField(
         default=True,
         help_text="Usually true, but set to false for persons created automatically during "
-                  "app API login. This is used to signify that the user profile must be "
-                  "updated. If this remains false for more than a few days, the person "
-                  "object and corresponding user will be deleted from the system.  This "
-                  "must therefore be set to True when submitting an updated profile from "
-                  "the app.",
+        "app API login. This is used to signify that the user profile must be "
+        "updated. If this remains false for more than a few days, the person "
+        "object and corresponding user will be deleted from the system.  This "
+        "must therefore be set to True when submitting an updated profile from "
+        "the app.",
     )
     app_tracking_id = models.CharField(
         max_length=28,
@@ -337,7 +344,8 @@ class Person(models.Model):
     def is_tracking_active(self):
         return (
             # We assume the tracker is active if we have seen it today
-                self.last_seen and datetime.datetime.now(datetime.timezone.utc).date() == self.last_seen.date()
+            self.last_seen
+            and datetime.datetime.now(datetime.timezone.utc).date() == self.last_seen.date()
         )
 
     @property
@@ -365,11 +373,11 @@ class Person(models.Model):
 
     @classmethod
     def get_or_create(
-            cls,
-            first_name: Optional[str],
-            last_name: Optional[str],
-            phone: Optional[str],
-            email: Optional[str],
+        cls,
+        first_name: Optional[str],
+        last_name: Optional[str],
+        phone: Optional[str],
+        email: Optional[str],
     ) -> Optional["Person"]:
         possible_person = None
         # if phone is not None and len(phone) > 0:
@@ -388,13 +396,9 @@ class Person(models.Model):
     def remove_profile_picture_background(self):
         print(f" authorisation key: {settings.REMOVE_BG_KEY}")
         response = requests.post(
-            'https://api.remove.bg/v1.0/removebg',
-            data={
-                'image_url': self.picture.url,
-                'size': 'auto',
-                'crop': 'true'
-            },
-            headers={'X-Api-Key': settings.REMOVE_BG_KEY},
+            "https://api.remove.bg/v1.0/removebg",
+            data={"image_url": self.picture.url, "size": "auto", "crop": "true"},
+            headers={"X-Api-Key": settings.REMOVE_BG_KEY},
         )
         if response.status_code == requests.codes.ok:
             self.picture.save("nobg_" + self.picture.name, ContentFile(response.content))
@@ -477,7 +481,7 @@ class Team(models.Model):
 
     @classmethod
     def get_or_create_from_signup(
-            cls, user: MyUser, copilot: Person, aircraft_registration: str, club_name: str
+        cls, user: MyUser, copilot: Person, aircraft_registration: str, club_name: str
     ) -> "Team":
         my_person = Person.objects.get(email=user.email)
         crew, _ = Crew.objects.get_or_create(member1=my_person, member2=copilot)
@@ -515,7 +519,7 @@ class ContestTeam(models.Model):
 
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
-                self.tracker_device_id is None or len(self.tracker_device_id) == 0
+            self.tracker_device_id is None or len(self.tracker_device_id) == 0
         ):
             raise ValidationError(
                 f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
@@ -597,8 +601,11 @@ class Contest(models.Model):
         blank=True,
         help_text="Quadratic logo that is shown next to the event in the event list",
     )
-    country = CountryField(blank=True, null=True,
-                           help_text="Optional, if omitted country will be inferred from latitude and longitude if they are provided.")
+    country = CountryField(
+        blank=True,
+        null=True,
+        help_text="Optional, if omitted country will be inferred from latitude and longitude if they are provided.",
+    )
 
     @property
     def country_flag_url(self):
@@ -709,13 +716,16 @@ class NavigationTask(models.Model):
     original_scorecard = models.ForeignKey(
         "Scorecard",
         on_delete=models.PROTECT,
-        help_text=f"Reference to an existing scorecard", related_name="navigation_task_original")
+        help_text=f"Reference to an existing scorecard",
+        related_name="navigation_task_original",
+    )
     scorecard = models.OneToOneField(
         "Scorecard",
         on_delete=models.SET_NULL,
         null=True,
         help_text="The actual scorecard used for this task. The scorecard may be modified, since it must be a copy of original_scorecard.",
-        related_name="navigation_task_override")
+        related_name="navigation_task_override",
+    )
     editable_route = models.ForeignKey("EditableRoute", on_delete=models.SET_NULL, null=True, blank=True)
     score_sorting_direction = models.CharField(
         default=ASCENDING,
@@ -764,7 +774,7 @@ class NavigationTask(models.Model):
     display_secrets = models.BooleanField(
         default=True,
         help_text="If checked secret gates will be displayed on the map. Otherwise the map will only include gates that"
-                  " are not secret, and also not display annotations related to the secret gates.",
+        " are not secret, and also not display annotations related to the secret gates.",
     )
     allow_self_management = models.BooleanField(
         default=False,
@@ -793,8 +803,11 @@ class NavigationTask(models.Model):
         users = get_users_with_perms(self.contest, attach_perms=True)
         maps = set()
         for user in users:
-            maps.update(get_objects_for_user(user, "display.view_useruploadedmap", klass=UserUploadedMap,
-                                             accept_global_perms=False))
+            maps.update(
+                get_objects_for_user(
+                    user, "display.view_useruploadedmap", klass=UserUploadedMap, accept_global_perms=False
+                )
+            )
         return maps
 
     @property
@@ -849,7 +862,9 @@ class NavigationTask(models.Model):
         if self.scorecard.calculator in (Scorecard.PRECISION, Scorecard.POKER):
             route = self.editable_route.create_precision_route(self.route.use_procedure_turns)
         elif self.scorecard.calculator == Scorecard.ANR_CORRIDOR:
-            route = self.editable_route.create_anr_route(self.route.rounded_corners, self.route.corridor_width, self.scorecard)
+            route = self.editable_route.create_anr_route(
+                self.route.rounded_corners, self.route.corridor_width, self.scorecard
+            )
         elif self.scorecard.calculator == Scorecard.AIRSPORTS:
             route = self.editable_route.create_airsports_route(self.route.rounded_corners)
         if route:
@@ -932,19 +947,28 @@ class FlightOrderConfiguration(models.Model):
     navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE)
     document_size = models.CharField(choices=MAP_SIZES, default=A4, max_length=50)
     include_turning_points = models.BooleanField(default=True)
-    map_include_meridians_and_parallels_lines = models.BooleanField(default=True, help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this")
+    map_include_meridians_and_parallels_lines = models.BooleanField(
+        default=True,
+        help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this",
+    )
     map_dpi = models.IntegerField(default=300, validators=[MinValueValidator(100), MaxValueValidator(500)])
     map_zoom_level = models.IntegerField(default=12)
     map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
     map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
     map_source = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=50, blank=True)
-    map_user_source = models.ForeignKey("UserUploadedMap", on_delete=models.SET_NULL, blank=True, null=True,
-                                        help_text="Overrides whatever is chosen in map source")
+    map_user_source = models.ForeignKey(
+        "UserUploadedMap",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        help_text="Overrides whatever is chosen in map source",
+    )
     map_include_annotations = models.BooleanField(default=True)
     map_include_waypoints = models.BooleanField(default=True)
     map_line_width = models.FloatField(default=1, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
-    map_minute_mark_line_width = models.FloatField(default=1,
-                                                   validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
+    map_minute_mark_line_width = models.FloatField(
+        default=1, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)]
+    )
     map_line_colour = models.CharField(default="#0000ff", max_length=7)
 
 
@@ -963,17 +987,25 @@ class Scorecard(models.Model):
     )
 
     name = models.CharField(max_length=255, default="default", unique=True)
-    shortcut_name = models.CharField(max_length=255, default="shortcut_default", unique=True,
-                                     help_text=" Shortcut reference to latest scorecard version, e.g. 'FAI Precision' "
-                                               "currently links to 'FAI Precision 2020'. This is the field that is "
-                                               "used for lookups through the API, but the name is still used "
-                                               "everywhere else")
-    original = models.BooleanField(default=True,
-                                   help_text="Signifies that this has been created manually and is not a copy")
-    included_fields = MyPickledObjectField(default=list,
-                                           help_text="List of field names that should be visible in forms")
-    free_text = models.TextField(help_text="Free text (with HTML) that is included at the bottom of the scorecard box",
-                                 default="")
+    shortcut_name = models.CharField(
+        max_length=255,
+        default="shortcut_default",
+        unique=True,
+        help_text="Shortcut reference to latest scorecard version, e.g. 'FAI Precision' "
+        "currently links to 'FAI Precision 2020'. This is the field that is "
+        "used for lookups through the API, but the name is still used "
+        "everywhere else",
+    )
+    valid_from = models.DateTimeField(blank=True, null=True)
+    original = models.BooleanField(
+        default=True, help_text="Signifies that this has been created manually and is not a copy"
+    )
+    included_fields = MyPickledObjectField(
+        default=list, help_text="List of field names that should be visible in forms"
+    )
+    free_text = models.TextField(
+        help_text="Free text (with HTML) that is included at the bottom of the scorecard box", default=""
+    )
     calculator = models.CharField(
         choices=CALCULATORS,
         default=PRECISION,
@@ -1042,8 +1074,14 @@ class Scorecard(models.Model):
         return cls.objects.filter(original=True)
 
     def copy(self, name_postfix: str) -> "Scorecard":
-        obj = simple_clone(self, {"name": f"{self.name}_{name_postfix}",
-                                  "shortcut_name": f"{self.shortcut_name}_{name_postfix}", "original": False})
+        obj = simple_clone(
+            self,
+            {
+                "name": f"{self.name}_{name_postfix}",
+                "shortcut_name": f"{self.shortcut_name}_{name_postfix}",
+                "original": False,
+            },
+        )
         for gate in self.gatescore_set.all():
             simple_clone(gate, {"scorecard": obj})
         return obj
@@ -1058,21 +1096,16 @@ class Scorecard(models.Model):
         difference = round((exit - enter).total_seconds()) - self.penalty_zone_grace_time
         if difference < 0:
             return 0
-        return min(
-            self.penalty_zone_maximum, difference * self.penalty_zone_penalty_per_second
-        )
+        return min(self.penalty_zone_maximum, difference * self.penalty_zone_penalty_per_second)
 
     def get_gate_timing_score_for_gate_type(
-            self,
-            gate_type: str,
-            planned_time: datetime.datetime,
-            actual_time: Optional[datetime.datetime],
+        self,
+        gate_type: str,
+        planned_time: datetime.datetime,
+        actual_time: Optional[datetime.datetime],
     ) -> float:
         gate_score = self.get_gate_scorecard(gate_type)
-        return gate_score.calculate_score(
-            planned_time,
-            actual_time
-        )
+        return gate_score.calculate_score(planned_time, actual_time)
 
     def get_missed_penalty_for_gate_type(self, gate_type: str) -> float:
         """
@@ -1130,27 +1163,21 @@ class Scorecard(models.Model):
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.extended_gate_width
 
-    def get_backtracking_after_steep_gate_grace_period_seconds_for_gate_type(
-            self, gate_type: str
-    ) -> float:
+    def get_backtracking_after_steep_gate_grace_period_seconds_for_gate_type(self, gate_type: str) -> float:
         """
         The number of seconds after passing a gate with a steep turn (more than 90 degrees) where backtracking is not calculated
         """
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.backtracking_after_steep_gate_grace_period_seconds
 
-    def get_backtracking_before_gate_grace_period_nm_for_gate_type(
-            self, gate_type: str
-    ) -> float:
+    def get_backtracking_before_gate_grace_period_nm_for_gate_type(self, gate_type: str) -> float:
         """
         The number of NM around a gate where backtracking is not calculated
         """
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.backtracking_before_gate_grace_period_nm
 
-    def get_backtracking_after_gate_grace_period_nm_for_gate_type(
-            self, gate_type: str
-    ) -> float:
+    def get_backtracking_after_gate_grace_period_nm_for_gate_type(self, gate_type: str) -> float:
         """
         The number of NM around a gate where backtracking is not calculated
         """
@@ -1161,8 +1188,9 @@ class Scorecard(models.Model):
 class GateScore(models.Model):
     scorecard = models.ForeignKey("Scorecard", on_delete=models.CASCADE)
     gate_type = models.CharField(choices=GATE_TYPES, max_length=20)
-    included_fields = MyPickledObjectField(default=list,
-                                           help_text="List of field names that should be visible in forms")
+    included_fields = MyPickledObjectField(
+        default=list, help_text="List of field names that should be visible in forms"
+    )
     extended_gate_width = models.FloatField(
         default=0,
         help_text="For SP it is 2 (1 nm each side), for tp with procedure turn it is 6",
@@ -1191,9 +1219,9 @@ class GateScore(models.Model):
         return [field for block in self.included_fields for field in block[1:]]
 
     def calculate_score(
-            self,
-            planned_time: datetime.datetime,
-            actual_time: Optional[datetime.datetime],
+        self,
+        planned_time: datetime.datetime,
+        actual_time: Optional[datetime.datetime],
     ) -> float:
         """
 
@@ -1310,9 +1338,7 @@ class Contestant(models.Model):
         try:
             return self.gate_times[self.navigation_task.route.waypoints[0].name]
         except (KeyError, IndexError):
-            return self.takeoff_time + datetime.timedelta(
-                minutes=self.navigation_task.minutes_to_starting_point
-            )
+            return self.takeoff_time + datetime.timedelta(minutes=self.navigation_task.minutes_to_starting_point)
 
     @property
     def starting_point_time_local(self) -> datetime.datetime:
@@ -1467,7 +1493,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             return 0
         route_progress = 100
         if len(self.navigation_task.route.waypoints) > 0 and (
-                not self.contestanttrack.calculator_finished or ignore_finished
+            not self.contestanttrack.calculator_finished or ignore_finished
         ):
             first_gate = self.navigation_task.route.waypoints[0]
             last_gate = self.navigation_task.route.waypoints[-1]
@@ -1484,7 +1510,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     def clean(self):
         if self.tracking_device == TRACKING_DEVICE and (
-                self.tracker_device_id is None or len(self.tracker_device_id) == 0
+            self.tracker_device_id is None or len(self.tracker_device_id) == 0
         ):
             raise ValidationError(
                 f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
@@ -1541,13 +1567,17 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             start_time = min(item[1] for item in intervals)
             finish_time = max(item[2] for item in intervals)
             if hasattr(self, "navigation_task") and self.navigation_task:
-                raise ValidationError(mark_safe(
-                    f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
-                ))
+                raise ValidationError(
+                    mark_safe(
+                        f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+                    )
+                )
             else:
-                raise ValidationError(mark_safe(
-                    f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)}"
-                ))
+                raise ValidationError(
+                    mark_safe(
+                        f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)}"
+                    )
+                )
 
         if self.team.crew.member2 is not None:
             overlapping2 = Contestant.objects.filter(
@@ -1572,9 +1602,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": task.pk})}">{task}</a>')
                 start_time = min(item[1] for item in intervals)
                 finish_time = max(item[2] for item in intervals)
-                raise ValidationError(mark_safe(
-                    f"The copilot '{self.team.crew.member2}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
-                ))
+                raise ValidationError(
+                    mark_safe(
+                        f"The copilot '{self.team.crew.member2}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+                    )
+                )
         # Validate maximum tracking time
         if self.finished_by_time - self.tracker_start_time > datetime.timedelta(hours=24):
             raise ValidationError(
@@ -1621,8 +1653,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     )
 
     @staticmethod
-    def _convert_to_individual_leg_times(crossing_times: List[Tuple[str, datetime.timedelta]]) -> List[
-        Tuple[str, datetime.timedelta]]:
+    def _convert_to_individual_leg_times(
+        crossing_times: List[Tuple[str, datetime.timedelta]]
+    ) -> List[Tuple[str, datetime.timedelta]]:
         if len(crossing_times) == 0:
             return []
         individual_times = [crossing_times[0]]
@@ -1638,8 +1671,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             crossing_times[gate.name] = self.finished_by_time - datetime.timedelta(minutes=1)
         return crossing_times
 
-    def calculate_missing_gate_times(self, predefined_gate_times: Dict,
-                                     start_point_override: Optional[datetime.datetime] = None) -> Dict:
+    def calculate_missing_gate_times(
+        self, predefined_gate_times: Dict, start_point_override: Optional[datetime.datetime] = None
+    ) -> Dict:
         if start_point_override:
             previous_crossing_time = start_point_override
         else:
@@ -1657,8 +1691,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         )
         leg_times = Contestant._convert_to_individual_leg_times(relative_crossing_times)
         for gate_name, leg_time in leg_times:
-            crossing_times[gate_name] = predefined_gate_times.get(gate_name,
-                                                                  previous_crossing_time + leg_time)
+            crossing_times[gate_name] = predefined_gate_times.get(gate_name, previous_crossing_time + leg_time)
             previous_crossing_time = crossing_times[gate_name]
         for gate_name, crossing_time in self._get_takeoff_and_landing_times().items():
             crossing_times[gate_name] = predefined_gate_times.get(gate_name, crossing_time)
@@ -1680,11 +1713,13 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     def get_gate_time_offset(self, gate_name):
         planned = self.gate_times.get(gate_name)
         if planned is None:
-            if len(self.navigation_task.route.takeoff_gates) > 0 and gate_name in (gate.name for gate in
-                                                                                   self.navigation_task.route.takeoff_gates):
+            if len(self.navigation_task.route.takeoff_gates) > 0 and gate_name in (
+                gate.name for gate in self.navigation_task.route.takeoff_gates
+            ):
                 planned = self.takeoff_time
-            elif len(self.navigation_task.route.landing_gates) > 0 and gate_name in (gate.name for gate in
-                                                                                     self.navigation_task.route.landing_gates):
+            elif len(self.navigation_task.route.landing_gates) > 0 and gate_name in (
+                gate.name for gate in self.navigation_task.route.landing_gates
+            ):
                 planned = self.finished_by_time
         actual = self.actualgatetime_set.filter(gate=gate_name).first()
         if planned and actual:
@@ -1733,8 +1768,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 }
             )
         if (
-                self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
-                and self.team.crew.member2 is not None
+            self.tracking_device in (TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT)
+            and self.team.crew.member2 is not None
         ):
             devices.append(
                 {
@@ -1759,12 +1794,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             "course": float(position_data["course"]),
             "processor_received_time": position_data.get("processor_received_time"),
             "calculator_received_time": position_data.get("calculator_received_time"),
-            "server_time": position_data.get("server_time")
+            "server_time": position_data.get("server_time"),
         }
 
     @classmethod
     def get_contestant_for_device_at_time(
-            cls, device: str, stamp: datetime.datetime
+        cls, device: str, stamp: datetime.datetime
     ) -> Tuple[Optional["Contestant"], bool]:
         """
         Retrieves the contestant that owns the tracking device for the time stamp. Returns an extra flag "is_simulator"
@@ -1927,32 +1962,42 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 transmission_delay.append(np.nan)
             if position.websocket_transmitted_time and position.calculator_received_time:
                 calculation_delay.append(
-                    (position.websocket_transmitted_time - position.calculator_received_time).total_seconds())
+                    (position.websocket_transmitted_time - position.calculator_received_time).total_seconds()
+                )
             else:
                 calculation_delay.append(np.nan)
             if position.server_time and position.processor_received_time:
                 processor_queueing_delay.append(
-                    (position.processor_received_time - position.server_time).total_seconds())
+                    (position.processor_received_time - position.server_time).total_seconds()
+                )
             else:
                 processor_queueing_delay.append(np.nan)
             if position.processor_received_time and position.calculator_received_time:
                 calculator_queueing_delay.append(
-                    (position.calculator_received_time - position.processor_received_time).total_seconds())
+                    (position.calculator_received_time - position.processor_received_time).total_seconds()
+                )
             else:
                 calculator_queueing_delay.append(np.nan)
         plt.figure()
-        total_delay_line, = plt.plot(elapsed, total_delay, label="Total delay")
-        transmission_delay_line, = plt.plot(elapsed, transmission_delay, label="Transmission delay")
-        processor_queueing_delay_line, = plt.plot(elapsed, processor_queueing_delay, label="Processor queue delay")
-        calculator_queueing_delay_line, = plt.plot(elapsed, calculator_queueing_delay, label="Calculator queue delay")
-        calculation_delay_line, = plt.plot(elapsed, calculation_delay, label="Calculation delay")
-        plt.legend(handles=[total_delay_line, transmission_delay_line, processor_queueing_delay_line,
-                            calculator_queueing_delay_line, calculation_delay_line])
+        (total_delay_line,) = plt.plot(elapsed, total_delay, label="Total delay")
+        (transmission_delay_line,) = plt.plot(elapsed, transmission_delay, label="Transmission delay")
+        (processor_queueing_delay_line,) = plt.plot(elapsed, processor_queueing_delay, label="Processor queue delay")
+        (calculator_queueing_delay_line,) = plt.plot(elapsed, calculator_queueing_delay, label="Calculator queue delay")
+        (calculation_delay_line,) = plt.plot(elapsed, calculation_delay, label="Calculation delay")
+        plt.legend(
+            handles=[
+                total_delay_line,
+                transmission_delay_line,
+                processor_queueing_delay_line,
+                calculator_queueing_delay_line,
+                calculation_delay_line,
+            ]
+        )
         plt.ylabel("Delay (s)")
         plt.xlabel("Time since start (s)")
         plt.title(f"Processing delays for {self}")
         figdata = BytesIO()
-        plt.savefig(figdata, format='png')
+        plt.savefig(figdata, format="png")
         plt.close()
         figdata.seek(0)
         return figdata
@@ -1999,7 +2044,8 @@ class ContestantReceivedPosition(models.Model):
                         "device_time": point.time,
                     },
                     point.time,
-                ), interpolated=point.interpolated
+                ),
+                interpolated=point.interpolated,
             )
             for index, point in enumerate(positions)
         ]
@@ -2535,23 +2581,25 @@ ____________________________________________________________
             f"Flight orders for task {self.contestant.navigation_task.name}",
             f"Hi {first_name},\n\nHere is the <a href='{url}'>link to download the flight orders</a> for your navigation task "
             + f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
-              f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.\n\n{url}\n{self.PLAINTEXT_SIGNATURE}",
+            f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.\n\n{url}\n{self.PLAINTEXT_SIGNATURE}",
             None,  # Should default to system from email
             recipient_list=[email_address],
             html_message=f"Hi {first_name},<p>Here is the link to download the flight orders for  "
-                         f"your navigation task "
-                         f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
-                         f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p>"
-                         f"<a href='{url}'>Flight orders link</a><p>{self.HTML_SIGNATURE}",
+            f"your navigation task "
+            f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
+            f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p>"
+            f"<a href='{url}'>Flight orders link</a><p>{self.HTML_SIGNATURE}",
         )
 
 
 class UserUploadedMap(models.Model):
     user = models.ForeignKey(MyUser, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
-    map_file = models.FileField(storage=FileSystemStorage(location="/maptiles/user_maps"),
-                                validators=[FileExtensionValidator(allowed_extensions=['mbtiles'])],
-                                help_text="File must be of type MBTILES. This can be generated for instance using MapTile Desktop")
+    map_file = models.FileField(
+        storage=FileSystemStorage(location="/maptiles/user_maps"),
+        validators=[FileExtensionValidator(allowed_extensions=["mbtiles"])],
+        help_text="File must be of type MBTILES. This can be generated for instance using MapTile Desktop",
+    )
     thumbnail = models.ImageField(upload_to="map_thumbnails/", blank=True, null=True)
 
     def __str__(self):
@@ -2591,6 +2639,7 @@ class EditableRoute(models.Model):
         Finds the smallest Zoom tile and returns this
         """
         from display.map_plotter import plot_editable_route
+
         image_stream = plot_editable_route(self)
         return image_stream
 
@@ -2672,19 +2721,20 @@ class EditableRoute(models.Model):
             waypoint_list.append(
                 build_waypoint(item["name"], latitude, longitude, "secret", item["gateWidth"], False, False)
             )
-        waypoint_list[0].type = "sp"
+        waypoint_list[0].type = STARTINGPOINT
         waypoint_list[0].gate_check = True
         waypoint_list[0].time_check = True
-        waypoint_list[0].width = scorecard.get_extended_gate_width_for_gate_type("sp")
+        waypoint_list[0].width = scorecard.get_extended_gate_width_for_gate_type(STARTINGPOINT)
 
-        waypoint_list[-1].type = "fp"
+        waypoint_list[-1].type = FINISHPOINT
         waypoint_list[-1].gate_check = True
         waypoint_list[-1].time_check = True
-        waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type("fp")
+        waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type(FINISHPOINT)
 
         logger.debug(f"Created waypoints {waypoint_list}")
-        route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners,
-                                                             corridor_width=corridor_width)
+        route = create_anr_corridor_route_from_waypoint_list(
+            track["name"], waypoint_list, rounded_corners, corridor_width=corridor_width
+        )
         self.extract_additional_features(route)
         return route
 
@@ -2742,7 +2792,7 @@ class EditableRoute(models.Model):
                     route=route,
                     path=self.get_feature_coordinates(feature, flip=True),
                     type=zone_type,
-                    tooltip_position=feature.get("tooltip_position", [])
+                    tooltip_position=feature.get("tooltip_position", []),
                 )
 
 
@@ -2902,6 +2952,7 @@ def push_test_change(sender, instance: TaskTest, **kwargs):
 def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs):
     ContestantTrack.objects.get_or_create(contestant=instance)
     from websocket_channels import WebsocketFacade
+
     ws = WebsocketFacade()
     ws.transmit_contestant(instance)
 
@@ -2914,6 +2965,7 @@ def validate_contestant(sender, instance: Contestant, **kwargs):
 @receiver(pre_delete, sender=Contestant)
 def stop_any_calculators(sender, instance: Contestant, **kwargs):
     from websocket_channels import WebsocketFacade
+
     ws = WebsocketFacade()
     ws.transmit_delete_contestant(instance)
     instance.blocking_request_calculator_termination()
@@ -2955,7 +3007,8 @@ def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
         previous = NavigationTask.objects.get(id=instance.id)
         if previous.original_scorecard != instance.original_scorecard:  # field will be updated
             raise ValidationError(
-                f"Cannot change scorecard to {instance.original_scorecard.name}. You must create a new task.")
+                f"Cannot change scorecard to {instance.original_scorecard.name}. You must create a new task."
+            )
 
 
 @receiver(post_save, sender=NavigationTask)
@@ -2967,6 +3020,7 @@ def initialise_navigation_task_dependencies(sender, instance: NavigationTask, cr
             waypoint = instance.route.waypoints[0]  # type: Waypoint
             country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
         from display.map_plotter import country_code_to_map_source
+
         map_source = country_code_to_map_source(country_code)
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 
@@ -2990,10 +3044,10 @@ def clear_navigation_task_results_service_test(sender, instance: NavigationTask,
 @receiver(post_save, sender=Contestant)
 def create_tracker_in_traccar(sender, instance: Contestant, **kwargs):
     if (
-            instance.tracking_service == TRACCAR
-            and instance.tracker_device_id
-            and len(instance.tracker_device_id) > 0
-            and instance.tracking_device == TRACKING_DEVICE
+        instance.tracking_service == TRACCAR
+        and instance.tracker_device_id
+        and len(instance.tracker_device_id) > 0
+        and instance.tracking_device == TRACKING_DEVICE
     ):
         traccar = get_traccar_instance()
         traccar.get_or_create_device(instance.tracker_device_id, instance.tracker_device_id)
@@ -3038,9 +3092,9 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
         device, created = traccar.get_or_create_device(str(instance) + " simulator", instance.simulator_tracking_id)
         logger.debug(f"Traccar device {device} was created: {created}")
         if (
-                created
-                and simulator_original_tracking_id is not None
-                and simulator_original_tracking_id != instance.simulator_tracking_id
+            created
+            and simulator_original_tracking_id is not None
+            and simulator_original_tracking_id != instance.simulator_tracking_id
         ):
             original_device = traccar.get_device(simulator_original_tracking_id)
             if original_device is not None:
@@ -3091,11 +3145,12 @@ def create_random_password_for_user(sender, instance: MyUser, created: bool, **k
 def adjust_group_notifications(instance, action, reverse, model, pk_set, using, *args, **kwargs):
     if model == Group and not reverse:
         logger.info("User %s deleted their relation to groups «%s»", instance.username, pk_set)
-        if action == 'post_remove':
+        if action == "post_remove":
             pass
-        elif action == 'post_add':
-            logger.info("User %s created a relation to groups «%s»", instance.username,
-                        ", ".join([str(i) for i in pk_set]))
+        elif action == "post_add":
+            logger.info(
+                "User %s created a relation to groups «%s»", instance.username, ", ".join([str(i) for i in pk_set])
+            )
             group = Group.objects.filter(pk__in=pk_set, name="ContestCreator").first()
             if group:
                 person = Person.objects.filter(email=instance.email).first()

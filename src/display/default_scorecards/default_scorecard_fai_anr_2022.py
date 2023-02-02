@@ -1,4 +1,6 @@
 #
+import datetime
+
 from display.clone_object import simple_clone
 from display.models import (
     GateScore,
@@ -28,6 +30,7 @@ def get_default_scorecard():
         name="FAI ANR 2022",
         defaults={
             "shortcut_name": "FAI ANR",
+            "valid_from": datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc),
             "backtracking_penalty": 200,  # verified
             "backtracking_grace_time_seconds": 0,  # verified?
             "backtracking_maximum_penalty": 400,  # verified

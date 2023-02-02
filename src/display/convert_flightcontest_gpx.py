@@ -8,9 +8,16 @@ import pygeoif
 from django.core.exceptions import ValidationError
 from fastkml import kml, Placemark
 
-from display.coordinate_utilities import extend_line, calculate_distance_lat_lon, calculate_bearing, \
-    create_bisecting_line_between_segments_corridor_width_lonlat, create_perpendicular_line_at_end_lonlat, \
-    create_rounded_corridor_corner, bearing_difference, calculate_fractional_distance_point_lat_lon
+from display.coordinate_utilities import (
+    extend_line,
+    calculate_distance_lat_lon,
+    calculate_bearing,
+    create_bisecting_line_between_segments_corridor_width_lonlat,
+    create_perpendicular_line_at_end_lonlat,
+    create_rounded_corridor_corner,
+    bearing_difference,
+    calculate_fractional_distance_point_lat_lon,
+)
 from display.models import Route, is_procedure_turn, Scorecard, Prohibited, TURNPOINT, STARTINGPOINT, FINISHPOINT
 
 from display.waypoint import Waypoint
@@ -19,18 +26,18 @@ logger = logging.getLogger(__name__)
 
 
 def add_line(place_mark):
-    return [tuple(reversed(item[:2]))  for item in place_mark.geometry.coords]
+    return [tuple(reversed(item[:2])) for item in place_mark.geometry.coords]
 
 
 def add_polygon(place_mark):
-    return [tuple(reversed(item[:2]))  for item in place_mark.geometry.exterior.coords]
+    return [tuple(reversed(item[:2])) for item in place_mark.geometry.exterior.coords]
 
 
 def open_kmz(file):
     zip = ZipFile(file)
     for z in zip.filelist:
         print(z)
-        if z.filename[-4:] == '.kml':
+        if z.filename[-4:] == ".kml":
             fstring = zip.read(z)
             break
     else:
@@ -96,7 +103,7 @@ def parse_placemarks(document) -> List[Placemark]:
 def load_features_from_kml(input_kml) -> Dict:
     document = open_kml(input_kml)
     if type(document) == str:
-        document = document.encode('utf-8')
+        document = document.encode("utf-8")
     print(document)
     kml_document = kml.KML()
     kml_document.from_string(document)
@@ -119,7 +126,7 @@ def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
     """
     document = input_kml.read()
     if type(document) == str:
-        document = document.encode('utf-8')
+        document = document.encode("utf-8")
     # print(document)
     kml_document = kml.KML()
     kml_document.from_string(document)
@@ -166,8 +173,10 @@ def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
                 except KeyError:
                     waypoint = Waypoint(gate_name)
                     waypoint_map[gate_name] = waypoint
-                waypoint.gate_line = [(route.points[0].latitude, route.points[0].longitude),
-                                      (route.points[1].latitude, route.points[1].longitude)]
+                waypoint.gate_line = [
+                    (route.points[0].latitude, route.points[0].longitude),
+                    (route.points[1].latitude, route.points[1].longitude),
+                ]
                 waypoint.latitude = float(gate_extension.attrib["lat"])
                 waypoint.longitude = float(gate_extension.attrib["lon"])
                 waypoint.elevation = float(gate_extension.attrib["alt"])
@@ -194,16 +203,23 @@ def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
     calculate_and_update_legs(waypoints, use_procedure_turns)
     insert_gate_ranges(waypoints)
 
-    object = Route(name=route_name, waypoints=waypoints, takeoff_gates=takeoff_gates,
-                   landing_gates=landing_gates, use_procedure_turns=use_procedure_turns)
+    object = Route(
+        name=route_name,
+        waypoints=waypoints,
+        takeoff_gates=takeoff_gates,
+        landing_gates=landing_gates,
+        use_procedure_turns=use_procedure_turns,
+    )
     object.save()
     return object
 
 
-def calculate_extended_gate(waypoint: Waypoint, scorecard: "Scorecard") -> Tuple[
-    Tuple[float, float], Tuple[float, float]]:
-    return extend_line(waypoint.gate_line[0], waypoint.gate_line[1],
-                       scorecard.get_extended_gate_width_for_gate_type(waypoint.type))
+def calculate_extended_gate(
+    waypoint: Waypoint, scorecard: "Scorecard"
+) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    return extend_line(
+        waypoint.gate_line[0], waypoint.gate_line[1], scorecard.get_extended_gate_width_for_gate_type(waypoint.type)
+    )
 
 
 def build_waypoint(name, latitude, longitude, type, width, time_check, gate_check):
@@ -248,15 +264,17 @@ def create_precision_default_route_from_kml(input_kml) -> Route:
     positions = features.get("route", [])
     initial = []
     for index, position in enumerate(positions):
-        initial.append({
-            "name": f"TP {index}",
-            "type": TURNPOINT,
-            "latitude": position[0],
-            "longitude": position[1],
-            "width": 1,
-            "time_check": True,
-            "gate_check": True
-        })
+        initial.append(
+            {
+                "name": f"TP {index}",
+                "type": TURNPOINT,
+                "latitude": position[0],
+                "longitude": position[1],
+                "width": 1,
+                "time_check": True,
+                "gate_check": True,
+            }
+        )
     if len(positions) > 0:
         initial[0]["type"] = STARTINGPOINT
         initial[0]["name"] = "SP"
@@ -265,13 +283,22 @@ def create_precision_default_route_from_kml(input_kml) -> Route:
     return create_precision_route_from_formset("test", initial, True, input_kml=input_kml)
 
 
-def create_precision_route_from_formset(route_name, data: List, use_procedure_turns: bool,
-                                        input_kml: Optional = None) -> Route:
+def create_precision_route_from_formset(
+    route_name, data: List, use_procedure_turns: bool, input_kml: Optional = None
+) -> Route:
     waypoint_list = []
     for item in data:
         waypoint_list.append(
-            build_waypoint(item["name"], item["latitude"], item["longitude"], item["type"], item["width"],
-                           item["time_check"], item["gate_check"]))
+            build_waypoint(
+                item["name"],
+                item["latitude"],
+                item["longitude"],
+                item["type"],
+                item["width"],
+                item["time_check"],
+                item["gate_check"],
+            )
+        )
 
     route = create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
     if input_kml is not None:
@@ -288,8 +315,9 @@ def create_gate_from_line(gate_line, name: str, type: str) -> Waypoint:
     return waypoint
 
 
-def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_width: float,
-                                       rounded_corners: bool, first_and_last_gates: List = None) -> Route:
+def create_anr_corridor_route_from_kml(
+    route_name: str, input_kml, corridor_width: float, rounded_corners: bool, first_and_last_gates: List = None
+) -> Route:
     """
     Generate a route where only the first point and last points have gate and time checks. All other gates are secret
     without gate or tone checks.  Each gate has a width equal
@@ -302,15 +330,29 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
         raise ValidationError(f"There are not enough waypoints in the file ({len(points)} must be greater than 1)")
     for index, item in enumerate(points):
         waypoint_list.append(
-            build_waypoint(f"Waypoint {index}", item[0], item[1], "secret", corridor_width,
-                           False, False))
+            build_waypoint(f"Waypoint {index}", item[0], item[1], "secret", corridor_width, False, False)
+        )
     if first_and_last_gates is not None:
         gate = first_and_last_gates[0]
-        waypoint_list[0] = build_waypoint(gate["name"], gate["latitude"], gate["longitude"], "sp", gate["width"],
-                                          gate["time_check"], gate["gate_check"])
+        waypoint_list[0] = build_waypoint(
+            gate["name"],
+            gate["latitude"],
+            gate["longitude"],
+            "sp",
+            gate["width"],
+            gate["time_check"],
+            gate["gate_check"],
+        )
         gate = first_and_last_gates[-1]
-        waypoint_list[-1] = build_waypoint(gate["name"], gate["latitude"], gate["longitude"], "fp", gate["width"],
-                                           gate["time_check"], gate["gate_check"])
+        waypoint_list[-1] = build_waypoint(
+            gate["name"],
+            gate["latitude"],
+            gate["longitude"],
+            "fp",
+            gate["width"],
+            gate["time_check"],
+            gate["gate_check"],
+        )
     else:
         waypoint_list[0].name = "SP"
         waypoint_list[0].type = "sp"
@@ -322,8 +364,9 @@ def create_anr_corridor_route_from_kml(route_name: str, input_kml, corridor_widt
         waypoint_list[-1].gate_check = True
         waypoint_list[-1].time_check = True
     logger.debug(f"Created waypoints {waypoint_list}")
-    route = create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners,
-                                                         corridor_width=corridor_width)
+    route = create_anr_corridor_route_from_waypoint_list(
+        route_name, waypoint_list, rounded_corners, corridor_width=corridor_width
+    )
     extract_additional_features_from_kml_features(features, route)
     return route
 
@@ -371,51 +414,55 @@ def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_pro
     # First give everything a line according to the  drawn track
     gates = waypoint_list
     for index in range(len(gates) - 1):
-        if index < len(gates) - 2 and (
-                gates[index + 1].type == "isp"):
+        if index < len(gates) - 2 and (gates[index + 1].type == "isp"):
             # or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
-            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index + 2].longitude,
-                                                                                 gates[index + 2].latitude,
-                                                                                 gates[index + 1].longitude,
-                                                                                 gates[index + 1].latitude,
-                                                                                 gates[index + 1].width * 1852)
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(
+                gates[index + 2].longitude,
+                gates[index + 2].latitude,
+                gates[index + 1].longitude,
+                gates[index + 1].latitude,
+                gates[index + 1].width * 1852,
+            )
             gates[index + 1].gate_line.reverse()  # Reverse since created backwards
         else:
-            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
-                                                                                 gates[index].latitude,
-                                                                                 gates[index + 1].longitude,
-                                                                                 gates[index + 1].latitude,
-                                                                                 gates[index + 1].width * 1852)
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(
+                gates[index].longitude,
+                gates[index].latitude,
+                gates[index + 1].longitude,
+                gates[index + 1].latitude,
+                gates[index + 1].width * 1852,
+            )
         # Switch from longitude, Latitude tool attitude, longitude
         gates[index + 1].gate_line[0].reverse()
         gates[index + 1].gate_line[1].reverse()
     # Then correct the lines for the actual track
     gates = list(filter(lambda waypoint: waypoint.type != "dummy", waypoint_list))
     for index in range(len(gates) - 1):
-        if index < len(gates) - 2 and (
-                gates[index + 1].type == "isp"):
-                #or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
-            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index + 2].longitude,
-                                                                                 gates[index + 2].latitude,
-                                                                                 gates[index + 1].longitude,
-                                                                                 gates[index + 1].latitude,
-                                                                                 gates[index + 1].width * 1852)
+        if index < len(gates) - 2 and (gates[index + 1].type == "isp"):
+            # or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(
+                gates[index + 2].longitude,
+                gates[index + 2].latitude,
+                gates[index + 1].longitude,
+                gates[index + 1].latitude,
+                gates[index + 1].width * 1852,
+            )
             gates[index + 1].gate_line.reverse()  # Reverse since created backwards
         else:
-            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(gates[index].longitude,
-                                                                                 gates[index].latitude,
-                                                                                 gates[index + 1].longitude,
-                                                                                 gates[index + 1].latitude,
-                                                                                 gates[index + 1].width * 1852)
+            gates[index + 1].gate_line = create_perpendicular_line_at_end_lonlat(
+                gates[index].longitude,
+                gates[index].latitude,
+                gates[index + 1].longitude,
+                gates[index + 1].latitude,
+                gates[index + 1].width * 1852,
+            )
         # Switch from longitude, Latitude tool attitude, longitude
         gates[index + 1].gate_line[0].reverse()
         gates[index + 1].gate_line[1].reverse()
 
-    gates[0].gate_line = create_perpendicular_line_at_end_lonlat(gates[1].longitude,
-                                                                 gates[1].latitude,
-                                                                 gates[0].longitude,
-                                                                 gates[0].latitude,
-                                                                 gates[0].width * 1852)
+    gates[0].gate_line = create_perpendicular_line_at_end_lonlat(
+        gates[1].longitude, gates[1].latitude, gates[0].longitude, gates[0].latitude, gates[0].width * 1852
+    )
     gates[0].gate_line[0].reverse()
     gates[0].gate_line[1].reverse()
     # Reverse the line since we have created it in the wrong direction
@@ -444,8 +491,9 @@ def correct_gate_directions_to_the_right(waypoints: List[Waypoint]):
             waypoint.right_corridor_line = temp
 
 
-def create_bisecting_line_between_gates(previous_gate: Waypoint, current_gate: Waypoint, next_gate: Waypoint,
-                                        width_nm: float) -> List[Tuple[float, float]]:
+def create_bisecting_line_between_gates(
+    previous_gate: Waypoint, current_gate: Waypoint, next_gate: Waypoint, width_nm: float
+) -> List[Tuple[float, float]]:
     line = create_bisecting_line_between_segments_corridor_width_lonlat(
         previous_gate.longitude,
         previous_gate.latitude,
@@ -453,27 +501,28 @@ def create_bisecting_line_between_gates(previous_gate: Waypoint, current_gate: W
         current_gate.latitude,
         next_gate.longitude,
         next_gate.latitude,
-        width_nm * 1852)
+        width_nm * 1852,
+    )
     # Switch from longitude, latitude to latitude, longitude
     line[0].reverse()
     line[1].reverse()
     return line
 
 
-def create_perpendicular_line_at_end_gates(previous_gate: Waypoint, current_gate: Waypoint, width_nm: float) -> List[
-    Tuple[float, float]]:
-    line = create_perpendicular_line_at_end_lonlat(previous_gate.longitude,
-                                                   previous_gate.latitude,
-                                                   current_gate.longitude,
-                                                   current_gate.latitude,
-                                                   width_nm * 1852)
+def create_perpendicular_line_at_end_gates(
+    previous_gate: Waypoint, current_gate: Waypoint, width_nm: float
+) -> List[Tuple[float, float]]:
+    line = create_perpendicular_line_at_end_lonlat(
+        previous_gate.longitude, previous_gate.latitude, current_gate.longitude, current_gate.latitude, width_nm * 1852
+    )
     line[0].reverse()
     line[1].reverse()
     return line
 
 
-def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, rounded_corners: bool,
-                                                 corridor_width: float = None) -> Route:
+def create_anr_corridor_route_from_waypoint_list(
+    route_name, waypoint_list, rounded_corners: bool, corridor_width: float = None
+) -> Route:
     """
 
     :param route_name:
@@ -491,12 +540,16 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
 
     gates = waypoint_list
     for index in range(1, len(gates) - 1):
-        gates[index].gate_line = create_bisecting_line_between_gates(gates[index - 1], gates[index], gates[index + 1],
-                                                                     gates[index].width)
+        gates[index].gate_line = create_bisecting_line_between_gates(
+            gates[index - 1], gates[index], gates[index + 1], gates[index].width
+        )
         # Fix corridor line
-        corridor_line = create_bisecting_line_between_gates(gates[index - 1], gates[index], gates[index + 1],
-                                                            corridor_width if corridor_width is not None else gates[
-                                                                index].width)
+        corridor_line = create_bisecting_line_between_gates(
+            gates[index - 1],
+            gates[index],
+            gates[index + 1],
+            corridor_width if corridor_width is not None else gates[index].width,
+        )
         # If these are in the wrong order, it will be corrected in "correct_gate_directions_to_the_right"
         gates[index].left_corridor_line = [corridor_line[0]]
         gates[index].right_corridor_line = [corridor_line[1]]
@@ -509,16 +562,16 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
 
     # Fix the corridor line
     # start
-    start_corridor_line = create_perpendicular_line_at_end_gates(gates[1], gates[0],
-                                                                 corridor_width if corridor_width is not None else
-                                                                 gates[0].width)
+    start_corridor_line = create_perpendicular_line_at_end_gates(
+        gates[1], gates[0], corridor_width if corridor_width is not None else gates[0].width
+    )
     start_corridor_line.reverse()
     gates[0].left_corridor_line = [start_corridor_line[0]]
     gates[0].right_corridor_line = [start_corridor_line[1]]
     # finish
-    finish_corridor_line = create_perpendicular_line_at_end_gates(gates[-2], gates[-1],
-                                                                  corridor_width if corridor_width is not None else
-                                                                  gates[-1].width)
+    finish_corridor_line = create_perpendicular_line_at_end_gates(
+        gates[-2], gates[-1], corridor_width if corridor_width is not None else gates[-1].width
+    )
     gates[-1].left_corridor_line = [finish_corridor_line[0]]
     gates[-1].right_corridor_line = [finish_corridor_line[1]]
 
@@ -534,8 +587,13 @@ def create_anr_corridor_route_from_waypoint_list(route_name, waypoint_list, roun
             # Backup original gate
             waypoint.original_gate_line = waypoint.gate_line
             turn_degrees = bearing_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
-            waypoint.left_corridor_line, waypoint.right_corridor_line, waypoint.gate_line = create_rounded_corridor_corner(
-                waypoint.gate_line, corridor_width if corridor_width is not None else waypoint.width, turn_degrees)
+            (
+                waypoint.left_corridor_line,
+                waypoint.right_corridor_line,
+                waypoint.gate_line,
+            ) = create_rounded_corridor_corner(
+                waypoint.gate_line, corridor_width if corridor_width is not None else waypoint.width, turn_degrees
+            )
 
         # correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
@@ -552,27 +610,29 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
     for index in range(0, len(gates) - 1):
         current_gate = gates[index]
         next_gate = gates[index + 1]
-        current_gate.distance_next = calculate_distance_lat_lon((current_gate.latitude, current_gate.longitude),
-                                                                (next_gate.latitude, next_gate.longitude))
-        current_gate.bearing_next = calculate_bearing((current_gate.latitude, current_gate.longitude),
-                                                      (next_gate.latitude, next_gate.longitude))
+        current_gate.distance_next = calculate_distance_lat_lon(
+            (current_gate.latitude, current_gate.longitude), (next_gate.latitude, next_gate.longitude)
+        )
+        current_gate.bearing_next = calculate_bearing(
+            (current_gate.latitude, current_gate.longitude), (next_gate.latitude, next_gate.longitude)
+        )
     for index in range(1, len(gates)):
         current_gate = gates[index]
         previous_gate = gates[index - 1]
-        current_gate.distance_previous = calculate_distance_lat_lon((current_gate.latitude, current_gate.longitude),
-                                                                    (previous_gate.latitude, previous_gate.longitude))
-        current_gate.bearing_from_previous = calculate_bearing((previous_gate.latitude, previous_gate.longitude),
-                                                               (current_gate.latitude, current_gate.longitude))
+        current_gate.distance_previous = calculate_distance_lat_lon(
+            (current_gate.latitude, current_gate.longitude), (previous_gate.latitude, previous_gate.longitude)
+        )
+        current_gate.bearing_from_previous = calculate_bearing(
+            (previous_gate.latitude, previous_gate.longitude), (current_gate.latitude, current_gate.longitude)
+        )
         for index in range(0, len(gates) - 1):
             current_gate = gates[index]
             next_gate = gates[index + 1]
             if next_gate.type in ("fp", "ifp", "sp", "isp", "ldg", "ildg"):
                 continue
             if use_procedure_turns:
-                next_gate.is_procedure_turn = is_procedure_turn(current_gate.bearing_next,
-                                                                next_gate.bearing_next)
-            next_gate.is_steep_turn = is_procedure_turn(current_gate.bearing_next,
-                                                        next_gate.bearing_next)
+                next_gate.is_procedure_turn = is_procedure_turn(current_gate.bearing_next, next_gate.bearing_next)
+            next_gate.is_steep_turn = is_procedure_turn(current_gate.bearing_next, next_gate.bearing_next)
 
 
 def correct_distance_and_bearing_for_rounded_corridor(waypoints: List[Waypoint]):
@@ -600,8 +660,7 @@ def correct_distance_and_bearing_for_rounded_corridor(waypoints: List[Waypoint])
             distance += calculate_distance_lat_lon(next_gate[track_index], next_gate[track_index + 1])
 
         waypoints[index].distance_next = distance
-        waypoints[index].bearing_next = calculate_bearing(current_gate[-1],
-                                                          next_gate[0])
+        waypoints[index].bearing_next = calculate_bearing(current_gate[-1], next_gate[0])
     for index in range(1, len(waypoints)):
         current_gate = waypoints[index]
         previous_gate = waypoints[index - 1]
@@ -614,8 +673,8 @@ def get_distance_to_other_gates(gate: Waypoint, waypoints: List[Waypoint]) -> Di
     for current_gate in waypoints:
         if gate.name != current_gate.name:
             distances[current_gate.name] = calculate_distance_lat_lon(
-                (gate.latitude, gate.longitude),
-                (current_gate.latitude, current_gate.longitude))
+                (gate.latitude, gate.longitude), (current_gate.latitude, current_gate.longitude)
+            )
     return distances
 
 

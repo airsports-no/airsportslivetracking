@@ -1,4 +1,6 @@
 #
+import datetime
+
 from display.clone_object import simple_clone
 from display.models import (
     GateScore,
@@ -20,6 +22,7 @@ def get_default_scorecard():
         name="Pilot Poker Run",
         defaults={
             "shortcut_name": "Pilot Poker Run",
+            "valid_from": datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc),
             "backtracking_penalty": 0,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": False,

@@ -2355,7 +2355,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
 
     def create_route(self) -> Route:
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
-        scorecard = Scorecard.objects.filter(task_type__contains=task_type).first()
+        scorecard = Scorecard.objects.filter(task_type__contains=task_type).order_by("-valid_from").first()
         route = None
         if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
             use_procedure_turns = scorecard.use_procedure_turns

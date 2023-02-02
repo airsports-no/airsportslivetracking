@@ -1,4 +1,6 @@
 #
+import datetime
+
 from display.clone_object import simple_clone
 from display.models import (
     GateScore,
@@ -18,6 +20,7 @@ def get_default_scorecard():
         name="NLF Precision 2020",
         defaults={
             "shortcut_name": "NLF Precision",
+            "valid_from": datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc),
             "backtracking_penalty": 200,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": True,
