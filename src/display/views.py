@@ -2215,7 +2215,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
 
 
     def get_form(self, step=None, data=None, files=None):
-        form = self.get_form(step, data, files)
+        form = super().get_form(step, data, files)
         if step == "waypoint_definition":
             print(len(form))
         if step in (

@@ -26,3 +26,5 @@ data:
   K8S_API: {{ .Values.k8sApi }}
 
   TRACCAR_USERNAME: {{ .Values.traccarUsername }}
+  OPEN_SKY_USERNAME: {{ .Values.openskyUsername }}
+
