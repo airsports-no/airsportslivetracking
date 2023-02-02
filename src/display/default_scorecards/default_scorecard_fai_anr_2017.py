@@ -86,6 +86,7 @@ def get_default_scorecard():
         defaults={
             "extended_gate_width": 0,
             "bad_crossing_extended_gate_penalty": 0,
+            "graceperiod_before": 0,  # verified
             "graceperiod_after": 60,  # verified
             "maximum_penalty": 200,  # verified
             "backtracking_after_steep_gate_grace_period_seconds": 0,
