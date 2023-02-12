@@ -54,6 +54,7 @@
     "moment": "^2.29.4",
     "moment-duration-format": "^2.3.2",
     "net": "^1.0.2",
+    "qs": "^6.11.0",
     "react": "^16.14.0",
     "react-app-polyfill": "^3.0.0",
     "react-autocomplete-input": "^1.0.19",

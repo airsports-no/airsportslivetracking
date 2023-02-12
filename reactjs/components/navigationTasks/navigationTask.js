@@ -173,7 +173,8 @@ class ConnectedNavigationTask extends Component {
             let data = JSON.parse(message.data);
             if (data.type === "current_time") {
                 this.props.dispatchCurrentTime(data.data)
-            } else if (data.type === "contestant") {
+            } else if (data.type === "contestant" && this.props.contestantIds.length===0) {
+                // Do not add new contestants if we are filtering contestant IDs
                 this.props.dispatchNewContestant(JSON.parse(data.data))
             } else if (data.type === "contestant_delete") {
                 this.props.dispatchDeleteContestant(JSON.parse(data.data))

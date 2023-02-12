@@ -20,6 +20,7 @@ import AboutTaskPopup from "./aboutTaskPopup";
 import TimeDisplay from "./timeDisplay";
 import {Link} from "react-router-dom";
 import Navbar from "./navbar";
+import qs from "qs";
 
 // import "leaflet/dist/leaflet.css"
 
@@ -48,6 +49,7 @@ class ConnectedTrackingContainer extends Component {
         this.playback = document.configuration.playback;
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
         this.state = {height: window.innerHeight, width: window.innerWidth}
+        this.contestantIds = []
         window.addEventListener("resize", () => this.setState({height: window.innerHeight, width: window.innerWidth}))
     }
 
@@ -57,10 +59,15 @@ class ConnectedTrackingContainer extends Component {
     };
 
     fetchNavigationTask() {
-        this.props.fetchNavigationTask(this.contestId, this.navigationTaskId);
+        this.props.fetchNavigationTask(this.contestId, this.navigationTaskId, this.contestantIds);
     }
 
     componentDidMount() {
+        const search = qs.parse(this.props.location.search, {ignoreQueryPrefix: true})
+        if (search["contestantIds"] !== undefined) {
+            this.contestantIds = search["contestantIds"].split(",").filter(x => x.trim().length && !isNaN(x)).map(Number)
+        }
+
         this.fetchNavigationTask()
         this.props.fetchMyParticipatingContests()
     }
@@ -103,7 +110,8 @@ class ConnectedTrackingContainer extends Component {
         let TrackerDisplay = <NavigationTask map={this.map} contestId={this.contestId}
                                              navigationTaskId={this.navigationTaskId}
                                              fetchInterval={2000}
-                                             displayMap={this.displayMap} displayTable={true} playback={this.playback}/>
+                                             displayMap={this.displayMap} displayTable={true} playback={this.playback}
+                                             contestantIds={this.contestantIds}/>
         const currentParticipation = this.getCurrentParticipation()
         if (this.displayTable && this.displayMap) {
             return (

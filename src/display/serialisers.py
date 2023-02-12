@@ -45,7 +45,8 @@ from display.models import (
     PlayingCard,
     TrackAnnotation,
     ScoreLogEntry,
-    GateCumulativeScore, EditableRoute,
+    GateCumulativeScore,
+    EditableRoute,
 )
 from display.waypoint import Waypoint
 
@@ -270,8 +271,8 @@ class ContestParticipationSerialiser(ContestSerialiser):
             NavigationTask.objects.filter(
                 Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
             )
-                .filter(contest_id=contest.pk)
-                .filter(allow_self_management=True)
+            .filter(contest_id=contest.pk)
+            .filter(allow_self_management=True)
         )
         serialiser = NavigationTasksSummaryParticipationSerialiser(
             items, many=True, read_only=True, context={"request": self.context["request"]}
@@ -321,8 +322,14 @@ class WaypointSerialiser(serializers.Serializer):
         help_text="The distance at which we enter the gate vicinity", read_only=True, required=False
     )
 
-    left_corridor_line = serializers.JSONField(required=False, help_text="A list of (lat,lon) values that define the left edge of the corridor at this waypoint (can be a single point or multiple points e.g. for a curved corridor)")
-    right_corridor_line = serializers.JSONField(required=False, help_text="A list of (lat,lon) values that define the left edge of the corridor at this waypoint (can be a single point or multiple points e.g. for a curved corridor)")
+    left_corridor_line = serializers.JSONField(
+        required=False,
+        help_text="A list of (lat,lon) values that define the left edge of the corridor at this waypoint (can be a single point or multiple points e.g. for a curved corridor)",
+    )
+    right_corridor_line = serializers.JSONField(
+        required=False,
+        help_text="A list of (lat,lon) values that define the left edge of the corridor at this waypoint (can be a single point or multiple points e.g. for a curved corridor)",
+    )
     outer_corner_position = serializers.JSONField(required=False)
 
 
@@ -662,9 +669,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
                   "values are $date-time strings (with time zone). Missing values will be populated from internal "
                   "calculations.",
-        required=False
+        required=False,
     )
     scorecard_rules = serializers.JSONField(help_text="Dictionary with all rules", read_only=True)
+    tracker_id_display = serializers.JSONField(help_text="", read_only=True)
     default_map_url = SerializerMethodField("get_default_map_url")
 
     def get_default_map_url(self, contestant):
@@ -719,11 +727,17 @@ class OngoingNavigationSerialiser(serializers.ModelSerializer):
 
     def get_active_contestants(self, navigation_task):
         future_contestants = navigation_task.contestant_set.filter(
-            contestanttrack__calculator_started=True,
-            contestanttrack__calculator_finished=False
+            contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False
         )
         serialiser = ContestantSerialiser(future_contestants, many=True, read_only=True)
         return serialiser.data
+
+
+class FilteredContestantNestedTeamSerialiser(serializers.ListSerializer):
+    def to_representation(self, data):
+        if selected_contestants := self.context.get("selected_contestants"):
+            data = data.filter(pk__in=selected_contestants)
+        return super().to_representation(data)
 
 
 class ContestantNestedTeamSerialiser(ContestantSerialiser):
@@ -736,6 +750,7 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
 
     class Meta:
         model = Contestant
+        list_serializer_class = FilteredContestantNestedTeamSerialiser
         exclude = ("navigation_task", "predefined_gate_times")
 
     def create(self, validated_data):
@@ -800,9 +815,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         assign_perm("view_route", user, route)
         assign_perm("delete_route", user, route)
         assign_perm("change_route", user, route)
-        navigation_task = NavigationTask.create(
-            **validated_data, route=route
-        )
+        navigation_task = NavigationTask.create(**validated_data, route=route)
         for contestant_data in contestant_set:
             contestant_serialiser = ContestantNestedTeamSerialiser(
                 data=contestant_data, context={"navigation_task": navigation_task}
@@ -847,7 +860,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             try:
                 route = create_precision_route_from_gpx(
                     base64.decodebytes(route_file.encode("utf-8")),
-                    validated_data["original_scorecard"].use_procedure_turns
+                    validated_data["original_scorecard"].use_procedure_turns,
                 )
             except Exception as e:
                 raise ValidationError("Failed building route from provided GPX: {}".format(e))
@@ -942,7 +955,7 @@ class TaskNestedSerialiser(serializers.ModelSerializer):
 
 
 # Details entry
-class ContestResultsDetailsSerialiser(CountryFieldMixin,serializers.ModelSerializer):
+class ContestResultsDetailsSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     contestsummary_set = ContestSummaryNestedSerialiser(many=True)
     task_set = TaskNestedSerialiser(many=True)
     time_zone = TimeZoneSerializerField(required=True)

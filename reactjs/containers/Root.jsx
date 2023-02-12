@@ -4,7 +4,8 @@ import React from "react";
 import {render} from "react-dom";
 import {Provider} from "react-redux";
 import store from "../store/index";
-import TrackingContainer from "../components/trackingContainer";
+import {BrowserRouter, Redirect, Route, withRouter} from "react-router-dom";
+import Router from "../config/NavigationTaskRouter";
 // import * as Sentry from "@sentry/react";
 
 // Sentry.init({
@@ -17,7 +18,14 @@ import TrackingContainer from "../components/trackingContainer";
 // });
 render(
     <Provider store={store}>
-        <TrackingContainer/>
+                <BrowserRouter>
+            <main>
+                <Route path="/:url*" exact strict render={({location}) => <Redirect to={`${location.pathname}/`}/>}
+                    // Redirect to trailing slash to avoid URL problems in children
+                />
+                <Route path="*" component={withRouter(Router)}/>
+            </main>
+        </BrowserRouter>
     </Provider>,
     document.getElementById("root")
 );

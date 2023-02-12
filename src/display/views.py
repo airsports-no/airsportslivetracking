@@ -1095,12 +1095,12 @@ def get_navigation_task_map(request, pk):
                 pdf = embed_map_in_pdf(
                     "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
                     map_image.read(),
-                    10*A4_WIDTH - 2 * margin
+                    10 * A4_WIDTH - 2 * margin
                     if form.cleaned_data["size"]
-                    else 10*A3_WIDTH - 2 * margin,
-                    10*A4_HEIGHT - 2 * margin
+                    else 10 * A3_WIDTH - 2 * margin,
+                    10 * A4_HEIGHT - 2 * margin
                     if form.cleaned_data["size"] == A4
-                    else 10*A3_HEIGHT - 2 * margin,
+                    else 10 * A3_HEIGHT - 2 * margin,
                     form.cleaned_data["orientation"] == LANDSCAPE,
                 )
 
@@ -1133,8 +1133,8 @@ def upload_gpx_track_for_contesant(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
         if (
-            not contestant.contestanttrack.calculator_finished
-            and contestant.contestanttrack.calculator_started
+                not contestant.contestanttrack.calculator_finished
+                and contestant.contestanttrack.calculator_started
         ):
             messages.error(
                 request,
@@ -1212,8 +1212,8 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
         if (
-            not contestant.contestanttrack.calculator_finished
-            and contestant.contestanttrack.calculator_started
+                not contestant.contestanttrack.calculator_finished
+                and contestant.contestanttrack.calculator_started
         ):
             messages.error(
                 request,
@@ -1361,6 +1361,10 @@ def restart_contestant_calculator(request, pk):
     "display.view_contest", (Contest, "navigationtask__pk", "pk")
 )
 def get_running_calculators(request, pk):
+    """
+    Returns a list of (contestant_id, boolean) tuples where the boolean indicates whether a calculator is currently
+    running for the contestant.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     status_list = []
     for contestant in navigation_task.contestant_set.all():
@@ -1758,8 +1762,8 @@ def add_contest_teams_to_navigation_task(request, pk):
         [
             (item, str(item), False)
             for item in navigation_task.contest.contestteam_set.exclude(
-                pk__in=used_contest_teams
-            )
+            pk__in=used_contest_teams
+        )
         ]
     )
     # initial = navigation_task.contest.contestteam_set.filter(
@@ -1879,7 +1883,7 @@ def navigation_task_view_detailed_score(request, pk):
     scorecard_form.free_text = navigation_task.scorecard.free_text
     gate_score_forms = []
     for gate_score in navigation_task.scorecard.gatescore_set.all().order_by(
-        "gate_type"
+            "gate_type"
     ):
         if len(gate_score.visible_fields) > 0:
             form = GateScoreForm(instance=gate_score)
@@ -1959,10 +1963,10 @@ def show_route_definition_step(wizard):
     else:
         cleaned_data = {}
     return (
-        not cleaned_data.get("internal_route")
-        and (cleaned_data.get("file_type") == FILE_TYPE_KML or show_anr_path(wizard))
-        and wizard.get_cleaned_data_for_step("task_type").get("task_type")
-        in (NavigationTask.PRECISION, NavigationTask.POKER, NavigationTask.ANR_CORRIDOR)
+            not cleaned_data.get("internal_route")
+            and (cleaned_data.get("file_type") == FILE_TYPE_KML or show_anr_path(wizard))
+            and wizard.get_cleaned_data_for_step("task_type").get("task_type")
+            in (NavigationTask.PRECISION, NavigationTask.POKER, NavigationTask.ANR_CORRIDOR)
     )
 
 
@@ -1989,6 +1993,7 @@ def show_landing_path(wizard):
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
         NavigationTask.LANDING,
     )
+
 
 class SessionWizardOverrideView(SessionWizardView):
     #### Hack to avoid get_form_list() which leads to recursion error with conditional steps.
@@ -2021,7 +2026,6 @@ class SessionWizardOverrideView(SessionWizardView):
             # and not previous set.
             kwargs.setdefault('queryset', self.get_form_instance(step))
         return form_class(**kwargs)
-
 
 
 class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideView):
@@ -2168,7 +2172,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
 
     def done(self, form_list, **kwargs):
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
-        scorecard=self.get_cleaned_data_for_step("task_content")["original_scorecard"]
+        scorecard = self.get_cleaned_data_for_step("task_content")["original_scorecard"]
         route, ediable_route = self.create_route(scorecard)
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.create(
@@ -2202,8 +2206,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             useful_cards = []
             for scorecard in Scorecard.get_originals():
                 if (
-                    self.get_cleaned_data_for_step("task_type")["task_type"]
-                    in scorecard.task_type
+                        self.get_cleaned_data_for_step("task_type")["task_type"]
+                        in scorecard.task_type
                 ):
                     useful_cards.append(scorecard.pk)
             form.fields[
@@ -2214,15 +2218,14 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             )
         return context
 
-
     def get_form(self, step=None, data=None, files=None):
         form = super().get_form(step, data, files)
         if step == "waypoint_definition":
             print(len(form))
         if step in (
-            "anr_route_import",
-            "precision_route_import",
-            "landing_route_import",
+                "anr_route_import",
+                "precision_route_import",
+                "landing_route_import",
         ):
             form.fields["internal_route"].queryset = get_objects_for_user(
                 self.request.user,
@@ -2450,8 +2453,8 @@ def create_new_pilot(wizard):
 def create_new_copilot(wizard):
     cleaned = wizard.get_post_data_for_step("member2search") or {}
     return (
-        cleaned.get("use_existing_copilot") is None
-        and cleaned.get("skip_copilot") is None
+            cleaned.get("use_existing_copilot") is None
+            and cleaned.get("skip_copilot") is None
     )
 
 
@@ -2761,7 +2764,7 @@ class UserPersonViewSet(GenericViewSet):
             defaults={
                 "first_name": self.request.user.first_name
                 if self.request.user.first_name
-                and len(self.request.user.first_name) > 0
+                   and len(self.request.user.first_name) > 0
                 else "",
                 "last_name": self.request.user.last_name
                 if self.request.user.last_name and len(self.request.user.last_name) > 0
@@ -2935,13 +2938,13 @@ class ContestViewSet(ModelViewSet):
 
     def get_queryset(self):
         return (
-            get_objects_for_user(
-                self.request.user,
-                "display.view_contest",
-                klass=self.queryset,
-                accept_global_perms=False,
-            )
-            | self.queryset.filter(is_public=True, is_featured=True)
+                get_objects_for_user(
+                    self.request.user,
+                    "display.view_contest",
+                    klass=self.queryset,
+                    accept_global_perms=False,
+                )
+                | self.queryset.filter(is_public=True, is_featured=True)
         )
 
     @action(detail=True, methods=["get"])
@@ -3198,6 +3201,7 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
+        context["selected_contestants"] = self.request.GET.get("contestantIds", "").split(",")
         try:
             context.update(
                 {
@@ -3262,8 +3266,8 @@ class NavigationTaskViewSet(ModelViewSet):
             permissions.IsAuthenticated
             & NavigationTaskSelfManagementPermissions
             & (
-                NavigationTaskPublicPutDeletePermissions
-                | NavigationTaskContestPermissions
+                    NavigationTaskPublicPutDeletePermissions
+                    | NavigationTaskContestPermissions
             )
         ],
     )
@@ -3288,7 +3292,7 @@ class NavigationTaskViewSet(ModelViewSet):
             existing_contestants = navigation_task.contestant_set.all()
             if existing_contestants.exists():
                 contestant_number = (
-                    max([item.contestant_number for item in existing_contestants]) + 1
+                        max([item.contestant_number for item in existing_contestants]) + 1
                 )
             else:
                 contestant_number = 1
@@ -3304,8 +3308,8 @@ class NavigationTaskViewSet(ModelViewSet):
                 tracker_start_time=tracker_start_time,
                 adaptive_start=adaptive_start,
                 finished_by_time=tracker_start_time
-                + datetime.timedelta(days=1)
-                - datetime.timedelta(minutes=1),
+                                 + datetime.timedelta(days=1)
+                                 - datetime.timedelta(minutes=1),
                 minutes_to_starting_point=navigation_task.minutes_to_starting_point,
                 air_speed=contest_team.air_speed,
                 contestant_number=contestant_number,
@@ -3319,13 +3323,13 @@ class NavigationTaskViewSet(ModelViewSet):
             if adaptive_start:
                 # Properly account for how final time is created when adaptive start is active
                 final_time = (
-                    starting_point_time
-                    + datetime.timedelta(hours=1)
-                    + datetime.timedelta(
-                        hours=final_time.hour,
-                        minutes=final_time.minute,
-                        seconds=final_time.second,
-                    )
+                        starting_point_time
+                        + datetime.timedelta(hours=1)
+                        + datetime.timedelta(
+                    hours=final_time.hour,
+                    minutes=final_time.minute,
+                    seconds=final_time.second,
+                )
                 )
             logger.debug(f"Take-off time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")
@@ -3356,8 +3360,8 @@ class NavigationTaskViewSet(ModelViewSet):
             ).delete()
             # Terminate ongoing contestants where the time has passed the takeoff time
             for c in my_contestants.filter(
-                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
-                contestanttrack__calculator_started=True,
+                    finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+                    contestanttrack__calculator_started=True,
             ):
                 # We know the takeoff time is in the past, so we can freely set it to now.
                 c.finished_by_time = datetime.datetime.now(datetime.timezone.utc)

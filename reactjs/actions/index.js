@@ -126,9 +126,13 @@ export function toggleDangerLevel() {
 }
 
 
-export const fetchNavigationTask = (contestId, navigationTaskId) => (dispatch) => {
+export const fetchNavigationTask = (contestId, navigationTaskId, contestantIds) => (dispatch) => {
+    let url="/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/"
+    if(contestantIds.length>0){
+        url+="?contestantIds="+contestantIds.join(",")
+    }
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/",
+        url: url,
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_NAVIGATION_TASK_SUCCESSFUL, payload: value}),
