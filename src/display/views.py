@@ -3201,7 +3201,8 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context["selected_contestants"] = self.request.GET.get("contestantIds", "").split(",")
+        context["selected_contestants"] = [item for item in self.request.GET.get("contestantIds", "").split(",") if
+                                           len(item) > 0]
         try:
             context.update(
                 {

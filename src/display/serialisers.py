@@ -736,7 +736,9 @@ class OngoingNavigationSerialiser(serializers.ModelSerializer):
 class FilteredContestantNestedTeamSerialiser(serializers.ListSerializer):
     def to_representation(self, data):
         if selected_contestants := self.context.get("selected_contestants"):
-            data = data.filter(pk__in=selected_contestants)
+            logger.debug(f"Filtering contestants {selected_contestants}")
+            if len(selected_contestants) > 0:
+                data = data.filter(pk__in=selected_contestants)
         return super().to_representation(data)
 
 
