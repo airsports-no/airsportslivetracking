@@ -64,6 +64,9 @@ def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> 
         contestant, is_simulator = Contestant.get_contestant_for_device_at_time(device_name, device_time)
         if contestant:
             logger.info(f"Found contestant for incoming position {contestant}{' (simulator)' if is_simulator else ''}")
+            if is_simulator and not contestant.has_been_tracked_by_simulator:
+                contestant.has_been_tracked_by_simulator = True
+                contestant.save(update_fields=("has_been_tracked_by_simulator",))
 
         contestant_cache[device_name] = (
             contestant,
@@ -147,7 +150,8 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
                     logger.info(f"Successfully created calculator job for {contestant}")
                 except AlreadyExists:
                     logger.warning(
-                        f"Tried to start existing calculator job for contestant {contestant}. Attempting to restart.")
+                        f"Tried to start existing calculator job for contestant {contestant}. Attempting to restart."
+                    )
                     try:
                         creator.delete_calculator(contestant.pk)
                     except:
@@ -157,14 +161,16 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
                         calculator_is_alive(contestant.pk, 30)
                         logger.info(f"Successfully created calculator job for {contestant}")
                     except AlreadyExists:
-                        logger.warning(
-                            f"Tried to start existing calculator job for contestant {contestant}. Ignoring.")
+                        logger.warning(f"Tried to start existing calculator job for contestant {contestant}. Ignoring.")
                 except:
                     logger.exception(f"Failed starting kubernetes calculator job for {contestant}")
                     try:
-                        send_mail("Failed starting kubernetes calculator job",
-                                  f"Failed starting job for contestant {contestant}. Falling back to internal calculator.",
-                                  None, ["frankose@ifi.uio.no"])
+                        send_mail(
+                            "Failed starting kubernetes calculator job",
+                            f"Failed starting job for contestant {contestant}. Falling back to internal calculator.",
+                            None,
+                            ["frankose@ifi.uio.no"],
+                        )
                     except:
                         logger.exception("Failed sending error email")
                     # Create an internal process for the calculator

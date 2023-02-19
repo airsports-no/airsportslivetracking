@@ -1323,6 +1323,10 @@ class Contestant(models.Model):
         validators=[MaxValueValidator(360), MinValueValidator(0)],
     )
     annotation_index = models.IntegerField(default=0, help_text="Internal housekeeping for annotation transmission")
+    has_been_tracked_by_simulator = models.BooleanField(
+        default=False,
+        help_text="Is true if any positions for the contestant has been received from the simulator tracking ID",
+    )
 
     class Meta:
         unique_together = ("navigation_task", "contestant_number")

@@ -99,7 +99,7 @@ export function compareContestantNumber(a, b) {
 
 export function contestantShortForm(contestant) {
     // return pz(contestant.contestant_number, 2) + " " + (contestant.team.crew ? contestant.team.crew.pilot : "Unknown")
-    return contestant.team.crew ? contestant.team.crew.member1.first_name : "Unknown"
+    return (contestant.team.crew ? contestant.team.crew.member1.first_name : "Unknown") + contestant.has_been_tracked_by_simulator ? " (sim)" : ""
 }
 
 export function ordinal_suffix_of(i) {
