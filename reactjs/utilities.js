@@ -129,10 +129,10 @@ export function contestantTwoLines(contestant) {
 
 }
 
-export function teamRankingTable(team) {
+export function teamRankingTable(team, sim = false) {
     let string = ""
     if (team.crew) {
-        string = team.crew.member1.first_name + " " + team.crew.member1.last_name
+        string = (sim?"*":"")+team.crew.member1.first_name + " " + team.crew.member1.last_name
         if (team.crew.member2) {
             string += "\n" + team.crew.member2.first_name + " " + team.crew.member2.last_name
         }

@@ -69,7 +69,7 @@ class ConnectedContestantRankTable extends Component {
                 dataField: "colour",
                 text: "",
                 style: this.numberStyle,
-                headerStyle:{width:'20px'}
+                headerStyle: {width: '20px'}
             },
             {
                 dataField: "rank",
@@ -80,7 +80,7 @@ class ConnectedContestantRankTable extends Component {
                 //     }
                 // },
                 classes: "align-middle",
-                headerStyle:{width:'50px'},
+                headerStyle: {width: '50px'},
                 sort: false,
                 formatter: (cell, row, rowIndex) => {
                     return <span>{rowIndex + 1}</span>
@@ -102,7 +102,8 @@ class ConnectedContestantRankTable extends Component {
                 sort: false,
                 classes: "align-middle crew-name",
                 formatter: (cell, row) => {
-                    return <div className={"align-middle crew-name"}>{teamRankingTable(row.contestant.team)}</div>
+                    return <div
+                        className={"align-middle crew-name"}>{teamRankingTable(row.contestant.team, row.contestant.has_been_tracked_by_simulator)}</div>
                 }
             },
             {
@@ -329,7 +330,7 @@ class ConnectedContestantRankTable extends Component {
 
     }
 
-    debouncedBuildData(){
+    debouncedBuildData() {
         return this.buildData()
         // return debounce(this.buildData(), 500)
     }

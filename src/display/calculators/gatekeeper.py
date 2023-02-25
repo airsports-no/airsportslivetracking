@@ -93,6 +93,7 @@ class Gatekeeper(ABC):
         self.calculators = []
         self.websocket_facade = WebsocketFacade()
         self.timed_queue = TimedQueue()
+        self.finished_loading_initial_positions = threading.Event()  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
         post_slack_message(str(self.contestant.navigation_task),
                            f"Calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>")
         logger.debug(f"{self.contestant}: Starting calculators")
@@ -182,12 +183,12 @@ class Gatekeeper(ABC):
             try:
                 # Select the longest track
                 positions_to_use = sorted(device_positions.values(), key=lambda k: len(k), reverse=True)[0]
-                logger.info(f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator")
+                logger.info(
+                    f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator")
                 for position in positions_to_use:
                     self.timed_queue.put(position, datetime.datetime.now(datetime.timezone.utc))
             except IndexError:
                 pass
-
         receiving = False
         while not self.track_terminated:
             try:
@@ -197,11 +198,13 @@ class Gatekeeper(ABC):
                         minutes=self.contestant.navigation_task.calculation_delay_minutes)
                     if not receiving:
                         logger.info(f"{self.contestant}: Started receiving data")
-                        receiving = True
                 else:
                     logger.info(f"{self.contestant}: Delayed position queuer received None")
                     release_time = datetime.datetime.now(datetime.timezone.utc)
                 self.timed_queue.put(position_data, release_time)
+                if not receiving:
+                    self.finished_loading_initial_positions.set()
+                    receiving = True
             except RedisEmpty:
                 self.check_termination()
 
@@ -217,6 +220,8 @@ class Gatekeeper(ABC):
         threading.Thread(target=self.enqueue_positions, daemon=True).start()
         receiving = False
         number_of_positions = 0
+        # Wait while the thread loads outstanding positions.
+        self.finished_loading_initial_positions.wait()
         while not self.track_terminated:
             calculator_is_alive(self.contestant.pk, 30)
             now = datetime.datetime.now(datetime.timezone.utc)
