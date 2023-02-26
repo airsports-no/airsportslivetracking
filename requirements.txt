@@ -72,3 +72,4 @@ coverage
 pep8
 pykalman
 pylatex
+crispy-bootstrap4

@@ -109,6 +109,7 @@ INSTALLED_APPS = [
     "firebase.apps.FirebaseConfig",
     "multiselectfield",
     'storages',
+    "crispy_bootstrap4"
 ]
 if os.environ.get("MODE") != "dev":
     INSTALLED_APPS.append("drf_firebase_auth")
