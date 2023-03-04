@@ -1519,6 +1519,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return calculate_ground_speed_combined(bearing, self.air_speed, self.wind_speed, self.wind_direction)
 
     def clean(self):
+        if not isinstance(self.tracker_start_time, datetime.datetime):
+            raise ValidationError("Malformed tracker start time")
+        if not isinstance(self.takeoff_time, datetime.datetime):
+            raise ValidationError("Malformed takeoff time")
+        if not isinstance(self.finished_by_time, datetime.datetime):
+            raise ValidationError("Malformed finished by time")
         if self.tracking_device == TRACKING_DEVICE and (
             self.tracker_device_id is None or len(self.tracker_device_id) == 0
         ):
