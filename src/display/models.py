@@ -2602,12 +2602,23 @@ ____________________________________________________________
         )
 
 
+def validate_file_size(value):
+    filesize = value.size
+
+    if filesize > 100 * 1024 * 1024:
+        raise ValidationError(
+            "You cannot upload file more than 100MB. Decrees the area of the map or include fewer zoom levels. Zoom level 12 is normally the best."
+        )
+    else:
+        return value
+
+
 class UserUploadedMap(models.Model):
     user = models.ForeignKey(MyUser, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     map_file = models.FileField(
         storage=FileSystemStorage(location="/maptiles/user_maps"),
-        validators=[FileExtensionValidator(allowed_extensions=["mbtiles"])],
+        validators=[FileExtensionValidator(allowed_extensions=["mbtiles"]), validate_file_size],
         help_text="File must be of type MBTILES. This can be generated for instance using MapTile Desktop",
     )
     thumbnail = models.ImageField(upload_to="map_thumbnails/", blank=True, null=True)
@@ -2643,6 +2654,12 @@ class EditableRoute(models.Model):
 
     class Meta:
         ordering = ("name", "pk")
+
+    @classmethod
+    def get_for_user(cls, user: MyUser) -> QuerySet:
+        return get_objects_for_user(
+            user, "display.change_editableroute", klass=EditableRoute, accept_global_perms=False
+        )
 
     def create_thumbnail(self) -> BytesIO:
         """

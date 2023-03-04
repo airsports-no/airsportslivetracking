@@ -387,7 +387,7 @@ class NavigationTaskForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["original_scorecard"].queryset = Scorecard.objects.filter(original=True)
+        self.fields["original_scorecard"].queryset = Scorecard.get_originals()
         instance = getattr(self, "instance", None)
         if instance and instance.pk:
             self.fields["original_scorecard"].disabled = True
@@ -829,15 +829,15 @@ class ChangeContestPermissionsForm(forms.Form):
 
 class AddEditableRoutePermissionsForm(forms.Form):
     email = forms.EmailField()
-    change_editableroute = forms.BooleanField(required=False)
-    view_editableroute = forms.BooleanField(required=False)
-    delete_editableroute = forms.BooleanField(required=False)
+    change_editableroute = forms.BooleanField(required=False, label="Change route")
+    view_editableroute = forms.BooleanField(required=False, label="View route")
+    delete_editableroute = forms.BooleanField(required=False, label="Delete route")
 
 
 class ChangeEditableRoutePermissionsForm(forms.Form):
-    change_editableroute = forms.BooleanField(required=False)
-    view_editableroute = forms.BooleanField(required=False)
-    delete_editableroute = forms.BooleanField(required=False)
+    change_editableroute = forms.BooleanField(required=False, label="Change route")
+    view_editableroute = forms.BooleanField(required=False, label="View route")
+    delete_editableroute = forms.BooleanField(required=False, label="Delete route")
 
 
 class RouteCreationForm(forms.Form):
