@@ -946,7 +946,7 @@ class NavigationTask(models.Model):
 class FlightOrderConfiguration(models.Model):
     navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE)
     document_size = models.CharField(choices=MAP_SIZES, default=A4, max_length=50)
-    include_turning_points = models.BooleanField(default=True)
+    include_turning_point_images = models.BooleanField(default=True, help_text="Includes one or more pages with aerial photos of each turning point (turns in a anr corridor is not considered a turning point).")
     map_include_meridians_and_parallels_lines = models.BooleanField(
         default=True,
         help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this",
@@ -964,7 +964,7 @@ class FlightOrderConfiguration(models.Model):
         help_text="Overrides whatever is chosen in map source",
     )
     map_include_annotations = models.BooleanField(default=True)
-    map_include_waypoints = models.BooleanField(default=True)
+    map_plot_track_between_waypoints = models.BooleanField(default=True)
     map_line_width = models.FloatField(default=1, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
     map_minute_mark_line_width = models.FloatField(
         default=1, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)]
@@ -3012,6 +3012,7 @@ def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
         pass  # write your code here
     else:
         previous = NavigationTask.objects.get(id=instance.id)
+
         if previous.original_scorecard != instance.original_scorecard:  # field will be updated
             raise ValidationError(
                 f"Cannot change scorecard to {instance.original_scorecard.name}. You must create a new task."

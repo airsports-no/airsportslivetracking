@@ -17,7 +17,8 @@ from django.utils.safestring import mark_safe
 from phonenumber_field.formfields import PhoneNumberField
 from timezone_field import TimeZoneFormField
 
-from display.map_constants import MAP_SIZES, ORIENTATIONS, LANDSCAPE, SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, A4
+from display.map_constants import MAP_SIZES, ORIENTATIONS, LANDSCAPE, SCALES, SCALE_TO_FIT, PDF, OUTPUT_TYPES, A4, \
+    PORTRAIT
 from display.map_plotter_shared_utilities import MAP_CHOICES
 from display.models import NavigationTask, Contestant, Contest, Person, Crew, Aeroplane, Team, Club, \
     ContestTeam, TURNPOINT, GATE_TYPES, EditableRoute, Scorecard, GateScore, FlightOrderConfiguration, UserUploadedMap
@@ -50,7 +51,12 @@ class MapForm(forms.Form):
     zoom_level = forms.IntegerField(initial=12)
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE,
                                     help_text="WARNING: scale printing is currently only correct for landscape orientation")
-    include_only_waypoints = forms.BooleanField(initial=False, required=False)
+    plot_track_between_waypoints = forms.BooleanField(initial=True, required=False)
+    include_meridians_and_parallels_lines = forms.BooleanField(
+        initial=True, required=False,
+        help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this",
+    )
+
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=MAP_CHOICES, help_text="Is overridden by user map source if set",
                                    required=False)
@@ -68,18 +74,24 @@ class MapForm(forms.Form):
 
 class ContestantMapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
+    dpi = forms.IntegerField(initial=300, min_value=100, max_value=500)
     zoom_level = forms.IntegerField(initial=12)
-    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=LANDSCAPE,
-                                    help_text="WARNING: scale printing is currently only correct for landscape orientation")
+    orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=PORTRAIT)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=MAP_CHOICES, help_text="Is overridden by user map source if set",
                                    required=False)
     user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set", required=False)
-    include_annotations = forms.BooleanField(required=False, initial=True)
-    dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
+
+    include_annotations=forms.BooleanField(initial=True, required=False)
+    plot_track_between_waypoints = forms.BooleanField(initial=True, required=False)
+    include_meridians_and_parallels_lines = forms.BooleanField(
+        initial=True, required=False,
+        help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this",
+    )
+
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
+    minute_mark_line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
-    output_type = forms.ChoiceField(initial=PDF, choices=OUTPUT_TYPES)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -125,7 +137,7 @@ class ChangeUserUploadedMapPermissionsForm(forms.Form):
 class FlightOrderConfigurationForm(forms.ModelForm):
     class Meta:
         model = FlightOrderConfiguration
-        exclude = ("navigation_task","document_size")
+        exclude = ("navigation_task", "document_size")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -135,7 +147,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
             Fieldset(
                 "Flight order options",
                 # "document_size",
-                "include_turning_points"
+                "include_turning_point_images"
             ),
             Fieldset(
                 "Map options",
@@ -146,7 +158,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
                 "map_scale",
                 "map_dpi",
                 "map_include_annotations",
-                "map_include_waypoints",
+                "map_plot_track_between_waypoints",
                 "map_include_meridians_and_parallels_lines",
                 "map_line_width",
                 "map_minute_mark_line_width",

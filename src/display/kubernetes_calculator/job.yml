@@ -16,7 +16,7 @@ spec:
       - image: airsportsacr.azurecr.io/tracker_processor:latest
         resources:
           requests:
-            cpu: 100m
+            cpu: 50m
             memory: 400Mi
         name: calculator-job
         envFrom:

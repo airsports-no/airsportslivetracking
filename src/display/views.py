@@ -768,33 +768,35 @@ def get_contestant_map(request, pk):
                 landscape=form.cleaned_data["orientation"] == LANDSCAPE,
                 contestant=contestant,
                 annotations=form.cleaned_data["include_annotations"],
-                waypoints_only=False,
+                waypoints_only=not form.cleaned_data["plot_track_between_waypoints"],
                 dpi=form.cleaned_data["dpi"],
                 scale=int(form.cleaned_data["scale"]),
                 map_source=form.cleaned_data["map_source"],
                 user_map_source=form.cleaned_data["user_map_source"],
                 line_width=float(form.cleaned_data["line_width"]),
+                minute_mark_line_width=float(form.cleaned_data["minute_mark_line_width"]),
                 colour=form.cleaned_data["colour"],
+                include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"],
                 margins_mm=margin,
             )
-            if int(form.cleaned_data["output_type"]) == PNG:
-                response = HttpResponse(map_image, content_type="image/png")
-                response["Content-Disposition"] = f"attachment; filename=map.png"
-            else:
-                pdf = embed_map_in_pdf(
-                    "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
-                    map_image.read(),
-                    10 * A4_WIDTH - 2 * margin
-                    if form.cleaned_data["size"]
-                    else 10 * A3_WIDTH - 2 * margin,
-                    10 * A4_HEIGHT - 2 * margin
-                    if form.cleaned_data["size"] == A4
-                    else 10 * A3_HEIGHT - 2 * margin,
-                    form.cleaned_data["orientation"] == LANDSCAPE,
-                )
+            # if int(form.cleaned_data["output_type"]) == PNG:
+            #     response = HttpResponse(map_image, content_type="image/png")
+            #     response["Content-Disposition"] = f"attachment; filename=map.png"
+            # else:
+            pdf = embed_map_in_pdf(
+                "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
+                map_image.read(),
+                10 * A4_WIDTH - 2 * margin
+                if form.cleaned_data["size"]
+                else 10 * A3_WIDTH - 2 * margin,
+                10 * A4_HEIGHT - 2 * margin
+                if form.cleaned_data["size"] == A4
+                else 10 * A3_HEIGHT - 2 * margin,
+                form.cleaned_data["orientation"] == LANDSCAPE,
+            )
 
-                response = HttpResponse(pdf, content_type="application/pdf")
-                response["Content-Disposition"] = f"attachment; filename=map.pdf"
+            response = HttpResponse(pdf, content_type="application/pdf")
+            response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
     form.fields["user_map_source"].choices = [("", "----")] + [
         (item.map_file, item.name)
@@ -1079,7 +1081,7 @@ def get_navigation_task_map(request, pk):
                 form.cleaned_data["size"],
                 zoom_level=form.cleaned_data["zoom_level"],
                 landscape=form.cleaned_data["orientation"] == LANDSCAPE,
-                waypoints_only=form.cleaned_data["include_only_waypoints"],
+                waypoints_only=not form.cleaned_data["plot_track_between_waypoints"],
                 dpi=form.cleaned_data["dpi"],
                 scale=int(form.cleaned_data["scale"]),
                 map_source=form.cleaned_data["map_source"],
@@ -1087,26 +1089,27 @@ def get_navigation_task_map(request, pk):
                 line_width=float(form.cleaned_data["line_width"]),
                 colour=form.cleaned_data["colour"],
                 margins_mm=margin,
+                include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"]
             )
-            if int(form.cleaned_data["output_type"]) == PNG:
-                response = HttpResponse(map_image.read(), content_type="image/png")
-                response["Content-Disposition"] = f"attachment; filename=map.png"
-            else:
-                pdf = embed_map_in_pdf(
-                    "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
-                    map_image.read(),
-                    10 * A4_WIDTH - 2 * margin
-                    if form.cleaned_data["size"]
-                    else 10 * A3_WIDTH - 2 * margin,
-                    10 * A4_HEIGHT - 2 * margin
-                    if form.cleaned_data["size"] == A4
-                    else 10 * A3_HEIGHT - 2 * margin,
-                    form.cleaned_data["orientation"] == LANDSCAPE,
-                )
+            # if int(form.cleaned_data["output_type"]) == PNG:
+            #     response = HttpResponse(map_image.read(), content_type="image/png")
+            #     response["Content-Disposition"] = f"attachment; filename=map.png"
+            # else:
+            pdf = embed_map_in_pdf(
+                "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
+                map_image.read(),
+                10 * A4_WIDTH - 2 * margin
+                if form.cleaned_data["size"]
+                else 10 * A3_WIDTH - 2 * margin,
+                10 * A4_HEIGHT - 2 * margin
+                if form.cleaned_data["size"] == A4
+                else 10 * A3_HEIGHT - 2 * margin,
+                form.cleaned_data["orientation"] == LANDSCAPE,
+            )
 
-                response = HttpResponse(pdf, content_type="application/pdf")
+            response = HttpResponse(pdf, content_type="application/pdf")
 
-                response["Content-Disposition"] = f"attachment; filename=map.pdf"
+            response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
     form.fields["user_map_source"].choices = [("", "----")] + [
         (item.map_file, item.name) for item in navigation_task.get_available_user_maps()
@@ -2393,7 +2396,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             contest.initialise(self.request.user)
         else:
             contest = self.get_cleaned_data_for_step("contest_selection")["contest"]
-        scorecard = Scorecard.objects.filter(task_type__contains=task_type).first()
+        scorecard = Scorecard.get_originals().filter(task_type__contains=task_type).first()
         route = self.create_route()
         route_location = route.get_location()
         country_code = get_country_code_from_location(*route_location)

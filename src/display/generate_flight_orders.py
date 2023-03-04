@@ -57,9 +57,7 @@ class MyFPDF(FPDF, HTMLMixin):
     pass
 
 
-def generate_turning_point_image(
-    waypoints: List[Waypoint], index, unknown_leg: bool = False
-):
+def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: bool = False):
     waypoint = waypoints[index]
     imagery = GoogleTiles(style="satellite")
     plt.figure(figsize=(10, 10))
@@ -88,9 +86,7 @@ def generate_turning_point_image(
             )
     proj = ccrs.PlateCarree()
     utm = utm_from_lat_lon(waypoint.latitude, waypoint.longitude)
-    centre_x, centre_y = utm.transform_point(
-        waypoint.longitude, waypoint.latitude, proj
-    )
+    centre_x, centre_y = utm.transform_point(waypoint.longitude, waypoint.latitude, proj)
     range = 700
     x0, y0 = proj.transform_point(centre_x - range, centre_y - range, utm)
     x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
@@ -104,9 +100,7 @@ def generate_turning_point_image(
         endpoint=False,
     )
     geom = Polygon(circle_points)
-    ax.add_geometries(
-        (geom,), crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red", linewidth=3
-    )
+    ax.add_geometries((geom,), crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red", linewidth=3)
     figdata = BytesIO()
     plt.savefig(figdata, format="png", dpi=200, transparent=True)
     # plt.savefig(
@@ -149,12 +143,9 @@ def insert_turning_point_images_latex(contestant, document: Document):
     render_waypoints = [
         waypoint
         for waypoint in navigation.route.waypoints
-        if waypoint.type not in ("secret", "ul")
-        and (waypoint.gate_check or waypoint.time_check)
+        if waypoint.type not in ("secret", "ul") and (waypoint.gate_check or waypoint.time_check)
     ]
-    render_turning_point_images(
-        render_waypoints, document, "Turning point", unknown_leg=False
-    )
+    render_turning_point_images(render_waypoints, document, "Turning point", unknown_leg=False)
 
 
 def insert_unknown_leg_images_latex(
@@ -162,13 +153,9 @@ def insert_unknown_leg_images_latex(
     document: Document,
 ):
     navigation = contestant.navigation_task  # type: NavigationTask
-    render_waypoints = [
-        waypoint for waypoint in navigation.route.waypoints if waypoint.type == "ul"
-    ]
+    render_waypoints = [waypoint for waypoint in navigation.route.waypoints if waypoint.type == "ul"]
     random.shuffle(render_waypoints)
-    render_turning_point_images(
-        render_waypoints, document, "Unknown legs", unknown_leg=True
-    )
+    render_turning_point_images(render_waypoints, document, "Unknown legs", unknown_leg=True)
 
 
 def render_turning_point_images(
@@ -185,19 +172,13 @@ def render_turning_point_images(
     for index in range(0, len(render_waypoints), 2):
         if index % (rows_per_page * 2) == 0:
             document.append(NewPage())
-            page_text = (
-                f"{header_prefix} images {current_page + 2}/{number_of_pages}"
-                if number_of_pages > 1
-                else ""
-            )
+            page_text = f"{header_prefix} images {current_page + 2}/{number_of_pages}" if number_of_pages > 1 else ""
             document.append(Section(page_text, numbering=False))
             current_page += 1
         figure_width = 0.4
         with document.create(Figure(position="!ht")):
             with document.create(MiniPage(width=fr"{figure_width}\textwidth")):
-                image_file = get_turning_point_image(
-                    render_waypoints, index, unknown_leg=unknown_leg
-                )
+                image_file = get_turning_point_image(render_waypoints, index, unknown_leg=unknown_leg)
                 document.append(
                     StandAloneGraphic(
                         image_options=r"width=\linewidth",
@@ -208,9 +189,7 @@ def render_turning_point_images(
                     document.append(Command("caption*", render_waypoints[index].name))
             document.append(Command("hfill"))
             if index < len(render_waypoints) - 1:
-                image_file = get_turning_point_image(
-                    render_waypoints, index + 1, unknown_leg=unknown_leg
-                )
+                image_file = get_turning_point_image(render_waypoints, index + 1, unknown_leg=unknown_leg)
                 with document.create(MiniPage(width=fr"{figure_width}\textwidth")):
                     document.append(
                         StandAloneGraphic(
@@ -219,9 +198,7 @@ def render_turning_point_images(
                         )
                     )
                     if not unknown_leg:
-                        document.append(
-                            Command("caption*", render_waypoints[index + 1].name)
-                        )
+                        document.append(Command("caption*", render_waypoints[index + 1].name))
     document.append(Label(Marker("lastpagetocount")))
 
 
@@ -242,19 +219,11 @@ class WrapFigure(Environment):
 
 def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     flight_order_configuration = contestant.navigation_task.flightorderconfiguration
-    starting_point_time_string = (
-        f'{contestant.starting_point_time_local.strftime("%H:%M:%S")}'
-    )
-    tracking_start_time_string = (
-        f'{contestant.tracker_start_time_local.strftime("%H:%M:%S")}'
-    )
+    starting_point_time_string = f'{contestant.starting_point_time_local.strftime("%H:%M:%S")}'
+    tracking_start_time_string = f'{contestant.tracker_start_time_local.strftime("%H:%M:%S")}'
     finish_tracking_time = f'{contestant.finished_by_time_local.strftime("%H:%M:%S")}'
     facebook_share_url = "https://www.facebook.com/sharer/sharer.php?u="
-    url = (
-        facebook_share_url
-        + "https://airsports.no"
-        + contestant.navigation_task.tracking_link
-    )
+    url = facebook_share_url + "https://airsports.no" + contestant.navigation_task.tracking_link
     qr = qr_code_image(url, "static/img/facebook_logo.png")
     qr_file = NamedTemporaryFile(suffix=".png")
     qr.save(qr_file)
@@ -335,27 +304,19 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.change_document_style("header")
     with document.create(MiniPage()):
         with document.create(WrapFigure("r", "80pt")):
-            document.append(
-                StandAloneGraphic(image_options=r"width=\linewidth", filename=logo)
-            )
+            document.append(StandAloneGraphic(image_options=r"width=\linewidth", filename=logo))
         with document.create(Section("", numbering=False)):
             with document.create(Center()):
                 document.append(LargeText("Welcome to"))
                 document.append(LineBreak())
                 document.append(HugeText(f"{contestant.navigation_task.contest.name}"))
                 document.append(LineBreak())
-                document.append(
-                    TextColor("red", LargeText(f"{contestant.navigation_task.name}"))
-                )
+                document.append(TextColor("red", LargeText(f"{contestant.navigation_task.name}")))
     document.append(LineBreak())
     with document.create(MiniPage()):
         document.append(VerticalSpace("50pt"))
         with document.create(WrapFigure("r", "150pt")):
-            document.append(
-                StandAloneGraphic(
-                    image_options=r"width=\linewidth", filename=qr_file.name
-                )
-            )
+            document.append(StandAloneGraphic(image_options=r"width=\linewidth", filename=qr_file.name))
             document.append(
                 Command(
                     "caption*",
@@ -373,9 +334,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                     "Competition date:",
                     f'{contestant.starting_point_time_local.strftime("%Y-%m-%d")}',
                 )
-                data_table.add_row(
-                    "Airspeed:", f'{"{:.0f}".format(contestant.air_speed)} knots'
-                )
+                data_table.add_row("Airspeed:", f'{"{:.0f}".format(contestant.air_speed)} knots')
                 data_table.add_row(
                     "Tasks wind:",
                     f'{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}',
@@ -385,9 +344,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                     f"{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}",
                 )
                 data_table.add_row("Start point:", f"{starting_point_text}")
-                data_table.add_row(
-                    "Finish by:", f"{finish_tracking_time} (tracking will stop)"
-                )
+                data_table.add_row("Finish by:", f"{finish_tracking_time} (tracking will stop)")
 
             document.append(
                 f"Using adaptive start, your start time will be set to the nearest whole minute you cross the infinite line going through the starting gate anywhere between one hour before and one hour after the selected starting point time (https://home.airsports.no/faq/#adaptiv-start)."
@@ -432,9 +389,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         with document.create(MiniPage(width=r"\textwidth")):
             document.append(Command("Large"))
             with document.create(Tabu("X[l] X[l] X[l] X[l] X[l]")) as data_table:
-                data_table.add_row(
-                    ["Turning point", "Distance", "TT", "TH", "Time"], mapper=[bold]
-                )
+                data_table.add_row(["Turning point", "Distance", "TT", "TH", "Time"], mapper=[bold])
                 data_table.add_hline()
                 first_line = True
                 local_time = "-"
@@ -443,21 +398,16 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         contestant.navigation_task.route.first_takeoff_gate.name, None
                     )
                     if local_time:
-                        local_time = local_time.astimezone(
-                            contestant.navigation_task.contest.time_zone
-                        ).strftime("%H:%M:%S")
+                        local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime(
+                            "%H:%M:%S"
+                        )
                 data_table.add_row(["Takeoff gate", "-", "-", "-", local_time])
 
                 accumulated_distance = 0
-                for (
-                    waypoint
-                ) in contestant.navigation_task.route.waypoints:  # type: Waypoint
+                for waypoint in contestant.navigation_task.route.waypoints:  # type: Waypoint
                     if not first_line:
                         accumulated_distance += waypoint.distance_previous
-                    if (
-                        waypoint.type not in ("secret", "dummy", "ul")
-                        and waypoint.time_check
-                    ):
+                    if waypoint.type not in ("secret", "dummy", "ul") and waypoint.time_check:
                         bearing = waypoint.bearing_from_previous
                         wind_correction_angle = calculate_wind_correction_angle(
                             bearing,
@@ -465,20 +415,14 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                             contestant.wind_speed,
                             contestant.wind_direction,
                         )
-                        wind_bearing = normalise_bearing(
-                            bearing - wind_correction_angle
-                        )
+                        wind_bearing = normalise_bearing(bearing - wind_correction_angle)
                         gate_time = contestant.gate_times.get(waypoint.name, None)
-                        local_waypoint_time = gate_time.astimezone(
-                            contestant.navigation_task.contest.time_zone
-                        )
+                        local_waypoint_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone)
                         if gate_time is not None:
                             data_table.add_row(
                                 [
                                     waypoint.name,
-                                    f"{accumulated_distance / 1852:.2f} NM"
-                                    if not first_line
-                                    else "-",
+                                    f"{accumulated_distance / 1852:.2f} NM" if not first_line else "-",
                                     f"{bearing:.0f}" if not first_line else "-",
                                     f"{wind_bearing:.0f}" if not first_line else "-",
                                     local_waypoint_time.strftime("%H:%M:%S"),
@@ -492,9 +436,9 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         contestant.navigation_task.route.first_landing_gate.name, None
                     )
                     if local_time:
-                        local_time = local_time.astimezone(
-                            contestant.navigation_task.contest.time_zone
-                        ).strftime("%H:%M:%S")
+                        local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime(
+                            "%H:%M:%S"
+                        )
                 data_table.add_row(["Landing gate", "-", "-", "-", local_time])
 
     map_image = plot_route(
@@ -504,7 +448,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         landscape=flight_order_configuration.map_orientation == LANDSCAPE,
         contestant=contestant,
         annotations=flight_order_configuration.map_include_annotations,
-        waypoints_only=not flight_order_configuration.map_include_waypoints,
+        waypoints_only=not flight_order_configuration.map_plot_track_between_waypoints,
         dpi=flight_order_configuration.map_dpi,
         scale=flight_order_configuration.map_scale,
         map_source=flight_order_configuration.map_source,
@@ -529,9 +473,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         document.append(
             StandAloneGraphic(
                 mapimage_file.name,
-                rf"width=190mm"
-                if flight_order_configuration.map_orientation != LANDSCAPE
-                else rf"height=277mm",
+                rf"width=190mm" if flight_order_configuration.map_orientation != LANDSCAPE else rf"height=277mm",
             )
         )  # f"resolution={flight_order_configuration.map_dpi}"))
     document.append(NewPage())
@@ -539,11 +481,10 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
 
     document.change_document_style("header")
     # document.change_document_style("turningpointheader")
-    insert_turning_point_images_latex(contestant, document)
+    if flight_order_configuration.include_turning_point_images:
+        insert_turning_point_images_latex(contestant, document)
 
-    if any(
-        waypoint.type == "ul" for waypoint in contestant.navigation_task.route.waypoints
-    ):
+    if any(waypoint.type == "ul" for waypoint in contestant.navigation_task.route.waypoints):
         insert_unknown_leg_images_latex(contestant, document)
 
     # Produce the output
@@ -556,12 +497,8 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         return f.read()
 
 
-def get_turning_point_image(
-    waypoints: List, index: int, unknown_leg: bool = False
-) -> NamedTemporaryFile:
-    turning_point = generate_turning_point_image(
-        waypoints, index, unknown_leg=unknown_leg
-    )
+def get_turning_point_image(waypoints: List, index: int, unknown_leg: bool = False) -> NamedTemporaryFile:
+    turning_point = generate_turning_point_image(waypoints, index, unknown_leg=unknown_leg)
     temporary_file = NamedTemporaryFile(suffix=".png", delete=False)
     temporary_file.write(turning_point.read())
     temporary_file.seek(0)

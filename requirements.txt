@@ -33,7 +33,7 @@ pyproj
 django-countries
 django-formtools
 django-bootstrap-dynamic-formsets
-django-bootstrap4
+django-bootstrap4==22.3
 django-jenkins
 phonenumbers
 Babel
@@ -50,7 +50,7 @@ tzlocal
 django-timezone-field
 django-multiselectfield
 pulp
-drf-firebase-auth
+drf-firebase-auth==1.0.0
 django-use-email-as-username
 SimConnect
 eval7
@@ -72,4 +72,4 @@ coverage
 pep8
 pykalman
 pylatex
-crispy-bootstrap4
+crispy-bootstrap4==2022.1
