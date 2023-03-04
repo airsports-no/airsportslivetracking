@@ -82,7 +82,7 @@ class ContestantMapForm(forms.Form):
                                    required=False)
     user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set", required=False)
 
-    include_annotations=forms.BooleanField(initial=True, required=False)
+    include_annotations = forms.BooleanField(initial=True, required=False)
     plot_track_between_waypoints = forms.BooleanField(initial=True, required=False)
     include_meridians_and_parallels_lines = forms.BooleanField(
         initial=True, required=False,
@@ -803,6 +803,19 @@ class ChangeContestPermissionsForm(forms.Form):
     change_contest = forms.BooleanField(required=False)
     view_contest = forms.BooleanField(required=False)
     delete_contest = forms.BooleanField(required=False)
+
+
+class AddEditableRoutePermissionsForm(forms.Form):
+    email = forms.EmailField()
+    change_editableroute = forms.BooleanField(required=False)
+    view_editableroute = forms.BooleanField(required=False)
+    delete_editableroute = forms.BooleanField(required=False)
+
+
+class ChangeEditableRoutePermissionsForm(forms.Form):
+    change_editableroute = forms.BooleanField(required=False)
+    view_editableroute = forms.BooleanField(required=False)
+    delete_editableroute = forms.BooleanField(required=False)
 
 
 class RouteCreationForm(forms.Form):

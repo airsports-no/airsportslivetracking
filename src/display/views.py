@@ -115,7 +115,7 @@ from display.forms import (
     FlightOrderConfigurationForm,
     UserUploadedMapForm,
     AddUserUploadedMapPermissionsForm,
-    ChangeUserUploadedMapPermissionsForm,
+    ChangeUserUploadedMapPermissionsForm, ChangeEditableRoutePermissionsForm, AddEditableRoutePermissionsForm,
 )
 from display.generate_flight_orders import (
     generate_flight_orders_latex,
@@ -1238,6 +1238,85 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
     )
 
 
+#### Editable route permission management 
+@guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
+def list_editableroute_permissions(request, pk):
+    editableroute = get_object_or_404(EditableRoute, pk=pk)
+    users_and_permissions = get_users_with_perms(editableroute, attach_perms=True)
+    users = []
+    for user in users_and_permissions.keys():
+        if user == request.user:
+            continue
+        data = {item: True for item in users_and_permissions[user]}
+        data["email"] = user.email
+        data["pk"] = user.pk
+        users.append(data)
+    return render(
+        request,
+        "display/editableroute_permissions.html",
+        {"users": users, "editableroute": editableroute},
+    )
+
+
+@guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
+def delete_user_editableroute_permissions(request, pk, user_pk):
+    editableroute = get_object_or_404(EditableRoute, pk=pk)
+    user = get_object_or_404(MyUser, pk=user_pk)
+    permissions = ["change_editableroute", "view_editableroute", "delete_editableroute"]
+    for permission in permissions:
+        remove_perm(f"display.{permission}", user, editableroute)
+    return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
+
+
+@guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
+def change_user_editableroute_permissions(request, pk, user_pk):
+    editableroute = get_object_or_404(EditableRoute, pk=pk)
+    user = get_object_or_404(MyUser, pk=user_pk)
+    if request.method == "POST":
+        form = ChangeEditableRoutePermissionsForm(request.POST)
+        if form.is_valid():
+            permissions = ["change_editableroute", "view_editableroute", "delete_editableroute"]
+            for permission in permissions:
+                if form.cleaned_data[permission]:
+                    assign_perm(f"display.{permission}", user, editableroute)
+                else:
+                    remove_perm(f"display.{permission}", user, editableroute)
+            return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
+    existing_permissions = get_user_perms(user, editableroute)
+    initial = {item: True for item in existing_permissions}
+    form = ChangeEditableRoutePermissionsForm(initial=initial)
+    return render(request, "display/editableroute_permissions_form.html",
+                  {"form": form, "editableroute": editableroute})
+
+
+@guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
+def add_user_editableroute_permissions(request, pk):
+    editableroute = get_object_or_404(EditableRoute, pk=pk)
+    if request.method == "POST":
+        form = AddEditableRoutePermissionsForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data["email"]
+            try:
+                user = MyUser.objects.get(email=email)
+            except ObjectDoesNotExist:
+                messages.error(request, f"User '{email}' does not exist")
+                return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
+            permissions = ["change_editableroute", "view_editableroute", "delete_editableroute"]
+            for permission in permissions:
+                if form.cleaned_data[permission]:
+                    assign_perm(f"display.{permission}", user, editableroute)
+                else:
+                    remove_perm(f"display.{permission}", user, editableroute)
+            return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
+    form = AddEditableRoutePermissionsForm()
+    return render(request, "display/editableroute_permissions_form.html",
+                  {"form": form, "editableroute": editableroute})
+
+
+###### Editable route permission management ends
+
+
+#### Contest permission management 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def list_contest_permissions(request, pk):
     contest = get_object_or_404(Contest, pk=pk)
@@ -1309,6 +1388,8 @@ def add_user_contest_permissions(request, pk):
     form = AddContestPermissionsForm()
     return render(request, "display/contest_permissions_form.html", {"form": form})
 
+
+###### Contest permission management ends
 
 class ContestList(PermissionRequiredMixin, ListView):
     model = Contest

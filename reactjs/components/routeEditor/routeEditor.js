@@ -277,7 +277,11 @@ class ConnectedRouteEditor extends Component {
         }).catch((e) => {
             console.error(e);
             console.log(e);
-            this.setState({changesSaved: false, saveFailed: e})
+            if (e.response.request.status === 403) {
+                this.setState({changesSaved: false, saveFailed: "You do not have access to change this route"})
+            } else {
+                this.setState({changesSaved: false, saveFailed: e.message})
+            }
         }).finally(() => {
         })
     }

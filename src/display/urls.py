@@ -29,7 +29,8 @@ from display.views import frontend_view_map, \
     get_broadcast_navigation_task_orders_status, broadcast_navigation_task_orders, download_navigation_task_orders, \
     generatenavigation_task_orders_template, delete_user_useruploadedmap_permissions, \
     change_user_useruploadedmap_permissions, add_user_useruploadedmap_permissions, list_useruploadedmap_permissions, \
-    WelcomeEmailExample, ContestCreationEmailExample
+    WelcomeEmailExample, ContestCreationEmailExample, list_editableroute_permissions, \
+    add_user_editableroute_permissions, change_user_editableroute_permissions, delete_user_editableroute_permissions
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -161,4 +162,10 @@ urlpatterns = [
     path('editableroute/<int:pk>/copy/', copy_editable_route, name="editableroute_copy"),
     path('editableroute/<int:pk>/createnavigationtask/', RouteToTaskWizard.as_view(),
          name="editableroute_createnavigationtask"),
+    path('editableroute/<int:pk>/permissions/', list_editableroute_permissions, name="editableroute_permissions_list"),
+    path('editableroute/<int:pk>/permissions/add/', add_user_editableroute_permissions, name="editableroute_permissions_add"),
+    path('editableroute/<int:pk>/permissions/<int:user_pk>/change/', change_user_editableroute_permissions,
+         name="editableroute_permissions_change"),
+    path('editableroute/<int:pk>/permissions/<int:user_pk>/delete', delete_user_editableroute_permissions,
+         name="editableroute_permissions_delete"),
 ]
