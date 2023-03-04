@@ -44,7 +44,7 @@ spec:
       - image: airsportsacr.azurecr.io/tracker_processor:{{ .Values.image.tag }}
         resources:
           requests:
-            cpu: 200m
+            cpu: 100m
             memory: 800Mi  # Uses 231 Mi
 #          limits:
 #            cpu: 600m
