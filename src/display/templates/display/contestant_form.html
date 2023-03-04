@@ -21,5 +21,20 @@
         $('#id_takeoff_time').datetimepicker({dateFormat: "yy-mm-dd"});
         $('#id_finished_by_time').datetimepicker({dateFormat: "yy-mm-dd"});
         $('#id_tracker_start_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        const adaptiveStart = document.getElementById("id_adaptive_start");
+        const takeoffTime = document.getElementById("id_takeoff_time");
+        const trackingStart = document.getElementById("id_tracker_start_time");
+        adaptiveStart.addEventListener("change", (event) => {
+            takeoffTime.readOnly = adaptiveStart.checked;
+            if (adaptiveStart.checked) {
+                takeoffTime.value = trackingStart.value
+            }
+        })
+        trackingStart.addEventListener("change", (event) => {
+            if (adaptiveStart.checked) {
+                takeoffTime.value = trackingStart.value
+            }
+        })
+
     </script>
 {% endblock %}
