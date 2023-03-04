@@ -667,8 +667,8 @@ class ContestantSerialiser(serializers.ModelSerializer):
 
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
-                  "values are $date-time strings (with time zone). Missing values will be populated from internal "
-                  "calculations.",
+        "values are $date-time strings (with time zone). Missing values will be populated from internal "
+        "calculations.",
         required=False,
     )
     scorecard_rules = serializers.JSONField(help_text="Dictionary with all rules", read_only=True)

@@ -41,9 +41,7 @@ def clone_object(obj, attrs=None):
             else:
                 # provide "clone" object to replace "obj"
                 # on remote field
-                attrs = {
-                    field.remote_field.name: clone
-                }
+                attrs = {field.remote_field.name: clone}
                 children = field.related_model.objects.filter(**{field.remote_field.name: obj})
                 for child in children:
                     clone_object(child, attrs)

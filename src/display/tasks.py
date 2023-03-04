@@ -23,9 +23,7 @@ def setup_periodic_tasks(sender, **kwargs):
         crontab(hour=7, minute=30, day_of_week="*"),
         delete_old_flight_orders.s(),
     )
-    sender.add_periodic_task(
-        10, debug.s()
-    )
+    sender.add_periodic_task(10, debug.s())
 
 
 @app.task
@@ -70,8 +68,9 @@ def append_cache_dict(cache_key, dict_key, value):
 
 
 @app.task
-def generate_and_maybe_notify_flight_order(contestant_pk: int, email: str, first_name: str,
-                                           transmit_immediately: bool = False):
+def generate_and_maybe_notify_flight_order(
+    contestant_pk: int, email: str, first_name: str, transmit_immediately: bool = False
+):
     try:
         try:
             contestant = Contestant.objects.get(pk=contestant_pk)
@@ -87,8 +86,9 @@ def generate_and_maybe_notify_flight_order(contestant_pk: int, email: str, first
             if transmit_immediately:
                 mail_link.send_email(email, first_name)
         except Exception as e:
-            append_cache_dict(f"generate_failed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk,
-                              str(e))
+            append_cache_dict(
+                f"generate_failed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, str(e)
+            )
             raise
         for c in connections.all():
             c.close_if_unusable_or_obsolete()
@@ -109,8 +109,9 @@ def notify_flight_order(contestant_pk: int, email: str, first_name: str):
             mail_link = EmailMapLink.objects.filter(contestant=contestant).first()
             mail_link.send_email(email, first_name)
         except Exception as e:
-            append_cache_dict(f"transmit_failed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk,
-                              str(e))
+            append_cache_dict(
+                f"transmit_failed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, str(e)
+            )
             raise
         for c in connections.all():
             c.close_if_unusable_or_obsolete()
@@ -121,4 +122,6 @@ def notify_flight_order(contestant_pk: int, email: str, first_name: str):
 
 @app.task
 def delete_old_flight_orders():
-    EmailMapLink.objects.filter(contestant__finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)).delete()
+    EmailMapLink.objects.filter(
+        contestant__finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)
+    ).delete()

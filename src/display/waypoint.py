@@ -1,7 +1,12 @@
 from typing import List, Tuple
 
-from display.coordinate_utilities import extend_line, get_procedure_turn_track, get_centre_of_line_lat_lon, \
-    calculate_bearing, bearing_difference
+from display.coordinate_utilities import (
+    extend_line,
+    get_procedure_turn_track,
+    get_centre_of_line_lat_lon,
+    calculate_bearing,
+    bearing_difference,
+)
 
 
 class Waypoint:
@@ -89,9 +94,9 @@ class Waypoint:
     @property
     def procedure_turn_points(self):
         if self.is_procedure_turn:
-            return get_procedure_turn_track(self.latitude, self.longitude, self.bearing_from_previous,
-                                            self.bearing_next,
-                                            0.2)
+            return get_procedure_turn_track(
+                self.latitude, self.longitude, self.bearing_from_previous, self.bearing_next, 0.2
+            )
         return []
 
     def __str__(self):
@@ -147,8 +152,9 @@ class Waypoint:
         """
         The direction the gate is facing
         """
-        gate_line_bearing = calculate_bearing(self.get_gate_position_right_of_track(),
-                                              self.get_gate_position_left_of_track())
+        gate_line_bearing = calculate_bearing(
+            self.get_gate_position_right_of_track(), self.get_gate_position_left_of_track()
+        )
         return (gate_line_bearing + 90) % 360
 
     @property

@@ -946,7 +946,10 @@ class NavigationTask(models.Model):
 class FlightOrderConfiguration(models.Model):
     navigation_task = models.OneToOneField(NavigationTask, on_delete=models.CASCADE)
     document_size = models.CharField(choices=MAP_SIZES, default=A4, max_length=50)
-    include_turning_point_images = models.BooleanField(default=True, help_text="Includes one or more pages with aerial photos of each turning point (turns in a anr corridor is not considered a turning point).")
+    include_turning_point_images = models.BooleanField(
+        default=True,
+        help_text="Includes one or more pages with aerial photos of each turning point (turns in a anr corridor is not considered a turning point).",
+    )
     map_include_meridians_and_parallels_lines = models.BooleanField(
         default=True,
         help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this",

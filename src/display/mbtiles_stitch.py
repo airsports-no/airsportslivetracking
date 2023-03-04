@@ -14,12 +14,8 @@ class MBTilesHelper:
         self.tms = self.mbtiles.meta.get("scheme", "tms") == "tms"
         smallest_zoom, largest_zoom = self.mbtiles.zoom_range()
         logger.info(f"Selecting zoom level {smallest_zoom}")
-        self.tiles = [
-            tile for tile in self.mbtiles.list_tiles() if tile.z == largest_zoom
-        ]
-        self.tile_width, self.tile_height = self.get_image_size(
-            self.mbtiles.read_tile(*self.tiles[0])
-        )
+        self.tiles = [tile for tile in self.mbtiles.list_tiles() if tile.z == largest_zoom]
+        self.tile_width, self.tile_height = self.get_image_size(self.mbtiles.read_tile(*self.tiles[0]))
         self.min_x = min([tile.x for tile in self.tiles])
         self.max_x = max([tile.x for tile in self.tiles])
         self.min_y = min([tile.y for tile in self.tiles])

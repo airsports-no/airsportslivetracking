@@ -48,21 +48,17 @@ class TrackingConsumer(WebsocketConsumer):
         self.navigation_task_pk = self.scope["url_route"]["kwargs"]["navigation_task"]
         self.navigation_task_group_name = "tracking_{}".format(self.navigation_task_pk)
         logger.debug(f"Current user {self.scope.get('user')}")
-        async_to_sync(self.channel_layer.group_add)(
-            self.navigation_task_group_name, self.channel_name
-        )
+        async_to_sync(self.channel_layer.group_add)(self.navigation_task_group_name, self.channel_name)
         self.groups.append(self.navigation_task_group_name)
         try:
-            self.navigation_task = NavigationTask.objects.get(
-                pk=self.navigation_task_pk
-            )
+            self.navigation_task = NavigationTask.objects.get(pk=self.navigation_task_pk)
         except ObjectDoesNotExist:
             return
         self.accept()
         ws = WebsocketFacade()
         # for contestant in self.navigation_task.contestant_set.all():
-            # ws.transmit_contestant(contestant)
-            # ws.transmit_initial_load(contestant)
+        # ws.transmit_contestant(contestant)
+        # ws.transmit_initial_load(contestant)
         self.transmit_current_time()
 
     def transmit_current_time(self):
@@ -138,9 +134,7 @@ class GlobalConsumer(WebsocketConsumer):
             ):
                 self.location = (message.get("latitude"), message.get("longitude"))
                 self.range = message.get("range") * 1000
-                logger.debug(
-                    f"Setting position to {self.location} with range {self.range}"
-                )
+                logger.debug(f"Setting position to {self.location} with range {self.range}")
                 self.bounding_box = calculate_bounding_box(self.location, self.range)
             else:
                 self.location = None
@@ -188,9 +182,7 @@ class ContestResultsConsumer(WebsocketConsumer):
         self.contest_pk = self.scope["url_route"]["kwargs"]["contest_pk"]
         self.contest_results_group_name = "contestresults_{}".format(self.contest_pk)
         self.groups.append(self.contest_results_group_name)
-        async_to_sync(self.channel_layer.group_add)(
-            self.contest_results_group_name, self.channel_name
-        )
+        async_to_sync(self.channel_layer.group_add)(self.contest_results_group_name, self.channel_name)
         try:
             contest = Contest.objects.get(pk=self.contest_pk)
         except ObjectDoesNotExist:
