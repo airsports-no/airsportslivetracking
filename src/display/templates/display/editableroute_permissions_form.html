@@ -6,6 +6,7 @@
 
 {% block content %}
     <h2>Manage permissions for route {{ editableroute }}</h2>
+    <h3>Creating a navigation task from a route requires the "change" permission.</h3>
     <form method="post" class="form">
         {% csrf_token %}
         {% bootstrap_form form %}

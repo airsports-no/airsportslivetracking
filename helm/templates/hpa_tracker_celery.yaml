@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: tracker-celery
   minReplicas: 1 # {{ .Values.autoscaling.minReplicas }}
-  maxReplicas: 2
+  maxReplicas: 1
   metrics:
     {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource

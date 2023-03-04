@@ -145,10 +145,10 @@ resources: {}
   #   memory: 128Mi
 
 autoscaling:
-  enabled: true
+  enabled: false
   minReplicas: 2
-  maxReplicas: 5
-  targetAverageCPUUtilizationPercentage: 90
+  maxReplicas: 3
+  targetAverageCPUUtilizationPercentage: 600 # Allowed to use 6 times the initial resource request before scaling.
 #  targetCPUUtilizationPercentage: 80
 #   targetMemoryUtilizationPercentage: 80
 

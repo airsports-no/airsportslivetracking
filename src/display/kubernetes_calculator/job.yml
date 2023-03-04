@@ -17,7 +17,9 @@ spec:
         resources:
           requests:
             cpu: 50m
-            memory: 400Mi
+            memory: 300Mi # Looks to be around 250 MB
+          limit:
+            cpu: 400m
         name: calculator-job
         envFrom:
           - configMapRef:

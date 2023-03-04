@@ -51,9 +51,9 @@ spec:
           requests:
             cpu: 100m
             memory: 800Mi
-#          limits:
-#            cpu: 1000m
-#            memory: 1024Mi
+          limits:
+            cpu: 400m
+            memory: 2Gi
         volumeMounts:
           - mountPath: /secret
             readOnly: true

@@ -45,10 +45,10 @@ spec:
         resources:
           requests:
             cpu: 100m
-            memory: 800Mi  # Uses 231 Mi
-#          limits:
-#            cpu: 600m
-#            memory: 1Gi
+            memory: 600Mi  # Uses 231 Mi
+          limits:
+            cpu: 600m
+            memory: 1.5Gi
 #        command: ["/bin/bash", "-c",  "sleep 1h"]
         name: tracker-processor
         env:

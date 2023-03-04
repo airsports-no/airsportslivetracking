@@ -5,7 +5,7 @@ metadata:
     service: tracker-daphne
   name: tracker-daphne
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       service: tracker-daphne
@@ -52,11 +52,11 @@ spec:
               name: pw-secrets
         resources:
           requests:
-            cpu: 100m
+            cpu: 200m
             memory: 200Mi  # Uses 160Mi
           limits:
-            cpu: 2000m
-            memory: 1024Mi
+            cpu: 1000m
+            memory: 1Gi
         volumeMounts:
           - mountPath: /secret
             readOnly: true
