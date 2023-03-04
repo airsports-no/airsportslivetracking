@@ -87,7 +87,7 @@
                            title="Terminates the running scoring of the contestant."
                            onclick="return confirm('Are you sure you want to stop the calculator? Do not do this unless you know what you are doing.')"><img
                                 src="{% static "img/green_light.png" %}"
-                                alt="Calculator is running"
+                                alt="Calculator is running. We have received positions from the tracker."
                                 style="width: 18px"/></a>
                     </div>
                     <div id="contestant_live_not_running_{{ contestant.pk }}" style="display: none">
@@ -96,12 +96,12 @@
                                title="Restart the live scoring process from the beginning. Can be used if it was inadvertently stopped."
                                onclick="return confirm('Are you sure you want to restart the calculator? Do not do this unless you know what you are doing.')"><img
                                     src="{% static "img/red_light.png" %}"
-                                    alt="Calculator is not running"
+                                    alt="Calculator is not running because it has finished."
                                     style="width: 18px"/></a>
                         {% else %}
                             <img
                                     src="{% static "img/red_light.png" %}"
-                                    alt="Calculator is not running"
+                                    alt="Calculator is not running, probably because it has not started yet."
                                     style="width: 18px"/>
                         {% endif %}
                     </div>
@@ -208,7 +208,9 @@
         this page. If there is a green checkmark next to the tracking email, then tracking is set up correctly. If there
         is an * next to the email, then this user has not set up the APP correctly (for instance using a different email
         address). The email address listed in the tracking column must exactly match the email address used to log into
-        the Air Sports Live Tracking App. </p>
+        the Air Sports Live Tracking App. When the lights under "Live" is red it means that the calculator is not
+        running. This is either because the contestant has finished, all because it has not started yet. If the light
+        is green, the calculator is running and we have received position data from the tracker.</p>
     <hr/>
     <a href="{% url 'contestant_create' object.pk %}">New contestant</a>
     <script type="text/javascript">
