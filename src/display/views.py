@@ -2061,12 +2061,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             "precision_route_import",
             "landing_route_import",
         ):
-            form.fields["internal_route"].queryset = get_objects_for_user(
-                self.request.user,
-                "display.view_editableroute",
-                klass=EditableRoute.objects.all(),
-                accept_global_perms=False,
-            )
+            form.fields["internal_route"].queryset = EditableRoute.get_for_user(self.request.user)
         return form
 
     def get_form_initial(self, step):
@@ -3358,12 +3353,17 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
         return initial
 
     def form_valid(self, form):
-        instance = form.save()  # type: UserUploadedMap
-        instance.thumbnail.save(
-            os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
-            ContentFile(instance.create_thumbnail().getvalue()),
-            save=True,
-        )
+        instance = form.save(commit=False)  # type: UserUploadedMap
+        try:
+            instance.thumbnail.save(
+                os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
+                ContentFile(instance.create_thumbnail().getvalue()),
+                save=True,
+            )
+        except Exception as ex:
+            form.add_error("map_file", f"Failed reading mbtiles file: {ex}")
+            return super().form_invalid(form)
+        instance.save()
         assign_perm("delete_useruploadedmap", self.request.user, instance)
         assign_perm("view_useruploadedmap", self.request.user, instance)
         assign_perm("add_useruploadedmap", self.request.user, instance)
@@ -3383,11 +3383,16 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
-        instance.thumbnail.save(
-            os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
-            ContentFile(instance.create_thumbnail().getvalue()),
-            save=True,
-        )
+        try:
+            instance.thumbnail.save(
+                os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
+                ContentFile(instance.create_thumbnail().getvalue()),
+                save=True,
+            )
+        except Exception as ex:
+            form.add_error("map_file", f"Failed reading mbtiles file: {ex}")
+            return super().form_invalid(form)
+
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
 
