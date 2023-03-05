@@ -137,7 +137,7 @@ class GatekeeperRoute(Gatekeeper):
             # A 2.2.14
             intersection_time = self.starting_line.get_gate_extended_intersection_time(self.projector, self.track)
             if intersection_time and not self.starting_line.is_passed_in_correct_direction_track(self.track):
-                logger.debug(f"{self.contestant}: Crossed extended starting line before any gate has been crossed")
+                logger.debug(f"{self.contestant}: Crossed extended starting line in the wrong direction before any gate has been crossed")
                 # Add penalty for crossing in the wrong direction
                 score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
                 # Add a grace time to prevent multiple backwards penalties for a single crossing
@@ -152,8 +152,10 @@ class GatekeeperRoute(Gatekeeper):
             elif not self.starting_line.has_infinite_been_passed():
                 # Handle resetting adaptive start, and record that the infinite line has been crossed
                 intersection_time = self.starting_line.get_gate_infinite_intersection_time(self.projector, self.track)
-                if intersection_time and self.starting_line.is_passed_in_correct_direction_track(self.track):
+                if intersection_time:
                     logger.debug(f"Crossed the infinite starting line.")
+                if intersection_time and self.starting_line.is_passed_in_correct_direction_track(self.track):
+                    logger.debug(f"Crossed the infinite starting line in the correct direction.")
                     self.starting_line.pass_infinite_gate(intersection_time)
                     if self.contestant.adaptive_start:
                         self.recalculate_gates_times_from_start_time(round_time_minute(intersection_time))
