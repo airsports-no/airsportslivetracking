@@ -242,7 +242,7 @@ class ConnectedContestantTrack extends Component {
                 this.props.removeHighlightContestantTrack(this.contestant.id)
             }
         )
-        this.dot = L.marker(newest_position, {icon: this.createAirplaneIcon()}).bindTooltip(contestantLongForm(this.contestant), {
+        this.dot = L.marker(newest_position, {icon: this.createAirplaneIcon()}).bindTooltip(contestantLongForm(this.contestant, this.lastPositionTime), {
             permanent: false
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
@@ -255,7 +255,7 @@ class ConnectedContestantTrack extends Component {
                 this.props.removeHighlightContestantTrack(this.contestant.id)
             }
         )
-        this.dotText = L.marker(newest_position, {icon: this.createAirplaneTextIcon()}).bindTooltip(contestantLongForm(this.contestant), {
+        this.dotText = L.marker(newest_position, {icon: this.createAirplaneTextIcon()}).bindTooltip(contestantLongForm(this.contestant, this.lastPositionTime), {
             permanent: false
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)

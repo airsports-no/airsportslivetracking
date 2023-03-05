@@ -1,4 +1,5 @@
 import React, {Component} from "react";
+const moment = require("moment");
 
 const R = 6371e3; // metres
 export function getDistance(lat1, lon1, lat2, lon2) {
@@ -132,7 +133,7 @@ export function contestantTwoLines(contestant) {
 export function teamRankingTable(team, sim = false) {
     let string = ""
     if (team.crew) {
-        string = (sim?"*":"")+team.crew.member1.first_name + " " + team.crew.member1.last_name
+        string = (sim ? "*" : "") + team.crew.member1.first_name + " " + team.crew.member1.last_name
         if (team.crew.member2) {
             string += "\n" + team.crew.member2.first_name + " " + team.crew.member2.last_name
         }
@@ -140,8 +141,15 @@ export function teamRankingTable(team, sim = false) {
     return <div className={"preWrap"}>{string}</div>
 }
 
-export function contestantLongForm(contestant) {
-    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + (contestant.team.crew && contestant.team.crew.member1 ? contestant.team.crew.member1.first_name + " " + contestant.team.crew.member1.last_name : "Unknown") + "<br/>Navigator: " + (contestant.team.crew && contestant.team.crew.member2 ? contestant.team.crew.member2.first_name + " " + contestant.team.crew.member2.last_name : "") + "<br/>Airplane: " + contestant.team.aeroplane.registration
+export function contestantLongForm(contestant, lastPositionTime) {
+    const now = new Date()
+    const age = moment.duration(now - lastPositionTime, "milliseconds").format([
+        moment.duration(1, "second"),
+        moment.duration(1, "minute"),
+        moment.duration(1, "hour")
+    ], "d [days] hh:mm:ss")
+
+    return "Contestant: " + pz(contestant.contestant_number, 2) + "<br/>Pilot: " + (contestant.team.crew && contestant.team.crew.member1 ? contestant.team.crew.member1.first_name + " " + contestant.team.crew.member1.last_name : "Unknown") + "<br/>Navigator: " + (contestant.team.crew && contestant.team.crew.member2 ? contestant.team.crew.member2.first_name + " " + contestant.team.crew.member2.last_name : "") + "<br/>Airplane: " + contestant.team.aeroplane.registration + "<br/>Position Age: " + age
 }
 
 export function teamLongForm(team) {
