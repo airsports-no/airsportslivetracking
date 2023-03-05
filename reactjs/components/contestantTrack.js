@@ -14,6 +14,8 @@ import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
 import {contestantLongForm, contestantShortForm, getBearing} from "../utilities";
 import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import {DateTime} from "luxon";
+
 
 const L = window['L']
 
@@ -21,6 +23,7 @@ const mapStateToProps = (state, props) => ({
     explicitlyDisplayAllTracks: state.explicitlyDisplayAllTracks,
     contestantData: state.contestantData[props.contestant.id],
     displayTracks: state.displayTracks,
+    currentTime: state.currentDateTime,
     isInitialLoading: state.initialLoadingContestantData[props.contestant.id],
     dim: state.highlightContestantTrack.length > 0 && !state.highlightContestantTrack.includes(props.contestant.id),
     highlight: state.highlightContestantTrack.length > 0 && state.highlightContestantTrack.includes(props.contestant.id),
@@ -80,7 +83,7 @@ class ConnectedContestantTrack extends Component {
         const text = <div style={style}>contestantShortForm(this.props.contestant)</div>
         const length = Math.ceil(text.clientWidth)
         return L.divIcon({
-            html: '<div style="color: ' + this.props.colour + '; font-size: ' + size + 'px">' + contestantShortForm(this.props.contestant) + '</div>',
+            html: '<div style="color: ' + this.props.colour + '; font-size: ' + size + 'px">' + contestantShortForm(this.props.contestant) + this.getConditionalAgeString() + '</div>',
             iconAnchor: [100, -16],
             iconSize: [200, size],
             className: "myAirplaneTextIcon text-center"
@@ -118,6 +121,9 @@ class ConnectedContestantTrack extends Component {
             if (this.props.colour !== previousProps.colour) {
                 this.updateStyle()
             }
+        }
+        if (this.dotText) {
+            this.dotText.setIcon(this.createAirplaneTextIcon())
         }
         const displayTracks = this.props.displayTracks;
         if (this.props.displayMap) {
@@ -169,6 +175,31 @@ class ConnectedContestantTrack extends Component {
             }
         }
     }
+
+    getAgeString(diff) {
+        return diff.toFormat("hh:mm:ss")
+    }
+
+    getConditionalAgeString() {
+        if (this.props.currentTime && this.props.contestantData && this.props.contestantData.contestant_track.current_state !== "Finished") {
+            const lastTime = DateTime.fromJSDate(this.lastPositionTime)
+            const diff = this.props.currentTime.diff(lastTime)
+            console.log(diff)
+            if (diff.as("seconds") > 30) {
+                return "<br/>(" + this.getAgeString(diff) + ")"
+            }
+        }
+        return ""
+    }
+
+    // conditionallyCreateAirplaneTextIcon(){
+    //     const now = DateTime.fromISO(this.props.currentTime)
+    //     const lastTime = DateTime.fromJSDate(this.lastPositionTime)
+    //     const diff = now.diff(lastTime)
+    //     if (diff.seconds > 30) {
+    //
+    //     }
+    // }
 
     updateStyle() {
         this.fullTrack.setStyle({
@@ -242,7 +273,7 @@ class ConnectedContestantTrack extends Component {
                 this.props.removeHighlightContestantTrack(this.contestant.id)
             }
         )
-        this.dot = L.marker(newest_position, {icon: this.createAirplaneIcon()}).bindTooltip(contestantLongForm(this.contestant, this.lastPositionTime), {
+        this.dot = L.marker(newest_position, {icon: this.createAirplaneIcon()}).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
@@ -255,7 +286,7 @@ class ConnectedContestantTrack extends Component {
                 this.props.removeHighlightContestantTrack(this.contestant.id)
             }
         )
-        this.dotText = L.marker(newest_position, {icon: this.createAirplaneTextIcon()}).bindTooltip(contestantLongForm(this.contestant, this.lastPositionTime), {
+        this.dotText = L.marker(newest_position, {icon: this.createAirplaneTextIcon()}).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)

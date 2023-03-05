@@ -59,6 +59,7 @@ import {
     SHOW_TASK_DETAILS
 } from "../constants/resultsServiceActionTypes";
 import {fetchContestResults} from "../actions/resultsService";
+import {DateTime} from "luxon";
 
 const initialState = {
     navigationTask: {route: {waypoints: []}},
@@ -214,7 +215,8 @@ function rootReducer(state = initialState, action) {
     if (action.type === CURRENT_TIME) {
         return Object.assign({}, state, {
             ...state,
-            currentTime: action.payload.current_time
+            currentTime: action.payload.current_time,
+            currentDateTime: DateTime.fromISO(action.payload.current_date_time)
         })
     }
     if (action.type === NEW_CONTESTANT) {
@@ -235,7 +237,7 @@ function rootReducer(state = initialState, action) {
         })
     }
     if (action.type === DELETE_CONTESTANT) {
-        const newState= Object.assign({}, state, {
+        const newState = Object.assign({}, state, {
             ...state,
             contestantData: {
                 ...state.contestantData,
@@ -243,7 +245,7 @@ function rootReducer(state = initialState, action) {
             contestants: {
                 ...state.contestants,
             },
-            initialLoadingContestantData:{
+            initialLoadingContestantData: {
                 ...state.initialLoadingContestantData
             }
         })

@@ -51,6 +51,7 @@
     "leaflet-draw-with-touch": "^0.2.3",
     "leaflet.markercluster": "^1.5.3",
     "lodash": "^4.17.21",
+    "luxon": "^3.3.0",
     "moment": "^2.29.4",
     "moment-duration-format": "^2.3.2",
     "net": "^1.0.2",
