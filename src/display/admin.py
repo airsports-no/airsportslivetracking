@@ -8,7 +8,7 @@ from guardian.shortcuts import assign_perm
 
 from display.models import NavigationTask, Route, Aeroplane, Team, Contestant, ContestantTrack, \
     Scorecard, \
-    GateScore, Contest, Crew, Person, Club, MyUser, EditableRoute, EmailMapLink
+    GateScore, Contest, Crew, Person, Club, MyUser, EditableRoute, EmailMapLink, UserUploadedMap
 from solo.admin import SingletonModelAdmin
 
 
@@ -82,3 +82,4 @@ admin.site.register(Person, PersonAdmin)
 admin.site.register(Club)
 admin.site.register(EditableRoute, GuardedModelAdmin)
 admin.site.register(EmailMapLink)
+admin.site.register(UserUploadedMap, GuardedModelAdmin)

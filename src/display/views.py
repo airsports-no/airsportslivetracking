@@ -713,7 +713,6 @@ def upload_profile_picture(request, contest_pk, pk):
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_map(request, pk):
-    form = ContestantMapForm()
     contestant = get_object_or_404(Contestant, pk=pk)
     if request.method == "POST":
         form = ContestantMapForm(request.POST)
@@ -755,6 +754,23 @@ def get_contestant_map(request, pk):
             response = HttpResponse(pdf, content_type="application/pdf")
             response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
+    configuration = contestant.navigation_task.flightorderconfiguration
+    form = ContestantMapForm(
+        initial={
+            "dpi": configuration.map_dpi,
+            "zoom_level": configuration.map_zoom_level,
+            "orientation": configuration.map_orientation,
+            "scale": configuration.map_scale,
+            "map_source": configuration.map_source,
+            "user_map_source": configuration.map_user_source,
+            "include_annotations":configuration.map_include_annotations,
+            "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
+            "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
+            "line_width": configuration.map_line_width,
+            "minute_mark_line_width":configuration.map_minute_mark_line_width,
+            "colour": configuration.map_line_colour,
+        }
+    )
     form.fields["user_map_source"].choices = [("", "----")] + [
         (item.map_file, item.name) for item in contestant.navigation_task.get_available_user_maps()
     ]
@@ -985,7 +1001,6 @@ def get_broadcast_navigation_task_orders_status(request, pk):
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_navigation_task_map(request, pk):
-    form = MapForm()
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if request.method == "POST":
         form = MapForm(request.POST)
@@ -1026,6 +1041,21 @@ def get_navigation_task_map(request, pk):
 
             response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
+    configuration = navigation_task.flightorderconfiguration
+    form = MapForm(
+        initial={
+            "zoom_level": configuration.map_zoom_level,
+            "orientation": configuration.map_orientation,
+            "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
+            "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
+            "scale": configuration.map_scale,
+            "map_source": configuration.map_source,
+            "user_map_source": configuration.map_user_source,
+            "dpi": configuration.map_dpi,
+            "line_width": configuration.map_line_width,
+            "colour": configuration.map_line_colour,
+        }
+    )
     form.fields["user_map_source"].choices = [("", "----")] + [
         (item.map_file, item.name) for item in navigation_task.get_available_user_maps()
     ]
@@ -3353,7 +3383,7 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
         return initial
 
     def form_valid(self, form):
-        instance = form.save(commit=False)  # type: UserUploadedMap
+        instance = form.save()  # type: UserUploadedMap
         try:
             instance.thumbnail.save(
                 os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
@@ -3363,7 +3393,6 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
         except Exception as ex:
             form.add_error("map_file", f"Failed reading mbtiles file: {ex}")
             return super().form_invalid(form)
-        instance.save()
         assign_perm("delete_useruploadedmap", self.request.user, instance)
         assign_perm("view_useruploadedmap", self.request.user, instance)
         assign_perm("add_useruploadedmap", self.request.user, instance)

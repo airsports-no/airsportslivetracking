@@ -94,7 +94,6 @@ class MapForm(forms.Form):
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
-    output_type = forms.ChoiceField(initial=PDF, choices=OUTPUT_TYPES)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
