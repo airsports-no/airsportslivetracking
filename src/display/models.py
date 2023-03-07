@@ -199,6 +199,17 @@ class Route(models.Model):
     takeoff_gates = MyPickledObjectField(default=list, null=False)
     landing_gates = MyPickledObjectField(default=list, null=False)
 
+    def create_copy(self) -> "Route":
+        return Route.objects.create(
+            name=self.name,
+            use_procedure_turns=self.use_procedure_turns,
+            rounded_corners=self.rounded_corners,
+            corridor_width=self.corridor_width,
+            waypoints=self.waypoints,
+            takeoff_gates=self.takeoff_gates,
+            landing_gates=self.landing_gates,
+        )
+
     @property
     def first_takeoff_gate(self) -> Optional[Waypoint]:
         try:
