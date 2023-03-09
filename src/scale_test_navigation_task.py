@@ -2,6 +2,7 @@ import argparse
 import datetime
 import logging
 import os
+import threading
 import time
 from typing import Tuple, List
 from urllib.parse import urlencode
@@ -59,48 +60,42 @@ if __name__ == "__main__":
     traccar.get_device_map()
 
 
-def load_data_traccar(tracks: List[Tuple[Contestant, List[dict]]], real_time: bool = True):
-    def send(id, timestamp, lat, lon, speed):
-        params = (("id", id), ("timestamp", int(timestamp)), ("lat", lat), ("lon", lon), ("speed", speed))
-        requests.post("http://" + server + "/?" + urlencode(params))
+def send(id, timestamp, lat, lon, speed):
+    params = (("id", id), ("timestamp", int(timestamp)), ("lat", lat), ("lon", lon), ("speed", speed))
+    requests.post("http://" + server + "/?" + urlencode(params))
 
+
+def send_data_thread(contestant, positions):
     remaining = True
-    count = 0
+    logger.info(f"Started sending positions for {contestant}")
     while remaining:
-        count += 1
-        remaining = False
-        start = time.time()
-        for contestant, positions in tracks:
-            while len(positions) > 0 and (
-                positions[0]["device_time"] < datetime.datetime.now(datetime.timezone.utc) or not real_time
-            ):
-                data = positions.pop(0)
-                send(
-                    contestant.team.crew.member1.simulator_tracking_id,
-                    time.mktime(data["device_time"].timetuple()),
-                    data["latitude"],
-                    data["longitude"],
-                    data["speed"],
-                )
-            remaining = remaining or len(positions) > 0
-        finish = time.time()
-        duration = finish - start
-        if duration < 1:
-            time.sleep(1 - duration)
-        if count % 10 == 0:
-            print(f"Cycle duration: {finish - start:.02f}")
+        while len(positions) > 0 and (positions[0]["device_time"] < datetime.datetime.now(datetime.timezone.utc)):
+            data = positions.pop(0)
+            send(
+                contestant.team.crew.member1.simulator_tracking_id,
+                time.mktime(data["device_time"].timetuple()),
+                data["latitude"],
+                data["longitude"],
+                data["speed"],
+            )
+        time.sleep(1)
+    logger.info(f"Completed sending positions for {contestant}")
+
+
+def load_data_traccar(tracks: List[Tuple[Contestant, List[dict]]], real_time: bool = True):
+    for contestant, positions in tracks:
+        threading.Thread(target=send_data_thread, args=(contestant, positions)).start()
 
 
 def get_retimed_track(start_time, old_contestant: Contestant) -> List[dict]:
     existing_track = old_contestant.get_traccar_track()
-    starting_gate_name = old_contestant.navigation_task.route.waypoints[0].name
-    expected_starting_point_time = old_contestant.gate_times[starting_gate_name]
+    expected_starting_point_time = old_contestant.starting_gate_time
     # Assumes start time is in the future, after expected starting point time
     time_difference = start_time - expected_starting_point_time
     for item in existing_track:
         item["device_time"] += time_difference
 
-    return existing_track
+    return [item for item in existing_track if item["device_time"] > start_time - datetime.timedelta(minutes=1)]
 
 
 def create_contestants(
@@ -177,9 +172,10 @@ if __name__ == "__main__":
             "is_public": False,
             "start_time": start_time,
             "finish_time": finish_time,
-            "time_zone": "Europe/Oslo",
         },
     )
+    contest.time_zone = navigation_task.contest.time_zone
+    contest.save()
     contest.navigationtask_set.filter(name=new_navigation_task_name).delete()
     new_navigation_task = NavigationTask.create(
         name=new_navigation_task_name,

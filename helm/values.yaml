@@ -173,7 +173,7 @@ mysql:
       create: true
     resources:
       requests:
-        memory: 4Gi
+        memory: 2Gi
 #      limits:
 #        memory: 8Gi
     nodeSelector:
