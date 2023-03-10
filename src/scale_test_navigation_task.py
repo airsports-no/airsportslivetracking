@@ -53,6 +53,14 @@ if __name__ == "__main__":
         action="store",
         help="The time (in seconds) between each contestant start",
     )
+    argparser.add_argument(
+        "-p",
+        "--pause",
+        type=float,
+        action="store",
+        default=0,
+        help="Pause data transmission for 60 seconds this amount of minutes after start",
+    )
     arguments = argparser.parse_args()
 
     traccar = Traccar.create_from_configuration()
@@ -68,8 +76,19 @@ def send(id, timestamp, lat, lon, speed):
 def send_data_thread(contestant, positions):
     remaining = True
     logger.info(f"Started sending positions for {contestant}")
+    start_time = datetime.datetime.now(datetime.timezone.utc)
+    have_paused = False
     while remaining:
         while len(positions) > 0 and (positions[0]["device_time"] < datetime.datetime.now(datetime.timezone.utc)):
+            if (
+                arguments.pause > 0
+                and not have_paused
+                and datetime.datetime.now(datetime.timezone.utc)
+                > start_time + datetime.timedelta(minutes=arguments.pause)
+            ):
+                logger.info(f"Pausing contestant {contestant} for sixty seconds.")
+                have_paused = True
+                time.sleep(arguments.pause * 60)
             data = positions.pop(0)
             send(
                 contestant.team.crew.member1.simulator_tracking_id,

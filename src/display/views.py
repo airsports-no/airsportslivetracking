@@ -763,11 +763,11 @@ def get_contestant_map(request, pk):
             "scale": configuration.map_scale,
             "map_source": configuration.map_source,
             "user_map_source": configuration.map_user_source,
-            "include_annotations":configuration.map_include_annotations,
+            "include_annotations": configuration.map_include_annotations,
             "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
             "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
             "line_width": configuration.map_line_width,
-            "minute_mark_line_width":configuration.map_minute_mark_line_width,
+            "minute_mark_line_width": configuration.map_minute_mark_line_width,
             "colour": configuration.map_line_colour,
         }
     )
@@ -1832,7 +1832,8 @@ def cached_generate_data(contestant_pk) -> Dict:
 def _generate_data(contestant_pk):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
     logger.debug("Fetching track for {} {}".format(contestant.pk, contestant))
-    position_data = contestant.get_track()
+    # Do not include track if we have not started a calculator yet
+    position_data = contestant.get_track() if contestant.contestanttrack.calculator_started else []
     if len(position_data) > 0:
         global_latest_time = position_data[-1].time
     else:

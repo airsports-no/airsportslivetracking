@@ -168,10 +168,10 @@
                                    title="Generate and download a new flight order.">Generate new flight
                                     order</a>
                                 {% if contestant.has_flight_order_link %}
-                                <a class="dropdown-item"
-                                   href="{% url 'email_map_link' contestant.newest_flight_order_link_uid %}"
-                                   title="Generate and download a new flight order.">Download flight
-                                    order</a>
+                                    <a class="dropdown-item"
+                                       href="{% url 'email_map_link' contestant.newest_flight_order_link_uid %}"
+                                       title="Generate and download a new flight order.">Download flight
+                                        order</a>
                                 {% endif %}
                                 <a class="dropdown-item" href="{% url 'contestant_uploadgpxtrack' contestant.pk %}"
                                    title="Upload a GPX track for scoring. This will delete any existing track for the contestant.">Upload
@@ -209,7 +209,7 @@
         is an * next to the email, then this user has not set up the APP correctly (for instance using a different email
         address). The email address listed in the tracking column must exactly match the email address used to log into
         the Air Sports Live Tracking App. When the lights under "Live" is red it means that the calculator is not
-        running. This is either because the contestant has finished, all because it has not started yet. If the light
+        running. This is either because the contestant has finished, or because it has not started yet. If the light
         is green, the calculator is running and we have received position data from the tracker.</p>
     <hr/>
     <a href="{% url 'contestant_create' object.pk %}">New contestant</a>
