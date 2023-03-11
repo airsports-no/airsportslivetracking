@@ -2,6 +2,7 @@ import argparse
 import datetime
 import logging
 import os
+import random
 import threading
 import time
 from typing import Tuple, List
@@ -61,6 +62,13 @@ if __name__ == "__main__":
         default=0,
         help="Pause data transmission for 60 seconds this amount of minutes after start",
     )
+    argparser.add_argument(
+        "-r",
+        "--random_pause",
+        action="store_true",
+        default=False,
+        help="Introduce random delays during the playback",
+    )
     arguments = argparser.parse_args()
 
     traccar = Traccar.create_from_configuration()
@@ -89,6 +97,13 @@ def send_data_thread(contestant, positions):
                 logger.info(f"Pausing contestant {contestant} for sixty seconds.")
                 have_paused = True
                 time.sleep(arguments.pause * 60)
+                logger.info(f"Resuming contestant {contestant}.")
+            if arguments.random_pause and random.randint(0, 1800) == 0:  # Approximately once every half hour
+                pause = random.randint(10, 45)
+                logger.info(f"Pausing contestant {contestant} for {pause} seconds.")
+                time.sleep(pause)
+                logger.info(f"Resuming contestant {contestant}.")
+
             data = positions.pop(0)
             send(
                 contestant.team.crew.member1.simulator_tracking_id,
@@ -205,6 +220,8 @@ if __name__ == "__main__":
         finish_time=finish_time,
         is_public=False,
     )
+    for prohibited in navigation_task.route.prohibited_set.all():
+        prohibited.copy_to_new_route(new_navigation_task.route)
     new_navigation_task.scorecard = navigation_task.scorecard.copy(new_navigation_task.pk)
     new_navigation_task.save()
 

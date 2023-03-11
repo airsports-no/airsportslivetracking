@@ -276,6 +276,11 @@ class Prohibited(models.Model):
     type = models.CharField(max_length=100, blank=True, default="")
     tooltip_position = models.JSONField(null=True, blank=True)
 
+    def copy_to_new_route(self, route):
+        return Prohibited.objects.create(
+            name=self.name, route=route, path=self.path, type=self.type, tooltip_position=self.tooltip_position
+        )
+
 
 def get_next_turning_point(waypoints: List, gate_name: str) -> Waypoint:
     found_current = False
