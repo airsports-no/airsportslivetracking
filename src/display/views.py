@@ -227,7 +227,7 @@ from display.serialisers import (
     OngoingNavigationSerialiser,
     EditableRouteSerialiser,
     PositionSerialiser,
-    ScorecardNestedSerialiser,
+    ScorecardNestedSerialiser, ContestSerialiserWithResults,
 )
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
@@ -2732,6 +2732,7 @@ class ContestViewSet(ModelViewSet):
         "ongoing_navigation": OngoingNavigationSerialiser,
         "signup": SignupSerialiser,
         "share": SharingSerialiser,
+        "results": ContestSerialiserWithResults
     }
     default_serialiser_class = ContestSerialiser
     lookup_url_kwarg = "pk"
@@ -2751,6 +2752,18 @@ class ContestViewSet(ModelViewSet):
             )
             | self.queryset.filter(is_public=True, is_featured=True)
         )
+
+
+    @action(detail=False, methods=["get"])
+    def results(self, request, *args, **kwargs):
+        """
+        Get contests with ContestResults. Used by the main page in the results service, ContestSummaryResultsTable.
+        This data replaces the original contest data in the redux storage, so it must use a serialiser that includes
+        all the original data.
+        """
+        data = self.get_serializer_class()(self.get_queryset(), many=True, context={"request": self.request}).data
+        return Response(data)
+
 
     @action(detail=True, methods=["get"])
     def get_current_time(self, request, *args, **kwargs):

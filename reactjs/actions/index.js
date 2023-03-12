@@ -239,6 +239,18 @@ export const fetchContests = () => (dispatch) => {
 }
 
 
+export const fetchContestsWithResults = () => (dispatch) => {
+    dispatch({type: GET_CONTESTS})
+    $.ajax({
+        url: "/api/v1/contests/results/",
+        datatype: 'json',
+        cache: false,
+        success: value => dispatch({type: GET_CONTESTS_SUCCESSFUL, payload: value}),
+        error: error => console.log(error)
+    });
+}
+
+
 export const fetchEditableRoute = (routeId) => (dispatch) => {
     dispatch({type: FETCH_EDITABLE_ROUTE})
     $.ajax({

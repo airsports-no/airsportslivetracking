@@ -4,7 +4,7 @@ import {teamLongForm, teamRankingTable} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Redirect, Link} from "react-router-dom";
-import {fetchContests} from "../../actions";
+import {fetchContestsWithResults} from "../../actions";
 import {Loading} from "../basicComponents";
 import Navbar from "../navbar";
 
@@ -15,7 +15,7 @@ const mapStateToProps = (state, props) => ({
 class ConnectedContestSummaryResultsTable extends Component {
     constructor(props) {
         super(props)
-        this.props.fetchContests()
+        this.props.fetchContestsWithResults()
     }
 
     componentWillUnmount() {
@@ -100,6 +100,6 @@ class ConnectedContestSummaryResultsTable extends Component {
 
 const
     ContestSummaryResultsTable = connect(mapStateToProps, {
-        fetchContests,
+        fetchContestsWithResults,
     })(ConnectedContestSummaryResultsTable);
 export default ContestSummaryResultsTable;
