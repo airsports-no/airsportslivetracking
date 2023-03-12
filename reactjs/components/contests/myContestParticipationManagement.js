@@ -1,8 +1,8 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import MyParticipatingEventsList from "./myParticipatingEventsList";
-import UpcomingContestsSignupTable from "../upcomingContestsSignupTable";
-import ContestRegistrationForm from "../contestRegistrationForm";
+import UpcomingContestsSignupTable from "../participationManagement/upcomingContestsSignupTable";
+import ContestRegistrationForm from "../participationManagement/contestRegistrationForm";
 import {fetchContests, fetchMyParticipatingContests} from "../../actions";
 import {withRouter} from "react-router-dom";
 import Navbar from "../navbar";

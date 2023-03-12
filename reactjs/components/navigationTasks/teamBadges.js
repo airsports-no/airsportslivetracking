@@ -1,9 +1,9 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import Hand from "../react-playing-cards-local/src/PlayingCard/Hand/Hand";
-import {setDisplay, toggleDangerLevel, toggleGateArrow} from "../actions";
-import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
-import GateScoreArrow from "./gateScoreArrow/gateScoreArrow";
+import Hand from "../../react-playing-cards-local/src/PlayingCard/Hand/Hand";
+import {setDisplay, toggleDangerLevel, toggleGateArrow} from "../../actions";
+import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
+import GateScoreArrow from "../gateScoreArrow/gateScoreArrow";
 import DangerLevel from "./danger_thermometer/dangerLevel";
 import Icon from "@mdi/react";
 import {mdiThermometer} from "@mdi/js";

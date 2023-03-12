@@ -5,14 +5,14 @@ import {
     displayOnlyContestantTrack, hideLowerThirds,
     highlightContestantTable, highlightContestantTrack,
     removeHighlightContestantTable, removeHighlightContestantTrack, setDisplay, showLowerThirds
-} from "../actions";
+} from "../../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
 import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
-import {contestantLongForm, contestantShortForm, getBearing} from "../utilities";
-import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import {contestantLongForm, contestantShortForm, getBearing} from "../../utilities";
+import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
 import {DateTime} from "luxon";
 
 

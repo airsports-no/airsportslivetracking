@@ -1,6 +1,6 @@
 import React from "react";
 import {Route} from 'react-router-dom'
-import Switch from "../Switch";
+import Switch from "../../config/Switch";
 import RouteEditorContainer from "./routeEditorContainer";
 
 export default ({match: {path}}) => (

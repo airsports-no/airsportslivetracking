@@ -1,7 +1,7 @@
 import React from "react";
 import {Route} from 'react-router-dom'
 import MyContestParticipationManagement from "./myContestParticipationManagement";
-import Switch from "../Switch";
+import Switch from "../../config/Switch";
 
 
 export default ({match: {path}}) => (

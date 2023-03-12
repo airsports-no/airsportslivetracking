@@ -5,13 +5,13 @@ import {
     compareScoreAscending, compareScoreDescending,
     contestantTwoLines,
     ordinal_suffix_of
-} from "../utilities";
+} from "../../utilities";
 import BootstrapTable from "react-bootstrap-table-next";
 import "bootstrap/dist/css/bootstrap.min.css"
-import {Loading} from "./basicComponents";
+import {Loading} from "../basicComponents";
 import {ProgressCircle} from "./contestantProgress";
-import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
-import {displayAllTracks, hideLowerThirds, removeHighlightContestantTable, setDisplay} from "../actions";
+import {SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
+import {displayAllTracks, hideLowerThirds, removeHighlightContestantTable, setDisplay} from "../../actions";
 import {mdiPagePreviousOutline} from "@mdi/js";
 import Icon from "@mdi/react";
 

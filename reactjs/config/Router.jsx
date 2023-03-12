@@ -1,10 +1,10 @@
 import React from "react";
 import {Route} from 'react-router-dom'
-import Switch from "../components/Switch";
+import Switch from "./Switch";
 import ResultsServiceRouter from "../components/resultsService/ResultsServiceRouter";
 import ParticipationRouter from "../components/contests/ParticipationRouter";
 import RouteEditorRouter from "../components/routeEditor/RouteEditorRouter";
-import GlobalMapRouter from "../components/GlobalMapRouter";
+import GlobalMapRouter from "../components/globalMap/GlobalMapRouter";
 
 
 export default () => (

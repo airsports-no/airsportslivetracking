@@ -2,7 +2,7 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 
 import {w3cwebsocket as W3CWebSocket} from "websocket";
-import {fetchMyParticipatingContests, zoomFocusContest} from "../actions";
+import {fetchMyParticipatingContests, zoomFocusContest} from "../../actions";
 import ReactDOMServer from "react-dom/server";
 import {
     balloon,
@@ -16,10 +16,10 @@ import {
     piston,
     skydiver,
     tower
-} from "./aircraft/aircraft";
+} from "../aircraft/aircraft";
 
-import ContestsGlobalMap from "./contests/contestsGlobalMap";
-import {Jawg_Sunny} from "./leafletLayers";
+import ContestsGlobalMap from "../contests/contestsGlobalMap";
+import {Jawg_Sunny} from "../leafletLayers";
 
 const ognAircraftTypeMap = {
     0: jet,

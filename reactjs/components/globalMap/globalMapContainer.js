@@ -2,14 +2,14 @@ import 'regenerator-runtime/runtime'
 import {connect} from "react-redux";
 import React, {Component} from "react";
 import GlobalMapMap from "./globalMapMap";
-import {fetchContests} from "../actions";
-import GlobalEventList from "./contests/globalEventList";
-import Disclaimer, {DisclaimerLong} from "./disclaimer";
-import AboutLogoPopup from "./aboutLogoPopup";
-import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
-import {internalColour, ognColour, safeskyColour} from "./aircraft/aircraft";
+import {fetchContests} from "../../actions";
+import GlobalEventList from "../contests/globalEventList";
+import Disclaimer, {DisclaimerLong} from "../disclaimer";
+import AboutLogoPopup from "../navigationTasks/aboutLogoPopup";
+import aboutGlobalMap from "../aboutTexts/aboutGlobalMap";
+import {internalColour, ognColour, safeskyColour} from "../aircraft/aircraft";
 import {withRouter} from "react-router-dom";
-import OngoingNavigationTicker from "./contests/ongoingNavigationTicker";
+import OngoingNavigationTicker from "../contests/ongoingNavigationTicker";
 
 const mapStateToProps = (state, props) => ({})
 

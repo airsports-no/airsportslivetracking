@@ -22,7 +22,7 @@ import {
     mdiPencilOutline
 } from "@mdi/js";
 import Icon from "@mdi/react";
-import {sortCaret, sortFunc} from "../resultsTableUtilities";
+import {sortCaret, sortFunc} from "./resultsTableUtilities";
 import {Loading} from "../basicComponents";
 import Navbar from "../navbar";
 
@@ -801,11 +801,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         will consist of three tests; a planning test, a navigation test, and an observation test. The
                         total
                         score of these three tests make up the score for the task.
-                        {this.props.contest.results.permission_change_contest ? <p>
+                        {this.props.contest.results.permission_change_contest ? <div>
                             <hr/>
                             <a className={"alert-link"} href={"/static/documents/contest_results_admin.pdf"}>Administration
                                 how-to guide</a>
-                        </p> : null}
+                        </div> : null}
 
                     </div>
                     <div className={'text-dark'}>Photo by <a

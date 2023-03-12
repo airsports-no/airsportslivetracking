@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {fetchContests} from "../actions";
-import {Loading} from "./basicComponents";
+import {fetchContests} from "../../actions";
+import {Loading} from "../basicComponents";
 import BootstrapTable from "react-bootstrap-table-next";
 import 'react-bootstrap-table2-filter/dist/react-bootstrap-table2-filter.min.css';
 import filterFactory, {textFilter, dateFilter, selectFilter} from 'react-bootstrap-table2-filter';

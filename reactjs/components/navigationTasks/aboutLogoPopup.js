@@ -4,8 +4,8 @@ import {connect} from "react-redux";
 import {
     displayAboutModal,
     hideAboutModal, toggleBackgroundMap, toggleProfilePictures, toggleSecretGates,
-} from "../actions";
-import {SocialMediaLinks} from "./socialMediaLinks";
+} from "../../actions";
+import {SocialMediaLinks} from "../socialMediaLinks";
 import {isAndroid, isIOS} from "react-device-detect";
 import Cookies from 'universal-cookie';
 

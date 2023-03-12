@@ -5,8 +5,8 @@ import {Typeahead} from 'react-bootstrap-typeahead';
 import {ErrorMessage, Formik} from 'formik';
 import {connect} from "react-redux";
 import * as yup from 'yup';
-import {Loading} from "./basicComponents";
-import {fetchMyParticipatingContests} from "../actions";
+import {Loading} from "../basicComponents";
+import {fetchMyParticipatingContests} from "../../actions";
 import {withRouter} from "react-router-dom";
 
 axios.defaults.xsrfCookieName = 'csrftoken'

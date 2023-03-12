@@ -1,5 +1,5 @@
 import 'regenerator-runtime/runtime'
-import NavigationTask from "./navigationTasks/navigationTask";
+import NavigationTask from "./navigationTask";
 import {connect} from "react-redux";
 import React, {Component} from "react";
 import TrackLoadingIndicator from "./trackLoadingIndicator";
@@ -10,9 +10,9 @@ import {
     hideLowerThirds,
     setDisplay,
     shrinkTrackingTable, toggleDisplayOpenAip, toggleExplicitlyDisplayAllTracks
-} from "../actions";
-import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
-import Disclaimer from "./disclaimer";
+} from "../../actions";
+import {SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
+import Disclaimer from "../disclaimer";
 import {mdiAirplaneCog, mdiAirport, mdiGoKartTrack, mdiMagnify, mdiPodium} from "@mdi/js";
 import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";

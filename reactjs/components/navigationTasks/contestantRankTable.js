@@ -4,11 +4,11 @@ import {
     calculateProjectedScore,
     compareScoreAscending, compareScoreDescending,
     teamRankingTable
-} from "../utilities";
+} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import "bootstrap/dist/css/bootstrap.min.css"
 import 'react-bootstrap-table-next/dist/react-bootstrap-table2.min.css';
-import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import {SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
 import {
     displayAllTracks,
     displayOnlyContestantTrack, hideLowerThirds, highlightContestantTable,
@@ -17,11 +17,11 @@ import {
     removeHighlightContestantTrack,
     setDisplay,
     showLowerThirds,
-} from "../actions";
-import {Loading} from "./basicComponents";
+} from "../../actions";
+import {Loading} from "../basicComponents";
 import {ProgressCircle} from "./contestantProgress";
 import 'react-circular-progressbar/dist/styles.css';
-import {sortCaret} from "./resultsTableUtilities";
+import {sortCaret} from "../resultsService/resultsTableUtilities";
 
 
 const mapStateToProps = (state, props) => ({

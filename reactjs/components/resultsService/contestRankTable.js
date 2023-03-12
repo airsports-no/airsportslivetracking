@@ -1,8 +1,8 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
-import {fetchContestResults, resultsData, tasksData, teamsData, testsData} from "../actions/resultsService";
-import {teamRankingTable} from "../utilities";
+import {fetchContestResults, resultsData, tasksData, teamsData, testsData} from "../../actions/resultsService";
+import {teamRankingTable} from "../../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import 'react-bootstrap-table2-toolkit/dist/react-bootstrap-table2-toolkit.min.css';
 import "bootstrap/dist/css/bootstrap.min.css"

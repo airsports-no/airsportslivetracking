@@ -1,9 +1,9 @@
 import React, {Component} from "react";
-import {contestantShortForm} from "../utilities";
+import {contestantShortForm} from "../../utilities";
 import {connect} from "react-redux";
 import BootstrapTable from "react-bootstrap-table-next";
-import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
-import {displayOnlyContestantTrack, setDisplay, showLowerThirds} from "../actions";
+import {CONTESTANT_DETAILS_DISPLAY} from "../../constants/display-types";
+import {displayOnlyContestantTrack, setDisplay, showLowerThirds} from "../../actions";
 
 const mapStateToProps = (state, props) => {
     let scores = [];

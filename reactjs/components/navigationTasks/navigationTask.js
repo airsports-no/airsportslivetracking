@@ -8,19 +8,19 @@ import {
     hideLowerThirds, dispatchContestantData, dispatchCurrentTime, dispatchNewContestant, dispatchDeleteContestant
 } from "../../actions";
 import {connect} from "react-redux";
-import ContestantTrack from "../contestantTrack";
+import ContestantTrack from "./contestantTrack";
 import distinctColors from "distinct-colors";
-import ContestantRankTable from "../contestantRankTable";
+import ContestantRankTable from "./contestantRankTable";
 import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} from "../../constants/display-types";
-import ContestantDetailsDisplay from "../contestantDetailsDisplay";
-import TurningPointDisplay from "../turningPointDisplay";
+import ContestantDetailsDisplay from "./contestantDetailsDisplay";
+import TurningPointDisplay from "./turningPointDisplay";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
-import PrecisionRenderer from "./precisionRenderer";
-import AnrCorridorRenderer from "./anrCorridorRenderer";
-import ProhibitedRenderer from "./prohibitedRenderer";
-import LandingRenderer from "./landingRenderer";
-import ContestRankTable from "../contestRankTable";
-import AirsportsRenderer from "./airsportsRenderer";
+import PrecisionRenderer from "./trackRenderers/precisionRenderer";
+import AnrCorridorRenderer from "./trackRenderers/anrCorridorRenderer";
+import ProhibitedRenderer from "./trackRenderers/prohibitedRenderer";
+import LandingRenderer from "./trackRenderers/landingRenderer";
+import ContestRankTable from "../resultsService/contestRankTable";
+import AirsportsRenderer from "./trackRenderers/airsportsRenderer";
 import {Jawg_Sunny, OpenAIP} from "../leafletLayers";
 
 export const mapStateToProps = (state, props) => ({

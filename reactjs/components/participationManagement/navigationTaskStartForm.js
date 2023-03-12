@@ -4,7 +4,7 @@ import axios from 'axios'
 import {ErrorMessage, Formik} from 'formik';
 import {connect} from "react-redux";
 import * as yup from 'yup';
-import {fetchMyParticipatingContests} from "../actions";
+import {fetchMyParticipatingContests} from "../../actions";
 import {withRouter} from "react-router-dom";
 import DatePicker from "react-datepicker";
 

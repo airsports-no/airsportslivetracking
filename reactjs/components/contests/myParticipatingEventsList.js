@@ -8,7 +8,7 @@ import {Button, Container, Modal} from "react-bootstrap";
 import axios from "axios";
 import {formatDate, formatTime, teamRankingTable} from "../../utilities";
 import {Loading} from "../basicComponents";
-import SelfRegistrationForm from "../navigationTaskStartForm";
+import SelfRegistrationForm from "../participationManagement/navigationTaskStartForm";
 import {withRouter} from "react-router-dom";
 import {mdiShare} from "@mdi/js";
 import Icon from "@mdi/react";

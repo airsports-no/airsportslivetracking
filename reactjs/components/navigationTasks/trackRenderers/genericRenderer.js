@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {divIcon, marker} from "leaflet";
-import {formatTime} from "../../utilities";
+import {formatTime} from "../../../utilities";
 
 const L = window['L']
 

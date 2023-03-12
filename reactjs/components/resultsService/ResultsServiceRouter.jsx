@@ -1,4 +1,4 @@
-import Switch from "../Switch";
+import Switch from "../../config/Switch";
 import {Route} from "react-router-dom";
 import React from "react";
 import TaskSummaryResultsTable from "./TaskSummaryResultsTable";

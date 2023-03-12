@@ -1,7 +1,7 @@
 import React from "react";
 import {Route} from 'react-router-dom'
 import GlobalMapContainer from "./globalMapContainer";
-import Switch from "./Switch";
+import Switch from "../../config/Switch";
 
 
 export default ({match: {path}}) => (

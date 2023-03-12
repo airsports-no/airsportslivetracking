@@ -1,9 +1,9 @@
 import React, {Component} from "react";
-import aboutPrecisionFlying from "./aboutTexts/aboutPrecisionFlying";
-import aboutPilotPokerRun from "./aboutTexts/aboutPilotPokerRun";
-import aboutANR from "./aboutTexts/aboutANR";
+import aboutPrecisionFlying from "../aboutTexts/aboutPrecisionFlying";
+import aboutPilotPokerRun from "../aboutTexts/aboutPilotPokerRun";
+import aboutANR from "../aboutTexts/aboutANR";
 import AboutLogoPopup from "./aboutLogoPopup";
-import aboutAirsports from "./aboutTexts/aboutAirsports";
+import aboutAirsports from "../aboutTexts/aboutAirsports";
 
 export default class AboutTaskPopup extends Component {
     render() {
