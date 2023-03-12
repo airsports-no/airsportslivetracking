@@ -3,16 +3,12 @@ import {connect} from "react-redux";
 import {
     calculateProjectedScore,
     compareScoreAscending, compareScoreDescending,
-    contestantRankingTable,
-    contestantShortForm,
-    pz,
     teamRankingTable
 } from "../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
-import paginationFactory from 'react-bootstrap-table2-paginator';
 import "bootstrap/dist/css/bootstrap.min.css"
 import 'react-bootstrap-table-next/dist/react-bootstrap-table2.min.css';
-import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
     displayAllTracks,
     displayOnlyContestantTrack, hideLowerThirds, highlightContestantTable,
@@ -23,18 +19,9 @@ import {
     showLowerThirds,
 } from "../actions";
 import {Loading} from "./basicComponents";
-import {ProgressCircle, ProjectedScore} from "./contestantProgress";
+import {ProgressCircle} from "./contestantProgress";
 import 'react-circular-progressbar/dist/styles.css';
 import {sortCaret} from "./resultsTableUtilities";
-
-var moment = require("moment");
-var momentDurationFormatSetup = require("moment-duration-format");
-
-function getTrackingStateBackgroundClass(state) {
-    if (["Tracking", "Procedure turn"].includes(state)) return "greenBackground";
-    if (["Backtracking", "Failed procedure turn"].includes(state)) return "redBackground"
-    return ""
-}
 
 
 const mapStateToProps = (state, props) => ({
@@ -74,11 +61,6 @@ class ConnectedContestantRankTable extends Component {
             {
                 dataField: "rank",
                 text: " #",
-                // headerEvents: {
-                //     onClick: (e, column, columnIndex) => {
-                //         this.handleExpandHeaderClick()
-                //     }
-                // },
                 classes: "align-middle",
                 headerStyle: {width: '50px'},
                 sort: false,
@@ -188,40 +170,8 @@ class ConnectedContestantRankTable extends Component {
                 },
                 classes: "align-middle"
             },
-            // {
-            //     dataField: "dummy",
-            //     text: "",
-            //     formatter: (cell, row) => {
-            //         return <Icon path={mdiMagnify} title={"Logout"} size={1.1} color={"white"}/>
-            //     },
-            //     classes: "align-middle"
-            // },
-            {
-                dataField: "currentState",
-                text: "STATE",
-                hidden: !this.props.displayExpandedTrackingTable,
-
-                classes: function callback(cell, row, rowIndex, colIndex) {
-                    return getTrackingStateBackgroundClass(cell)
-                },
-                // formatter: this.getStateFormat
-            },
-            {
-                dataField: "latestStatus",
-                text: "EVENT",
-                hidden: true//!this.props.displayExpandedTrackingTable
-            },
-            {
-                dataField: "lastGate",
-                text: "GATE",
-                hidden: !this.props.displayExpandedTrackingTable
-            },
-            {
-                dataField: "lastGateTimeOffset",
-                text: "OFFSET",
-                hidden: !this.props.displayExpandedTrackingTable
-            }
         ]
+
         this.rowEvents = {
             onClick: (e, row, rowIndex) => {
                 this.handleContestantLinkClick(row.contestantId)
@@ -246,7 +196,6 @@ class ConnectedContestantRankTable extends Component {
     }
 
     handleContestantLinkClick(contestantId) {
-        // this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
         this.resetToAllContestants()
         if (!this.props.highlight.includes(contestantId)) {
             this.props.displayOnlyContestantTrack(contestantId)
@@ -270,9 +219,6 @@ class ConnectedContestantRankTable extends Component {
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
-        if (this.props.highlight.length === 1 && this.selectedLine) {
-            // this.selectedLine.scrollIntoView({block: "center"})
-        }
     }
 
     buildData() {
@@ -304,16 +250,8 @@ class ConnectedContestantRankTable extends Component {
                 score: contestant.track.score,
                 contest_summary: contestant.track.contest_summary,
                 projectedScore: calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary),
-                currentState: contestant.initialLoading ? "Loading..." : contestant.track.current_state,
                 finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
                 initialLoading: contestant.initialLoading,
-                lastGate: contestant.track.last_gate,
-                lastGateTimeOffset: moment.duration(contestant.track.last_gate_time_offset, "seconds").format([
-                    moment.duration(1, "second"),
-                    moment.duration(1, "minute"),
-                    moment.duration(1, "hour")
-                ], "d [days] hh:mm:ss"),
-                latestStatus: contestant.logEntries.length > 0 ? contestant.logEntries[contestant.logEntries.length - 1] : ""
             }
         })
     }
@@ -325,14 +263,8 @@ class ConnectedContestantRankTable extends Component {
         return <div>{cell}</div>
     }
 
-
-    getTrackProgressFormat(cell, row) {
-
-    }
-
     debouncedBuildData() {
         return this.buildData()
-        // return debounce(this.buildData(), 500)
     }
 
     render() {
@@ -347,7 +279,7 @@ class ConnectedContestantRankTable extends Component {
                                defaultSorted={[{dataField: "rank", order: "asc"}]}
                                classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
                                bootstrap4 striped hover condensed
-                               bordered={false}//pagination={paginationFactory(paginationOptions)}
+                               bordered={false}
                                rowEvents={this.rowEvents}/>
     }
 }

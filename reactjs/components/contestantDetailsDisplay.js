@@ -3,18 +3,16 @@ import {connect} from "react-redux";
 import {
     calculateProjectedScore,
     compareScoreAscending, compareScoreDescending,
-    contestantShortForm,
     contestantTwoLines,
     ordinal_suffix_of
 } from "../utilities";
-import paginationFactory from "react-bootstrap-table2-paginator";
 import BootstrapTable from "react-bootstrap-table-next";
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Loading} from "./basicComponents";
 import {ProgressCircle} from "./contestantProgress";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {displayAllTracks, hideLowerThirds, removeHighlightContestantTable, setDisplay} from "../actions";
-import {mdiMagnify, mdiPagePrevious, mdiPagePreviousOutline} from "@mdi/js";
+import {mdiPagePreviousOutline} from "@mdi/js";
 import Icon from "@mdi/react";
 
 const mapStateToProps = (state, props) => ({
@@ -39,8 +37,6 @@ function FormatMessage(props) {
         offset_string = " (" + message.offset_string + ")"
     }
     return <div className={"preWrap"}>{message.message} {offset_string}</div>
-    // return <div className={"preWrap"}>{message.points.toFixed(2)} points {message.message} {offset_string}<span
-    //     className={"gateTimesText"}>{message.times_string.length > 0 ? "\n" + message.times_string : null}</span></div>
 }
 
 class ConnectedContestantDetailsDisplay extends Component {
@@ -69,10 +65,6 @@ class ConnectedContestantDetailsDisplay extends Component {
     }
 
     componentDidUpdate(prevProps) {
-    }
-
-    scrollToBottom() {
-        this.messagesEnd.scrollIntoView({behavior: "smooth"});
     }
 
     resetToAllContestants() {
@@ -174,11 +166,6 @@ class ConnectedContestantDetailsDisplay extends Component {
         })
         events.reverse()
 
-        const paginationOptions = {
-            sizePerPage: 20,
-            hideSizePerPage: true,
-            hidePageListOnlyOnePage: true
-        };
         const rowEvents = {
             onClick: (e, row, rowIndex) => {
                 this.resetToAllContestants()
@@ -191,7 +178,7 @@ class ConnectedContestantDetailsDisplay extends Component {
             <BootstrapTable keyField={"key"} data={events} columns={columns}
                             classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
                             bootstrap4 striped hover condensed rowEvents={rowEvents}
-                            bordered={false}//pagination={paginationFactory(paginationOptions)}
+                            bordered={false}
             />
             <div style={{float: "left", clear: "both"}}
                  ref={(el) => {

@@ -2,9 +2,6 @@ import React from "react";
 import {polyline} from "leaflet";
 import GenericRenderer from "./genericRenderer";
 
-const L = window['L']
-
-
 export default class PrecisionRenderer extends GenericRenderer {
     renderRoute() {
         for (const line of this.lines) {
@@ -48,32 +45,6 @@ export default class PrecisionRenderer extends GenericRenderer {
             previousWaypoint = waypoint
         }
         tracks.push(currentTrack)
-        // let turningPoints = this.props.navigationTask.route.waypoints.filter((waypoint) => {
-        //     return true //waypoint.type === "tp"
-        // }).map((waypoint) => {
-        //     return [waypoint.latitude, waypoint.longitude]
-        // });
-
-        // this.props.navigationTask.route.waypoints.filter((waypoint) => {
-        //     return waypoint.is_procedure_turn
-        // }).map((waypoint) => {
-        //     circle([waypoint.latitude, waypoint.longitude], {
-        //         radius: 500,
-        //         color: "blue"
-        //     }).addTo(this.props.map)
-        // })
-        // Temporarily plot range circles
-        // this.props.navigationTask.track.waypoints.map((waypoint) => {
-        //     circle([waypoint.latitude, waypoint.longitude], {
-        //         radius: waypoint.insideDistance,
-        //         color: "orange"
-        //     }).addTo(this.props.map)
-        // })
-        // Plot starting line
-        // const gate = this.props.navigationTask.track.starting_line
-        // polyline([[gate.gate_line[1], gate.gate_line[0]], [gate.gate_line[3], gate.gate_line[2]]], {
-        //             color: "red"
-        //         }).addTo(this.props.map)
         for (const dummy of dummyLegs) {
             this.lines.push(polyline(dummy, {
                 color: "pink"

@@ -1,8 +1,4 @@
-import React, {Component} from "react";
-import {
-    isAndroid,
-    isIOS
-} from "react-device-detect";
+import React from "react";
 import Icon from "@mdi/react";
 import {mdiGoKartTrack} from "@mdi/js";
 import {internalColour, ognColour, safeskyColour} from "../aircraft/aircraft";

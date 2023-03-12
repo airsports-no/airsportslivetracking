@@ -1,6 +1,4 @@
 import React, {Component} from "react";
-import TaskItem from "./taskItem";
-import {zoomFocusContest} from "../../actions";
 import {connect} from "react-redux";
 
 
@@ -36,11 +34,9 @@ class ConnectedContestItem extends Component {
                                  {new Date(this.props.contest.start_time).toLocaleDateString()} -
                                  {new Date(this.props.contest.finish_time).toLocaleDateString()}
                              </span>
-                             {/*<i className={"mdi mdi-public"} style={{fontSize: "40px"}}/>*/}
-                             <img src={this.props.contest.country_flag_url} style={{height: "15px"}}/>
+                             <img src={this.props.contest.country_flag_url} style={{height: "15px"}}
+                                  alt={"Country flag"}/>
                     </span>
-                    {/*{this.props.contest.latitude !== 0 && this.props.contest.longitude !== 0 ?*/}
-                    {/*    <i className={"mdi mdi-zoom-in"} onClick={() => this.handleClick()}/> : null}*/}
                 </div>
     </span>
     }

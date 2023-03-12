@@ -7,7 +7,7 @@ from zlib import compress, decompress
 import django
 from django.core import checks
 from django.db import models
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 DEFAULT_PROTOCOL = 2
 
@@ -201,7 +201,7 @@ class MyPickledObjectField(models.Field):
             # marshaller (telling it to store it like it would a string), but
             # since both of these methods result in the same value being stored,
             # doing things this way is much easier.
-            value = force_text(dbsafe_encode(value, self.compress, self.protocol, self.copy))
+            value = force_str(dbsafe_encode(value, self.compress, self.protocol, self.copy))
         return value
 
     def value_to_string(self, obj):

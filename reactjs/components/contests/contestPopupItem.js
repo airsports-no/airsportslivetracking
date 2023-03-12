@@ -1,30 +1,11 @@
 import React, {Component} from "react";
 import TaskItem from "./taskItem";
 import {Link} from "react-router-dom";
-import {mdiContentCopy, mdiGoKartTrack, mdiShare} from "@mdi/js";
+import {mdiContentCopy, mdiShare} from "@mdi/js";
 import Icon from "@mdi/react";
 import CopyToClipboard from "react-copy-to-clipboard";
+import {sortStartAndFinishTimes} from "./utilities";
 
-
-function sortTaskTimes(a, b) {
-    const startTimeA = new Date(a.start_time)
-    const finishTimeA = new Date(a.finish_time)
-    const startTimeB = new Date(b.start_time)
-    const finishTimeB = new Date(b.finish_time)
-    if (startTimeA < startTimeB) {
-        return -1;
-    }
-    if (startTimeA > startTimeB) {
-        return 1;
-    }
-    if (finishTimeA < finishTimeB) {
-        return -1;
-    }
-    if (finishTimeA > finishTimeB) {
-        return 1;
-    }
-    return 0;
-}
 
 export default class ContestPopupItem extends Component {
     constructor(props) {
@@ -43,7 +24,7 @@ export default class ContestPopupItem extends Component {
                     <button className={"btn btn-danger"}>Manage crew</button>
                 </a>
             }
-        }else{
+        } else {
             if (link) {
                 return <Link to={"/participation/" + this.props.contest.id + "/register/"}>
                     <button className={"btn btn-danger"}>Register crew</button>
@@ -58,7 +39,7 @@ export default class ContestPopupItem extends Component {
     }
 
     render() {
-        const tasks = this.props.contest.navigationtask_set.sort(sortTaskTimes)
+        const tasks = this.props.contest.navigationtask_set.sort(sortStartAndFinishTimes)
         return <div className={""} key={"contest" + this.props.contest.id}>
             <img className={"mx-auto d-block"}
                  src={this.props.contest.header_image && this.props.contest.header_image.length > 0 ? this.props.contest.header_image : "/static/img/airsportslogo.png"}
@@ -73,7 +54,7 @@ export default class ContestPopupItem extends Component {
                 </h6>
 
                 <span style={{fontSize: "18px"}}>
-                    {new Date(this.props.contest.finish_time) > new Date() ? this.registerButton(this.props.contest, this.props.participation, this.props.link):null}
+                    {new Date(this.props.contest.finish_time) > new Date() ? this.registerButton(this.props.contest, this.props.participation, this.props.link) : null}
                 </span>&nbsp;
                 <span style={{"paddingTop": "0.3em", fontSize: "20px"}}
                       className={"badge badge-dark badge-pill"}>{this.props.contest.contest_team_count} </span>

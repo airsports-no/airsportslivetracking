@@ -1,5 +1,5 @@
-import React, {Component} from "react";
-import {getGate, getGateValue, getTrackValue} from "./actualScoreUtilities";
+import React from "react";
+import {getGateValue, getTrackValue} from "./actualScoreUtilities";
 
 
 const aboutAirsports = (scorecard, route) => {

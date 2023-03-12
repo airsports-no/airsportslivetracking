@@ -6,8 +6,7 @@ import TrackLoadingIndicator from "./trackLoadingIndicator";
 import {LowerThirdTeam} from "./teamBadges";
 import {
     displayAllTracks,
-    expandTrackingTable, fetchMyParticipatingContests, fetchNavigationTask, fullHeightTable,
-    halfHeightTable,
+    expandTrackingTable, fetchMyParticipatingContests, fetchNavigationTask,
     hideLowerThirds,
     setDisplay,
     shrinkTrackingTable, toggleDisplayOpenAip, toggleExplicitlyDisplayAllTracks
@@ -18,11 +17,8 @@ import {mdiAirplaneCog, mdiAirport, mdiGoKartTrack, mdiMagnify, mdiPodium} from 
 import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
 import TimeDisplay from "./timeDisplay";
-import {Link} from "react-router-dom";
-import Navbar from "./navbar";
 import qs from "qs";
 
-// import "leaflet/dist/leaflet.css"
 
 const mapStateToProps = (state, props) => ({
     navigationTask: state.navigationTask,
@@ -31,7 +27,6 @@ const mapStateToProps = (state, props) => ({
     displayLowerThirds: state.displayLowerThirds,
     contestants: state.contestants,
     currentDisplay: state.currentDisplay,
-    displayFullHeightTrackingTable: state.displayFullHeightTrackingTable,
     myParticipatingContests: state.myParticipatingContests
 })
 
@@ -40,7 +35,6 @@ class ConnectedTrackingContainer extends Component {
     constructor(props) {
         super(props);
         this.client = null;
-        this.viewer = null;
         this.map = null;
         this.navigationTaskId = document.configuration.navigation_task_id;
         this.contestId = document.configuration.contest_id;
@@ -52,11 +46,6 @@ class ConnectedTrackingContainer extends Component {
         this.contestantIds = []
         window.addEventListener("resize", () => this.setState({height: window.innerHeight, width: window.innerWidth}))
     }
-
-    convertVwToPx(vw = 50) {
-        const oneVwInPx = this.state.width / 100;
-        return oneVwInPx * vw;
-    };
 
     fetchNavigationTask() {
         this.props.fetchNavigationTask(this.contestId, this.navigationTaskId, this.contestantIds);
@@ -88,7 +77,6 @@ class ConnectedTrackingContainer extends Component {
     render() {
         if (this.props.navigationTaskError) {
             return <div>
-                <Navbar/>
                 <div className={"container-xl"}>
                     <h4 className="alert alert-warning" role="alert">Failed loading
                         contest: {this.props.navigationTaskError.statusText}</h4>
@@ -98,10 +86,6 @@ class ConnectedTrackingContainer extends Component {
                 </div>
             </div>
         }
-        const TableHeightLink = <a className={"heightLink taskTitle"} href={"#"}
-                                   onClick={this.props.displayFullHeightTrackingTable ? this.props.halfHeightTable : this.props.fullHeightTable}>{this.props.displayFullHeightTrackingTable ?
-            <i className={"mdi mdi-keyboard-arrow-up"}/> :
-            <i className={"mdi mdi-keyboard-arrow-down"}/>}</a>
         const ExpandedTableLink = <a className={"widthLink taskTitle"} href={"#"}
                                      onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ?
             <i className={"mdi mdi-keyboard-arrow-left"}/> :
@@ -123,8 +107,6 @@ class ConnectedTrackingContainer extends Component {
                             </div>
                             <div className={"col-7 fill"}>
                                 <div id="cesiumContainer"/>
-                                {/*<div id="logoContainer"><img src={"/static/img/AirSportsLogo.png"} className={"img-fluid"}/>*/}
-                                {/*</div>*/}
                             </div>
                         </div>
                     </div>
@@ -155,14 +137,12 @@ class ConnectedTrackingContainer extends Component {
                                     className={"titleWrapper"}>
                                     <a data-toggle={"collapse"} data-target={"#insetMenu"}
                                        style={{paddingLeft: "14px", paddingRight: "12px"}}>
-                                        {/*id={"logoButtonWrapper"}>*/}
                                         <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
                                     </a>
                                     <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
                                        aria-controls={"insetMenu"} aria-expanded={true}
                                        data-target={"#insetMenu"}>{this.props.navigationTask.name ? this.props.navigationTask.name.toUpperCase() : null}</a>
                                     {this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY ? ExpandedTableLink : null}
-                                    {/*{TableHeightLink}*/}
                                 </div>
                                 <div id={"insetMenu"}
                                      className={"collapse show"}>
@@ -172,7 +152,6 @@ class ConnectedTrackingContainer extends Component {
                                             {TrackerDisplay}
                                         </div>
                                     </div>
-                                    {/*<div className={"bottomWrapper"}>{TableHeightLink} {ExpandedTableLink}</div>*/}
                                 </div>
 
                             </div>
@@ -208,7 +187,6 @@ class ConnectedTrackingContainer extends Component {
                                 <div><LowerThirdTeam scorecard={this.props.navigationTask.scorecard}
                                                      contestant={this.props.contestants[this.props.displayLowerThirds]}
                                                      contestantId={this.props.displayLowerThirds}/>
-                                    {/*<TimeDisplay contestantId={this.props.displayLowerThirds} class={"pilotTime"}/>*/}
                                     <TimeDisplay class={"pilotTime"}/>
                                 </div> : <TimeDisplay class={"pilotTime"}/>}
 
@@ -228,8 +206,6 @@ const
         setDisplay,
         displayAllTracks,
         hideLowerThirds,
-        halfHeightTable,
-        fullHeightTable,
         toggleExplicitlyDisplayAllTracks,
         toggleDisplayOpenAip,
         fetchMyParticipatingContests

@@ -4,7 +4,7 @@ import {w3cwebsocket as W3CWebSocket} from "websocket";
 import {
     createOrUpdateTask, createOrUpdateTaskTest, deleteTask, deleteTaskTest,
     fetchContestResults,
-    fetchContestTeams, fetchTasks, fetchTaskTests, hideAllTaskDetails,
+    hideAllTaskDetails,
     hideTaskDetails, putContestSummary, putTaskSummary, putTestResult, resultsData,
     showTaskDetails, tasksData, teamsData, testsData
 } from "../../actions/resultsService";
@@ -14,27 +14,17 @@ import 'react-bootstrap-table2-toolkit/dist/react-bootstrap-table2-toolkit.min.c
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Link} from "react-router-dom";
 
-// import ToolkitProvider, {CSVExport} from 'react-bootstrap-table2-toolkit';
 import cellEditFactory from 'react-bootstrap-table2-editor';
 import {Container, Modal, Button, Form} from "react-bootstrap";
 import {
-    mdiArrowCollapseHorizontal,
-    mdiArrowExpandHorizontal, mdiChevronDown, mdiChevronLeft, mdiChevronRight, mdiChevronUp,
-    mdiClose, mdiMagnifyMinus, mdiMagnifyPlus, mdiDeleteForever, mdiEarth,
-    mdiPencilOutline, mdiPlusBox, mdiSort
+    mdiChevronLeft, mdiChevronRight,
+    mdiClose, mdiDeleteForever, mdiEarth,
+    mdiPencilOutline
 } from "@mdi/js";
 import Icon from "@mdi/react";
-import {
-    GET_CONTEST_RESULTS_SUCCESSFUL,
-    GET_CONTEST_TEAMS_LIST_SUCCESSFUL,
-    GET_TASK_TESTS_SUCCESSFUL,
-    GET_TASKS_SUCCESSFUL
-} from "../../constants/resultsServiceActionTypes";
 import {sortCaret, sortFunc} from "../resultsTableUtilities";
 import {Loading} from "../basicComponents";
 import Navbar from "../navbar";
-
-// const {ExportCSVButton} = CSVExport;
 
 
 const mapStateToProps = (state, props) => ({
@@ -50,12 +40,6 @@ const mapStateToProps = (state, props) => ({
 class ConnectedTaskSummaryResultsTable extends Component {
     constructor(props) {
         super(props)
-        // if (!this.props.results) {
-        // this.props.fetchContestResults(this.props.contestId)
-        //     this.props.fetchContestTeams(this.props.contestId)
-        //     this.props.fetchTasks(this.props.contestId)
-        //     this.props.fetchTaskTests(this.props.contestId)
-        // }
         this.state = {
             displayNewTaskModal: false,
             displayNewTaskTestModal: false,
@@ -112,7 +96,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
             cache: false,
             success: value => {
                 this.props.fetchContestResults(contestId)
-                // dispatch({type: DELETE_RESULTS_TABLE_TEAM_SUCCESSFUL, contestId: contestId, teamId: teamId})
             },
             error: error => alert(error)
         });
@@ -570,7 +553,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         let header = <span>{components.sortElement} {taskTest.heading}</span>
                         if (taskTest.navigation_task_link) {
                             header =
-                                <span>{components.sortElement} {taskTest.heading}<a href={taskTest.navigation_task_link}><Icon
+                                <span>{components.sortElement} {taskTest.heading}<a
+                                    href={taskTest.navigation_task_link}><Icon
                                     path={mdiEarth} size={0.7}/></a></span>
                         }
                         let privileged = null
@@ -689,23 +673,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                    this.collapseTask(task)
                                }}
                             >Σ {common}</a> : <a href={"#"}
-                                               onClick={(e) => {
-                                                   e.stopPropagation()
-                                                   this.expandTask(task)
-                                               }}
+                                                 onClick={(e) => {
+                                                     e.stopPropagation()
+                                                     this.expandTask(task)
+                                                 }}
                             >{common}</a>}{privilege_break}{privileged}
-                            {/*{this.props.visibleTaskDetails[task.id] ? <a href={"#"}*/}
-                            {/*                                             onClick={(e) => {*/}
-                            {/*                                                 e.stopPropagation()*/}
-                            {/*                                                 this.collapseTask(task)*/}
-                            {/*                                             }}*/}
-                            {/*    ><Icon path={mdiMagnifyMinus} size={0.7}/></a> :*/}
-                            {/*    <a href={"#"}*/}
-                            {/*       onClick={(e) => {*/}
-                            {/*           e.stopPropagation()*/}
-                            {/*           this.expandTask(task)*/}
-                            {/*       }}*/}
-                            {/*    ><Icon path={mdiMagnifyPlus} size={0.7}/></a>}*/}
                             {move}
                         </div>
                     }
@@ -806,29 +778,14 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 </div>
                 <div className={"results-table"}>
                     <div className={""}>
-                        {/*<ToolkitProvider*/}
-                        {/*    keyField="key"*/}
-                        {/*    data={d}*/}
-                        {/*    columns={c}*/}
-                        {/*    exportCSV*/}
-                        {/*>*/}
-                        {/*    {*/}
-                        {/*        props => (*/}
-                                    <div>
-                                        <BootstrapTable keyField={"key"} data={d} columns={c} sort={defaultSorted}
-                                                        classes={"table-dark bg-dark-transparent"}
-                                                        wrapperClasses={"text-dark"}
-                                                        bootstrap4 striped condensed
-                                                        cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
-                                        />
-
-                                        {/*{this.props.contest.results.permission_change_contest ?*/}
-                                        {/*    <ExportCSVButton {...props.csvProps} className={"btn btn-secondary"}>Export*/}
-                                        {/*        CSV</ExportCSVButton> : null}*/}
-                                    </div>
-                                {/*)*/}
-                        {/*    }*/}
-                        {/*</ToolkitProvider>*/}
+                        <div>
+                            <BootstrapTable keyField={"key"} data={d} columns={c} sort={defaultSorted}
+                                            classes={"table-dark bg-dark-transparent"}
+                                            wrapperClasses={"text-dark"}
+                                            bootstrap4 striped condensed
+                                            cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
+                            />
+                        </div>
                     </div>
                     <div className={"alert alert-info alert-dismissable fade show"} style={{marginTop: "20px"}}>
                         <button type="button" className="close" data-dismiss="alert" aria-hidden="true">&#215;</button>
@@ -868,11 +825,8 @@ const
     TaskSummaryResultsTable = connect(mapStateToProps,
         {
             fetchContestResults,
-            fetchContestTeams,
             showTaskDetails,
             hideTaskDetails,
-            fetchTasks,
-            fetchTaskTests,
             createOrUpdateTask,
             createOrUpdateTaskTest,
             deleteTask,

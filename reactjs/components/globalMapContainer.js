@@ -2,7 +2,7 @@ import 'regenerator-runtime/runtime'
 import {connect} from "react-redux";
 import React, {Component} from "react";
 import GlobalMapMap from "./globalMapMap";
-import {displayDisclaimerModal, fetchContests, hideDisclaimerModal} from "../actions";
+import {fetchContests} from "../actions";
 import GlobalEventList from "./contests/globalEventList";
 import Disclaimer, {DisclaimerLong} from "./disclaimer";
 import AboutLogoPopup from "./aboutLogoPopup";
@@ -10,7 +10,6 @@ import aboutGlobalMap from "./aboutTexts/aboutGlobalMap";
 import {internalColour, ognColour, safeskyColour} from "./aircraft/aircraft";
 import {withRouter} from "react-router-dom";
 import OngoingNavigationTicker from "./contests/ongoingNavigationTicker";
-import WikiLogoPopup from "./wikiPopup";
 
 const mapStateToProps = (state, props) => ({})
 
@@ -45,7 +44,9 @@ class ConnectedGlobalMapContainer extends Component {
                         </div>
                         <Disclaimer/>
                         <AboutLogoPopup aboutText={aboutGlobalMap} size={2}/>
-                        <WikiLogoPopup size={2}/>
+                        <a target="_blank" href={"https://home.airsports.no/"} className={"wikiImage"}>
+                            <img src={"/static/img/news.png"} style={{width: "50px"}} alt={"About"}/>
+                        </a>
                         <div id="cesiumContainer"/>
                         <div className="ongoing-navigation-ticker"><OngoingNavigationTicker/></div>
                     </div>

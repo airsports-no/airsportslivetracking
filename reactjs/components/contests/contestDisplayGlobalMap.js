@@ -26,10 +26,6 @@ class ConnectedContestDisplayGlobalMap extends Component {
 
     componentDidMount() {
         const now = new Date()
-        let colour = "blue"
-        if (new Date(this.props.contest.start_time).getTime() < now.getTime() && new Date(this.props.contest.finish_time).getTime() > now.getTime()) {
-            colour = "red"
-        }
         this.circle = L.marker([this.props.contest.latitude, this.props.contest.longitude], {
             title: this.props.contest.name,
             zIndexOffset: 1000000,
@@ -40,9 +36,6 @@ class ConnectedContestDisplayGlobalMap extends Component {
                                                                               participation={this.getCurrentParticipation(this.props.contest.id)}/>), {
             className: "contest-popup",
             maxWidth: 350,
-            // maxWidth: 500,
-            // maxHeight: 300,
-            // minWidth: 100,
             permanent: false,
             direction: "center"
         })

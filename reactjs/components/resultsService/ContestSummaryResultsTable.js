@@ -64,7 +64,6 @@ class ConnectedContestSummaryResultsTable extends Component {
                 text: "Champions",
                 formatter: (cell, row) => {
                     return cell ? <div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div> : null
-                    // return <TeamBadge team={cell}/>
                 }
 
             }

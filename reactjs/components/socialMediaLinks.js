@@ -1,5 +1,5 @@
 import React, {Component} from "react";
-import {mdiFacebook, mdiInstagram, mdiMagnify, mdiMail, mdiTwitter, mdiYoutube} from "@mdi/js";
+import {mdiFacebook, mdiInstagram, mdiMail, mdiTwitter, mdiYoutube} from "@mdi/js";
 import Icon from "@mdi/react";
 
 export class SocialMediaLinks extends Component {

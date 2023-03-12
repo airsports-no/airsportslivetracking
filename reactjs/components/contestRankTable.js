@@ -1,19 +1,11 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
-import {
-    fetchContestResults,
-    resultsData,
-    tasksData,
-    teamsData, testsData
-} from "../actions/resultsService";
+import {fetchContestResults, resultsData, tasksData, teamsData, testsData} from "../actions/resultsService";
 import {teamRankingTable} from "../utilities";
 import BootstrapTable from 'react-bootstrap-table-next';
 import 'react-bootstrap-table2-toolkit/dist/react-bootstrap-table2-toolkit.min.css';
 import "bootstrap/dist/css/bootstrap.min.css"
-import {mdiChevronDown, mdiChevronUp, mdiGoKartTrack, mdiSort} from "@mdi/js";
-import Icon from "@mdi/react";
-import {Button} from "react-bootstrap";
 import {sortCaret, sortFunc} from "./resultsTableUtilities";
 
 const mapStateToProps = (state, props) => ({
@@ -170,8 +162,6 @@ class ConnectedContestRankTable extends Component {
 
     buildColumns() {
         const taskToHighlight = this.getTaskToHighlight()
-        const up = <Icon path={mdiChevronUp} title={"Ascending"} size={1}/>
-        const down = <Icon path={mdiChevronDown} title={"Descending"} size={1}/>
         const contestSummaryColumn = {
             dataField: "contestSummary",
             text: "Σ",
@@ -188,13 +178,7 @@ class ConnectedContestRankTable extends Component {
             sortCaret: sortCaret,
             columnType: "contestSummary",
         }
-        const teamColumn = [
-            // {
-            //     dataField: "colour",
-            //     text: "  ",
-            //     style: this.numberStyle
-            //
-            // },
+        let columns = [
             {
                 dataField: "rank",
                 text: " #",
@@ -214,7 +198,6 @@ class ConnectedContestRankTable extends Component {
             },
             contestSummaryColumn
         ]
-        let columns = teamColumn
         const tasks = this.props.tasks.sort((a, b) => (a.index > b.index) ? 1 : ((b.index > a.index) ? -1 : 0))
         tasks.map((task) => {
             const dataField = "task_" + task.id.toFixed(0)

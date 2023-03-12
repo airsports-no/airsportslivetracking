@@ -1,4 +1,4 @@
-import React, {Component} from "react";
+import React from "react";
 
 const aboutPilotPokerRun = <div>
     <h2>Pilot Poker Run</h2>

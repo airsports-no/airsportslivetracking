@@ -1,5 +1,5 @@
 import React, {Component} from "react";
-import {Button, Col, Container, Form, Modal, Row} from "react-bootstrap";
+import {Button, Col, Form, Row} from "react-bootstrap";
 import axios from 'axios'
 import {ErrorMessage, Formik} from 'formik';
 import {connect} from "react-redux";

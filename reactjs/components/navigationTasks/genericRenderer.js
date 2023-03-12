@@ -1,18 +1,8 @@
 import React, {Component} from "react";
-import {connect} from "react-redux";
-import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
+import {divIcon, marker} from "leaflet";
 import {formatTime} from "../../utilities";
 
 const L = window['L']
-
-function getTextWidth(text, font) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-
-    context.font = font || getComputedStyle(document.body).font;
-
-    return context.measureText(text).width;
-}
 
 function textWidth(text, className) {
     const o = $('<div class="' + className + '"></div>')
@@ -82,13 +72,6 @@ export default class GenericRenderer extends Component {
             }).on('click', () => {
                 this.props.handleMapTurningPointClick(waypoint.name)
             }).addTo(this.props.map)
-            // if (currentContestant) {
-            //     m.bindTooltip(formatTime(time), {
-            //         direction: "bottom",
-            //         offset: [0,25]
-            //         // opacity: 0.5
-            //     })
-            // }
             this.markers.push(m)
         });
     }

@@ -33,7 +33,6 @@ export class ProgressCircle extends Component {
                                         trailColor: trailColour,
                                         pathColor: pathColour
                                     })}
-            //text={`${row.progress}`}
         />
     }
 }

@@ -1,22 +1,17 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-// import "leaflet-draw/dist/leaflet.draw.css"
-// import 'leaflet-draw/dist/images/layers.png'
-// import "leaflet/dist/leaflet.css"
-// import Draw from "leaflet-draw"
-// import L from "leaflet";
 import "leaflet";
 import "leaflet-draw";
-// import "leaflet-draw-with-touch";
 import "../../pointInPolygon"
-import {Button, Container, Form, Modal, Row, Col, ToastContainer, Toast} from "react-bootstrap";
+import {Button, Container, Form, Modal, Toast} from "react-bootstrap";
 import {circle, divIcon, marker} from "leaflet";
 import {fetchEditableRoute} from "../../actions";
 import axios from "axios";
-import {Link, withRouter} from "react-router-dom";
+import {withRouter} from "react-router-dom";
 import IntroSlider from "react-intro-slider";
 import Cookies from "universal-cookie";
-import {fractionalDistancePoint, getBearing, getDistance, getHeadingDifference} from "../../utilities";
+import {fractionalDistancePoint, getBearing, getDistance} from "../../utilities";
+import {googleArial, Jawg_Sunny, OpenAIP} from "../leafletLayers";
 
 const gateTypes = [
     ["Starting point", "sp"],
@@ -166,7 +161,6 @@ class ConnectedRouteEditor extends Component {
             selectedWaypoint: null,
             globalEditingMode: false
         }
-        this.usedGateNames = []
     }
 
     componentDidMount() {
@@ -418,20 +412,11 @@ class ConnectedRouteEditor extends Component {
                 if (!finishPoints || finishPoints.length !== 1) {
                     errors.push("The track must contain exactly one finish point")
                 }
-                const positions = layer.getLatLngs()
                 for (let i = 0; i < layer.trackPoints.length; i++) {
                     if (i === 0 && layer.trackPoints[i].gateType === "secret") {
                         errors.push("The first gate cannot be secret")
                     } else if (i === layer.trackPoints.length - 1 && layer.trackPoints[i].gateType === "secret") {
                         errors.push("The last gate cannot be secret")
-                        // } else if (layer.trackPoints[i].gateType === "secret") {
-                        //     // He we know there is at least one gate before and one after
-                        //     const bearingToThis = getBearing(positions[i - 1].lat, positions[i - 1].lng, positions[i].lat, positions[i].lng)
-                        //     const bearingFromThis = getBearing(positions[i].lat, positions[i].lng, positions[i + 1].lat, positions[i + 1].lng)
-                        //     const bearingDifference = getHeadingDifference(bearingToThis, bearingFromThis)
-                        //     if (Math.abs(bearingDifference) > 3) {
-                        //         errors.push("The secret gate " + layer.trackPoints[i].name + " must lie on a straight line between " + layer.trackPoints[i - 1].name + " and " + layer.trackPoints[i + 1].name + ". The current bearing difference is " + bearingDifference.toFixed(2))
-                        //     }
                     }
                 }
             }
@@ -443,17 +428,6 @@ class ConnectedRouteEditor extends Component {
         }
 
         return errors
-    }
-
-    checkIfUpdateIsNeeded(layer) {
-        if (layer.featureType === "track") {
-            if (layer.getLatLngs().length !== layer.trackPoints.length) {
-                layer.errors = "The length of points and the length of the names do not match"
-                return true
-            }
-        }
-        layer.errors = null
-        return false
     }
 
     saveAndVerifyGatePolygons(layer) {
@@ -504,7 +478,6 @@ class ConnectedRouteEditor extends Component {
         }
         this.state.featureEditLayer.tooltipPosition = [parseInt(this.state.xOffset), parseInt(this.state.yOffset)]
         this.state.featureEditLayer.setStyle(featureStyles[this.state.featureEditLayer.featureType])
-        // this.state.featureEditLayer.editing.disable()
         this.renderWaypointNames(this.state.featureEditLayer)
 
         console.log(this.state.featureEditLayer)
@@ -838,37 +811,16 @@ class ConnectedRouteEditor extends Component {
     }
 
     initialiseMap() {
-        const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
-            attribution: '<a href="http://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            minZoom: 0,
-            maxZoom: 22,
-            subdomains: 'abcd',
-            accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
-        });
-        const OpenAIP = L.tileLayer('http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}', {
-            attribution: '<a href="http://www.openaip.net/">OpenAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
-            ext: 'png',
-            minZoom: 4,
-            maxZoom: 14,
-            tms: true,
-            // detectRetina: true,
-            subdomains: '1'
-        });
-
-
         this.map = L.map('routeEditor', {
             zoomControl: true,
             preferCanvas: true,
             layers: [Jawg_Sunny]
         })
         console.log("Initialised map")
-        // Jawg_Sunny.addTo(this.map)
         this.drawnItems = L.featureGroup().addTo(this.map)
         L.control.layers({
-            "jawg": Jawg_Sunny,
-            "google": L.tileLayer('http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x={x}&y={y}&z={z}', {
-                attribution: 'google'
-            })
+            "Map": Jawg_Sunny,
+            "Google Arial": googleArial,
         }, {"OpenAIP": OpenAIP}, {
             position: 'topleft',
             collapsed: false
@@ -882,12 +834,6 @@ class ConnectedRouteEditor extends Component {
             this.map.locate({setView: true, maxZoom: 7})
         }
         this.drawControl = new L.Control.Draw({
-            // edit: {
-            //     featureGroup: this.drawnItems,
-            //     poly: {
-            //         allowIntersection: false
-            //     }
-            // },
             draw: this.drawingDisabledOptions
         })
         this.map.whenReady(() => {
@@ -900,9 +846,6 @@ class ConnectedRouteEditor extends Component {
             const layers = event.layers;
             layers.eachLayer((layer) => {
                 console.log(layer)
-                // if (layer.featureType === "track") {
-                //     this.updateWaypoints(layer)
-                // }
                 this.renderWaypointNames(layer)
             })
         })
@@ -986,8 +929,6 @@ class ConnectedRouteEditor extends Component {
                         }}>Route list
                 </button>
             </div>
-            {/*<IntroSlider slides={slides} size="fullscreen" handleDone={() => this.setState({displayTutorial: false})}*/}
-            {/*                 handleClose={() => this.setState({displayTutorial: false})}/>*/}
             {this.state.displayTutorial ?
                 <IntroSlider slides={slides} sliderIsOpen={this.state.displayTutorial} skipButton={true}
                              controllerOrientation={"horizontal"} size={"large"}

@@ -53,11 +53,6 @@ class ConnectedGateScoreArrow extends Component {
         return this.getRule("penalty_per_second")
     }
 
-    getMissedPenalty() {
-        return this.getRule("missed_penalty")
-    }
-
-
     getMaximumTimingPenalty() {
         return this.getRule("maximum_penalty")
     }
@@ -102,11 +97,8 @@ class ConnectedGateScoreArrow extends Component {
                                                 maximumTimingPenalty={this.getMaximumTimingPenalty()}
                                                 gracePeriodBefore={this.getGracePeriodBefore()}
                                                 gracePeriodAfter={this.getGracePeriodAfter()}
-                            // missedPenalty={this.getMissedPenalty()}
-                            //                     secondsToPlannedCrossing={this.state.currentArrowData.seconds_to_planned_crossing}
                             crossingOffsetEstimate={this.state.currentArrowData.estimated_crossing_offset}
                                                 estimatedScore={this.state.currentArrowData.estimated_score}
-                            // waypointName={this.state.currentArrowData.waypoint_name}
                                                 contestantId={this.props.contestantId}
                                                 final={this.state.currentArrowData.final}
                                                 missed={this.state.currentArrowData.missed}/>

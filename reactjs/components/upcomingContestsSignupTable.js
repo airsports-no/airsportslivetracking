@@ -92,10 +92,6 @@ class ConnectedUpcomingContestsSignupTable extends Component {
                     return null
                 }
             }
-            // {
-            //     text: "Country",
-            //     dataField: "contest.country"
-            // }
         ]
         const data = this.props.upcomingContests.map((contest) => {
             const matchingContest = this.props.myParticipatingContests.find((contestTeam) => {
@@ -126,7 +122,7 @@ class ConnectedUpcomingContestsSignupTable extends Component {
             <BootstrapTable keyField={"contest.id"} data={data} columns={columns}
                             classes={"table"} filter={filterFactory()} sort={defaultSorted}
                             bootstrap4 striped hover condensed rowEvents={rowEvents}
-                            bordered={false}//pagination={paginationFactory(paginationOptions)}
+                            bordered={false}
             />
         </div>
     }

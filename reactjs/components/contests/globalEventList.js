@@ -16,6 +16,7 @@ import {
     isIOS
 } from "react-device-detect";
 import {Link, withRouter} from "react-router-dom";
+import {sortStartAndFinishTimes} from "./utilities";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -26,36 +27,11 @@ export const mapDispatchToProps = {
     displayPastEventsModal, hidePastEventsModal, displayAboutModal, zoomFocusContest
 }
 
-function sortContestTimes(a, b) {
-    const startTimeA = new Date(a.start_time)
-    const finishTimeA = new Date(a.finish_time)
-    const startTimeB = new Date(b.start_time)
-    const finishTimeB = new Date(b.finish_time)
-    if (startTimeA < startTimeB) {
-        return -1;
-    }
-    if (startTimeA > startTimeB) {
-        return 1;
-    }
-    if (finishTimeA < finishTimeB) {
-        return -1;
-    }
-    if (finishTimeA > finishTimeB) {
-        return 1;
-    }
-    return 0;
-}
-
 class PastEvents extends Component {
     constructor(props) {
         super(props)
     }
 
-    // let contestBoxes = props.contests.map((contest) => {
-    //     return <div key={contest.id + "past_event_div"} style={{paddingTop: "2px", paddingBottom: "4px", width: "300px"}}>
-    //         <li key={contest.id + "past_event"} className={"card"}><ContestPopupItem contest={contest}/></li>
-    //     </div>
-    // })
     render() {
         let contestBoxes = this.props.contests.map((contest) => {
             return <span key={contest.id + "past_event_span"} style={{width: "350px"}}
@@ -116,10 +92,6 @@ class ConnectedGlobalEventList extends Component {
         this.props.history.push("/global/contest_details/"+ contest.id + "/")
     }
 
-    handleManagementClick() {
-        window.location.href = document.configuration.managementLink
-    }
-
     getCurrentParticipation(contestId) {
         if (!this.props.myParticipatingContests) return null
         return this.props.myParticipatingContests.find((participation) => {
@@ -164,21 +136,21 @@ class ConnectedGlobalEventList extends Component {
             if (startTime > now) {
                 return contest
             }
-        }).sort(sortContestTimes)
+        }).sort(sortStartAndFinishTimes)
         const ongoingEvents = this.props.contests.filter((contest) => {
             const startTime = new Date(contest.start_time)
             const finishTime = new Date(contest.finish_time)
             if (finishTime > now && startTime < now) {
                 return contest
             }
-        }).sort(sortContestTimes)
+        }).sort(sortStartAndFinishTimes)
         const earlierEvents = this.props.contests.filter((contest) => {
             const startTime = new Date(contest.start_time)
             const finishTime = new Date(contest.finish_time)
             if (finishTime < now) {
                 return contest
             }
-        }).sort(sortContestTimes)
+        }).sort(sortStartAndFinishTimes)
         const popupContest = this.props.contests.find((contest) => {
             return contest.id === this.props.contestDetailsId
         })
@@ -231,42 +203,30 @@ class ConnectedGlobalEventList extends Component {
                                     <span style={{"paddingTop": "0.5em"}}
                                           className={"badge badge-dark badge-pill"}>{earlierEvents.length}</span>
                                 </a>
-                                {/*<div className={"list-group collapse"} id={"past"}>*/}
-                                {/*    <TimePeriodEventList contests={earlierEvents}/>*/}
-                                {/*</div>*/}
                                 <a
                                     className={"list-group-item list-group-item-action list-group-item-secondary align-items-centre"}
                                     onClick={this.props.displayAboutModal}>About live tracking
-                                    {/*<img className={"img-fluid"} style={{width: "50%"}}*/}
-                                    {/*     src={"/static/img/about_live_tracking_shadow.png"}/>*/}
 
                                 </a>
                                 <div
                                     className={"d-flex justify-content-around list-group-item list-group-item-action list-group-item-secondary align-items-centre"}
                                     style={{paddingBottom: 0, paddingTop: 0}}>
-                                    {/*<div className={"p-2"}>*/}
                                     {!isIOS ?
                                         <a target={"_blank"}
                                            href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
                                             alt='Get it on Google Play' style={{height: "45px"}}
                                             src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a> : null}
-                                    {/*</div>*/}
-                                    {/*<div className={"p-2"}>*/}
                                     {!isAndroid ?
                                         <a target={"_blank"}
                                            href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
                                             style={{height: "45px", padding: "8px"}}
                                             src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
                                             alt="Download on the App Store"/></a> : null}
-                                    {/*</div>*/}
                                 </div>
 
                             </div>
                         </div>
                     </div>
-                    {/*<div>*/}
-                    {/*    <img src={"/static/img/air_sports.png"}  className={"img-fluid"}/>*/}
-                    {/*</div>*/}
                 </div>
             </div>
 

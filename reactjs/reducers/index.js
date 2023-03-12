@@ -1,27 +1,18 @@
 import {
     DISPLAY_ALL_TRACKS,
-    DISPLAY_TRACK_FOR_CONTESTANT,
     EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT,
     GET_NAVIGATION_TASK_SUCCESSFUL,
     GET_CONTESTANT_DATA_SUCCESSFUL,
-    HIDE_ALL_TRACKS,
     SET_DISPLAY,
     EXPAND_TRACKING_TABLE,
     SHRINK_TRACKING_TABLE,
-    GET_CONTESTANT_DATA_REQUEST,
-    GET_CONTESTANT_DATA_FAILED,
-    INITIAL_LOADING_COMPLETE,
-    INITIAL_LOADING,
     SHOW_LOWER_THIRDS,
     HIDE_LOWER_THIRDS,
     REMOVE_HIGHLIGHT_CONTESTANT_TABLE,
     HIGHLIGHT_CONTESTANT_TABLE,
     HIGHLIGHT_CONTESTANT_TRACK,
     REMOVE_HIGHLIGHT_CONTESTANT_TRACK,
-    FULL_HEIGHT_TABLE,
-    HALF_HEIGHT_TABLE,
     EXPLICITLY_DISPLAY_ALL_TRACKS,
-    TRACCAR_DATA_RECEIVED,
     GET_CONTESTS_SUCCESSFUL,
     GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
     DISPLAY_PAST_EVENTS_MODAL,
@@ -39,7 +30,6 @@ import {
     FETCH_EDITABLE_ROUTE,
     FETCH_INITIAL_TRACKS_SUCCESS,
     TOGGLE_PROFILE_PICTURES,
-    DISPLAY_WIKI_MODAL,
     TOGGLE_GATE_ARROW,
     TOGGLE_DANGER_LEVEL,
     GET_NAVIGATION_TASK_FAILED,
@@ -49,16 +39,15 @@ import {
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
     CREATE_TASK_SUCCESSFUL,
-    CREATE_TASK_TEST_SUCCESSFUL, DELETE_RESULTS_TABLE_TEAM_SUCCESSFUL,
+    CREATE_TASK_TEST_SUCCESSFUL,
     DELETE_TASK_SUCCESSFUL,
     DELETE_TASK_TEST_SUCCESSFUL, GET_CONTEST_RESULTS_FAILED,
     GET_CONTEST_RESULTS_SUCCESSFUL,
     GET_CONTEST_TEAMS_LIST_SUCCESSFUL,
     GET_TASK_TESTS_SUCCESSFUL,
-    GET_TASKS_SUCCESSFUL, HIDE_ALL_TASK_DETAILS, HIDE_TASK_DETAILS, PUT_TEST_RESULT_SUCCESSFUL,
+    GET_TASKS_SUCCESSFUL, HIDE_ALL_TASK_DETAILS, HIDE_TASK_DETAILS,
     SHOW_TASK_DETAILS
 } from "../constants/resultsServiceActionTypes";
-import {fetchContestResults} from "../actions/resultsService";
 import {DateTime} from "luxon";
 
 const initialState = {
@@ -69,7 +58,6 @@ const initialState = {
     currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
     displayTracks: null,
     displayExpandedTrackingTable: false,
-    displayFullHeightTrackingTable: false,
     isFetchingContestantData: {},
     initialLoadingContestantData: {},
     displayLowerThirds: null,
@@ -77,12 +65,10 @@ const initialState = {
     displayDangerLevel: true,
     highlightContestantTrack: [],
     highlightContestantTable: [],
-    explicitlyDisplayAllTracks: false,
     contests: [],
     zoomContest: null,
     displayPastEventsModal: false,
     displayAboutModal: false,
-    displayWikiModal: false,
     tasks: {},
     taskTests: {},
     contestResults: {},
@@ -160,15 +146,6 @@ function rootReducer(state = initialState, action) {
             initialLoadingContestantData: initialLoading
         })
     }
-    if (action.type === INITIAL_LOADING) {
-        return Object.assign({}, state, {
-            ...state,
-            initialLoadingContestantData: {
-                ...state.initialLoadingContestantData,
-                [action.contestantId]: true
-            }
-        })
-    }
     if (action.type === FETCH_INITIAL_TRACKS_SUCCESS) {
         return Object.assign({}, state, {
             ...state,
@@ -180,37 +157,6 @@ function rootReducer(state = initialState, action) {
     }
     if (action.type === FETCH_INITIAL_TRACKS_FAILED) {
         return state
-        // return Object.assign({}, state, {
-        //     ...state,
-        //     failedInitialTracks
-        // })
-    }
-    if (action.type === INITIAL_LOADING_COMPLETE) {
-        return Object.assign({}, state, {
-            ...state,
-            initialLoadingContestantData: {
-                ...state.initialLoadingContestantData,
-                [action.contestantId]: false
-            }
-        })
-    }
-    if (action.type === GET_CONTESTANT_DATA_REQUEST) {
-        return Object.assign({}, state, {
-            ...state,
-            isFetchingContestantData: {
-                ...state.isFetchingContestantData,
-                [action.id]: true
-            }
-        })
-    }
-    if (action.type === GET_CONTESTANT_DATA_FAILED) {
-        return Object.assign({}, state, {
-            ...state,
-            isFetchingContestantData: {
-                ...state.isFetchingContestantData,
-                [action.id]: false
-            }
-        })
     }
     if (action.type === CURRENT_TIME) {
         return Object.assign({}, state, {
@@ -323,15 +269,6 @@ function rootReducer(state = initialState, action) {
             })
         });
     }
-    if (action.type === DISPLAY_TRACK_FOR_CONTESTANT) {
-        let existingTracks = state.displayTrack;
-        if (!existingTracks) {
-            existingTracks = []
-        }
-        return Object.assign({}, state, {
-            displayTracks: existingTracks.concat(action.payload.contestantIds)
-        });
-    }
     if (action.type === DISPLAY_ALL_TRACKS) {
         return Object.assign({}, state, {
             displayTracks: null
@@ -351,11 +288,6 @@ function rootReducer(state = initialState, action) {
             })
         }
     }
-    if (action.type === HIDE_ALL_TRACKS) {
-        return Object.assign({}, state, {
-            displayTracks: []
-        });
-    }
     if (action.type === EXCLUSIVE_DISPLAY_TRACK_FOR_CONTESTANT) {
         return Object.assign({}, state, {
             displayTracks: [action.payload.contestantId]
@@ -371,16 +303,6 @@ function rootReducer(state = initialState, action) {
             displayExpandedTrackingTable: false
         });
     }
-    if (action.type === FULL_HEIGHT_TABLE) {
-        return Object.assign({}, state, {
-            displayFullHeightTrackingTable: true
-        });
-    }
-    if (action.type === HALF_HEIGHT_TABLE) {
-        return Object.assign({}, state, {
-            displayFullHeightTrackingTable: false
-        });
-    }
     if (action.type === SHOW_LOWER_THIRDS) {
         return Object.assign({}, state, {
             displayLowerThirds: action.contestantId
@@ -389,19 +311,6 @@ function rootReducer(state = initialState, action) {
     if (action.type === HIDE_LOWER_THIRDS) {
         return Object.assign({}, state, {
             displayLowerThirds: null
-        });
-    }
-    if (action.type === TRACCAR_DATA_RECEIVED) {
-        let positions = {}
-        action.data.map((position) => {
-            const now = new Date()
-            const deviceTime = new Date(position.deviceTime)
-            if (now.getTime() - deviceTime.getTime() < 60 * 60 * 1000) {
-                positions[position.deviceId] = position
-            }
-        })
-        return Object.assign({}, state, {
-            traccarPositions: positions
         });
     }
     if (action.type === GET_CONTESTS) {
@@ -470,11 +379,6 @@ function rootReducer(state = initialState, action) {
     if (action.type === DISPLAY_ABOUT_MODAL) {
         return Object.assign({}, state, {
             displayAboutModal: action.payload
-        })
-    }
-    if (action.type === DISPLAY_WIKI_MODAL) {
-        return Object.assign({}, state, {
-            displayWikiModal: action.payload
         })
     }
     if (action.type === FETCH_DISCLAIMER_SUCCESSFUL) {
@@ -582,10 +486,6 @@ function rootReducer(state = initialState, action) {
             visibleTaskDetails: {}
         })
     }
-    if (action.type === PUT_TEST_RESULT_SUCCESSFUL) {
-        fetchContestResults(action.contestId)
-        return state
-    }
     if (action.type === GET_CONTEST_RESULTS_SUCCESSFUL) {
         const next = Object.assign({}, state, {
             ...state,
@@ -672,10 +572,6 @@ function rootReducer(state = initialState, action) {
                 [action.contestId]: action.payload
             }
         })
-    }
-    if (action.type === PUT_TEST_RESULT_SUCCESSFUL) {
-        fetchContestResults(action.contestId)
-        return state
     }
     if (action.type === FETCH_MY_PARTICIPATING_CONTESTS) {
         return Object.assign({}, state, {

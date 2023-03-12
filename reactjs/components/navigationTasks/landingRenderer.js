@@ -1,9 +1,5 @@
 import React, {Component} from "react";
-import {connect} from "react-redux";
-import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
-
-const L = window['L']
-
+import {polyline} from "leaflet";
 
 export default class LandingRenderer extends Component {
     componentDidMount() {

@@ -1,4 +1,4 @@
-import React, {Component} from "react";
+import React from "react";
 import {getGateValue, getTrackValue} from "./actualScoreUtilities";
 
 const aboutANR = (scorecard, route) => {

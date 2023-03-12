@@ -1,9 +1,6 @@
 import React from "react";
-import {circle, divIcon, marker, polyline, tileLayer} from "leaflet";
+import {polyline} from "leaflet";
 import GenericRenderer from "./genericRenderer";
-
-const L = window['L']
-
 
 export default class AirsportsRenderer extends GenericRenderer {
     renderRoute() {

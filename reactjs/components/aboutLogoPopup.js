@@ -1,12 +1,10 @@
 import React, {Component} from "react";
-import {Button, Container, Form, Modal} from "react-bootstrap";
+import { Container, Form, Modal} from "react-bootstrap";
 import {connect} from "react-redux";
 import {
     displayAboutModal,
     hideAboutModal, toggleBackgroundMap, toggleProfilePictures, toggleSecretGates,
 } from "../actions";
-import {mdiInformation, mdiLogin, mdiMagnify} from "@mdi/js";
-import Icon from "@mdi/react";
 import {SocialMediaLinks} from "./socialMediaLinks";
 import {isAndroid, isIOS} from "react-device-detect";
 import Cookies from 'universal-cookie';
@@ -164,11 +162,6 @@ class ConnectedAboutLogoPopup extends Component {
         return <div>
             <a href={"#"} className={"logoImage"} onClick={this.props.displayAboutModal}>
                 <img src={"/static/img/airsports_info.png"} style={{width: "50px"}} alt={"About"}/>
-
-                {/*<Icon path={mdiInformation} title={"About"} size={this.props.size}*/}
-                {/*      color={this.props.colour ? this.props.colour : "#666666"}/>*/}
-                {/*<img className={"img-fluid"}*/}
-                {/*     src={"/static/img/about_live_tracking_shadow.png"}/>*/}
             </a>
             <AboutLogoModal aboutText={this.props.aboutText} show={this.props.aboutModalShow}
                             onHide={() => this.props.hideAboutModal()}

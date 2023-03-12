@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import {Button, Container, Modal} from "react-bootstrap";
 import {connect} from "react-redux";
-import {displayDisclaimerModal, fetchContests, fetchDisclaimer, hideDisclaimerModal} from "../actions";
+import {displayDisclaimerModal, fetchDisclaimer, hideDisclaimerModal} from "../actions";
 
 const mapStateToProps = (state, props) => ({
     disclaimerModalShow: state.displayDisclaimerModal,
@@ -22,9 +22,6 @@ function DisclaimerLong(props) {
                     <div dangerouslySetInnerHTML={{__html: props.disclaimer}}/>
                 </Container>
             </Modal.Body>
-            {/*<Modal.Footer>*/}
-            {/*    <Button onClick={props.onHide}>Close</Button>*/}
-            {/*</Modal.Footer>*/}
         </Modal>
     );
 }
@@ -42,9 +39,6 @@ class ConnectedDisclaimer extends Component {
     render() {
         return <div>
             <a href={"#"} id={"disclaimer"} onClick={this.props.displayDisclaimerModal}>TERMS AND CONDITIONS
-                {/*<img src={"/static/img/airsports_no_text_white.png"} className={"logo"}/>*/}
-                {/*THIS SERVICE IS PROVIDED BY AIR SPORTS LIVE TRACKING, AND IS INTENDED FOR ENTERTAINMENT ONLY!*/}
-                {/*PLEASE CLICK FOR THE FULL DISCLAIMER.*/}
             </a>
             <DisclaimerLong disclaimer={this.props.disclaimer} show={this.props.disclaimerModalShow}
                             onHide={() => this.props.hideDisclaimerModal()}/>

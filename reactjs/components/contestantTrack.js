@@ -1,11 +1,10 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-// import {renderToString} from 'react-dom/server';
 import {
     displayAllTracks,
     displayOnlyContestantTrack, hideLowerThirds,
-    highlightContestantTable, highlightContestantTrack, initialLoading,
-    initialLoadingComplete, removeHighlightContestantTable, removeHighlightContestantTrack, setDisplay, showLowerThirds
+    highlightContestantTable, highlightContestantTrack,
+    removeHighlightContestantTable, removeHighlightContestantTrack, setDisplay, showLowerThirds
 } from "../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
@@ -20,7 +19,6 @@ import {DateTime} from "luxon";
 const L = window['L']
 
 const mapStateToProps = (state, props) => ({
-    explicitlyDisplayAllTracks: state.explicitlyDisplayAllTracks,
     contestantData: state.contestantData[props.contestant.id],
     displayTracks: state.displayTracks,
     currentTime: state.currentDateTime,
@@ -38,12 +36,9 @@ class ConnectedContestantTrack extends Component {
         this.markers = L.markerClusterGroup()
         this.partialTrack = null;
         this.fullTrack = null;
-        // this.allPoints = []
         this.partialPoints = []
         this.dot = null;
         this.dotText = null;
-        this.previousLastTime = null;
-        this.lastNewData = null;
         this.shortTrackDisplayed = false
         this.fullTrackDisplayed = false
         this.lastPositionTime = null
@@ -52,7 +47,6 @@ class ConnectedContestantTrack extends Component {
         this.currentAeroplaneOpacity = 1
         this.missingData = false
 
-        this.annotationLayer = L.layerGroup()
         this.iconMap = {
             anomaly: anomalyAnnotationIcon, information: informationAnnotationIcon
         }
@@ -67,10 +61,7 @@ class ConnectedContestantTrack extends Component {
         const solidPath = '<path style="opacity:' + this.currentAeroplaneOpacity + ';fill:' + this.currentAeroplaneColour + ';stroke-width:0.8742;" d="' + little + '"/>'
         const outlinePath = '<path style="opacity:' + this.currentAeroplaneOpacity + ';fill:black;stroke-width:0.93;" d="' + big + '"/>'
         return L.divIcon({
-            // html: '<i class="mdi mdi-airplanemode-active" style="color: ' + this.props.colour + '; transform: rotate(' + this.bearing + 'deg); width: {size}"><br/>' + contestantShortForm(this.props.contestant) + '</i>',
-            // html: '<i class="mdi mdi-airplanemode-active" style="color: ' + this.props.colour + '; transform: rotate(' + this.bearing + 'deg); font-size: ' + size + 'px"/>',
             html: '<svg style="width: ' + size + 'px; transform: rotate(' + this.bearing + 'deg);" x="0px" y="0px" viewBox="0 0 20 20">' + outlinePath + solidPath + '</svg>',
-            // iconSize: [size, size],
             iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
         })
@@ -84,8 +75,6 @@ class ConnectedContestantTrack extends Component {
             color: this.currentAeroplaneColour,
             fontSize: size + 'px'
         }
-        const text = <div style={style}>contestantShortForm(this.props.contestant)</div>
-        const length = Math.ceil(text.clientWidth)
         return L.divIcon({
             html: '<div style="opacity:' + this.currentAeroplaneOpacity + ';color: ' + this.currentAeroplaneColour + '; font-size: ' + size + 'px">' + contestantShortForm(this.props.contestant) + '</div>',
             iconAnchor: [100, -22],
@@ -133,9 +122,6 @@ class ConnectedContestantTrack extends Component {
         if (this.props.displayMap) {
             if (this.props.contestantData !== undefined) {
                 if (this.props.contestantData.positions && this.props.contestantData.positions.length > 0) {
-                    // this.props.contestantData.positions.map((position) => {
-                    //     console.log(new Date() + "Received position ID " + position.position_id + " for device ID " + position.device_id)
-                    // })
                     const p = this.props.contestantData.positions.map((position) => {
                         return {
                             latitude: position.latitude,
@@ -148,7 +134,6 @@ class ConnectedContestantTrack extends Component {
                     if (p.length > 0) {
                         this.lastPositionTime = p.slice(-1)[0].time
                     }
-                    // this.allPoints.push(...p)
                     this.partialPoints.push(...p)
                     const positions = p.map((position) => {
                         return [position.latitude, position.longitude]
@@ -221,22 +206,6 @@ class ConnectedContestantTrack extends Component {
         this.dotText.setIcon(this.createAirplaneTextIcon())
     }
 
-    normal() {
-        // this.fullTrack.setStyle({
-        //     color: this.props.colour,
-        //     opacity: 1,
-        //     weight: 3
-        // })
-    }
-
-
-    highlight() {
-        // this.fullTrack.setStyle({
-        //     color: this.props.colour,
-        //     opacity: 1,
-        //     weight: 6
-        // })
-    }
 
     dim() {
         const style = {
@@ -281,11 +250,11 @@ class ConnectedContestantTrack extends Component {
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
         ).on('mouseover', (e) => {
-                this.props.highlightContestantTable(this.contestant.id)
+                // this.props.highlightContestantTable(this.contestant.id)
                 this.props.highlightContestantTrack(this.contestant.id)
             }
         ).on('mouseout', (e) => {
-                this.props.removeHighlightContestantTable(this.contestant.id)
+                // this.props.removeHighlightContestantTable(this.contestant.id)
                 this.props.removeHighlightContestantTrack(this.contestant.id)
             }
         )
@@ -458,8 +427,6 @@ class ConnectedContestantTrack extends Component {
 
 const ContestantTrack = connect(mapStateToProps, {
 
-    initialLoading,
-    initialLoadingComplete,
     setDisplay,
     displayOnlyContestantTrack,
     showLowerThirds,

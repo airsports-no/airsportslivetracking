@@ -1,6 +1,4 @@
 import React, {Component} from "react";
-import blackArrow from './gate_score_arrow_black.gif'; // with import
-import redArrow from './gate_score_arrow_red.gif'; // with import
 const ARROW_HEIGHT = 92, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 10, NUMBER_PADDING = 5, PADDING = 36,
     ARROW_ICON_WIDTH = 70, BELOW_LINE_TEXT_POSITION = 75, BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
     ANIMATION_TIME = 1000, ARROW_TOP_OFFSET = 0, TOP_OFFSET = 42
@@ -25,7 +23,6 @@ export default class GateScoreArrowRenderer extends Component {
     }
 
     drawEverything() {
-        // this.drawBackground()
         this.drawArrow()
     }
 
@@ -36,8 +33,6 @@ export default class GateScoreArrowRenderer extends Component {
         const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + this.props.maximumTimingPenalty / this.props.pointsPerSecond
         this.maxX = this.secondsToPosition(maximumSeconds)
         this.minX = this.secondsToPosition(-maximumSeconds)
-        // this.drawBar(context)
-        // this.drawBarLower(context)
         this.drawNumberLine(context)
     }
 
@@ -59,17 +54,12 @@ export default class GateScoreArrowRenderer extends Component {
         let x, value
         if (this.animationStepNumber === ANIMATION_STEPS || this.props.final) {
             x = Math.min(this.maxX, Math.max(this.minX, this.secondsToPosition(this.props.crossingOffsetEstimate)))
-            // value = this.secondsToPoints(this.props.crossingOffsetEstimate)
             clearInterval(this.animationTimer)
         } else {
             x = Math.min(this.maxX, Math.max(this.minX, this.secondsToPosition(this.previousSeconds) + this.animationStepNumber * animationStep))
-            // value = this.secondsToPoints(this.previousSeconds + (this.animationStepNumber * animationStep))
             this.animationStepNumber++
         }
         value = this.props.estimatedScore
-        // if (x === this.previousArrowPosition) {
-        //     return
-        // }
         const start = x - ARROW_ICON_WIDTH / 2
         let imageObj = blackImage
         if (this.props.final) {
@@ -81,9 +71,6 @@ export default class GateScoreArrowRenderer extends Component {
         this.previousArrowPosition = x
         this.drawRerenderedBackground(context)
         context.fillStyle = "#FFFFFF"
-        // if (this.props.final) {
-        //     context.fillStyle = "#000000"
-        // }
         context.drawImage(imageObj, start, ARROW_TOP_OFFSET, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT)
         context.font = "bold 18pt Verdana";
         let string = "" + Math.round(value)
@@ -95,9 +82,7 @@ export default class GateScoreArrowRenderer extends Component {
     }
 
     drawNumberAtPosition(context, x, value, length) {
-        // context.fillStyle = "#000000";
         context.fillStyle = "#a6a6a6"
-        // context.fillRect(x - 2, ARROW_HEIGHT - (length / 2) + HORIZONTAL_LINE_THICKNESS / 2, 2, HORIZONTAL_LINE_THICKNESS + length);
         context.font = "10pt Verdana";
         const string = "" + Math.ceil(value)
         context.fillText(string, x - context.measureText(string).width / 2, ARROW_HEIGHT + length + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING)
@@ -137,12 +122,7 @@ export default class GateScoreArrowRenderer extends Component {
         // Mainline
         context.fillStyle = "#000000";
         context.fillRect(PADDING, ARROW_HEIGHT, this.props.width - PADDING * 2, HORIZONTAL_LINE_THICKNESS);
-        // const steps = 4  // Must be Even
-        // const stepDistance = this.props.width / steps
-        // const stepDistanceSeconds = (this.props.pointsPerSecond + 2 * maximumSeconds) / steps
         this.drawGracePeriod(context)
-        // this.drawNumberAtPosition(context, this.secondsToPosition(-maximumSeconds), this.secondsToPoints(-maximumSeconds), VERTICAL_LINE_LENGTH)
-        // this.drawNumberAtPosition(context, this.secondsToPosition(maximumSeconds), this.secondsToPoints(maximumSeconds), VERTICAL_LINE_LENGTH)
         context.font = "10pt Verdana";
         context.fillStyle = "#262626"
         const textSize = context.measureText("PENALTY")
@@ -182,8 +162,6 @@ export default class GateScoreArrowRenderer extends Component {
             this.animationStepNumber = ANIMATION_STEPS
             this.drawEverything()
         }
-        // const maximumSeconds = Math.max(this.props.gracePeriodAfter, this.props.gracePeriodBefore) + this.props.maximumTimingPenalty / this.props.pointsPerSecond
-        // const x = this.secondsToPosition(Math.min(maximumSeconds, Math.max(-maximumSeconds, this.props.crossingOffsetEstimate)))
 
         if (this.props.crossingOffsetEstimate !== prevProps.crossingOffsetEstimate || this.props.final !== prevProps.final || this.props.missed !== prevProps.missed) {
             clearInterval(this.animationTimer)

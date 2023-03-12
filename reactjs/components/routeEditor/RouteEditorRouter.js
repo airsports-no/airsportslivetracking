@@ -2,8 +2,6 @@ import React from "react";
 import {Route} from 'react-router-dom'
 import Switch from "../Switch";
 import RouteEditorContainer from "./routeEditorContainer";
-import TaskSummaryResultsTable from "../resultsService/TaskSummaryResultsTable";
-
 
 export default ({match: {path}}) => (
     <Switch>

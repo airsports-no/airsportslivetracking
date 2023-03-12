@@ -2,8 +2,6 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import ContestDisplayGlobalMap from "./contestDisplayGlobalMap";
 
-const L = window['L']
-
 export const mapStateToProps = (state, props) => ({
     contests: state.contests
 })

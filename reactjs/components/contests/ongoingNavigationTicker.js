@@ -1,6 +1,5 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import ContestDisplayGlobalMap from "./contestDisplayGlobalMap";
 import {fetchOngoingNavigation} from "../../actions";
 
 const L = window['L']

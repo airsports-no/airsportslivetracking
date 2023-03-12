@@ -10,7 +10,6 @@ import {
 import {connect} from "react-redux";
 import ContestantTrack from "../contestantTrack";
 import distinctColors from "distinct-colors";
-import {compareContestantNumber} from "../../utilities";
 import ContestantRankTable from "../contestantRankTable";
 import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} from "../../constants/display-types";
 import ContestantDetailsDisplay from "../contestantDetailsDisplay";
@@ -22,29 +21,8 @@ import ProhibitedRenderer from "./prohibitedRenderer";
 import LandingRenderer from "./landingRenderer";
 import ContestRankTable from "../contestRankTable";
 import AirsportsRenderer from "./airsportsRenderer";
+import {Jawg_Sunny, OpenAIP} from "../leafletLayers";
 
-const L = window['L']
-const OpenAIP = L.tileLayer('https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.{ext}?apiKey={apiKey}', {
-    attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
-    ext: 'png',
-    minZoom: 4,
-    maxZoom: 14,
-    subdomains: 'abc',
-    apiKey:'3d5d3f82528731731362a23f445951d8'
-});
-
-const CartoDB_Positron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 19
-});
-const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
-    attribution: '<a href="http://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    minZoom: 0,
-    maxZoom: 22,
-    subdomains: 'abcd',
-    accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
-});
 export const mapStateToProps = (state, props) => ({
     initialTracks: state.initialTracks,
     navigationTask: state.navigationTask,
@@ -172,7 +150,7 @@ class ConnectedNavigationTask extends Component {
             let data = JSON.parse(message.data);
             if (data.type === "current_time") {
                 this.props.dispatchCurrentTime(data.data)
-            } else if (data.type === "contestant" && this.props.contestantIds.length===0) {
+            } else if (data.type === "contestant" && this.props.contestantIds.length === 0) {
                 // Do not add new contestants if we are filtering contestant IDs
                 this.props.dispatchNewContestant(JSON.parse(data.data))
             } else if (data.type === "contestant_delete") {
@@ -268,16 +246,11 @@ class ConnectedNavigationTask extends Component {
         } else {
             if (this.props.initialTracks !== previousProps.initialTracks) {
                 for (const [key, value] of Object.entries(this.props.initialTracks)) {
-                    // Object.keys(this.props.initialTracks).forEach((key, index) => {
                     if (!this.renderedTracks.includes(key)) {
                         this.renderedTracks.push(key)
                         console.log(value)
                         this.props.dispatchContestantData(value)
                         if (this.waitingInitialLoading[key] !== undefined) {
-                            // TODO: Has been removed to solve issue with missing historic track for ongoing contestants. There is probably a bug care that has to be fixed.
-                            // for (let data of this.waitingInitialLoading[key]) {
-                            //     this.props.dispatchContestantData(data)
-                            // }
                             delete this.waitingInitialLoading[key]
                         }
                     }
@@ -301,30 +274,9 @@ class ConnectedNavigationTask extends Component {
             zoomSnap: 0.25,
             zoomControl: false,
         }).on('contextmenu', (e) => this.resetToAllContestants(e))
-        // const logoContainer = document.getElementById("logoContainer")
-        // const mapControlContainer = document.getElementsByClassName("leaflet-control")[0]
-        // mapControlContainer.appendChild(logoContainer)
     }
 
     fixMapBackground() {
-        // const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
-        // const Stadia_AlidadeSmooth = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=d818a148-b158-4268-b073-ee9b34f6a23b', {
-        //     maxZoom: 20,
-        //     attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
-        // });
-        // const mapbox = tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
-        //     attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-        //     maxZoom: 18,
-        //     id: 'mapbox/streets-v11',
-        //     tileSize: 512,
-        //     zoomOffset: -1,
-        //     accessToken: token
-        // })
-        // const Esri_WorldGrayCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        //     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-        //     maxZoom: 16
-        // });
-
         if (this.props.navigationTask.display_background_map && this.props.displayBackgroundMap) {
             Jawg_Sunny.addTo(this.map);
         } else {
@@ -386,7 +338,6 @@ class ConnectedNavigationTask extends Component {
                 {display}
             </div>
             const mapDisplay = Object.entries(this.props.contestants).map(([key, contestant], index) => {
-                // const contestant = this.props.contestants[key]
                 return <ContestantTrack map={this.map} key={contestant.id}
                                         contestant={contestant} contestId={this.props.contestId}
                                         navigationTask={this.props.navigationTask}

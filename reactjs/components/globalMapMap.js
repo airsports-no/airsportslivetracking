@@ -4,7 +4,6 @@ import {connect} from "react-redux";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import {fetchMyParticipatingContests, zoomFocusContest} from "../actions";
 import ReactDOMServer from "react-dom/server";
-// import L from 'leaflet';
 import {
     balloon,
     blimp,
@@ -19,20 +18,8 @@ import {
     tower
 } from "./aircraft/aircraft";
 
-// import marker from 'leaflet/dist/images/marker-icon.png';
-// import marker2x from 'leaflet/dist/images/marker-icon-2x.png';
-// import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-// import {tileLayer} from "leaflet";
-
-// delete L.Icon.Default.prototype._getIconUrl;
-//
-// L.Icon.Default.mergeOptions({
-//     iconRetinaUrl: marker2x,
-//     iconUrl: marker,
-//     shadowUrl: markerShadow
-// });
 import ContestsGlobalMap from "./contests/contestsGlobalMap";
-import ContestPopupItem from "./contests/contestPopupItem";
+import {Jawg_Sunny} from "./leafletLayers";
 
 const ognAircraftTypeMap = {
     0: jet,
@@ -53,25 +40,6 @@ const ognAircraftTypeMap = {
     15: tower
 }
 
-
-function syntaxHighlight(json) {
-    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-        let cls = 'number';
-        if (/^"/.test(match)) {
-            if (/:$/.test(match)) {
-                cls = 'key';
-            } else {
-                cls = 'string';
-            }
-        } else if (/true|false/.test(match)) {
-            cls = 'boolean';
-        } else if (/null/.test(match)) {
-            cls = 'null';
-        }
-        return '<span class="' + cls + '">' + match + '</span>';
-    });
-}
 
 const ZOOM_LEVELS = {
     20: 1128.497220,
@@ -134,10 +102,6 @@ class Aircraft {
 
     agePlane() {
         this.updateIcon(this.latestPosition, this.ageColour, 0.4, this.map.getZoom())
-        // this.trail.setStyle({
-        //     opacity: 0.4,
-        //     color: this.ageColour
-        // })
     }
 
     getNavigationTaskLink(navigation_task_id) {
@@ -222,7 +186,6 @@ class Aircraft {
             }
         }
         if (tooltipContents) {
-            // this.dotText.unbindTooltip()
             this.dot.unbindTooltip()
             this.dot.bindTooltip(tooltipContents, {
                 permanent: false,
@@ -238,46 +201,14 @@ class Aircraft {
         const opacity = this.calculateOpacity(position.speed)
         this.dot = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
-            // }).on('click', (e) => {
-            //     if (this.navigation_task_link) {
-            //         window.location.href = this.navigation_task_link
-            //     }
         }).addTo(this.iconLayer)
         this.dotText = L.marker([position.latitude, position.longitude], {
             zIndexOffset: 99999
-            // }).on('click', (e) => {
-            //     if (this.navigation_task_link) {
-            //         window.location.href = this.navigation_task_link
-            //     }
         }).addTo(this.textLayer)
-        // this.trail = L.polyline([[position.latitude, position.longitude]], {
-        //     color: colour,
-        //     opacity: opacity,
-        //     weight: 3
-        // }).addTo(this.map)
         if (this.trafficSource === "internal" || this.trafficSource === "ogn") {
             this.updateTooltip(position)
         }
         this.updateIcon(position, colour, opacity, this.map.getZoom())
-    }
-
-    updateTrail(position, colour, opacity) {
-        this.trailPositions.push(position)
-        this.trail.setStyle({
-            color: colour, opacity: opacity
-        })
-        const latestTime = position.time.getTime()
-        while (this.trailPositions.length > 0 && latestTime - this.trailPositions[0].time.getTime() > TRAIL_LENGTH * 1000) {
-            this.trailPositions.shift()
-        }
-        const partial = this.trailPositions.map((internal_position) => {
-            return [internal_position.latitude, internal_position.longitude]
-        })
-        if (partial.length > 0) {
-            this.trail.setLatLngs(partial)
-            this.trail.redraw()
-        }
-
     }
 
     calculateOpacity(speed) {
@@ -304,7 +235,6 @@ class Aircraft {
         this.dot.setLatLng([position.latitude, position.longitude])
         this.dotText.setLatLng([position.latitude, position.longitude])
         this.updateIcon(position, this.colour, opacity, this.map.getZoom())
-        // this.updateTrail(position, this.colour, opacity)
         this.time = position.time
         this.updateNavigationTask(position)
     }
@@ -429,28 +359,6 @@ class ConnectedGlobalMapMap
     }
 
 
-    // initiateSession() {
-    //     axios.get("https://" + server + "/api/session?token=" + token, {withCredentials: true}).then(res => {
-    //         this.client = new W3CWebSocket("wss://" + server + "/api/socket")
-    //         console.log("Initiated session")
-    //         console.log(res)
-    //
-    //         this.client.onopen = () => {
-    //             console.log("Client connected")
-    //         };
-    //         this.client.onmessage = (message) => {
-    //             let data = JSON.parse(message.data);
-    //             if (data.positions !== undefined) {
-    //                 this.handlePositions(data.positions)
-    //             }
-    //             if (data.devices !== undefined) {
-    //                 this.handleDevices(data.devices)
-    //             }
-    //         };
-    //
-    //     })
-    // }
-
     purgePositions() {
         for (let id of Object.keys(this.aircraft)) {
             const now = new Date()
@@ -506,12 +414,6 @@ class ConnectedGlobalMapMap
 
     }
 
-    redrawAircraft() {
-        for (let a of Object.values(this.aircraft)) {
-            a.redraw()
-        }
-    }
-
     componentDidUpdate(prevProps) {
         if (prevProps.zoomContest !== this.props.zoomContest && this.map && this.props.zoomContest) {
             const contest = this.props.contests.find((contest) => {
@@ -521,7 +423,6 @@ class ConnectedGlobalMapMap
             })
             if (contest) {
                 this.map.flyTo([contest.latitude, contest.longitude], 8)
-                // this.props.zoomFocusContest(null)
             }
         }
     }
@@ -531,22 +432,6 @@ class ConnectedGlobalMapMap
         this.initialiseMap()
         this.initiateSession()
     }
-
-// Create additional Control placeholders
-//     addControlPlaceholders(map) {
-//         var corners = map._controlCorners,
-//             l = 'leaflet-',
-//             container = map._controlContainer;
-//
-//         function createCorner(vSide, hSide) {
-//             var className = l + vSide + ' ' + l + hSide;
-//
-//             corners[vSide + hSide] = L.DomUtil.create('div', className, container);
-//         }
-//
-//         createCorner('almostbottom', 'left');
-//         createCorner('almostbottom', 'right');
-//     }
 
     sendUpdatedPosition() {
         if (this.client && this.client.readyState === WebSocket.OPEN && this.bounds) {
@@ -576,55 +461,8 @@ class ConnectedGlobalMapMap
         this.internalPositionText = L.layerGroup().addTo(this.map)
         this.externalPositionIcons = L.layerGroup().addTo(this.map)
         this.externalPositionText = L.layerGroup().addTo(this.map)
-        // this.addControlPlaceholders(this.map);
-
-        // Change the position of the Zoom Control to a newly created placeholder.
-//         this.map.zoomControl.setPosition('almostbottomleft');
-
-// You can also put other controls in the same placeholder.
-        //         L.control.scale({position: 'almostbottomleft'}).addTo(this.map);
-
-        // const token = "pk.eyJ1Ijoia29sYWYiLCJhIjoiY2tmNm0zYW55MHJrMDJ0cnZvZ2h6MTJhOSJ9.3IOApjwnK81p6_a0GsDL-A"
-        // const Stadia_AlidadeSmooth = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=d818a148-b158-4268-b073-ee9b34f6a23b', {
-        //     maxZoom: 20,
-        //     attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
-        // });
-        // const mapbox = tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
-        //     attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-        //     maxZoom: 18,
-        //     id: 'mapbox/streets-v11',
-        //     tileSize: 512,
-        //     zoomOffset: -1,
-        //     accessToken: token
-        // })
-        // const Esri_WorldGrayCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        //     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-        //     maxZoom: 16
-        // });
-        const CartoDB_Positron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 19
-        });
-        const Jawg_Sunny = L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
-            attribution: '<a href="http://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            minZoom: 0,
-            maxZoom: 22,
-            subdomains: 'abcd',
-            accessToken: 'fV8nbLEqcxdUyjN5DXYn8OgCX8vdhBC5jYCkroqpgh6bzsEfb2hQkvDqRQs1GcXX'
-        });
-        const OpenAIP = L.tileLayer('http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}', {
-            attribution: '<a href="https://www.openaip.net/">openAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
-            ext: 'png',
-            minZoom: 4,
-            maxZoom: 14,
-            tms: true,
-            detectRetina: true,
-            subdomains: 'abcd'
-        });
         Jawg_Sunny.addTo(this.map);
         // OpenAIP.addTo(this.map);
-        // this.map.setView([0, 0], 2)
         this.map.on("locationerror", (e) => {
             this.map.setView(L.latLng(59, 10.5), 7)
         })

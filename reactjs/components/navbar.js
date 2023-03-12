@@ -1,4 +1,4 @@
-import React, {Component} from "react";
+import React from "react";
 
 export default function Navbar(props) {
     return <nav className="navbar transparent navbar-light">

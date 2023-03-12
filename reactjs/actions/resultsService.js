@@ -3,7 +3,6 @@ import {
     GET_CONTEST_TEAMS_LIST_SUCCESSFUL,
     SHOW_TASK_DETAILS,
     HIDE_ALL_TASK_DETAILS,
-    SHOW_ALL_TASK_DETAILS,
     HIDE_TASK_DETAILS,
     GET_TASKS_SUCCESSFUL,
     GET_TASK_TESTS_SUCCESSFUL,
@@ -11,8 +10,7 @@ import {
     CREATE_TASK_TEST_SUCCESSFUL,
     DELETE_TASK_SUCCESSFUL,
     DELETE_TASK_TEST_SUCCESSFUL,
-    PUT_TEST_RESULT_SUCCESSFUL,
-    DELETE_RESULTS_TABLE_TEAM_SUCCESSFUL, GET_CONTEST_RESULTS_FAILED
+    GET_CONTEST_RESULTS_FAILED
 } from "../constants/resultsServiceActionTypes";
 
 export const teamsData = (data, contestId) => (dispatch) => dispatch({
@@ -45,38 +43,6 @@ export const fetchContestResults = (contestId) => (dispatch) => {
         error: error => dispatch({type: GET_CONTEST_RESULTS_FAILED, payload: error, contestId: contestId})
     });
 }
-
-export const fetchContestTeams = (contestId) => (dispatch) => {
-    $.ajax({
-        url: "/api/v1/contests/" + contestId + "/teams/",
-        datatype: 'json',
-        cache: false,
-        success: value => dispatch({type: GET_CONTEST_TEAMS_LIST_SUCCESSFUL, payload: value, contestId: contestId}),
-        error: error => console.log(error)
-    });
-}
-
-
-export const fetchTasks = (contestId) => (dispatch) => {
-    $.ajax({
-        url: "/api/v1/contests/" + contestId + "/tasks/",
-        datatype: 'json',
-        cache: false,
-        success: value => dispatch({type: GET_TASKS_SUCCESSFUL, payload: value, contestId: contestId}),
-        error: error => alert(JSON.stringify(error))
-    });
-}
-
-export const fetchTaskTests = (contestId) => (dispatch) => {
-    $.ajax({
-        url: "/api/v1/contests/" + contestId + "/tasktests/",
-        datatype: 'json',
-        cache: false,
-        success: value => dispatch({type: GET_TASK_TESTS_SUCCESSFUL, payload: value, contestId: contestId}),
-        error: error => alert(JSON.stringify(error))
-    });
-}
-
 
 export const createOrUpdateTask = (contestId, task) => (dispatch) => {
     let url = "/api/v1/contests/" + contestId + "/tasks/"
@@ -199,8 +165,3 @@ export const hideTaskDetails = (taskId) => (dispatch) => {
 export const hideAllTaskDetails = () => (dispatch) => {
     dispatch({type: HIDE_ALL_TASK_DETAILS})
 }
-
-export const showAllTaskDetails = () => (dispatch) => {
-    dispatch({type: SHOW_ALL_TASK_DETAILS})
-}
-

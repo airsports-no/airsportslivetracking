@@ -2,7 +2,6 @@ import React, {Component} from "react";
 import {contestantShortForm} from "../utilities";
 import {connect} from "react-redux";
 import BootstrapTable from "react-bootstrap-table-next";
-import paginationFactory from "react-bootstrap-table2-paginator";
 import {CONTESTANT_DETAILS_DISPLAY} from "../constants/display-types";
 import {displayOnlyContestantTrack, setDisplay, showLowerThirds} from "../actions";
 
@@ -102,14 +101,9 @@ class ConnectedTurningPointDisplay extends Component {
         ]
 
 
-        const paginationOptions = {
-            sizePerPage: 15,
-            hideSizePerPage: true,
-            hidePageListOnlyOnePage: true
-        };
         return <BootstrapTable keyField={"rank"} data={scores} columns={columns} rowEvents={rowEvents}
                                classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
-                               bootstrap4 striped hover condensed //pagination={paginationFactory(paginationOptions)}
+                               bootstrap4 striped hover condensed
         />
 
 
