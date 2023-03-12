@@ -854,6 +854,9 @@ class NavigationTask(models.Model):
     class Meta:
         ordering = ("start_time", "finish_time")
 
+    def user_has_change_permissions(self, user: MyUser) -> bool:
+        return user.is_superuser or user.has_perm("display.change_contest", self.contest)
+
     def __str__(self):
         return "{}: {}".format(self.name, self.start_time.strftime("%Y-%m-%d"))
 

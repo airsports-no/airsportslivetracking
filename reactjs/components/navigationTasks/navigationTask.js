@@ -24,14 +24,13 @@ import ContestRankTable from "../contestRankTable";
 import AirsportsRenderer from "./airsportsRenderer";
 
 const L = window['L']
-const OpenAIP = L.tileLayer('http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}', {
-    attribution: '<a href="https://www.openaip.net/">openAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
+const OpenAIP = L.tileLayer('https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.{ext}?apiKey={apiKey}', {
+    attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
     ext: 'png',
     minZoom: 4,
     maxZoom: 14,
-    tms: true,
-    // detectRetina: true,
-    subdomains: '12'
+    subdomains: 'abc',
+    apiKey:'3d5d3f82528731731362a23f445951d8'
 });
 
 const CartoDB_Positron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {

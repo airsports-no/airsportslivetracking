@@ -227,7 +227,8 @@ from display.serialisers import (
     OngoingNavigationSerialiser,
     EditableRouteSerialiser,
     PositionSerialiser,
-    ScorecardNestedSerialiser, ContestSerialiserWithResults,
+    ScorecardNestedSerialiser,
+    ContestSerialiserWithResults,
 )
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
@@ -318,8 +319,12 @@ def frontend_view_map(request, pk):
             "live_mode": "true",
             "display_map": "true",
             "display_table": "false",
-            "skip_nav": True,
+            "skip_nav": "true",
             "playback": "false",
+            "can_change_navigation_task": "true"
+            if navigation_task.user_has_change_permissions(request.user)
+            else "false",
+            "navigation_task_management_link": reverse("navigationtask_detail", args=(navigation_task.pk,)),
         },
     )
 
@@ -343,8 +348,12 @@ def frontend_playback_map(request, pk):
             "live_mode": "true",
             "display_map": "true",
             "display_table": "false",
-            "skip_nav": True,
+            "skip_nav": "true",
             "playback": "true",
+            "can_change_navigation_task": "true"
+            if navigation_task.user_has_change_permissions(request.user)
+            else "false",
+            "navigation_task_management_link": reverse("navigationtask_detail", args=(navigation_task.pk,)),
         },
     )
 
@@ -2732,7 +2741,7 @@ class ContestViewSet(ModelViewSet):
         "ongoing_navigation": OngoingNavigationSerialiser,
         "signup": SignupSerialiser,
         "share": SharingSerialiser,
-        "results": ContestSerialiserWithResults
+        "results": ContestSerialiserWithResults,
     }
     default_serialiser_class = ContestSerialiser
     lookup_url_kwarg = "pk"
@@ -2753,7 +2762,6 @@ class ContestViewSet(ModelViewSet):
             | self.queryset.filter(is_public=True, is_featured=True)
         )
 
-
     @action(detail=False, methods=["get"])
     def results(self, request, *args, **kwargs):
         """
@@ -2763,7 +2771,6 @@ class ContestViewSet(ModelViewSet):
         """
         data = self.get_serializer_class()(self.get_queryset(), many=True, context={"request": self.request}).data
         return Response(data)
-
 
     @action(detail=True, methods=["get"])
     def get_current_time(self, request, *args, **kwargs):

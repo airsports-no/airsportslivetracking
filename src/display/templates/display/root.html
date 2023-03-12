@@ -10,7 +10,9 @@
             displayMap: {{ display_map }},
             displayTable: {{ display_table }},
             playback: {{ playback }},
-            resultsServiceLink: "/resultsservice/" + {{ contest_id }} + "/taskresults/"
+            resultsServiceLink: "/resultsservice/" + {{ contest_id }} + "/taskresults/",
+            canChangeNavigationTask: {{ can_change_navigation_task }},
+            navigationTaskManagementLink: "{{ navigation_task_management_link }}"
         }
     </script>
 {% endblock %}
@@ -20,7 +22,6 @@
         <div id="root">
             <img class="centered" src="{% static 'img/loading_airplane.gif' %}" alt="loading..."/>
         </div>
-    </div>
     </div>
     {% render_bundle 'Root' %}
 {% endblock %}

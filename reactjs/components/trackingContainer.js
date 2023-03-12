@@ -14,7 +14,7 @@ import {
 } from "../actions";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import Disclaimer from "./disclaimer";
-import {mdiAirport, mdiGoKartTrack, mdiMagnify, mdiPodium} from "@mdi/js";
+import {mdiAirplaneCog, mdiAirport, mdiGoKartTrack, mdiMagnify, mdiPodium} from "@mdi/js";
 import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
 import TimeDisplay from "./timeDisplay";
@@ -191,14 +191,18 @@ class ConnectedTrackingContainer extends Component {
                                         </a>}
                                 </div> : null}
                             <div className={"trackImage"}>
-                                <Icon path={mdiGoKartTrack} title={"Track"} size={2} color={"#e01b1c"}
+                                <Icon path={mdiGoKartTrack} title={"Display airplane tracks"} size={2} color={"#e01b1c"}
                                       onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
                             </div>
                             <div className={"openAipLink"}>
-                                <Icon path={mdiAirport} title={"OpenAIP"} size={2} color={"#e01b1c"}
+                                <Icon path={mdiAirport} title={"Show OpenAIP overlay"} size={2} color={"#e01b1c"}
                                       onClick={() => this.props.toggleDisplayOpenAip()}/>
                             </div>
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
+                            {document.configuration.canChangeNavigationTask ? <div className={"managementIcon"}>
+                                <a href={document.configuration.navigationTaskManagementLink}><Icon
+                                    path={mdiAirplaneCog} title={"Manage task"} size={2} color={"#e01b1c"}/></a>
+                            </div> : null}
                             <div id="cesiumContainer"/>
                             {this.props.displayLowerThirds !== null && this.props.contestants[this.props.displayLowerThirds] ?
                                 <div><LowerThirdTeam scorecard={this.props.navigationTask.scorecard}
