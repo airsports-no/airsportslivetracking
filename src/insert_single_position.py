@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     django.setup()
 from display.models import Person
-from display.serialisers import PersonSerialiser
+from display.serialisers import PersonSerialiserExcludingTracking
 from websocket_channels import WebsocketFacade
 now = datetime.datetime.now(datetime.timezone.utc)
 position = {
@@ -23,4 +23,4 @@ position = {
 }
 websocket=WebsocketFacade()
 person = Person.objects.get(app_tracking_id="zOX3bSWKexoAJIlEpT4yx3lou5cl")
-websocket.transmit_global_position_data("LN", PersonSerialiser(person).data, position, now, None)
+websocket.transmit_global_position_data("LN", PersonSerialiserExcludingTracking(person).data, position, now, None)

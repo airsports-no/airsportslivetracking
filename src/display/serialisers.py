@@ -126,6 +126,13 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         exclude = ("phone",)
 
 
+class PersonSerialiserExcludingTracking(CountryFieldMixin, serializers.ModelSerializer):
+    class Meta:
+        model = Person
+        # fields = "__all__"
+        exclude = ("phone","app_tracking_id", "simulator_tracking_id")
+
+
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
@@ -136,8 +143,8 @@ class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 
 
 class CrewSerialiser(serializers.ModelSerializer):
-    member1 = PersonSerialiser()
-    member2 = PersonSerialiser(required=False)
+    member1 = PersonSerialiserExcludingTracking()
+    member2 = PersonSerialiserExcludingTracking(required=False)
 
     class Meta:
         model = Crew

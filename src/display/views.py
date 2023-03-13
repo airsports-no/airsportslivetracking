@@ -228,7 +228,7 @@ from display.serialisers import (
     EditableRouteSerialiser,
     PositionSerialiser,
     ScorecardNestedSerialiser,
-    ContestSerialiserWithResults,
+    ContestSerialiserWithResults, PersonSerialiserExcludingTracking,
 )
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
@@ -439,7 +439,7 @@ def auto_complete_person_phone(request):
         else:
             q = request.data.get("search", "")
             search_qs = Person.objects.filter(phone=q)
-            serialiser = PersonSerialiser(search_qs, many=True)
+            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
             return Response(serialiser.data)
     raise drf_exceptions.MethodNotAllowed
 
@@ -457,7 +457,7 @@ def auto_complete_person_id(request):
         else:
             q = request.data.get("search", "")
             search_qs = Person.objects.filter(pk=q)
-            serialiser = PersonSerialiser(search_qs, many=True)
+            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
             return Response(serialiser.data)
     raise drf_exceptions.MethodNotAllowed
 
@@ -481,7 +481,7 @@ def auto_complete_person_first_name(request):
         else:
             q = request.data.get("search", "")
             search_qs = Person.objects.filter(pk=q)
-            serialiser = PersonSerialiser(search_qs, many=True)
+            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
             return Response(serialiser.data)
     raise drf_exceptions.MethodNotAllowed
 
@@ -505,7 +505,7 @@ def auto_complete_person_last_name(request):
         else:
             q = request.data.get("search", "")
             search_qs = Person.objects.filter(pk=q)
-            serialiser = PersonSerialiser(search_qs, many=True)
+            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
             return Response(serialiser.data)
     raise drf_exceptions.MethodNotAllowed
 
@@ -523,7 +523,7 @@ def auto_complete_person_email(request):
         else:
             q = request.data.get("search", "")
             search_qs = Person.objects.filter(email=q)
-            serialiser = PersonSerialiser(search_qs, many=True)
+            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
             return Response(serialiser.data)
     raise drf_exceptions.MethodNotAllowed
 
@@ -2726,9 +2726,8 @@ class EditableRouteViewSet(ModelViewSet):
 
 class ContestViewSet(ModelViewSet):
     """
-    A contest is a high level wrapper for multiple tasks. Currently it mostly consists of a name and a is_public
-    flag which controls its visibility for anonymous users.GET Returns a list of contests either owned by the user
-    or publicly divisible POST Allows the user to post a new contest and become the owner of that contest.
+    A contest is a high level wrapper for multiple tasks. It provides a lightweight view of a contest and is used by
+    the front end to display the contest list on the global map.
     """
 
     queryset = Contest.objects.all()
@@ -2775,7 +2774,7 @@ class ContestViewSet(ModelViewSet):
     @action(detail=True, methods=["get"])
     def get_current_time(self, request, *args, **kwargs):
         """
-        Return the current time for the appropriate time zone
+        Return the current time for the appropriate time zone. It does not seem to be used by the front end anywhere.
         """
         contest = self.get_object()
         return Response(datetime.datetime.now(datetime.timezone.utc).astimezone(contest.time_zone).strftime("%H:%M:%S"))
@@ -2879,10 +2878,6 @@ class ContestViewSet(ModelViewSet):
             results.points = request.data["points"]
             results.save()
         return Response(status=HTTP_200_OK)
-        # # Return the same as the initial results request so that we can refresh everything that has been updated
-        # contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
-        # serialiser = ContestResultsDetailsSerialiser(contest)
-        # return Response(serialiser.data)
 
     @action(detail=True, methods=["post"])
     def team_results_delete(self, request, *args, **kwargs):
@@ -2983,6 +2978,9 @@ class ContestTeamViewSet(ModelViewSet):
 
 
 class NavigationTaskViewSet(ModelViewSet):
+    """
+    Main navigation task view set. Used by the front end to load the tracking map.
+    """
     queryset = NavigationTask.objects.all()
     serializer_classes = {
         "share": SharingSerialiser,
