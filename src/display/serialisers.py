@@ -84,6 +84,10 @@ class PersonLtdSerialiser(serializers.ModelSerializer):
 
 
 class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
+    """
+    This should only be used in UserPersonViewSet where it is guaranteed that you only get access to your own profile.
+    We do not wish to expose apt tracking ID and simulator tracking ID to 3rd persons.
+    """
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
     # phone = PhoneNumberField(required=False)
