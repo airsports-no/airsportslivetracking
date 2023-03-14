@@ -12,7 +12,6 @@ import uuid
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
 from typing import List, Optional, Tuple, Dict, Set
-from unittest.mock import Mock
 
 import eval7 as eval7
 from django import core
@@ -55,6 +54,15 @@ from display.calculators.calculator_utilities import round_time_second
 from display.calculators.positions_and_gates import Position
 from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
 from display.coordinate_utilities import bearing_difference
+from display.editable_route_utilities import (
+    create_track_block,
+    create_takeoff_gate,
+    create_landing_gate,
+    create_prohibited_zone,
+    create_information_zone,
+    create_penalty_zone,
+    create_gate_polygon,
+)
 from display.map_constants import (
     SCALES,
     SCALE_TO_FIT,
@@ -2846,6 +2854,76 @@ class EditableRoute(models.Model):
                     type=zone_type,
                     tooltip_position=feature.get("tooltip_position", []),
                 )
+
+    @classmethod
+    def _create_route_and_thumbnail(cls, name: str, route: list[dict]) -> "EditableRoute":
+        editable_route = EditableRoute.objects.create(name=name, route=route)
+        try:
+            editable_route.thumbnail.save(
+                editable_route.name + "_thumbnail.png",
+                ContentFile(editable_route.create_thumbnail().getvalue()),
+                save=True,
+            )
+        except:
+            logger.exception("Failed creating editable route thumbnail")
+        return editable_route
+
+    @classmethod
+    def create_from_kml(cls, name: str, kml_content: bytes) -> tuple[Optional["EditableRoute"], list[str]]:
+        """Create a route from our own kml format."""
+        messages = []
+        from display.convert_flightcontest_gpx import load_features_from_kml
+        features = load_features_from_kml(kml_content)
+        positions = features.get("route", [])
+        track = create_track_block(positions)
+        route = [track]
+        if take_off_gate_line := features.get("to"):
+            if len(take_off_gate_line) == 2:
+                route.append(create_takeoff_gate(take_off_gate_line))
+                messages.append("Found takeoff gate")
+        if landing_gate_line := features.get("to"):
+            if len(landing_gate_line) == 2:
+                route.append(create_landing_gate(landing_gate_line))
+                messages.append("Found landing gate")
+        for name in features.keys():
+            try:
+                zone_type, zone_name = name.split("_")
+                if zone_type == "prohibited":
+                    route.append(create_prohibited_zone(features[name], zone_name))
+                if zone_type == "info":
+                    route.append(create_information_zone(features[name], zone_name))
+                if zone_type == "penalty":
+                    route.append(create_penalty_zone(features[name], zone_name))
+                if zone_type == "gate":
+                    route.append(create_gate_polygon(features[name], zone_name))
+                messages.append(f"Found {zone_type} polygon {zone_name}")
+            except ValueError:
+                pass
+        editable_route = cls._create_route_and_thumbnail(name, route)
+        return editable_route, messages
+
+    @classmethod
+    def create_from_csv(cls, name: str, csv_content: list[bytes]) -> tuple[Optional["EditableRoute"], list[str]]:
+        """Create a route from our own CSV format."""
+        messages = []
+        positions = []
+        gate_widths = []
+        names = []
+        types = []
+        try:
+            for line in csv_content:
+                line = [item.strip() for item in line.decode("utf-8").split(",")]
+                positions.append((float(line[1]), float(line[2])))  # CSV contains longitude, latitude
+                names.append(line[0])
+                gate_widths.append(float(line[4]))
+                types.append(line[3])
+            route = [create_track_block(positions, widths=gate_widths, names=names, types=types)]
+            editable_route = cls._create_route_and_thumbnail(name, route)
+            return editable_route, messages
+        except Exception as ex:
+            logger.exception("Failure when creating route from csv")
+            messages.append(str(ex))
+        return None, messages
 
 
 # @receiver(post_save, sender=Task)

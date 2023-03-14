@@ -99,6 +99,7 @@ from display.views import (
     add_user_editableroute_permissions,
     change_user_editableroute_permissions,
     delete_user_editableroute_permissions,
+    import_route,
 )
 
 urlpatterns = [
@@ -300,6 +301,7 @@ urlpatterns = [
     path("person/", PersonList.as_view(), name="person_list"),
     path("manifest/", manifest, name="tracking_manifest"),
     path("editableroute/", EditableRouteList.as_view(), name="editableroute_list"),
+    path("editableroute/import/", import_route, name="editableroute_import"),
     path("editableroute/<int:pk>/delete/", EditableRouteDeleteView.as_view(), name="editableroute_delete"),
     path("editableroute/<int:pk>/copy/", copy_editable_route, name="editableroute_copy"),
     path(

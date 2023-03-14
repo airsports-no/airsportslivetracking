@@ -920,3 +920,17 @@ class ScorecardFormSetHelper(FormHelper):
         super().__init__(*args, **kwargs)
         self.form_method = "post"
         self.render_required_fields = True
+
+
+class ImportRouteForm(forms.Form):
+    """Used to import routes as editable route."""
+
+    name = forms.CharField(help_text="The name the route should be saved as.")
+    file = forms.FileField(
+        help_text="Route file to import. File type is inferred from the file suffix. Supported files are CSV, kml, kmz."
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False

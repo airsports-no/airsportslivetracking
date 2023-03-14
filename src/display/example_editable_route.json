@@ -1,0 +1,231 @@
+{
+    "route": [
+        {
+            "name": "Track",
+            "layer_type": "polyline",
+            "track_points": [
+                {
+                    "name": "SP",
+                    "gateType": "sp",
+                    "timeCheck": true,
+                    "gateWidth": "3",
+                    "position": {
+                        "lat": 59.94736006104373,
+                        "lng": 11.068725585937502
+                    }
+                },
+                {
+                    "name": "NEW",
+                    "gateType": "tp",
+                    "timeCheck": true,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 59.917688094768096,
+                        "lng": 11.125030517578125
+                    }
+                },
+                {
+                    "name": "FP",
+                    "gateType": "fp",
+                    "timeCheck": true,
+                    "gateWidth": "3",
+                    "position": {
+                        "lat": 59.879031770485376,
+                        "lng": 11.159706115722656
+                    }
+                }
+            ],
+            "feature_type": "track",
+            "tooltip_position": [
+                0,
+                0
+            ],
+            "geojson": {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [
+                        [
+                            11.068726,
+                            59.94736
+                        ],
+                        [
+                            11.125031,
+                            59.917688
+                        ],
+                        [
+                            11.159706,
+                            59.879032
+                        ]
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Penaly",
+            "layer_type": "polygon",
+            "track_points": [],
+            "feature_type": "penalty",
+            "tooltip_position": [
+                0,
+                0
+            ],
+            "geojson": {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [
+                                11.137562,
+                                59.883037
+                            ],
+                            [
+                                11.158333,
+                                59.891133
+                            ],
+                            [
+                                11.144257,
+                                59.901207
+                            ],
+                            [
+                                11.126575,
+                                59.893802
+                            ],
+                            [
+                                11.137562,
+                                59.883037
+                            ]
+                        ]
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Danger",
+            "layer_type": "polygon",
+            "track_points": [],
+            "feature_type": "prohibited",
+            "tooltip_position": [
+                0,
+                0
+            ],
+            "geojson": {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [
+                                11.096878,
+                                59.938805
+                            ],
+                            [
+                                11.075764,
+                                59.932613
+                            ],
+                            [
+                                11.08881,
+                                59.922635
+                            ],
+                            [
+                                11.105976,
+                                59.928227
+                            ],
+                            [
+                                11.096878,
+                                59.938805
+                            ]
+                        ]
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Takeoff gate",
+            "layer_type": "polyline",
+            "track_points": [],
+            "feature_type": "to",
+            "tooltip_position": [
+                0,
+                0
+            ],
+            "geojson": {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [
+                        [
+                            11.034393,
+                            59.97357
+                        ],
+                        [
+                            11.027527,
+                            59.969962
+                        ]
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Takeoff gate",
+            "layer_type": "polyline",
+            "track_points": [],
+            "feature_type": "to",
+            "tooltip_position": [
+                0,
+                0
+            ],
+            "geojson": {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [
+                        [
+                            11.042976,
+                            59.97168
+                        ],
+                        [
+                            11.035767,
+                            59.967728
+                        ]
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Landing gate",
+            "layer_type": "polyline",
+            "track_points": [],
+            "feature_type": "ldg",
+            "tooltip_position": [
+                0,
+                0
+            ],
+            "geojson": {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [
+                        [
+                            11.02169,
+                            59.978895
+                        ],
+                        [
+                            11.016197,
+                            59.975631
+                        ]
+                    ]
+                }
+            }
+        }
+    ],
+    "name": "FO danger test",
+    "route_type": "precision"
+}

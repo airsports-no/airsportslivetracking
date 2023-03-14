@@ -118,6 +118,7 @@ from display.forms import (
     ChangeUserUploadedMapPermissionsForm,
     ChangeEditableRoutePermissionsForm,
     AddEditableRoutePermissionsForm,
+    ImportRouteForm,
 )
 from display.generate_flight_orders import (
     generate_flight_orders_latex,
@@ -228,7 +229,8 @@ from display.serialisers import (
     EditableRouteSerialiser,
     PositionSerialiser,
     ScorecardNestedSerialiser,
-    ContestSerialiserWithResults, PersonSerialiserExcludingTracking,
+    ContestSerialiserWithResults,
+    PersonSerialiserExcludingTracking,
 )
 from display.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
@@ -718,6 +720,36 @@ def upload_profile_picture(request, contest_pk, pk):
         "display/person_upload_picture_form.html",
         {"form": form, "object": person},
     )
+
+
+@permission_required("display.change_contest")
+def import_route(request):
+    if request.method == "POST":
+        form = ImportRouteForm(request.POST, request.FILES)
+        if form.is_valid():
+            route_file = request.FILES["file"]
+            base, extension = os.path.splitext(route_file.name)
+            editable_route = None
+            return_messages = []
+            if extension.lower() == ".csv":
+                editable_route, return_messages = EditableRoute.create_from_csv(
+                    form.cleaned_data["name"], route_file.readlines()
+                )
+            elif extension.lower() in (".kml", ".kmz"):
+                editable_route, return_messages = EditableRoute.create_from_kml(
+                    form.cleaned_data["name"], route_file.read()
+                )
+            else:
+                return_messages.append(f"Unknown file extension '{extension}'")
+            if not editable_route:
+                for message in return_messages:
+                    messages.error(request, message)
+                return render(request, "display/import_route_form.html", {"form": form})
+            for message in return_messages:
+                messages.success(request, message)
+            return redirect(f"/routeeditor/{editable_route.pk}/")
+    form = ImportRouteForm()
+    return render(request, "display/import_route_form.html", {"form": form})
 
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
@@ -2981,6 +3013,7 @@ class NavigationTaskViewSet(ModelViewSet):
     """
     Main navigation task view set. Used by the front end to load the tracking map.
     """
+
     queryset = NavigationTask.objects.all()
     serializer_classes = {
         "share": SharingSerialiser,
