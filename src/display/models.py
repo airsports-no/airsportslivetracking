@@ -34,6 +34,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django_use_email_as_username.models import BaseUser, BaseUserManager
+from geopy import Nominatim
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm, get_users_with_perms
 from multiselectfield import MultiSelectField
@@ -644,6 +645,15 @@ class Contest(models.Model):
     class Meta:
         ordering = ("-start_time", "-finish_time")
 
+    @property
+    def country_codes(self) -> Set[str]:
+        return set([navigation_task.country_code for navigation_task in self.navigationtask_set.all()])
+
+    @property
+    def country_names(self) -> Set[str]:
+        return set([navigation_task.country_name for navigation_task in self.navigationtask_set.all()])
+
+
     def initialise(self, user: MyUser):
         self.start_time = self.time_zone.localize(self.start_time.replace(tzinfo=None))
         self.finish_time = self.time_zone.localize(self.finish_time.replace(tzinfo=None))
@@ -801,6 +811,28 @@ class NavigationTask(models.Model):
         validators=[MinValueValidator(0)],
         help_text="Number of minutes processions and scores should be delayed before they are made available on the tracking map.",
     )
+    _nominatim = MyPickledObjectField(default=dict, help_text="Used to hold response from geolocation service")
+
+    def _geo_reference(self):
+        try:
+            first_gate: Waypoint = self.route.waypoints[0]
+            geolocator = Nominatim(user_agent="airsports.no")
+            self._nominatim = geolocator.reverse(f"{first_gate.latitude},{first_gate.longitude}").raw
+            self.save()
+        except IndexError:
+            logger.exception(f"Failed geo locating task {self}")
+
+    @property
+    def country_code(self) -> str:
+        if len(self._nominatim) == 0:
+            self._geo_reference()
+        return self._nominatim.get("address", {}).get("country_code", "")
+
+    @property
+    def country_name(self) -> str:
+        if len(self._nominatim) == 0:
+            self._geo_reference()
+        return self._nominatim.get("address", {}).get("country", "")
 
     @classmethod
     def create(cls, **kwargs) -> "NavigationTask":
