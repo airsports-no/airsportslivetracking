@@ -4,19 +4,17 @@ import os
 from io import BytesIO
 from typing import Optional, Dict, Tuple, List
 
-import dateutil
 import gpxpy
 import zipfile
-from crispy_forms.layout import Submit, Fieldset
+from crispy_forms.layout import  Fieldset
 from django.contrib import messages
 from django.contrib.auth import login, get_user_model
-from django.contrib.auth.decorators import permission_required, login_required
+from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.mixins import (
     PermissionRequiredMixin,
     LoginRequiredMixin,
     UserPassesTestMixin,
 )
-from django.contrib.auth.models import User
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
@@ -24,12 +22,10 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 from django.db import transaction, connection
 from django.db.models import Q
-from django.forms import formset_factory, inlineformset_factory, FloatField
 from django import forms
 
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect
-from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views import View
@@ -52,33 +48,21 @@ from guardian.shortcuts import (
     remove_perm,
     get_user_perms,
 )
-from redis import Redis
-from rest_framework import status, permissions, mixins
+from rest_framework import status, permissions
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action, api_view, permission_classes
 import rest_framework.exceptions as drf_exceptions
-from rest_framework.generics import RetrieveAPIView, get_object_or_404
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
-from rest_framework.viewsets import ModelViewSet, ViewSet, GenericViewSet
+from rest_framework.viewsets import ModelViewSet, GenericViewSet
 
 from display.calculator_running_utilities import is_calculator_running
 from display.calculator_termination_utilities import cancel_termination_request
-from display.convert_flightcontest_gpx import (
-    create_precision_route_from_gpx,
-    create_precision_route_from_csv,
-    create_precision_route_from_formset,
-    create_anr_corridor_route_from_kml,
-    load_features_from_kml,
-    create_landing_line_from_kml,
-)
 from display.forms import (
     PrecisionImportRouteForm,
     NavigationTaskForm,
-    FILE_TYPE_CSV,
-    FILE_TYPE_FLIGHTCONTEST_GPX,
-    FILE_TYPE_KML,
     ContestantForm,
     ContestForm,
     Member1SearchForm,
@@ -100,13 +84,11 @@ from display.forms import (
     RouteCreationForm,
     LandingImportRouteForm,
     ShareForm,
-    SCALE_TO_FIT,
     GPXTrackImportForm,
     ContestSelectForm,
     ANRCorridorParametersForm,
     AirsportsParametersForm,
     PersonPictureForm,
-    ScorecardFormSetHelper,
     ScorecardForm,
     GateScoreForm,
     AirsportsImportRouteForm,
@@ -122,11 +104,9 @@ from display.generate_flight_orders import (
     generate_flight_orders_latex,
     embed_map_in_pdf,
 )
-from display.map_constants import PNG, A4
+from display.map_constants import A4
 from display.map_plotter import (
     plot_route,
-    get_basic_track,
-    country_code_to_map_source,
     A4_WIDTH,
     A3_HEIGHT,
     A4_HEIGHT,
@@ -138,7 +118,6 @@ from display.models import (
     Contestant,
     Contest,
     Team,
-    ContestantTrack,
     Person,
     Aeroplane,
     Club,
@@ -149,13 +128,9 @@ from display.models import (
     ContestSummary,
     TaskTest,
     TeamTestScore,
-    TRACCAR,
     Scorecard,
     MyUser,
     PlayingCard,
-    TRACKING_DEVICE,
-    STARTINGPOINT,
-    FINISHPOINT,
     ScoreLogEntry,
     EmailMapLink,
     EditableRoute,
@@ -172,9 +147,7 @@ from display.permissions import (
     ContestPublicPermissions,
     ContestantNavigationTaskContestPermissions,
     RoutePermissions,
-    ContestModificationPermissions,
     ContestPermissionsWithoutObjects,
-    ChangeContestKeyPermissions,
     TaskContestPermissions,
     TaskContestPublicPermissions,
     TaskTestContestPublicPermissions,
@@ -188,13 +161,11 @@ from display.permissions import (
 )
 from display.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import (
-    ContestantTrackSerialiser,
     ExternalNavigationTaskNestedTeamSerialiser,
     ContestSerialiser,
     NavigationTaskNestedTeamRouteSerialiser,
     RouteSerialiser,
     ContestantTrackWithTrackPointsSerialiser,
-    TeamResultsSummarySerialiser,
     ContestResultsDetailsSerialiser,
     TeamNestedSerialiser,
     GpxTrackSerialiser,
@@ -204,13 +175,11 @@ from display.serialisers import (
     AeroplaneSerialiser,
     ClubSerialiser,
     ContestTeamNestedSerialiser,
-    TaskWithoutReferenceNestedSerialiser,
     ContestSummaryWithoutReferenceSerialiser,
     ContestTeamSerialiser,
     NavigationTasksSummarySerialiser,
     TaskSummaryWithoutReferenceSerialiser,
     TeamTestScoreWithoutReferenceSerialiser,
-    TaskTestWithoutReferenceNestedSerialiser,
     TaskSerialiser,
     TaskTestSerialiser,
     ContestantSerialiser,
@@ -237,15 +206,12 @@ from display.tasks import (
     generate_and_maybe_notify_flight_order,
     notify_flight_order,
 )
-from display.traccar_factory import get_traccar_instance
 from display.utilities import get_country_code_from_location
 from display.welcome_emails import render_welcome_email, render_contest_creation_email
 from live_tracking_map import settings
-from live_tracking_map.settings import REDIS_HOST
 from websocket_channels import (
     WebsocketFacade,
     generate_contestant_data_block,
-    DateTimeEncoder,
 )
 
 logger = logging.getLogger(__name__)

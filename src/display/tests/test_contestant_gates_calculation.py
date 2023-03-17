@@ -4,10 +4,9 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from display.calculate_gate_times import calculate_and_get_relative_gate_times
-from display.convert_flightcontest_gpx import create_anr_corridor_route_from_kml
+from display.default_scorecards import default_scorecard_fai_anr_2017
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Aeroplane, NavigationTask, Team, Contestant, Crew, Contest, Person, EditableRoute
-from display.views import create_precision_route_from_csv
 from mock_utilities import TraccarMock
 
 
@@ -17,7 +16,7 @@ def chop_microseconds(delta):
 
 class TestContestantGatesCalculation(TestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, patch):
+    def setUp(self, p):
         with open("display/tests/NM.csv", "r") as file:
             editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
             route = editable_route.create_precision_route(True)
@@ -115,9 +114,16 @@ class TestContestantGatesCalculation(TestCase):
 
 class TestContestantGatesCalculationANRRounded(TestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, patch):
+    def setUp(self, p):
         with open("display/tests/kjeller.kml", "r") as file:
-            route = create_anr_corridor_route_from_kml("test", file, 0.5, True)
+            with patch(
+                "display.models.EditableRoute._create_route_and_thumbnail",
+                lambda name, r: EditableRoute.objects.create(name=name, route=r),
+            ):
+                editable_route, _ = EditableRoute.create_from_kml("Test", file)
+                route = editable_route.create_anr_route(
+                    True, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
+                )
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -155,9 +161,9 @@ class TestContestantGatesCalculationANRRounded(TestCase):
         times = calculate_and_get_relative_gate_times(self.navigation_task.route, 75, 8, 165)
         expected_times = [
             ("SP", datetime.timedelta(0)),
-            ("Waypoint 1", datetime.timedelta(seconds=125)),
-            ("Waypoint 2", datetime.timedelta(seconds=348)),
-            ("Waypoint 3", datetime.timedelta(seconds=456)),
+            ("TP 1", datetime.timedelta(seconds=125)),
+            ("TP 2", datetime.timedelta(seconds=348)),
+            ("TP 3", datetime.timedelta(seconds=456)),
             ("FP", datetime.timedelta(seconds=641)),
         ]
         print(times)

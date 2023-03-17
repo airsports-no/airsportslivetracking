@@ -238,124 +238,12 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
             pass
 
 
-def create_precision_route_from_formset(
-    route_name, data: List, use_procedure_turns: bool, input_kml: Optional = None
-) -> Route:
-    waypoint_list = []
-    for item in data:
-        waypoint_list.append(
-            build_waypoint(
-                item["name"],
-                item["latitude"],
-                item["longitude"],
-                item["type"],
-                item["width"],
-                item["time_check"],
-                item["gate_check"],
-            )
-        )
-
-    route = create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
-    if input_kml is not None:
-        features = load_features_from_kml(input_kml)
-        extract_additional_features_from_kml_features(features, route)
-    return route
-
-
 def create_gate_from_line(gate_line, name: str, type: str) -> Waypoint:
     gate_length = calculate_distance_lat_lon(*gate_line)
     gate_position = calculate_fractional_distance_point_lat_lon(gate_line[0], gate_line[1], 0.5)
     waypoint = build_waypoint(name, gate_position[0], gate_position[1], type, gate_length, True, True)
     waypoint.gate_line = gate_line
     return waypoint
-
-
-def create_anr_corridor_route_from_kml(
-    route_name: str, input_kml, corridor_width: float, rounded_corners: bool, first_and_last_gates: List = None
-) -> Route:
-    """
-    Generate a route where only the first point and last points have gate and time checks. All other gates are secret
-    without gate or tone checks.  Each gate has a width equal
-    to the corridor with. Create gate lines that cut the angle of the turn in half.
-    """
-    waypoint_list = []
-    features = load_features_from_kml(input_kml)
-    points = features.get("route", [])
-    if len(points) < 2:
-        raise ValidationError(f"There are not enough waypoints in the file ({len(points)} must be greater than 1)")
-    for index, item in enumerate(points):
-        waypoint_list.append(
-            build_waypoint(f"Waypoint {index}", item[0], item[1], "secret", corridor_width, False, False)
-        )
-    if first_and_last_gates is not None:
-        gate = first_and_last_gates[0]
-        waypoint_list[0] = build_waypoint(
-            gate["name"],
-            gate["latitude"],
-            gate["longitude"],
-            "sp",
-            gate["width"],
-            gate["time_check"],
-            gate["gate_check"],
-        )
-        gate = first_and_last_gates[-1]
-        waypoint_list[-1] = build_waypoint(
-            gate["name"],
-            gate["latitude"],
-            gate["longitude"],
-            "fp",
-            gate["width"],
-            gate["time_check"],
-            gate["gate_check"],
-        )
-    else:
-        waypoint_list[0].name = "SP"
-        waypoint_list[0].type = "sp"
-        waypoint_list[0].gate_check = True
-        waypoint_list[0].time_check = True
-
-        waypoint_list[-1].name = "FP"
-        waypoint_list[-1].type = "fp"
-        waypoint_list[-1].gate_check = True
-        waypoint_list[-1].time_check = True
-    logger.debug(f"Created waypoints {waypoint_list}")
-    route = create_anr_corridor_route_from_waypoint_list(
-        route_name, waypoint_list, rounded_corners, corridor_width=corridor_width
-    )
-    extract_additional_features_from_kml_features(features, route)
-    return route
-
-def create_landing_line_from_kml(route_name: str, input_kml) -> Route:
-    """
-    Generate a route where only the first point and last points have gate and time checks. All other gates are secret
-    without gate or tone checks.  Each gate has a width equal
-    to the corridor with. Create gate lines that cut the angle of the turn in half.
-    """
-    features = load_features_from_kml(input_kml)
-    if "ldg" not in features:
-        raise ValidationError("File is missing a 'to' line")
-    route = Route.objects.create(name=route_name, waypoints=[], use_procedure_turns=False)
-    extract_additional_features_from_kml_features(features, route)
-    route.waypoints = [route.landing_gates]
-    route.save()
-    return route
-
-
-def create_precision_route_from_csv(route_name: str, lines: List[str], use_procedure_turns: bool) -> Route:
-    print("lines: {}".format(lines))
-    waypoint_list = []
-    for line in lines:
-        line = [item.strip() for item in line.split(",")]
-        waypoint = Waypoint(line[0])
-        waypoint.latitude = float(line[2])
-        waypoint.longitude = float(line[1])
-        waypoint.type = line[3].strip()
-        waypoint.width = float(line[4])
-        waypoint.time_check = True
-        waypoint.gate_check = True
-        waypoint.elevation = False
-        waypoint_list.append(waypoint)
-    return create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns)
 
 
 def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
@@ -587,39 +475,6 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
             if use_procedure_turns:
                 next_gate.is_procedure_turn = is_procedure_turn(current_gate.bearing_next, next_gate.bearing_next)
             next_gate.is_steep_turn = is_procedure_turn(current_gate.bearing_next, next_gate.bearing_next)
-
-
-def correct_distance_and_bearing_for_rounded_corridor(waypoints: List[Waypoint]):
-    """
-    Correct distance to next and the bearing to next to take into account the additional distance caused by rounded
-    corners.
-
-    TODO: This is currently not working correctly. I think the problem lies within get_sent_the_track_segments, but I
-    am not sure. The best solution for now is to simply only deal with waypoint positions and not care about the curve.
-    This is how the Spanish are doing it, anyway, so maybe we can disregard this altogether.
-    """
-    centre_tracks = []
-    for waypoint in waypoints:
-        centre_tracks.append(waypoint.get_centre_track_segments())
-    for index in range(0, len(waypoints) - 1):
-        current_gate = centre_tracks[index]
-        next_gate = centre_tracks[index + 1]
-        start_index = len(current_gate) // 2
-        finish_index = len(next_gate) // 2
-        distance = 0
-        for track_index in range(start_index, len(current_gate) - 1):
-            distance += calculate_distance_lat_lon(current_gate[track_index], current_gate[track_index + 1])
-        distance += calculate_distance_lat_lon(current_gate[-1], next_gate[0])
-        for track_index in range(0, finish_index):
-            distance += calculate_distance_lat_lon(next_gate[track_index], next_gate[track_index + 1])
-
-        waypoints[index].distance_next = distance
-        waypoints[index].bearing_next = calculate_bearing(current_gate[-1], next_gate[0])
-    for index in range(1, len(waypoints)):
-        current_gate = waypoints[index]
-        previous_gate = waypoints[index - 1]
-        current_gate.distance_previous = previous_gate.distance_next
-        current_gate.bearing_from_previous = previous_gate.bearing_next
 
 
 def get_distance_to_other_gates(gate: Waypoint, waypoints: List[Waypoint]) -> Dict:

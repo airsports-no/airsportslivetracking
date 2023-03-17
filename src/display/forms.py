@@ -1,21 +1,16 @@
 from string import Template
-from typing import Dict
 
 import datetime
-from unittest.mock import Mock
 
 from crispy_forms.bootstrap import StrictButton
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Div, ButtonHolder, Submit, Button, Fieldset, Field, HTML
+from crispy_forms.layout import Layout, Div, ButtonHolder, Submit, Fieldset, Field, HTML
 from django import forms
-from django.contrib.gis.forms import MultiLineStringField, OSMWidget, LineStringField
+from django.contrib.gis.forms import OSMWidget, LineStringField
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.forms import HiddenInput
-from django.forms.widgets import FileInput
 from django.utils.safestring import mark_safe
-from phonenumber_field.formfields import PhoneNumberField
-from timezone_field import TimeZoneFormField
 
 from display.map_constants import (
     MAP_SIZES,
@@ -23,8 +18,6 @@ from display.map_constants import (
     LANDSCAPE,
     SCALES,
     SCALE_TO_FIT,
-    PDF,
-    OUTPUT_TYPES,
     A4,
     PORTRAIT,
 )
@@ -34,13 +27,10 @@ from display.models import (
     Contestant,
     Contest,
     Person,
-    Crew,
     Aeroplane,
     Team,
     Club,
     ContestTeam,
-    TURNPOINT,
-    GATE_TYPES,
     EditableRoute,
     Scorecard,
     GateScore,
@@ -214,7 +204,6 @@ class TaskTypeForm(forms.Form):
 
 kml_description = HTML(
     """
-            <p>Select either a file and file type, or an "internal route" which has already been created in the route editor.
             <p>The KML must contain at least the following:
             <ol>
             <li>route: A path with the name "route" which makes up the route that should be flown.</li>
@@ -859,7 +848,7 @@ class ImportRouteForm(forms.Form):
 
     name = forms.CharField(help_text="The name the route should be saved as.")
     file = forms.FileField(
-        help_text="Route file to import. File type is inferred from the file suffix. Supported files are .csv, .kml, .kmz, and FlightContest .gpx. Note that  important not respect the Flight Contest pre-calculated gate lines. Gate lines are calculated by airsports."
+        help_text="Route file to import. File type is inferred from the file suffix. Supported files are .csv, .kml, .kmz, and FlightContest .gpx. Note that the imported route does not respect the Flight Contest pre-calculated gate lines. Gate lines are calculated by airsports."
     )
 
     def __init__(self, *args, **kwargs):

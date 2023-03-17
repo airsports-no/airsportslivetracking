@@ -15,14 +15,11 @@ from string import ascii_uppercase, digits, ascii_lowercase
 from typing import List, Optional, Tuple, Dict, Set, TextIO
 
 import eval7 as eval7
-from django import core
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User, Group
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.core.files import File
 from django.core.files.base import ContentFile
-from django.core.files.images import ImageFile
 from django.core.files.storage import FileSystemStorage
 from django.core.mail import send_mail
 from django.core.validators import MaxValueValidator, MinValueValidator, FileExtensionValidator
@@ -31,14 +28,12 @@ from django.db import models, IntegrityError
 from django.db.models import Q, QuerySet
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django_use_email_as_username.models import BaseUser, BaseUserManager
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm, get_users_with_perms
 from multiselectfield import MultiSelectField
 from pymbtiles import MBtiles
-from six import text_type
 from timezone_field import TimeZoneField
 
 # Create your models here.
@@ -53,7 +48,7 @@ from display.calculator_running_utilities import is_calculator_running
 from display.calculator_termination_utilities import request_termination
 from display.calculators.calculator_utilities import round_time_second
 from display.calculators.positions_and_gates import Position
-from display.clone_object import clone_object_only_foreign_keys, clone_object, simple_clone
+from display.clone_object import simple_clone
 from display.coordinate_utilities import bearing_difference
 from display.editable_route_utilities import (
     create_track_block,
@@ -67,11 +62,8 @@ from display.editable_route_utilities import (
 from display.map_constants import (
     SCALES,
     SCALE_TO_FIT,
-    PDF,
-    OUTPUT_TYPES,
     MAP_SIZES,
     ORIENTATIONS,
-    LANDSCAPE,
     A4,
     PORTRAIT,
 )

@@ -4,10 +4,8 @@ from unittest.mock import Mock, patch
 import dateutil.parser
 from django.test import TransactionTestCase
 
-from display.calculators.gatekeeper import Gatekeeper
 from display.calculators.gatekeeper_route import GatekeeperRoute
 from display.calculators.positions_and_gates import Position
-from display.convert_flightcontest_gpx import create_precision_route_from_csv
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Contestant, Person, Team, EditableRoute
 from mock_utilities import TraccarMock
 

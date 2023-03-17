@@ -8,13 +8,11 @@ import dateutil
 import logging
 from django.core.cache import cache
 from django.test import TransactionTestCase
-from django.test.utils import freeze_time
 
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.calculator_utilities import load_track_points_traccar_csv
 from display.calculators.tests.utilities import load_traccar_track
-from display.convert_flightcontest_gpx import create_anr_corridor_route_from_kml
 from display.models import (
     Aeroplane,
     NavigationTask,

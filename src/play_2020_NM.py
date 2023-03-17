@@ -3,7 +3,7 @@ import glob
 import os
 import time
 from collections import OrderedDict
-
+from unittest.mock import patch
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -11,12 +11,25 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.convert_flightcontest_gpx import create_precision_route_from_csv
 from playback_tools import build_traccar_track, load_data_traccar
 from traccar_facade import Traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Crew, Team, Contest, Aeroplane, NavigationTask, Route, Contestant, ContestantTrack, \
-    Person, ContestTeam, TRACCAR, Club, TRACKING_DEVICE
+from display.models import (
+    Crew,
+    Team,
+    Contest,
+    Aeroplane,
+    NavigationTask,
+    Route,
+    Contestant,
+    ContestantTrack,
+    Person,
+    ContestTeam,
+    TRACCAR,
+    Club,
+    TRACKING_DEVICE,
+    EditableRoute,
+)
 
 maximum_index = 0
 tracks = {}
@@ -43,7 +56,7 @@ contestants = {
     "Stian": (datetime.datetime(2020, 8, 1, 13, 10), 70, 2),
     "Tim": (datetime.datetime(2020, 8, 1, 11, 0), 70, 2),
     "Tommy": (datetime.datetime(2020, 8, 1, 13, 15), 70, 1),
-    "TorHelge": (datetime.datetime(2020, 8, 1, 12, 40), 70, 2)
+    "TorHelge": (datetime.datetime(2020, 8, 1, 12, 40), 70, 2),
 }
 
 
@@ -66,16 +79,26 @@ today = datetime.datetime.now(datetime.timezone.utc)
 tomorrow = today + datetime.timedelta(days=1)
 contest_start_time = today.replace(hour=0).astimezone()
 contest_finish_time = tomorrow.astimezone()
-contest = Contest.objects.create(name=name, is_public=True, start_time=contest_start_time,
-                                 finish_time=contest_finish_time, time_zone="Europe/Oslo")
+contest = Contest.objects.create(
+    name=name, is_public=True, start_time=contest_start_time, finish_time=contest_finish_time, time_zone="Europe/Oslo"
+)
 with open("/data/NM.csv", "r") as file:
-    route = create_precision_route_from_csv("NM 2020", file.readlines()[1:], True)
+    with patch(
+        "display.models.EditableRoute._create_route_and_thumbnail",
+        lambda name, r: EditableRoute.objects.create(name=name, route=r),
+    ):
+        editable_route, _ = EditableRoute.create_from_csv("NM 2020", file.readlines()[1:])
+        route = editable_route.create_precision_route(True)
 
-navigation_task = NavigationTask.create(name=name, contest=contest,
-                                        route=route,
-                                        original_scorecard=scorecard,
-                                        start_time=contest_start_time, finish_time=contest_finish_time,
-                                        is_public=True)
+navigation_task = NavigationTask.create(
+    name=name,
+    contest=contest,
+    route=route,
+    original_scorecard=scorecard,
+    start_time=contest_start_time,
+    finish_time=contest_finish_time,
+    is_public=True,
+)
 print(f"Created navigation task {navigation_task.pk}")
 time.sleep(10)
 contestant_map = {}
@@ -87,53 +110,67 @@ for index, file in enumerate(glob.glob("../data/tracks/*.gpx")[:-1]):
     if contestant in contestants:
         print(contestant)
         if contestant == "Frank-Olaf" and False:
-            member1, _ = Person.objects.get_or_create(first_name="Frank Olaf", last_name="Sem-Jacobsen",
-                                                      email="frankose@ifi.uio.no")
-            member2, _ = Person.objects.get_or_create(first_name="Espen", last_name="Grønstad",
-                                                      email="espengronstad@gmail.com")
+            member1, _ = Person.objects.get_or_create(
+                first_name="Frank Olaf", last_name="Sem-Jacobsen", email="frankose@ifi.uio.no"
+            )
+            member2, _ = Person.objects.get_or_create(
+                first_name="Espen", last_name="Grønstad", email="espengronstad@gmail.com"
+            )
             crew, _ = Crew.objects.get_or_create(member1=member1, member2=member2)
         else:
             person = Person.objects.filter(first_name=contestant, last_name="Pilot").first()
             if not person:
-                person = Person.objects.create(first_name=contestant, last_name="Pilot",
-                                               email=f"bogus{index}@domain.com")
-            crew = Crew.objects.filter(
-                member1=person).first()
+                person = Person.objects.create(
+                    first_name=contestant, last_name="Pilot", email=f"bogus{index}@domain.com"
+                )
+            crew = Crew.objects.filter(member1=person).first()
             if not crew:
                 crew = Crew.objects.create(member1=person)
 
-        team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane,
-                                             club=Club.objects.get_or_create(name="Kjeller Sportsflyklubb")[0])
+        team, _ = Team.objects.get_or_create(
+            crew=crew, aeroplane=aeroplane, club=Club.objects.get_or_create(name="Kjeller Sportsflyklubb")[0]
+        )
         start_time, speed, _ = contestants[contestant]
-        ContestTeam.objects.get_or_create(team=team, contest=contest,
-                                          defaults={"air_speed": speed, "tracking_service": TRACCAR,
-                                                    "tracker_device_id": contestant})
+        ContestTeam.objects.get_or_create(
+            team=team,
+            contest=contest,
+            defaults={"air_speed": speed, "tracking_service": TRACCAR, "tracker_device_id": contestant},
+        )
         start_time = start_time - datetime.timedelta(hours=2)
         start_time = start_time.astimezone()
-        start_time = today.replace(hour=start_time.hour, minute=start_time.minute, second=start_time.second,
-                                   tzinfo=start_time.tzinfo)
+        start_time = today.replace(
+            hour=start_time.hour, minute=start_time.minute, second=start_time.second, tzinfo=start_time.tzinfo
+        )
         start_time_offset = now - start_time
 
         start_time += start_time_offset
 
         minutes_starting = 6
         # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
-        contestant_object = Contestant(navigation_task=navigation_task, team=team,
-                                       takeoff_time=start_time,
-                                       finished_by_time=start_time + datetime.timedelta(hours=3),
-                                       tracker_start_time=start_time - datetime.timedelta(minutes=3),
-                                       tracker_device_id=contestant, contestant_number=index,
-                                       minutes_to_starting_point=minutes_starting,
-                                       air_speed=speed, tracking_device=TRACKING_DEVICE,
-                                       wind_direction=165, wind_speed=8)
+        contestant_object = Contestant(
+            navigation_task=navigation_task,
+            team=team,
+            takeoff_time=start_time,
+            finished_by_time=start_time + datetime.timedelta(hours=3),
+            tracker_start_time=start_time - datetime.timedelta(minutes=3),
+            tracker_device_id=contestant,
+            contestant_number=index,
+            minutes_to_starting_point=minutes_starting,
+            air_speed=speed,
+            tracking_device=TRACKING_DEVICE,
+            wind_direction=165,
+            wind_speed=8,
+        )
         print(contestant_object.pk)
         contestant_map[contestant] = contestant_object
         print(f"{contestant_object} {start_time}")
         # with open(file, "r") as i:
         #     insert_gpx_file(contestant_object, i, influx)
 
-        tracks[contestant] = (build_traccar_track(file, today, start_index=0, time_offset=start_time_offset),
-                              contestant_object.gate_times.get("SP"))
+        tracks[contestant] = (
+            build_traccar_track(file, today, start_index=0, time_offset=start_time_offset),
+            contestant_object.gate_times.get("SP"),
+        )
 tracks = OrderedDict(sorted(tracks.items(), key=lambda item: contestants[item[0]][1], reverse=True))
 print("Sleeping for 10 seconds")
 time.sleep(10)

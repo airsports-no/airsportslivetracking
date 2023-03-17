@@ -11,7 +11,6 @@ from pprint import pprint
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from display.convert_flightcontest_gpx import create_precision_route_from_csv
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import (
     Aeroplane,
