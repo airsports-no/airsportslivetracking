@@ -2738,7 +2738,7 @@ class EditableRoute(models.Model):
         self.amend_route_with_additional_features(route)
         if route.landing_gates is None:
             raise ValidationError("Route must have a landing gate")
-        route.waypoints = [route.landing_gates]
+        route.waypoints = route.landing_gates
         route.save()
         return route
 

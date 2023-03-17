@@ -233,29 +233,15 @@ kml_description = HTML(
 
 
 class PrecisionImportRouteForm(forms.Form):
-    file_type = forms.ChoiceField(choices=FILE_TYPES, initial=FILE_TYPE_KML, required=False)
-    file = forms.FileField(
-        validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz", "csv", "gpx"])], required=False
-    )
-    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=False)
+    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.layout = Layout(
-            Fieldset("Route import", "file", "file_type", "internal_route"),
-            kml_description,
+            Fieldset("Route selection", "internal_route"),
             ButtonHolder(Submit("submit", "Submit")),
         )
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if cleaned_data.get("file") and cleaned_data.get("internal_route"):
-            raise ValidationError("You cannot both upload a file and use an internal route")
-        if not cleaned_data.get("internal_route") and bool(cleaned_data.get("file")) != bool(
-            cleaned_data.get("file_type")
-        ):
-            raise ValidationError("You must select both file and file type")
 
 
 class ANRCorridorImportRouteForm(forms.Form):
@@ -264,7 +250,7 @@ class ANRCorridorImportRouteForm(forms.Form):
         initial=False,
         help_text="If checked, then the route will be rendered with nice rounded corners instead of pointy ones.",
     )
-    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=False)
+    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=True)
     corridor_width = forms.FloatField(required=True, help_text="The width of the ANR corridor in NM")
 
     def __init__(self, *args, **kwargs):
@@ -272,7 +258,6 @@ class ANRCorridorImportRouteForm(forms.Form):
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset("Route import", "internal_route", "rounded_corners", "corridor_width"),
-            kml_description,
             ButtonHolder(Submit("submit", "Submit")),
         )
 
@@ -300,7 +285,7 @@ class AirsportsImportRouteForm(forms.Form):
 
 
 class LandingImportRouteForm(forms.Form):
-    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=False)
+    internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -881,3 +866,8 @@ class ImportRouteForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_tag = False
+        self.helper.layout = Layout(
+            Fieldset("Route import", "name", "file"),
+            kml_description,
+            ButtonHolder(Submit("submit", "Submit")),
+        )
