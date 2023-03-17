@@ -52,6 +52,7 @@ def create_track_block(
 
 
 def _create_gate(positions: tuple[tuple[float, float], tuple[float, float]], name: str, feature_type: str) -> dict:
+    """[[longitude, latitude], [longitude, latitude]]"""
     return {
         "name": name,
         "layer_type": "polyline",
@@ -77,6 +78,9 @@ def create_landing_gate(positions: tuple[tuple[float, float], tuple[float, float
 
 
 def _create_polygon(positions: list[tuple[float, float]], name: str, feature_type: str) -> dict:
+    """
+    Coordinate list should be latitude, longitude
+    """
     return {
         "name": name,
         "layer_type": "polygon",
@@ -88,7 +92,7 @@ def _create_polygon(positions: list[tuple[float, float]], name: str, feature_typ
             "properties": {},
             "geometry": {
                 "type": "Polygon",
-                "coordinates": [positions],  # Apparently a list of list of positions, i.e. multiple polygons
+                "coordinates": [positions],  # Apparently a list of list of positions, i.e. multiple polygons. Should be lat, lon
             },
         },
     }

@@ -174,15 +174,14 @@
 {#    }#}
 {#</script>#}
 <main role="main">
-    {% if messages %}
-        <div class="row" style="padding-left: 18%">{% include 'messages.html' %}</div>
-    {% endif %}
-
     <div class="container-fluid">
         {% block contentfluid %}
         {% endblock %}
     </div>
     <div class="container-xl">
+        {% if messages %}
+            <div class="row" style="padding-left: 18%;z-index: 100">{% include 'messages.html' %}</div>
+        {% endif %}
         {% block content %}
         {% endblock %}
     </div>

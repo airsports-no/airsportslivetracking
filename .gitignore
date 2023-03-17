@@ -26,3 +26,4 @@ FC
 *.zip
 *.sqlite3
 private_values.yml
+/config/firebase-admin.json

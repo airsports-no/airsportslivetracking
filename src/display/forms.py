@@ -259,11 +259,6 @@ class PrecisionImportRouteForm(forms.Form):
 
 
 class ANRCorridorImportRouteForm(forms.Form):
-    file = forms.FileField(
-        validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz"])],
-        help_text="File must be of type KML or KMZ",
-        required=False,
-    )
     rounded_corners = forms.BooleanField(
         required=False,
         initial=False,
@@ -276,15 +271,10 @@ class ANRCorridorImportRouteForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.layout = Layout(
-            Fieldset("Route import", "file", "internal_route", "rounded_corners", "corridor_width"),
+            Fieldset("Route import", "internal_route", "rounded_corners", "corridor_width"),
             kml_description,
             ButtonHolder(Submit("submit", "Submit")),
         )
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if cleaned_data.get("file") and cleaned_data.get("internal_route"):
-            raise ValidationError("You cannot both upload a file and use an internal route")
 
 
 class AirsportsImportRouteForm(forms.Form):
@@ -310,59 +300,16 @@ class AirsportsImportRouteForm(forms.Form):
 
 
 class LandingImportRouteForm(forms.Form):
-    file = forms.FileField(
-        validators=[FileExtensionValidator(allowed_extensions=["kml", "kmz"])],
-        help_text="File must be of type KML or KMZ",
-        required=False,
-    )
     internal_route = forms.ModelChoiceField(EditableRoute.objects.all(), required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.layout = Layout(
-            Fieldset("Route import", "file", "internal_route"),
-            HTML(
-                """
-                        <p>The KML must contain at least the following:
-                        <ol>
-                        <li>ldg: A path with the name "ldg" that defines the landing gate. This is typically located across the runway. It can be at the same location as the take of gate, but it must be a separate path</li>
-                        </ol>
-                        The KML file can optionally also include:
-                        <ol>
-                        <li>prohibited: Zero or more polygons with the name "prohibited_*" where '*' can be replaced with an arbitrary text. These polygons describe prohibited zones either in an ANR context, or can be used to mark airspace that should not be infringed, for instance.</li>
-                        </ol>
-                        </p>
-                        """
-            ),
+            Fieldset("Route import", "internal_route"),
             ButtonHolder(Submit("submit", "Submit")),
         )
 
-    def clean(self):
-        cleaned_data = super().clean()
-        if cleaned_data.get("file") and cleaned_data.get("internal_route"):
-            raise ValidationError("You cannot both upload a file and use an internal route")
-
-
-class WaypointFormHelper(FormHelper):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.add_input(Submit("submit", "Submit"))
-        self.template = "bootstrap/table_inline_formset.html"
-
-
-class WaypointForm(forms.Form):
-    name = forms.CharField(max_length=200)
-    width = forms.FloatField(initial=1)
-    latitude = forms.FloatField(help_text="degrees", widget=forms.HiddenInput())
-    longitude = forms.FloatField(help_text="degrees", widget=forms.HiddenInput())
-    time_check = forms.BooleanField(required=False, initial=True)
-    gate_check = forms.BooleanField(required=False, initial=True)
-    type = forms.ChoiceField(initial=TURNPOINT, choices=GATE_TYPES)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        print(self.initial)
 
 
 class NavigationTaskForm(forms.ModelForm):
@@ -927,7 +874,7 @@ class ImportRouteForm(forms.Form):
 
     name = forms.CharField(help_text="The name the route should be saved as.")
     file = forms.FileField(
-        help_text="Route file to import. File type is inferred from the file suffix. Supported files are CSV, kml, kmz."
+        help_text="Route file to import. File type is inferred from the file suffix. Supported files are .csv, .kml, .kmz, and FlightContest .gpx. Note that  important not respect the Flight Contest pre-calculated gate lines. Gate lines are calculated by airsports."
     )
 
     def __init__(self, *args, **kwargs):

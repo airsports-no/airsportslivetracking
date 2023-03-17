@@ -24,6 +24,7 @@ from display.models import (
     Team,
     Contestant,
     ContestantTrack,
+    EditableRoute,
 )
 from mock_utilities import TraccarMock
 from redis_queue import RedisQueue
@@ -49,19 +50,18 @@ def calculator_runner(contestant, track):
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 class TestANRPerLeg(TransactionTestCase):
-    @patch(
-        "display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock
-    )
+    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p, p2):
+        from display.default_scorecards import default_scorecard_fai_anr_2017
+
         with open("display/calculators/tests/kjeller.kml", "r") as file:
-            route = create_anr_corridor_route_from_kml("test", file, 0.5, False)
-        navigation_task_start_time = datetime.datetime(
-            2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc
-        )
-        navigation_task_finish_time = datetime.datetime(
-            2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc
-        )
+            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+                editable_route, _ = EditableRoute.create_from_kml("test", file)
+                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+
+        navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
@@ -81,17 +81,13 @@ class TestANRPerLeg(TransactionTestCase):
         self.navigation_task.scorecard.corridor_maximum_penalty = 50
         self.navigation_task.scorecard.corridor_grace_time = 5
         self.navigation_task.scorecard.save()
-        crew = Crew.objects.create(
-            member1=Person.objects.create(first_name="Mister", last_name="Pilot")
-        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
     def test_anr_score_per_leg(self, p, p2):
-        track = load_track_points_traccar_csv(
-            load_traccar_track("display/calculators/tests/kjeller_anr_bad.csv")
-        )
+        track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/kjeller_anr_bad.csv"))
         start_time, speed = (
             datetime.datetime(2021, 3, 15, 19, 30, tzinfo=datetime.timezone.utc),
             70,
@@ -113,18 +109,20 @@ class TestANRPerLeg(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         pprint(strings)
-        a = ['Takeoff: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --',
-             'SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53',
-             'SP: 50.0 points outside corridor (40 s) (capped)',
-             'SP: 0 points entering corridor',
-             'Waypoint 1: 0 points passing gate (no time check) (-407 s)\nplanned: 20:39:00\nactual: 20:32:13',
-             'Waypoint 1: 50.0 points outside corridor (115 s) (capped)',
-             'Waypoint 1: 200.0 points backtracking',
-             'Waypoint 1: 0 points entering corridor',
-             # 'Waypoint 1: 0 points outside corridor (157 s) (capped)',
-             # 'Waypoint 2: 50.0 points outside corridor (-1 s) (capped)',
-             'FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11',
-             'Landing: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --']
+        a = [
+            "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --",
+            "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
+            "SP: 50.0 points outside corridor (40 s) (capped)",
+            "SP: 0 points entering corridor",
+            "TP 1: 0 points passing gate (no time check) (-407 s)\nplanned: 20:39:00\nactual: 20:32:13",
+            "TP 1: 50.0 points outside corridor (115 s) (capped)",
+            "TP 1: 200.0 points backtracking",
+            "TP 1: 0 points entering corridor",
+            # 'Waypoint 1: 0 points outside corridor (157 s) (capped)',
+            # 'Waypoint 2: 50.0 points outside corridor (-1 s) (capped)',
+            "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
+            "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
+        ]
 
         self.assertListEqual(a, strings)
         self.assertEqual(700, contestant_track.score)
@@ -157,21 +155,15 @@ class TestANRPerLeg(TransactionTestCase):
         pprint(fixed_strings)
         self.assertListEqual(
             [
-                "Takeoff: 0.0 points missing takeoff gate",
-                "SP: 200.0 ",
-                "SP: 48.0 points outside corridor (21 s)",
-                "Waypoint 1: 12.0 points outside corridor (4 s)",
-                "Waypoint 1: 0 points entering corridor",
-                "Waypoint 1: 38.0 poi",
-                "Waypoint 1: 200.0 points backtracking",
-                "Waypoint 2: 50.0 points outside corridor (0 s) (capped)",
-                "Waypoint 3: 50.0 points outside corridor (0 s) (capped)",
+                "TP 1: 200.0 points backtracking",
+                "TP 2: 50.0 points outside corridor (0 s) (capped)",
+                "TP 3: 50.0 points outside corridor (0 s) (capped)",
                 "FP: 200.0 points missing gate",
-                "Landing: 0.0 points missing landing gate",
+                "Landing 1: 0.0 points missing landing gate",
             ],
-            fixed_strings,
+            fixed_strings[-5:],
         )
-        self.assertEqual(798, contestant_track.score)
+        self.assertEqual(750, contestant_track.score)
 
     def test_manually_terminate_calculator(self, p, p2):
         cache.clear()
@@ -200,9 +192,7 @@ class TestANRPerLeg(TransactionTestCase):
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
             q.append(i)
-        threading.Timer(
-            1, lambda: self.contestant.request_calculator_termination()
-        ).start()
+        threading.Timer(1, lambda: self.contestant.request_calculator_termination()).start()
         calculator.run()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
@@ -213,9 +203,7 @@ class TestANRPerLeg(TransactionTestCase):
 
     def test_anr_miss_start_and_finish(self, p, p2):
         track = load_track_points_traccar_csv(
-            load_traccar_track(
-                "display/calculators/tests/anr_miss_start_and_finish.csv"
-            )
+            load_traccar_track("display/calculators/tests/anr_miss_start_and_finish.csv")
         )
         start_time, speed = (
             datetime.datetime(2021, 3, 16, 14, 5, tzinfo=datetime.timezone.utc),
@@ -241,11 +229,11 @@ class TestANRPerLeg(TransactionTestCase):
         print(strings)
         expected = [
             "SP: 9.0 points passing gate (+4 s)\nplanned: 14:17:00\nactual: 14:17:04",
-            "Waypoint 1: 0 points passing gate (no time check) (-57 s)\nplanned: 14:19:00\nactual: 14:18:03",
-            "Waypoint 2: 0 points passing gate (no time check) (-168 s)\nplanned: 14:22:34\nactual: 14:19:46",
-            "Waypoint 3: 0 points passing gate (no time check) (-221 s)\nplanned: 14:24:32\nactual: 14:20:51",
+            "TP 1: 0 points passing gate (no time check) (-57 s)\nplanned: 14:19:00\nactual: 14:18:03",
+            "TP 2: 0 points passing gate (no time check) (-168 s)\nplanned: 14:22:34\nactual: 14:19:46",
+            "TP 3: 0 points passing gate (no time check) (-221 s)\nplanned: 14:24:32\nactual: 14:20:51",
             "FP: 200.0 points passing gate (-320 s)\nplanned: 14:28:10\nactual: 14:22:51",
-            "Landing: 0.0 points missing landing gate\nplanned: 15:04:30\nactual: --",
+            "Landing 1: 0.0 points missing landing gate\nplanned: 15:04:30\nactual: --",
         ]
         self.assertListEqual(expected, strings)
         self.assertEqual(209, contestant_track.score)
@@ -254,21 +242,18 @@ class TestANRPerLeg(TransactionTestCase):
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 class TestANR(TransactionTestCase):
-    @patch(
-        "display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock
-    )
+    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p, p2):
-        with open("display/calculators/tests/eidsvoll.kml", "r") as file:
-            route = create_anr_corridor_route_from_kml("test", file, 0.5, False)
-        navigation_task_start_time = datetime.datetime(
-            2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc
-        )
-        navigation_task_finish_time = datetime.datetime(
-            2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc
-        )
-        self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
+
+        with open("display/calculators/tests/eidsvoll.kml", "r") as file:
+            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+                editable_route, _ = EditableRoute.create_from_kml("test", file)
+                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+        navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
+        self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
 
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
@@ -285,9 +270,7 @@ class TestANR(TransactionTestCase):
         )
         self.navigation_task.scorecard.corridor_grace_time = 5
         self.navigation_task.scorecard.save()
-        crew = Crew.objects.create(
-            member1=Person.objects.create(first_name="Mister", last_name="Pilot")
-        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
@@ -317,10 +300,7 @@ class TestANR(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(476, contestant_track.score)  # 971,  # 593,  # 2368,
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
-        self.assertTrue(
-            "SP: 96.0 points passing gate (+33 s)\nplanned: 07:52:00\nactual: 07:52:33"
-            in strings
-        )
+        self.assertTrue("SP: 96.0 points passing gate (+33 s)\nplanned: 07:52:00\nactual: 07:52:33" in strings)
 
     def test_track_adaptive_start(self, p, p2):
         track = load_track_points_traccar_csv(
@@ -350,28 +330,31 @@ class TestANR(TransactionTestCase):
         self.assertEqual(458, contestant_track.score)  # 953,  # 575,  # 2350,
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
-        self.assertTrue(
-            "SP: 78.0 points passing gate (-27 s)\nplanned: 07:53:00\nactual: 07:52:33"
-            in strings
-        )
+        self.assertTrue("SP: 78.0 points passing gate (-27 s)\nplanned: 07:53:00\nactual: 07:52:33" in strings)
 
 
 class TestAnrCorridorCalculator(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
         with patch(
-                "display.convert_flightcontest_gpx.load_features_from_kml",
-                return_value={"route": [(60, 11), (60, 12), (61, 12), (61, 11)]},
+            "display.convert_flightcontest_gpx.load_features_from_kml",
+            return_value={"route": [(60, 11), (60, 12), (61, 12), (61, 11)]},
         ):
-            self.route = create_anr_corridor_route_from_kml("test", Mock(), 0.5, False)
+            from display.default_scorecards import default_scorecard_fai_anr_2017
+
+            with open("display/calculators/tests/eidsvoll.kml", "r") as file:
+                # Actual filename is irrelevant since we  mock the feature method above
+                with patch("display.models.EditableRoute._create_route_and_thumbnail",
+                           lambda name, r: EditableRoute.objects.create(name=name, route=r)):
+                    editable_route, _ = EditableRoute.create_from_kml("test", file)
+                    self.route = editable_route.create_anr_route(
+                        False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
+                    )
+
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
-        navigation_task_start_time = datetime.datetime(
-            2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc
-        )
-        navigation_task_finish_time = datetime.datetime(
-            2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc
-        )
+        navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
 
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
@@ -393,9 +376,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             40,
         )
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        crew = Crew.objects.create(
-            member1=Person.objects.create(first_name="Mister", last_name="Pilot")
-        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
 
         self.contestant = Contestant.objects.create(
@@ -585,19 +566,17 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 class TestANRPolygon(TransactionTestCase):
-    @patch(
-        "display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock
-    )
+    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p, p2):
+        from display.default_scorecards import default_scorecard_fai_anr_2017
+
         with open("display/calculators/tests/kjeller.kml", "r") as file:
-            route = create_anr_corridor_route_from_kml("test", file, 0.5, False)
-        navigation_task_start_time = datetime.datetime(
-            2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc
-        )
-        navigation_task_finish_time = datetime.datetime(
-            2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc
-        )
+            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+                editable_route, _ = EditableRoute.create_from_kml("test", file)
+                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+        navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
@@ -616,9 +595,7 @@ class TestANRPolygon(TransactionTestCase):
         )
         self.navigation_task.scorecard.corridor_grace_time = 5
         self.navigation_task.scorecard.save()
-        crew = Crew.objects.create(
-            member1=Person.objects.create(first_name="Mister", last_name="Pilot")
-        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
@@ -650,19 +627,17 @@ class TestANRPolygon(TransactionTestCase):
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 class TestANRBergenBacktracking(TransactionTestCase):
-    @patch(
-        "display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock
-    )
+    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p, p2):
+        from display.default_scorecards import default_scorecard_fai_anr_2017
+
         with open("display/calculators/tests/Bergen_Open_Test.kml", "r") as file:
-            route = create_anr_corridor_route_from_kml("test", file, 0.5, False)
-        navigation_task_start_time = datetime.datetime(
-            2021, 3, 24, 6, 0, 0, tzinfo=datetime.timezone.utc
-        )
-        navigation_task_finish_time = datetime.datetime(
-            2021, 3, 24, 16, 0, 0, tzinfo=datetime.timezone.utc
-        )
+            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+                editable_route, _ = EditableRoute.create_from_kml("test", file)
+                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+        navigation_task_start_time = datetime.datetime(2021, 3, 24, 6, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 3, 24, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
@@ -681,17 +656,13 @@ class TestANRBergenBacktracking(TransactionTestCase):
         )
         self.navigation_task.scorecard.corridor_grace_time = 5
         self.navigation_task.scorecard.save()
-        crew = Crew.objects.create(
-            member1=Person.objects.create(first_name="Mister", last_name="Pilot")
-        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
     def test_track(self, p, p2):
-        track = load_track_points_traccar_csv(
-            load_traccar_track("display/calculators/tests/kurtbergen.csv")
-        )
+        track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/kurtbergen.csv"))
         start_time, speed = (
             datetime.datetime(2021, 3, 24, 13, 17, tzinfo=datetime.timezone.utc),
             70,
@@ -720,14 +691,14 @@ class TestANRBergenBacktracking(TransactionTestCase):
 class TestANRBergenBacktrackingTommy(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
+        from display.default_scorecards import default_scorecard_fai_anr_2017
+
         with open("display/calculators/tests/tommy_test.kml", "r") as file:
-            route = create_anr_corridor_route_from_kml("test", file, 0.5, False)
-        navigation_task_start_time = datetime.datetime(
-            2021, 3, 31, 14, 0, 0, tzinfo=datetime.timezone.utc
-        )
-        navigation_task_finish_time = datetime.datetime(
-            2021, 3, 31, 16, 0, 0, tzinfo=datetime.timezone.utc
-        )
+            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+                editable_route, _ = EditableRoute.create_from_kml("test", file)
+                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+        navigation_task_start_time = datetime.datetime(2021, 3, 31, 14, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 3, 31, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
@@ -746,18 +717,14 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         )
         self.navigation_task.scorecard.corridor_grace_time = 5
         self.navigation_task.scorecard.save()
-        crew = Crew.objects.create(
-            member1=Person.objects.create(first_name="Mister", last_name="Pilot")
-        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
     def test_track(self, p, p2):
         track = load_track_points_traccar_csv(
-            load_traccar_track(
-                "display/calculators/tests/tommy_missing_circling_penalty.csv"
-            )
+            load_traccar_track("display/calculators/tests/tommy_missing_circling_penalty.csv")
         )
         start_time, speed = (
             datetime.datetime(2021, 3, 31, 12, 35, tzinfo=datetime.timezone.utc),

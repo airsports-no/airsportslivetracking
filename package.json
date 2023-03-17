@@ -59,7 +59,7 @@
     "react": "^16.14.0",
     "react-app-polyfill": "^3.0.0",
     "react-autocomplete-input": "^1.0.19",
-    "react-bootstrap": "^2.7.0",
+    "react-bootstrap": "^2.7.2",
     "react-bootstrap-datetimepicker": "0.0.22",
     "react-bootstrap-table-next": "^4.0.3",
     "react-bootstrap-table2-editor": "^1.4.0",

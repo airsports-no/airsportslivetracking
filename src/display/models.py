@@ -2,6 +2,7 @@ import time
 from io import BytesIO
 
 import dateutil.parser
+import gpxpy
 import html2text as html2text
 import numpy as np
 import requests
@@ -11,7 +12,7 @@ import random
 import uuid
 from random import choice
 from string import ascii_uppercase, digits, ascii_lowercase
-from typing import List, Optional, Tuple, Dict, Set
+from typing import List, Optional, Tuple, Dict, Set, TextIO
 
 import eval7 as eval7
 from django import core
@@ -2734,7 +2735,7 @@ class EditableRoute(models.Model):
 
     def create_landing_route(self):
         route = Route.objects.create(name="", waypoints=[], use_procedure_turns=False)
-        self.extract_additional_features(route)
+        self.amend_route_with_additional_features(route)
         if route.landing_gates is None:
             raise ValidationError("Route must have a landing gate")
         route.waypoints = [route.landing_gates]
@@ -2765,7 +2766,7 @@ class EditableRoute(models.Model):
                 )
             )
         route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns)
-        self.extract_additional_features(route)
+        self.amend_route_with_additional_features(route)
         return route
 
     def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: Scorecard) -> Route:
@@ -2795,7 +2796,7 @@ class EditableRoute(models.Model):
         route = create_anr_corridor_route_from_waypoint_list(
             track["name"], waypoint_list, rounded_corners, corridor_width=corridor_width
         )
-        self.extract_additional_features(route)
+        self.amend_route_with_additional_features(route)
         return route
 
     def create_airsports_route(self, rounded_corners: bool) -> Route:
@@ -2820,10 +2821,10 @@ class EditableRoute(models.Model):
                 )
             )
         route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners)
-        self.extract_additional_features(route)
+        self.amend_route_with_additional_features(route)
         return route
 
-    def extract_additional_features(self, route: Route):
+    def amend_route_with_additional_features(self, route: Route):
         from display.convert_flightcontest_gpx import create_gate_from_line
 
         takeoff_gates = self.get_features_type("to")
@@ -2869,41 +2870,44 @@ class EditableRoute(models.Model):
         return editable_route
 
     @classmethod
-    def create_from_kml(cls, name: str, kml_content: bytes) -> tuple[Optional["EditableRoute"], list[str]]:
+    def create_from_kml(cls, route_name: str, kml_content: TextIO) -> tuple[Optional["EditableRoute"], list[str]]:
         """Create a route from our own kml format."""
         messages = []
         from display.convert_flightcontest_gpx import load_features_from_kml
+
         features = load_features_from_kml(kml_content)
         positions = features.get("route", [])
-        track = create_track_block(positions)
+        track = create_track_block([(item[0], item[1]) for item in positions])
         route = [track]
         if take_off_gate_line := features.get("to"):
             if len(take_off_gate_line) == 2:
-                route.append(create_takeoff_gate(take_off_gate_line))
+                route.append(create_takeoff_gate([(item[1], item[0]) for item in take_off_gate_line]))
                 messages.append("Found takeoff gate")
         if landing_gate_line := features.get("to"):
             if len(landing_gate_line) == 2:
-                route.append(create_landing_gate(landing_gate_line))
+                route.append(create_landing_gate([(item[1], item[0]) for item in landing_gate_line]))
                 messages.append("Found landing gate")
         for name in features.keys():
+            logger.debug(f"Found feature {name}")
             try:
                 zone_type, zone_name = name.split("_")
                 if zone_type == "prohibited":
-                    route.append(create_prohibited_zone(features[name], zone_name))
+                    route.append(create_prohibited_zone([(item[1], item[0]) for item in features[name]], zone_name))
                 if zone_type == "info":
-                    route.append(create_information_zone(features[name], zone_name))
+                    route.append(create_information_zone([(item[1], item[0]) for item in features[name]], zone_name))
                 if zone_type == "penalty":
-                    route.append(create_penalty_zone(features[name], zone_name))
+                    route.append(create_penalty_zone([(item[1], item[0]) for item in features[name]], zone_name))
                 if zone_type == "gate":
-                    route.append(create_gate_polygon(features[name], zone_name))
+                    route.append(create_gate_polygon([(item[1], item[0]) for item in features[name]], zone_name))
                 messages.append(f"Found {zone_type} polygon {zone_name}")
             except ValueError:
                 pass
-        editable_route = cls._create_route_and_thumbnail(name, route)
+        editable_route = cls._create_route_and_thumbnail(route_name, route)
+        logger.debug(messages)
         return editable_route, messages
 
     @classmethod
-    def create_from_csv(cls, name: str, csv_content: list[bytes]) -> tuple[Optional["EditableRoute"], list[str]]:
+    def create_from_csv(cls, name: str, csv_content: list[str]) -> tuple[Optional["EditableRoute"], list[str]]:
         """Create a route from our own CSV format."""
         messages = []
         positions = []
@@ -2912,8 +2916,8 @@ class EditableRoute(models.Model):
         types = []
         try:
             for line in csv_content:
-                line = [item.strip() for item in line.decode("utf-8").split(",")]
-                positions.append((float(line[1]), float(line[2])))  # CSV contains longitude, latitude
+                line = [item.strip() for item in line.split(",")]
+                positions.append((float(line[2]), float(line[1])))  # CSV contains longitude, latitude
                 names.append(line[0])
                 gate_widths.append(float(line[4]))
                 types.append(line[3])
@@ -2924,6 +2928,71 @@ class EditableRoute(models.Model):
             logger.exception("Failure when creating route from csv")
             messages.append(str(ex))
         return None, messages
+
+    @classmethod
+    def create_from_gpx(cls, name: str, gpx_content: bytes) -> tuple[Optional["EditableRoute"], list[str]]:
+        """
+        Create a route from flight contest GPX format. Note that this does not include the waypoint lines that are
+        defined in the GPX file, these will be calculated internally.
+        """
+        gpx = gpxpy.parse(gpx_content)
+        waypoint_order = []
+        waypoint_definitions = {}
+        my_route = []
+        messages = []
+        logger.debug(f"Routes {gpx.routes}")
+        for route in gpx.routes:
+            for extension in route.extensions:
+                logger.debug(f'Extension {extension.find("route")}')
+                if extension.find("route") is not None:
+                    route_name = route.name
+                    logger.debug("Loading GPX route {}".format(route_name))
+                    for point in route.points:
+                        waypoint_order.append(point.name)
+                gate_extension = extension.find("gate")
+                if gate_extension is not None:
+                    gate_name = route.name
+                    gate_type = gate_extension.attrib["type"].lower()
+                    logger.debug(f"Gate {gate_name} is {gate_type}")
+                    if gate_type == "to":
+                        my_route.append(
+                            create_takeoff_gate(
+                                (
+                                    (route.points[0].longitude, route.points[0].latitude),
+                                    (route.points[1].longitude, route.points[1].latitude),
+                                )
+                            )
+                        )
+                        messages.append("Found take-off gate")
+                    elif gate_type == "ldg":
+                        my_route.append(
+                            create_landing_gate(
+                                (
+                                    (route.points[0].longitude, route.points[0].latitude),
+                                    (route.points[1].longitude, route.points[1].latitude),
+                                )
+                            )
+                        )
+                        messages.append("Found landing gate")
+                    else:
+                        waypoint_definitions[gate_name] = {
+                            "position": (float(gate_extension.attrib["lat"]), float(gate_extension.attrib["lon"])),
+                            "width": float(gate_extension.attrib["width"]),
+                            "type": gate_type,
+                            "time_check": gate_extension.attrib["notimecheck"] == "no"
+                        }
+        my_route.append(
+            create_track_block(
+                [waypoint_definitions[name]["position"] for name in waypoint_order],
+                names=waypoint_order,
+                types=[waypoint_definitions[name]["type"] for name in waypoint_order],
+                widths=[waypoint_definitions[name]["width"] for name in waypoint_order],
+            )
+        )
+        logger.debug(f"Found route with {len(waypoint_order)} gates")
+        messages.append(f"Found route with {len(waypoint_order)} gates")
+        editable_route = cls._create_route_and_thumbnail(name, my_route)
+        return editable_route, messages
 
 
 # @receiver(post_save, sender=Task)

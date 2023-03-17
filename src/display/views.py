@@ -75,7 +75,6 @@ from display.convert_flightcontest_gpx import (
 )
 from display.forms import (
     PrecisionImportRouteForm,
-    WaypointForm,
     NavigationTaskForm,
     FILE_TYPE_CSV,
     FILE_TYPE_FLIGHTCONTEST_GPX,
@@ -91,7 +90,6 @@ from display.forms import (
     ContestantMapForm,
     LANDSCAPE,
     MapForm,
-    WaypointFormHelper,
     TaskTypeForm,
     ANRCorridorImportRouteForm,
     TrackingDataForm,
@@ -733,10 +731,12 @@ def import_route(request):
             return_messages = []
             if extension.lower() == ".csv":
                 editable_route, return_messages = EditableRoute.create_from_csv(
-                    form.cleaned_data["name"], route_file.readlines()
+                    form.cleaned_data["name"], [string.decode("utf-8") for string in route_file.readlines()]
                 )
             elif extension.lower() in (".kml", ".kmz"):
-                editable_route, return_messages = EditableRoute.create_from_kml(
+                editable_route, return_messages = EditableRoute.create_from_kml(form.cleaned_data["name"], route_file)
+            elif extension.lower() in (".gpx",):
+                editable_route, return_messages = EditableRoute.create_from_gpx(
                     form.cleaned_data["name"], route_file.read()
                 )
             else:
@@ -1902,21 +1902,6 @@ def _generate_data(contestant_pk):
 
 
 # Everything below he is related to management and requires authentication
-def show_route_definition_step(wizard):
-    if show_precision_path(wizard):
-        cleaned_data = wizard.get_cleaned_data_for_step("precision_route_import") or {}
-    elif show_anr_path(wizard):
-        cleaned_data = wizard.get_cleaned_data_for_step("anr_route_import") or {}
-    else:
-        cleaned_data = {}
-    return (
-        not cleaned_data.get("internal_route")
-        and (cleaned_data.get("file_type") == FILE_TYPE_KML or show_anr_path(wizard))
-        and wizard.get_cleaned_data_for_step("task_type").get("task_type")
-        in (NavigationTask.PRECISION, NavigationTask.POKER, NavigationTask.ANR_CORRIDOR)
-    )
-
-
 def show_precision_path(wizard):
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
         NavigationTask.PRECISION,
@@ -1988,7 +1973,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         ("airsports_route_import", AirsportsImportRouteForm),
         ("precision_route_import", PrecisionImportRouteForm),
         ("landing_route_import", LandingImportRouteForm),
-        ("waypoint_definition", formset_factory(WaypointForm, extra=0)),
         ("task_content", NavigationTaskForm),
     ]
     file_storage = FileSystemStorage(location=os.path.join(settings.TEMPORARY_FOLDER, "importedroutes"))
@@ -1997,7 +1981,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         "airsports_route_import": show_airsports_path,
         "precision_route_import": show_precision_path,
         "landing_route_import": show_landing_path,
-        "waypoint_definition": show_route_definition_step,
     }
     templates = {
         "task_type": "display/navigationtaskwizardform.html",
@@ -2005,7 +1988,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         "airsports_route_import": "display/navigationtaskwizardform.html",
         "landing_route_import": "display/navigationtaskwizardform.html",
         "precision_route_import": "display/navigationtaskwizardform.html",
-        "waypoint_definition": "display/waypoints_form.html",
         "task_content": "display/navigationtaskwizardform.html",
     }
 
@@ -2030,66 +2012,28 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             use_procedure_turns = self.get_cleaned_data_for_step("task_content")[
                 "original_scorecard"
             ].use_procedure_turns
-            if initial_step_data["internal_route"]:
-                route = initial_step_data["internal_route"].create_precision_route(use_procedure_turns)
-                editable_route = initial_step_data["internal_route"]
-            elif initial_step_data["file_type"] == FILE_TYPE_CSV:
-                data = [item.decode(encoding="UTF-8") for item in initial_step_data["file"].readlines()]
-                route = create_precision_route_from_csv("route", data[1:], use_procedure_turns)
-            elif initial_step_data["file_type"] == FILE_TYPE_FLIGHTCONTEST_GPX:
-                try:
-                    route = create_precision_route_from_gpx(initial_step_data["file"].read(), use_procedure_turns)
-                except Exception as e:
-                    raise ValidationError("Failed building route from provided GPX: {}".format(e))
-            else:
-                second_step_data = self.get_cleaned_data_for_step("waypoint_definition")
-                if initial_step_data["file_type"] == FILE_TYPE_KML:
-                    data = self.get_cleaned_data_for_step("precision_route_import")["file"]
-                    data.seek(0)
-                else:
-                    data = None
-                route = create_precision_route_from_formset("route", second_step_data, use_procedure_turns, data)
+            route = initial_step_data["internal_route"].create_precision_route(use_procedure_turns)
+            editable_route = initial_step_data["internal_route"]
         elif task_type == NavigationTask.ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_route_import")
             rounded_corners = initial_step_data["rounded_corners"]
             corridor_width = initial_step_data["corridor_width"]
-            if initial_step_data["internal_route"]:
-                route = initial_step_data["internal_route"].create_anr_route(rounded_corners, corridor_width, scorecard)
-                editable_route = initial_step_data["internal_route"]
-            else:
-                data = self.get_cleaned_data_for_step("anr_route_import")["file"]
-                data.seek(0)
-                second_step_data = self.get_cleaned_data_for_step("waypoint_definition")
-                route = create_anr_corridor_route_from_kml(
-                    "route",
-                    data,
-                    corridor_width,
-                    rounded_corners,
-                    first_and_last_gates=second_step_data,
-                )
+            route = initial_step_data["internal_route"].create_anr_route(rounded_corners, corridor_width, scorecard)
+            editable_route = initial_step_data["internal_route"]
         elif task_type == NavigationTask.AIRSPORTS:
             initial_step_data = self.get_cleaned_data_for_step("airsports_route_import")
             rounded_corners = initial_step_data["rounded_corners"]
-            if initial_step_data["internal_route"]:
-                route = initial_step_data["internal_route"].create_airsports_route(rounded_corners)
-                editable_route = initial_step_data["internal_route"]
-            else:
-                raise ValidationError("Air Sports Race is not supported with imported routes")
+            route = initial_step_data["internal_route"].create_airsports_route(rounded_corners)
+            editable_route = initial_step_data["internal_route"]
         elif task_type == NavigationTask.LANDING:
             initial_step_data = self.get_cleaned_data_for_step("landing_route_import")
-            if initial_step_data["internal_route"]:
-                route = initial_step_data["internal_route"].create_landing_route()
-                editable_route = initial_step_data["internal_route"]
-            else:
-                data = initial_step_data["landing_route_import"]["file"]
-                data.seek(0)
-                route = create_landing_line_from_kml("route", data)
+            route = initial_step_data["internal_route"].create_landing_route()
+            editable_route = initial_step_data["internal_route"]
         # Check for gate polygons that do not match a turning point
         route.validate_gate_polygons()
         return route, editable_route
 
     def done(self, form_list, **kwargs):
-        task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
         scorecard = self.get_cleaned_data_for_step("task_content")["original_scorecard"]
         route, ediable_route = self.create_route(scorecard)
         final_data = self.get_cleaned_data_for_step("task_content")
@@ -2105,17 +2049,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        if self.steps.current == "waypoint_definition":
-            context["helper"] = WaypointFormHelper()
-            context["track_image"] = base64.b64encode(
-                get_basic_track(
-                    [(item["latitude"], item["longitude"]) for item in self.get_form_initial("waypoint_definition")]
-                ).getvalue()
-            ).decode("utf-8")
         if self.steps.current == "task_content":
-            # route, editable = self.create_route()
-            # self.request.session["route"] = route
-            # self.request.session["editable_route"] = route
             useful_cards = []
             for scorecard in Scorecard.get_originals():
                 if self.get_cleaned_data_for_step("task_type")["task_type"] in scorecard.task_type:
@@ -2126,8 +2060,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
 
     def get_form(self, step=None, data=None, files=None):
         form = super().get_form(step, data, files)
-        if step == "waypoint_definition":
-            print(len(form))
         if step in (
             "anr_route_import",
             "precision_route_import",
@@ -2137,54 +2069,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         return form
 
     def get_form_initial(self, step):
-        if step == "waypoint_definition":
-            task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
-            if task_type in (NavigationTask.POKER, NavigationTask.PRECISION):
-                data = self.get_cleaned_data_for_step("precision_route_import")
-                print("Data: {}".format(data))
-                if data.get("file_type") == FILE_TYPE_KML:
-                    # print(" (subfile contents {}".format(data["file"].read()))
-                    data["file"].seek(0)
-                    features = load_features_from_kml(data["file"])
-                    positions = features.get("route", [])
-                    initial = []
-                    for index, position in enumerate(positions):
-                        initial.append(
-                            {
-                                "name": f"TP {index}",
-                                "latitude": position[0],
-                                "longitude": position[1],
-                            }
-                        )
-                    if len(positions) > 0:
-                        initial[0]["type"] = STARTINGPOINT
-                        initial[0]["name"] = "SP"
-                        initial[-1]["type"] = FINISHPOINT
-                        initial[-1]["name"] = "FP"
-                    return initial
-            elif task_type == NavigationTask.ANR_CORRIDOR:
-                data = self.get_cleaned_data_for_step("anr_route_import")
-                print("Data: {}".format(data))
-                # print(" (subfile contents {}".format(data["file"].read()))
-                data["file"].seek(0)
-                features = load_features_from_kml(data["file"])
-                positions = features.get("route", [])
-                initial = []
-                for index, position in enumerate(positions):
-                    initial.append(
-                        {
-                            "name": f"TP {index}",
-                            "latitude": position[0],
-                            "longitude": position[1],
-                        }
-                    )
-                if len(positions) > 0:
-                    initial[0]["type"] = STARTINGPOINT
-                    initial[0]["name"] = "SP"
-                    initial[-1]["type"] = FINISHPOINT
-                    initial[-1]["name"] = "FP"
-                return [initial[0], initial[-1]]
-
         if step == "task_content":
             return {
                 "score_sorting_direction": self.contest.summary_score_sorting_direction,

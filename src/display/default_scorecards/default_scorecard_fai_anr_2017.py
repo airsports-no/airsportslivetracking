@@ -58,7 +58,7 @@ def get_default_scorecard():
         scorecard=scorecard,
         gate_type=FINISHPOINT,
         defaults={
-            "extended_gate_width": 0,
+            "extended_gate_width": 0.6, #verified,
             "bad_crossing_extended_gate_penalty": 0,
             "graceperiod_before": 1,  # verified
             "graceperiod_after": 1,  # verified

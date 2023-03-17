@@ -8,7 +8,7 @@ import {
 import TimePeriodEventList from "./timePeriodEventList";
 import Icon from "@mdi/react";
 import {mdiAccountDetails, mdiCog, mdiLogin, mdiLogout} from '@mdi/js'
-import {Modal, Container, Row, Button, Col} from "react-bootstrap";
+import {Modal, Container} from "react-bootstrap";
 import ContestPopupItem from "./contestPopupItem";
 import ContestItem from "./contestItem";
 import {

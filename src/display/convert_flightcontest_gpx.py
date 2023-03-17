@@ -116,27 +116,6 @@ def load_features_from_kml(input_kml) -> Dict:
     return lines
 
 
-#####  Should not be used anymore
-def load_route_points_from_kml(input_kml) -> List[Tuple[float, float, float]]:
-    """
-    Requires a single place marked with a line string inside the KML file
-
-    :param file:
-    :return: List of latitude, longitude, altitude tuples
-    """
-    document = input_kml.read()
-    if type(document) == str:
-        document = document.encode("utf-8")
-    # print(document)
-    kml_document = kml.KML()
-    kml_document.from_string(document)
-    features = list(kml_document.features())[0]
-    # print(features)
-    placemark = list(features.features())[0]
-    geometry = placemark.geometry
-    return [tuple(reversed(item[0:2])) for item in geometry.coords]
-
-
 def create_precision_route_from_gpx(file, use_procedure_turns: bool) -> Route:
     gpx = gpxpy.parse(file)
     waypoints = []
@@ -259,30 +238,6 @@ def extract_additional_features_from_kml_features(features: Dict, route: Route):
             pass
 
 
-def create_precision_default_route_from_kml(input_kml) -> Route:
-    features = load_features_from_kml(input_kml)
-    positions = features.get("route", [])
-    initial = []
-    for index, position in enumerate(positions):
-        initial.append(
-            {
-                "name": f"TP {index}",
-                "type": TURNPOINT,
-                "latitude": position[0],
-                "longitude": position[1],
-                "width": 1,
-                "time_check": True,
-                "gate_check": True,
-            }
-        )
-    if len(positions) > 0:
-        initial[0]["type"] = STARTINGPOINT
-        initial[0]["name"] = "SP"
-        initial[-1]["type"] = FINISHPOINT
-        initial[-1]["name"] = "FP"
-    return create_precision_route_from_formset("test", initial, True, input_kml=input_kml)
-
-
 def create_precision_route_from_formset(
     route_name, data: List, use_procedure_turns: bool, input_kml: Optional = None
 ) -> Route:
@@ -369,7 +324,6 @@ def create_anr_corridor_route_from_kml(
     )
     extract_additional_features_from_kml_features(features, route)
     return route
-
 
 def create_landing_line_from_kml(route_name: str, input_kml) -> Route:
     """
