@@ -1,3 +1,6 @@
+"""
+This script is called by the kubernetes calculator job to run for a single contestant
+"""
 import logging
 import os
 import sys

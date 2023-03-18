@@ -2,7 +2,7 @@
 
 from django.db import migrations
 
-from display.clone_object import clone_object_only_foreign_keys
+from display.utilities.clone_object import clone_object_only_foreign_keys
 
 
 def clone_scorecards(apps, schema_editor):

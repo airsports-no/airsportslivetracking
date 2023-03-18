@@ -1,7 +1,7 @@
 #
 import datetime
 
-from display.clone_object import simple_clone
+from display.utilities.clone_object import simple_clone
 from display.models import (
     GateScore,
     Scorecard,

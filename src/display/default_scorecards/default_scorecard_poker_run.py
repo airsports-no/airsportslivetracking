@@ -1,17 +1,12 @@
 #
 import datetime
 
-from display.clone_object import simple_clone
+from display.utilities.clone_object import simple_clone
 from display.models import (
     GateScore,
     Scorecard,
     NavigationTask,
     TURNPOINT,
-    SECRETPOINT,
-    STARTINGPOINT,
-    FINISHPOINT,
-    TAKEOFF_GATE,
-    LANDING_GATE,
     GATE_TYPES, DUMMY, UNKNOWN_LEG,
 )
 

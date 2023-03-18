@@ -1,6 +1,5 @@
 import datetime
 import threading
-from multiprocessing import Queue
 from pprint import pprint
 from unittest.mock import Mock, patch, call
 
@@ -24,7 +23,7 @@ from display.models import (
     ContestantTrack,
     EditableRoute,
 )
-from mock_utilities import TraccarMock
+from utilities.mock_utilities import TraccarMock
 from redis_queue import RedisQueue
 
 logger = logging.getLogger(__name__)
@@ -335,7 +334,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
         with patch(
-            "display.convert_flightcontest_gpx.load_features_from_kml",
+            "display.utilities.route_building_utilities.load_features_from_kml",
             return_value={"route": [(60, 11), (60, 12), (61, 12), (61, 11)]},
         ):
             from display.default_scorecards import default_scorecard_fai_anr_2017

@@ -3,7 +3,7 @@ from unittest.mock import Mock
 from unittest import TestCase
 
 from display.calculators.positions_and_gates import Gate
-from display.coordinate_utilities import calculate_distance_lat_lon
+from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 
 
 class TestGate(TestCase):

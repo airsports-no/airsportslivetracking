@@ -39,14 +39,15 @@ from django_countries.fields import CountryField
 from phonenumber_field.modelfields import PhoneNumberField
 from solo.models import SingletonModel
 
-from display.calculate_gate_times import calculate_and_get_relative_gate_times
-from display.calculator_running_utilities import is_calculator_running
-from display.calculator_termination_utilities import request_termination
+from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
+from display.utilities.calculator_running_utilities import is_calculator_running
+from display.utilities.calculator_termination_utilities import request_termination
 from display.calculators.calculator_utilities import round_time_second
 from display.calculators.positions_and_gates import Position
-from display.clone_object import simple_clone
-from display.coordinate_utilities import bearing_difference
-from display.editable_route_utilities import (
+from display.utilities.clone_object import simple_clone
+from display.utilities.coordinate_utilities import bearing_difference
+from display.utilities.country_code_utilities import get_country_code_from_location
+from display.utilities.editable_route_utilities import (
     create_track_block,
     create_takeoff_gate,
     create_landing_gate,
@@ -55,7 +56,7 @@ from display.editable_route_utilities import (
     create_penalty_zone,
     create_gate_polygon,
 )
-from display.map_constants import (
+from display.flight_order_and_maps.map_constants import (
     SCALES,
     SCALE_TO_FIT,
     MAP_SIZES,
@@ -63,16 +64,15 @@ from display.map_constants import (
     A4,
     PORTRAIT,
 )
-from display.map_plotter_shared_utilities import MAP_CHOICES
-from display.mbtiles_stitch import MBTilesHelper
-from display.my_pickled_object_field import MyPickledObjectField
-from display.poker_cards import PLAYING_CARDS
-from display.track_merger import merge_tracks
-from display.utilities import get_country_code_from_location
+from display.flight_order_and_maps.map_plotter_shared_utilities import MAP_CHOICES
+from display.utilities.mbtiles_stitch import MBTilesHelper
+from display.fields.my_pickled_object_field import MyPickledObjectField
+from display.poker.poker_cards import PLAYING_CARDS
+from display.utilities.track_merger import merge_tracks
 from display.waypoint import Waypoint
-from display.welcome_emails import render_welcome_email, render_contest_creation_email
-from display.wind_utilities import calculate_ground_speed_combined
-from display.traccar_factory import get_traccar_instance
+from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email, render_deletion_email
+from display.utilities.wind_utilities import calculate_ground_speed_combined
+from display.utilities.traccar_factory import get_traccar_instance
 from live_tracking_map import settings
 
 from phonenumbers.phonenumber import PhoneNumber
@@ -176,6 +176,28 @@ class MyUser(BaseUser, GuardianUserMixin):
         except:
             logger.error(f"Failed sending email to {self}")
 
+    def send_deletion_email(self):
+        try:
+            html = render_deletion_email()
+            if len(html) == 0:
+                raise Exception("Did not receive any text for welcome email")
+            converter = html2text.HTML2Text()
+            plaintext = converter.handle(html)
+            logger.debug(f"Sending contest creation email to {self.email}")
+            try:
+                send_mail(
+                    f"You have been granted contest creation privileges at Air Sports Live Tracking",
+                    plaintext,
+                    None,  # Should default to system from email
+                    recipient_list=[self.email, "support@airsports.no"],
+                    html_message=html,
+                )
+            except:
+                logger.error(f"Failed sending email to {self}")
+        except:
+            logger.exception("Failed to generate user deletion email, you need to send it manually")
+            raise
+
 
 class Aeroplane(models.Model):
     registration = models.CharField(max_length=20)
@@ -221,14 +243,15 @@ class Route(models.Model):
         except IndexError:
             return None
 
-    def get_location(self) -> Tuple[float, float]:
+    def get_location(self) -> Optional[Tuple[float, float]]:
         if self.waypoints and len(self.waypoints) > 0:
+            print(self.waypoints[0])
             return self.waypoints[0].latitude, self.waypoints[0].longitude
         if len(self.takeoff_gates) > 0:
             return self.takeoff_gates[0].latitude, self.takeoff_gates[0].longitude
         if len(self.landing_gates) > 0:
             return self.landing_gates[0].latitude, self.landing_gates[0].longitude
-        return 0, 0
+        return None
 
     def clean(self):
         return
@@ -649,7 +672,6 @@ class Contest(models.Model):
     def country_names(self) -> Set[str]:
         return set([navigation_task.country_name for navigation_task in self.navigationtask_set.all()])
 
-
     def initialise(self, user: MyUser):
         self.start_time = self.time_zone.localize(self.start_time.replace(tzinfo=None))
         self.finish_time = self.time_zone.localize(self.finish_time.replace(tzinfo=None))
@@ -810,13 +832,10 @@ class NavigationTask(models.Model):
     _nominatim = MyPickledObjectField(default=dict, help_text="Used to hold response from geolocation service")
 
     def _geo_reference(self):
-        try:
-            first_gate: Waypoint = self.route.waypoints[0]
+        if location := self.route.get_location():
             geolocator = Nominatim(user_agent="airsports.no")
-            self._nominatim = geolocator.reverse(f"{first_gate.latitude},{first_gate.longitude}").raw
+            self._nominatim = geolocator.reverse(f"{location[0]},{location[1]}").raw
             self.save()
-        except IndexError:
-            logger.exception(f"Failed geo locating task {self}")
 
     @property
     def country_code(self) -> str:
@@ -2718,7 +2737,7 @@ class EditableRoute(models.Model):
         """
         Finds the smallest Zoom tile and returns this
         """
-        from display.map_plotter import plot_editable_route
+        from display.flight_order_and_maps.map_plotter import plot_editable_route
 
         image_stream = plot_editable_route(self)
         return image_stream
@@ -2762,8 +2781,8 @@ class EditableRoute(models.Model):
         return route
 
     def create_precision_route(self, use_procedure_turns: bool) -> Optional[Route]:
-        from display.convert_flightcontest_gpx import build_waypoint
-        from display.convert_flightcontest_gpx import create_precision_route_from_waypoint_list
+        from display.utilities.route_building_utilities import build_waypoint
+        from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list
 
         track = self.get_feature_type("track")
         waypoint_list = []
@@ -2789,8 +2808,8 @@ class EditableRoute(models.Model):
         return route
 
     def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: Scorecard) -> Route:
-        from display.convert_flightcontest_gpx import build_waypoint
-        from display.convert_flightcontest_gpx import create_anr_corridor_route_from_waypoint_list
+        from display.utilities.route_building_utilities import build_waypoint
+        from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
         track = self.get_feature_type("track")
         waypoint_list = []
@@ -2819,8 +2838,8 @@ class EditableRoute(models.Model):
         return route
 
     def create_airsports_route(self, rounded_corners: bool) -> Route:
-        from display.convert_flightcontest_gpx import build_waypoint
-        from display.convert_flightcontest_gpx import create_anr_corridor_route_from_waypoint_list
+        from display.utilities.route_building_utilities import build_waypoint
+        from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
         track = self.get_feature_type("track")
         waypoint_list = []
@@ -2844,7 +2863,7 @@ class EditableRoute(models.Model):
         return route
 
     def amend_route_with_additional_features(self, route: Route):
-        from display.convert_flightcontest_gpx import create_gate_from_line
+        from display.utilities.route_building_utilities import create_gate_from_line
 
         takeoff_gates = self.get_features_type("to")
         for index, takeoff_gate in enumerate(takeoff_gates):
@@ -2892,7 +2911,7 @@ class EditableRoute(models.Model):
     def create_from_kml(cls, route_name: str, kml_content: TextIO) -> tuple[Optional["EditableRoute"], list[str]]:
         """Create a route from our own kml format."""
         messages = []
-        from display.convert_flightcontest_gpx import load_features_from_kml
+        from display.utilities.route_building_utilities import load_features_from_kml
 
         features = load_features_from_kml(kml_content)
         positions = features.get("route", [])
@@ -2998,7 +3017,7 @@ class EditableRoute(models.Model):
                             "position": (float(gate_extension.attrib["lat"]), float(gate_extension.attrib["lon"])),
                             "width": float(gate_extension.attrib["width"]),
                             "type": gate_type,
-                            "time_check": gate_extension.attrib["notimecheck"] == "no"
+                            "time_check": gate_extension.attrib["notimecheck"] == "no",
                         }
         my_route.append(
             create_track_block(
@@ -3012,5 +3031,3 @@ class EditableRoute(models.Model):
         messages.append(f"Found route with {len(waypoint_order)} gates")
         editable_route = cls._create_route_and_thumbnail(name, my_route)
         return editable_route, messages
-
-

@@ -1,7 +1,7 @@
 from unittest import TestCase
 from parameterized import parameterized
 
-from display.coordinate_utilities import calculate_bearing, get_heading_difference, extend_line, \
+from display.utilities.coordinate_utilities import calculate_bearing, get_heading_difference, extend_line, \
     fraction_of_leg, Projector, get_procedure_turn_track, create_bisecting_line_between_segments, \
     create_bisecting_line_between_segments_corridor_width_lonlat, \
     create_bisecting_line_between_segments_corridor_width_xy, equirectangular_distance, calculate_distance_lat_lon

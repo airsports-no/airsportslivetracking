@@ -6,7 +6,7 @@ import datetime
 from typing import Tuple, List, Dict
 
 from display.calculators.positions_and_gates import Position
-from display.coordinate_utilities import cross_track_distance, along_track_distance, calculate_distance_lat_lon, \
+from display.utilities.coordinate_utilities import cross_track_distance, along_track_distance, calculate_distance_lat_lon, \
     calculate_bearing, utm_from_lat_lon, project_position_lat_lon, bearing_difference
 
 

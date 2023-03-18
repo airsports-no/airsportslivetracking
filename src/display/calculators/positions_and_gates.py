@@ -2,8 +2,8 @@ import logging
 from datetime import timedelta, datetime
 from typing import Tuple, List, Optional
 
-from display.coordinate_utilities import line_intersect, fraction_of_leg, calculate_bearing, nv_intersect, \
-    Projector, bearing_difference, cross_track_distance, calculate_distance_lat_lon, point_to_line_distance
+from display.utilities.coordinate_utilities import fraction_of_leg, calculate_bearing, Projector, bearing_difference, \
+    point_to_line_distance
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)

@@ -1,32 +1,27 @@
 import datetime
 import logging
 import threading
-import time
 from abc import abstractmethod, ABC
-from multiprocessing.queues import Queue
-from queue import Empty
-from typing import List, TYPE_CHECKING, Optional, Callable, Tuple, Dict
+from typing import List, Optional, Callable, Tuple, Dict
 
 import dateutil
-from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.mail import send_mail
 
-from display.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
-from display.calculator_termination_utilities import is_termination_requested, cancel_termination_request
+from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
+from display.utilities.calculator_termination_utilities import is_termination_requested
 from redis_queue import RedisQueue, RedisEmpty
 from slack_facade import post_slack_message
-from timed_queue import TimedQueue, TimedOut
+from utilities.timed_queue import TimedQueue, TimedOut
 from websocket_channels import WebsocketFacade
 
-from display.traccar_factory import get_traccar_instance
+from display.utilities.traccar_factory import get_traccar_instance
 
-from display.calculators.calculator_utilities import round_time_minute, distance_between_gates
+from display.calculators.calculator_utilities import distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
-from display.convert_flightcontest_gpx import calculate_extended_gate
-from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
+from display.utilities.route_building_utilities import calculate_extended_gate
+from display.utilities.coordinate_utilities import Projector, calculate_distance_lat_lon, \
     calculate_fractional_distance_point_lat_lon
-from display.models import ContestantTrack, Contestant, TrackAnnotation, ScoreLogEntry, ContestantReceivedPosition
+from display.models import Contestant, TrackAnnotation, ScoreLogEntry, ContestantReceivedPosition
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)

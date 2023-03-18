@@ -1,6 +1,5 @@
 from django.test import TestCase
 
-from display.clone_object import clone_object_only_foreign_keys
 from display.default_scorecards import default_scorecard_airsports
 from display.models import Scorecard, GateScore
 

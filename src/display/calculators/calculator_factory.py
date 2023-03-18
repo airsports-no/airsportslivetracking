@@ -1,8 +1,3 @@
-from multiprocessing.queues import Queue
-
-from django.core.cache import cache
-
-from display.calculator_termination_utilities import cancel_termination_request
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.backtracking_and_procedure_turns import BacktrackingAndProcedureTurnsCalculator
 from display.calculators.gatekeeper import Gatekeeper

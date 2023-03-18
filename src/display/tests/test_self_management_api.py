@@ -23,7 +23,7 @@ from display.models import (
     Contestant,
     EditableRoute,
 )
-from mock_utilities import TraccarMock
+from utilities.mock_utilities import TraccarMock
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)

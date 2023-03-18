@@ -7,10 +7,10 @@ from typing import Optional, Dict, Tuple, List
 
 import gpxpy
 import zipfile
-from crispy_forms.layout import  Fieldset
+from crispy_forms.layout import Fieldset
 from django.contrib import messages
 from django.contrib.auth import login, get_user_model
-from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.decorators import permission_required, user_passes_test
 from django.contrib.auth.mixins import (
     PermissionRequiredMixin,
     LoginRequiredMixin,
@@ -22,7 +22,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 from django.db import transaction, connection
-from django.db.models import Q
+from django.db.models import Q, ProtectedError
 from django import forms
 
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
@@ -60,8 +60,8 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 
-from display.calculator_running_utilities import is_calculator_running
-from display.calculator_termination_utilities import cancel_termination_request
+from display.utilities.calculator_running_utilities import is_calculator_running
+from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
     PrecisionImportRouteForm,
     NavigationTaskForm,
@@ -100,14 +100,14 @@ from display.forms import (
     ChangeUserUploadedMapPermissionsForm,
     ChangeEditableRoutePermissionsForm,
     AddEditableRoutePermissionsForm,
-    ImportRouteForm,
+    ImportRouteForm, DeleteUserForm,
 )
-from display.generate_flight_orders import (
+from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
     embed_map_in_pdf,
 )
-from display.map_constants import A4
-from display.map_plotter import (
+from display.flight_order_and_maps.map_constants import A4
+from display.flight_order_and_maps.map_plotter import (
     plot_route,
     A4_WIDTH,
     A3_HEIGHT,
@@ -161,7 +161,7 @@ from display.permissions import (
     EditableRoutePermission,
     NavigationTaskPublicPutDeletePermissions,
 )
-from display.schedule_contestants import schedule_and_create_contestants
+from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.serialisers import (
     ExternalNavigationTaskNestedTeamSerialiser,
     ContestSerialiser,
@@ -201,15 +201,14 @@ from display.serialisers import (
     ContestSerialiserWithResults,
     PersonSerialiserExcludingTracking,
 )
-from display.show_slug_choices import ShowChoicesMetadata
+from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
     import_gpx_track,
     revert_gpx_track_to_traccar,
     generate_and_maybe_notify_flight_order,
     notify_flight_order,
 )
-from display.utilities import get_country_code_from_location
-from display.welcome_emails import render_welcome_email, render_contest_creation_email
+from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
 from live_tracking_map import settings
 from websocket_channels import (
     WebsocketFacade,
@@ -255,6 +254,7 @@ class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         return self.request.user.is_superuser
 
 
+@user_passes_test(lambda u: u.is_superuser)
 def get_contest_creators_emails(request):
     users_with_creation_privileges = get_user_model().objects.filter(groups__name="ContestCreator")
     all_users = get_user_model().objects.all()
@@ -357,6 +357,39 @@ def manifest(request):
     }
     return JsonResponse(data)
 
+
+@user_passes_test(lambda u: u.is_superuser)
+def delete_user_and_person(request):
+    """
+    Deletes the specified MyUser object and tries to delete the associated Person. If deleting the Person fails,
+    the person is obfuscated by changing name and email.
+    """
+    form=DeleteUserForm()
+    if request.method == "POST":
+        form = DeleteUserForm(request.POST)
+        if form.is_valid():
+            try:
+                my_user = MyUser.objects.get(email=form.cleaned_data["email"])
+                my_user.delete()
+                if form.cleaned_data["send_email"]:
+                    my_user.send_deletion_email()
+            except ObjectDoesNotExist:
+                messages.error(request, f"A user with the e-mail {form.cleaned_data['email']} does not exist")
+            for person in Person.objects.filter(email=form.cleaned_data['email']):
+                try:
+                    person.delete()
+                    messages.success(request, f"Successfully deleted {person}")
+                except ProtectedError:
+                    person.first_name = "Unknown"
+                    person.last_name = "Unknown"
+                    person.email = f"internal_{person.pk}@airsports.no"
+                    person.phone = None
+                    person.picture = None
+                    person.biography = ""
+                    person.is_public = False
+                    person.save()
+                    messages.warning(request, f"Deleting the person failed, but we renamed them to {person}")
+    return render(request, "display/delete_user_form.html", {"form":form})
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
@@ -2012,7 +2045,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             editable_route=ediable_route,
         )
         # Update contest location if necessary
-        self.contest.update_position_if_not_set(*route.get_location())
+        if location := route.get_location():
+            self.contest.update_position_if_not_set(*location)
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     def get_context_data(self, form, **kwargs):
@@ -2134,8 +2168,6 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             contest = self.get_cleaned_data_for_step("contest_selection")["contest"]
         scorecard = Scorecard.get_originals().filter(task_type__contains=task_type).first()
         route = self.create_route()
-        route_location = route.get_location()
-        country_code = get_country_code_from_location(*route_location)
         navigation_task = NavigationTask.create(
             name=task_name,
             contest=contest,

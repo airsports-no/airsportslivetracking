@@ -3,11 +3,11 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from display.calculate_gate_times import calculate_and_get_relative_gate_times
+from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.default_scorecards import default_scorecard_fai_anr_2017
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Aeroplane, NavigationTask, Team, Contestant, Crew, Contest, Person, EditableRoute
-from mock_utilities import TraccarMock
+from utilities.mock_utilities import TraccarMock
 
 
 def chop_microseconds(delta):

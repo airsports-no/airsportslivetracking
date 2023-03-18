@@ -21,7 +21,7 @@ from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
 
-from display.convert_flightcontest_gpx import create_precision_route_from_gpx
+from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from display.models import (
     NavigationTask,
     Aeroplane,

@@ -1,7 +1,7 @@
 import datetime
 from unittest import TestCase
 
-from display.contestant_scheduler import TeamDefinition, Solver
+from display.contestant_scheduling.contestant_scheduler import TeamDefinition, Solver
 
 
 class TestContestantScheduler(TestCase):

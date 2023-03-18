@@ -3,7 +3,7 @@ from typing import Optional
 
 import numpy as np
 
-from display.coordinate_utilities import calculate_distance_lat_lon
+from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from track_analyser.gps_track import GPSTrack
 
 

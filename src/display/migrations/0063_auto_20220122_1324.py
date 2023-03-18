@@ -2,8 +2,7 @@
 
 from django.db import migrations
 
-from display.clone_object import simple_clone
-from display.default_scorecards.create_scorecards import create_scorecards
+from display.utilities.clone_object import simple_clone
 
 
 def copy(scorecard, name_postfix: str) -> "Scorecard":

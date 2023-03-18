@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from parameterized import parameterized
 
-from display.wind_utilities import calculate_wind_correction_angle, calculate_ground_speed_combined
+from display.utilities.wind_utilities import calculate_wind_correction_angle, calculate_ground_speed_combined
 
 
 class TestWindUtilities(TestCase):

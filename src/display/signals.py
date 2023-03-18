@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.db.models.signals import post_save, post_delete, pre_delete, pre_save, m2m_changed
 from django.dispatch import receiver
 
-from display.map_plotter import country_code_to_map_source
+from display.flight_order_and_maps.map_plotter import country_code_to_map_source
 from display.models import (
     TeamTestScore,
     TaskSummary,
@@ -29,7 +29,8 @@ from display.models import (
     Person,
     MyUser,
 )
-from display.traccar_factory import get_traccar_instance
+from display.utilities.country_code_utilities import get_country_code_from_location
+from display.utilities.traccar_factory import get_traccar_instance
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +248,11 @@ def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
 def initialise_navigation_task_dependencies(sender, instance: NavigationTask, created, **kwargs):
     if created:
         instance.create_results_service_test()
-        country_code = instance.country_code
+        country_code = "xx"
+        if instance.route and len(instance.route.waypoints) > 0:
+            waypoint = instance.route.waypoints[0]  # type: Waypoint
+            country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
+        # country_code = instance.country_code
         map_source = country_code_to_map_source(country_code)
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 

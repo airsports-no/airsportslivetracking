@@ -6,6 +6,15 @@ from rest_framework.permissions import SAFE_METHODS
 from display.models import Contest
 
 
+class IsSuperUser(permissions.BasePermission):
+    """
+    Allows access only to super users.
+    """
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_superuser)
+
+
 class ContestPermissionsWithoutObjects(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in ["POST"]:

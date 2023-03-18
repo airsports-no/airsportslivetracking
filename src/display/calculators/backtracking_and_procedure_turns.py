@@ -3,8 +3,8 @@ import logging
 from typing import TYPE_CHECKING, List, Callable, Optional, Tuple
 
 from display.calculators.calculator import Calculator
-from display.calculators.calculator_utilities import bearing_between, cross_track_gate
-from display.coordinate_utilities import get_heading_difference, calculate_distance_lat_lon, bearing_difference
+from display.calculators.calculator_utilities import bearing_between
+from display.utilities.coordinate_utilities import get_heading_difference, bearing_difference
 from display.models import Contestant, Scorecard, Route
 
 if TYPE_CHECKING:

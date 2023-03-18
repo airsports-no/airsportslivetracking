@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <h2>Input the e-mail of the user you wish to delete</h2>
+    <form method="post" class="form">
+        {{ form.media }}
+        {{ form.errors }}
+        {% crispy form %}
+    </form>
+{% endblock %}

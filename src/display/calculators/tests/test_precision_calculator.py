@@ -10,7 +10,7 @@ from display.calculators.calculator_factory import calculator_factory
 from display.calculators.calculator_utilities import load_track_points_traccar_csv
 from display.calculators.positions_and_gates import Gate
 from display.calculators.tests.utilities import load_traccar_track
-from display.convert_flightcontest_gpx import (
+from display.utilities.route_building_utilities import (
     create_precision_route_from_gpx,
     calculate_extended_gate,
 )
@@ -26,7 +26,7 @@ from display.models import (
     TeamTestScore,
     EditableRoute,
 )
-from mock_utilities import TraccarMock
+from utilities.mock_utilities import TraccarMock
 from redis_queue import RedisQueue
 
 

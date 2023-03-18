@@ -1,19 +1,14 @@
 import datetime
 import logging
-from multiprocessing.queues import Queue
-from typing import List, TYPE_CHECKING, Optional, Callable, Tuple
+from typing import List, Optional, Callable, Tuple
 
-import pytz
-
-from display.calculators.calculator import Calculator
-from display.calculators.calculator_utilities import round_time_minute, distance_between_gates
+from display.calculators.calculator_utilities import round_time_minute
 from display.calculators.gatekeeper import Gatekeeper
-from display.calculators.positions_and_gates import Gate, Position, MultiGate
-from display.convert_flightcontest_gpx import calculate_extended_gate
-from display.coordinate_utilities import line_intersect, fraction_of_leg, Projector, calculate_distance_lat_lon, \
-    calculate_fractional_distance_point_lat_lon, cross_track_distance, nv_intersect
-from display.models import ContestantTrack, Contestant
-from display.waypoint import Waypoint
+from display.calculators.positions_and_gates import Gate, MultiGate
+from display.utilities.route_building_utilities import calculate_extended_gate
+from display.utilities.coordinate_utilities import Projector, calculate_distance_lat_lon, \
+    cross_track_distance, nv_intersect
+from display.models import Contestant
 
 logger = logging.getLogger(__name__)
 

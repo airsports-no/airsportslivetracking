@@ -3,12 +3,11 @@ from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
-from django.test.utils import freeze_time
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import NavigationTask, Contest, Route, Contestant, Aeroplane, Crew, Team, Person, TRACKING_DEVICE, \
     ContestTeam, TRACKING_COPILOT, TRACKING_PILOT
-from mock_utilities import TraccarMock
+from utilities.mock_utilities import TraccarMock
 
 TRACKER_NAME = "tracker"
 

@@ -1,27 +1,25 @@
 import base64
 import json
 from copy import deepcopy
-from datetime import datetime, timezone
-from pprint import pprint
+from datetime import datetime
 from unittest.mock import Mock, patch
 
 import dateutil
-from django.contrib.auth.models import User, Permission
+from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 
-from django.contrib.contenttypes.models import ContentType
 from django.test import TransactionTestCase
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
 from rest_framework import status
-from rest_framework.test import APITestCase, APITransactionTestCase
+from rest_framework.test import APITransactionTestCase
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Contest, NavigationTask, Team, Crew, Person, Aeroplane, Contestant, ContestTeam
+from display.models import Contest, Team, Crew, Person, Aeroplane, Contestant, ContestTeam
 from display.serialisers import ExternalNavigationTaskNestedTeamSerialiser
-from mock_utilities import TraccarMock
-from dictionary_comparison import compare_dictionaries
+from utilities.mock_utilities import TraccarMock
+from utilities.dictionary_comparison import compare_dictionaries
 
 data_with_gate_times = {"name": "3. Nav.", "start_time": "2017-08-01T06:15:00Z",
                         "finish_time": "2017-08-01T09:10:36Z", "is_public": True,

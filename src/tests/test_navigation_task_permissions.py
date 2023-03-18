@@ -1,8 +1,7 @@
 import datetime
-import json
 from unittest.mock import patch
 
-from django.contrib.auth.models import User, Permission
+from django.contrib.auth.models import Permission
 from django.contrib.auth import get_user_model
 
 from django.urls import reverse
@@ -12,7 +11,7 @@ from rest_framework.test import APITestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Contest, NavigationTask, Contestant
-from mock_utilities import TraccarMock
+from utilities.mock_utilities import TraccarMock
 
 line = {
     "name": "land",

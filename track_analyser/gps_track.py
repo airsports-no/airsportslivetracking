@@ -9,7 +9,7 @@ import gpxpy
 from datetime_modulo import datetime
 from typing import List, Tuple, Optional
 
-from display.coordinate_utilities import (
+from display.utilities.coordinate_utilities import (
     calculate_distance_lat_lon,
     calculate_fractional_distance_point_lat_lon,
 )

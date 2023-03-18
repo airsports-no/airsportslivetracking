@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from display.models import Contest, Person, Aeroplane, Crew, Team
-from mock_utilities import TraccarMock
+from utilities.mock_utilities import TraccarMock
 
 TEAM_DATA = {
     "aeroplane": {

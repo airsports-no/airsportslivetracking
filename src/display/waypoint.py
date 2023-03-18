@@ -1,9 +1,8 @@
 from typing import List, Tuple
 
-from display.coordinate_utilities import (
+from display.utilities.coordinate_utilities import (
     extend_line,
     get_procedure_turn_track,
-    get_centre_of_line_lat_lon,
     calculate_bearing,
     bearing_difference,
 )

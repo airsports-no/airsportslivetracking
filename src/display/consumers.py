@@ -1,26 +1,19 @@
 import datetime
 import json
 import logging
-import pickle
 import threading
 
-import dateutil.parser
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
-from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from redis import StrictRedis
 
-from display.coordinate_utilities import (
-    calculate_distance_lat_lon,
+from display.utilities.coordinate_utilities import (
     calculate_bounding_box,
     equirectangular_distance,
 )
 from display.models import NavigationTask, Contest
-from display.views import cached_generate_data
-from live_tracking_map import settings
 from live_tracking_map.settings import (
-    REDIS_GLOBAL_POSITIONS_KEY,
     REDIS_HOST,
     REDIS_PORT,
     REDIS_PASSWORD,

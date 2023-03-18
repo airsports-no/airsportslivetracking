@@ -4,13 +4,11 @@ import matplotlib.pyplot as plt
 import logging
 from typing import List, Callable, Optional, Tuple
 import numpy as np
-from cartopy.io.img_tiles import OSM
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Polygon
 
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Position, Gate
-from display.coordinate_utilities import bearing_difference
 from display.models import Contestant, Scorecard, Route
 
 logger = logging.getLogger(__name__)

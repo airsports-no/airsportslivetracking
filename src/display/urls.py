@@ -99,7 +99,7 @@ from display.views import (
     add_user_editableroute_permissions,
     change_user_editableroute_permissions,
     delete_user_editableroute_permissions, StatisticsView,
-    import_route,
+    import_route, delete_user_and_person,
 )
 
 urlpatterns = [
@@ -133,6 +133,7 @@ urlpatterns = [
         name="useruploadedmap_permissions_delete",
     ),
     path("token/renew", renew_token, name="renewtoken"),
+    path("users/delete/", delete_user_and_person, name="user_delete"),
     path("users/emails/", get_contest_creators_emails, name="user_emails"),
     path("users/welcomeexample/", WelcomeEmailExample.as_view(), name="welcome_example"),
     path("users/contestexample/", ContestCreationEmailExample.as_view(), name="contestcreation_example"),

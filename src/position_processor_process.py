@@ -14,8 +14,8 @@ import threading
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 
-from display.calculator_running_utilities import is_calculator_running, calculator_is_alive
-from display.calculator_termination_utilities import is_termination_requested
+from display.utilities.calculator_running_utilities import is_calculator_running, calculator_is_alive
+from display.utilities.calculator_termination_utilities import is_termination_requested
 from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
 from live_tracking_map import settings
 from redis_queue import RedisQueue

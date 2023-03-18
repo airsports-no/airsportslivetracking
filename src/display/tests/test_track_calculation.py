@@ -2,7 +2,7 @@ import json
 
 from django.test import TestCase
 
-from display.convert_flightcontest_gpx import create_precision_route_from_gpx
+from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from display.serialisers import WaypointSerialiser, RouteSerialiser
 
 

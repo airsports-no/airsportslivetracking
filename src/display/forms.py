@@ -12,7 +12,7 @@ from django.core.validators import FileExtensionValidator
 from django.forms import HiddenInput
 from django.utils.safestring import mark_safe
 
-from display.map_constants import (
+from display.flight_order_and_maps.map_constants import (
     MAP_SIZES,
     ORIENTATIONS,
     LANDSCAPE,
@@ -21,7 +21,7 @@ from display.map_constants import (
     A4,
     PORTRAIT,
 )
-from display.map_plotter_shared_utilities import MAP_CHOICES
+from display.flight_order_and_maps.map_plotter_shared_utilities import MAP_CHOICES
 from display.models import (
     NavigationTask,
     Contestant,
@@ -37,7 +37,7 @@ from display.models import (
     FlightOrderConfiguration,
     UserUploadedMap,
 )
-from display.poker_cards import PLAYING_CARDS
+from display.poker.poker_cards import PLAYING_CARDS
 
 FILE_TYPE_CSV = "csv"
 FILE_TYPE_FLIGHTCONTEST_GPX = "fcgpx"
@@ -283,7 +283,6 @@ class LandingImportRouteForm(forms.Form):
             Fieldset("Route import", "internal_route"),
             ButtonHolder(Submit("submit", "Submit")),
         )
-
 
 
 class NavigationTaskForm(forms.ModelForm):
@@ -858,5 +857,21 @@ class ImportRouteForm(forms.Form):
         self.helper.layout = Layout(
             Fieldset("Route import", "name", "file"),
             kml_description,
+            ButtonHolder(Submit("submit", "Submit")),
+        )
+
+
+class DeleteUserForm(forms.Form):
+    email = forms.EmailField(help_text="The e-mail of the user you wish to delete")
+    send_email = forms.BooleanField(
+        help_text="Should we automatically send a deletion acknowledgement email to the user", required=False
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+        self.helper.layout = Layout(
+            Fieldset("User selection", "email", "send_email"),
             ButtonHolder(Submit("submit", "Submit")),
         )

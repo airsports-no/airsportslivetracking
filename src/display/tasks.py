@@ -1,4 +1,3 @@
-import base64
 import datetime
 import logging
 
@@ -8,10 +7,10 @@ from django.db import connections
 from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
 
-from display.generate_flight_orders import generate_flight_orders_latex
-from display.models import Contestant, EmailMapLink, MyUser
+from display.flight_order_and_maps.generate_flight_orders import generate_flight_orders_latex
+from display.models import Contestant, EmailMapLink
 from live_tracking_map.celery import app
-from playback_tools import insert_gpx_file, recalculate_traccar
+from playback_tools.playback import recalculate_traccar, insert_gpx_file
 
 logger = logging.getLogger(__name__)
 

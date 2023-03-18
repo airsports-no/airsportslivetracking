@@ -1,5 +1,5 @@
 import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import dateutil.parser
 from django.test import TransactionTestCase
@@ -7,7 +7,7 @@ from django.test import TransactionTestCase
 from display.calculators.gatekeeper_route import GatekeeperRoute
 from display.calculators.positions_and_gates import Position
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Contestant, Person, Team, EditableRoute
-from mock_utilities import TraccarMock
+from utilities.mock_utilities import TraccarMock
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
