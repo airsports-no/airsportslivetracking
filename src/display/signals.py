@@ -1,16 +1,37 @@
-# @receiver(post_save, sender=Task)
-# def populate_task_summaries(sender, instance: Task, **kwargs):
-#     teams = Team.objects.filter(contestteam__contest=instance.contest)
-#     for team in teams:
-#         TaskSummary.objects.create(team=team, task=instance, points=0)
-#
-#
+import logging
+from random import choice
+from string import ascii_uppercase, ascii_lowercase, digits
+
+from django.contrib.auth.models import User, Group
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.db.models.signals import post_save, post_delete, pre_delete, pre_save
+from django.db.models import Q
+from django.db.models.signals import post_save, post_delete, pre_delete, pre_save, m2m_changed
 from django.dispatch import receiver
 
-from display.models import TeamTestScore, TaskSummary, ContestSummary, Task, TaskTest, ContestTeam, Contestant, \
-    ContestantTrack, ScoreLogEntry, Crew, Club, Route, NavigationTask
+from display.map_plotter import country_code_to_map_source
+from display.models import (
+    TeamTestScore,
+    TaskSummary,
+    ContestSummary,
+    Task,
+    TaskTest,
+    ContestTeam,
+    Contestant,
+    ContestantTrack,
+    ScoreLogEntry,
+    Crew,
+    Club,
+    Route,
+    NavigationTask,
+    FlightOrderConfiguration,
+    TRACCAR,
+    TRACKING_DEVICE,
+    Person,
+    MyUser,
+)
+from display.traccar_factory import get_traccar_instance
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=TeamTestScore)
@@ -226,12 +247,7 @@ def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
 def initialise_navigation_task_dependencies(sender, instance: NavigationTask, created, **kwargs):
     if created:
         instance.create_results_service_test()
-        country_code = "xx"
-        if instance.route and len(instance.route.waypoints) > 0:
-            waypoint = instance.route.waypoints[0]  # type: Waypoint
-            country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
-        from display.map_plotter import country_code_to_map_source
-
+        country_code = instance.country_code
         map_source = country_code_to_map_source(country_code)
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 
