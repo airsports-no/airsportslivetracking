@@ -1208,7 +1208,8 @@ div.ris-large {
 .thermometer--normal {
     width: 50px;
 }
-
+.thermometer .thermometer__mask .thermometer__bg-color {
+    background: linear-gradient(#f44336, #8BC34A, #2196F3); }
 
 .navbar.transparent.navbar-dark .navbar-inner {
     background: rgba(0, 0, 0, 0.4);
