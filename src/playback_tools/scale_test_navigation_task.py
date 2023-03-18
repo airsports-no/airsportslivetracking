@@ -3,6 +3,7 @@ import datetime
 import logging
 import os
 import random
+import sys
 import threading
 import time
 from typing import Tuple, List
@@ -10,13 +11,15 @@ from urllib.parse import urlencode
 
 import requests
 
-from traccar_facade import Traccar
 
 if __name__ == "__main__":
+    sys.path.append("../")
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
 
     django.setup()
+
+from traccar_facade import Traccar
 
 from display.models import (
     Crew,
@@ -99,7 +102,7 @@ def send_data_thread(contestant, positions):
                 time.sleep(arguments.pause * 60)
                 logger.info(f"Resuming contestant {contestant}.")
             if arguments.random_pause and random.randint(0, 1800) == 0:  # Approximately once every half hour
-                pause = random.randint(10, 45)
+                pause = random.randint(10, 120)
                 logger.info(f"Pausing contestant {contestant} for {pause} seconds.")
                 time.sleep(pause)
                 logger.info(f"Resuming contestant {contestant}.")
@@ -138,14 +141,19 @@ def create_contestants(
     number_of_contestants: int,
     start_interval: datetime.timedelta,
 ) -> List[Tuple[Contestant, List[dict]]]:
-    logger.info(f"Creating {number_of_contestants} with start interval {start_interval}")
+    logger.info(f"Creating {number_of_contestants} contestants with start interval {start_interval}")
     created_contestants = []
     current_contestant_index = 0
     existing_contestants = list(old_navigation_task.contestant_set.all())
+    if len(existing_contestants) == 0:
+        logger.error(f"There are no contestants to copy")
+        return []
+    logger.info(f"Creating based on {len(existing_contestants)} existing contestants")
     existing_contestant_index = 0
     start_time = datetime.datetime.now(datetime.timezone.utc)
     finish_time = start_time + datetime.timedelta(hours=4)
     while current_contestant_index < number_of_contestants:
+        logger.info(f"Creating contestant number {current_contestant_index}")
         current_old_contestant = existing_contestants[existing_contestant_index]
         contestant_email = f"test{current_contestant_index}@internal.contestant com"
         person, _ = Person.objects.get_or_create(
@@ -197,9 +205,12 @@ def create_contestants(
 
 if __name__ == "__main__":
     navigation_task = NavigationTask.objects.get(pk=arguments.navigation_task_id)
+    logger.info(
+        f"Creating scaling test from task {navigation_task} with {arguments.number_of_contestants} created from {navigation_task.contestant_set.all().count()} existing contestants spaced by {datetime.timedelta(seconds=arguments.start_interval_seconds)}"
+    )
     new_navigation_task_name = f"{navigation_task.name} scaling test"
-    start_time = datetime.datetime.today()
-    finish_time = datetime.datetime.today() + datetime.timedelta(days=1)
+    start_time = datetime.datetime.today().replace(tzinfo=datetime.timezone.utc)
+    finish_time = datetime.datetime.today().replace(tzinfo=datetime.timezone.utc) + datetime.timedelta(days=1)
     contest, _ = Contest.objects.get_or_create(
         name="Scaling test contest",
         defaults={
