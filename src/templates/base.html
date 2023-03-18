@@ -78,6 +78,8 @@
                                 <a class="dropdown-item" href="{% url 'editableroute_list' %}">Route editor</a>
 
                                 {% if user.is_superuser  and user.is_staff %}
+                                    <hr/>
+                                    <a class="dropdown-item" href="{% url 'statistics' %}">Statistics</a>
                                     <a class="dropdown-item" href="{% url 'user_emails' %}">User emails</a>
                                     <a class="dropdown-item" href="{% url 'welcome_example' %}">Welcome email</a>
                                     <a class="dropdown-item" href="{% url 'contestcreation_example' %}">Contest creation
