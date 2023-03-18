@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load guardian_tags %}
+{% load tz %}
+{% block content %}
+    <h2>General statistics</h2>
+    <table class="table">
+        <tr>
+            <td>Total number of persons</td>
+            <td>{{ number_of_persons }}</td>
+        </tr>
+        <tr>
+            <td>Total number of contests</td>
+            <td>{{ number_of_contests }}</td>
+        </tr>
+        <tr>
+            <td>Total number of tasks</td>
+            <td>{{ number_of_tasks }}</td>
+        </tr>
+        <tr>
+            <td>Total number of contestants</td>
+            <td>{{ number_of_contestants }}</td>
+        </tr>
+        <tr>
+            <td>Total number of started contestants</td>
+            <td>{{ number_of_started_contestants }}</td>
+        </tr>
+        <tr>
+            <td>Total number of contestants actually crossed the starting line</td>
+            <td>{{ number_of_contestants_crossed_starting }}</td>
+        </tr>
+        <tr>
+            <td>Total number of persons actually crossed the starting line</td>
+            <td>{{ number_of_persons_crossed_starting }}</td>
+        </tr>
+    </table>
+    <h2>Contests per country</h2>
+    <table class="table">
+        {% for country, count in contest_per_country %}
+            <tr>
+                <td>{{ country }}</td>
+                <td>{{ count }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    <h2>Navigation tasks per country</h2>
+    <table class="table">
+        {% for country, count in navigation_task_per_country %}
+            <tr>
+                <td>{{ country }}</td>
+                <td>{{ count }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+
+{% endblock %}

@@ -98,13 +98,14 @@ from display.views import (
     list_editableroute_permissions,
     add_user_editableroute_permissions,
     change_user_editableroute_permissions,
-    delete_user_editableroute_permissions,
+    delete_user_editableroute_permissions, StatisticsView,
     import_route,
 )
 
 urlpatterns = [
     path("healthz/", healthz),
     path("readyz/", readyz),
+    path("statistics/", StatisticsView.as_view(), name="statistics"),
     path("task/<int:pk>/map/", frontend_view_map, name="frontend_view_map"),
     path("task/<int:pk>/playbackmap/", frontend_playback_map, name="frontend_playback_map"),
     path("useruploadedmaps/", UserUploadedMapList.as_view(), name="useruploadedmap_list"),
