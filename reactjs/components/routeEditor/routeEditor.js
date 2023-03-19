@@ -389,6 +389,9 @@ class ConnectedRouteEditor extends Component {
                     if (names.includes(layer.trackPoints[i].name)) {
                         errors.push("Gate names must be unique. The name '" + layer.trackPoints[i].name + "' is used multiple times.")
                     }
+                    if(layer.trackPoints[i].gateWidth < 0.01){
+                        errors.push("The width of gate "+layer.trackPoints[i].name+" is "+layer.trackPoints[i].gateWidth+". It must be minimum 0.01.")
+                    }
                     names.push(layer.trackPoints[i].name)
                 }
                 if (layer.getLatLngs().length !== layer.trackPoints.length) {

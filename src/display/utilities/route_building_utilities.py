@@ -208,7 +208,9 @@ def build_waypoint(name, latitude, longitude, type, width, time_check, gate_chec
     waypoint.latitude = latitude
     waypoint.longitude = longitude
     waypoint.type = type
-    waypoint.width = float(width)
+    waypoint.width = max(
+        float(width), 0.01
+    )  # todo: Enforce at least a minimum gate width in case this has been set to 0
     waypoint.time_check = time_check
     waypoint.gate_check = gate_check
     return waypoint
