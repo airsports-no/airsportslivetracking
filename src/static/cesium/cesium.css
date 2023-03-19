@@ -707,18 +707,39 @@ tr.hidden {
     /*padding: 0 5px;*/
 }
 
-.managementIcon {
-    /*height: 80px;*/
-    /*width: 30px;*/
+.playbackNotice{
+    font-size: xx-large;
+    position: absolute;
+    top: 10px;
+    right: 79px;
+    z-index: 10;
+    font-weight: bold;
+}
+
+.offlineNotice{
+    font-size: xx-large;
+    position: absolute;
+    top: 60px;
+    right: 79px;
+    z-index: 1001;
+    color: red;
+}
+
+
+
+
+.replayIcon {
     top: 160px;
     right: 15px;
     position: fixed;
     z-index: 2;
-    /*color: #e01b1c;*/
-    /*font-size: large;*/
-    /*background-color: #666666cc;*/
-    /*border-radius: 5px;*/
-    /*padding: 0 5px;*/
+}
+
+.managementIcon {
+    top: 210px;
+    right: 15px;
+    position: fixed;
+    z-index: 2;
 }
 
 

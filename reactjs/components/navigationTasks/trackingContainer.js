@@ -13,11 +13,12 @@ import {
 } from "../../actions";
 import {SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
 import Disclaimer from "../disclaimer";
-import {mdiAirplaneCog, mdiAirport, mdiGoKartTrack, mdiMagnify, mdiPodium} from "@mdi/js";
+import {mdiAirplaneCog, mdiAirport, mdiGoKartTrack, mdiReplay, mdiTimerPlayOutline} from "@mdi/js";
 import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
 import TimeDisplay from "./timeDisplay";
 import qs from "qs";
+import NavigationTaskPlayback from "./navigationTaskPlayback";
 
 
 const mapStateToProps = (state, props) => ({
@@ -27,7 +28,8 @@ const mapStateToProps = (state, props) => ({
     displayLowerThirds: state.displayLowerThirds,
     contestants: state.contestants,
     currentDisplay: state.currentDisplay,
-    myParticipatingContests: state.myParticipatingContests
+    myParticipatingContests: state.myParticipatingContests,
+    webSocketOnline: state.webSocketOnline
 })
 
 
@@ -91,11 +93,28 @@ class ConnectedTrackingContainer extends Component {
             <i className={"mdi mdi-keyboard-arrow-left"}/> :
             <i className={"mdi mdi-keyboard-arrow-right"}/>}</a>
         // Expand this using scorecard information to select correct navigation task type that overrides map rendering
-        let TrackerDisplay = <NavigationTask map={this.map} contestId={this.contestId}
-                                             navigationTaskId={this.navigationTaskId}
-                                             fetchInterval={2000}
-                                             displayMap={this.displayMap} displayTable={true} playback={this.playback}
-                                             contestantIds={this.contestantIds}/>
+        let TrackerDisplay
+        if (this.playback) {
+            TrackerDisplay = <NavigationTaskPlayback
+                map={this.map}
+                contestId={this.contestId}
+                navigationTaskId={this.navigationTaskId}
+                fetchInterval={2000}
+                displayMap={this.displayMap}
+                displayTable={true}
+                contestantIds={this.contestantIds}
+            />
+        } else {
+            TrackerDisplay = <NavigationTask
+                map={this.map}
+                contestId={this.contestId}
+                navigationTaskId={this.navigationTaskId}
+                fetchInterval={2000}
+                displayMap={this.displayMap}
+                displayTable={true}
+                contestantIds={this.contestantIds}
+            />
+        }
         const currentParticipation = this.getCurrentParticipation()
         if (this.displayTable && this.displayMap) {
             return (
@@ -130,6 +149,8 @@ class ConnectedTrackingContainer extends Component {
                     <div id='main_div' className={"fill"}>
                         {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
                             numberOfContestants={Object.keys(this.props.contestants).length}/> : <div/>}
+                        {this.playback ? <div className={"playbackNotice"}>Playback data, not live</div> : null}
+                        {!this.props.webSocketOnline ? <div className={"offlineNotice"}>Off-Line, no data</div> : null}
                         <div className={"fill"}>
                             <div
                                 className={"outerBackdrop " + (this.props.displayExpandedTrackingTable ? "outerBackdropWide" : "outerBackdropNarrow scalable") + " " + (this.props.displayExpandedTrackingTable ? "outerBackdropFull" : "outerBackdropHalf")}>
@@ -178,6 +199,15 @@ class ConnectedTrackingContainer extends Component {
                                       onClick={() => this.props.toggleDisplayOpenAip()}/>
                             </div>
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
+                            <div className={"replayIcon"}>
+                                {!this.playback ? <a href={document.configuration.playbackLink}><Icon
+                                        path={mdiReplay} title={"Replay the navigation task after-the-fact"} size={2}
+                                        color={"#e01b1c"}/></a> :
+                                    <a href={document.configuration.liveMapLink}><Icon
+                                        path={mdiTimerPlayOutline} title={"Switch to live view"} size={2}
+                                        color={"#e01b1c"}/></a>
+                                }
+                            </div>
                             {document.configuration.canChangeNavigationTask ? <div className={"managementIcon"}>
                                 <a href={document.configuration.navigationTaskManagementLink}><Icon
                                     path={mdiAirplaneCog} title={"Manage task"} size={2} color={"#e01b1c"}/></a>

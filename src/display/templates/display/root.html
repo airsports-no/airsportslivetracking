@@ -10,9 +10,11 @@
             displayMap: {{ display_map }},
             displayTable: {{ display_table }},
             playback: {{ playback }},
-            resultsServiceLink: "/resultsservice/" + {{ contest_id }} + "/taskresults/",
+            resultsServiceLink: "/resultsservice/" + {{ contest_id }} +"/taskresults/",
             canChangeNavigationTask: {{ can_change_navigation_task }},
-            navigationTaskManagementLink: "{{ navigation_task_management_link }}"
+            navigationTaskManagementLink: "{{ navigation_task_management_link }}",
+            playbackLink: "{{ playback_link }}",
+            liveMapLink: "{{ live_map_link }}"
         }
     </script>
 {% endblock %}

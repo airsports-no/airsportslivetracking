@@ -293,6 +293,8 @@ def frontend_view_map(request, pk):
             if navigation_task.user_has_change_permissions(request.user)
             else "false",
             "navigation_task_management_link": reverse("navigationtask_detail", args=(navigation_task.pk,)),
+            "playback_link": reverse("frontend_playback_map", args=(navigation_task.pk,)),
+            "live_map_link": reverse("frontend_view_map", args=(navigation_task.pk,)),
         },
     )
 
@@ -322,6 +324,8 @@ def frontend_playback_map(request, pk):
             if navigation_task.user_has_change_permissions(request.user)
             else "false",
             "navigation_task_management_link": reverse("navigationtask_detail", args=(navigation_task.pk,)),
+            "playback_link": reverse("frontend_playback_map", args=(navigation_task.pk,)),
+            "live_map_link": reverse("frontend_view_map", args=(navigation_task.pk,)),
         },
     )
 

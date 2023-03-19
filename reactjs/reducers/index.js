@@ -34,7 +34,7 @@ import {
     TOGGLE_DANGER_LEVEL,
     GET_NAVIGATION_TASK_FAILED,
     FETCH_INITIAL_TRACKS_FAILED,
-    CURRENT_TIME, NEW_CONTESTANT, DELETE_CONTESTANT
+    CURRENT_TIME, NEW_CONTESTANT, DELETE_CONTESTANT, GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL, WEB_SOCKET_STATUS
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -90,7 +90,8 @@ const initialState = {
     displayProfilePictures: true,
     editableRoutes: {},
     fetchingEditableRoute: false,
-    initialTracks: {}
+    initialTracks: {},
+    webSocketOnline: true
 };
 
 function emptyContestantData() {
@@ -244,6 +245,32 @@ function rootReducer(state = initialState, action) {
             }
         }
     }
+    if (action.type === GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL) {
+        if (Object.keys(action.payload).length === 0) {
+            return {
+                ...state,
+                isFetchingContestantData: {
+                    ...state.isFetchingContestantData,
+                    [action.payload.contestant_id]: false
+                }
+            }
+        }
+        // Handle the case where we get contestant data for an unknown contestant
+        if (state.contestants[action.payload.contestant_id] === undefined) {
+            return state
+        }
+        return {
+            ...state,
+            isFetchingContestantData: {
+                ...state.isFetchingContestantData,
+                [action.payload.contestant_id]: false
+            },
+            initialLoadingContestantData: {
+                ...state.initialLoadingContestantData,
+                [action.payload.contestant_id]: false
+            }
+        }
+    }
     if (action.type === HIGHLIGHT_CONTESTANT_TABLE) {
         return Object.assign({}, state, {
             highlightContestantTable: state.highlightContestantTable.concat([action.contestantId])
@@ -327,6 +354,12 @@ function rootReducer(state = initialState, action) {
     if (action.type === TOGGLE_SECRET_GATES) {
         return Object.assign({}, state, {
             displaySecretGates: action.visible,
+        })
+    }
+
+    if (action.type === WEB_SOCKET_STATUS) {
+        return Object.assign({}, state, {
+            webSocketOnline: action.payload,
         })
     }
     if (action.type === TOGGLE_BACKGROUND_MAP) {

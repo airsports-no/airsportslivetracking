@@ -35,7 +35,7 @@ import {
     TOGGLE_DANGER_LEVEL,
     GET_NAVIGATION_TASK_FAILED,
     FETCH_INITIAL_TRACKS_FAILED,
-    CURRENT_TIME, NEW_CONTESTANT, DELETE_CONTESTANT
+    CURRENT_TIME, NEW_CONTESTANT, DELETE_CONTESTANT, GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL, WEB_SOCKET_STATUS
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -132,8 +132,16 @@ export const dispatchContestantData = (data) => (dispatch) => {
     dispatch({type: GET_CONTESTANT_DATA_SUCCESSFUL, payload: data})
 }
 
+export const dispatchPlaybackContestantData = (data) => (dispatch) => {
+    dispatch({type: GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL, payload: data})
+}
+
 export const dispatchCurrentTime = (data) => (dispatch) => {
     dispatch({type: CURRENT_TIME, payload: data})
+}
+
+export const dispatchWebSocketConnected = (data) => (dispatch) => {
+    dispatch({type: WEB_SOCKET_STATUS, payload: data})
 }
 export const dispatchNewContestant = (data) => (dispatch) => {
     dispatch({type: NEW_CONTESTANT, payload: data})

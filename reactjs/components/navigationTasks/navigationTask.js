@@ -5,7 +5,12 @@ import {
     fetchInitialTracks,
     setDisplay,
     shrinkTrackingTable,
-    hideLowerThirds, dispatchContestantData, dispatchCurrentTime, dispatchNewContestant, dispatchDeleteContestant
+    hideLowerThirds,
+    dispatchContestantData,
+    dispatchCurrentTime,
+    dispatchNewContestant,
+    dispatchDeleteContestant,
+    dispatchWebSocketConnected
 } from "../../actions";
 import {connect} from "react-redux";
 import ContestantTrack from "./contestantTrack";
@@ -44,24 +49,35 @@ export const mapDispatchToProps = {
     expandTrackingTable,
     shrinkTrackingTable,
     hideLowerThirds,
-    fetchInitialTracks
+    fetchInitialTracks,
+    dispatchWebSocketConnected
 }
 
-class ConnectedNavigationTask extends Component {
+export class ConnectedNavigationTask extends Component {
     constructor(props) {
         super(props);
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
         this.handleMapTurningPointClick = this.handleMapTurningPointClick.bind(this)
         this.rendered = false
         this.client = null;
+        this.offline = true
         this.connectInterval = null;
         this.timeout = 1000
         this.tracklist = []
-        this.playbackSecond = -90
         this.waitingInitialLoading = {}
         this.remainingTracks = 999999
         this.renderedTracks = []
+        this.lastTimeReceived = null
+        this.checkReceivedTimeInterval = null
         this.colours = distinctColors({count: 25})
+    }
+
+
+    checkReceivedTime() {
+        if (this.lastTimeReceived) {
+            this.offline = new Date().getTime() - this.lastTimeReceived > 20 * 1000;
+            this.props.dispatchWebSocketConnected(!this.offline)
+        }
     }
 
 
@@ -69,73 +85,14 @@ class ConnectedNavigationTask extends Component {
         if (!this.client || this.client.readyState === WebSocket.CLOSED) this.initiateSession(); //check if websocket instance is closed, if so call `connect` function.
     };
 
-    storePlaybackData(data) {
-        data.lastAnnotationLength = 0
-        data.lastScoreLength = 0
-        data.startTime = new Date(this.props.contestants[data.contestant_id].gate_times[this.props.navigationTask.route.waypoints[0].name])
-        this.tracklist.push(data)
-    }
-
     cacheDataWhileLoading(contestantId, data) {
         if (this.waitingInitialLoading[contestantId] !== undefined) {
             this.waitingInitialLoading[contestantId].push(data)
         }
     }
 
-    playBackData() {
-        for (const track of this.tracklist) {
-            if (track.positions.length > 0) {
-                let positions = []
-                while (track.positions.length > 0) {
-                    const p = track.positions[0]
-                    const currentTime = new Date(p.time)
-                    if (currentTime.getTime() > track.startTime.getTime() + this.playbackSecond * 1000) {
-                        break
-                    }
-                    positions.push(p)
-                    track.positions.shift()
-                }
-                if (positions.length > 0) {
-                    const position = positions[positions.length - 1]
-                    const annotations = track.annotations.filter((annotation) => {
-                        return (new Date(annotation.time)).getTime() < (new Date(position.time)).getTime()
-                    })
-                    const scoreLog = track.score_log_entries.filter((log) => {
-                        return (new Date(log.time)).getTime() < (new Date(position.time)).getTime()
-                    })
-                    let score = 0
-                    scoreLog.map((log) => {
-                        score += log.points
-                    })
-                    const lastGate = scoreLog.length > 0 ? scoreLog.slice(-1)[0].last_gate : ""
-                    const data = {
-                        positions: positions,
-                        more_data: false,
-                        contestant_id: track.contestant_track.contestant,
-                        annotations: annotations.length > track.lastAnnotationLength ? annotations : null,
-                        latest_time: position.time,
-                        progress: position.progress,
-                        score_log_entries: scoreLog.length > track.lastScoreLength ? scoreLog : null,
-                        contestant_track: {
-                            score: score,
-                            calculator_finished: false,
-                            current_state: scoreLog.length === 0 ? "Waiting..." : "Tracking",
-                            last_gate: lastGate,
-                            current_leg: lastGate,
-                            contestant: track.contestant_track.contestant
-                        }
-                    }
-                    track.lastAnnotationLength = annotations.length
-                    track.lastScoreLength = scoreLog.length
-                    this.props.dispatchContestantData(data)
-                }
-            }
-        }
-        this.playbackSecond += Math.max(1, this.tracklist.length / 3)
-        setTimeout(() => this.playBackData(), 300)
-    }
-
     initiateSession() {
+        clearInterval(this.checkReceivedTimeInterval)
         let getUrl = window.location;
         let protocol = "wss"
         if (getUrl.host.includes("localhost")) {
@@ -143,6 +100,9 @@ class ConnectedNavigationTask extends Component {
         }
         this.client = new W3CWebSocket(protocol + "://" + getUrl.host + "/ws/tracks/" + this.props.navigationTaskId + "/")
         this.client.onopen = () => {
+            this.offline = false
+            this.props.dispatchWebSocketConnected(true)
+            this.checkReceivedTimeInterval = setInterval(() => this.checkReceivedTime(), 5000)
             console.log("Client connected")
             clearTimeout(this.connectInterval)
         };
@@ -150,6 +110,7 @@ class ConnectedNavigationTask extends Component {
             let data = JSON.parse(message.data);
             if (data.type === "current_time") {
                 this.props.dispatchCurrentTime(data.data)
+                this.lastTimeReceived = new Date()
             } else if (data.type === "contestant" && this.props.contestantIds.length === 0) {
                 // Do not add new contestants if we are filtering contestant IDs
                 this.props.dispatchNewContestant(JSON.parse(data.data))
@@ -172,6 +133,8 @@ class ConnectedNavigationTask extends Component {
                 )} second.`,
                 e.reason
             );
+            this.offline = true
+            this.props.dispatchWebSocketConnected(false)
 
             this.timeout = this.timeout + this.timeout; //increment retry interval
             this.connectInterval = setTimeout(() => this.check(), Math.min(10000, this.timeout)); //call check function after timeout
@@ -182,7 +145,9 @@ class ConnectedNavigationTask extends Component {
                 err.message,
                 "Closing socket"
             );
+            this.offline = true
             this.client.close();
+            this.props.dispatchWebSocketConnected(false)
         };
     }
 
@@ -207,9 +172,6 @@ class ConnectedNavigationTask extends Component {
         if (this.props.displayMap) {
             this.initialiseMap();
         }
-        if (this.props.playback) {
-            require('./playbackstyle.css')
-        }
     }
 
     getColour(contestantNumber) {
@@ -229,33 +191,20 @@ class ConnectedNavigationTask extends Component {
                 this.initiateSession()
             }
         }
-        if (this.props.playback) {
-            if (this.props.initialTracks !== previousProps.initialTracks) {
-                Object.keys(this.props.initialTracks).forEach((key, index) => {
-                    if (!this.renderedTracks.includes(key)) {
-                        this.renderedTracks.push(key)
-                        this.storePlaybackData(this.props.initialTracks[key])
-                        this.remainingTracks--
-                    }
-                })
-            }
-            if (this.remainingTracks === 0) {
-                this.remainingTracks = 9999
-                setTimeout(() => this.playBackData(), 1000)
-            }
-        } else {
-            if (this.props.initialTracks !== previousProps.initialTracks) {
-                for (const [key, value] of Object.entries(this.props.initialTracks)) {
-                    if (!this.renderedTracks.includes(key)) {
-                        this.renderedTracks.push(key)
-                        console.log(value)
-                        this.props.dispatchContestantData(value)
-                        if (this.waitingInitialLoading[key] !== undefined) {
-                            delete this.waitingInitialLoading[key]
-                        }
+        if (this.props.initialTracks !== previousProps.initialTracks) {
+            for (const [key, value] of Object.entries(this.props.initialTracks)) {
+                if (!this.renderedTracks.includes(key)) {
+                    this.renderedTracks.push(key)
+                    console.log(value)
+                    this.props.dispatchContestantData(value)
+                    if (this.waitingInitialLoading[key] !== undefined) {
+                        delete this.waitingInitialLoading[key]
                     }
                 }
             }
+        }
+        if (this.remainingTracks === 0) {
+            this.remainingTracks = 9999
         }
         if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map || this.props.displayBackgroundMap !== previousProps.displayBackgroundMap) {
             this.fixMapBackground()
