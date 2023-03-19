@@ -89,7 +89,7 @@ class PenaltyZoneCalculator(Calculator):
                     start_time, position.time
                 )
                 self.existing_reference[zone] = self.update_score(
-                    last_gate or self.gates[0],
+                    self.get_last_non_secret_gate(last_gate or self.gates[0]),
                     self.running_penalty[zone],
                     "inside penalty zone {}".format(zone),
                     position.latitude,
@@ -101,7 +101,7 @@ class PenaltyZoneCalculator(Calculator):
                 # Clear information about being inside the zone
                 del self.entered_polygon_times[zone]
                 self.update_score(
-                    last_gate or self.gates[0],
+                    self.get_last_non_secret_gate(last_gate or self.gates[0]),
                     0,
                     "exited penalty zone {}".format(zone),
                     position.latitude,
@@ -116,7 +116,7 @@ class PenaltyZoneCalculator(Calculator):
                     start_time, position.time
                 )
                 self.existing_reference[zone] = self.update_score(
-                    last_gate or self.gates[0],
+                    self.get_last_non_secret_gate(last_gate or self.gates[0]),
                     self.running_penalty[zone],
                     "inside penalty zone {}".format(zone),
                     position.latitude,

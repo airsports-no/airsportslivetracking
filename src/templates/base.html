@@ -65,9 +65,6 @@
 
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav mr-auto">
-                    {#                    <li class="nav-item">#}
-                    {#                        <a class="nav-link" href="{% url 'global_map' %}">Global map</a>#}
-                    {#                    </li>#}
                     {% if perms.display.add_contest %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="dropdown01"
@@ -97,34 +94,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/participation/">Participation</a>
                     </li>
-                    {#                <li class="nav-item active">#}
-                    {#                    <a class="nav-link" href="/">Contests <span class="sr-only">(current)</span></a>#}
-                    {#                </li>#}
-                    {% if perms.display.add_contest %}
-                        {#                        <li class="nav-item">#}
-                        {#                            <a class="nav-link" href="{% url 'import_route' %}">Import route</a>#}
-                        {#                        </li>#}
-                    {% endif %}
-                    {#                <li class="nav-item dropdown">#}
-                    {#                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"#}
-                    {#                       data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"insert>#}
-                    {#                        Dropdown#}
-                    {#                    </a>#}
-                    {#                    <div class="dropdown-menu" aria-labelledby="navbarDropdown">#}
-                    {#                        <a class="dropdown-item" href="#">Action</a>#}
-                    {#                        <a class="dropdown-item" href="#">Another action</a>#}
-                    {#                        <div class="dropdown-divider"></div>#}
-                    {#                        <a class="dropdown-item" href="#">Something else here</a>#}
-                    {#                    </div>#}
-                    {#                </li>#}
-                    {#                <li class="nav-item">#}
-                    {#                    <a class="nav-link disabled" href="#">Disabled</a>#}
-                    {#                </li>#}
                 </ul>
-                {#            <form class="form-inline my-2 my-lg-0">#}
-                {#                <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">#}
-                {#                <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>#}
-                {#            </form>#}
                 <ul class="navbar-nav ml-auto">
 
                     {% if not user.is_authenticated %}
@@ -152,29 +122,6 @@
         </nav>
     {% endif %}
 </header>
-{#<script>#}
-{#    if (typeof Object.assign != 'function') {#}
-{#        Object.assign = function (target) {#}
-{#            'use strict';#}
-{#            if (target == null) {#}
-{#                throw new TypeError('Cannot convert undefined or null to object');#}
-{#            }#}
-{##}
-{#            target = Object(target);#}
-{#            for (var index = 1; index < arguments.length; index++) {#}
-{#                var source = arguments[index];#}
-{#                if (source != null) {#}
-{#                    for (var key in source) {#}
-{#                        if (Object.prototype.hasOwnProperty.call(source, key)) {#}
-{#                            target[key] = source[key];#}
-{#                        }#}
-{#                    }#}
-{#                }#}
-{#            }#}
-{#            return target;#}
-{#        };#}
-{#    }#}
-{#</script>#}
 <main role="main">
     <div class="container-fluid">
         {% block contentfluid %}
