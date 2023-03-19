@@ -112,9 +112,9 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 50.0 points outside corridor (40 s) (capped)",
             "SP: 0 points entering corridor",
             "TP 1: 0 points passing gate (no time check) (-407 s)\nplanned: 20:39:00\nactual: 20:32:13",
-            "TP 1: 50.0 points outside corridor (115 s) (capped)",
-            "TP 1: 200.0 points backtracking",
-            "TP 1: 0 points entering corridor",
+            "SP: 50.0 points outside corridor (115 s) (capped)",
+            "SP: 200.0 points backtracking",
+            "SP: 0 points entering corridor",
             # 'Waypoint 1: 0 points outside corridor (157 s) (capped)',
             # 'Waypoint 2: 50.0 points outside corridor (-1 s) (capped)',
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
@@ -152,9 +152,9 @@ class TestANRPerLeg(TransactionTestCase):
         pprint(fixed_strings)
         self.assertListEqual(
             [
-                "TP 1: 200.0 points backtracking",
-                "TP 2: 50.0 points outside corridor (0 s) (capped)",
-                "TP 3: 50.0 points outside corridor (0 s) (capped)",
+                "SP: 200.0 points backtracking",
+                "SP: 50.0 points outside corridor (0 s) (capped)",
+                "SP: 50.0 points outside corridor (0 s) (capped)",
                 "FP: 200.0 points missing gate",
                 "Landing 1: 0.0 points missing landing gate",
             ],
@@ -435,7 +435,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.update_score.assert_has_calls(
             [
                 call(
-                    gate,
+                    self.calculator.route.waypoints[0],
                     0,
                     "outside corridor (0 s)",
                     60.5,
@@ -446,7 +446,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
                     existing_reference=None,
                 ),
                 call(
-                    gate,
+                    self.calculator.route.waypoints[0],
                     0,
                     "outside corridor (2 s)",
                     60.5,
@@ -457,7 +457,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
                     existing_reference=er,
                 ),
                 call(
-                    gate,
+                    self.calculator.route.waypoints[0],
                     0,
                     "entering corridor",
                     60,
@@ -494,7 +494,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.update_score.assert_has_calls(
             [
                 call(
-                    gate,
+                    self.calculator.route.waypoints[0],
                     45.0,
                     "outside corridor (20 s)",
                     60.5,
@@ -528,7 +528,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.passed_finishpoint([position3], gate)
 
         self.update_score.assert_called_with(
-            gate,
+            self.calculator.route.waypoints[0],
             48.0,
             "outside corridor (21 s)",
             60.5,

@@ -42,7 +42,10 @@ class Calculator:
             if started and gate.type != SECRETPOINT:
                 return gate
         # Assume that the first gate is never secret.
-        return self.gates[0]
+        try:
+            return self.gates[0]
+        except IndexError:
+            return last_gate
 
     @abstractmethod
     def calculate_enroute(

@@ -174,7 +174,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     logger.info(f"Bearings: {bearings}")
                     logger.info(f"Bearing differences: {bearing_differences}")
                     logger.info(f"Accumulated bearing differences: {accumulated_differences}")
-                    self.update_score(last_gate or self.gates[0],
+                    self.update_score(self.get_last_non_secret_gate(last_gate or self.gates[0]),
                                       self.scorecard.backtracking_penalty,
                                       "circling start",
                                       next_position.latitude, next_position.longitude, "anomaly",
@@ -191,7 +191,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         if self.circling:
             self.earliest_circle_check = now
             self.previous_gate_bearing = None
-            self.update_score(last_gate or self.gates[0],
+            self.update_score(self.get_last_non_secret_gate(last_gate or self.gates[0]),
                               0,
                               "circling finished",
                               current_position.latitude, current_position.longitude, "information",
@@ -333,7 +333,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     if (
                             last_position.time - self.backtracking_start_time).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
-                        self.update_score(last_gate,
+                        self.update_score(self.get_last_non_secret_gate(last_gate),
                                           self.scorecard.backtracking_penalty,
                                           "backtracking",
                                           last_position.latitude, last_position.longitude, "anomaly",
