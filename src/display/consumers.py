@@ -49,9 +49,9 @@ class TrackingConsumer(WebsocketConsumer):
             return
         self.accept()
         ws = WebsocketFacade()
-        # for contestant in self.navigation_task.contestant_set.all():
-        # ws.transmit_contestant(contestant)
-        # ws.transmit_initial_load(contestant)
+        for contestant in self.navigation_task.contestant_set.all():
+            # ws.transmit_contestant(contestant)
+            ws.transmit_initial_load(contestant)
         self.transmit_current_time()
 
     def transmit_current_time(self):

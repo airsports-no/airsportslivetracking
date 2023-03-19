@@ -21,8 +21,12 @@ from display.serialisers import (
     TrackAnnotationSerialiser,
     ScoreLogEntrySerialiser,
     GateCumulativeScoreSerialiser,
-    PlayingCardSerialiser, PositionSerialiser, GateScoreIfCrossedNowSerialiser, DangerLevelSerialiser,
-    ContestantSerialiser, ContestantNestedTeamSerialiser,
+    PlayingCardSerialiser,
+    PositionSerialiser,
+    GateScoreIfCrossedNowSerialiser,
+    DangerLevelSerialiser,
+    ContestantSerialiser,
+    ContestantNestedTeamSerialiser,
 )
 from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 
@@ -43,17 +47,17 @@ class DateTimeEncoder(json.JSONEncoder):
 
 
 def generate_contestant_data_block(
-        contestant: "Contestant",
-        positions: List = None,
-        annotations: List = None,
-        log_entries: List = None,
-        latest_time: datetime.datetime = None,
-        gate_scores: List = None,
-        playing_cards: List = None,
-        include_contestant_track: bool = False,
-        gate_times: Dict = None,
-        gate_distance_and_estimate: Dict = None,
-        danger_level: Dict = None
+    contestant: "Contestant",
+    positions: List = None,
+    annotations: List = None,
+    log_entries: List = None,
+    latest_time: datetime.datetime = None,
+    gate_scores: List = None,
+    playing_cards: List = None,
+    include_contestant_track: bool = False,
+    gate_times: Dict = None,
+    gate_distance_and_estimate: Dict = None,
+    danger_level: Dict = None,
 ):
     if not hasattr(contestant, "contestanttrack"):
         include_contestant_track = False
@@ -61,9 +65,7 @@ def generate_contestant_data_block(
     if include_contestant_track:
         contestant_track = contestant.contestanttrack
         contestant_track.refresh_from_db()
-    data = {
-        "contestant_id": contestant.id
-    }
+    data = {"contestant_id": contestant.id}
     if positions is not None:
         data["positions"] = positions
     if annotations is not None:
@@ -93,21 +95,34 @@ class WebsocketFacade:
         self.redis = StrictRedis(REDIS_HOST, REDIS_PORT, password=REDIS_PASSWORD)
 
     def transmit_initial_load(self, contestant: "Contestant"):
-        from display.views import cached_generate_data
+        """Transmitted whenever a web socket connects. Primarily used to fill missing track after network outage"""
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        channel_data = cached_generate_data(contestant.pk)
-        async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "initial_load", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
-        )
+        positions = contestant.get_track() if contestant.contestanttrack.calculator_started else []
+        if len(positions) > 0:
+            position_data = PositionSerialiser(positions, many=True).data
+            channel_data = generate_contestant_data_block(
+                contestant,
+                positions=position_data,
+                latest_time=positions[-1].time,
+            )
+            async_to_sync(self.channel_layer.group_send)(
+                group_key,
+                {
+                    "type": "tracking.data",
+                    "data": {"type": "position_data", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+                },
+            )
 
     def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         annotation_data = TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data
         channel_data = generate_contestant_data_block(contestant, annotations=annotation_data)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "annotations", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "annotations", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
     def transmit_score_log_entry(self, contestant: "Contestant"):
@@ -117,8 +132,11 @@ class WebsocketFacade:
         log_entries = ScoreLogEntrySerialiser(contestant.scorelogentry_set.filter(type=ANOMALY), many=True).data
         channel_data = generate_contestant_data_block(contestant, log_entries=log_entries)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "score_log", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "score_log", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
     def transmit_gate_score_entry(self, contestant: "Contestant"):
@@ -126,8 +144,11 @@ class WebsocketFacade:
         gate_scores = GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data
         channel_data = generate_contestant_data_block(contestant, gate_scores=gate_scores)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "gate_score", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "gate_score", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
     def transmit_playing_cards(self, contestant: "Contestant"):
@@ -135,32 +156,44 @@ class WebsocketFacade:
         playing_cards = PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data
         channel_data = generate_contestant_data_block(contestant, playing_cards=playing_cards)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "playing_cards", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "playing_cards", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
     def transmit_basic_information(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         channel_data = generate_contestant_data_block(contestant, include_contestant_track=True)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "basic_information", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "basic_information", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
     def transmit_contestant(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         channel_data = ContestantNestedTeamSerialiser(instance=contestant).data
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "contestant", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "contestant", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
     def transmit_delete_contestant(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         channel_data = {"contestant_id": contestant.pk}
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "contestant_delete", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "contestant_delete", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
     def transmit_navigation_task_position_data(self, contestant: "Contestant", positions: List["Position"]):
@@ -177,44 +210,70 @@ class WebsocketFacade:
         #     logger.debug(f"Transmitting position ID {position.position_id} for device ID {position.device_id}")
 
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "position_data", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "position_data", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
-    def transmit_seconds_to_crossing_time_and_crossing_estimate(self, contestant: "Contestant",
-                                                                waypoint_name: str, seconds_to_planned_crossing: float,
-                                                                crossing_offset_estimate: float,
-                                                                score: float,
-                                                                final: bool, missed: bool):
-        channel_data = generate_contestant_data_block(contestant,
-                                                      gate_distance_and_estimate=GateScoreIfCrossedNowSerialiser(
-                                                          {"seconds_to_planned_crossing": seconds_to_planned_crossing,
-                                                           "estimated_crossing_offset": crossing_offset_estimate,
-                                                           "estimated_score": score,
-                                                           "final": final, "missed": missed,
-                                                           "waypoint_name": waypoint_name}).data)
+    def transmit_seconds_to_crossing_time_and_crossing_estimate(
+        self,
+        contestant: "Contestant",
+        waypoint_name: str,
+        seconds_to_planned_crossing: float,
+        crossing_offset_estimate: float,
+        score: float,
+        final: bool,
+        missed: bool,
+    ):
+        channel_data = generate_contestant_data_block(
+            contestant,
+            gate_distance_and_estimate=GateScoreIfCrossedNowSerialiser(
+                {
+                    "seconds_to_planned_crossing": seconds_to_planned_crossing,
+                    "estimated_crossing_offset": crossing_offset_estimate,
+                    "estimated_score": score,
+                    "final": final,
+                    "missed": missed,
+                    "waypoint_name": waypoint_name,
+                }
+            ).data,
+        )
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "crossing_time", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "crossing_time", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
-    def transmit_danger_estimate_and_accumulated_penalty(self, contestant: "Contestant", danger_level: float,
-                                                         accumulated_score: 0):
-        channel_data = generate_contestant_data_block(contestant,
-                                                      danger_level=DangerLevelSerialiser(
-                                                          {"danger_level": danger_level,
-                                                           "accumulated_score": accumulated_score}).data)
+    def transmit_danger_estimate_and_accumulated_penalty(
+        self, contestant: "Contestant", danger_level: float, accumulated_score: 0
+    ):
+        channel_data = generate_contestant_data_block(
+            contestant,
+            danger_level=DangerLevelSerialiser(
+                {"danger_level": danger_level, "accumulated_score": accumulated_score}
+            ).data,
+        )
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         async_to_sync(self.channel_layer.group_send)(
-            group_key, {"type": "tracking.data",
-                        "data": {"type": "danger_level", "data": json.dumps(channel_data, cls=DateTimeEncoder)}}
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "danger_level", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
         )
 
-    def transmit_airsports_position_data(self, global_tracking_name: str,
-                                         position_data: Dict,
-                                         device_time: datetime.datetime,
-                                         navigation_task_id: Optional[int], ):
+    def transmit_airsports_position_data(
+        self,
+        global_tracking_name: str,
+        position_data: Dict,
+        device_time: datetime.datetime,
+        navigation_task_id: Optional[int],
+    ):
         data = {
             "name": global_tracking_name,
             "time": device_time,
@@ -234,12 +293,12 @@ class WebsocketFacade:
         async_to_sync(self.channel_layer.group_send)("tracking_airsports", container)
 
     def transmit_global_position_data(
-            self,
-            global_tracking_name: str,
-            person: Optional[Dict],
-            position_data: Dict,
-            device_time: datetime.datetime,
-            navigation_task_id: Optional[int],
+        self,
+        global_tracking_name: str,
+        person: Optional[Dict],
+        position_data: Dict,
+        device_time: datetime.datetime,
+        navigation_task_id: Optional[int],
     ):
         data = {
             "name": global_tracking_name,
@@ -273,19 +332,19 @@ class WebsocketFacade:
         async_to_sync(self.channel_layer.group_send)("tracking_global", container)
 
     async def transmit_external_global_position_data(
-            self,
-            device_id: str,
-            name: str,
-            time_stamp: datetime,
-            latitude,
-            longitude,
-            altitude,
-            baro_altitude,
-            speed,
-            course,
-            traffic_source: str,
-            raw_data: Optional[Dict] = None,
-            aircraft_type: int = 9,
+        self,
+        device_id: str,
+        name: str,
+        time_stamp: datetime,
+        latitude,
+        longitude,
+        altitude,
+        baro_altitude,
+        speed,
+        course,
+        traffic_source: str,
+        raw_data: Optional[Dict] = None,
+        aircraft_type: int = 9,
     ):
         data = {
             "name": name,
