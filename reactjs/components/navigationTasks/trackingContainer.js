@@ -200,10 +200,11 @@ class ConnectedTrackingContainer extends Component {
                             </div>
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             <div className={"replayIcon"}>
-                                {!this.playback ? <a href={document.configuration.playbackLink}><Icon
+                                {!this.playback ?
+                                    <a href={document.configuration.playbackLink+(this.contestantIds.length > 0? "?contestantIds=" + this.contestantIds.join(",") : "")}><Icon
                                         path={mdiReplay} title={"Replay the navigation task after-the-fact"} size={2}
                                         color={"#e01b1c"}/></a> :
-                                    <a href={document.configuration.liveMapLink}><Icon
+                                    <a href={document.configuration.liveMapLink+(this.contestantIds.length > 0 ? "?contestantIds=" + this.contestantIds.join(",") : "")}><Icon
                                         path={mdiTimerPlayOutline} title={"Switch to live view"} size={2}
                                         color={"#e01b1c"}/></a>
                                 }
