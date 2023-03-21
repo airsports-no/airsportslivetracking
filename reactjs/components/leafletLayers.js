@@ -1,6 +1,6 @@
 const L = window['L']
 export const OpenAIP = L.tileLayer('https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.{ext}?apiKey={apiKey}', {
-    attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
+    attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a> Not for navigational use! (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-NC-SA</a>)',
     ext: 'png',
     minZoom: 4,
     maxZoom: 14,

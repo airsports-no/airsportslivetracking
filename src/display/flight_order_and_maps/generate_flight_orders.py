@@ -1,7 +1,10 @@
+import logging
+import os.path
 import random
 import urllib
 import urllib.request
 from io import BytesIO
+from subprocess import CalledProcessError
 from tempfile import NamedTemporaryFile
 from typing import List, Literal
 import matplotlib.pyplot as plt
@@ -45,7 +48,10 @@ from pylatex import (
     NewPage,
     Label,
     Marker,
+    MediumText,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MyFPDF(FPDF, HTMLMixin):
@@ -130,6 +136,7 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: 
     image_data = BytesIO()
     cropped.save(image_data, "PNG")
     image_data.seek(0)
+    plt.close()
     return image_data
 
 
@@ -252,6 +259,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
             "a4paper,head=40pt,left=10mm,right=10mm,top=10mm,bottom=15mm",
         )
     )
+    document.preamble.append(Command("usepackage", "graphicx"))
     document.preamble.append(Command("usepackage", "caption"))
     document.preamble.append(Command("usepackage", "xassoccnt"))
     document.preamble.append(Command("usepackage", "zref", "abspage,user,lastpage"))
@@ -304,55 +312,66 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
             with document.create(Center()):
                 document.append(LargeText("Welcome to"))
                 document.append(LineBreak())
+                document.append(LineBreak())
                 document.append(HugeText(f"{contestant.navigation_task.contest.name}"))
                 document.append(LineBreak())
+                document.append(LineBreak())
                 document.append(TextColor("red", LargeText(f"{contestant.navigation_task.name}")))
-    document.append(LineBreak())
-    with document.create(MiniPage()):
-        document.append(VerticalSpace("50pt"))
-        with document.create(WrapFigure("r", "150pt")):
-            document.append(StandAloneGraphic(image_options=r"width=\linewidth", filename=qr_file.name))
-            document.append(
-                Command(
-                    "caption*",
-                    NoEscape(fr"\protect\href{{{url}}}{{Share on Facebook}}"),
-                )
-            )
-        with document.create(Section("", numbering=False)):
-            with document.create(Tabu("ll")) as data_table:
-                data_table.add_row("Contestant:", str(contestant))
-                data_table.add_row(
-                    "Task type:",
-                    f"{contestant.navigation_task.scorecard.get_calculator_display()}",
-                )
-                data_table.add_row(
-                    "Competition date:",
-                    f'{contestant.starting_point_time_local.strftime("%Y-%m-%d")}',
-                )
-                data_table.add_row("Airspeed:", f'{"{:.0f}".format(contestant.air_speed)} knots')
-                data_table.add_row(
-                    "Tasks wind:",
-                    f'{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}',
-                )
-                data_table.add_row(
-                    "Departure:",
-                    f"{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}",
-                )
-                data_table.add_row("Start point:", f"{starting_point_text}")
-                data_table.add_row("Finish by:", f"{finish_tracking_time} (tracking will stop)")
+    document.append(VerticalSpace("10pt"))
+    with document.create(Section("", numbering=False)):
+        with document.create(MiniPage()):
+            with document.create(MiniPage(width=NoEscape(r"0.65\textwidth"))):
+                with document.create(Section("", numbering=False)):
+                    with document.create(Tabu("ll", row_height=1.2, booktabs=True)) as data_table:
+                        document.append(Command("fontsize", "14pt", extra_arguments="16pt"))
+                        document.append(Command("selectfont"))
+                        data_table.add_row(bold("Contestant:"), MediumText(str(contestant)))
+                        data_table.add_row(
+                            bold("Task type:"),
+                            f"{contestant.navigation_task.scorecard.get_calculator_display()}",
+                        )
+                        data_table.add_row(
+                            bold("Competition date:"),
+                            f'{contestant.starting_point_time_local.strftime("%Y-%m-%d")}',
+                        )
+                        data_table.add_row(bold("Airspeed:"), f'{"{:.0f}".format(contestant.air_speed)} knots')
+                        data_table.add_row(
+                            bold("Tasks wind:"),
+                            f'{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}',
+                        )
+                        data_table.add_row(
+                            bold("Departure:"),
+                            f"{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}",
+                        )
+                        data_table.add_row(bold("Start point:"), f"{starting_point_text}")
+                        data_table.add_row(bold("Finish by:"), f"{finish_tracking_time} (tracking will stop)")
+                if contestant.adaptive_start:
+                    with document.create(Section("", numbering=False)):
+                        document.append(
+                            f"Using adaptive start, your start time will be set to the nearest whole minute you cross the infinite "
+                            f"line going through the starting gate anywhere between one hour before and one hour after the selected "
+                            f"starting point time."
+                        )
+                        document.append(LineBreak())
+                        document.append("https://home.airsports.no/faq/#adaptiv-start")
 
-            document.append(
-                f"Using adaptive start, your start time will be set to the nearest whole minute you cross the infinite line going through the starting gate anywhere between one hour before and one hour after the selected starting point time (https://home.airsports.no/faq/#adaptiv-start)."
-                if contestant.adaptive_start
-                else ""
-            )
-    document.append(VerticalSpace("50pt"))
+            document.append(Command(r"hfill"))
+            with document.create(MiniPage(width=NoEscape(r"0.3\textwidth"))):
+                document.append(StandAloneGraphic(image_options=r"width=\linewidth", filename=qr_file.name))
+                document.append(
+                    Command(
+                        "captionof*",
+                        "figure",
+                        extra_arguments=NoEscape(fr"\protect\href{{{url}}}{{Share on Facebook}}"),
+                    )
+                )
+
     with document.create(Section("Rules", numbering=False)):
         document.append(contestant.get_formatted_rules_description().replace("\n", ""))
-    document.append(VerticalSpace("30pt"))
+    document.append(VerticalSpace("25pt"))
     with document.create(Center()):
         document.append(HugeText(bold("Good luck")))
-    document.append(VerticalSpace("30pt"))
+    document.append(VerticalSpace("20pt"))
     waypoints = list(
         filter(
             lambda waypoint: waypoint.type != "dummy",
@@ -487,7 +506,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.generate_tex(pdf_file.name)
     with open(pdf_file.name + ".tex", "r") as f:
         print(f.read())
-    document.generate_pdf(pdf_file.name, clean=True, compiler_args=["-f"])
+    try:
+        document.generate_pdf(pdf_file.name, clean=True, compiler_args=["-f"])
+    except CalledProcessError:
+        file_exists = os.path.isfile(pdf_file.name + ".pdf")
+        logger.exception(f"Something failed when generating flight order PDF. Output file exists: {file_exists}")
     with open(pdf_file.name + ".pdf", "rb") as f:
         return f.read()
 
