@@ -229,6 +229,31 @@ class Route(models.Model):
             landing_gates=self.landing_gates,
         )
 
+    def get_extent(self) -> Tuple[float, float, float, float]:
+        """
+        Returns the  minimum and maximum latitudes and longitudes for all features in the route.
+
+        (minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude)
+        """
+        latitudes = []
+        longitudes = []
+        for waypoint in self.waypoints:  # type: Waypoint
+            latitudes.append(waypoint.latitude)
+            longitudes.append(waypoint.longitude)
+            latitudes.append(waypoint.gate_line[0][0])
+            latitudes.append(waypoint.gate_line[1][0])
+            longitudes.append(waypoint.gate_line[0][1])
+            longitudes.append(waypoint.gate_line[1][1])
+            if waypoint.left_corridor_line is not None:
+                latitudes.extend([item[0] for item in waypoint.left_corridor_line])
+                longitudes.extend([item[1] for item in waypoint.left_corridor_line])
+                latitudes.extend([item[0] for item in waypoint.right_corridor_line])
+                longitudes.extend([item[1] for item in waypoint.right_corridor_line])
+        for prohibited in self.prohibited_set.all():
+            latitudes.extend([item[0] for item in prohibited.path])
+            longitudes.extend([item[1] for item in prohibited.path])
+        return min(latitudes), max(latitudes), min(longitudes), max(longitudes)
+
     @property
     def first_takeoff_gate(self) -> Optional[Waypoint]:
         try:
@@ -292,7 +317,7 @@ class Route(models.Model):
 class Prohibited(models.Model):
     name = models.CharField(max_length=200)
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
-    path = MyPickledObjectField(default=list)
+    path = MyPickledObjectField(default=list)  # List of (lat, lon)
     type = models.CharField(max_length=100, blank=True, default="")
     tooltip_position = models.JSONField(null=True, blank=True)
 

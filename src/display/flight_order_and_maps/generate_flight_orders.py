@@ -320,9 +320,9 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.append(VerticalSpace("10pt"))
     with document.create(Section("", numbering=False)):
         with document.create(MiniPage()):
-            with document.create(MiniPage(width=NoEscape(r"0.65\textwidth"))):
+            with document.create(MiniPage(width=NoEscape(r"0.7\textwidth"))):
                 with document.create(Section("", numbering=False)):
-                    with document.create(Tabu("ll", row_height=1.2, booktabs=True)) as data_table:
+                    with document.create(Tabu("ll", row_height=1.2, booktabs=False)) as data_table:
                         document.append(Command("fontsize", "14pt", extra_arguments="16pt"))
                         document.append(Command("selectfont"))
                         data_table.add_row(bold("Contestant:"), MediumText(str(contestant)))
@@ -356,8 +356,8 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         document.append("https://home.airsports.no/faq/#adaptiv-start")
 
             document.append(Command(r"hfill"))
-            with document.create(MiniPage(width=NoEscape(r"0.3\textwidth"))):
-                document.append(StandAloneGraphic(image_options=r"width=\linewidth", filename=qr_file.name))
+            with document.create(MiniPage(width=NoEscape(r"0.25\textwidth"))):
+                document.append(StandAloneGraphic(image_options=r"width=0.8\linewidth", filename=qr_file.name))
                 document.append(
                     Command(
                         "captionof*",

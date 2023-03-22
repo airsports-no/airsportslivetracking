@@ -14,7 +14,7 @@ class Waypoint:
         self.latitude = 0  # type: float
         self.longitude = 0  # type: float
         self.elevation = 0  # type: float
-        self.gate_line = []
+        self.gate_line = []  # [[lat,lon],[lat,lon]]
         self._original_gate_line = None
         self._gate_line_infinite = None
         self.gate_line_extended = None
@@ -31,7 +31,7 @@ class Waypoint:
         self.is_procedure_turn = False
         self.is_steep_turn = False
 
-        self._left_corridor_line = None
+        self._left_corridor_line = None  # I think this is a list of (lat, lon)
         self._right_corridor_line = None
 
         self.inside_distance = 0

@@ -1025,13 +1025,13 @@ def plot_route(
         imagery = UserUploadedMBTiles(user_map_source)
     else:
         if map_source == "osm":
-            imagery = OSM()
+            imagery = OSM(user_agent="airsports.no, support@airsports.no")  # Does not like zoom level greater than 12
         elif map_source == "fc":
             imagery = FlightContest(desired_tile_form="RGBA")
         elif map_source == "mto":
             imagery = MapTilerOutdoor(desired_tile_form="RGBA")
         elif map_source == "cyclosm":
-            imagery = CyclOSM(desired_tile_form="RGBA")
+            imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
         else:
             imagery = LocalImages(map_source, desired_tile_form="RGBA")
     if map_size == A3:
@@ -1118,10 +1118,7 @@ def plot_route(
         )
 
     print(f"Figure size (cm): ({figure_width}, {figure_height})")
-    minimum_latitude = min(np.min(path[:, 0]) for path in paths)
-    minimum_longitude = min(np.min(path[:, 1]) for path in paths)
-    maximum_latitude = max(np.max(path[:, 0]) for path in paths)
-    maximum_longitude = max(np.max(path[:, 1]) for path in paths)
+    minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude = route.get_extent()
     print(f"minimum: {minimum_latitude}, {minimum_longitude}")
     print(f"maximum: {maximum_latitude}, {maximum_longitude}")
     proj = ccrs.PlateCarree()
@@ -1138,18 +1135,37 @@ def plot_route(
         bottom_right = utm.transform_point(maximum_longitude, minimum_latitude, proj)
         top_right = utm.transform_point(maximum_longitude, maximum_latitude, proj)
         # Widen the image a bit
+        scaled_top = top_right[1] + map_margin
+        scaled_bottom = bottom_left[1] - map_margin
+        logger.info(f"scaled_the_top: {scaled_top}, scaled_bottom: {scaled_bottom}")
         scaled_left = bottom_left[0] - map_margin
         scaled_right = bottom_right[0] + map_margin
-        horizontal_metres = scaled_right - scaled_left
-        y_centre = (bottom_left[1] + top_right[1]) / 2
-        horizontal_scale = horizontal_metres / figure_width  # m per cm
-        # Change vertical scale to match
-        vertical_metres = horizontal_scale * figure_height
-        y0 = y_centre - vertical_metres / 2
-        y1 = y_centre + vertical_metres / 2
-        scale = horizontal_metres / (10 * figure_width)
-        x0, y0 = proj.transform_point(scaled_left, y0, utm)
-        x1, y1 = proj.transform_point(scaled_right, y1, utm)
+        desired_vertical_scale = (scaled_top - scaled_bottom) / figure_height
+        desired_horizontal_scale = (scaled_right - scaled_left) / figure_width
+        if desired_horizontal_scale > desired_vertical_scale:
+            logger.info("Scale is controlled by horizontal")
+            horizontal_metres = scaled_right - scaled_left
+            horizontal_scale = horizontal_metres / figure_width  # m per cm
+            y_centre = (bottom_left[1] + top_right[1]) / 2
+            # Change vertical scale to match
+            vertical_metres = horizontal_scale * figure_height
+            y0 = y_centre - vertical_metres / 2
+            y1 = y_centre + vertical_metres / 2
+            scale = horizontal_metres / (10 * figure_width)
+            x0, y0 = proj.transform_point(scaled_left, y0, utm)
+            x1, y1 = proj.transform_point(scaled_right, y1, utm)
+        else:
+            logger.info("Scale is controlled by vertical")
+            vertical_metres = scaled_top - scaled_bottom
+            vertical_scale = vertical_metres / figure_height  # m per cm
+            x_centre = (bottom_left[0] + top_right[0]) / 2
+            # Change horizontal scale to match
+            horizontal_metres = vertical_scale * figure_width
+            x0 = x_centre - horizontal_metres / 2
+            x1 = x_centre + horizontal_metres / 2
+            scale = vertical_metres / (10 * figure_height)
+            x0, y0 = proj.transform_point(x0, scaled_bottom, utm)
+            x1, y1 = proj.transform_point(x1, scaled_top, utm)
         extent = [x0, x1, y0, y1]
     else:
         centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
