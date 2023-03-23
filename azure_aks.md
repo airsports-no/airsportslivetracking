@@ -51,3 +51,6 @@ Connect to existing cluster:
 
 Get the current nodes:
 > kubectl get nodes
+
+Resource capacity
+> kubectl resource-capacity -u -p

@@ -36,8 +36,6 @@ def utm_from_lat_lon(lat, lon) -> ccrs.CRS:
     :rtype: int
     """
     _, _, zone, letter = utm.from_latlon(lat, lon)
-    print(zone)
-    print(letter)
     return ccrs.UTM(zone, southern_hemisphere=lat < 0)
 
 

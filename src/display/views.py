@@ -1078,7 +1078,7 @@ def get_navigation_task_map(request, pk):
             pdf = embed_map_in_pdf(
                 "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
                 map_image.read(),
-                10 * A4_WIDTH - 2 * margin if form.cleaned_data["size"] else 10 * A3_WIDTH - 2 * margin,
+                10 * A4_WIDTH - 2 * margin if form.cleaned_data["size"] == A4 else 10 * A3_WIDTH - 2 * margin,
                 10 * A4_HEIGHT - 2 * margin if form.cleaned_data["size"] == A4 else 10 * A3_HEIGHT - 2 * margin,
                 form.cleaned_data["orientation"] == LANDSCAPE,
             )

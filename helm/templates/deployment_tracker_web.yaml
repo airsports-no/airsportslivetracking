@@ -56,7 +56,7 @@ spec:
             memory: 400Mi  # Uses 940 Mi
           limits:
             cpu: 1000m
-            memory: 1024Mi
+            memory: 1.5Gi
         volumeMounts:
           - mountPath: /secret
             readOnly: true

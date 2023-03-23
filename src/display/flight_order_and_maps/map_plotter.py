@@ -407,7 +407,6 @@ def scale_bar_y(
     m_per_unit is the number of meters in a unit
 
     """
-    print("Scale y")
     # find lat/lon center to find best UTM zone
     x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
     # Projection in metres
@@ -1131,15 +1130,15 @@ def plot_route(
         map_margin = 6000  # metres
 
         bottom_left = utm.transform_point(minimum_longitude, minimum_latitude, proj)
-        top_left = utm.transform_point(minimum_longitude, maximum_latitude, proj)
-        bottom_right = utm.transform_point(maximum_longitude, minimum_latitude, proj)
+        # top_left = utm.transform_point(minimum_longitude, maximum_latitude, proj)
+        # bottom_right = utm.transform_point(maximum_longitude, minimum_latitude, proj)
         top_right = utm.transform_point(maximum_longitude, maximum_latitude, proj)
         # Widen the image a bit
         scaled_top = top_right[1] + map_margin
         scaled_bottom = bottom_left[1] - map_margin
         logger.info(f"scaled_the_top: {scaled_top}, scaled_bottom: {scaled_bottom}")
         scaled_left = bottom_left[0] - map_margin
-        scaled_right = bottom_right[0] + map_margin
+        scaled_right = top_right[0] + map_margin
         desired_vertical_scale = (scaled_top - scaled_bottom) / figure_height
         desired_horizontal_scale = (scaled_right - scaled_left) / figure_width
         if desired_horizontal_scale > desired_vertical_scale:
@@ -1152,8 +1151,8 @@ def plot_route(
             y0 = y_centre - vertical_metres / 2
             y1 = y_centre + vertical_metres / 2
             scale = horizontal_metres / (10 * figure_width)
-            x0, y0 = proj.transform_point(scaled_left, y0, utm)
-            x1, y1 = proj.transform_point(scaled_right, y1, utm)
+            x0, y0 = scaled_left, y0
+            x1, y1 = scaled_right, y1
         else:
             logger.info("Scale is controlled by vertical")
             vertical_metres = scaled_top - scaled_bottom
@@ -1164,8 +1163,8 @@ def plot_route(
             x0 = x_centre - horizontal_metres / 2
             x1 = x_centre + horizontal_metres / 2
             scale = vertical_metres / (10 * figure_height)
-            x0, y0 = proj.transform_point(x0, scaled_bottom, utm)
-            x1, y1 = proj.transform_point(x1, scaled_top, utm)
+            x0, y0 = x0, scaled_bottom
+            x1, y1 = x1, scaled_top
         extent = [x0, x1, y0, y1]
     else:
         centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
@@ -1173,23 +1172,22 @@ def plot_route(
         centre_x, centre_y = utm.transform_point(centre_longitude, centre_latitude, proj)
         width_metres = (scale * 10) * figure_width
         height_metres = (scale * 10) * figure_height
-        lower_left = proj.transform_point(
+        lower_left = (
             centre_x - width_metres / 2,
             centre_y - height_metres / 2,
-            utm,
         )
-        upper_right = proj.transform_point(
+        upper_right = (
             centre_x + width_metres / 2,
             centre_y + height_metres / 2,
-            utm,
         )
         extent = [lower_left[0], upper_right[0], lower_left[1], upper_right[1]]
-    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.set_extent(extent, crs=utm)
     # scale_bar(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
     scale_bar_y(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
     # ax.autoscale(False)
     fig.patch.set_visible(False)
     # lat lon lines
+    extent=ax.get_extent(proj)
     if include_meridians_and_parallels_lines:
         longitude = np.ceil(extent[0])
         while longitude < extent[1]:
