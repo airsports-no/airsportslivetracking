@@ -1,10 +1,10 @@
 import React from "react";
-import {render} from "react-dom";
 import {BrowserRouter, Route, Redirect, withRouter} from 'react-router-dom'
 import store from '../store/index'
 import {Provider} from 'react-redux';
 import Router from "../config/Router";
 
+const root=createRoot(document.getElementById("react-root"))
 
 const Root = () => (
     <Provider store={store}>
@@ -19,4 +19,4 @@ const Root = () => (
     </Provider>
 );
 
-render(<Root/>, document.getElementById('react-root'));
+root.render(<Root/>)

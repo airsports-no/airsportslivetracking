@@ -1,13 +1,13 @@
 import 'react-app-polyfill/ie9';
 import 'react-app-polyfill/stable'
 import React from "react";
-import {render} from "react-dom";
 import {Provider} from "react-redux";
 import store from "../store/index";
 import {BrowserRouter, Redirect, Route, withRouter} from "react-router-dom";
 import Router from "../config/Router";
 
-render(
+const root=createRoot(document.getElementById("root"))
+root.render(
     <Provider store={store}>
         <BrowserRouter>
             <main>
@@ -18,5 +18,5 @@ render(
             </main>
         </BrowserRouter>
     </Provider>,
-    document.getElementById("root")
+
 );
