@@ -76,8 +76,8 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: 
                 linewidth=2,
             )
         if index < len(waypoints) - 1:
-            print(waypoints[index])
-            print(waypoints[index + 1])
+            # print(waypoints[index])
+            # print(waypoints[index + 1])
             plt.plot(
                 [waypoints[index].longitude, waypoints[index + 1].longitude],
                 [waypoints[index].latitude, waypoints[index + 1].latitude],

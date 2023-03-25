@@ -485,10 +485,10 @@ def create_rounded_corridor_corner(
         0.5 + (corridor_width_metres / 2) / calculate_distance_lat_lon(*bisecting_line),
     )
     bisecting_line = [left_end, right_end]
-    print(f"bisecting_line: {bisecting_line}")
-    print(f"turn_degrees: {corner_degrees}")
-    print(f"corridor_width: {corridor_width}")
-    print(f"Gate line length: {calculate_distance_lat_lon(*bisecting_line)/1852}")
+    # print(f"bisecting_line: {bisecting_line}")
+    # print(f"turn_degrees: {corner_degrees}")
+    # print(f"corridor_width: {corridor_width}")
+    # print(f"Gate line length: {calculate_distance_lat_lon(*bisecting_line)/1852}")
     left_turn = corner_degrees < 0
     turn_degrees = corner_degrees
     if left_turn:
@@ -526,17 +526,17 @@ def create_rounded_corridor_corner(
     else:
         right_edge = np.array(inner_edge)
         left_edge = np.array(outer_edge)
-    print(f"left_edge: {left_edge}")
-    print(f"left_edge.shape: {left_edge.shape}")
+    # print(f"left_edge: {left_edge}")
+    # print(f"left_edge.shape: {left_edge.shape}")
     left_edge_lonlat = pc.transform_points(utm, left_edge[:, 0], left_edge[:, 1])
     right_edge_lonlat = pc.transform_points(utm, right_edge[:, 0], right_edge[:, 1])
     # Reverse longitude, latitude
-    print(f"left_edge_lonlat: {left_edge_lonlat}")
-    print(f"left_edge_lonlat.shape: {left_edge_lonlat.shape}")
+    # print(f"left_edge_lonlat: {left_edge_lonlat}")
+    # print(f"left_edge_lonlat.shape: {left_edge_lonlat.shape}")
     left_edge_lonlat[:, [0, 1]] = left_edge_lonlat[:, [1, 0]]
     right_edge_lonlat[:, [0, 1]] = right_edge_lonlat[:, [1, 0]]
-    print(f"left_edge_lonlat: {left_edge_lonlat}")
-    print(f"left_edge_lonlat.shape: {left_edge_lonlat.shape}")
+    # print(f"left_edge_lonlat: {left_edge_lonlat}")
+    # print(f"left_edge_lonlat.shape: {left_edge_lonlat.shape}")
     return (
         left_edge_lonlat[:, :2].tolist(),
         right_edge_lonlat[:, :2].tolist(),

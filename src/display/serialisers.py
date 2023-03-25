@@ -893,7 +893,6 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             assign_perm("view_route", user, route)
             assign_perm("delete_route", user, route)
             assign_perm("change_route", user, route)
-            print(self.context)
             navigation_task = NavigationTask.create(**validated_data)
             for contestant_data in contestant_set:
                 if isinstance(contestant_data["team"], Team):

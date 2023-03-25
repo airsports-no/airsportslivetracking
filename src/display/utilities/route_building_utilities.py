@@ -36,7 +36,6 @@ def add_polygon(place_mark):
 def open_kmz(file):
     zip = ZipFile(file)
     for z in zip.filelist:
-        print(z)
         if z.filename[-4:] == ".kml":
             fstring = zip.read(z)
             break

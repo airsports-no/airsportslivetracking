@@ -1057,7 +1057,7 @@ def plot_route(
     ax = fig.add_axes([0, 0, 1, 1], projection=imagery.crs)
     # ax.background_patch.set_fill(False)
     # ax.background_patch.set_facecolor((250 / 255, 250 / 255, 250 / 255))
-    print(f"Figure projection: {imagery.crs}")
+    # print(f"Figure projection: {imagery.crs}")
     ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
     # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
     ax.set_aspect("auto")
@@ -1116,10 +1116,10 @@ def plot_route(
             path_effects=buffer,
         )
 
-    print(f"Figure size (cm): ({figure_width}, {figure_height})")
+    # print(f"Figure size (cm): ({figure_width}, {figure_height})")
     minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude = route.get_extent()
-    print(f"minimum: {minimum_latitude}, {minimum_longitude}")
-    print(f"maximum: {maximum_latitude}, {maximum_longitude}")
+    # print(f"minimum: {minimum_latitude}, {minimum_longitude}")
+    # print(f"maximum: {maximum_latitude}, {maximum_longitude}")
     proj = ccrs.PlateCarree()
     x0_lon, x1_lon, y0_lat, y1_lat = ax.get_extent(proj)
 

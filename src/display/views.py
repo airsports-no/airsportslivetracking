@@ -583,18 +583,14 @@ def contestant_cards_list(request, pk):
                 card = PlayingCard.get_random_unique_card(contestant)
             PlayingCard.add_contestant_card(contestant, card, waypoint_name, waypoint_index)
     cards = contestant.playingcard_set.all().order_by("pk")
-    for card in cards:
-        print(card)
     try:
         latest_waypoint_index = max([card.waypoint_index for card in cards])
     except ValueError:
         latest_waypoint_index = -1
-    print(latest_waypoint_index)
     try:
         next_waypoint_name = waypoint_names[latest_waypoint_index + 1]
     except IndexError:
         next_waypoint_name = None
-    print(next_waypoint_name)
     form = AssignPokerCardForm()
     form.fields["waypoint"].choices = [
         (str(index), item.name) for index, item in enumerate(contestant.navigation_task.route.waypoints)
@@ -1372,10 +1368,8 @@ class ContestList(PermissionRequiredMixin, ListView):
     permission_required = ("display.view_contest",)
 
     def get_queryset(self):
-        print(self.request.user)
         # Important not to accept global permissions, otherwise any content creator can view everything
         objects = get_objects_for_user(self.request.user, "display.view_contest", accept_global_perms=False)
-        print(list(objects))
         return objects
 
 
@@ -1835,7 +1829,6 @@ def _extract_values_from_form(form: "Form") -> List:
 
 def navigation_task_view_detailed_score(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    print(navigation_task.scorecard)
     scorecard_form = ScorecardForm(instance=navigation_task.scorecard)
     content = _extract_values_from_form(scorecard_form)
     for key in list(scorecard_form.fields.keys()):
@@ -1857,7 +1850,6 @@ def navigation_task_view_detailed_score(request, pk):
                 else:
                     form.fields[key].disabled = True
             form.helper.layout.pop(-1)  # Remove submit
-            print(content)
             form.content = content
             gate_score_forms.append(form)
     return render(
@@ -2274,14 +2266,12 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideV
         if "my_post_data" not in self.request.session:
             self.request.session["my_post_data"] = {}
         self.request.session["my_post_data"][self.steps.current] = self.request.POST
-        print(f"Post data: {self.request.POST}")
         return super().post(*args, **kwargs)
 
     def get_post_data_for_step(self, step):
         return self.request.session.get("my_post_data", {}).get(step, {})
 
     def done(self, form_list, **kwargs):
-        print(f"All cleaned data: {self.get_all_cleaned_data()}")
         form_dict = kwargs["form_dict"]
         team_pk = self.kwargs.get("team_pk")
         contest_pk = self.kwargs.get("contest_pk")
@@ -2580,8 +2570,6 @@ class UserPersonViewSet(GenericViewSet):
         available_contests = Contest.visible_contests_for_user(request.user).filter(
             finish_time__gte=datetime.datetime.now(datetime.timezone.utc)
         )
-        print(available_contests)
-        print()
         person = self.get_object()
         contest_teams = (
             ContestTeam.objects.filter(

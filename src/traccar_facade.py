@@ -121,8 +121,8 @@ class Traccar:
 
     def delete_device(self, device_id):
         response = self.session.delete(self.base + "/api/devices/{}".format(device_id))
-        print(response)
-        print(response.text)
+        # print(response)
+        # print(response.text)
         return response.status_code == 204
 
     def get_groups(self) -> List[Dict]:
@@ -153,8 +153,8 @@ class Traccar:
                 "groupId": self.get_shared_group_id(),
             },
         )
-        print(response)
-        print(response.text)
+        # print(response)
+        # print(response.text)
         if response.status_code == 200:
             return response.json()
 

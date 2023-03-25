@@ -106,7 +106,7 @@ class TestContestantGatesCalculation(TestCase):
             ("SC 7/2", datetime.timedelta(seconds=3054, microseconds=214214)),
             ("FP", datetime.timedelta(seconds=3276, microseconds=732726)),
         ]
-        print(times)
+        # print(times)
         times = [(item[0], chop_microseconds(item[1])) for item in times]
         expected_times = [(item[0], chop_microseconds(item[1])) for item in expected_times]
         self.assertListEqual(expected_times, times)
@@ -166,7 +166,7 @@ class TestContestantGatesCalculationANRRounded(TestCase):
             ("TP 3", datetime.timedelta(seconds=456)),
             ("FP", datetime.timedelta(seconds=641)),
         ]
-        print(times)
-        for item in times:
-            print(item[1].total_seconds())
+        # print(times)
+        # for item in times:
+            # print(item[1].total_seconds())
         self.assertListEqual(expected_times, [(item[0], chop_microseconds(item[1])) for item in times])

@@ -270,7 +270,6 @@ class Route(models.Model):
 
     def get_location(self) -> Optional[Tuple[float, float]]:
         if self.waypoints and len(self.waypoints) > 0:
-            print(self.waypoints[0])
             return self.waypoints[0].latitude, self.waypoints[0].longitude
         if len(self.takeoff_gates) > 0:
             return self.takeoff_gates[0].latitude, self.takeoff_gates[0].longitude
@@ -455,7 +454,6 @@ class Person(models.Model):
         return possible_person.first()
 
     def remove_profile_picture_background(self):
-        print(f" authorisation key: {settings.REMOVE_BG_KEY}")
         response = requests.post(
             "https://api.remove.bg/v1.0/removebg",
             data={"image_url": self.picture.url, "size": "auto", "crop": "true"},
@@ -2731,7 +2729,6 @@ class UserUploadedMap(models.Model):
         Finds the smallest Zoom tile and returns this
         """
         with MBtiles(self.map_file.path) as src:
-            print(src.meta)
             helper = MBTilesHelper(src)
             image = helper.stitch(4096)
             width, height = image.size
