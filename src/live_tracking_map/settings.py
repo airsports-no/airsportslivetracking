@@ -90,7 +90,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     # "django_celery_beat",
-    "django_celery_results",
+    # "django_celery_results",
     "timezone_field",
     "webpack_loader",
     "bootstrap4",
@@ -102,21 +102,20 @@ INSTALLED_APPS = [
     "phonenumber_field",
     "qr_code",
     "crispy_forms",
-    'django_jenkins',
     "google_analytics",
     "channels",
     "display.apps.DisplayConfig",
     "firebase.apps.FirebaseConfig",
     "multiselectfield",
-    'storages',
-    "crispy_bootstrap4"
+    "storages",
+    "crispy_bootstrap4",
 ]
 if os.environ.get("MODE") != "dev":
     INSTALLED_APPS.append("drf_firebase_auth")
 
 PRODUCTION = os.environ.get("MODE") != "dev"
 
-DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 GUARDIAN_MONKEY_PATCH = False
@@ -151,17 +150,6 @@ MIDDLEWARE = [
     # 'wagtail.contrib.redirects.middleware.RedirectMiddleware',
     # 'google_analytics.middleware.GoogleAnalyticsMiddleware',
 ]
-JENKINS_TASKS = [  # executed on the apps in PROJECT_APPS
-    'django_jenkins.tasks.run_pep8'
-]
-
-WAGTAIL_SITE_NAME = 'Airsports Live Tracking'
-
-WAGTAILSEARCH_BACKENDS = {
-    'default': {
-        'BACKEND': 'wagtail.search.backends.database',
-    }
-}
 
 ROOT_URLCONF = "live_tracking_map.urls"
 
@@ -212,8 +200,9 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "live_tracking_map.django_exception_handler.exception_handler",
 }
 if os.environ.get("MODE") != "dev":
-    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(0,
-                                                            "drf_firebase_auth.authentication.FirebaseAuthentication")
+    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(
+        0, "drf_firebase_auth.authentication.FirebaseAuthentication"
+    )
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
@@ -271,7 +260,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
-DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
+DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
 # STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
@@ -371,25 +360,29 @@ CELERY_RESULT_BACKEND = "django-db"
 
 CACHES = {
     "default": {
-        "BACKEND": "redis_cache.RedisCache",
-        "LOCATION": [
-            f"{REDIS_HOST}:{REDIS_PORT}",
-            # "/tmp/docker/redis.sock" if PRODUCTION else "redis:6379",
-        ],
-        "TIMEOUT": None,
-        "OPTIONS": {
-            "DB": 1,
-            "PASSWORD": REDIS_PASSWORD,
-            "PARSER_CLASS": "redis.connection.HiredisParser",
-            "CONNECTION_POOL_CLASS": "redis.BlockingConnectionPool",
-            "CONNECTION_POOL_CLASS_KWARGS": {
-                "max_connections": 50,
-                "timeout": 20,
-            },
-            "MAX_CONNECTIONS": 1000,
-            "PICKLE_VERSION": -1,
-        },
-    },
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": f"redis://redis:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}",
+    }
+    # "default": {
+    #     "BACKEND": "redis_cache.RedisCache",
+    #     "LOCATION": [
+    #         f"{REDIS_HOST}:{REDIS_PORT}",
+    #         # "/tmp/docker/redis.sock" if PRODUCTION else "redis:6379",
+    #     ],
+    #     "TIMEOUT": None,
+    #     "OPTIONS": {
+    #         "DB": 1,
+    #         "PASSWORD": REDIS_PASSWORD,
+    #         "PARSER_CLASS": "redis.connection.HiredisParser",
+    #         "CONNECTION_POOL_CLASS": "redis.BlockingConnectionPool",
+    #         "CONNECTION_POOL_CLASS_KWARGS": {
+    #             "max_connections": 50,
+    #             "timeout": 20,
+    #         },
+    #         "MAX_CONNECTIONS": 1000,
+    #         "PICKLE_VERSION": -1,
+    #     },
+    # },
 }
 
 if any(s in sys.argv for s in ("test",)):
