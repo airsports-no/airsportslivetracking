@@ -33,7 +33,7 @@ drf-nested-routers==0.93.4
 drf-yasg==1.21.5
 eval7==0.1.9
 fastkml==0.12
-firebase-admin==6.1.0
+firebase-admin==4.5.3
 flower==1.2.0
 fpdf2==2.6.1
 geopy==2.3.0

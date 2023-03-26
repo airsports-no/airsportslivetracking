@@ -355,12 +355,12 @@ LOGGING = {
 # celery
 # CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
 CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}"
-CELERY_RESULT_BACKEND = "django-db"
+# CELERY_RESULT_BACKEND = "django-db"
 
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": f"redis://redis:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}",
+        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}",
     }
     # "default": {
     #     "BACKEND": "redis_cache.RedisCache",

@@ -88,6 +88,7 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     This should only be used in UserPersonViewSet where it is guaranteed that you only get access to your own profile.
     We do not wish to expose apt tracking ID and simulator tracking ID to 3rd persons.
     """
+
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
     # phone = PhoneNumberField(required=False)
@@ -134,7 +135,7 @@ class PersonSerialiserExcludingTracking(CountryFieldMixin, serializers.ModelSeri
     class Meta:
         model = Person
         # fields = "__all__"
-        exclude = ("phone","app_tracking_id", "simulator_tracking_id")
+        exclude = ("phone", "app_tracking_id", "simulator_tracking_id")
 
 
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
@@ -276,6 +277,7 @@ class ContestSerialiserWithResults(ContestSerialiser):
     """
     Used by result service main table.
     """
+
     contestsummary_set = ContestSummaryNestedSerialiser(many=True, read_only=True)
 
 

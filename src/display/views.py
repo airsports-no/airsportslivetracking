@@ -398,139 +398,125 @@ def delete_user_and_person(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_aeroplane(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Aeroplane.objects.filter(registration__icontains=q)
-            result = [str(item.registration) for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Aeroplane.objects.filter(registration=q)
-            serialiser = AeroplaneSerialiser(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Aeroplane.objects.filter(registration__icontains=q)
+        result = [str(item.registration) for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Aeroplane.objects.filter(registration=q)
+        serialiser = AeroplaneSerialiser(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_club(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Club.objects.filter(name__icontains=q)
-            result = [{"label": "{} ({})".format(item.name, item.country), "value": item.name} for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Club.objects.filter(name=q)
-            serialiser = ClubSerialiser(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Club.objects.filter(name__icontains=q)
+        result = [{"label": "{} ({})".format(item.name, item.country), "value": item.name} for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Club.objects.filter(name=q)
+        serialiser = ClubSerialiser(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_phone(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(phone__contains=q)
-            result = [str(item.phone) for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(phone=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(phone__contains=q)
+        result = [str(item.phone) for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(phone=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_id(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(pk=q)
-            result = [str(item.phone) for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(pk=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(pk=q)
+        result = [str(item.phone) for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(pk=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_first_name(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(first_name__icontains=q)
-            result = [
-                {
-                    "label": "{} {}".format(item.first_name, item.last_name),
-                    "value": item.pk,
-                }
-                for item in search_qs
-            ]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(pk=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(first_name__icontains=q)
+        result = [
+            {
+                "label": "{} {}".format(item.first_name, item.last_name),
+                "value": item.pk,
+            }
+            for item in search_qs
+        ]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(pk=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_last_name(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(last_name__icontains=q)
-            result = [
-                {
-                    "label": "{} {}".format(item.first_name, item.last_name),
-                    "value": item.pk,
-                }
-                for item in search_qs
-            ]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(pk=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(last_name__icontains=q)
+        result = [
+            {
+                "label": "{} {}".format(item.first_name, item.last_name),
+                "value": item.pk,
+            }
+            for item in search_qs
+        ]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(pk=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_email(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(email__icontains=q)
-            result = [item.email for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(email=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(email__icontains=q)
+        result = [item.email for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(email=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["GET"])
