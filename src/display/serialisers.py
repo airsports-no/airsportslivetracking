@@ -522,11 +522,14 @@ class ContestTeamNestedSerialiser(serializers.ModelSerializer):
 
 
 class ScorecardSerialiser(serializers.ModelSerializer):
-    task_type = MultipleChoiceField(read_only=True, choices=NavigationTask.NAVIGATION_TASK_TYPES)
+    task_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Scorecard
         fields = ("name", "task_type")
+
+    def get_task_type(self, instance):
+        return instance.task_type
 
 
 class GateScoreSerialiser(serializers.ModelSerializer):
@@ -538,11 +541,15 @@ class GateScoreSerialiser(serializers.ModelSerializer):
 class ScorecardNestedSerialiser(serializers.ModelSerializer):
     gatescore_set = GateScoreSerialiser(many=True)
     corridor_width = serializers.FloatField(read_only=True)
+    task_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Scorecard
         read_only_fields = ["task_type"]
         exclude = ("id", "original", "included_fields", "calculator", "name", "use_procedure_turns")
+
+    def get_task_type(self, instance):
+        return instance.task_type
 
     def create(self, validated_data):
         raise NotImplementedError("Manually creating scorecards is not supported")

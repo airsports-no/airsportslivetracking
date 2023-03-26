@@ -106,7 +106,6 @@ INSTALLED_APPS = [
     "channels",
     "display.apps.DisplayConfig",
     "firebase.apps.FirebaseConfig",
-    "multiselectfield",
     "storages",
     "crispy_bootstrap4",
 ]
