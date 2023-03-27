@@ -17,6 +17,12 @@ from django.core.cache import cache
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from pytz import UTC
 
+
+import django
+from django.utils.encoding import smart_str
+django.utils.encoding.smart_text = smart_str
+
+
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 ADMINS = [("admin", "test@test.com")]
 # import sentry_sdk
