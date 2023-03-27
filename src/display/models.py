@@ -31,7 +31,6 @@ from django_use_email_as_username.models import BaseUser, BaseUserManager
 from geopy import Nominatim
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm, get_users_with_perms
-from multiselectfield import MultiSelectField
 from pymbtiles import MBtiles
 from timezone_field import TimeZoneField
 
@@ -1104,7 +1103,7 @@ class Scorecard(models.Model):
         max_length=20,
         help_text="Supported calculator types",
     )
-    task_type = MultiSelectField(choices=NavigationTask.NAVIGATION_TASK_TYPES, default=list)
+    task_type = MyPickledObjectField(default=list, help_text="List of task types supported by the scorecard")
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     backtracking_penalty = models.FloatField(default=200, help_text="The number of points given for backtracking")
     backtracking_bearing_difference = models.FloatField(
