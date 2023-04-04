@@ -609,7 +609,7 @@ class ContestTeam(models.Model):
 class Contest(models.Model):
     DESCENDING = "desc"
     ASCENDING = "asc"
-    SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
+    SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
     summary_score_sorting_direction = models.CharField(
         default=ASCENDING,
         choices=SORTING_DIRECTION,
@@ -775,7 +775,7 @@ class NavigationTask(models.Model):
     )
     DESCENDING = "desc"
     ASCENDING = "asc"
-    SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
+    SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
     name = models.CharField(max_length=200)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
     route = models.OneToOneField(Route, on_delete=models.PROTECT)
@@ -2480,7 +2480,7 @@ class Task(models.Model):
 
     DESCENDING = "desc"
     ASCENDING = "asc"
-    SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
+    SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
     summary_score_sorting_direction = models.CharField(
         default=ASCENDING,
         choices=SORTING_DIRECTION,
@@ -2513,7 +2513,7 @@ class TaskTest(models.Model):
 
     DESCENDING = "desc"
     ASCENDING = "asc"
-    SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
+    SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     navigation_task = models.OneToOneField(NavigationTask, on_delete=models.SET_NULL, blank=True, null=True)
     weight = models.FloatField(default=1)
