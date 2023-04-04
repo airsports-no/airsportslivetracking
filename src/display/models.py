@@ -695,8 +695,8 @@ class Contest(models.Model):
         return set([navigation_task.country_name for navigation_task in self.navigationtask_set.all()])
 
     def initialise(self, user: MyUser):
-        self.start_time = self.time_zone.localize(self.start_time.replace(tzinfo=None))
-        self.finish_time = self.time_zone.localize(self.finish_time.replace(tzinfo=None))
+        self.start_time = self.start_time.replace(tzinfo=self.time_zone)
+        self.finish_time = self.finish_time.replace(tzinfo=self.time_zone)
         if self.latitude != 0 and self.longitude != 0 and (not self.country or self.country == ""):
             self.country = get_country_code_from_location(self.latitude, self.longitude)
         self.save()
@@ -2925,8 +2925,18 @@ class EditableRoute(models.Model):
                 save=True,
             )
         except:
-            logger.exception("Failed creating editable route thumbnail")
+            logger.exception("Failed creating editable route thumbnail. Editable route is still created.")
         return editable_route
+
+    def update_thumbnail(self):
+        try:
+            self.thumbnail.save(
+                self.name + "_thumbnail.png",
+                ContentFile(self.create_thumbnail().getvalue()),
+                save=True,
+            )
+        except:
+            logger.exception("Failed updating editable route thumbnail")
 
     @classmethod
     def create_from_kml(cls, route_name: str, kml_content: TextIO) -> tuple[Optional["EditableRoute"], list[str]]:
