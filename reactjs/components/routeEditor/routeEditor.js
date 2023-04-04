@@ -334,7 +334,11 @@ class ConnectedRouteEditor extends Component {
                         if (r.feature_type === "track") {
                             zoomed = true
                             this.trackLayer = layer
-                            this.map.fitBounds(layer.getBounds(), {padding: [50, 50]})
+                            try {
+                                this.map.fitBounds(layer.getBounds(), {padding: [50, 50]})
+                            } catch (e) {
+                                console.log(e)
+                            }
                         }
                         if (this.state.globalEditingMode) {
                             layer.editing.enable()
@@ -352,7 +356,11 @@ class ConnectedRouteEditor extends Component {
         if (!zoomed) {
             const layers = this.drawnItems.getLayers()
             if (layers.length > 0) {
-                this.map.fitBounds(layers[0].getBounds(), {padding: [50, 50]})
+                try {
+                    this.map.fitBounds(layers[0].getBounds(), {padding: [50, 50]})
+                } catch (e) {
+                    console.log(e)
+                }
             }
         }
     }
@@ -389,8 +397,8 @@ class ConnectedRouteEditor extends Component {
                     if (names.includes(layer.trackPoints[i].name)) {
                         errors.push("Gate names must be unique. The name '" + layer.trackPoints[i].name + "' is used multiple times.")
                     }
-                    if(layer.trackPoints[i].gateWidth < 0.01){
-                        errors.push("The width of gate "+layer.trackPoints[i].name+" is "+layer.trackPoints[i].gateWidth+". It must be minimum 0.01.")
+                    if (layer.trackPoints[i].gateWidth < 0.01) {
+                        errors.push("The width of gate " + layer.trackPoints[i].name + " is " + layer.trackPoints[i].gateWidth + ". It must be minimum 0.01.")
                     }
                     names.push(layer.trackPoints[i].name)
                 }

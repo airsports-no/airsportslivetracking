@@ -2945,7 +2945,13 @@ class EditableRoute(models.Model):
         from display.utilities.route_building_utilities import load_features_from_kml
 
         features = load_features_from_kml(kml_content)
+        if "route" not in features:
+            messages.append(f"Fatal: Did not find a 'route' element in the KML file")
+            return None, messages
         positions = features.get("route", [])
+        if len(positions) == 0:
+            messages.append(f"Fatal: The provided the route has zero length")
+            return None, messages
         track = create_track_block([(item[0], item[1]) for item in positions])
         route = [track]
         if take_off_gate_line := features.get("to"):
