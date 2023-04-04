@@ -6,10 +6,12 @@ from django.core.cache import cache
 from django.db import connections
 from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
+from redis.client import Redis
 
 from display.flight_order_and_maps.generate_flight_orders import generate_flight_orders_latex
 from display.models import Contestant, EmailMapLink
 from live_tracking_map.celery import app
+from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 from playback_tools.playback import recalculate_traccar, insert_gpx_file
 
 logger = logging.getLogger(__name__)
@@ -59,8 +61,9 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
 
 
 def append_cache_dict(cache_key, dict_key, value):
+    conn = Redis(REDIS_HOST, REDIS_PORT, 2, REDIS_PASSWORD)
     base = cache_key
-    with redis_lock.Lock(cache.get_client(""), f"{base}_lock"):
+    with redis_lock.Lock(conn, f"{base}_lock"):
         dictionary = cache.get(cache_key) or {}
         dictionary[dict_key] = value
         cache.set(cache_key, dictionary)

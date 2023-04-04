@@ -2953,6 +2953,7 @@ class EditableRoute(models.Model):
             messages.append(f"Fatal: The provided the route has zero length")
             return None, messages
         track = create_track_block([(item[0], item[1]) for item in positions])
+        messages.append(f"Found route with {len(positions)} points")
         route = [track]
         if take_off_gate_line := features.get("to"):
             if len(take_off_gate_line) == 2:
