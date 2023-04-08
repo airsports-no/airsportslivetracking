@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
-    calculateProjectedScore,
+    calculateProjectedScore, compareScoreAscending, compareScoreDescending,
     teamRankingTable
 } from "../../utilities";
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -51,7 +51,7 @@ class ConnectedContestantRankTable extends Component {
         }
         this.columns = [
             {
-                style:this.numberStyle,
+                style: this.numberStyle,
                 accessor: (row, index) => {
                     return ""
                 },
@@ -74,6 +74,7 @@ class ConnectedContestantRankTable extends Component {
                 dataField: "pilotName",
                 Header: "CREW",
                 disableSortBy: true,
+
                 accessor: (row, index) => {
                     return <div
                         className={"align-middle crew-name"}>{teamRankingTable(row.contestant.team, row.contestant.has_been_tracked_by_simulator)}</div>
@@ -88,7 +89,8 @@ class ConnectedContestantRankTable extends Component {
                         return "--"
                     }
                     return <span className={"align-middle"}>{row.score.toFixed(this.props.scoreDecimals)}</span>
-                }
+                },
+                sortType: compareScoreAscending
             },
             {
                 Header: "Σ",
@@ -102,6 +104,12 @@ class ConnectedContestantRankTable extends Component {
                         return "--"
                     }
                 },
+                sortType: (rowA, rowB, id, desc) => {
+                    if (rowA.original.contest_summary > rowB.original.contest_summary) return 1;
+                    if (rowB.original.contest_summary > rowA.original.contest_summary) return -1;
+                    return 0;
+                }
+
             },
             {
                 Header: "EST",
@@ -117,6 +125,11 @@ class ConnectedContestantRankTable extends Component {
                     }
                     return value
                 },
+                sortType: (rowA, rowB, id, desc) => {
+                    if (rowA.original.projectedScore > rowB.original.projectedScore) return 1;
+                    if (rowB.original.projectedScore > rowA.original.projectedScore) return -1;
+                    return 0;
+                }
             },
             {
                 id: "progress",
@@ -168,7 +181,7 @@ class ConnectedContestantRankTable extends Component {
     }
 
 
-    numberStyle( row, rowIndex, colIndex) {
+    numberStyle(row, rowIndex, colIndex) {
         return {backgroundColor: this.getColour(row.contestantNumber)}
     }
 
@@ -186,15 +199,16 @@ class ConnectedContestantRankTable extends Component {
         // compareScore should be replaced depending on scorecard ascending or descending configuration
         // Initially simply reversed the list depending on ascending or descending in the scorecard
         // May be later support more complex scoring descriptions
-        // if (this.props.navigationTask.score_sorting_direction === "asc") {
-        //     contestants.sort(compareScoreAscending)
-        // } else {
-        //     contestants.sort(compareScoreDescending)
-        // }
+        if (this.props.navigationTask.score_sorting_direction === "asc") {
+            contestants.sort(compareScoreAscending)
+        } else {
+            contestants.sort(compareScoreDescending)
+        }
         return contestants.map((contestant, index) => {
             const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
             return {
                 key: contestant.contestant.id + "rack" + index,
+                track: contestant.track,
                 contestant: contestant.contestant,
                 colour: "",
                 contestantNumber: contestant.contestant.contestant_number,
@@ -210,7 +224,7 @@ class ConnectedContestantRankTable extends Component {
                 projectedScore: calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary),
                 finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
                 initialLoading: contestant.initialLoading,
-                className: this.props.highlight.includes(contestant.contestant.id)?"selectedContestantRow":""
+                className: this.props.highlight.includes(contestant.contestant.id) ? "selectedContestantRow" : ""
             }
         })
     }
@@ -228,8 +242,16 @@ class ConnectedContestantRankTable extends Component {
 
     render() {
         return <ResultsServiceTable data={this.debouncedBuildData()} columns={this.columns}
-                                    className={"table table-dark table-striped table-hover table-condensed"}
-                                    rowEvents={this.rowEvents}/>
+                                    className={"table table-dark table-striped table-hover table-sm"}
+                                    rowEvents={this.rowEvents} initialState={{
+            sortBy: [
+                {
+                    id: "SCORE",
+                    desc: this.props.navigationTask.score_sorting_direction === "desc"
+                }
+            ]
+        }}
+        />
     }
 }
 

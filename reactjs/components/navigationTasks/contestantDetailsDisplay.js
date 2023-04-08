@@ -6,7 +6,6 @@ import {
     contestantTwoLines,
     ordinal_suffix_of
 } from "../../utilities";
-import BootstrapTable from "react-bootstrap-table-next";
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Loading} from "../basicComponents";
 import {ProgressCircle} from "./contestantProgress";
@@ -14,6 +13,7 @@ import {SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
 import {displayAllTracks, hideLowerThirds, removeHighlightContestantTable, setDisplay} from "../../actions";
 import {mdiPagePreviousOutline} from "@mdi/js";
 import Icon from "@mdi/react";
+import {ResultsServiceTable} from "../resultsService/resultsServiceTable";
 
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
@@ -83,31 +83,29 @@ class ConnectedContestantDetailsDisplay extends Component {
         }
         const columns = [
             {
-                text: "",
-                headerFormatter: (column, colIndex, components) => {
-                    return <div>
-                        {ordinal_suffix_of(this.calculateRank())}<br/><Icon path={mdiPagePreviousOutline}
-                                                                            title={"Logout"} size={1.1}
-                                                                            color={"white"}/></div>
+                id: "Rank",
+                disableSortBy: true,
+                Header: () => {
+                    return <div className={"text-center"} style={{width: "150px"}}>
+                        {ordinal_suffix_of(this.calculateRank())}<br/>
+                        <Icon path={mdiPagePreviousOutline}
+                              title={"Logout"} size={1.1}
+                              color={"white"}/>
+                    </div>
 
                 },
-                headerClasses: "text-center",
-                headerStyle: {width: "150px"},
-                dataField: "message.gate",
-                formatter: (cell, row) => {
-                    return <b>{cell}</b>
+                accessor: (row, index) => {
+                    return <b>{row.message.gate}</b>
                 },
-                headerEvents: {
-                    onClick: (e, column, columnIndex) => {
-                        this.resetToAllContestants()
-                    }
+                onClick: (column) => {
+                    this.resetToAllContestants()
                 }
             },
 
             {
-                dataField: "message.points",
-                text: "",
-                headerFormatter: (column, colIndex, components) => {
+                id: "message.points",
+                disableSortBy: true,
+                Header: () => {
                     return <div className={"contestant-details-header"}>
                         <div className={"row"}>
                             <div className={"col-6"}>{contestantTwoLines(this.props.contestant)}</div>
@@ -123,36 +121,20 @@ class ConnectedContestantDetailsDisplay extends Component {
                         </div>
                     </div>
                 },
-                headerAttrs: {
-                    colSpan: 2
+                colSpan: 2,
+                accessor: (row, index) => {
+                    return <span style={{width: "100px"}}>{row.message.points.toFixed(2)}</span>
                 },
-                style: {
-                    width: "100px"
-                },
-                formatter: (cell, row) => {
-                    return cell.toFixed(2)
-                },
-                headerEvents: {
-                    onClick: (e, column, columnIndex) => {
-                        this.resetToAllContestants()
-                    }
-                }
             },
 
             {
-                dataField: "message",
-                text: "",
-                headerAttrs: {
-                    hidden: true
+                id: "message",
+                disableSortBy: true,
+                Header: "",
+                accessor: (row, index) => {
+                    return <div className={"preWrap"}><FormatMessage message={row.message}/></div>
                 },
-                formatter: (cell, row) => {
-                    return <div className={"preWrap"}><FormatMessage message={cell}/></div>
-                },
-                headerEvents: {
-                    onClick: (e, column, columnIndex) => {
-                        this.resetToAllContestants()
-                    }
-                }
+                headerHidden: true
             }
         ]
         if (!this.props.contestantData) {
@@ -175,10 +157,9 @@ class ConnectedContestantDetailsDisplay extends Component {
         const loading = this.props.initialLoading ? <Loading/> : <div/>
         return <div>
             {loading}
-            <BootstrapTable keyField={"key"} data={events} columns={columns}
-                            classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
-                            bootstrap4 striped hover condensed rowEvents={rowEvents}
-                            bordered={false}
+            <ResultsServiceTable data={events} columns={columns}
+                                 className={"table table-striped table-hover table-sm table-dark"}
+                                 rowEvents={rowEvents} headerRowEvents={rowEvents}
             />
             <div style={{float: "left", clear: "both"}}
                  ref={(el) => {

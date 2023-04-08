@@ -31,7 +31,7 @@ export const EditableCell = ({
 }
 
 // Our table component
-export function ResultsServiceTable({columns, data, rowEvents, initialState, className, updateMyData}) {
+export function ResultsServiceTable({columns, data, rowEvents, initialState, className, updateMyData, headerRowEvents}) {
 
 
     const {
@@ -70,13 +70,18 @@ export function ResultsServiceTable({columns, data, rowEvents, initialState, cla
             <table {...getTableProps()} className={className}>
                 <thead>
                 {headerGroups.map(headerGroup => (
-                    <tr {...headerGroup.getHeaderGroupProps()}>
-                        {headerGroup.headers.map(column => (
+                    <tr {...headerGroup.getHeaderGroupProps()}
+                        onClick={() => (headerRowEvents && headerRowEvents.onClick) ? headerRowEvents.onClick() : null}
+                        onMouseEnter={() => (headerRowEvents && headerRowEvents.onMouseEnter) ? headerRowEvents.onMouseEnter() : null}
+                        onMouseLeave={() => (headerRowEvents && headerRowEvents.onMouseLeave) ? headerRowEvents.onMouseLeave() : null}
+                    >
+                        {headerGroup.headers.filter(column => !column.headerHidden).map(column => (
                             <th {...column.getHeaderProps({
                                 style: {
                                     position: "relative",
                                     height: "100%"
-                                }
+                                },
+                                colSpan: column.colSpan ? column.colSpan : 1,
                             })} onClick={() => {
                                 !column.disableSortBy ? column.toggleSortBy(column.sortDirection === "desc") : null
                             }}>
