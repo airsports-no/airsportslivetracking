@@ -5,8 +5,9 @@ import {Provider} from "react-redux";
 import store from "../store/index";
 import {BrowserRouter, Redirect, Route, withRouter} from "react-router-dom";
 import Router from "../config/Router";
+import {createRoot} from "react-dom/client";
 
-const root=createRoot(document.getElementById("root"))
+const root = createRoot(document.getElementById("root"))
 root.render(
     <Provider store={store}>
         <BrowserRouter>
@@ -18,5 +19,4 @@ root.render(
             </main>
         </BrowserRouter>
     </Provider>,
-
 );

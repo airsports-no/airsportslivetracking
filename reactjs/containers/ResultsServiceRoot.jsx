@@ -3,6 +3,7 @@ import {BrowserRouter, Route, Redirect, withRouter} from 'react-router-dom'
 import store from '../store/index'
 import {Provider} from 'react-redux';
 import Router from "../config/Router";
+import {createRoot} from "react-dom/client";
 
 const root=createRoot(document.getElementById("react-root"))
 
