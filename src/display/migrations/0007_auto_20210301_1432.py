@@ -2,7 +2,8 @@
 
 from django.db import migrations, models
 import django.db.models.deletion
-import multiselectfield.db.fields
+
+from display.fields.my_pickled_object_field import MyPickledObjectField
 
 
 class Migration(migrations.Migration):
@@ -30,7 +31,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='scorecard',
             name='task_type',
-            field=multiselectfield.db.fields.MultiSelectField(choices=[('precision', 'Precision'), ('anr_corridor', 'ANR Corridor'), ('poker', 'Poker run')], default=list, max_length=28),
+            field=MyPickledObjectField(default=list),
         ),
         migrations.CreateModel(
             name='PlayingCard',

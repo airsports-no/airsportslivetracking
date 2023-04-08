@@ -1,12 +1,12 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {teamLongForm, teamRankingTable} from "../../utilities";
-import BootstrapTable from 'react-bootstrap-table-next';
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Redirect, Link} from "react-router-dom";
 import {fetchContestsWithResults} from "../../actions";
 import {Loading} from "../basicComponents";
 import Navbar from "../navbar";
+import {ResultsServiceTable} from "./resultsServiceTable";
 
 const mapStateToProps = (state, props) => ({
     contests: state.contests
@@ -53,38 +53,28 @@ class ConnectedContestSummaryResultsTable extends Component {
         }
         const columns = [
             {
-                dataField: "name",
-                text: "Contest",
-                formatter: (cell, row) => {
-                    return <Link className="results-table" to={row.contestId + "/taskresults/"}>{cell}</Link>
-                }
+                accessor: (row, index) => {
+                    return <Link className="results-table" to={row.contestId + "/taskresults/"}>{row.name}</Link>
+                },
+                Header: "Contest",
             },
             {
-                dataField: "first",
-                text: "Champions",
-                formatter: (cell, row) => {
-                    return cell ? <div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div> : null
+                Header: "Champions",
+                accessor: (row, index) => {
+                    return row.first ?
+                        <div className={"align-middle crew-name"}>{teamRankingTable(row.first)}</div> : null
                 }
 
             }
         ]
-        const rowEvents = {
-            onClick: (e, row, rowIndex) => {
-                return <Redirect push to={row.contestId + "/taskresults/"}/>
-            }
-        }
-
         return <div>
             <Navbar/>
             <div className={'results-table container-xl'}>
                 <div className={''}><h1 className={"results-table-contest-name"}>CONTEST RESULTS</h1></div>
                 <div className={''}>
                     <div className={""}>
-                        <BootstrapTable keyField={"contestId"} columns={columns} data={this.buildData()}
-                                        classes={"table-dark bg-dark-transparent"}
-                                        wrapperClasses={"text-dark"}
-                                        bootstrap4 striped condensed
-                                        rowEvents={rowEvents}/>
+                        <ResultsServiceTable columns={columns} data={this.buildData()}
+                                             className={"table table-dark bg-dark-transparent table-striped table-condensed table-bordered"}/>
                     </div>
                 </div>
                 <div className={'text-dark'}>Photo by <a

@@ -31,7 +31,6 @@ from django_use_email_as_username.models import BaseUser, BaseUserManager
 from geopy import Nominatim
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, assign_perm, get_users_with_perms
-from multiselectfield import MultiSelectField
 from pymbtiles import MBtiles
 from timezone_field import TimeZoneField
 
@@ -610,7 +609,7 @@ class ContestTeam(models.Model):
 class Contest(models.Model):
     DESCENDING = "desc"
     ASCENDING = "asc"
-    SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
+    SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
     summary_score_sorting_direction = models.CharField(
         default=ASCENDING,
         choices=SORTING_DIRECTION,
@@ -696,8 +695,8 @@ class Contest(models.Model):
         return set([navigation_task.country_name for navigation_task in self.navigationtask_set.all()])
 
     def initialise(self, user: MyUser):
-        self.start_time = self.time_zone.localize(self.start_time.replace(tzinfo=None))
-        self.finish_time = self.time_zone.localize(self.finish_time.replace(tzinfo=None))
+        self.start_time = self.start_time.replace(tzinfo=self.time_zone)
+        self.finish_time = self.finish_time.replace(tzinfo=self.time_zone)
         if self.latitude != 0 and self.longitude != 0 and (not self.country or self.country == ""):
             self.country = get_country_code_from_location(self.latitude, self.longitude)
         self.save()
@@ -776,7 +775,7 @@ class NavigationTask(models.Model):
     )
     DESCENDING = "desc"
     ASCENDING = "asc"
-    SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
+    SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
     name = models.CharField(max_length=200)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
     route = models.OneToOneField(Route, on_delete=models.PROTECT)
@@ -1104,7 +1103,7 @@ class Scorecard(models.Model):
         max_length=20,
         help_text="Supported calculator types",
     )
-    task_type = MultiSelectField(choices=NavigationTask.NAVIGATION_TASK_TYPES, default=list)
+    task_type = MyPickledObjectField(default=list, help_text="List of task types supported by the scorecard")
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     backtracking_penalty = models.FloatField(default=200, help_text="The number of points given for backtracking")
     backtracking_bearing_difference = models.FloatField(
@@ -2481,7 +2480,7 @@ class Task(models.Model):
 
     DESCENDING = "desc"
     ASCENDING = "asc"
-    SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
+    SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
     summary_score_sorting_direction = models.CharField(
         default=ASCENDING,
         choices=SORTING_DIRECTION,
@@ -2514,7 +2513,7 @@ class TaskTest(models.Model):
 
     DESCENDING = "desc"
     ASCENDING = "asc"
-    SORTING_DIRECTION = ((DESCENDING, "Descending"), (ASCENDING, "Ascending"))
+    SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     navigation_task = models.OneToOneField(NavigationTask, on_delete=models.SET_NULL, blank=True, null=True)
     weight = models.FloatField(default=1)
@@ -2926,8 +2925,18 @@ class EditableRoute(models.Model):
                 save=True,
             )
         except:
-            logger.exception("Failed creating editable route thumbnail")
+            logger.exception("Failed creating editable route thumbnail. Editable route is still created.")
         return editable_route
+
+    def update_thumbnail(self):
+        try:
+            self.thumbnail.save(
+                self.name + "_thumbnail.png",
+                ContentFile(self.create_thumbnail().getvalue()),
+                save=True,
+            )
+        except:
+            logger.exception("Failed updating editable route thumbnail")
 
     @classmethod
     def create_from_kml(cls, route_name: str, kml_content: TextIO) -> tuple[Optional["EditableRoute"], list[str]]:
@@ -2936,8 +2945,15 @@ class EditableRoute(models.Model):
         from display.utilities.route_building_utilities import load_features_from_kml
 
         features = load_features_from_kml(kml_content)
+        if "route" not in features:
+            messages.append(f"Fatal: Did not find a 'route' element in the KML file")
+            return None, messages
         positions = features.get("route", [])
+        if len(positions) == 0:
+            messages.append(f"Fatal: The provided the route has zero length")
+            return None, messages
         track = create_track_block([(item[0], item[1]) for item in positions])
+        messages.append(f"Found route with {len(positions)} points")
         route = [track]
         if take_off_gate_line := features.get("to"):
             if len(take_off_gate_line) == 2:

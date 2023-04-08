@@ -100,7 +100,8 @@ from display.forms import (
     ChangeUserUploadedMapPermissionsForm,
     ChangeEditableRoutePermissionsForm,
     AddEditableRoutePermissionsForm,
-    ImportRouteForm, DeleteUserForm,
+    ImportRouteForm,
+    DeleteUserForm,
 )
 from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
@@ -368,7 +369,7 @@ def delete_user_and_person(request):
     Deletes the specified MyUser object and tries to delete the associated Person. If deleting the Person fails,
     the person is obfuscated by changing name and email.
     """
-    form=DeleteUserForm()
+    form = DeleteUserForm()
     if request.method == "POST":
         form = DeleteUserForm(request.POST)
         if form.is_valid():
@@ -379,7 +380,7 @@ def delete_user_and_person(request):
                     my_user.send_deletion_email()
             except ObjectDoesNotExist:
                 messages.error(request, f"A user with the e-mail {form.cleaned_data['email']} does not exist")
-            for person in Person.objects.filter(email=form.cleaned_data['email']):
+            for person in Person.objects.filter(email=form.cleaned_data["email"]):
                 try:
                     person.delete()
                     messages.success(request, f"Successfully deleted {person}")
@@ -393,144 +394,131 @@ def delete_user_and_person(request):
                     person.is_public = False
                     person.save()
                     messages.warning(request, f"Deleting the person failed, but we renamed them to {person}")
-    return render(request, "display/delete_user_form.html", {"form":form})
+    return render(request, "display/delete_user_form.html", {"form": form})
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_aeroplane(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Aeroplane.objects.filter(registration__icontains=q)
-            result = [str(item.registration) for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Aeroplane.objects.filter(registration=q)
-            serialiser = AeroplaneSerialiser(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Aeroplane.objects.filter(registration__icontains=q)
+        result = [str(item.registration) for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Aeroplane.objects.filter(registration=q)
+        serialiser = AeroplaneSerialiser(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_club(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Club.objects.filter(name__icontains=q)
-            result = [{"label": "{} ({})".format(item.name, item.country), "value": item.name} for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Club.objects.filter(name=q)
-            serialiser = ClubSerialiser(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Club.objects.filter(name__icontains=q)
+        result = [{"label": "{} ({})".format(item.name, item.country), "value": item.name} for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Club.objects.filter(name=q)
+        serialiser = ClubSerialiser(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_phone(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(phone__contains=q)
-            result = [str(item.phone) for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(phone=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(phone__contains=q)
+        result = [str(item.phone) for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(phone=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_id(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(pk=q)
-            result = [str(item.phone) for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(pk=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(pk=q)
+        result = [str(item.phone) for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(pk=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_first_name(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(first_name__icontains=q)
-            result = [
-                {
-                    "label": "{} {}".format(item.first_name, item.last_name),
-                    "value": item.pk,
-                }
-                for item in search_qs
-            ]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(pk=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(first_name__icontains=q)
+        result = [
+            {
+                "label": "{} {}".format(item.first_name, item.last_name),
+                "value": item.pk,
+            }
+            for item in search_qs
+        ]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(pk=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_last_name(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(last_name__icontains=q)
-            result = [
-                {
-                    "label": "{} {}".format(item.first_name, item.last_name),
-                    "value": item.pk,
-                }
-                for item in search_qs
-            ]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(pk=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(last_name__icontains=q)
+        result = [
+            {
+                "label": "{} {}".format(item.first_name, item.last_name),
+                "value": item.pk,
+            }
+            for item in search_qs
+        ]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(pk=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_email(request):
-    if request.is_ajax():
-        request_number = int(request.data.get("request"))
-        if request_number == 1:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(email__icontains=q)
-            result = [item.email for item in search_qs]
-            return Response(result)
-        else:
-            q = request.data.get("search", "")
-            search_qs = Person.objects.filter(email=q)
-            serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-            return Response(serialiser.data)
-    raise drf_exceptions.MethodNotAllowed
+    request_number = int(request.data.get("request"))
+    if request_number == 1:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(email__icontains=q)
+        result = [item.email for item in search_qs]
+        return Response(result)
+    else:
+        q = request.data.get("search", "")
+        search_qs = Person.objects.filter(email=q)
+        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
+        return Response(serialiser.data)
 
 
 @api_view(["GET"])
@@ -2132,9 +2120,8 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
     # def get_form(self, step=None, data=None, files=None):
     #     form = super().get_form(step, data, files)
 
-    def create_route(self) -> Route:
+    def create_route(self, scorecard: Scorecard) -> Route:
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
-        scorecard = Scorecard.objects.filter(task_type__contains=task_type).order_by("-valid_from").first()
         route = None
         if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
             use_procedure_turns = scorecard.use_procedure_turns
@@ -2162,20 +2149,28 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             contest.initialise(self.request.user)
         else:
             contest = self.get_cleaned_data_for_step("contest_selection")["contest"]
-        scorecard = Scorecard.get_originals().filter(task_type__contains=task_type).first()
-        route = self.create_route()
-        navigation_task = NavigationTask.create(
-            name=task_name,
-            contest=contest,
-            route=route,
-            editable_route=self.editable_route,
-            original_scorecard=scorecard,
-            start_time=contest.start_time,
-            finish_time=contest.finish_time,
-            allow_self_management=True,
-            score_sorting_direction=contest.summary_score_sorting_direction,
-        )
-        return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
+        scorecards = [item for item in Scorecard.get_originals() if task_type in item.task_type]
+        try:
+            scorecard = scorecards[0]
+            route = self.create_route(scorecard)
+            navigation_task = NavigationTask.create(
+                name=task_name,
+                contest=contest,
+                route=route,
+                editable_route=self.editable_route,
+                original_scorecard=scorecard,
+                start_time=contest.start_time,
+                finish_time=contest.finish_time,
+                allow_self_management=True,
+                score_sorting_direction=contest.summary_score_sorting_direction,
+            )
+            return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
+        except IndexError:
+            messages.error(
+                self.request,
+                f"Unable to find original scorecard for task type {task_type}. Please notify support@airsports.no.",
+            )
+            return redirect("editableroute_list")
 
 
 class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
@@ -2654,14 +2649,8 @@ class EditableRouteViewSet(ModelViewSet):
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
-        try:
-            self.get_object().thumbnail.save(
-                self.get_object().name + "_thumbnail.png",
-                ContentFile(self.get_object().create_thumbnail().getvalue()),
-                save=True,
-            )
-        except:
-            logger.exception("Failed creating editable route thumbnail")
+        self.get_object().update_thumbnail()
+
 
     def perform_create(self, serializer):
         super().perform_create(serializer)

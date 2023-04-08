@@ -1,4 +1,5 @@
 import datetime
+import json
 import threading
 from pprint import pprint
 from unittest.mock import Mock, patch, call
@@ -11,6 +12,7 @@ from django.test import TransactionTestCase
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.calculator_utilities import load_track_points_traccar_csv
+from display.calculators.tests.test_precision_calculator import load_track_points
 from display.calculators.tests.utilities import load_traccar_track
 from display.models import (
     Aeroplane,
@@ -749,3 +751,78 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         self.assertEqual(747, self.contestant.contestanttrack.score)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertTrue("SP: 200.0 points circling start" in strings)
+
+
+@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+class TestOscarDoubleCorridorPenalty(TransactionTestCase):
+    """
+    https://airsports.no/display/navigationtask/1300/
+    """
+    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, p):
+        from display.default_scorecards import default_scorecard_fai_anr_2022
+
+        with open("display/calculators/tests/oscar_double_finish/route.json", "r") as file:
+            data=json.load(file)
+            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+                editable_route=EditableRoute.objects.create(**data)
+                route = editable_route.create_anr_route(False, 0.3, default_scorecard_fai_anr_2022.get_default_scorecard())
+        navigation_task_start_time = datetime.datetime(2023, 3, 26, 14, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2023, 3, 31, 16, 0, 0, tzinfo=datetime.timezone.utc)
+        self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+
+        self.navigation_task = NavigationTask.create(
+            name="Oscar",
+            route=route,
+            original_scorecard=default_scorecard_fai_anr_2022.get_default_scorecard(),
+            contest=Contest.objects.create(
+                name="contest",
+                start_time=datetime.datetime.now(datetime.timezone.utc),
+                finish_time=datetime.datetime.now(datetime.timezone.utc),
+                time_zone="Europe/Oslo",
+            ),
+            start_time=navigation_task_start_time,
+            finish_time=navigation_task_finish_time,
+        )
+        self.navigation_task.scorecard.corridor_grace_time = 5
+        self.navigation_task.scorecard.save()
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
+        self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
+        # Required to make the time zone save correctly
+        self.navigation_task.refresh_from_db()
+
+    def test_track(self, p, p2):
+        """
+        When flown the contestant received double penalty for the final part of the track that was outside of the 
+        corridor (missed the starting gate).
+
+        https://airsports.no/display/navigationtask/1300/
+        """
+        track=load_track_points("display/calculators/tests/oscar_double_finish/oscar_anr.gpx")
+        start_time, speed = (
+            datetime.datetime(2021, 3, 31, 12, 35, tzinfo=datetime.timezone.utc),
+            70,
+        )
+        self.contestant = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=self.team,
+            takeoff_time=start_time,
+            finished_by_time=start_time + datetime.timedelta(hours=2),
+            tracker_start_time=start_time - datetime.timedelta(minutes=30),
+            tracker_device_id="Test contestant",
+            contestant_number=1,
+            minutes_to_starting_point=7,
+            adaptive_start=True,
+            air_speed=speed,
+            wind_direction=0,
+            wind_speed=0,
+        )
+        calculator_runner(self.contestant, track)
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+        for s in strings:
+            print(s)
+        # If the last outside corridor is counted twice, the score will be closer to 1600.
+        self.assertEqual(932, self.contestant.contestanttrack.score)
+
+

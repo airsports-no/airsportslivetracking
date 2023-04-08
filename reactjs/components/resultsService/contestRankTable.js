@@ -3,10 +3,8 @@ import {connect} from "react-redux";
 import {w3cwebsocket as W3CWebSocket} from "websocket";
 import {fetchContestResults, resultsData, tasksData, teamsData, testsData} from "../../actions/resultsService";
 import {teamRankingTable} from "../../utilities";
-import BootstrapTable from 'react-bootstrap-table-next';
-import 'react-bootstrap-table2-toolkit/dist/react-bootstrap-table2-toolkit.min.css';
 import "bootstrap/dist/css/bootstrap.min.css"
-import {sortCaret, sortFunc} from "./resultsTableUtilities";
+import {ResultsServiceTable} from "./resultsServiceTable";
 
 const mapStateToProps = (state, props) => ({
     contest: state.contestResults[props.contestId],
@@ -163,37 +161,20 @@ class ConnectedContestRankTable extends Component {
     buildColumns() {
         const taskToHighlight = this.getTaskToHighlight()
         const contestSummaryColumn = {
-            dataField: "contestSummary",
-            text: "Σ",
-            sort: true,
-            editable: false,
-            csvType: "number",
-            onSort: (field, order) => {
-                this.setState({
-                    sortField: "contestSummary",
-                    sortDirection: this.props.contest.results.summary_score_sorting_direction
-                })
-            },
-            sortFunc: sortFunc,
-            sortCaret: sortCaret,
+            accessor: "contestSummary",
+            Header: "Σ",
+            sortDirection: this.props.contest.results.summary_score_sorting_direction,
             columnType: "contestSummary",
         }
         let columns = [
             {
-                dataField: "rank",
-                text: " #",
-                classes: "align-middle",
-                sort: true,
-                formatter: (cell, row) => {
-                    return <span> {cell}</span>
-                }
-
+                accessor: (row, index) => (<span className={"align-middle"}>{row.rank}</span>),
+                Header: " #",
             },
             {
-                dataField: "team",
-                text: "CREW",
-                formatter: (cell, row) => {
-                    return <div className={"align-middle crew-name"}>{teamRankingTable(cell)}</div>
+                Header: "CREW",
+                accessor: (row, index) => {
+                    return <div className={"align-middle crew-name"}>{teamRankingTable(row.team)}</div>
                 }
             },
             contestSummaryColumn
@@ -202,22 +183,15 @@ class ConnectedContestRankTable extends Component {
         tasks.map((task) => {
             const dataField = "task_" + task.id.toFixed(0)
             columns.push({
-                dataField: dataField,
-                text: task.heading,
-                sort: true,
-                columnType: "task",
-                editable: false,
-                headerClasses: taskToHighlight && taskToHighlight.id === task.id ? "taskTitleName" : "",
-                task: task.id,
-                onSort: (field, order) => {
-                    this.setState({
-                        sortField: dataField,
-                        sortDirection: task.summary_score_sorting_direction
-                    })
+                accessor: dataField,
+                Header: () => {
+                    return <span
+                        className={taskToHighlight && taskToHighlight.id === task.id ? "taskTitleName" : ""}>{task.heading}</span>
                 },
-                sortFunc: sortFunc,
-                sortCaret: sortCaret,
-                events: {},
+                id: task.id,
+                columnType: "task",
+                task: task.id,
+                sortDirection: task.summary_score_sorting_direction,
             })
         })
         return columns
@@ -227,16 +201,17 @@ class ConnectedContestRankTable extends Component {
         if (!this.props.teams || !this.props.contest || !this.props.tasks || !this.props.taskTests) return null
         const c = this.buildColumns()
         const d = this.buildData()
-        let sortDirection = this.state.sortField ? this.state.sortDirection : this.props.contest.results.summary_score_sorting_direction
+        return <ResultsServiceTable data={d} columns={c}
+                                    className={"table table-striped table-hover table-condensed table-dark"}
+                                    initialState={{
+                                        sortBy: [
+                                            {
+                                                id: "contestSummary",
+                                                desc: this.props.contest.results.summary_score_sorting_direction === "desc"
+                                            }
+                                        ]
+                                    }}
 
-        const defaultSorted = {
-            dataField: this.state.sortField ? this.state.sortField : "contestSummary", // if dataField is not match to any column you defined, it will be ignored.
-            order: sortDirection // desc or asc
-        };
-        return <BootstrapTable keyField="key" data={d} columns={c} sort={defaultSorted}
-                               classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
-                               bootstrap4 striped hover condensed
-                               bordered={false}
         />
     }
 }

@@ -1,10 +1,8 @@
 from django.urls import path
-from django.views.generic import TemplateView
 
 from display.views import (
     frontend_view_map,
     renew_token,
-    results_service,
     NewNavigationTaskWizard,
     NavigationTaskDetailView,
     ContestantUpdateView,
@@ -38,7 +36,6 @@ from display.views import (
     clear_future_contestants,
     render_contestants_timeline,
     get_contestant_schedule,
-    global_map,
     ContestDetailView,
     list_contest_permissions,
     add_user_contest_permissions,

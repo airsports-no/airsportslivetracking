@@ -25,6 +25,9 @@
                        title="Remove all scheduled contestants">Remove
                         contestants</a>
                     {% if object.editable_route %}
+                        <a class="dropdown-item" href="/routeeditor/{{ object.id }}/"
+                           title="If the task is generated from a route built in the route editor,  click this link to jump to the edit view of that route.">Edit
+                            route</a>
                         <a class="dropdown-item" href="{% url 'navigationtask_refresheditableroute' object.pk %}"
                            title="If the task is generated from a route built in the route editor, click this link to refresh the task if changes have been made to the route.">Reload
                             route</a>

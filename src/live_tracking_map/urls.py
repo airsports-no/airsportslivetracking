@@ -13,10 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.conf.urls import url
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path, include, re_path
 from django.views.generic import RedirectView, TemplateView
 from drf_yasg import openapi
@@ -24,19 +21,12 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 from rest_framework.authtoken.views import obtain_auth_token
 
-# from wagtail.admin import urls as wagtailadmin_urls
-# from wagtail.api import v2 as wagtail_api
-# from wagtail.core import urls as wagtail_urls
-# from wagtail.documents import urls as wagtaildocs_urls
-
 from display.views import (
     ContestList,
-    results_service,
     global_map,
     view_token,
     firebase_token_login,
 )
-# from wiki.api import api_router
 from . import api, settings
 
 docs = get_schema_view(
@@ -50,7 +40,6 @@ docs = get_schema_view(
 
 urlpatterns = [
     path("contests/", ContestList.as_view(), name="contest_list"),
-    # path('', global_map, name="global_map"),
     path(
         "terms_and_conditions/",
         TemplateView.as_view(template_name="display/terms_and_conditions.html"),
@@ -66,14 +55,7 @@ urlpatterns = [
     path("accounts/", include("django.contrib.auth.urls")),
     path("firebase_login/", firebase_token_login),
     path("docs/", docs.with_ui()),
-    #### wagtail
-    # path('cmsapi/v2/', include(api_router.urls[:2])),
-    # path('cms/', include(wagtailadmin_urls)),
-    # path('documents/', include(wagtaildocs_urls)),
-    # path('pages/', include(wagtail_urls)),
-    ####
     re_path("djga/", include("google_analytics.urls")),
     path("api/v1/", include(api.urlpatters)),
-    # re_path(r'^resultsservice/.?', results_service, name="resultsservice"),
     re_path(r"^.?", global_map, name="globalmap"),
 ]

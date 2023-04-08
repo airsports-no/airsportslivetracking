@@ -1,13 +1,10 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
-    calculateProjectedScore,
-    compareScoreAscending, compareScoreDescending,
+    calculateProjectedScore, compareScoreAscending, compareScoreDescending,
     teamRankingTable
 } from "../../utilities";
-import BootstrapTable from 'react-bootstrap-table-next';
 import "bootstrap/dist/css/bootstrap.min.css"
-import 'react-bootstrap-table-next/dist/react-bootstrap-table2.min.css';
 import {SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
 import {
     displayAllTracks,
@@ -21,7 +18,7 @@ import {
 import {Loading} from "../basicComponents";
 import {ProgressCircle} from "./contestantProgress";
 import 'react-circular-progressbar/dist/styles.css';
-import {sortCaret} from "../resultsService/resultsTableUtilities";
+import {ResultsServiceTable} from "../resultsService/resultsServiceTable";
 
 
 const mapStateToProps = (state, props) => ({
@@ -53,95 +50,73 @@ class ConnectedContestantRankTable extends Component {
         }
         this.columns = [
             {
-                dataField: "colour",
-                text: "",
                 style: this.numberStyle,
-                headerStyle: {width: '20px'}
+                accessor: (row, index) => {
+                    return ""
+                },
+                Header: () => {
+                    return <span style={{width: 20 + 'px'}}></span>
+                },
+                id: "colour",
+                disableSortBy: true,
             },
             {
-                dataField: "rank",
-                text: " #",
-                classes: "align-middle",
-                headerStyle: {width: '50px'},
-                sort: false,
-                formatter: (cell, row, rowIndex) => {
+                Header: () => {
+                    return <span style={{width: 50 + 'px'}}> #</span>
+                },
+                id: "Rank",
+                disableSortBy: true,
+                accessor: (row, rowIndex) => {
                     return <span>{rowIndex + 1}</span>
                 }
             },
             {
-                dataField: "contestantNumber",
-                text: "#",
-                hidden: true,
-            },
-            {
-                dataField: "contestantId",
-                text: "",
-                hidden: true
-            },
-            {
                 dataField: "pilotName",
-                text: "CREW",
-                sort: false,
-                classes: "align-middle crew-name",
-                formatter: (cell, row) => {
+                Header: "CREW",
+                disableSortBy: true,
+
+                accessor: (row, index) => {
                     return <div
                         className={"align-middle crew-name"}>{teamRankingTable(row.contestant.team, row.contestant.has_been_tracked_by_simulator)}</div>
                 }
             },
             {
                 dataField: "score",
-                text: "SCORE",
-                classes: "align-middle",
-                sort: true,
-                sortCaret: sortCaret,
-                headerFormatter: (column, colIndex, components) => {
-                    return <span>
-                    SCORE{components.sortElement}
-                </span>
-                },
-                formatter: (cell, row) => {
+                Header: "SCORE",
+                sortDirection: this.props.navigationTask.score_sorting_direction,
+                accessor: (row, index) => {
                     if (!row.hasStarted) {
                         return "--"
                     }
-                    return cell.toFixed(this.props.scoreDecimals)
-                }
+                    return <span className={"align-middle"}>{row.score.toFixed(this.props.scoreDecimals)}</span>
+                },
+                sortType: compareScoreAscending
             },
             {
-                dataField: "contest_summary",
-                text: "Σ",
-                classes: "align-middle",
-                sort: true,
+                Header: "Σ",
+                sortDirection: this.props.navigationTask.score_sorting_direction,
                 hidden: !this.props.navigationTask.display_contestant_rank_summary,
-                sortCaret: sortCaret,
-                headerFormatter: (column, colIndex, components) => {
-                    return <span>
-                    Σ{components.sortElement}
-                </span>
-                },
-                formatter: (cell, row) => {
-                    if (cell != null) {
-                        return cell.toFixed(this.props.scoreDecimals)
+                accessor: (row, index) => {
+                    if (row.contest_summary != null) {
+                        return <span
+                            className={"align-middle"}>{row.contest_summary.toFixed(this.props.scoreDecimals)}</span>
                     } else {
                         return "--"
                     }
                 },
+                sortType: (rowA, rowB, id, desc) => {
+                    if (rowA.original.contest_summary > rowB.original.contest_summary) return 1;
+                    if (rowB.original.contest_summary > rowA.original.contest_summary) return -1;
+                    return 0;
+                }
+
             },
             {
-                dataField: "projectedScore",
-                text: "EST",
-                classes: "align-middle",
-                style: (cell, row, rowIndex, colIndex) => {
-                    return {color: "orange"}
-                },
-                sortCaret: sortCaret,
-                headerFormatter: (column, colIndex, components) => {
-                    return <span>
-                    EST{components.sortElement}
-                </span>
-                },
+                Header: "EST",
+                sortDirection: this.props.navigationTask.score_sorting_direction,
 
-                formatter: (cell, row) => {
-                    let value = cell.toFixed(0)
+                accessor: (row, index) => {
+                    let value = row.projectedScore.toFixed(0)
                     if (value === "99999") {
                         value = "--"
                     }
@@ -150,36 +125,32 @@ class ConnectedContestantRankTable extends Component {
                     }
                     return value
                 },
-                sort: true,
-                sortFunc: (a, b, order, dataField, rowA, rowB) => {
-                    if (order === 'asc') {
-                        return b - a;
-                    }
-                    return a - b; // desc
+                sortType: (rowA, rowB, id, desc) => {
+                    if (rowA.original.projectedScore > rowB.original.projectedScore) return 1;
+                    if (rowB.original.projectedScore > rowA.original.projectedScore) return -1;
+                    return 0;
                 }
             },
             {
-                dataField: "progress",
-                text: "LAP",
-                formatter: (cell, row) => {
-                    return <ProgressCircle progress={row.progress} finished={row.finished}/>
+                id: "progress",
+                Header: () => {
+                    return <span className={'text-center'}>LAP</span>
                 },
-                headerClasses: "text-center",
-                style: (cell, row, rowIndex, colIndex) => {
-                    return {width: 80 + 'px'}
+                accessor: (row, index) => {
+                    return <span className={'align-middle'} style={{width: 80 + 'px'}}><ProgressCircle
+                        progress={row.progress} finished={row.finished}/></span>
                 },
-                classes: "align-middle"
             },
         ]
 
         this.rowEvents = {
-            onClick: (e, row, rowIndex) => {
+            onClick: (row) => {
                 this.handleContestantLinkClick(row.contestantId)
             },
-            onMouseEnter: (e, row, rowIndex) => {
+            onMouseEnter: (row) => {
                 this.props.highlightContestantTrack(row.contestantId)
             },
-            onMouseLeave: (e, row, rowIndex) => {
+            onMouseLeave: (row) => {
                 this.props.removeHighlightContestantTrack(row.contestantId)
             }
         }
@@ -210,7 +181,7 @@ class ConnectedContestantRankTable extends Component {
     }
 
 
-    numberStyle(cell, row, rowIndex, colIndex) {
+    numberStyle(row, rowIndex, colIndex) {
         return {backgroundColor: this.getColour(row.contestantNumber)}
     }
 
@@ -237,6 +208,7 @@ class ConnectedContestantRankTable extends Component {
             const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
             return {
                 key: contestant.contestant.id + "rack" + index,
+                track: contestant.track,
                 contestant: contestant.contestant,
                 colour: "",
                 contestantNumber: contestant.contestant.contestant_number,
@@ -252,6 +224,7 @@ class ConnectedContestantRankTable extends Component {
                 projectedScore: calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary),
                 finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
                 initialLoading: contestant.initialLoading,
+                className: this.props.highlight.includes(contestant.contestant.id) ? "selectedContestantRow" : ""
             }
         })
     }
@@ -268,19 +241,17 @@ class ConnectedContestantRankTable extends Component {
     }
 
     render() {
-        const rowClasses = (row, rowIndex) => {
-            if (this.props.highlight.includes(row.contestantId)) {
-                return "selectedContestantRow"
-            }
-        }
-
-        return <BootstrapTable keyField={"key"} data={this.debouncedBuildData()} columns={this.columns}
-                               rowClasses={rowClasses}
-                               defaultSorted={[{dataField: "rank", order: "asc"}]}
-                               classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
-                               bootstrap4 striped hover condensed
-                               bordered={false}
-                               rowEvents={this.rowEvents}/>
+        return <ResultsServiceTable data={this.debouncedBuildData()} columns={this.columns}
+                                    className={"table table-dark table-striped table-hover table-sm"}
+                                    rowEvents={this.rowEvents} initialState={{
+            sortBy: [
+                {
+                    id: "SCORE",
+                    desc: this.props.navigationTask.score_sorting_direction === "desc"
+                }
+            ]
+        }}
+        />
     }
 }
 

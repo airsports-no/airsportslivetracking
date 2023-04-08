@@ -21,6 +21,7 @@ class AnrCorridorCalculator(Calculator):
 
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
         position = track[-1]
+        self.has_passed_finish_point = True
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
             self.check_and_apply_outside_penalty(position, self.crossed_outside_gate or last_gate, reset=True)
             self.corridor_state = self.INSIDE_CORRIDOR
@@ -28,6 +29,7 @@ class AnrCorridorCalculator(Calculator):
     def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
         self.enroute = False
         self.accumulated_score = 0
+        self.has_passed_finish_point = False
 
     INSIDE_CORRIDOR = 0
     OUTSIDE_CORRIDOR = 1
@@ -135,7 +137,8 @@ class AnrCorridorCalculator(Calculator):
         self.check_outside_corridor(track, last_gate)
 
     def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: Position):
-        if self.crossed_outside_time is None:
+        if self.crossed_outside_time is None or self.has_passed_finish_point:
+            #  If we have passed the finish point, we have already handled that the gate has been missed.
             return
         penalty_gate = previous_gate or gate
         # Reset scoring to start counting again, but this time without grace time since we might be outside
