@@ -2,12 +2,10 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {fetchContests} from "../../actions";
 import {Loading} from "../basicComponents";
-import BootstrapTable from "react-bootstrap-table-next";
-import 'react-bootstrap-table2-filter/dist/react-bootstrap-table2-filter.min.css';
-import filterFactory, {textFilter, dateFilter, selectFilter} from 'react-bootstrap-table2-filter';
 import Icon from "@mdi/react";
 import {mdiCheck} from "@mdi/js";
 import {withRouter} from "react-router-dom";
+import {ASTable} from "../filteredSearchableTable";
 
 const mapStateToProps = (state, props) => ({
     upcomingContests: state.contests.filter((contest) => {
@@ -16,10 +14,6 @@ const mapStateToProps = (state, props) => ({
     myParticipatingContests: state.myParticipatingContests,
     loadingContests: state.loadingContests
 })
-
-function add_months(dt, n) {
-    return new Date(dt.setMonth(dt.getMonth() + n));
-}
 
 class ConnectedUpcomingContestsSignupTable extends Component {
     componentDidMount() {
@@ -30,67 +24,40 @@ class ConnectedUpcomingContestsSignupTable extends Component {
         this.props.history.push("/participation/" + contest.id + "/register/")
     }
 
-    filteredByPeriod(filterVal, data) {
-        let start = new Date()
-        if (filterVal === "0") {
-            start = add_months(start, 1)
-        } else if (filterVal === "1") {
-            start = add_months(start, 3)
-        } else if (filterVal === "2") {
-            start = add_months(start, 6)
-        } else if (filterVal === "3") {
-            start = add_months(start, 12)
-        }
-        if (filterVal) {
-            return data.filter(cell => new Date(cell.contest.start_time) > start);
-        }
-        return data;
-    }
-
     render() {
-        const timePeriods = {
-            0: "After a month",
-            1: "After three months",
-            2: "After six months",
-            3: "After a year"
-        }
-
-
         const columns = [
             {
-                text: "",
-                dataField: "contest.logo",
-                formatter: (cell, row) => {
-                    return <img src={cell} alt={"logo"} style={{width: "50px"}}/>
-                }
-            },
-            {
-                text: "Contest",
-                dataField: "contest.name",
-                filter: textFilter(),
-                sort: true
-            },
-            {
-                text: "Start date",
-                dataField: "contest.start_time",
-                formatter: (cell, row) => {
-                    return new Date(cell).toDateString()
+                Header: "",
+                id: "Logo",
+                accessor: (row, index) => {
+                    return <img src={row.contest.logo} alt={"logo"} style={{width: "50px"}}/>
                 },
-                sort: true,
-                filter: selectFilter({
-                    onFilter: this.filteredByPeriod,
-                    options: timePeriods
-                }),
+                disableSortBy: true,
+                disableFilters: true
             },
             {
-                text: "Registered",
-                dataField: "registered",
-                formatter: (cell, row) => {
-                    if (cell) {
+                Header: "Contest",
+                accessor: "contest.name",
+                disableSortBy: true,
+                filter: 'fuzzyText',
+            },
+            {
+                Header: "Start date",
+                accessor: (row, index) => {
+                    return new Date(row.contest.start_time).toDateString()
+                },
+                disableFilters: true
+            },
+            {
+                Header: "Registered",
+                accessor: (row, index) => {
+                    if (row.registered) {
                         return <Icon path={mdiCheck} size={2} color={"green"}/>
                     }
                     return null
-                }
+                },
+                disableFilters: true,
+                disableSortBy: true,
             }
         ]
         const data = this.props.upcomingContests.map((contest) => {
@@ -103,7 +70,7 @@ class ConnectedUpcomingContestsSignupTable extends Component {
             }
         })
         const rowEvents = {
-            onClick: (e, row, rowIndex) => {
+            onClick: (row) => {
                 if (!row.registered) {
                     this.showRegistrationForm(row.contest)
                 } else {
@@ -112,17 +79,15 @@ class ConnectedUpcomingContestsSignupTable extends Component {
             }
         }
         const loading = this.props.loadingContests ? <Loading/> : null
-        const defaultSorted = {
-            dataField: "contest.start_time", // if dataField is not match to any column you defined, it will be ignored.
-            order: "asc" // desc or asc
-        };
 
         return <div>
             {loading}
-            <BootstrapTable keyField={"contest.id"} data={data} columns={columns}
-                            classes={"table"} filter={filterFactory()} sort={defaultSorted}
-                            bootstrap4 striped hover condensed rowEvents={rowEvents}
-                            bordered={false}
+            <ASTable data={data} columns={columns} rowEvents={rowEvents} initialState={{
+                sortBy: [
+                    {id: "Start date", desc: true}
+                ]
+            }}
+ className={"table table-striped table-hover table-condensed"}
             />
         </div>
     }

@@ -9,12 +9,9 @@ import {
     showTaskDetails, tasksData, teamsData, testsData
 } from "../../actions/resultsService";
 import {teamLongForm, teamLongFormText, teamRankingTable} from "../../utilities";
-import BootstrapTable from 'react-bootstrap-table-next';
-import 'react-bootstrap-table2-toolkit/dist/react-bootstrap-table2-toolkit.min.css';
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Link} from "react-router-dom";
 
-import cellEditFactory from 'react-bootstrap-table2-editor';
 import {Container, Modal, Button, Form} from "react-bootstrap";
 import {
     mdiChevronLeft, mdiChevronRight,
@@ -25,6 +22,7 @@ import Icon from "@mdi/react";
 import {sortCaret, sortFunc} from "./resultsTableUtilities";
 import {Loading} from "../basicComponents";
 import Navbar from "../navbar";
+import {EditableCell, ResultsServiceTable} from "./resultsServiceTable";
 
 
 const mapStateToProps = (state, props) => ({
@@ -472,11 +470,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
         return visible
     }
 
+
     buildColumns() {
         const teamColumn = {
-            dataField: "team",
-            text: "Team",
-            formatter: (cell, row) => {
+            Header: "Team",
+            accessor: (row, index) => {
                 let clearButton = null
                 if (this.props.contest.results.permission_change_contest) {
                     clearButton = <a href={"#"} style={{float: "right"}}
@@ -484,40 +482,33 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                          e.stopPropagation()
                                          let confirmation = confirm("Are you sure you want to delete?")
                                          if (confirmation) {
-                                             this.deleteResultsTableLine(this.props.contestId, cell.id)
+                                             this.deleteResultsTableLine(this.props.contestId, row.team.id)
                                          }
                                      }}><Icon
                         path={mdiDeleteForever} title={"Edit"} size={0.7}/></a>
                 }
-                return <div className={"align-middle crew-name"}>{clearButton}{teamRankingTable(cell)}</div>
-            },
-            csvFormatter: (cell, row) => {
-                return teamLongFormText(cell)
+                return <div className={"align-middle crew-name"}>{clearButton}{teamRankingTable(row.team)}</div>
             },
             editable: false,
+            disableFilters: true,
+            disableSortBy: true,
         }
 
         const contestSummaryColumn = {
-            dataField: "contestSummary",
-            text: "Σ",
+            Header: this.props.contest.results.permission_change_contest ? <span>Σ<br/>&nbsp;</span> : "Σ",
+            accessor: "contestSummary",
             sort: true,
             editable: !this.props.contest.results.autosum_scores,
             classes: "number-right " + (!this.props.contest.results.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
-            csvType: "number",
+            sortDirection: this.props.contest.results.summary_score_sorting_direction,
             onSort: (field, order) => {
                 this.setState({
                     sortField: "contestSummary",
                     sortDirection: this.props.contest.results.summary_score_sorting_direction
                 })
             },
-            sortFunc: sortFunc,
-            sortCaret: sortCaret,
+            disableFilters: true,
             columnType: "contestSummary",
-            headerFormatter: (column, colIndex, components) => {
-                return <span>
-                    {components.sortElement} Σ
-                </span>
-            }
         }
         let columns = [teamColumn, contestSummaryColumn]
 
@@ -531,35 +522,24 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 const dataField = "test_" + taskTest.id.toFixed(0)
                 hasNavTask |= taskTest.navigation_task !== null
                 columns.push({
-                    dataField: dataField,
-                    text: taskTest.heading,
-                    headerClasses: "text-muted",
-                    headerStyle: {verticalAlign: 'top', height: "1px", minWidth: "80px"},
-                    sort: true,
-                    hidden: !this.props.visibleTaskDetails[task.id],
-                    classes: "number-right " + (this.props.contest.results.permission_change_contest ? "editableCell" : ""),
-                    csvType: "number",
-                    onSort: (field, order) => {
-                        this.setState({
-                            sortField: dataField,
-                            sortDirection: taskTest.sorting
-                        })
-                    },
-                    sortFunc: sortFunc,
-                    sortCaret: sortCaret,
-                    columnType: "taskTest",
-                    taskTest: taskTest.id,
-                    headerFormatter: (column, colIndex, components) => {
-                        let header = <span>{components.sortElement} {taskTest.heading}</span>
+                    id: dataField,
+                    accessor: dataField,
+                    Cell: !taskTest.navigation_task && this.props.contest.results.permission_change_contest ? EditableCell : ({value}) => String(value),
+                    Header: () => {
+                        let header = <span>{taskTest.heading}</span>
+                        let privilege_break = null
+
                         if (taskTest.navigation_task_link) {
                             header =
-                                <span>{components.sortElement} {taskTest.heading}<a
+                                <span>{taskTest.heading}<a
                                     href={taskTest.navigation_task_link}><Icon
                                     path={mdiEarth} size={0.7}/></a></span>
                         }
                         let privileged = null
                         let move = null
                         if (this.props.contest.results.permission_change_contest) {
+                            privilege_break = <span><br/>&nbsp;</span>
+
                             move = <div style={{position: "absolute", bottom: "0", right: "0"}}>
                                 {taskTestIndex > 0 ?
                                     <a href={"#"} onClick={(e) => this.moveTestLeft(e, taskTest.id)}><Icon
@@ -592,61 +572,41 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                         path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
                                     </span>
                         }
-                        return <div style={{position: "relative", height: "100%"}}>{header}{privileged}{move}</div>
-                    }
+                        return <span>{header}{privilege_break}{privileged}{move}</span>
+                    },
+                    sort: true,
+                    hidden: !this.props.visibleTaskDetails[task.id],
+                    disableFilters: true,
+                    classes: "number-right " + (this.props.contest.results.permission_change_contest ? "editableCell" : ""),
+                    columnType: "taskTest",
+                    taskTest: taskTest.id,
                 })
             });
             const dataField = "task_" + task.id.toFixed(0)
             columns.push({
-                    dataField: dataField,
-                    text: task.heading,
-                    sort: true,
-                    columnType: "task",
-                    editable: !task.autosum_scores,
-                    classes: "number-right " + (!task.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
-                    headerStyle: {verticalAlign: 'top', height: "1px", minWidth: "80px"},
-                    task: task.id,
-                    onSort: (field, order) => {
-                        this.setState({
-                            sortField: dataField,
-                            sortDirection: task.summary_score_sorting_direction
-                        })
-                    },
-                    sortFunc: sortFunc,
-                    sortCaret: sortCaret,
-                    events: {},
-                    hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible(),
-                    csvType: "number",
-                    // formatter: (cell, row) => {
-                    //     <span>{cell}<Icon
-                    //         path={mdiPencilOutline} title={"Edit"} size={0.7}
-                    //         style={{verticalAlign: "top", textAlign: "right"}}/></span>
-                    // },
-                    headerFormatter: (column, colIndex, components) => {
-                        // if (this.props.taskTests.filter((taskTest) => {
-                        //     return taskTest.task === task.id
-                        // }).length === 0 && this.props.visibleTaskDetails[task.id]) {
-                        //     this.props.hideTaskDetails(task.id)
-                        // }
-                        let privilege_break = null
-                        let privileged = null
-                        let move = null
-                        const common = <span>
-                        {components.sortElement} {task.heading}
+                id: dataField,
+                accessor: dataField,
+                Cell: !task.autosum_scores ? EditableCell : ({value}) => String(value),
+                Header: () => {
+                    let privilege_break = null
+                    let privileged = null
+                    let move = null
+                    const common = <span>
+                        {task.heading}
                     </span>
-                        if (this.props.contest.results.permission_change_contest) {
-                            privilege_break = <span><br/>&nbsp;</span>
-                            if (!this.state.zoomedTask) {
-                                move = <div style={{position: "absolute", bottom: "0", right: "0"}}>
-                                    {taskIndex > 0 ?
-                                        <a href={"#"} onClick={(e) => this.moveTaskLeft(e, task.id)}><Icon
-                                            path={mdiChevronLeft} size={0.7}/></a> : null}
-                                    {taskIndex < this.props.tasks.length - 1 ?
-                                        <a href={"#"} onClick={(e) => this.moveTaskRight(e, task.id)}><Icon
-                                            path={mdiChevronRight} size={0.7}/></a> : null}
-                                </div>
-                            }
-                            privileged = <span style={{position: "absolute", bottom: "0", left: "0"}}>
+                    if (this.props.contest.results.permission_change_contest) {
+                        privilege_break = <span><br/>&nbsp;</span>
+                        if (!this.state.zoomedTask) {
+                            move = <span style={{position: "absolute", bottom: "0", right: "0"}}>
+                                {taskIndex > 0 ?
+                                    <a href={"#"} onClick={(e) => this.moveTaskLeft(e, task.id)}><Icon
+                                        path={mdiChevronLeft} size={0.7}/></a> : null}
+                                {taskIndex < this.props.tasks.length - 1 ?
+                                    <a href={"#"} onClick={(e) => this.moveTaskRight(e, task.id)}><Icon
+                                        path={mdiChevronRight} size={0.7}/></a> : null}
+                            </span>
+                        }
+                        privileged = <span style={{position: "absolute", bottom: "0", left: "0"}}>
                                 <a href={"#"}
                                    onClick={(e) => {
                                        e.stopPropagation()
@@ -654,38 +614,58 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                        this.setState({displayNewTaskModal: true, editTask: task, editMode: "edit"})
                                    }}><Icon
                                     path={mdiPencilOutline} title={"Edit"} size={0.7}/></a>
-                                {!hasNavTask ?
-                                    <a href={"#"}
-                                       onClick={(e) => {
-                                           e.stopPropagation()
+                            {!hasNavTask ?
+                                <a href={"#"}
+                                   onClick={(e) => {
+                                       e.stopPropagation()
 
-                                           if (window.confirm("You sure you want to delete the task?")) {
-                                               this.props.deleteTask(this.props.contestId, task.id)
-                                           }
-                                       }}><Icon
-                                        path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
+                                       if (window.confirm("You sure you want to delete the task?")) {
+                                           this.props.deleteTask(this.props.contestId, task.id)
+                                       }
+                                   }}><Icon
+                                    path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
                             </span>
-                        }
-                        return <div style={{position: "relative", height: "100%"}}>{this.props.visibleTaskDetails[task.id] ?
-                            <a href={"#"}
-                               onClick={(e) => {
-                                   e.stopPropagation()
-                                   this.collapseTask(task)
-                               }}
-                            >Σ {common}</a> : <a href={"#"}
-                                                 onClick={(e) => {
-                                                     e.stopPropagation()
-                                                     this.expandTask(task)
-                                                 }}
-                            >{common}</a>}{privilege_break}{privileged}
-                            {move}
-                        </div>
                     }
-                }
-            )
+                    return <span>{this.props.visibleTaskDetails[task.id] ?
+                        <a href={"#"}
+                           onClick={(e) => {
+                               e.stopPropagation()
+                               this.collapseTask(task)
+                           }}
+                        >{common} (Σ)</a> : <a href={"#"}
+                                               onClick={(e) => {
+                                                   e.stopPropagation()
+                                                   this.expandTask(task)
+                                               }}
+                        >{common} (Σ)</a>}{privilege_break}{privileged}
+                        {move}
+                    </span>
+                },
+
+                columnType: "task",
+                disableFilters: true,
+                classes: "number-right " + (!task.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
+                task: task.id,
+                hidden: !this.props.visibleTaskDetails[task.id] && this.anyDetailsVisible(),
+            })
         })
         return columns
     }
+
+    updateMyData(row, column, newValue) {
+        const teamId = row.original.team.id
+        if (newValue === undefined || newValue.length === 0) {
+            newValue = 0
+        }
+        if (column.columnType === "contestSummary") {
+            this.props.putContestSummary(this.props.contestId, teamId, newValue)
+        } else if (column.columnType === "task") {
+            this.props.putTaskSummary(this.props.contestId, teamId, column.task, newValue)
+        } else if (column.columnType === "taskTest") {
+            this.props.putTestResult(this.props.contestId, teamId, column.taskTest, newValue)
+        }
+    }
+
 
     render() {
         if (this.props.contestError) {
@@ -695,7 +675,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
                     <h4 className="alert alert-warning" role="alert">Failed loading
                         contest: {this.props.contestError.responseJSON.detail}</h4>
                     <p>Contact support or visit <a
-                        href={'https://home.airsports.no/faq/#contest-results-are-not-found'}>our FAQ</a> for more
+                        href={'https://home.airsports.no/faq/#contest-results-are-not-found'}>our FAQ</a> for
+                        more
                         details.</p>
                 </div>
             </div>
@@ -703,30 +684,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
         if (!this.props.teams || !this.props.contest || !this.props.tasks || !this.props.taskTests) return <Loading/>
         const c = this.buildColumns()
         const d = this.buildData()
-        let sortDirection = this.state.sortField ? this.state.sortDirection : this.props.contest.results.summary_score_sorting_direction
-
-        const defaultSorted = {
-            dataField: this.state.sortField ? this.state.sortField : "contestSummary", // if dataField is not match to any column you defined, it will be ignored.
-            order: sortDirection // desc or asc
-        };
-        const cellEdit = cellEditFactory({
-            mode: 'click',
-            blurToSave: true,
-            afterSaveCell: (oldValue, newValue, row, column) => {
-                const teamId = row.team.id
-                if (newValue === undefined || newValue.length === 0) {
-                    newValue = 0
-                }
-                if (column.columnType === "contestSummary") {
-                    this.props.putContestSummary(this.props.contestId, teamId, newValue)
-                } else if (column.columnType === "task") {
-                    this.props.putTaskSummary(this.props.contestId, teamId, column.task, newValue)
-                } else if (column.columnType === "taskTest") {
-                    this.props.putTestResult(this.props.contestId, teamId, column.taskTest, newValue)
-                }
-                console.log(row)
-            }
-        });
 
         return <div>
             <Navbar/>
@@ -779,26 +736,36 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 <div className={"results-table"}>
                     <div className={""}>
                         <div>
-                            <BootstrapTable keyField={"key"} data={d} columns={c} sort={defaultSorted}
-                                            classes={"table-dark bg-dark-transparent"}
-                                            wrapperClasses={"text-dark"}
-                                            bootstrap4 striped condensed
-                                            cellEdit={this.props.contest.results.permission_change_contest ? cellEdit : {}}
+                            <ResultsServiceTable data={d} columns={c}
+                                                 updateMyData={this.updateMyData.bind(this)}
+                                                 className={"table table-striped table-condensed table-dark bg-dark-transparent table-bordered"}
+                                                 initialState={{
+                                                     sortBy: [
+                                                         {
+                                                             id: "contestSummary",
+                                                             desc: this.props.contest.results.summary_score_sorting_direction === "desc"
+                                                         }
+                                                     ]
+                                                 }}
                             />
                         </div>
                     </div>
                     <div className={"alert alert-info alert-dismissable fade show"} style={{marginTop: "20px"}}>
-                        <button type="button" className="close" data-dismiss="alert" aria-hidden="true">&#215;</button>
+                        <button type="button" className="close" data-dismiss="alert"
+                                aria-hidden="true">&#215;</button>
                         <h4 className="alert-heading">About the results table</h4>
-                        Contest results consists of one or more tasks, and each task contains one or more tests. The
+                        Contest results consists of one or more tasks, and each task contains one or more tests.
+                        The
                         initial
                         view shows the summary score for each task in the contest. By clicking on the task name
                         you
-                        can zoom into the individual test results within the task. Zoom out by clicking on the titles
+                        can zoom into the individual test results within the task. Zoom out by clicking on the
+                        titles
                         above the table or the same task name in the rightmost column. For instance, a precision
                         navigation
                         task
-                        will consist of three tests; a planning test, a navigation test, and an observation test. The
+                        will consist of three tests; a planning test, a navigation test, and an observation
+                        test. The
                         total
                         score of these three tests make up the score for the task.
                         {this.props.contest.results.permission_change_contest ? <div>
