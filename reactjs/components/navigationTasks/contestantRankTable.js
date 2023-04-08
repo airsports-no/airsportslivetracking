@@ -18,7 +18,6 @@ import {
 import {Loading} from "../basicComponents";
 import {ProgressCircle} from "./contestantProgress";
 import 'react-circular-progressbar/dist/styles.css';
-import {sortCaret} from "../resultsService/resultsTableUtilities";
 import {ResultsServiceTable} from "../resultsService/resultsServiceTable";
 
 
@@ -58,7 +57,8 @@ class ConnectedContestantRankTable extends Component {
                 Header: () => {
                     return <span style={{width: 20 + 'px'}}></span>
                 },
-                id: "colour"
+                id: "colour",
+                disableSortBy: true,
             },
             {
                 Header: () => {

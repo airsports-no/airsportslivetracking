@@ -1,9 +1,15 @@
 import React, {Component} from "react";
 import {contestantShortForm} from "../../utilities";
 import {connect} from "react-redux";
-import BootstrapTable from "react-bootstrap-table-next";
-import {CONTESTANT_DETAILS_DISPLAY} from "../../constants/display-types";
-import {displayOnlyContestantTrack, setDisplay, showLowerThirds} from "../../actions";
+import {
+    displayAllTracks,
+    displayOnlyContestantTrack, hideLowerThirds,
+    highlightContestantTable,
+    removeHighlightContestantTrack,
+    setDisplay,
+    showLowerThirds
+} from "../../actions";
+import {ResultsServiceTable} from "../resultsService/resultsServiceTable";
 
 const mapStateToProps = (state, props) => {
     let scores = [];
@@ -25,7 +31,9 @@ const mapStateToProps = (state, props) => {
             }
         }
     }
-    return {turningPointScores: scores}
+    return {
+        turningPointScores: scores, highlight: state.highlightContestantTable,
+    }
 }
 
 
@@ -34,6 +42,34 @@ class ConnectedTurningPointDisplay extends Component {
         super(props);
         this.numberStyle = this.numberStyle.bind(this)
         this.handleContestantLinkClick = this.handleContestantLinkClick.bind(this)
+        this.columns = [
+            {
+                accessor: (row, index) => {
+                    return ""
+                },
+                Header: () => {
+                    return <span style={{width: 20 + 'px'}}></span>
+                },
+                id: "colour",
+                disableSortBy: true,
+                style: this.numberStyle
+            },
+            {
+                accessor: "rank",
+                disableSortBy: true,
+                Header: "Rank"
+            },
+            {
+                accessor: "contestantName",
+                disableSortBy: true,
+                Header: "Contestant"
+            },
+            {
+                accessor: "score",
+                disableSortBy: true,
+                Header: "Score"
+            },
+        ]
     }
 
 
@@ -41,20 +77,33 @@ class ConnectedTurningPointDisplay extends Component {
         return this.props.colours[contestantNumber % this.props.colours.length]
     }
 
-    numberStyle(cell, row, rowIndex, colIndex) {
+    numberStyle(row, rowIndex, colIndex) {
         return {backgroundColor: this.getColour(row.contestantNumber)}
     }
 
+    resetToAllContestants() {
+        // this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        this.props.displayAllTracks();
+        this.props.hideLowerThirds();
+        for (let id of this.props.highlight) {
+            this.props.removeHighlightContestantTable(id)
+        }
+    }
+
     handleContestantLinkClick(contestantId) {
-        this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
-        this.props.displayOnlyContestantTrack(contestantId)
-        this.props.showLowerThirds(contestantId)
+        this.resetToAllContestants()
+        if (!this.props.highlight.includes(contestantId)) {
+            this.props.displayOnlyContestantTrack(contestantId)
+            this.props.showLowerThirds(contestantId)
+            this.props.removeHighlightContestantTrack(contestantId)
+            this.props.highlightContestantTable(contestantId)
+        }
     }
 
 
     render() {
         const rowEvents = {
-            onClick: (e, row, rowIndex) => {
+            onClick: (row) => {
                 this.handleContestantLinkClick(row.contestantId)
             }
         }
@@ -69,41 +118,10 @@ class ConnectedTurningPointDisplay extends Component {
                 rank: index + 1
             }
         })
-        const columns = [
-            {
-                dataField: "colour",
-                text: "  ",
-                style: this.numberStyle
-
-            },
-            {
-                dataField: "rank",
-                text: "Rank"
-            },
-            {
-                dataField: "contestantNumber",
-                text: "#",
-                hidden: true
-            },
-            {
-                dataField: "contestantId",
-                text: "",
-                hidden: true
-            },
-            {
-                dataField: "contestantName",
-                text: "Contestant"
-            },
-            {
-                dataField: "score",
-                text: "Score"
-            },
-        ]
 
 
-        return <BootstrapTable keyField={"rank"} data={scores} columns={columns} rowEvents={rowEvents}
-                               classes={"table-dark"} wrapperClasses={"text-dark bg-dark"}
-                               bootstrap4 striped hover condensed
+        return <ResultsServiceTable data={scores} columns={this.columns} rowEvents={rowEvents}
+                                    className={"table table-striped table-hover table-sm table-dark"}
         />
 
 
@@ -113,6 +131,10 @@ class ConnectedTurningPointDisplay extends Component {
 const TurningPointDisplay = connect(mapStateToProps, {
     setDisplay,
     displayOnlyContestantTrack,
-    showLowerThirds
+    showLowerThirds,
+    removeHighlightContestantTrack,
+    highlightContestantTable,
+    displayAllTracks,
+    hideLowerThirds
 })(ConnectedTurningPointDisplay)
 export default TurningPointDisplay
