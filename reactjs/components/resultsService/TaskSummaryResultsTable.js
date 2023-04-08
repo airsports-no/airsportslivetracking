@@ -501,12 +501,6 @@ class ConnectedTaskSummaryResultsTable extends Component {
             editable: !this.props.contest.results.autosum_scores,
             classes: "number-right " + (!this.props.contest.results.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
             sortDirection: this.props.contest.results.summary_score_sorting_direction,
-            onSort: (field, order) => {
-                this.setState({
-                    sortField: "contestSummary",
-                    sortDirection: this.props.contest.results.summary_score_sorting_direction
-                })
-            },
             disableFilters: true,
             columnType: "contestSummary",
         }
