@@ -92,6 +92,7 @@ class ConnectedTurningPointDisplay extends Component {
     }
 
     handleContestantLinkClick(contestantId) {
+        contestantId = parseInt(contestantId)
         this.resetToAllContestants()
         if (!this.props.highlight.includes(contestantId)) {
             this.props.displayOnlyContestantTrack(contestantId)
