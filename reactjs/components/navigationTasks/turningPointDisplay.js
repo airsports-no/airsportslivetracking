@@ -6,6 +6,7 @@ import {
     displayOnlyContestantTrack, hideLowerThirds,
     highlightContestantTable,
     removeHighlightContestantTrack,
+    removeHighlightContestantTable,
     setDisplay,
     showLowerThirds
 } from "../../actions";
@@ -135,6 +136,7 @@ const TurningPointDisplay = connect(mapStateToProps, {
     removeHighlightContestantTrack,
     highlightContestantTable,
     displayAllTracks,
-    hideLowerThirds
+    hideLowerThirds,
+    removeHighlightContestantTable
 })(ConnectedTurningPointDisplay)
 export default TurningPointDisplay
