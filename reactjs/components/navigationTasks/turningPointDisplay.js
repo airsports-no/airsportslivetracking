@@ -11,6 +11,7 @@ import {
     showLowerThirds
 } from "../../actions";
 import {ResultsServiceTable} from "../resultsService/resultsServiceTable";
+import {SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
 
 const mapStateToProps = (state, props) => {
     let scores = [];
@@ -83,12 +84,16 @@ class ConnectedTurningPointDisplay extends Component {
     }
 
     resetToAllContestants() {
-        // this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
         this.props.displayAllTracks();
         this.props.hideLowerThirds();
         for (let id of this.props.highlight) {
             this.props.removeHighlightContestantTable(id)
         }
+    }
+
+    resetToMainView(e) {
+        this.resetToAllContestants()
+        this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
     }
 
     handleContestantLinkClick(contestantId) {
@@ -110,6 +115,12 @@ class ConnectedTurningPointDisplay extends Component {
             }
         }
 
+        const headerRowEvents = {
+            onClick: () => {
+                this.resetToMainView()
+            }
+        }
+
         let scores = this.props.turningPointScores.sort((a, b) => {
             if (a.score > b.score) return 1;
             if (a.score < b.score) return -1;
@@ -123,6 +134,7 @@ class ConnectedTurningPointDisplay extends Component {
 
 
         return <ResultsServiceTable data={scores} columns={this.columns} rowEvents={rowEvents}
+                                    headerRowEvents={headerRowEvents}
                                     className={"table table-striped table-hover table-sm table-dark"}
         />
 
