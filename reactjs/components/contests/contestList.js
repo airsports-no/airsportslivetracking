@@ -23,8 +23,13 @@ export const ContestList = () => {
         {
             Header: "Contest",
             accessor: (row, index) => {
-                return row.name + " (" + row.share_string + ")"
+                return row.name
             },
+            disableSortBy: true,
+        },
+        {
+            Header: "Sharing",
+            accessor: "share_string",
             disableSortBy: true,
         },
         {
