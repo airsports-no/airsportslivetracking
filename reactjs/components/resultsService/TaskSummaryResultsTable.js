@@ -668,7 +668,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                 <Navbar/>
                 <div className={"container-xl"}>
                     <h4 className="alert alert-warning" role="alert">Failed loading
-                        contest: {this.props.contestError.responseJSON.detail}</h4>
+                        contest: {this.props.contestError.responseJSON?this.props.contestError.responseJSON.detail:"Unknown"}</h4>
                     <p>Contact support or visit <a
                         href={'https://home.airsports.no/faq/#contest-results-are-not-found'}>our FAQ</a> for
                         more
