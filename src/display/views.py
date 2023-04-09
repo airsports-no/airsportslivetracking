@@ -3000,7 +3000,7 @@ class NavigationTaskViewSet(ModelViewSet):
         navigation_task = self.get_object()  # type: NavigationTask
         if request.method == "PUT":
             serialiser = self.get_serializer(data=request.data)
-            serialiser.is_valid()
+            serialiser.is_valid(raise_exception=True)
             contest_team = serialiser.validated_data["contest_team"]
             if contest_team.team.crew.member1.email != request.user.email:
                 raise ValidationError("You cannot add a team where you are not the pilot")

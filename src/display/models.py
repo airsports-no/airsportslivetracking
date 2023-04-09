@@ -132,6 +132,10 @@ class MyUser(BaseUser, GuardianUserMixin):
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.email})"
 
+    @property
+    def person(self) -> "Person":
+        return Person.objects.get(email=self.email)
+
     def send_welcome_email(self, person: "Person"):
         try:
             html = render_welcome_email(person)
@@ -541,8 +545,7 @@ class Team(models.Model):
     def get_or_create_from_signup(
         cls, user: MyUser, copilot: Person, aircraft_registration: str, club_name: str
     ) -> "Team":
-        my_person = Person.objects.get(email=user.email)
-        crew, _ = Crew.objects.get_or_create(member1=my_person, member2=copilot)
+        crew, _ = Crew.objects.get_or_create(member1=user.person, member2=copilot)
         aircraft, _ = Aeroplane.objects.get_or_create(registration=aircraft_registration)
         club, _ = Club.objects.get_or_create(name=club_name)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aircraft, club=club)
@@ -1459,8 +1462,12 @@ class Contestant(models.Model):
         return self.gate_times.get(self.navigation_task.route.waypoints[0].name)
 
     def get_final_gate_time(self) -> Optional[datetime.datetime]:
-        final_gate = self.navigation_task.route.landing_gates or self.navigation_task.route.waypoints[-1]
-        return self.gate_times.get(final_gate.name)
+        # final_gate = (
+        #     self.navigation_task.route.landing_gates[0]
+        #     if self.navigation_task.route.landing_gates
+        #     else self.navigation_task.route.waypoints[-1]
+        # )
+        return self.gate_times.get(self.navigation_task.route.waypoints[-1].name)
 
     @property
     def landing_time(self) -> datetime.datetime:

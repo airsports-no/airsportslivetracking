@@ -433,7 +433,7 @@ class SignupSerialiser(serializers.Serializer):
         contest_team = validated_data["contest_team"]
         original_team = contest_team.team
         teams = ContestTeam.objects.filter(
-            Q(team__crew__member1=request.user.pk) | Q(team__crew__member2=request.user.pk), contest=contest
+            Q(team__crew__member1=request.user.person.pk) | Q(team__crew__member2=request.user.person.pk), contest=contest
         ).exclude(pk=contest_team.pk)
         if teams.exists():
             raise ValidationError(
@@ -473,7 +473,7 @@ class SignupSerialiser(serializers.Serializer):
         if ContestTeam.objects.filter(contest=contest, team=team).exists():
             raise ValidationError(f"Team {team} is already registered for contest {contest}")
         teams = ContestTeam.objects.filter(
-            Q(team__crew__member1_id=request.user.pk) | Q(team__crew__member2_id=request.user.pk), contest=contest
+            Q(team__crew__member1_id=request.user.person.pk) | Q(team__crew__member2_id=request.user.person.pk), contest=contest
         )
         if teams.exists():
             raise ValidationError(

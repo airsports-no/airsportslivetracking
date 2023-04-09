@@ -143,9 +143,9 @@ class ConnectedNavigationTaskPlayback extends ConnectedNavigationTask {
             this.fixMapBackground()
         }
         if (this.props.displayOpenAip) {
-            OpenAIP.addTo(this.map)
+            this.openaip.addTo(this.map)
         } else {
-            OpenAIP.removeFrom(this.map)
+            this.openaip.removeFrom(this.map)
         }
 
     }
