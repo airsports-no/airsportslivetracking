@@ -50,7 +50,7 @@ from guardian.shortcuts import (
     remove_perm,
     get_user_perms,
 )
-from rest_framework import status, permissions
+from rest_framework import status, permissions, mixins
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action, api_view, permission_classes
 import rest_framework.exceptions as drf_exceptions
@@ -200,7 +200,7 @@ from display.serialisers import (
     PositionSerialiser,
     ScorecardNestedSerialiser,
     ContestSerialiserWithResults,
-    PersonSerialiserExcludingTracking,
+    PersonSerialiserExcludingTracking, ContestFrontEndSerialiser,
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
@@ -1350,6 +1350,8 @@ def add_user_contest_permissions(request, pk):
 class ContestList(PermissionRequiredMixin, ListView):
     model = Contest
     permission_required = ("display.view_contest",)
+    # todo: Temporary change to try the react version
+    template_name = "display/contest_list_react.html"
 
     def get_queryset(self):
         # Important not to accept global permissions, otherwise any content creator can view everything
@@ -2657,6 +2659,25 @@ class EditableRouteViewSet(ModelViewSet):
             )
         except:
             logger.exception("Failed creating editable route thumbnail")
+
+
+class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
+    """
+    Internal endpoint to drive the contest list front end
+    """
+
+    queryset = Contest.objects.all()
+    serializer_class = ContestFrontEndSerialiser
+
+    permission_classes = [(permissions.IsAuthenticated & ContestPermissions)]
+
+    def get_queryset(self):
+        return get_objects_for_user(
+            self.request.user,
+            "display.view_contest",
+            klass=self.queryset,
+            accept_global_perms=False,
+        ).order_by("name")
 
 
 class ContestViewSet(ModelViewSet):

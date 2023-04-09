@@ -3,10 +3,11 @@ from rest_framework_nested import routers
 from display.views import ContestViewSet, ImportFCNavigationTask, NavigationTaskViewSet, ContestantViewSet, \
     ImportFCNavigationTaskTeamId, UserPersonViewSet, TaskViewSet, \
     TaskTestViewSet, AircraftViewSet, ClubViewSet, TeamViewSet, ContestTeamViewSet, ContestantTeamIdViewSet, \
-    EditableRouteViewSet
+    EditableRouteViewSet, ContestFrontEndViewSet
 from django.urls import path, include
 
 router = routers.DefaultRouter()
+router.register(r'contestsfrontend', ContestFrontEndViewSet, basename="contestsfrontend")
 router.register(r'contests', ContestViewSet, basename="contests")
 # router.register(r'navigationtasks', NavigationTaskNestedViewSet, basename="rootnavigationtasks")
 # router.register(r'routes', RouteViewSet, basename="routes")

@@ -47,10 +47,17 @@ from display.models import (
     ScoreLogEntry,
     GateCumulativeScore,
     EditableRoute,
+    MyUser,
 )
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
+
+
+class UserSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = MyUser
+        fields = ("first_name", "last_name", "email")
 
 
 class MangledEmailField(serializers.Field):
@@ -246,6 +253,23 @@ class NavigationTasksSummaryParticipationSerialiser(serializers.ModelSerializer)
         return serialiser.data
 
 
+class ContestFrontEndSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, serializers.ModelSerializer):
+    editors = UserSerialiser(many=True)
+    number_of_tasks = serializers.SerializerMethodField("get_number_of_tasks")
+    share_string = serializers.CharField(read_only=True)
+    is_editor = serializers.SerializerMethodField("get_is_editor")
+
+    class Meta:
+        model = Contest
+        fields = ("id", "name", "editors", "start_time", "finish_time", "number_of_tasks", "share_string", "is_editor")
+
+    def get_number_of_tasks(self, contest):
+        return contest.navigationtask_set.all().count()
+
+    def get_is_editor(self, contest):
+        return self.context["request"].user in contest.editors
+
+
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(required=True)
     navigationtask_set = SerializerMethodField("get_visiblenavigationtasks")
@@ -433,7 +457,8 @@ class SignupSerialiser(serializers.Serializer):
         contest_team = validated_data["contest_team"]
         original_team = contest_team.team
         teams = ContestTeam.objects.filter(
-            Q(team__crew__member1=request.user.person.pk) | Q(team__crew__member2=request.user.person.pk), contest=contest
+            Q(team__crew__member1=request.user.person.pk) | Q(team__crew__member2=request.user.person.pk),
+            contest=contest,
         ).exclude(pk=contest_team.pk)
         if teams.exists():
             raise ValidationError(
@@ -473,7 +498,8 @@ class SignupSerialiser(serializers.Serializer):
         if ContestTeam.objects.filter(contest=contest, team=team).exists():
             raise ValidationError(f"Team {team} is already registered for contest {contest}")
         teams = ContestTeam.objects.filter(
-            Q(team__crew__member1_id=request.user.person.pk) | Q(team__crew__member2_id=request.user.person.pk), contest=contest
+            Q(team__crew__member1_id=request.user.person.pk) | Q(team__crew__member2_id=request.user.person.pk),
+            contest=contest,
         )
         if teams.exists():
             raise ValidationError(
