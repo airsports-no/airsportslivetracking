@@ -10,6 +10,7 @@ import ContestSummaryResultsTable from "../components/resultsService/ContestSumm
 import TaskSummaryResultsTable from "../components/resultsService/TaskSummaryResultsTable";
 import MyContestParticipationManagement from "../components/contests/myContestParticipationManagement";
 import RouteEditorContainer from "../components/routeEditor/routeEditorContainer";
+import NotFound from "../components/notFound";
 
 const root = createRoot(document.getElementById("root"))
 root.render(
@@ -41,6 +42,7 @@ root.render(
                     <Route index element={<RouteEditorContainer routeType={"precision"}/>}/>
                     <Route path=":routeId/" element={<RouteEditorContainer routeType={"precision"}/>}/>
                 </Route>
+                <Route path='*' element={<NotFound />}/>
             </Routes>
         </BrowserRouter>
     </Provider>,
