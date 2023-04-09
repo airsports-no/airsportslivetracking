@@ -341,10 +341,6 @@ def global_map(request):
     )
 
 
-def results_service(request):
-    return render(request, "display/resultsservice.html", {"skip_nav": True})
-
-
 def manifest(request):
     data = {
         "short_name": "Airsports live tracking",
@@ -2650,7 +2646,6 @@ class EditableRouteViewSet(ModelViewSet):
     def perform_update(self, serializer):
         super().perform_update(serializer)
         self.get_object().update_thumbnail()
-
 
     def perform_create(self, serializer):
         super().perform_create(serializer)

@@ -7,10 +7,9 @@ import {Button, Container, Form, Modal, Toast} from "react-bootstrap";
 import {circle, divIcon, marker} from "leaflet";
 import {fetchEditableRoute} from "../../actions";
 import axios from "axios";
-import {withRouter} from "react-router-dom";
 import IntroSlider from "react-intro-slider";
 import Cookies from "universal-cookie";
-import {fractionalDistancePoint, getBearing, getDistance} from "../../utilities";
+import {fractionalDistancePoint, getBearing, getDistance, withParams} from "../../utilities";
 import {googleArial, Jawg_Sunny, OpenAIP} from "../leafletLayers";
 
 const gateTypes = [
@@ -202,7 +201,7 @@ class ConnectedRouteEditor extends Component {
 
     handleSaveSuccess(id) {
         this.setState({changesSaved: true, saveFailed: null, globalEditingMode: false})
-        this.props.history.push("/routeeditor/" + id + "/")
+        this.props.navigate("/routeeditor/" + id + "/")
     }
 
     existingFeatureTypes() {
@@ -822,17 +821,18 @@ class ConnectedRouteEditor extends Component {
     }
 
     initialiseMap() {
+        const sunny=Jawg_Sunny()
         this.map = L.map('routeEditor', {
             zoomControl: true,
             preferCanvas: true,
-            layers: [Jawg_Sunny]
+            layers: [sunny]
         })
         console.log("Initialised map")
         this.drawnItems = L.featureGroup().addTo(this.map)
         L.control.layers({
-            "Map": Jawg_Sunny,
-            "Google Arial": googleArial,
-        }, {"OpenAIP": OpenAIP}, {
+            "Map": sunny,
+            "Google Arial": googleArial(),
+        }, {"OpenAIP": OpenAIP()}, {
             position: 'topleft',
             collapsed: false
         }).addTo(this.map);
@@ -969,5 +969,5 @@ const
         }
 
 const
-    RouteEditor = connect(mapStateToProps, mapDispatchToProps)(withRouter(ConnectedRouteEditor));
-export default RouteEditor;
+    RouteEditor = connect(mapStateToProps, mapDispatchToProps)(ConnectedRouteEditor);
+export default withParams(RouteEditor);

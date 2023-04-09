@@ -1,4 +1,10 @@
 import React, {Component} from "react";
+import {useParams, useNavigate, useLocation} from "react-router-dom";
+
+export function withParams(Component) {
+  return props => <Component {...props} params={useParams()} navigate={useNavigate()} location={useLocation()} />;
+}
+
 
 const R = 6371e3; // metres
 export function getDistance(lat1, lon1, lat2, lon2) {

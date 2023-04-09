@@ -6,10 +6,9 @@ import {
 import TimePeriodEventList from "./timePeriodEventList";
 import {Button, Container, Modal} from "react-bootstrap";
 import axios from "axios";
-import {formatDate, formatTime, teamRankingTable} from "../../utilities";
+import {formatDate, formatTime, teamRankingTable, withParams} from "../../utilities";
 import {Loading} from "../basicComponents";
 import SelfRegistrationForm from "../participationManagement/navigationTaskStartForm";
-import {withRouter} from "react-router-dom";
 import {mdiShare} from "@mdi/js";
 import Icon from "@mdi/react";
 
@@ -52,18 +51,18 @@ class ConnectedMyParticipatingEventsList extends Component {
     }
 
     handleChangeClick(currentParticipation) {
-        this.props.history.push("/participation/" + currentParticipation.contest.id + "/register/")
+        this.props.navigate("/participation/" + currentParticipation.contest.id + "/register/")
     }
 
     handleEnterClick(currentParticipation, navigationTask) {
-        this.props.history.push("/participation/myparticipation/" + currentParticipation.id + "/signup/" + navigationTask.pk + "/")
+        this.props.navigate("/participation/myparticipation/" + currentParticipation.id + "/signup/" + navigationTask.pk + "/")
     }
 
     handleWithdrawClick(currentParticipation) {
         this.setState({errorMessage: null})
         axios.delete("/api/v1/contests/" + currentParticipation.contest.id + "/withdraw/").then((res) => {
             this.props.fetchMyParticipatingContests()
-            this.props.history.push("/participation/")
+            this.props.navigate("/participation/")
         }).catch((e) => {
             console.error(e);
             this.setState({errorMessage: e.response.data[0]})
@@ -75,7 +74,7 @@ class ConnectedMyParticipatingEventsList extends Component {
         this.setState({errorMessage: null})
         axios.delete("/api/v1/contests/" + currentParticipation.contest.id + "/navigationtasks/" + navigationTask.pk + "/contestant_self_registration/").then((res) => {
             this.props.fetchMyParticipatingContests()
-            this.props.history.push("/participation/myparticipation/" + currentParticipation.id + "/")
+            this.props.navigate("/participation/myparticipation/" + currentParticipation.id + "/")
         }).catch((e) => {
             console.error(e);
         }).finally(() => {
@@ -83,7 +82,7 @@ class ConnectedMyParticipatingEventsList extends Component {
     }
 
     hideModal() {
-        this.props.history.push("/participation/")
+        this.props.navigate("/participation/")
     }
 
     manageModal() {
@@ -198,7 +197,7 @@ class ConnectedMyParticipatingEventsList extends Component {
                     const currentParticipation = this.props.myParticipatingContests.find((participation) => {
                         return participation.contest.id === contest.id
                     }).id
-                    this.props.history.push("/participation/myparticipation/" + currentParticipation + "/")
+                    this.props.navigate("/participation/myparticipation/" + currentParticipation + "/")
                 }}/>
             </div> : <Loading/>}
         </div>
@@ -206,5 +205,5 @@ class ConnectedMyParticipatingEventsList extends Component {
 }
 
 const MyParticipatingEventsList = connect(mapStateToProps,
-    mapDispatchToProps)(withRouter(ConnectedMyParticipatingEventsList));
-export default MyParticipatingEventsList;
+    mapDispatchToProps)(ConnectedMyParticipatingEventsList);
+export default withParams(MyParticipatingEventsList);

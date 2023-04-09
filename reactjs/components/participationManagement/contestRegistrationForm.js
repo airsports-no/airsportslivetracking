@@ -7,7 +7,7 @@ import {connect} from "react-redux";
 import * as yup from 'yup';
 import {Loading} from "../basicComponents";
 import {fetchMyParticipatingContests} from "../../actions";
-import {withRouter} from "react-router-dom";
+import {withParams} from "../../utilities";
 
 axios.defaults.xsrfCookieName = 'csrftoken'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
@@ -32,11 +32,11 @@ class ConnectedContestRegistrationForm extends Component {
 
     handleSuccess(participationId) {
         this.props.fetchMyParticipatingContests()
-        this.props.history.push("/participation/myparticipation/" + participationId + "/")
+        this.props.navigate("/participation/myparticipation/" + participationId + "/")
     }
 
     hideModal() {
-        this.props.history.push("/participation/")
+        this.props.navigate("/participation/")
     }
 
     componentDidMount() {
@@ -145,7 +145,7 @@ class ConnectedContestRegistrationForm extends Component {
         const form = <div>
             <Formik {...formikProps}>
                 {props => (
-                    <Form onSubmit={props.handleSubmit} onAbort={() => this.props.history.push("/participation/")}>
+                    <Form onSubmit={props.handleSubmit} onAbort={() => this.props.navigate("/participation/")}>
                         <Form.Group>
                             <Form.Label>Copilot (optional)</Form.Label>
                             <Typeahead id={"copilot_id"}
@@ -198,7 +198,7 @@ class ConnectedContestRegistrationForm extends Component {
                             </Button>
                             {this.props.participation ?
                                 <Button variant="primary" type="button" onClick={() => {
-                                    this.props.history.push("/participation/myparticipation/" + this.props.participation.id + "/")
+                                    this.props.navigate("/participation/myparticipation/" + this.props.participation.id + "/")
                                 }}>
                                     Task details
                                 </Button> : null}
@@ -233,9 +233,9 @@ class ConnectedContestRegistrationForm extends Component {
 
 }
 
-const ContestRegistrationForm = withRouter(connect(mapStateToProps,
+const ContestRegistrationForm = connect(mapStateToProps,
     {
         fetchMyParticipatingContests
     }
-)(withRouter(ConnectedContestRegistrationForm)))
-export default ContestRegistrationForm
+)(ConnectedContestRegistrationForm)
+export default withParams(ContestRegistrationForm)

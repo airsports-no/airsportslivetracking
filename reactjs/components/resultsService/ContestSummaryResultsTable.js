@@ -2,7 +2,7 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {teamLongForm, teamRankingTable} from "../../utilities";
 import "bootstrap/dist/css/bootstrap.min.css"
-import {Redirect, Link} from "react-router-dom";
+import {Link} from "react-router-dom";
 import {fetchContestsWithResults} from "../../actions";
 import {Loading} from "../basicComponents";
 import Navbar from "../navbar";

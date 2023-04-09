@@ -70,6 +70,8 @@ export class ConnectedNavigationTask extends Component {
         this.lastTimeReceived = null
         this.checkReceivedTimeInterval = null
         this.colours = distinctColors({count: 25})
+        this.sunny=Jawg_Sunny()
+        this.openaip=OpenAIP()
     }
 
 
@@ -210,9 +212,9 @@ export class ConnectedNavigationTask extends Component {
             this.fixMapBackground()
         }
         if (this.props.displayOpenAip) {
-            OpenAIP.addTo(this.map)
+            this.openaip.addTo(this.map)
         } else {
-            OpenAIP.removeFrom(this.map)
+            this.openaip.removeFrom(this.map)
         }
 
     }
@@ -227,9 +229,9 @@ export class ConnectedNavigationTask extends Component {
 
     fixMapBackground() {
         if (this.props.navigationTask.display_background_map && this.props.displayBackgroundMap) {
-            Jawg_Sunny.addTo(this.map);
+            this.sunny.addTo(this.map);
         } else {
-            Jawg_Sunny.removeFrom(this.map);
+            this.sunny.removeFrom(this.map);
         }
     }
 

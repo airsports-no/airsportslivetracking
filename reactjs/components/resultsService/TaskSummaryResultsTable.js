@@ -8,7 +8,7 @@ import {
     hideTaskDetails, putContestSummary, putTaskSummary, putTestResult, resultsData,
     showTaskDetails, tasksData, teamsData, testsData
 } from "../../actions/resultsService";
-import {teamLongForm, teamLongFormText, teamRankingTable} from "../../utilities";
+import {teamLongForm, teamLongFormText, teamRankingTable, withParams} from "../../utilities";
 import "bootstrap/dist/css/bootstrap.min.css"
 import {Link} from "react-router-dom";
 
@@ -26,13 +26,14 @@ import {EditableCell, ResultsServiceTable} from "./resultsServiceTable";
 
 
 const mapStateToProps = (state, props) => ({
-    contest: state.contestResults[props.contestId],
-    contestError: state.contestResultsErrors[props.contestId],
-    tasks: state.tasks[props.contestId],
-    taskTests: state.taskTests[props.contestId],
+    contest: state.contestResults[props.params.contestId],
+    contestError: state.contestResultsErrors[props.params.contestId],
+    tasks: state.tasks[props.params.contestId],
+    taskTests: state.taskTests[props.params.contestId],
     teams: state.teams,
     visibleTaskDetails: state.visibleTaskDetails
 })
+
 
 
 class ConnectedTaskSummaryResultsTable extends Component {
@@ -71,14 +72,14 @@ class ConnectedTaskSummaryResultsTable extends Component {
     }
 
     periodicallyFetchResults() {
-        this.props.fetchContestResults(this.props.contestId)
+        this.props.fetchContestResults(this.props.params.contestId)
         this.timeout = setTimeout(() => this.periodicallyFetchResults(), 300000)
     }
 
     componentDidUpdate(prevProps) {
-        if (this.props.match.params.task && !prevProps.tasks && this.props.tasks) {
+        if (this.props.params.task && !prevProps.tasks && this.props.tasks) {
             const task = this.props.tasks.find((task) => {
-                return task.id === parseInt(this.props.match.params.task)
+                return task.id === parseInt(this.props.params.task)
             })
             this.expandTask(task)
         }
@@ -105,7 +106,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
         if (getUrl.host.includes("localhost")) {
             protocol = "ws"
         }
-        this.client = new W3CWebSocket(protocol + "://" + getUrl.host + "/ws/contestresults/" + this.props.contestId + "/")
+        this.client = new W3CWebSocket(protocol + "://" + getUrl.host + "/ws/contestresults/" + this.props.params.contestId + "/")
         this.client.onopen = () => {
             console.log("Client connected")
             clearTimeout(this.connectInterval)
@@ -113,17 +114,17 @@ class ConnectedTaskSummaryResultsTable extends Component {
         this.client.onmessage = (message) => {
             let data = JSON.parse(message.data);
             if (data.type === "contest.teams") {
-                this.props.teamsData(data.teams, this.props.contestId)
+                this.props.teamsData(data.teams, this.props.params.contestId)
             }
             if (data.type === "contest.tasks") {
-                this.props.tasksData(data.tasks, this.props.contestId)
+                this.props.tasksData(data.tasks, this.props.params.contestId)
             }
             if (data.type === "contest.tests") {
-                this.props.testsData(data.tests, this.props.contestId)
+                this.props.testsData(data.tests, this.props.params.contestId)
             }
             if (data.type === "contest.results") {
                 data.results.permission_change_contest = this.props.contest.results.permission_change_contest
-                this.props.resultsData(data.results, this.props.contestId)
+                this.props.resultsData(data.results, this.props.params.contestId)
             }
         };
         this.client.onclose = (e) => {
@@ -152,7 +153,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
 
     defaultTask() {
         return {
-            contest: this.props.contestId,
+            contest: this.props.params.contestId,
             summary_score_sorting_direction: "asc",
             name: "",
             heading: "",
@@ -182,20 +183,20 @@ class ConnectedTaskSummaryResultsTable extends Component {
     collapseTask(task) {
         this.setState({zoomedTask: null})
         this.props.hideAllTaskDetails()
-        if (this.props.match.params.task) {
-            this.props.history.push("/resultsservice/" + this.props.contestId + "/taskresults/")
+        if (this.props.params.task) {
+            this.props.navigate("/resultsservice/" + this.props.params.contestId + "/taskresults/")
         }
     }
 
     createNewTask() {
         this.setState({displayNewTaskModal: false})
-        this.props.createOrUpdateTask(this.props.contestId, this.state.editTask)
+        this.props.createOrUpdateTask(this.props.params.contestId, this.state.editTask)
     }
 
     createNewTaskTest() {
         if (this.state.editTaskTest.task !== -1) {
             this.setState({displayNewTaskTestModal: false})
-            this.props.createOrUpdateTaskTest(this.props.contestId, this.state.editTaskTest)
+            this.props.createOrUpdateTaskTest(this.props.params.contestId, this.state.editTaskTest)
         }
     }
 
@@ -349,8 +350,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
         })
         task.index += 1
         switchingWith.index -= 1
-        this.props.createOrUpdateTask(this.props.contestId, task)
-        this.props.createOrUpdateTask(this.props.contestId, switchingWith)
+        this.props.createOrUpdateTask(this.props.params.contestId, task)
+        this.props.createOrUpdateTask(this.props.params.contestId, switchingWith)
     }
 
 
@@ -364,8 +365,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
         })
         task.index -= 1
         switchingWith.index += 1
-        this.props.createOrUpdateTask(this.props.contestId, task)
-        this.props.createOrUpdateTask(this.props.contestId, switchingWith)
+        this.props.createOrUpdateTask(this.props.params.contestId, task)
+        this.props.createOrUpdateTask(this.props.params.contestId, switchingWith)
     }
 
     moveTestRight(e, testId) {
@@ -378,8 +379,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
         })
         test.index += 1
         switchingWith.index -= 1
-        this.props.createOrUpdateTaskTest(this.props.contestId, test)
-        this.props.createOrUpdateTaskTest(this.props.contestId, switchingWith)
+        this.props.createOrUpdateTaskTest(this.props.params.contestId, test)
+        this.props.createOrUpdateTaskTest(this.props.params.contestId, switchingWith)
     }
 
 
@@ -393,8 +394,8 @@ class ConnectedTaskSummaryResultsTable extends Component {
         })
         test.index -= 1
         switchingWith.index += 1
-        this.props.createOrUpdateTaskTest(this.props.contestId, test)
-        this.props.createOrUpdateTaskTest(this.props.contestId, switchingWith)
+        this.props.createOrUpdateTaskTest(this.props.params.contestId, test)
+        this.props.createOrUpdateTaskTest(this.props.params.contestId, switchingWith)
     }
 
 
@@ -406,7 +407,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             data[team.id] = {
                 contestSummary: "-",
                 team: team,
-                key: team.id + "_" + this.props.contestId,
+                key: team.id + "_" + this.props.params.contestId,
             }
             this.props.tasks.map((task) => {
                 data[team.id]["task_" + task.id.toFixed(0)] = "-"
@@ -420,7 +421,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             data[team] = {
                 contestSummary: "-",
                 team: this.props.teams[team],
-                key: team + "_" + this.props.contestId,
+                key: team + "_" + this.props.params.contestId,
             }
             this.props.tasks.map((task) => {
                 data[team]["task_" + task.id.toFixed(0)] = "-"
@@ -482,7 +483,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                          e.stopPropagation()
                                          let confirmation = confirm("Are you sure you want to delete?")
                                          if (confirmation) {
-                                             this.deleteResultsTableLine(this.props.contestId, row.team.id)
+                                             this.deleteResultsTableLine(this.props.params.contestId, row.team.id)
                                          }
                                      }}><Icon
                         path={mdiDeleteForever} title={"Edit"} size={0.7}/></a>
@@ -560,7 +561,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                            e.stopPropagation()
 
                                            if (window.confirm("Are you sure you want to delete the task test?")) {
-                                               this.props.deleteTaskTest(this.props.contestId, taskTest.id)
+                                               this.props.deleteTaskTest(this.props.params.contestId, taskTest.id)
                                            }
                                        }}><Icon
                                         path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
@@ -614,7 +615,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                        e.stopPropagation()
 
                                        if (window.confirm("You sure you want to delete the task?")) {
-                                           this.props.deleteTask(this.props.contestId, task.id)
+                                           this.props.deleteTask(this.props.params.contestId, task.id)
                                        }
                                    }}><Icon
                                     path={mdiClose} title={"Delete"} size={0.7}/></a> : null}
@@ -652,11 +653,11 @@ class ConnectedTaskSummaryResultsTable extends Component {
             newValue = 0
         }
         if (column.columnType === "contestSummary") {
-            this.props.putContestSummary(this.props.contestId, teamId, newValue)
+            this.props.putContestSummary(this.props.params.contestId, teamId, newValue)
         } else if (column.columnType === "task") {
-            this.props.putTaskSummary(this.props.contestId, teamId, column.task, newValue)
+            this.props.putTaskSummary(this.props.params.contestId, teamId, column.task, newValue)
         } else if (column.columnType === "taskTest") {
-            this.props.putTestResult(this.props.contestId, teamId, column.taskTest, newValue)
+            this.props.putTestResult(this.props.params.contestId, teamId, column.taskTest, newValue)
         }
     }
 
@@ -802,4 +803,4 @@ const
             hideAllTaskDetails,
         }
     )(ConnectedTaskSummaryResultsTable);
-export default TaskSummaryResultsTable;
+export default withParams(TaskSummaryResultsTable);

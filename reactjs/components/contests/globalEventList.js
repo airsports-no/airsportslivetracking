@@ -15,8 +15,9 @@ import {
     isAndroid,
     isIOS
 } from "react-device-detect";
-import {Link, withRouter} from "react-router-dom";
+import {Link, Navigate} from "react-router-dom";
 import {sortStartAndFinishTimes} from "./utilities";
+import {withParams} from "../../utilities";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -89,7 +90,7 @@ class ConnectedGlobalEventList extends Component {
         if (contest.latitude !== 0 && contest.longitude !== 0) {
             this.props.zoomFocusContest(contest.id)
         }
-        this.props.history.push("/global/contest_details/"+ contest.id + "/")
+        this.props.navigate("/global/contest_details/"+ contest.id + "/")
     }
 
     getCurrentParticipation(contestId) {
@@ -101,6 +102,7 @@ class ConnectedGlobalEventList extends Component {
 
     render() {
         let settingsButton = null
+
         if (document.configuration.managementLink) {
             settingsButton = <a className={"btn"} href={document.configuration.managementLink}>
                 <Icon path={mdiCog} title={"Settings"} size={1.1} color={"white"}/>
@@ -234,10 +236,10 @@ class ConnectedGlobalEventList extends Component {
                         handleContestClick={(contest)=>this.handleContestClick(contest)}
                         dialogClassName="modal-90w" onHide={() => this.props.hidePastEventsModal()}/>
             <ContestPopupModal contest={popupContest} show={popupContest !== undefined} participation={currentParticipation}
-                               onHide={() => this.props.history.push("/")}/>
+                               onHide={() => this.props.navigate("/")}/>
         </div>
     }
 }
 
-const GlobalEventList = connect(mapStateToProps, mapDispatchToProps)(withRouter(ConnectedGlobalEventList));
-export default GlobalEventList;
+const GlobalEventList = connect(mapStateToProps, mapDispatchToProps)(ConnectedGlobalEventList);
+export default withParams(GlobalEventList);

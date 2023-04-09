@@ -8,8 +8,8 @@ import Disclaimer, {DisclaimerLong} from "../disclaimer";
 import AboutLogoPopup from "../navigationTasks/aboutLogoPopup";
 import aboutGlobalMap from "../aboutTexts/aboutGlobalMap";
 import {internalColour, ognColour, safeskyColour} from "../aircraft/aircraft";
-import {withRouter} from "react-router-dom";
 import OngoingNavigationTicker from "../contests/ongoingNavigationTicker";
+import {withParams} from "../../utilities";
 
 const mapStateToProps = (state, props) => ({})
 
@@ -31,7 +31,7 @@ class ConnectedGlobalMapContainer extends Component {
                         <a className={"btn"} id="returnLink" href={"/"}>
                             <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
                         </a>
-                        <GlobalEventList contestDetailsId={this.props.contestDetailsId}/>
+                        <GlobalEventList contestDetailsId={parseInt(this.props.params.contestDetailsId)}/>
                         <div className={"aircraft-legend-global"}>
                             <i className="mdi mdi-airplanemode-active"
                                style={{color: internalColour}}/> AirSports<br/>
@@ -60,5 +60,5 @@ class ConnectedGlobalMapContainer extends Component {
 const
     GlobalMapContainer = connect(mapStateToProps, {
         fetchContests,
-    })(withRouter(ConnectedGlobalMapContainer))
-export default GlobalMapContainer
+    })(ConnectedGlobalMapContainer)
+export default withParams(GlobalMapContainer)

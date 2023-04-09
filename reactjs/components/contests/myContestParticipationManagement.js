@@ -4,8 +4,8 @@ import MyParticipatingEventsList from "./myParticipatingEventsList";
 import UpcomingContestsSignupTable from "../participationManagement/upcomingContestsSignupTable";
 import ContestRegistrationForm from "../participationManagement/contestRegistrationForm";
 import {fetchContests, fetchMyParticipatingContests} from "../../actions";
-import {withRouter} from "react-router-dom";
 import Navbar from "../navbar";
+import {withParams} from "../../utilities";
 
 export const mapStateToProps = (state, props) => ({
     currentContestRegistration: state.currentContestRegistration,
@@ -44,16 +44,16 @@ class ConnectedMyContestParticipationManagement extends Component {
 
     render() {
         let registerContest = null
-        let currentParticipation = this.props.currentParticipationId ? this.props.myParticipatingContests.find((contestTeam) => {
-            return contestTeam.id === this.props.currentParticipationId
+        let currentParticipation = this.props.params.currentParticipationId ? this.props.myParticipatingContests.find((contestTeam) => {
+            return contestTeam.id === parseInt(this.props.params.currentParticipationId)
         }) : null
         let currentParticipationRegistration = null
-        if (this.props.registerContestId) {
+        if (this.props.params.registerContestId) {
             currentParticipationRegistration = this.props.myParticipatingContests.find((contestTeam) => {
-                return contestTeam.contest.id === this.props.registerContestId
+                return contestTeam.contest.id === parseInt(this.props.params.registerContestId)
             })
             registerContest = this.props.contests.find((contest) => {
-                return contest.id === this.props.registerContestId
+                return contest.id === parseInt(this.props.params.registerContestId)
             })
         }
         return <div>
@@ -62,7 +62,7 @@ class ConnectedMyContestParticipationManagement extends Component {
                 <div className={"col-lg-4"}>
                     <h2>My participation</h2>
                     <MyParticipatingEventsList currentParticipation={currentParticipation}
-                                               navigationTaskId={this.props.navigationTaskId}/>
+                                               navigationTaskId={parseInt(this.props.params.navigationTaskId)}/>
                 </div>
                 <div className={"col-lg-8"}>
                     <h3>Upcoming contests</h3><UpcomingContestsSignupTable/></div>
@@ -75,5 +75,5 @@ class ConnectedMyContestParticipationManagement extends Component {
 }
 
 const MyContestParticipationManagement = connect(mapStateToProps,
-    mapDispatchToProps)(withRouter(ConnectedMyContestParticipationManagement));
-export default MyContestParticipationManagement;
+    mapDispatchToProps)(ConnectedMyContestParticipationManagement);
+export default withParams(MyContestParticipationManagement);

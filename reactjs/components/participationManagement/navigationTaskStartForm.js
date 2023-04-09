@@ -5,10 +5,10 @@ import {ErrorMessage, Formik} from 'formik';
 import {connect} from "react-redux";
 import * as yup from 'yup';
 import {fetchMyParticipatingContests} from "../../actions";
-import {withRouter} from "react-router-dom";
 import DatePicker from "react-datepicker";
 
 import "react-datepicker/dist/react-datepicker.css";
+import {withParams} from "../../utilities";
 
 
 axios.defaults.xsrfCookieName = 'csrftoken'
@@ -26,7 +26,7 @@ class ConnectedSelfRegistrationForm extends Component {
 
     handleSuccess() {
         this.props.fetchMyParticipatingContests()
-        this.props.history.push("/participation/myparticipation/" + this.props.participation.id + "/")
+        this.props.navigate("/participation/myparticipation/" + this.props.participation.id + "/")
 
     }
 
@@ -83,7 +83,7 @@ class ConnectedSelfRegistrationForm extends Component {
 
                 <Formik {...formikProps}>
                     {props => (
-                        <Form onSubmit={props.handleSubmit} onAbort={() => this.props.history.push("/participation/")}>
+                        <Form onSubmit={props.handleSubmit} onAbort={() => this.props.navigate("/participation/")}>
                             <Row>
                                 <Col>
                                     <Form.Label>Starting point time: </Form.Label>&nbsp;
@@ -142,7 +142,7 @@ class ConnectedSelfRegistrationForm extends Component {
                                 </Button>
                                 <Button variant={"danger"} type={"button"}
                                         onClick={() => {
-                                            this.props.history.push("/participation/myparticipation/" + this.props.participation.id + "/")
+                                            this.props.navigate("/participation/myparticipation/" + this.props.participation.id + "/")
                                         }}>Cancel</Button>
                                 {props.errors && _.has(props.errors, ["api"]) &&
                                 <div className="text-danger">{_.get(props.errors, ["api"])}</div>}
@@ -156,9 +156,9 @@ class ConnectedSelfRegistrationForm extends Component {
 
 }
 
-const SelfRegistrationForm = withRouter(connect(mapStateToProps,
+const SelfRegistrationForm = connect(mapStateToProps,
     {
         fetchMyParticipatingContests
     }
-)(ConnectedSelfRegistrationForm))
-export default SelfRegistrationForm
+)(ConnectedSelfRegistrationForm)
+export default withParams(SelfRegistrationForm)

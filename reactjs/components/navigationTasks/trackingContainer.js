@@ -19,6 +19,7 @@ import AboutTaskPopup from "./aboutTaskPopup";
 import TimeDisplay from "./timeDisplay";
 import qs from "qs";
 import NavigationTaskPlayback from "./navigationTaskPlayback";
+import {withParams} from "../../utilities";
 
 
 const mapStateToProps = (state, props) => ({
@@ -241,4 +242,4 @@ const
         toggleDisplayOpenAip,
         fetchMyParticipatingContests
     })(ConnectedTrackingContainer)
-export default TrackingContainer
+export default withParams(TrackingContainer)

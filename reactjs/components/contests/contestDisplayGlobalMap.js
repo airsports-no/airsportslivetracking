@@ -3,7 +3,6 @@ import ReactDOMServer from "react-dom/server";
 import {connect} from "react-redux";
 import ContestPopupItem from "./contestPopupItem";
 
-const L = window['L']
 
 export const mapStateToProps = (state, props) => ({
     zoomContest: state.zoomContest,
@@ -15,6 +14,7 @@ class ConnectedContestDisplayGlobalMap extends Component {
     constructor(props) {
         super(props)
         this.circle = null
+        this.L = window['L']
     }
 
     getCurrentParticipation(contestId) {
@@ -26,7 +26,7 @@ class ConnectedContestDisplayGlobalMap extends Component {
 
     componentDidMount() {
         const now = new Date()
-        this.circle = L.marker([this.props.contest.latitude, this.props.contest.longitude], {
+        this.circle = this.L.marker([this.props.contest.latitude, this.props.contest.longitude], {
             title: this.props.contest.name,
             zIndexOffset: 1000000,
             riseOnHover: true

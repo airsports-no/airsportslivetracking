@@ -461,7 +461,7 @@ class ConnectedGlobalMapMap
         this.internalPositionText = L.layerGroup().addTo(this.map)
         this.externalPositionIcons = L.layerGroup().addTo(this.map)
         this.externalPositionText = L.layerGroup().addTo(this.map)
-        Jawg_Sunny.addTo(this.map);
+        Jawg_Sunny().addTo(this.map);
         // OpenAIP.addTo(this.map);
         this.map.on("locationerror", (e) => {
             this.map.setView(L.latLng(59, 10.5), 7)

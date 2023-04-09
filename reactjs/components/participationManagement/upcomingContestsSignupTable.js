@@ -4,8 +4,8 @@ import {fetchContests} from "../../actions";
 import {Loading} from "../basicComponents";
 import Icon from "@mdi/react";
 import {mdiCheck} from "@mdi/js";
-import {withRouter} from "react-router-dom";
 import {ASTable} from "../filteredSearchableTable";
+import {withParams} from "../../utilities";
 
 const mapStateToProps = (state, props) => ({
     upcomingContests: state.contests.filter((contest) => {
@@ -21,7 +21,7 @@ class ConnectedUpcomingContestsSignupTable extends Component {
     }
 
     showRegistrationForm(contest) {
-        this.props.history.push("/participation/" + contest.id + "/register/")
+        this.props.navigate("/participation/" + contest.id + "/register/")
     }
 
     render() {
@@ -98,5 +98,5 @@ const UpcomingContestsSignupTable = connect(mapStateToProps,
     {
         fetchContests,
     }
-)(withRouter(ConnectedUpcomingContestsSignupTable))
-export default UpcomingContestsSignupTable
+)(ConnectedUpcomingContestsSignupTable)
+export default withParams(UpcomingContestsSignupTable)
