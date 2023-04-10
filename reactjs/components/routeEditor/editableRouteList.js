@@ -24,7 +24,12 @@ export const EditableRouteList = () => {
             Header: "Thumbnail",
             accessor: "thumbnail",
             Cell: ({value}) => value ? <img className="zoom" src={value}
-                                            style="width: 50px;margin-bottom: -20px;margin-top: -20px;margin-right: -20px"/> : null,
+                                            style={{
+                                                width: "50px",
+                                                marginBottom: "-20px",
+                                                marginTop: "-20px",
+                                                marginRight: "-20px"
+                                            }}/> : null,
             disableSortBy: true,
             disableFilters: true,
         },
@@ -42,7 +47,7 @@ export const EditableRouteList = () => {
             Header: "Total length",
             accessor: "route_length",
             disableFilters: true,
-            Cell: ({value}) => value.toFixed(2) + " km"
+            Cell: ({value}) => (value/1852).toFixed(2) + " NM"
         },
         {
             Header: "Editors",
@@ -51,7 +56,7 @@ export const EditableRouteList = () => {
                 return <ul>
                     {
                         value.map((editor) =>
-                            <li key={editor.email}>{editor.first_name} {editor.last_name} ({editor.email})</li>)
+                            <li key={editor.email}>{editor.first_name} {editor.last_name}</li>)
                     }
                 </ul>
             },

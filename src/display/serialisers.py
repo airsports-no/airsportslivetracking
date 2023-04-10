@@ -1,6 +1,7 @@
 import base64
 import datetime
 import logging
+from typing import Optional
 
 import dateutil
 import phonenumbers
@@ -1136,8 +1137,8 @@ class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.Mode
         return self.context["request"].user in editable_route.editors
 
     @staticmethod
-    def get_track(editable_route) -> dict:
-        return next(filter(lambda item: item["feature_type"] == "track", editable_route.route))
+    def get_track(editable_route) -> Optional[dict]:
+        return next(filter(lambda item: item["feature_type"] == "track", editable_route.route), None)
 
     def get_number_of_waypoints(self, editable_route):
         if track := self.get_track(editable_route):
@@ -1151,4 +1152,4 @@ class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.Mode
                 initial_length += calculate_distance_lat_lon(
                     (path[index][1], path[index][0]), (path[index + 1][1], path[index + 1][0])
                 )
-        return initial_length / 1000
+        return initial_length

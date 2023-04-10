@@ -208,11 +208,13 @@ export function ASTable({columns, data, rowEvents, initialState, className}) {
         }),
         []
     )
-
+    const defaultPropGetter = () => ({})
     const {
         getTableProps,
         getTableBodyProps,
-
+        getColumnProps = defaultPropGetter,
+        getRowProps = defaultPropGetter,
+        getHeaderProps = defaultPropGetter,
         headerGroups,
         rows,
         prepareRow,
@@ -253,7 +255,15 @@ export function ASTable({columns, data, rowEvents, initialState, className}) {
                     <tr {...headerGroup.getHeaderGroupProps()}>
                         {headerGroup.headers.map(column => (
                             <th {...column.getHeaderProps()}>
-                                <div {...column.getHeaderProps(column.getSortByToggleProps())}>
+                                <div {...column.getHeaderProps([
+                                    {
+                                        className: column.className,
+                                        style: column.style,
+                                    },
+                                    getColumnProps(column),
+                                    getHeaderProps(column),
+                                    column.getSortByToggleProps()
+                                ])}>
                                     {column.render('Header')}
                                     {/* Add a sort direction indicator */}
                                     <span>

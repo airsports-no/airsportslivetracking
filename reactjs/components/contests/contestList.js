@@ -29,25 +29,30 @@ export const ContestList = () => {
         {
             Header: "Sharing",
             accessor: "share_string",
+            disableFilters: true,
+            disableSortBy: true,
         },
         {
-            Header: "Start time",
+            Header: "Start",
             accessor: (row, index) => {
                 return DateTime.fromISO(row.start_time).toISODate()
             },
             disableFilters: true,
+            style: {width: "100px"}
         },
         {
-            Header: "Finish time",
+            Header: "Finish",
             accessor: (row, index) => {
                 return DateTime.fromISO(row.finish_time).toISODate()
             },
             disableFilters: true,
+            style: {width: "100px"}
         },
         {
             Header: "Tasks",
             accessor: "number_of_tasks",
             disableFilters: true,
+            style: {width: "80px"}
         },
         {
             Header: "Editors",
@@ -55,7 +60,7 @@ export const ContestList = () => {
                 return <ul>
                     {
                         row.editors.map((editor) =>
-                            <li key={editor.email}>{editor.first_name} {editor.last_name} ({editor.email})</li>)
+                            <li key={editor.email}>{editor.first_name} {editor.last_name}</li>)
                     }
                 </ul>
             },
@@ -81,7 +86,7 @@ export const ContestList = () => {
                          className={"table table-striped table-hover"} initialState={{
                     sortBy: [
                         {
-                            id: "Start time",
+                            id: "Start",
                             desc: false
                         }
                     ]
