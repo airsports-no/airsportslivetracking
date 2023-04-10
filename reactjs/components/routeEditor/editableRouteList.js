@@ -36,7 +36,8 @@ export const EditableRouteList = () => {
         {
             Header: "Route",
             accessor: "name",
-            id: "Route"
+            id: "Route",
+            Cell: cellInfo=><a href={document.configuration.editRoute(cellInfo.row.original.id)}>{cellInfo.value}</a>
         },
         {
             Header: "Waypoints",
@@ -80,9 +81,9 @@ export const EditableRouteList = () => {
     ], [])
 
     const rowEvents = {
-        onClick: (row) => {
-            window.location.href = document.configuration.editRoute(row.id)
-        }
+        // onClick: (row) => {
+        //     window.location.href = document.configuration.editRoute(row.id)
+        // }
     }
 
     return (

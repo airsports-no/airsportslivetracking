@@ -142,12 +142,7 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: 
 
 def insert_turning_point_images_latex(contestant, document: Document):
     navigation = contestant.navigation_task  # type: NavigationTask
-    render_waypoints = [
-        waypoint
-        for waypoint in navigation.route.waypoints
-        if waypoint.type not in ("secret", "ul") and (waypoint.gate_check or waypoint.time_check)
-    ]
-    render_turning_point_images(render_waypoints, document, "Turning point", unknown_leg=False)
+    render_turning_point_images(navigation.route.waypoints, document, "Turning point", unknown_leg=False)
 
 
 def insert_unknown_leg_images_latex(
@@ -161,11 +156,17 @@ def insert_unknown_leg_images_latex(
 
 
 def render_turning_point_images(
-    render_waypoints: List[Waypoint],
+    waypoints: List[Waypoint],
     document,
     header_prefix: str,
     unknown_leg: bool = False,
 ):
+    render_waypoints = [
+        waypoint
+        for waypoint in waypoints
+        if waypoint.type not in ("secret", "ul") and (waypoint.gate_check or waypoint.time_check)
+    ]
+
     rows_per_page = 3
     number_of_images = len(render_waypoints)
     number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
@@ -180,7 +181,10 @@ def render_turning_point_images(
         figure_width = 0.4
         with document.create(Figure(position="!ht")):
             with document.create(MiniPage(width=fr"{figure_width}\textwidth")):
-                image_file = get_turning_point_image(render_waypoints, index, unknown_leg=unknown_leg)
+                image_file = get_turning_point_image(
+                    # Use full waypoint list to get correct track in image
+                    waypoints, waypoints.index(render_waypoints[index]), unknown_leg=unknown_leg
+                )
                 document.append(
                     StandAloneGraphic(
                         image_options=r"width=\linewidth",
@@ -191,7 +195,10 @@ def render_turning_point_images(
                     document.append(Command("caption*", render_waypoints[index].name))
             document.append(Command("hfill"))
             if index < len(render_waypoints) - 1:
-                image_file = get_turning_point_image(render_waypoints, index + 1, unknown_leg=unknown_leg)
+                image_file = get_turning_point_image(
+                    # Use full waypoint list to get correct track in image
+                    waypoints, waypoints.index(render_waypoints[index + 1]), unknown_leg=unknown_leg
+                )
                 with document.create(MiniPage(width=fr"{figure_width}\textwidth")):
                     document.append(
                         StandAloneGraphic(

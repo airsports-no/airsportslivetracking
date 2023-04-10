@@ -22,9 +22,8 @@ export const ContestList = () => {
     const columns = useMemo(() => [
         {
             Header: "Contest",
-            accessor: (row, index) => {
-                return row.name
-            },
+            accessor: "name",
+            Cell: cellInfo=><a href={"/display/contest/" + cellInfo.row.original.id + "/"}>{cellInfo.value}</a>
         },
         {
             Header: "Sharing",
@@ -71,9 +70,9 @@ export const ContestList = () => {
     ], [])
 
     const rowEvents = {
-        onClick: (row) => {
-            window.location.href = "/display/contest/" + row.id + "/"
-        }
+        // onClick: (row) => {
+        //     window.location.href = "/display/contest/" + row.id + "/"
+        // }
     }
 
     return (
