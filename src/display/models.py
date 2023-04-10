@@ -2761,6 +2761,11 @@ class EditableRoute(models.Model):
             user, "display.change_editableroute", klass=EditableRoute, accept_global_perms=False
         )
 
+    @property
+    def editors(self) -> List:
+        users = get_users_with_perms(self, attach_perms=True)
+        return [user for user, permissions in users.items() if "change_editableroute" in permissions]
+
     def create_thumbnail(self) -> BytesIO:
         """
         Finds the smallest Zoom tile and returns this

@@ -21,6 +21,7 @@ from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
 
+from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from display.models import (
     NavigationTask,
@@ -1118,6 +1119,10 @@ class TaskTestSerialiser(serializers.ModelSerializer):
 
 class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     route = serializers.JSONField()
+    editors = UserSerialiser(many=True, read_only=True)
+    is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
+    number_of_waypoints = serializers.SerializerMethodField("get_number_of_waypoints", read_only=True)
+    route_length = serializers.SerializerMethodField("get_route_length", read_only=True)
 
     class Meta:
         model = EditableRoute
@@ -1126,3 +1131,24 @@ class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.Mode
     def get_permissions_map(self, created):
         user = self.context["request"].user
         return {"change_editableroute": [user], "delete_editableroute": [user], "view_editableroute": [user]}
+
+    def get_is_editor(self, editable_route):
+        return self.context["request"].user in editable_route.editors
+
+    @staticmethod
+    def get_track(editable_route) -> dict:
+        return next(filter(lambda item: item["feature_type"] == "track", editable_route.route))
+
+    def get_number_of_waypoints(self, editable_route):
+        if track := self.get_track(editable_route):
+            return len(track["track_points"])
+
+    def get_route_length(self, editable_route):
+        initial_length = 0
+        if track := self.get_track(editable_route):
+            path = track["geojson"]["geometry"]["coordinates"]
+            for index in range(0, len(path) - 1):
+                initial_length += calculate_distance_lat_lon(
+                    (path[index][1], path[index][0]), (path[index + 1][1], path[index + 1][0])
+                )
+        return initial_length / 1000

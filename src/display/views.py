@@ -2471,6 +2471,8 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
 class EditableRouteList(GuardianPermissionRequiredMixin, ListView):
     model = EditableRoute
     permission_required = ("display.view_editableroute",)
+    # todo: Temporary change to test react view
+    template_name="display/editableroute_list_react.html"
 
     def get_queryset(self):
         return get_objects_for_user(
@@ -2643,7 +2645,7 @@ class EditableRouteViewSet(ModelViewSet):
             "display.view_editableroute",
             klass=self.queryset,
             accept_global_perms=False,
-        )
+        ).order_by("name")
 
     def perform_update(self, serializer):
         super().perform_update(serializer)

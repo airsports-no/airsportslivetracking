@@ -252,16 +252,18 @@ export function ASTable({columns, data, rowEvents, initialState, className}) {
                 {headerGroups.map(headerGroup => (
                     <tr {...headerGroup.getHeaderGroupProps()}>
                         {headerGroup.headers.map(column => (
-                            <th {...column.getHeaderProps(column.getSortByToggleProps())}>
-                                {column.render('Header')}
-                                {/* Add a sort direction indicator */}
-                                <span>
-                    {column.isSorted
-                        ? column.isSortedDesc
-                            ? ' 🔽'
-                            : ' 🔼'
-                        : ''}
-                  </span>
+                            <th {...column.getHeaderProps()}>
+                                <div {...column.getHeaderProps(column.getSortByToggleProps())}>
+                                    {column.render('Header')}
+                                    {/* Add a sort direction indicator */}
+                                    <span>
+                                        {column.isSorted
+                                            ? column.isSortedDesc
+                                                ? ' 🔽'
+                                                : ' 🔼'
+                                            : ''}
+                                      </span>
+                                </div>
                                 {/* Render the columns filter UI */}
                                 <div>{column.canFilter ? column.render('Filter') : <br/>}</div>
                             </th>

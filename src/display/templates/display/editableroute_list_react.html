@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load render_bundle from webpack_loader %}
+{% load guardian_tags %}
+{% load tz %}
+{% block document_configuration %}
+    <script>
+        document.configuration = {
+            is_superuser: {{ user.is_superuser|lower }},
+            EDITABLE_ROUTES_URL: "{% url 'editableroutes-list' %}",
+            editRoute: routeId => "/routeeditor/0/".replace("0", routeId),
+            createTask: routeId => "{% url 'editableroute_createnavigationtask' 0 %}".replace("0", routeId),
+            copyRoute: routeId => "{% url 'editableroute_copy' 0 %}".replace("0", routeId),
+            permissionList: routeId => "{% url 'editableroute_permissions_list' 0 %}".replace("0", routeId),
+            deleteRoute: routeId => "{% url 'editableroute_delete' 0 %}".replace("0", routeId),
+
+        }
+    </script>
+{% endblock %}
+{% block content %}
+    <H1>Route editor</H1>
+    <div id="root"></div>
+    {% if perms.display.add_editableroute %}
+        <div class="row col">
+            <a class="btn btn-primary" href="/routeeditor/" style="margin-bottom: 10px">New route</a>&nbsp;
+            <a class="btn btn-primary" href="{% url 'editableroute_import' %}" style="margin-bottom: 10px">Import
+                route</a>
+        </div>
+    {% endif %}
+    {% render_bundle 'EditableRouteList' %}
+{% endblock %}
