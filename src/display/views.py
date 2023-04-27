@@ -200,7 +200,8 @@ from display.serialisers import (
     PositionSerialiser,
     ScorecardNestedSerialiser,
     ContestSerialiserWithResults,
-    PersonSerialiserExcludingTracking, ContestFrontEndSerialiser,
+    PersonSerialiserExcludingTracking,
+    ContestFrontEndSerialiser,
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
@@ -730,6 +731,9 @@ def import_route(request):
                 for message in return_messages:
                     messages.error(request, message)
                 return render(request, "display/import_route_form.html", {"form": form})
+            assign_perm(f"display.change_editableroute", request.user, editable_route)
+            assign_perm(f"display.delete_editableroute", request.user, editable_route)
+            assign_perm(f"display.view_editableroute", request.user, editable_route)
             for message in return_messages:
                 messages.success(request, message)
             return redirect(f"/routeeditor/{editable_route.pk}/")
@@ -2472,7 +2476,7 @@ class EditableRouteList(GuardianPermissionRequiredMixin, ListView):
     model = EditableRoute
     permission_required = ("display.view_editableroute",)
     # todo: Temporary change to test react view
-    template_name="display/editableroute_list_react.html"
+    template_name = "display/editableroute_list_react.html"
 
     def get_queryset(self):
         return get_objects_for_user(
