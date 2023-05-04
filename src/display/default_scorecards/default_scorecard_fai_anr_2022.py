@@ -35,7 +35,7 @@ def get_default_scorecard():
             "backtracking_maximum_penalty": 400,  # verified
             "use_procedure_turns": False,
             "task_type": [NavigationTask.ANR_CORRIDOR],
-            "calculator": Scorecard.ANR_CORRIDOR,
+            "calculator": NavigationTask.ANR_CORRIDOR,
             "corridor_maximum_penalty": -1,  # verified
             "corridor_outside_penalty": 3,  # verified
             "corridor_grace_time": 5,  # verified

@@ -1901,7 +1901,10 @@ def show_anr_path(wizard):
 
 
 def show_airsports_path(wizard):
-    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (NavigationTask.AIRSPORTS,)
+    return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
+        NavigationTask.AIRSPORTS,
+        NavigationTask.AIRSPORT_CHALLENGE,
+    )
 
 
 def show_landing_path(wizard):
@@ -2007,7 +2010,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             corridor_width = initial_step_data["corridor_width"]
             route = initial_step_data["internal_route"].create_anr_route(rounded_corners, corridor_width, scorecard)
             editable_route = initial_step_data["internal_route"]
-        elif task_type == NavigationTask.AIRSPORTS:
+        elif task_type in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
             initial_step_data = self.get_cleaned_data_for_step("airsports_route_import")
             rounded_corners = initial_step_data["rounded_corners"]
             route = initial_step_data["internal_route"].create_airsports_route(rounded_corners)
@@ -2073,7 +2076,10 @@ def anr_task_type(wizard):
 
 
 def airsports_task_type(wizard):
-    return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("task_type") == NavigationTask.AIRSPORTS
+    return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("task_type") in (
+        NavigationTask.AIRSPORTS,
+        NavigationTask.AIRSPORT_CHALLENGE,
+    )
 
 
 class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideView):
@@ -2133,7 +2139,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             rounded_corners = initial_step_data["rounded_corners"]
             corridor_width = initial_step_data["corridor_width"]
             route = self.editable_route.create_anr_route(rounded_corners, corridor_width, scorecard)
-        elif task_type == Scorecard.AIRSPORTS:
+        elif task_type in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
             initial_step_data = self.get_cleaned_data_for_step("airsports_parameters")
             rounded_corners = initial_step_data["rounded_corners"]
             route = self.editable_route.create_airsports_route(rounded_corners)

@@ -29,7 +29,7 @@ kubectl create namespace airsports
 helm install -f private_values.yml airsportsrelease . --namespace airsports
 
 az aks update -n airsports2 -g airsports_group --attach-acr airsportsacr
-
+az aks get-credentials --name airsports2 --resource-group airsports_group
 # Service principle for calculator job
 az ad sp create-for-rbac --name calculator-service-principal
 {

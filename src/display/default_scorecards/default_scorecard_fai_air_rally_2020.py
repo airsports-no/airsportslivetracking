@@ -31,7 +31,7 @@ def get_default_scorecard():
             "backtracking_maximum_penalty": 1000,
             "use_procedure_turns": False,
             "task_type": [NavigationTask.PRECISION],
-            "calculator": Scorecard.PRECISION,
+            "calculator": NavigationTask.PRECISION,
             "prohibited_zone_penalty": 0,
             "included_fields": [
                 [

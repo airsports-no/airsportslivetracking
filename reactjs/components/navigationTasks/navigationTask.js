@@ -70,8 +70,8 @@ export class ConnectedNavigationTask extends Component {
         this.lastTimeReceived = null
         this.checkReceivedTimeInterval = null
         this.colours = distinctColors({count: 25})
-        this.sunny=Jawg_Sunny()
-        this.openaip=OpenAIP()
+        this.sunny = Jawg_Sunny()
+        this.openaip = OpenAIP()
     }
 
 
@@ -247,7 +247,7 @@ export class ConnectedNavigationTask extends Component {
                                                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
                                                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
                                                        displaySecretGates={this.props.displaySecretGates}/>
-                } else if (this.props.navigationTask.scorecard.task_type.includes("airsports") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
+                } else if (this.props.navigationTask.scorecard.task_type.includes("airsports") || this.props.navigationTask.scorecard.task_type.includes("airsportchallenge") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <AirsportsRenderer map={this.map} navigationTask={this.props.navigationTask}
                                                        contestants={this.props.contestants}
                                                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}

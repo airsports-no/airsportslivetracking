@@ -25,7 +25,7 @@ def get_default_scorecard():
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": True,
             "task_type": [NavigationTask.PRECISION],
-            "calculator": Scorecard.PRECISION,
+            "calculator": NavigationTask.PRECISION,
             "prohibited_zone_penalty": 0,
             "included_fields": [
                 [

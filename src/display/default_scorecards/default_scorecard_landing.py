@@ -15,7 +15,7 @@ def get_default_scorecard():
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": False,
             "task_type": [NavigationTask.LANDING],
-            "calculator": Scorecard.LANDING,
+            "calculator": NavigationTask.LANDING,
             "prohibited_zone_penalty": 0,
         },
     )

@@ -1081,7 +1081,10 @@ def plot_route(
             colour,
             False,
         )
-    elif NavigationTask.AIRSPORTS in task.scorecard.task_type:
+    elif (
+        NavigationTask.AIRSPORTS in task.scorecard.task_type
+        or NavigationTask.AIRSPORT_CHALLENGE in task.scorecard.task_type
+    ):
         paths = plot_anr_corridor_track(
             route,
             contestant,
@@ -1187,7 +1190,7 @@ def plot_route(
     # ax.autoscale(False)
     fig.patch.set_visible(False)
     # lat lon lines
-    extent=ax.get_extent(proj)
+    extent = ax.get_extent(proj)
     if include_meridians_and_parallels_lines:
         longitude = np.ceil(extent[0])
         while longitude < extent[1]:

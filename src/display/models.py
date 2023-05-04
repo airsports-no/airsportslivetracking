@@ -952,13 +952,13 @@ class NavigationTask(models.Model):
         if self.editable_route is None:
             raise ValidationError("There is no route to refresh")
         route = None
-        if self.scorecard.calculator in (Scorecard.PRECISION, Scorecard.POKER):
+        if self.scorecard.calculator in (NavigationTask.PRECISION, NavigationTask.POKER):
             route = self.editable_route.create_precision_route(self.route.use_procedure_turns)
-        elif self.scorecard.calculator == Scorecard.ANR_CORRIDOR:
+        elif self.scorecard.calculator == NavigationTask.ANR_CORRIDOR:
             route = self.editable_route.create_anr_route(
                 self.route.rounded_corners, self.route.corridor_width, self.scorecard
             )
-        elif self.scorecard.calculator == Scorecard.AIRSPORTS:
+        elif self.scorecard.calculator in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
             route = self.editable_route.create_airsports_route(self.route.rounded_corners)
         if route:
             old_route = self.route
@@ -1069,19 +1069,6 @@ class FlightOrderConfiguration(models.Model):
 
 
 class Scorecard(models.Model):
-    PRECISION = "precision"
-    ANR_CORRIDOR = "anr_corridor"
-    AIRSPORTS = "airsports"
-    POKER = "poker"
-    LANDING = "landing"
-    CALCULATORS = (
-        (PRECISION, "Precision"),
-        (ANR_CORRIDOR, "ANR Corridor"),
-        (POKER, "Pilot Poker Run"),
-        (LANDING, "Landing"),
-        (AIRSPORTS, "Air Sports Race"),
-    )
-
     name = models.CharField(max_length=255, default="default", unique=True)
     shortcut_name = models.CharField(
         max_length=255,
@@ -1103,8 +1090,8 @@ class Scorecard(models.Model):
         help_text="Free text (with HTML) that is included at the bottom of the scorecard box", default=""
     )
     calculator = models.CharField(
-        choices=CALCULATORS,
-        default=PRECISION,
+        choices=NavigationTask.NAVIGATION_TASK_TYPES,
+        default=NavigationTask.PRECISION,
         max_length=20,
         help_text="Supported calculator types",
     )
@@ -1580,11 +1567,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return text
 
     def get_formatted_rules_description(self):
-        if self.navigation_task.scorecard.calculator == Scorecard.PRECISION:
+        if self.navigation_task.scorecard.calculator == NavigationTask.PRECISION:
             return self._precision_rule_description()
-        if self.navigation_task.scorecard.calculator == Scorecard.ANR_CORRIDOR:
+        if self.navigation_task.scorecard.calculator == NavigationTask.ANR_CORRIDOR:
             return self._anr_rule_description()
-        if self.navigation_task.scorecard.calculator == Scorecard.AIRSPORTS:
+        if self.navigation_task.scorecard.calculator in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
             return self._air_sports_rule_description()
 
     def __str__(self):

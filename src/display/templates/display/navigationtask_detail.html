@@ -4,8 +4,8 @@
 {% load static %}
 {% block content %}
     {% get_obj_perms request.user for object.contest as "contest_permissions" %}
-    <H1>Navigation task {{ object.scorecard.get_calculator_display }} {{ object.name }} in
-        contest {{ object.contest.name }}</H1>
+    <H2>{{ object.scorecard.get_calculator_display }} '{{ object.name }}' in
+        contest {{ object.contest.name }}</H2>
     {{ object.start_time|date:"Y-m-d H:i:s e" }} -
     {{ object.finish_time|date:"Y-m-d H:i:s e" }} ({{ object.share_string }})
     <p>
