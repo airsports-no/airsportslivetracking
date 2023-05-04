@@ -728,6 +728,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
     scorecard_rules = serializers.JSONField(help_text="Dictionary with all rules", read_only=True)
     tracker_id_display = serializers.JSONField(help_text="", read_only=True)
     default_map_url = SerializerMethodField("get_default_map_url")
+    has_crossed_starting_line = serializers.BooleanField(read_only=True)
 
     def get_default_map_url(self, contestant):
         return reverse("contestant_default_map", kwargs={"pk": contestant.pk})

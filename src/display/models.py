@@ -1476,6 +1476,10 @@ class Contestant(models.Model):
     def landing_time_after_final_gate_local(self) -> datetime.datetime:
         return self.landing_time_after_final_gate.astimezone(self.navigation_task.contest.time_zone)
 
+    @property
+    def has_crossed_starting_line(self) -> bool:
+        return self.contestanttrack.calculator_started and self.contestanttrack.current_state != "Waiting..."
+
     def blocking_request_calculator_termination(self):
         self.request_calculator_termination()
         start = datetime.datetime.now()
