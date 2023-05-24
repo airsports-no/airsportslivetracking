@@ -70,9 +70,9 @@ spec:
                 "celery -A live_tracking_map inspect ping -d celery@$HOSTNAME"
             ]
           initialDelaySeconds: 30  # startup takes some time
-          periodSeconds: 120  # default is quite often and celery uses a lot cpu/ram then.
+          periodSeconds: 300  # default is quite often and celery uses a lot cpu/ram then.
           timeoutSeconds: 10
-          failureThreshold: 2
+          failureThreshold: 3
       restartPolicy: Always
       volumes:
         - name: firebase
