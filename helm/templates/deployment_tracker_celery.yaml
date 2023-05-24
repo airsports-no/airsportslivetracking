@@ -67,7 +67,19 @@ spec:
             command: [
                 "bash",
                 "-c",
-                "celery -A live_tracking_map inspect ping -d celery@$HOSTNAME"
+                "python /src/celery_liveness.py"
+            ]
+          initialDelaySeconds: 30  # startup takes some time
+          periodSeconds: 12  # default is quite often and celery uses a lot cpu/ram then.
+          timeoutSeconds: 10
+          failureThreshold: 2
+        readinessProbe:
+          exec:
+            # bash is needed to replace the environment variable
+            command: [
+              "bash",
+              "-c",
+              "python /src/celery_readiness.py"
             ]
           initialDelaySeconds: 30  # startup takes some time
           periodSeconds: 300  # default is quite often and celery uses a lot cpu/ram then.
