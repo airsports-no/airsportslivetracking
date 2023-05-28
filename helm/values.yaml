@@ -185,6 +185,7 @@ mysql:
       default_authentication_plugin=mysql_native_password
       skip-name-resolve
       max_allowed_packet=1000M
+      max_connections=1024
       explicit_defaults_for_timestamp
       basedir=/opt/bitnami/mysql
       plugin_dir=/opt/bitnami/mysql/lib/plugin
@@ -221,6 +222,7 @@ mysql:
       datadir=/bitnami/mysql/data
       tmpdir=/opt/bitnami/mysql/tmp
       max_allowed_packet=1000M
+      max_connections=1024
       bind-address=0.0.0.0
       pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
       log-error=/opt/bitnami/mysql/logs/mysqld.log

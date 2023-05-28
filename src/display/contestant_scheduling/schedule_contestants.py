@@ -23,7 +23,7 @@ def schedule_and_create_contestants(
     crew_switch_time: int,
     optimise: bool = False,
 ) -> Tuple[bool, List[str]]:
-    if Scorecard.LANDING in navigation_task.scorecard.task_type:
+    if NavigationTask.LANDING in navigation_task.scorecard.task_type:
         return schedule_and_create_contestants_landing_task(
             navigation_task,
             contest_teams_pks,
