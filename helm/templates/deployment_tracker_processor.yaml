@@ -6,6 +6,7 @@ metadata:
   name: tracker-processor
 spec:
   replicas: 1
+  serviceAccountName: calculator-scheduler
   selector:
     matchLabels:
       service: tracker-processor
@@ -15,8 +16,6 @@ spec:
         service: tracker-processor
         date: "{{ now | unixEpoch }}"
     spec:
-      nodeSelector:
-        scalingType: initial
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -41,7 +40,7 @@ spec:
                 do sleep 2;
               done
       containers:
-      - image: airsportsacr.azurecr.io/tracker_processor:{{ .Values.image.tag }}
+      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_processor:{{ .Values.image.tag }}
         resources:
           requests:
             cpu: 100m
@@ -51,12 +50,12 @@ spec:
             memory: 1.5Gi
 #        command: ["/bin/bash", "-c",  "sleep 1h"]
         name: tracker-processor
-        env:
-          - name: K8S_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.serviceAccountSecretName }}
-                key: token
+#        env:
+#          - name: K8S_TOKEN
+#            valueFrom:
+#              secretKeyRef:
+#                name: {{ .Values.serviceAccountSecretName }}
+#                key: token
         envFrom:
           - configMapRef:
               name: envs-production-other
@@ -66,14 +65,14 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
-          - mountPath: /aks_certificate
-            readOnly: true
-            name: aks-certificate
+#          - mountPath: /aks_certificate
+#            readOnly: true
+#            name: aks-certificate
       restartPolicy: Always
       volumes:
         - name: firebase
           secret:
             secretName: firebase-secrets
-        - name: aks-certificate
-          secret:
-            secretName: {{ .Values.serviceAccountSecretName }}
+#        - name: aks-certificate
+#          secret:
+#            secretName: {{ .Values.serviceAccountSecretName }}

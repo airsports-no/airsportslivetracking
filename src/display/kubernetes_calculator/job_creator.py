@@ -26,17 +26,19 @@ class JobCreator:
         self.client = self.create_client()
 
     def create_client(self):
-        configuration = client.Configuration()
-        configuration.api_key["authorization"] = os.getenv("K8S_TOKEN", AKS_TOKEN)
-        configuration.api_key_prefix["authorization"] = "Bearer"
-        # Requires minikube to run with proxy: kubectl proxy --port=8080
-        configuration.host = os.environ.get("K8S_API", AKS_HOST)
-        configuration.ssl_ca_cert = (
-            "/aks_certificate/ca.crt"  # Hardcoded volume in deployment
-            # "ca.aks.crt"  # Hardcoded volume in deployment
-        )
-        configuration.client_side_validation = True
-        return client.ApiClient(configuration)
+        config.load_incluster_config()
+        return client.ApiClient()
+        # configuration = client.Configuration()
+        # configuration.api_key["authorization"] = os.getenv("K8S_TOKEN", AKS_TOKEN)
+        # configuration.api_key_prefix["authorization"] = "Bearer"
+        # # Requires minikube to run with proxy: kubectl proxy --port=8080
+        # configuration.host = os.environ.get("K8S_API", AKS_HOST)
+        # configuration.ssl_ca_cert = (
+        #     "/aks_certificate/ca.crt"  # Hardcoded volume in deployment
+        #     # "ca.aks.crt"  # Hardcoded volume in deployment
+        # )
+        # configuration.client_side_validation = True
+        # return client.ApiClient(configuration)
 
     def get_job_name(self, pk):
         with open("display/kubernetes_calculator/job.yml", "r") as i:

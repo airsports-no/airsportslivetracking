@@ -49,8 +49,6 @@ redis:
      replicaCount: 1
   master:
      disableCommands: []
-     nodeSelector:
-       scalingType: initial
   auth:
     enabled: true  # Default
     password: simplepassword
@@ -70,17 +68,11 @@ ingress:
   enabled: true
   className: ""
   annotations:
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-    nginx.ingress.kubernetes.io/send-timeout: "600"
-#    nginx.ingress.kubernetes.io/rewrite-target: /$1
-#    nginx.ingress.kubernetes.io/use-regex: "true"
+    kubernetes.io/ingress.global-static-ip-name: public
+    networking.gke.io/managed-certificates: managed-cert
+    kubernetes.io/ingress.class: "gce"
   hosts:
-    - host: airsports.no
+    - host: gcloud.airsports.no
       paths:
         - path: /ws/
           pathType: Prefix
@@ -88,21 +80,21 @@ ingress:
           servicePort: 80
         - path: /
           pathType: Prefix
-          serviceName: tracker-web-service
-          servicePort: 80
-    - host: www.airsports.no
-      paths:
-        - path: /ws/
-          pathType: Prefix
           serviceName: tracker-daphne-service
           servicePort: 80
-        - path: /
-
-
-          pathType: Prefix
-          serviceName: tracker-web-service
-          servicePort: 80
-    - host: traccar.airsports.no
+#    - host: www.airsports.no
+#      paths:
+#        - path: /ws/
+#          pathType: Prefix
+#          serviceName: tracker-daphne-service
+#          servicePort: 80
+#        - path: /
+#
+#
+#          pathType: Prefix
+#          serviceName: tracker-web-service
+#          servicePort: 80
+    - host: traccargcloud.airsports.no
       paths:
         - path: /
           pathType: Prefix
@@ -121,16 +113,6 @@ ingress:
 #          serviceName: wordpress
 #          servicePort: 80
 
-  tls:
-    - hosts:
-        - airsports.no
-        - www.airsports.no
-#        - home.airsports.no
-        - traccar.airsports.no
-        - traccarclient.airsports.no
-      secretName: tls-secret
-  #    hosts:
-  #      - chart-example.local
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -166,8 +148,6 @@ traccar:
 mysql:
   # from https://github.com/bitnami/charts/blob/master/bitnami/mysql/values.yaml
   primary:
-    podAnnotations:
-      cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     priorityClassName: high-priority
     pdb:
       create: true
@@ -176,8 +156,6 @@ mysql:
         memory: 2Gi
 #      limits:
 #        memory: 8Gi
-    nodeSelector:
-      scalingType: initial
     persistence:
       size: 20Gi  # Manually resized
     configuration: |-
@@ -249,8 +227,3 @@ mysql:
       GRANT ALL PRIVILEGES ON traccar.* To 'traccar'@'%';
       GRANT ALL PRIVILEGES ON tracker.* To 'tracker'@'%';
       FLUSH PRIVILEGES;
-
-nginx-ingress-controller:
-  service:
-    loadBalancerIP: 20.234.119.15 # 20.105.10.120
-

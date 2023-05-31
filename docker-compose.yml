@@ -3,7 +3,7 @@
 services:
   tracker_web:
     container_name: tracker_web
-    image: airsportsacr.azurecr.io/tracker_web
+    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_web
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py runserver 0.0.0.0:8000" ]
     environment:
@@ -42,7 +42,7 @@ services:
   tracker_daphne:
 
     container_name: tracker_daphne
-    image: airsportsacr.azurecr.io/tracker_daphne
+    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_daphne
 
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
@@ -74,7 +74,7 @@ services:
   tracker_celery:
 
     container_name: tracker_celery
-    image: airsportsacr.azurecr.io/tracker_celery
+    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_celery
 
     environment:
       - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
@@ -106,7 +106,7 @@ services:
 
   tracker_processor:
     container_name: tracker_processor
-    image: airsportsacr.azurecr.io/tracker_processor
+    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_processor
 
     restart: unless-stopped
     environment:
@@ -134,7 +134,7 @@ services:
 
 #  opensky_consumer:
 #    container_name: opensky_consumer
-#    image: airsportsacr.azurecr.io/opensky_consumer
+#    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/opensky_consumer
 #
 #    restart: unless-stopped
 #    environment:
@@ -153,7 +153,7 @@ services:
 #
 #  ogn_consumer:
 #    container_name: ogn_consumer
-#    image: airsportsacr.azurecr.io/ogn_consumer
+#    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/ogn_consumer
 #
 #    restart: unless-stopped
 #    build:
