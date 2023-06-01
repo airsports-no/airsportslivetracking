@@ -1,3 +1,9 @@
+"""
+https://medium.com/google-cloud/playing-with-python-kubernetes-api-running-tasks-in-jobs-generated-by-a-pod-in-google-kubernetes-b5048696dfa8
+
+https://stefanopassador.medium.com/launch-kubernetes-job-on-demand-with-python-c0efc5ed4ae4
+"""
+
 import datetime
 import json
 import logging
@@ -27,7 +33,9 @@ class JobCreator:
 
     def create_client(self):
         config.load_incluster_config()
-        return client.ApiClient()
+        configuration = client.Configuration()
+        return client.BatchV1Api(client.ApiClient(configuration))
+        # return client.ApiClient()
         # configuration = client.Configuration()
         # configuration.api_key["authorization"] = os.getenv("K8S_TOKEN", AKS_TOKEN)
         # configuration.api_key_prefix["authorization"] = "Bearer"
