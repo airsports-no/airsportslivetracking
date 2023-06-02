@@ -39,7 +39,7 @@ spec:
                 do sleep 2;
               done
       containers:
-      - image: airsportsacr.azurecr.io/tracker_celery:{{ .Values.image.tag }}
+      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_celery:{{ .Values.image.tag }}
 #        command: ["/bin/bash", "-c",  "sleep 1h"]
         name: tracker-celery
         envFrom:
@@ -60,7 +60,7 @@ spec:
             name: firebase
           - mountPath: /maptiles
             readOnly: true
-            name: maps-azurefile
+            name: filtestore-maps
         livenessProbe:
           exec:
             # bash is needed to replace the environment variable
@@ -69,6 +69,10 @@ spec:
                 "-c",
                 "python /src/celery_liveness.py"
             ]
+          initialDelaySeconds: 30  # startup takes some time
+          periodSeconds: 12  # default is quite often and celery uses a lot cpu/ram then.
+          timeoutSeconds: 10
+          failureThreshold: 2
         readinessProbe:
           exec:
             # bash is needed to replace the environment variable
@@ -77,11 +81,15 @@ spec:
               "-c",
               "python /src/celery_readiness.py"
             ]
+          initialDelaySeconds: 30  # startup takes some time
+          periodSeconds: 300  # default is quite often and celery uses a lot cpu/ram then.
+          timeoutSeconds: 10
+          failureThreshold: 3
       restartPolicy: Always
       volumes:
         - name: firebase
           secret:
             secretName: firebase-secrets
-        - name: maps-azurefile
+        - name: filtestore-maps
           persistentVolumeClaim:
-            claimName: maps-azurefile
+            claimName: filtestore-maps
