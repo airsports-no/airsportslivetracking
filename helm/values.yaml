@@ -12,19 +12,8 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
 
-imagePullSecrets: 
-  - name: acr-pull-secret
 nameOverride: ""
 fullnameOverride: ""
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
 
 podAnnotations: {}
 
@@ -94,7 +83,7 @@ ingress:
 #          pathType: Prefix
 #          serviceName: tracker-web-service
 #          servicePort: 80
-    - host: traccargcloud.airsports.no
+    - host: traccar.gcloud.airsports.no
       paths:
         - path: /
           pathType: Prefix
@@ -157,7 +146,7 @@ mysql:
 #      limits:
 #        memory: 8Gi
     persistence:
-      size: 20Gi  # Manually resized
+      size: 100Gi  # Manually resized
     configuration: |-
       [mysqld]
       default_authentication_plugin=mysql_native_password

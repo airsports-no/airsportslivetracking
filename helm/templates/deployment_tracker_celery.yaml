@@ -15,10 +15,6 @@ spec:
         service: tracker-celery
         date: "{{ now | unixEpoch }}"
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       initContainers:
         - name: wait-for-db
           image: "alpine:3.6"
@@ -49,8 +45,8 @@ spec:
               name: pw-secrets
         resources:
           requests:
-            cpu: 100m
-            memory: 800Mi
+            cpu: 400m
+            memory: 1Gi
           limits:
             cpu: 400m
             memory: 3Gi

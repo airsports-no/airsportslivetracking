@@ -8,4 +8,4 @@ spec:
   storageClassName: filestore-maps
   resources:
     requests:
-      storage: 100Gi
+      storage: 20Gi

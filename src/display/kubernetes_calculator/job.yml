@@ -8,15 +8,13 @@ spec:
     metadata:
       labels: {}
     spec:
-      imagePullSecrets:
-        - name: acr-pull-secret
       backoffLimit: 4
       containers:
       - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_processor:latest
         resources:
           requests:
-            cpu: 50m
-            memory: 200Mi # Looks to be around 250 MB
+            cpu: 500m
+            memory: 400Mi # Looks to be around 250 MB
           limit:
             cpu: 400m
         name: calculator-job

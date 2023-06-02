@@ -33,9 +33,7 @@ class JobCreator:
 
     def create_client(self):
         config.load_incluster_config()
-        configuration = client.Configuration()
-        return client.BatchV1Api(client.ApiClient(configuration))
-        # return client.ApiClient()
+        return client.ApiClient()
         # configuration = client.Configuration()
         # configuration.api_key["authorization"] = os.getenv("K8S_TOKEN", AKS_TOKEN)
         # configuration.api_key_prefix["authorization"] = "Bearer"

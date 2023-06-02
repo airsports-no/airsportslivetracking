@@ -15,10 +15,16 @@ spec:
         service: tracker-daphne
         date: "{{ now | unixEpoch }}"
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      terminationGracePeriodSeconds: 25
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: cloud.google.com/gke-spot
+                    operator: In
+                    values:
+                      - "true"
       initContainers:
         - name: wait-for-db
           image: "alpine:3.6"
@@ -52,8 +58,8 @@ spec:
               name: pw-secrets
         resources:
           requests:
-            cpu: 200m
-            memory: 200Mi  # Uses 160Mi
+            cpu: 500m
+            memory: 500Mi  # Uses 160Mi
           limits:
             cpu: 1000m
             memory: 1Gi
@@ -61,22 +67,22 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
-#        livenessProbe:
-#          httpGet:
-#            path: /display/healthz/
-#            port: gunicorn
-#          initialDelaySeconds: 30
-#          periodSeconds: 30
-#          timeoutSeconds: 2
-#          failureThreshold: 2
-#        readinessProbe:
-#          httpGet:
-#            path: /display/readyz/
-#            port: gunicorn
-#          initialDelaySeconds: 30
-#          periodSeconds: 30
-#          timeoutSeconds: 5
-#          failureThreshold: 2
+        livenessProbe:
+          httpGet:
+            path: /display/healthz/
+            port: daphne
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 2
+          failureThreshold: 2
+        readinessProbe:
+          httpGet:
+            path: /display/readyz/
+            port: daphne
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 2
       restartPolicy: Always
       volumes:
         - name: firebase
