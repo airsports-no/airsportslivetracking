@@ -39,7 +39,7 @@ spec:
                 do sleep 2;
               done
       containers:
-      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_celery:{{ .Values.image.tag }}
+      - image: airsportsacr.azurecr.io/tracker_celery:{{ .Values.image.tag }}
 #        command: ["/bin/bash", "-c",  "sleep 1h"]
         name: tracker-celery
         envFrom:
@@ -60,7 +60,7 @@ spec:
             name: firebase
           - mountPath: /maptiles
             readOnly: true
-            name: filtestore-maps
+            name: maps-azurefile
         livenessProbe:
           exec:
             # bash is needed to replace the environment variable
@@ -90,6 +90,6 @@ spec:
         - name: firebase
           secret:
             secretName: firebase-secrets
-        - name: filtestore-maps
+        - name: maps-azurefile
           persistentVolumeClaim:
-            claimName: filtestore-maps
+            claimName: maps-azurefile
