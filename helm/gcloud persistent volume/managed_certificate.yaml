@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: managed-gcloud-cert
+spec:
+  domains:
+    - gcloud.airsports.no
+    - traccar.gcloud.airsports.no

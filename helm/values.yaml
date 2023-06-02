@@ -58,8 +58,16 @@ ingress:
   className: ""
   annotations:
     kubernetes.io/ingress.global-static-ip-name: public
-    networking.gke.io/managed-certificates: managed-cert
+    networking.gke.io/managed-certificates: managed-gcloud-cert
     kubernetes.io/ingress.class: "gce"
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.0"
+    nginx.ingress.kubernetes.io/connection-proxy-header: "keep-alive"
   hosts:
     - host: gcloud.airsports.no
       paths:
@@ -146,7 +154,7 @@ mysql:
 #      limits:
 #        memory: 8Gi
     persistence:
-      size: 100Gi  # Manually resized
+      size: 20Gi  # Manually resized
     configuration: |-
       [mysqld]
       default_authentication_plugin=mysql_native_password
