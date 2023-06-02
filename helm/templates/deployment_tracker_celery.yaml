@@ -15,6 +15,16 @@ spec:
         service: tracker-celery
         date: "{{ now | unixEpoch }}"
     spec:
+      terminationGracePeriodSeconds: 25
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: cloud.google.com/gke-spot
+                    operator: In
+                    values:
+                      - "true"
       initContainers:
         - name: wait-for-db
           image: "alpine:3.6"
@@ -45,7 +55,7 @@ spec:
               name: pw-secrets
         resources:
           requests:
-            cpu: 400m
+            cpu: 1000m
             memory: 1Gi
           limits:
             cpu: 400m

@@ -20,6 +20,7 @@ from pytz import UTC
 
 import django
 from django.utils.encoding import smart_str
+
 django.utils.encoding.smart_text = smart_str
 
 
@@ -46,7 +47,7 @@ ADMINS = [("admin", "test@test.com")]
 SECRET_KEY = "a()!xe(&n4@i(hrd=w*xs&v4f^t&7rw4z4(uz&8&2tuy9216j9"
 
 SERVER_ROOT = "https://gcloud.airsports.no"
-CSRF_TRUSTED_ORIGINS = ['https://*.airsports.no','http://*.127.0.0.1']
+CSRF_TRUSTED_ORIGINS = ["https://*.airsports.no", "http://*.127.0.0.1"]
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("MODE") == "dev"
 ALLOWED_HOSTS = ["*"]
@@ -362,6 +363,9 @@ LOGGING = {
 # celery
 # CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
 CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}"
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
 # CELERY_RESULT_BACKEND = "django-db"
 
 CACHES = {
@@ -398,7 +402,6 @@ if any(s in sys.argv for s in ("test",)):
 # CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = UTC
 CELERY_ENABLE_UTC = True
-CELERY_TASK_ACKS_LATE = False
 CELERY_BEAT_SCHEDULE = {}
 
 ASGI_APPLICATION = "live_tracking_map.asgi.application"
