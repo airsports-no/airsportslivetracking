@@ -953,13 +953,13 @@ class NavigationTask(models.Model):
             raise ValidationError("There is no route to refresh")
         route = None
         if self.scorecard.calculator in (NavigationTask.PRECISION, NavigationTask.POKER):
-            route = self.editable_route.create_precision_route(self.route.use_procedure_turns)
+            route = self.editable_route.create_precision_route(self.route.use_procedure_turns, self.scorecard)
         elif self.scorecard.calculator == NavigationTask.ANR_CORRIDOR:
             route = self.editable_route.create_anr_route(
                 self.route.rounded_corners, self.route.corridor_width, self.scorecard
             )
         elif self.scorecard.calculator in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
-            route = self.editable_route.create_airsports_route(self.route.rounded_corners)
+            route = self.editable_route.create_airsports_route(self.route.rounded_corners, self.scorecard)
         if route:
             old_route = self.route
             self.route = route
@@ -2806,7 +2806,7 @@ class EditableRoute(models.Model):
         route.save()
         return route
 
-    def create_precision_route(self, use_procedure_turns: bool) -> Optional[Route]:
+    def create_precision_route(self, use_procedure_turns: bool, scorecard: Scorecard) -> Optional[Route]:
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list
 
@@ -2829,7 +2829,7 @@ class EditableRoute(models.Model):
                     item["timeCheck"],  # We do not include gate check in GUI
                 )
             )
-        route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns)
+        route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns, scorecard)
         self.amend_route_with_additional_features(route)
         return route
 
@@ -2858,12 +2858,12 @@ class EditableRoute(models.Model):
 
         logger.debug(f"Created waypoints {waypoint_list}")
         route = create_anr_corridor_route_from_waypoint_list(
-            track["name"], waypoint_list, rounded_corners, corridor_width=corridor_width
+            track["name"], waypoint_list, rounded_corners, scorecard, corridor_width=corridor_width
         )
         self.amend_route_with_additional_features(route)
         return route
 
-    def create_airsports_route(self, rounded_corners: bool) -> Route:
+    def create_airsports_route(self, rounded_corners: bool, scorecard: Scorecard) -> Route:
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
@@ -2884,7 +2884,7 @@ class EditableRoute(models.Model):
                     item["timeCheck"],
                 )
             )
-        route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners)
+        route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners, scorecard)
         self.amend_route_with_additional_features(route)
         return route
 

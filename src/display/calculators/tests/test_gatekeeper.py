@@ -16,15 +16,15 @@ class TestInterpolation(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, patch, p2):
-        with open("display/calculators/tests/NM.csv", "r") as file:
-            editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
-            route = editable_route.create_precision_route(True)
-        navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
-        navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
-        aeroplane = Aeroplane.objects.create(registration="LN-YDB")
         from display.default_scorecards import default_scorecard_fai_precision_2020
 
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+        with open("display/calculators/tests/NM.csv", "r") as file:
+            editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
+            route = editable_route.create_precision_route(True, self.scorecard)
+        navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
+        navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
+        aeroplane = Aeroplane.objects.create(registration="LN-YDB")
 
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
@@ -94,18 +94,18 @@ class TestCrossingEstimate(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, patch, p2):
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
+
         with open("display/calculators/tests/NM.csv", "r") as file:
             editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
-            self.route = editable_route.create_precision_route(True)
+            self.route = editable_route.create_precision_route(True, self.scorecard)
         self.route.waypoints[1].time_check = False
         self.route.save()
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        from display.default_scorecards import default_scorecard_fai_precision_2020
-
-        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
-
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=self.route,

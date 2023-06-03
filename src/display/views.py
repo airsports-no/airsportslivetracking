@@ -2002,7 +2002,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             use_procedure_turns = self.get_cleaned_data_for_step("task_content")[
                 "original_scorecard"
             ].use_procedure_turns
-            route = initial_step_data["internal_route"].create_precision_route(use_procedure_turns)
+            route = initial_step_data["internal_route"].create_precision_route(use_procedure_turns, scorecard)
             editable_route = initial_step_data["internal_route"]
         elif task_type == NavigationTask.ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_route_import")
@@ -2013,7 +2013,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         elif task_type in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
             initial_step_data = self.get_cleaned_data_for_step("airsports_route_import")
             rounded_corners = initial_step_data["rounded_corners"]
-            route = initial_step_data["internal_route"].create_airsports_route(rounded_corners)
+            route = initial_step_data["internal_route"].create_airsports_route(rounded_corners, scorecard)
             editable_route = initial_step_data["internal_route"]
         elif task_type == NavigationTask.LANDING:
             initial_step_data = self.get_cleaned_data_for_step("landing_route_import")
@@ -2133,7 +2133,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         route = None
         if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
             use_procedure_turns = scorecard.use_procedure_turns
-            route = self.editable_route.create_precision_route(use_procedure_turns)
+            route = self.editable_route.create_precision_route(use_procedure_turns, scorecard)
         elif task_type == NavigationTask.ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_parameters")
             rounded_corners = initial_step_data["rounded_corners"]
@@ -2142,7 +2142,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         elif task_type in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
             initial_step_data = self.get_cleaned_data_for_step("airsports_parameters")
             rounded_corners = initial_step_data["rounded_corners"]
-            route = self.editable_route.create_airsports_route(rounded_corners)
+            route = self.editable_route.create_airsports_route(rounded_corners, scorecard)
         elif task_type == NavigationTask.LANDING:
             route = self.editable_route.create_landing_route()
         # Check for gate polygons that do not match a turning point

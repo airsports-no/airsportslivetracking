@@ -348,6 +348,10 @@ class WaypointSerialiser(serializers.Serializer):
     gate_line = serializers.JSONField(
         help_text="Coordinates that describe the starting point and finish point of the gate line, e.g. [[lat1,lon2],[lat2,lon2]"
     )
+    gate_line_extended = serializers.JSONField(
+        help_text="Coordinates that describe the starting point and finish point of the extended gate line, e.g. [[lat1,lon2],[lat2,lon2]",
+        required=False
+    )
     time_check = serializers.BooleanField()
     gate_check = serializers.BooleanField()
     end_curved = serializers.BooleanField()
