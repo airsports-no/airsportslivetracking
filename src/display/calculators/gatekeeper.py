@@ -1,6 +1,7 @@
 import datetime
 import logging
 import threading
+import time
 from abc import abstractmethod, ABC
 from typing import List, Optional, Callable, Tuple, Dict
 
@@ -26,6 +27,8 @@ from display.utilities.coordinate_utilities import (
 )
 from display.models import Contestant, TrackAnnotation, ScoreLogEntry, ContestantReceivedPosition
 from display.waypoint import Waypoint
+
+DANGER_LEVEL_REPORT_INTERVAL = 5
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +101,7 @@ class Gatekeeper(ABC):
         self.calculators = []
         self.websocket_facade = WebsocketFacade()
         self.timed_queue = TimedQueue()
+        self.last_danger_level_report = 0
         self.finished_loading_initial_positions = (
             threading.Event()
         )  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
@@ -544,7 +548,9 @@ class Gatekeeper(ABC):
                 )
             else:
                 calculator.calculate_outside_route(self.track, self.last_gate)
-        self.report_calculator_danger_level()
+        if self.last_danger_level_report + DANGER_LEVEL_REPORT_INTERVAL < time.time():
+            self.last_danger_level_report = time.time()
+            self.report_calculator_danger_level()
 
     def get_speed(self):
         previous_index = min(5, len(self.track))

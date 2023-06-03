@@ -1172,11 +1172,17 @@ class Scorecard(models.Model):
             simple_clone(gate, {"scorecard": obj})
         return obj
 
+    SCORECARD_CACHE = {}
+
     def get_gate_scorecard(self, gate_type: str) -> "GateScore":
         try:
-            return self.gatescore_set.get(gate_type=gate_type)
-        except ObjectDoesNotExist:
-            raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
+            return self.SCORECARD_CACHE[(self.pk, gate_type)]
+        except KeyError:
+            try:
+                self.SCORECARD_CACHE[(self.pk, gate_type)] = self.gatescore_set.get(gate_type=gate_type)
+                return self.SCORECARD_CACHE[(self.pk, gate_type)]
+            except ObjectDoesNotExist:
+                raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
 
     def calculate_penalty_zone_score(self, enter: datetime.datetime, exit: datetime.datetime):
         difference = round((exit - enter).total_seconds()) - self.penalty_zone_grace_time
