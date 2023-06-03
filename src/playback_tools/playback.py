@@ -176,10 +176,9 @@ def insert_gpx_file(contestant_object: "Contestant", file):
         logger.debug("Deleted existing uploaded track")
     except:
         pass
+    contestant_object.contestantreceivedposition_set.all().delete()
     ContestantUploadedTrack.objects.create(contestant=contestant_object, track=positions)
     logger.debug("Created new uploaded track with {} positions".format(len(positions)))
-    # generated_positions = influx.generate_position_data_for_contestant(contestant_object, positions)
-    # influx.put_position_data_for_contestant(contestant_object, positions)
     queue_name = f"override_{contestant_object.pk}"
     q = RedisQueue(queue_name)
     while not q.empty():

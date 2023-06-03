@@ -2007,16 +2007,13 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return merge_tracks(tracks)
 
     def get_track(self) -> List["Position"]:
-        try:
-            track = self.contestantuploadedtrack.track
-            logger.debug(f"{self}: Fetching data from uploaded track")
-        except:
-            p = ContestantReceivedPosition.objects.filter(contestant=self)
-            if p.count() > 0:
-                return ContestantReceivedPosition.convert_to_traccar(p)
-            logger.debug(f"{self}: There is no uploaded track, fetching data from traccar")
-            track = self.get_traccar_track()
-        return [Position(**self.generate_position_block_for_contestant(item, item["device_time"])) for item in track]
+        """
+        Get the track for the contestant.  We only want the track that is used for the last calculation. This is always
+        stored in the ContestantReceivedPosition  objects, which is cleared whenever a calculation is restarted. This
+        means that this  function will always only return the data that is used for the latest calculation up until
+        this time.
+        """
+        return ContestantReceivedPosition.convert_to_traccar(self.contestantreceivedposition_set.all())
 
     def get_latest_position(self) -> Optional[Position]:
         try:

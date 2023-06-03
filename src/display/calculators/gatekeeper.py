@@ -19,8 +19,11 @@ from display.utilities.traccar_factory import get_traccar_instance
 from display.calculators.calculator_utilities import distance_between_gates
 from display.calculators.positions_and_gates import Gate, Position
 from display.utilities.route_building_utilities import calculate_extended_gate
-from display.utilities.coordinate_utilities import Projector, calculate_distance_lat_lon, \
-    calculate_fractional_distance_point_lat_lon
+from display.utilities.coordinate_utilities import (
+    Projector,
+    calculate_distance_lat_lon,
+    calculate_fractional_distance_point_lat_lon,
+)
 from display.models import Contestant, TrackAnnotation, ScoreLogEntry, ContestantReceivedPosition
 from display.waypoint import Waypoint
 
@@ -31,8 +34,9 @@ class ScoreAccumulator:
     def __init__(self):
         self.related_score = {}
 
-    def set_and_update_score(self, score: float, score_type: str, maximum_score: Optional[float],
-                             previous_score: Optional[float] = 0) -> Tuple[float, bool]:
+    def set_and_update_score(
+        self, score: float, score_type: str, maximum_score: Optional[float], previous_score: Optional[float] = 0
+    ) -> Tuple[float, bool]:
         """
         Returns the calculated score given the maximum limits. If there is no maximum limit, score is returned
         """
@@ -55,8 +59,13 @@ class Gatekeeper(ABC):
     GATE_SCORE_TYPE = "gate_score"
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
-    def __init__(self, contestant: "Contestant", calculators: List[Callable],
-                 live_processing: bool = True, queue_name_override: str = None):
+    def __init__(
+        self,
+        contestant: "Contestant",
+        calculators: List[Callable],
+        live_processing: bool = True,
+        queue_name_override: str = None,
+    ):
         calculator_is_alive(contestant.pk, 30)
         super().__init__()
         logger.info(f"{contestant}: Created gatekeeper")
@@ -75,6 +84,7 @@ class Gatekeeper(ABC):
         self.enroute = False
         self.process_event = threading.Event()
         self.contestant.reset_track_and_score()
+        self.contestant.contestantreceivedposition_set.all().delete()
         self.contestant.contestanttrack.set_calculator_started()
         self.scorecard = self.contestant.navigation_task.scorecard
         self.gates = self.create_gates()
@@ -88,14 +98,26 @@ class Gatekeeper(ABC):
         self.calculators = []
         self.websocket_facade = WebsocketFacade()
         self.timed_queue = TimedQueue()
-        self.finished_loading_initial_positions = threading.Event()  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
-        post_slack_message(str(self.contestant.navigation_task),
-                           f"Calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>")
+        self.finished_loading_initial_positions = (
+            threading.Event()
+        )  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
+        post_slack_message(
+            str(self.contestant.navigation_task),
+            f"Calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
+        )
         logger.debug(f"{self.contestant}: Starting calculators")
         for calculator in calculators:
             self.calculators.append(
-                calculator(self.contestant, self.scorecard, self.gates, self.contestant.navigation_task.route,
-                           self.update_score))
+                calculator(
+                    self.contestant,
+                    self.scorecard,
+                    self.gates,
+                    self.contestant.navigation_task.route,
+                    self.update_score,
+                )
+            )
+        self.websocket_facade.transmit_delete_contestant(self.contestant)
+        self.websocket_facade.transmit_contestant(self.contestant)
 
     def report_calculator_danger_level(self):
         danger_levels = [0]
@@ -106,15 +128,17 @@ class Gatekeeper(ABC):
             accumulated_scores.append(accumulated_score)
         final_danger_level = max(danger_levels)
         final_accumulated_score = sum(accumulated_scores)
-        self.websocket_facade.transmit_danger_estimate_and_accumulated_penalty(self.contestant, final_danger_level,
-                                                                               final_accumulated_score)
+        self.websocket_facade.transmit_danger_estimate_and_accumulated_penalty(
+            self.contestant, final_danger_level, final_accumulated_score
+        )
 
     def interpolate_track(self, position: Position) -> List[Position]:
         if len(self.track) == 0:
             return [position]
         initial_time = self.track[-1].time
-        distance = calculate_distance_lat_lon((self.track[-1].latitude, self.track[-1].longitude),
-                                              (position.latitude, position.longitude))
+        distance = calculate_distance_lat_lon(
+            (self.track[-1].latitude, self.track[-1].longitude), (position.latitude, position.longitude)
+        )
         if distance < 0.001:
             return [position]
         time_difference = int((position.time - initial_time).total_seconds())
@@ -123,13 +147,25 @@ class Gatekeeper(ABC):
             fraction = 1 / time_difference
             for step in range(1, time_difference):
                 new_position = calculate_fractional_distance_point_lat_lon(
-                    (self.track[-1].latitude, self.track[-1].longitude), (position.latitude, position.longitude),
-                    step * fraction)
+                    (self.track[-1].latitude, self.track[-1].longitude),
+                    (position.latitude, position.longitude),
+                    step * fraction,
+                )
                 positions.append(
-                    Position((initial_time + datetime.timedelta(seconds=step)), new_position[0],
-                             new_position[1],
-                             position.altitude, position.speed, position.course, position.battery_level, 0, 0,
-                             interpolated=True, calculator_received_time=datetime.datetime.now(datetime.timezone.utc)))
+                    Position(
+                        (initial_time + datetime.timedelta(seconds=step)),
+                        new_position[0],
+                        new_position[1],
+                        position.altitude,
+                        position.speed,
+                        position.course,
+                        position.battery_level,
+                        0,
+                        0,
+                        interpolated=True,
+                        calculator_received_time=datetime.datetime.now(datetime.timezone.utc),
+                    )
+                )
         positions.append(position)
         return positions
 
@@ -144,10 +180,11 @@ class Gatekeeper(ABC):
             # Get positions in between
             # logger.debug(
             #     f"{self.contestant}: Position time difference is more than 3 seconds ({latest_position_time.strftime('%H:%M:%S')} to {current_time.strftime('%H:%M:%S')} = {time_difference}), so fetching missing data from traccar.")
-            positions = self.traccar.get_positions_for_device_id(position_data["deviceId"],
-                                                                 latest_position_time + datetime.timedelta(
-                                                                     seconds=1),
-                                                                 current_time - datetime.timedelta(seconds=1))
+            positions = self.traccar.get_positions_for_device_id(
+                position_data["deviceId"],
+                latest_position_time + datetime.timedelta(seconds=1),
+                current_time - datetime.timedelta(seconds=1),
+            )
             for item in positions:
                 item["device_time"] = dateutil.parser.parse(item["deviceTime"])
                 item["server_time"] = dateutil.parser.parse(item["serverTime"])
@@ -155,21 +192,23 @@ class Gatekeeper(ABC):
 
             if len(positions) > 0:
                 logger.debug(
-                    f"{self.contestant}:  Retrieved {len(positions)} additional positions for the interval {positions[0]['device_time'].strftime('%H:%M:%S')} - {positions[-1]['device_time'].strftime('%H:%M:%S')}")
+                    f"{self.contestant}:  Retrieved {len(positions)} additional positions for the interval {positions[0]['device_time'].strftime('%H:%M:%S')} - {positions[-1]['device_time'].strftime('%H:%M:%S')}"
+                )
             return positions + [position_data]
         return [position_data]
 
     def enqueue_positions(self):
         logger.info(
-            f"{self.contestant}: Starting delayed position queuer with {self.position_queue.size} waiting messages. Track terminated is {self.track_terminated}")
+            f"{self.contestant}: Starting delayed position queuer with {self.position_queue.size} waiting messages. Track terminated is {self.track_terminated}"
+        )
         device_ids = self.traccar.get_device_ids_for_contestant(self.contestant)
         current_time = datetime.datetime.now(datetime.timezone.utc)
         device_positions = {}
         if self.live_processing:
             for device_id in device_ids:
-                positions = self.traccar.get_positions_for_device_id(device_id,
-                                                                     self.contestant.tracker_start_time,
-                                                                     current_time)
+                positions = self.traccar.get_positions_for_device_id(
+                    device_id, self.contestant.tracker_start_time, current_time
+                )
                 for item in positions:
                     item["device_time"] = dateutil.parser.parse(item["deviceTime"])
                     item["server_time"] = dateutil.parser.parse(item["serverTime"])
@@ -179,7 +218,8 @@ class Gatekeeper(ABC):
                 # Select the longest track
                 positions_to_use = sorted(device_positions.values(), key=lambda k: len(k), reverse=True)[0]
                 logger.info(
-                    f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator")
+                    f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator"
+                )
                 for position in positions_to_use:
                     self.timed_queue.put(position, datetime.datetime.now(datetime.timezone.utc))
             except IndexError:
@@ -190,7 +230,8 @@ class Gatekeeper(ABC):
                 position_data = self.position_queue.pop(True, timeout=30)
                 if position_data is not None:
                     release_time = position_data["device_time"] + datetime.timedelta(
-                        minutes=self.contestant.navigation_task.calculation_delay_minutes)
+                        minutes=self.contestant.navigation_task.calculation_delay_minutes
+                    )
                     if not receiving:
                         logger.info(f"{self.contestant}: Started receiving data")
                 else:
@@ -210,8 +251,11 @@ class Gatekeeper(ABC):
 
     def run(self):
         calculator_is_alive(self.contestant.pk, 30)
-        logger.info("Started gatekeeper for contestant {} {}-{}".format(self.contestant, self.contestant.takeoff_time,
-                                                                        self.contestant.finished_by_time))
+        logger.info(
+            "Started gatekeeper for contestant {} {}-{}".format(
+                self.contestant, self.contestant.takeoff_time, self.contestant.finished_by_time
+            )
+        )
         threading.Thread(target=self.enqueue_positions, daemon=True).start()
         receiving = False
         number_of_positions = 0
@@ -257,9 +301,11 @@ class Gatekeeper(ABC):
             else:
                 buffered_positions = [position_data]
             all_positions = []
+            generated_positions = []
             for buffered_position in buffered_positions:
-                data = self.contestant.generate_position_block_for_contestant(buffered_position,
-                                                                              buffered_position["device_time"])
+                data = self.contestant.generate_position_block_for_contestant(
+                    buffered_position, buffered_position["device_time"]
+                )
 
                 p = Position(**data)
                 if self.latest_position_report is None:
@@ -267,25 +313,33 @@ class Gatekeeper(ABC):
                 else:
                     self.latest_position_report = max(self.latest_position_report, p.time)
                 if len(self.track) > 0 and (
-                        (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude) or
-                        self.track[
-                            -1].time >= p.time):
+                    (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude)
+                    or self.track[-1].time >= p.time
+                ):
                     # Old or duplicate position, ignoring
                     continue
                 all_positions.append(p)
                 for position in self.interpolate_track(p):
-                    calculator_is_alive(self.contestant.pk, 30)
-                    self.track.append(position)
-                    if len(self.track) > 1:
-                        self.calculate_score()
-                    ContestantReceivedPosition.objects.create(contestant=self.contestant, time=position.time,
-                                                              latitude=position.latitude, longitude=position.longitude,
-                                                              course=position.course,
-                                                              processor_received_time=p.processor_received_time,
-                                                              calculator_received_time=p.calculator_received_time,
-                                                              websocket_transmitted_time=datetime.datetime.now(
-                                                                  datetime.timezone.utc), server_time=p.server_time,
-                                                              interpolated=position.interpolated)
+                    generated_positions.append(
+                        ContestantReceivedPosition(
+                            contestant=self.contestant,
+                            time=position.time,
+                            latitude=position.latitude,
+                            longitude=position.longitude,
+                            course=position.course,
+                            processor_received_time=p.processor_received_time,
+                            calculator_received_time=p.calculator_received_time,
+                            websocket_transmitted_time=datetime.datetime.now(datetime.timezone.utc),
+                            server_time=p.server_time,
+                            interpolated=position.interpolated,
+                        )
+                    )
+            ContestantReceivedPosition.objects.bulk_create(generated_positions)
+            for position in all_positions:
+                calculator_is_alive(self.contestant.pk, 30)
+                self.track.append(position)
+                if len(self.track) > 1:
+                    self.calculate_score()
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
             self.check_termination()
@@ -295,12 +349,20 @@ class Gatekeeper(ABC):
         logger.info("Terminating calculator for {}".format(self.contestant))
         calculator_is_terminated(self.contestant.pk)
 
-    def update_score(self, gate: "Gate", score: float, message: str, latitude: float, longitude: float,
-                     annotation_type: str, score_type: str, maximum_score: Optional[float] = None,
-                     planned: Optional[datetime.datetime] = None,
-                     actual: Optional[datetime.datetime] = None, existing_reference: Tuple[int, int, float] = None) -> \
-            Tuple[
-                int, int, float]:
+    def update_score(
+        self,
+        gate: "Gate",
+        score: float,
+        message: str,
+        latitude: float,
+        longitude: float,
+        annotation_type: str,
+        score_type: str,
+        maximum_score: Optional[float] = None,
+        planned: Optional[datetime.datetime] = None,
+        actual: Optional[datetime.datetime] = None,
+        existing_reference: Tuple[int, int, float] = None,
+    ) -> Tuple[int, int, float]:
         """
 
         :param gate: The last gate which indicates the current leg
@@ -315,8 +377,9 @@ class Gatekeeper(ABC):
         :param actual: The actual passing time if gate
         :return:
         """
-        score, capped = self.accumulated_scores.set_and_update_score(score, score_type, maximum_score,
-                                                                     existing_reference[2] if existing_reference else 0)
+        score, capped = self.accumulated_scores.set_and_update_score(
+            score, score_type, maximum_score, existing_reference[2] if existing_reference else 0
+        )
         if planned is not None and actual is not None:
             offset = (actual - planned).total_seconds()
             # Must use round, this is the same as used in the score calculation
@@ -325,10 +388,16 @@ class Gatekeeper(ABC):
             offset_string = ""
         if capped:
             message += " (capped)"
-        planned_time = planned.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
-            "%H:%M:%S") if planned else None
-        actual_time = actual.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
-            "%H:%M:%S") if actual else None
+        planned_time = (
+            planned.astimezone(self.contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
+            if planned
+            else None
+        )
+        actual_time = (
+            actual.astimezone(self.contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
+            if actual
+            else None
+        )
         string = "{}: {} points {}".format(gate.name, score, message)
         if offset_string:
             string += " ({})".format(offset_string)
@@ -340,24 +409,38 @@ class Gatekeeper(ABC):
         if len(times_string) > 0:
             string += f"\n{times_string}"
         logger.info(
-            "UPDATE_SCORE {}: {}{}".format(self.contestant, "(voids earlier) " if existing_reference else "", string))
+            "UPDATE_SCORE {}: {}{}".format(self.contestant, "(voids earlier) " if existing_reference else "", string)
+        )
         # Take into account that external events may have changed the score
         self.contestant.contestanttrack.refresh_from_db()
         self.contestant.record_score_by_gate(gate.name, score)
         self.score = self.contestant.contestanttrack.score
         if existing_reference is None:
             self.score += score
-            entry = ScoreLogEntry.create_and_push(contestant=self.contestant, time=self.track[-1].time if len(
-                self.track) > 0 else self.contestant.navigation_task.start_time, gate=gate.name, type=annotation_type,
-                                                  message=message, points=score, planned=planned, actual=actual,
-                                                  offset_string=offset_string, string=string, times_string=times_string)
-            annotation = TrackAnnotation.create_and_push(contestant=self.contestant, latitude=latitude,
-                                                         longitude=longitude,
-                                                         message=string, type=annotation_type, gate=gate.name,
-                                                         gate_type=gate.type,
-                                                         time=self.track[-1].time if len(
-                                                             self.track) > 0 else self.contestant.navigation_task.start_time,
-                                                         score_log_entry=entry)
+            entry = ScoreLogEntry.create_and_push(
+                contestant=self.contestant,
+                time=self.track[-1].time if len(self.track) > 0 else self.contestant.navigation_task.start_time,
+                gate=gate.name,
+                type=annotation_type,
+                message=message,
+                points=score,
+                planned=planned,
+                actual=actual,
+                offset_string=offset_string,
+                string=string,
+                times_string=times_string,
+            )
+            annotation = TrackAnnotation.create_and_push(
+                contestant=self.contestant,
+                latitude=latitude,
+                longitude=longitude,
+                message=string,
+                type=annotation_type,
+                gate=gate.name,
+                gate_type=gate.type,
+                time=self.track[-1].time if len(self.track) > 0 else self.contestant.navigation_task.start_time,
+                score_log_entry=entry,
+            )
             if score != 0:
                 self.contestant.contestanttrack.update_score(self.score)
             return entry.pk, annotation.pk, score
@@ -376,8 +459,7 @@ class Gatekeeper(ABC):
         for item in waypoints:  # type: Waypoint
             # Dummy gates are not part of the actual route
             if item.type != "dummy":
-                gates.append(Gate(item, expected_times[item.name],
-                                  calculate_extended_gate(item, self.scorecard)))
+                gates.append(Gate(item, expected_times[item.name], calculate_extended_gate(item, self.scorecard)))
         return gates
 
     def pop_gate(self, index, update_last: bool = True):
@@ -418,10 +500,15 @@ class Gatekeeper(ABC):
 
     def check_termination(self):
         if not self.track_terminated and self.is_termination_commanded():
-            self.update_score(self.last_gate or self.gates[0], 0, "manually terminated",
-                              self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
-                              self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,
-                              "information", "")
+            self.update_score(
+                self.last_gate or self.gates[0],
+                0,
+                "manually terminated",
+                self.track[-1].latitude if len(self.track) > 0 else self.gates[0].latitude,
+                self.track[-1].longitude if len(self.track) > 0 else self.gates[0].longitude,
+                "information",
+                "",
+            )
             self.notify_termination()
 
     def is_termination_commanded(self) -> bool:
@@ -449,8 +536,12 @@ class Gatekeeper(ABC):
         self.check_gates()
         for calculator in self.calculators:
             if self.enroute:
-                calculator.calculate_enroute(self.track, self.last_gate, self.in_range_of_gate,
-                                             self.outstanding_gates[0] if len(self.outstanding_gates) > 0 else None)
+                calculator.calculate_enroute(
+                    self.track,
+                    self.last_gate,
+                    self.in_range_of_gate,
+                    self.outstanding_gates[0] if len(self.outstanding_gates) > 0 else None,
+                )
             else:
                 calculator.calculate_outside_route(self.track, self.last_gate)
         self.report_calculator_danger_level()

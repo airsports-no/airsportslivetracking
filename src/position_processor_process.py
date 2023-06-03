@@ -196,6 +196,10 @@ def cleanup_calculators():
 
 
 def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_queue) -> Dict[Contestant, List[Dict]]:
+    """
+    Determine which contestant the position data belongs to. Forward the position with the associated person or
+    contestant to the global queue.
+    """
     if len(positions) == 0:
         return {}
     # logger.info("Received {} positions".format(len(positions)))
@@ -235,10 +239,6 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
             contestant = None
             is_simulator = True
         if contestant:
-            # logger.debug(
-            #     f"Mapped position ID {position_data['id']} for device ID {position_data['deviceId']} to contestant {contestant}"
-            # )
-
             try:
                 received_tracks[contestant].append(position_data)
             except KeyError:
