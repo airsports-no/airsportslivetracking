@@ -113,8 +113,8 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
             "SP: 50.0 points outside corridor (40 s) (capped)",
             "SP: 0 points entering corridor",
-            "TP 1: 0 points passing gate (no time check) (-407 s)\nplanned: 20:39:00\nactual: 20:32:13",
-            "SP: 50.0 points outside corridor (115 s) (capped)",
+            "TP 1: 0 points passing gate (no time check) (-406 s)\nplanned: 20:39:00\nactual: 20:32:14",
+            "SP: 50.0 points outside corridor (117 s) (capped)",
             "SP: 200.0 points backtracking",
             "SP: 0 points entering corridor",
             # 'Waypoint 1: 0 points outside corridor (157 s) (capped)',
@@ -748,7 +748,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         for s in strings:
             print(s)
-        self.assertEqual(747, self.contestant.contestanttrack.score)
+        self.assertEqual(735, self.contestant.contestanttrack.score)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertTrue("SP: 200.0 points circling start" in strings)
 
