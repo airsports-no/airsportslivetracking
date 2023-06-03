@@ -18,13 +18,13 @@
 {% endblock %}
 {% block content %}
     <H1>Route editor</H1>
-    <div id="root"></div>
     {% if perms.display.add_editableroute %}
-        <div class="row col">
+        <div class="row float-right">
             <a class="btn btn-primary" href="/routeeditor/" style="margin-bottom: 10px">New route</a>&nbsp;
             <a class="btn btn-primary" href="{% url 'editableroute_import' %}" style="margin-bottom: 10px">Import
                 route</a>
         </div>
     {% endif %}
+    <div id="root"></div>
     {% render_bundle 'EditableRouteList' %}
 {% endblock %}
