@@ -61,6 +61,9 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
+          - mountPath: /maptiles
+            readOnly: false
+            name: maps-azurefile
         livenessProbe:
           httpGet:
             path: /display/healthz/
@@ -82,3 +85,7 @@ spec:
         - name: firebase
           secret:
             secretName: firebase-secrets
+        - name: maps-azurefile
+          persistentVolumeClaim:
+            claimName: maps-azurefile
+
