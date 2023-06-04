@@ -8,6 +8,14 @@ export default class PrecisionRenderer extends GenericRenderer {
             line.removeFrom(this.props.map)
         }
         this.lines = []
+        this.props.navigationTask.route.waypoints.filter((waypoint) => {
+            return waypoint.type === 'sp' && waypoint.gate_line_extended
+        }).map((gate) => {
+            polyline([[gate.gate_line_extended[0][0], gate.gate_line_extended[0][1]], [gate.gate_line_extended[1][0], gate.gate_line_extended[1][1]]], {
+                color: "blue",
+                dashArray: "4 8"
+            }).addTo(this.props.map)
+        })
         this.filterWaypoints().map((gate) => {
             this.lines.push(polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
                 color: "blue"
@@ -27,10 +35,10 @@ export default class PrecisionRenderer extends GenericRenderer {
             if (waypoint.type !== "dummy") {
                 if (previousWaypoint && previousWaypoint.type === "dummy") {
                     dummyLegs.push(currentDummy)
-                    currentDummy=[]
+                    currentDummy = []
                 }
             } else {
-                if(previousWaypoint&&previousWaypoint.type!=="dummy"){
+                if (previousWaypoint && previousWaypoint.type !== "dummy") {
                     currentDummy.push([previousWaypoint.latitude, previousWaypoint.longitude])
                 }
                 currentDummy.push([waypoint.latitude, waypoint.longitude])

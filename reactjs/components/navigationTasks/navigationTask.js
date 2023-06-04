@@ -200,6 +200,9 @@ export class ConnectedNavigationTask extends Component {
                     console.log(value)
                     this.props.dispatchContestantData(value)
                     if (this.waitingInitialLoading[key] !== undefined) {
+                        // for(let p of this.waitingInitialLoading[key]){
+                        //     this.props.dispatchContestantData(p)
+                        // }
                         delete this.waitingInitialLoading[key]
                     }
                 }

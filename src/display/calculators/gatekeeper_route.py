@@ -1,5 +1,6 @@
 import datetime
 import logging
+import time
 from typing import List, Optional, Callable, Tuple
 
 from display.calculators.calculator_utilities import round_time_minute
@@ -17,6 +18,7 @@ from display.models import Contestant
 logger = logging.getLogger(__name__)
 
 LOOP_TIME = 60
+CROSSING_TIME_TRANSMISSION_INTERVAL = 3
 
 
 class GatekeeperRoute(Gatekeeper):
@@ -32,6 +34,7 @@ class GatekeeperRoute(Gatekeeper):
     ):
         super().__init__(contestant, calculators, live_processing, queue_name_override=queue_name_override)
         self.last_backwards = None
+        self.last_crossing_time_transmission = 0
         self.recalculation_completed = not self.contestant.adaptive_start
         self.starting_line = Gate(
             self.gates[0].waypoint,
@@ -563,6 +566,10 @@ class GatekeeperRoute(Gatekeeper):
     def check_gates(self):
         self.check_intersections()
         self.calculate_gate_score()
-        if self.recalculation_completed:
+        if (
+            self.recalculation_completed
+            and self.last_crossing_time_transmission + CROSSING_TIME_TRANSMISSION_INTERVAL < time.time()
+        ):
+            self.last_crossing_time_transmission = time.time()
             self.transmit_second_to_crossing_time_and_crossing_estimate()
         self.check_gate_in_range()

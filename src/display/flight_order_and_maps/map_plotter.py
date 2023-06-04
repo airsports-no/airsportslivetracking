@@ -567,7 +567,7 @@ def plot_prohibited_polygon(target_projection, ax, polygon_path, fill_colour: st
         # linewidth=2,
         edgecolor=line_colour,
     )
-    plt.text(centre.x, centre.y, name, horizontalalignment="center")
+    plt.text(centre.x, centre.y, name, {"fontsize": 4}, horizontalalignment="center")
 
 
 def plot_prohibited_zones(route: Route, target_projection, ax):

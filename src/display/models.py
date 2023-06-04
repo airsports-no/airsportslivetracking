@@ -953,13 +953,13 @@ class NavigationTask(models.Model):
             raise ValidationError("There is no route to refresh")
         route = None
         if self.scorecard.calculator in (NavigationTask.PRECISION, NavigationTask.POKER):
-            route = self.editable_route.create_precision_route(self.route.use_procedure_turns)
+            route = self.editable_route.create_precision_route(self.route.use_procedure_turns, self.scorecard)
         elif self.scorecard.calculator == NavigationTask.ANR_CORRIDOR:
             route = self.editable_route.create_anr_route(
                 self.route.rounded_corners, self.route.corridor_width, self.scorecard
             )
         elif self.scorecard.calculator in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
-            route = self.editable_route.create_airsports_route(self.route.rounded_corners)
+            route = self.editable_route.create_airsports_route(self.route.rounded_corners, self.scorecard)
         if route:
             old_route = self.route
             self.route = route
@@ -1172,11 +1172,17 @@ class Scorecard(models.Model):
             simple_clone(gate, {"scorecard": obj})
         return obj
 
+    SCORECARD_CACHE = {}
+
     def get_gate_scorecard(self, gate_type: str) -> "GateScore":
         try:
-            return self.gatescore_set.get(gate_type=gate_type)
-        except ObjectDoesNotExist:
-            raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
+            return self.SCORECARD_CACHE[(self.pk, gate_type)]
+        except KeyError:
+            try:
+                self.SCORECARD_CACHE[(self.pk, gate_type)] = self.gatescore_set.get(gate_type=gate_type)
+                return self.SCORECARD_CACHE[(self.pk, gate_type)]
+            except ObjectDoesNotExist:
+                raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
 
     def calculate_penalty_zone_score(self, enter: datetime.datetime, exit: datetime.datetime):
         difference = round((exit - enter).total_seconds()) - self.penalty_zone_grace_time
@@ -2007,16 +2013,13 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return merge_tracks(tracks)
 
     def get_track(self) -> List["Position"]:
-        try:
-            track = self.contestantuploadedtrack.track
-            logger.debug(f"{self}: Fetching data from uploaded track")
-        except:
-            p = ContestantReceivedPosition.objects.filter(contestant=self)
-            if p.count() > 0:
-                return ContestantReceivedPosition.convert_to_traccar(p)
-            logger.debug(f"{self}: There is no uploaded track, fetching data from traccar")
-            track = self.get_traccar_track()
-        return [Position(**self.generate_position_block_for_contestant(item, item["device_time"])) for item in track]
+        """
+        Get the track for the contestant.  We only want the track that is used for the last calculation. This is always
+        stored in the ContestantReceivedPosition  objects, which is cleared whenever a calculation is restarted. This
+        means that this  function will always only return the data that is used for the latest calculation up until
+        this time.
+        """
+        return ContestantReceivedPosition.convert_to_traccar(self.contestantreceivedposition_set.all())
 
     def get_latest_position(self) -> Optional[Position]:
         try:
@@ -2806,7 +2809,7 @@ class EditableRoute(models.Model):
         route.save()
         return route
 
-    def create_precision_route(self, use_procedure_turns: bool) -> Optional[Route]:
+    def create_precision_route(self, use_procedure_turns: bool, scorecard: Scorecard) -> Optional[Route]:
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list
 
@@ -2829,7 +2832,7 @@ class EditableRoute(models.Model):
                     item["timeCheck"],  # We do not include gate check in GUI
                 )
             )
-        route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns)
+        route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns, scorecard)
         self.amend_route_with_additional_features(route)
         return route
 
@@ -2858,12 +2861,12 @@ class EditableRoute(models.Model):
 
         logger.debug(f"Created waypoints {waypoint_list}")
         route = create_anr_corridor_route_from_waypoint_list(
-            track["name"], waypoint_list, rounded_corners, corridor_width=corridor_width
+            track["name"], waypoint_list, rounded_corners, scorecard, corridor_width=corridor_width
         )
         self.amend_route_with_additional_features(route)
         return route
 
-    def create_airsports_route(self, rounded_corners: bool) -> Route:
+    def create_airsports_route(self, rounded_corners: bool, scorecard: Scorecard) -> Route:
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
@@ -2884,7 +2887,7 @@ class EditableRoute(models.Model):
                     item["timeCheck"],
                 )
             )
-        route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners)
+        route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners, scorecard)
         self.amend_route_with_additional_features(route)
         return route
 

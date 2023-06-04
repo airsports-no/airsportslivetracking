@@ -201,6 +201,10 @@ headers = {
 headers["Upgrade"] = "websocket"
 
 if __name__ == "__main__":
+    """
+    Incoming positions are first sent to the initial processor. The person or contestant is then forwarded  to the live 
+    position transmitter process  to appear on the global map and on the air sports data feed.
+    """
     django.db.connections.close_all()
     p = Process(
         target=live_position_transmitter_process,
@@ -209,6 +213,7 @@ if __name__ == "__main__":
         name="live_position_transmitter",
     )
     p.start()
+
     for index in range(1):
         logger.info(f"Creating initial processor number {index}")
         Process(
@@ -217,13 +222,7 @@ if __name__ == "__main__":
             daemon=False,
             name="initial_processor_{}".format(index),
         ).start()
-    # sentry_sdk.init(
-    #     "https://56e7c26e749c45c585c7123ddd34df7a@o568590.ingest.sentry.io/5713804",
-    #     # Set traces_sample_rate to 1.0 to capture 100%
-    #     # of transactions for performance monitoring.
-    #     # We recommend adjusting this value in production.
-    #     traces_sample_rate=1.0,
-    # )
+
     cache.clear()
 
     print_debug()

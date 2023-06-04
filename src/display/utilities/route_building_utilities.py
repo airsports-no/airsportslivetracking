@@ -249,7 +249,7 @@ def create_gate_from_line(gate_line, name: str, type: str) -> Waypoint:
     return waypoint
 
 
-def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool) -> Route:
+def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool, scorecard: Scorecard) -> Route:
     if len(waypoint_list) < 2:
         raise ValidationError("A route must at least have a starting point and finish point")
     if waypoint_list[0].type != "sp":
@@ -312,6 +312,8 @@ def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_pro
     gates[0].gate_line[1].reverse()
     # Reverse the line since we have created it in the wrong direction
     gates[0].gate_line.reverse()
+    for waypoint in waypoint_list:
+        waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)
 
     calculate_and_update_legs(waypoint_list, use_procedure_turns)
     insert_gate_ranges(waypoint_list)
@@ -366,7 +368,7 @@ def create_perpendicular_line_at_end_gates(
 
 
 def create_anr_corridor_route_from_waypoint_list(
-    route_name, waypoint_list, rounded_corners: bool, corridor_width: float = None
+    route_name, waypoint_list, rounded_corners: bool, scorecard: Scorecard, corridor_width: float = None
 ) -> Route:
     """
 
@@ -419,6 +421,9 @@ def create_anr_corridor_route_from_waypoint_list(
     )
     gates[-1].left_corridor_line = [finish_corridor_line[0]]
     gates[-1].right_corridor_line = [finish_corridor_line[1]]
+
+    for waypoint in waypoint_list:
+        waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)
 
     # Calculate bearings and distances
     calculate_and_update_legs(waypoint_list, False)

@@ -72,19 +72,19 @@ class TestFullTrack(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p, p2):
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         with open("display/calculators/tests/NM.csv", "r") as file:
             with patch(
                 "display.models.EditableRoute._create_route_and_thumbnail",
                 lambda name, r: EditableRoute.objects.create(name=name, route=r),
             ):
                 editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
-                route = editable_route.create_precision_route(True)
+                route = editable_route.create_precision_route(True, self.scorecard)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        from display.default_scorecards import default_scorecard_fai_precision_2020
-
-        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
 
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
@@ -327,19 +327,19 @@ class Test2017WPFC(TransactionTestCase):
 class TestNM2019(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         with open("display/calculators/tests/NM2019.gpx", "r") as file:
             with patch(
                 "display.models.EditableRoute._create_route_and_thumbnail",
                 lambda name, r: EditableRoute.objects.create(name=name, route=r),
             ):
                 editable_route, _ = EditableRoute.create_from_gpx("Test", file.read().encode("utf-8"))
-                route = editable_route.create_precision_route(True)
+                route = editable_route.create_precision_route(True, self.scorecard)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        from display.default_scorecards import default_scorecard_fai_precision_2020
-
-        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,
@@ -411,19 +411,19 @@ class TestHamar23March2021(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p, p2):
+        from display.default_scorecards import default_scorecard_fai_precision_2020
+
+        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         with open("display/calculators/tests/hamartest.kml", "r") as file:
             with patch(
                 "display.models.EditableRoute._create_route_and_thumbnail",
                 lambda name, r: EditableRoute.objects.create(name=name, route=r),
             ):
                 editable_route, _ = EditableRoute.create_from_kml("Test", file)
-                route = editable_route.create_precision_route(True)
+                route = editable_route.create_precision_route(True, self.scorecard)
         navigation_task_start_time = datetime.datetime(2021, 3, 23, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2021, 3, 23, 19, 0, 0).astimezone()
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        from display.default_scorecards import default_scorecard_fai_precision_2020
-
-        self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
         self.navigation_task = NavigationTask.create(
             name="NM navigation_task",
             route=route,

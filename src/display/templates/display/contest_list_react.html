@@ -11,12 +11,14 @@
 {% endblock %}
 {% block content %}
     <H1>Contests</H1>
-    <div id="root"></div>
     {% if perms.display.add_contest %}
-        <a href="{% url 'contest_create' %}">New contest</a>
-        {% if user.is_superuser %}
-            | <a href="{% url 'person_list' %}">Person overview</a>
-        {% endif %}
+        <div class="row float-right">
+            <a class="btn btn-primary" href="{% url 'contest_create' %}" style="margin-bottom: 10px">New contest</a>&nbsp;
+            {% if user.is_superuser %}
+                <a class="btn btn-primary" href="{% url 'person_list' %}" style="margin-bottom: 10px">Person overview</a>
+            {% endif %}
+        </div>
     {% endif %}
+    <div id="root"></div>
     {% render_bundle 'ContestList' %}
 {% endblock %}

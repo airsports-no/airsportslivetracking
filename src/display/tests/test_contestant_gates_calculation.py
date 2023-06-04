@@ -17,13 +17,13 @@ def chop_microseconds(delta):
 class TestContestantGatesCalculation(TestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, p):
+        scorecard = get_default_scorecard()
         with open("display/tests/NM.csv", "r") as file:
             editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
-            route = editable_route.create_precision_route(True)
+            route = editable_route.create_precision_route(True, scorecard)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
         navigation_task_finish_time = datetime.datetime(2020, 8, 1, 16, 0, 0).astimezone()
         aeroplane = Aeroplane.objects.create(registration="LN-YDB")
-        scorecard = get_default_scorecard()
         self.navigation_task = NavigationTask.create(
             name="NM navigation test",
             original_scorecard=scorecard,
@@ -168,5 +168,5 @@ class TestContestantGatesCalculationANRRounded(TestCase):
         ]
         # print(times)
         # for item in times:
-            # print(item[1].total_seconds())
+        # print(item[1].total_seconds())
         self.assertListEqual(expected_times, [(item[0], chop_microseconds(item[1])) for item in times])

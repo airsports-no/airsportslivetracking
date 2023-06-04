@@ -15,10 +15,11 @@ const aboutANR = (scorecard, route) => {
             corridor beyond the
             first {getTrackValue(scorecard, "corridor_grace_time")} seconds. {getTrackValue(scorecard, "corridor_maximum_penalty") >= 0 ?
             <span>A maximum of {getTrackValue(scorecard, "corridor_maximum_penalty")} points will be awarded per leg for being outside the corridor.</span> : null}
+
         </p>
         <p>
             Missing the starting point gives a penalty
-            of {getGateValue(scorecard, "sp", "missed_penalty")}. Passing the checkpoint more
+            of {getGateValue(scorecard, "sp", "missed_penalty")}. This has a gate width of {getGateValue(scorecard, "sp", "extended_gate_width")} NM. Passing the checkpoint more
             than {getGateValue(scorecard, "sp", "graceperiod_before")} seconds early
             or {getGateValue(scorecard, "sp", "graceperiod_after")} seconds
             late gives {getGateValue(scorecard, "sp", "penalty_per_second")} points per additional
@@ -27,7 +28,7 @@ const aboutANR = (scorecard, route) => {
         </p>
         <p>
             Missing the finish point gives a penalty
-            of {getGateValue(scorecard, "fp", "missed_penalty")}. Passing the checkpoint more
+            of {getGateValue(scorecard, "fp", "missed_penalty")}. This has a gate width of {getGateValue(scorecard, "fp", "extended_gate_width")} NM. Passing the checkpoint more
             than {getGateValue(scorecard, "fp", "graceperiod_before")} seconds early
             or {getGateValue(scorecard, "fp", "graceperiod_after")} seconds
             late gives {getGateValue(scorecard, "fp", "penalty_per_second")} points per additional
