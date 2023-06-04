@@ -61,22 +61,22 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
-#        livenessProbe:
-#          httpGet:
-#            path: /display/healthz/
-#            port: gunicorn
-#          initialDelaySeconds: 30
-#          periodSeconds: 30
-#          timeoutSeconds: 2
-#          failureThreshold: 2
-#        readinessProbe:
-#          httpGet:
-#            path: /display/readyz/
-#            port: gunicorn
-#          initialDelaySeconds: 30
-#          periodSeconds: 30
-#          timeoutSeconds: 5
-#          failureThreshold: 2
+        livenessProbe:
+          httpGet:
+            path: /display/healthz/
+            port: daphne
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 2
+          failureThreshold: 2
+        readinessProbe:
+          httpGet:
+            path: /display/readyz/
+            port: daphne
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 2
       restartPolicy: Always
       volumes:
         - name: firebase
