@@ -7,9 +7,9 @@ const aboutAirsportChallenge = (scorecard, route) => {
         return waypoint.width
     })
     return <div>
-        <h2>Airsport Challenge</h2>
+        <h2>AirSport Challenge</h2>
         <p>
-            Airsport Challenge is a flying competition where the user is tasked with crossing a set of scorecard known and secret at specific
+            AirSport Challenge is a flying competition where the user is tasked with crossing a set of scorecard known and secret at specific
             times while at the same time remaining within the corridor and avoiding any prohibited and penalty zones
             along the way. The only navigation tools available to the pilot is
             a paper map annotated with the prescribed route and the expected passing times for the scorecard.
