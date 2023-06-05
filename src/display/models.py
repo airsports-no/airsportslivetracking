@@ -774,7 +774,7 @@ class NavigationTask(models.Model):
         (PRECISION, "Precision"),
         (ANR_CORRIDOR, "ANR Corridor"),
         (AIRSPORTS, "Air Sports Race"),
-        (AIRSPORT_CHALLENGE, "Airsport Challenge"),
+        (AIRSPORT_CHALLENGE, "Air Sport Challenge"),
         (POKER, "Poker run"),
         (LANDING, "Landing"),
     )
