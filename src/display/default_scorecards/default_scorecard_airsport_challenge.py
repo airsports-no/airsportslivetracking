@@ -159,7 +159,7 @@ def get_default_scorecard():
         scorecard=scorecard,
         gate_type=STARTINGPOINT,
         defaults={
-            "extended_gate_width": 0.6,  # verified
+            "extended_gate_width": 0.01,
             "bad_crossing_extended_gate_penalty": 0,
             "graceperiod_before": 2,  # verified
             "graceperiod_after": 2,  # verified

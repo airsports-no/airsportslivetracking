@@ -8,14 +8,15 @@ export default class AirsportsRenderer extends GenericRenderer {
             line.removeFrom(this.props.map)
         }
         this.lines = []
-        this.props.navigationTask.route.waypoints.filter((waypoint) => {
-            return waypoint.type === 'sp' && waypoint.gate_line_extended
-        }).map((gate) => {
-            polyline([[gate.gate_line_extended[0][0], gate.gate_line_extended[0][1]], [gate.gate_line_extended[1][0], gate.gate_line_extended[1][1]]], {
-                color: "green",
-                dashArray: "4 8"
-            }).addTo(this.props.map)
-        })
+        //  Air sports  race and challenge does not penalise crossing the extended starting line backwards.
+        // this.props.navigationTask.route.waypoints.filter((waypoint) => {
+        //     return waypoint.type === 'sp' && waypoint.gate_line_extended
+        // }).map((gate) => {
+        //     polyline([[gate.gate_line_extended[0][0], gate.gate_line_extended[0][1]], [gate.gate_line_extended[1][0], gate.gate_line_extended[1][1]]], {
+        //         color: "green",
+        //         dashArray: "4 8"
+        //     }).addTo(this.props.map)
+        // })
 
         this.filterWaypoints().map((gate) => {
             this.lines.push(polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
