@@ -18,9 +18,16 @@
         {% endbuttons %}
     </form>
     <script type="text/javascript">
+        function updateTakeoff() {
+            if (adaptiveStart.checked) {
+                takeoffTime.value = trackingStart.value
+            }
+
+        }
+
         $('#id_takeoff_time').datetimepicker({dateFormat: "yy-mm-dd"});
         $('#id_finished_by_time').datetimepicker({dateFormat: "yy-mm-dd"});
-        $('#id_tracker_start_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_tracker_start_time').datetimepicker({dateFormat: "yy-mm-dd", onSelect: updateTakeoff});
         const adaptiveStart = document.getElementById("id_adaptive_start");
         const takeoffTime = document.getElementById("id_takeoff_time");
         const trackingStart = document.getElementById("id_tracker_start_time");
@@ -30,11 +37,13 @@
                 takeoffTime.value = trackingStart.value
             }
         })
-        trackingStart.addEventListener("change", (event) => {
-            if (adaptiveStart.checked) {
-                takeoffTime.value = trackingStart.value
-            }
-        })
 
+
+        trackingStart.addEventListener("change", (event) => {
+            updateTakeoff()
+        })
+        {% if object.adaptive_start %}
+            takeoffTime.readOnly = adaptiveStart.checked;
+        {% endif %}
     </script>
 {% endblock %}
