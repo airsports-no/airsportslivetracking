@@ -546,14 +546,16 @@ def waypoint_bearing(waypoint, index) -> float:
 
 
 PROHIBITED_COLOURS = {
-    "prohibited": ("red", "darkred"),
-    "penalty": ("orange", "darkorange"),
-    "info": ("lightblue", "Lightskyblue"),
-    "gate": ("blue", "darkblue"),
+    "prohibited": ("red", "darkred", 4),
+    "penalty": ("orange", "darkorange", 4),
+    "info": ("lightblue", "Lightskyblue", 10),
+    "gate": ("blue", "darkblue", 4),
 }
 
 
-def plot_prohibited_polygon(target_projection, ax, polygon_path, fill_colour: str, line_colour: str, name):
+def plot_prohibited_polygon(
+    target_projection, ax, polygon_path, fill_colour: str, line_colour: str, font_size: int, name
+):
     line = []
     for element in polygon_path:
         line.append(target_projection.transform_point(*list(reversed(element)), ccrs.PlateCarree()))
@@ -567,18 +569,19 @@ def plot_prohibited_polygon(target_projection, ax, polygon_path, fill_colour: st
         # linewidth=2,
         edgecolor=line_colour,
     )
-    plt.text(centre.x, centre.y, name, {"fontsize": 4}, horizontalalignment="center")
+    plt.text(centre.x, centre.y, name, {"fontsize": font_size}, horizontalalignment="center")
 
 
 def plot_prohibited_zones(route: Route, target_projection, ax):
     for prohibited in route.prohibited_set.all():
-        fill_colour, line_colour = PROHIBITED_COLOURS.get(prohibited.type, ("blue", "darkblue"))
+        fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(prohibited.type, ("blue", "darkblue", 4))
         plot_prohibited_polygon(
             target_projection,
             ax,
             prohibited.path,
             fill_colour,
             line_colour,
+            font_size,
             prohibited.name,
         )
 
