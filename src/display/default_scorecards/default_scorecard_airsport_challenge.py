@@ -18,11 +18,11 @@ from display.models import (
 
 
 def get_default_scorecard():
-    Scorecard.objects.filter(name="Airsports Challenge 2023").update(name="Air Sport Challenge 2023")
+    Scorecard.objects.filter(name="Airsports Challenge 2023").update(name="AirSport Challenge 2023")
     scorecard, created = Scorecard.objects.update_or_create(
         name="Air Sport Challenge 2023",
         defaults={
-            "shortcut_name": "Air Sport  Challenge",
+            "shortcut_name": "AirSport Challenge",
             "valid_from": datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc),
             "backtracking_penalty": 10,
             "backtracking_grace_time_seconds": 5,
