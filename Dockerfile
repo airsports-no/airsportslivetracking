@@ -71,7 +71,7 @@ WORKDIR /src
 RUN python3 manage.py collectstatic --noinput
 CMD [ "bash", "-c", "/gunicorn.sh" ]
 
-FROM tracker_base as tracker_daphne
+FROM tracker_web as tracker_daphne
 CMD [ "bash", "-c", "/daphne.sh" ]
 
 FROM tracker_base as tracker_celery
