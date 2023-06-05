@@ -4,6 +4,9 @@ import GenericRenderer from "./genericRenderer";
 
 export default class AirsportsRenderer extends GenericRenderer {
     renderRoute() {
+        for (const line of this.lines) {
+            line.removeFrom(this.props.map)
+        }
         this.lines = []
         this.props.navigationTask.route.waypoints.filter((waypoint) => {
             return waypoint.type === 'sp' && waypoint.gate_line_extended
