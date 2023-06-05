@@ -18,7 +18,7 @@ const aboutPrecisionFlying = (scorecard, route) => {
             Most gates gives a penalty of {getGateValue(scorecard, "tp", "penalty_per_second")} points for each
             second more
             than {getGateValue(scorecard, "tp", "graceperiod_before")}s early
-            or {getGateValue(scorecard, "tp", "graceperiod_after")}s late. Missing the gate is a penalty
+            or {getGateValue(scorecard, "tp", "graceperiod_after")}s late, with a maximum of {getGateValue(scorecard, "tp", "maximum_penalty")} points. Missing the gate is a penalty
             of {getGateValue(scorecard, "tp", "missed_penalty")} points.
             A maximum of {getGateValue(scorecard, "tp", "maximum_penalty")} points are awarded for bad
             timing, and missing the procedure turn (if required)

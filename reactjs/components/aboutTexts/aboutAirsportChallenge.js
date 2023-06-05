@@ -36,7 +36,7 @@ const aboutAirsportChallenge = (scorecard, route) => {
             Regular scorecard gives a penalty of {getGateValue(scorecard, "tp", "penalty_per_second")} points for each
             second more
             than {getGateValue(scorecard, "tp", "graceperiod_before")}s early
-            or {getGateValue(scorecard, "tp", "graceperiod_after")}s late. Missing the gate is a penalty
+            or {getGateValue(scorecard, "tp", "graceperiod_after")}s late, with a maximum of {getGateValue(scorecard, "tp", "maximum_penalty")} points. Missing the gate is a penalty
             of {getGateValue(scorecard, "tp", "missed_penalty")} points.
 
         </p>
@@ -44,7 +44,7 @@ const aboutAirsportChallenge = (scorecard, route) => {
             Secret scorecard gives a penalty of {getGateValue(scorecard, "secret", "penalty_per_second")} points for each
             second more
             than {getGateValue(scorecard, "secret", "graceperiod_before")}s early
-            or {getGateValue(scorecard, "secret", "graceperiod_after")}s late. Missing the gate is a penalty
+            or {getGateValue(scorecard, "secret", "graceperiod_after")}s late, with a maximum of {getGateValue(scorecard, "secret", "maximum_penalty")} points. Missing the gate is a penalty
             of {getGateValue(scorecard, "secret", "missed_penalty")} points.
 
         </p>
