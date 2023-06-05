@@ -716,15 +716,7 @@ def plot_anr_corridor_track(
                 line_width_nm=0.5,
                 adaptive=True,
             )
-            plot_leg_bearing(
-                waypoint,
-                route.waypoints[index + 1],
-                contestant.air_speed,
-                contestant.wind_speed,
-                contestant.wind_direction,
-                2,
-                12,
-            )
+            maybe_plot_leg_bearing(waypoint, index, route.waypoints, contestant, 2, 12)
     if plot_center_line:
         path = np.array(center_track)
         ys, xs = path.T
@@ -736,6 +728,41 @@ def plot_anr_corridor_track(
     ys, xs = path.T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
     return [path]
+
+
+def maybe_plot_leg_bearing(
+    waypoint: Waypoint, index: int, track: List[Waypoint], contestant: Contestant, character_offset: int, font_size: int
+):
+    if waypoint.type != "secret":
+        # Only plot bearing if there is a straight line between one not secret gate and the next
+        next_index = index + 1
+        accumulated_distance = 0
+        while next_index < len(track):
+            if (
+                abs(
+                    bearing_difference(
+                        waypoint.bearing_next,
+                        track[next_index].bearing_from_previous,
+                    )
+                )
+                > 3
+            ):
+                break
+            accumulated_distance += track[next_index].distance_previous
+            if (
+                track[next_index].type not in ("secret", "ul", "dummy") and accumulated_distance / 1852 > 1
+            ):  # Distance between waypoints must be more than 1 nautical miles
+                plot_leg_bearing(
+                    waypoint,
+                    track[next_index],
+                    contestant.air_speed,
+                    contestant.wind_speed,
+                    contestant.wind_direction,
+                    character_offset,
+                    font_size,
+                )
+                break
+            next_index += 1
 
 
 def plot_minute_marks(
@@ -879,35 +906,7 @@ def plot_precision_track(
             if contestant is not None:
                 if index < len(track) - 1:
                     if annotations:
-                        if waypoint.type != "secret":
-                            # Only plot bearing if there is a straight line between one not secret gate and the next
-                            next_index = index + 1
-                            accumulated_distance = 0
-                            while next_index < len(track):
-                                if (
-                                    abs(
-                                        bearing_difference(
-                                            waypoint.bearing_next,
-                                            track[next_index].bearing_from_previous,
-                                        )
-                                    )
-                                    > 3
-                                ):
-                                    break
-                                accumulated_distance += track[next_index].distance_previous
-                                if (
-                                    track[next_index].type not in ("secret", "ul", "dummy")
-                                    and accumulated_distance / 1852 > 1
-                                ):  # Distance between waypoints must be more than 1 nautical miles
-                                    plot_leg_bearing(
-                                        waypoint,
-                                        track[next_index],
-                                        contestant.air_speed,
-                                        contestant.wind_speed,
-                                        contestant.wind_direction,
-                                    )
-                                    break
-                                next_index += 1
+                        maybe_plot_leg_bearing(waypoint, index, track, contestant, 4, 14)
                         if not includes_unknown_legs:
                             plot_minute_marks(
                                 waypoint,
@@ -995,6 +994,7 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
                 editable_route.get_feature_coordinates(feature, flip=True),
                 fill_colour,
                 line_colour,
+                10,
                 feature["name"],
             )
     ax.add_image(imagery, 11)
