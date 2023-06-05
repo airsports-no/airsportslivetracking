@@ -581,7 +581,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             columns.push({
                 id: dataField,
                 accessor: dataField,
-                Cell: !task.autosum_scores ? EditableCell : ({value}) => String(value),
+                Cell: !task.autosum_scores && this.props.contest.results.permission_change_contest ? EditableCell : ({value}) => String(value),
                 Header: () => {
                     let privilege_break = null
                     let privileged = null

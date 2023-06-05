@@ -19,8 +19,8 @@
 {% block content %}
     {% if perms.display.add_editableroute %}
         <div class="row float-right">
-            <a class="btn btn-primary" href="/routeeditor/" style="margin-bottom: 10px">New route</a>&nbsp;
-            <a class="btn btn-primary" href="{% url 'editableroute_import' %}" style="margin-bottom: 10px">Import
+            <a class="btn btn-primary" href="/routeeditor/" style="margin-top: 10px">New route</a>&nbsp;
+            <a class="btn btn-primary" href="{% url 'editableroute_import' %}" style="margin-top: 10px">Import
                 route</a>
         </div>
     {% endif %}

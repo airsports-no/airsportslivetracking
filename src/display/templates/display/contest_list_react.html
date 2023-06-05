@@ -12,9 +12,9 @@
 {% block content %}
     {% if perms.display.add_contest %}
         <div class="row float-right">
-            <a class="btn btn-primary" href="{% url 'contest_create' %}" style="margin-bottom: 10px">New contest</a>&nbsp;
+            <a class="btn btn-primary" href="{% url 'contest_create' %}" style="margin-top: 10px">New contest</a>&nbsp;
             {% if user.is_superuser %}
-                <a class="btn btn-primary" href="{% url 'person_list' %}" style="margin-bottom: 10px">Person overview</a>
+                <a class="btn btn-primary" href="{% url 'person_list' %}" style="margin-top: 10px">Person overview</a>
             {% endif %}
         </div>
     {% endif %}
