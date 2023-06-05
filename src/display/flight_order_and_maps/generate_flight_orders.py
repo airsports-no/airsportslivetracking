@@ -142,7 +142,7 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: 
 
 def insert_turning_point_images_latex(contestant, document: Document):
     navigation = contestant.navigation_task  # type: NavigationTask
-    render_turning_point_images(navigation.route.waypoints, document, "Turning point", unknown_leg=False)
+    render_turning_point_images(navigation.route.waypoints, document, "Turning point and time gate", unknown_leg=False)
 
 
 def insert_unknown_leg_images_latex(
@@ -290,7 +290,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     with header.create(Foot("C")):
         header.append(
             StandAloneGraphic(
-                image_options=r"width=0.4\linewidth",
+                image_options=r"width=0.35\linewidth",
                 filename="/src/static/img/AirSportsLiveTracking.png",
             )
         )
@@ -301,7 +301,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         map_header.append(
             StandAloneGraphic(
                 image_options=r"width=0.3\linewidth",
-                filename="/src/static/img/AirSportsLiveTracking.png",
+                filename="/src/static/img/AirSportsLiveTrackingWhiteBG.png",
             )
         )
     document.preamble.append(map_header)
@@ -360,10 +360,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                             f"starting point time."
                         )
                         document.append(LineBreak())
-                        document.append("https://home.airsports.no/faq/#adaptiv-start")
+                        document.append("https://home.airsports.no/faq/#ADAPTIVE")
 
             document.append(Command(r"hfill"))
             with document.create(MiniPage(width=NoEscape(r"0.25\textwidth"))):
+                document.append(Command("centering"))
                 document.append(StandAloneGraphic(image_options=r"width=0.8\linewidth", filename=qr_file.name))
                 document.append(
                     Command(
@@ -406,11 +407,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
             )
             document.append(Command("caption*", "Finish point"))
     document.append(NewPage())
-    with document.create(Section("Turning point times", numbering=False)):
+    with document.create(Section("Turning points and time gates", numbering=False)):
         with document.create(MiniPage(width=r"\textwidth")):
             document.append(Command("Large"))
             with document.create(Tabu("X[l] X[l] X[l] X[l] X[l]")) as data_table:
-                data_table.add_row(["Turning point", "Distance", "TT", "TH", "Time"], mapper=[bold])
+                data_table.add_row(["Gate", "Distance", "TT", "TH", "Time"], mapper=[bold])
                 data_table.add_hline()
                 first_line = True
                 local_time = "-"

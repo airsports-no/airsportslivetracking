@@ -10,7 +10,6 @@
     </script>
 {% endblock %}
 {% block content %}
-    <H1>Contests</H1>
     {% if perms.display.add_contest %}
         <div class="row float-right">
             <a class="btn btn-primary" href="{% url 'contest_create' %}" style="margin-bottom: 10px">New contest</a>&nbsp;
@@ -19,6 +18,7 @@
             {% endif %}
         </div>
     {% endif %}
+    <H1>Contests</H1>
     <div id="root"></div>
     {% render_bundle 'ContestList' %}
 {% endblock %}
