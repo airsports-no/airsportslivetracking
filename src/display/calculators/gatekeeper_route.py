@@ -211,6 +211,10 @@ class GatekeeperRoute(Gatekeeper):
                 if intersection_time:
                     logger.debug(f"Crossed the infinite starting line.")
                 if intersection_time and self.starting_line.is_passed_in_correct_direction_track(self.track):
+                    # Miss the takeoff gate if it has not already been crossed
+                    if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
+                        self.takeoff_gate.missed = True
+                        self.calculate_takeoff_gate_miss()
                     logger.debug(f"Crossed the infinite starting line in the correct direction.")
                     self.starting_line.pass_infinite_gate(intersection_time)
                     if self.contestant.adaptive_start:
@@ -490,9 +494,6 @@ class GatekeeperRoute(Gatekeeper):
     def calculate_gate_score(self):
         if not len(self.track):
             return
-        if self.takeoff_gate is not None and not self.takeoff_gate.has_been_passed():
-            self.takeoff_gate.missed = True
-            self.calculate_takeoff_gate_miss()
         index = 0
         finished = False
         current_position = self.track[-1]
