@@ -149,7 +149,7 @@ class MultiGate:
                 gate.extended_passing_time = intersection_time
                 gate.infinite_passing_time = intersection_time
                 self.intersected_gate = gate
-            return intersection_time
+                return intersection_time
         return None
 
 

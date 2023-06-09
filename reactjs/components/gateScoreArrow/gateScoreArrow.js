@@ -28,17 +28,27 @@ class ConnectedGateScoreArrow extends Component {
     }
 
     getWaypointType(waypointName) {
-        return this.props.waypoints.find((waypoint) => {
-            return waypoint.name === waypointName
-        }).type
+        try {
+            return this.props.waypoints.find((waypoint) => {
+                return waypoint.name === waypointName
+            }).type
+        } catch (e) {
+            console.log("No type for waypoint name " + waypointName + ": " + e)
+            return {}
+        }
     }
 
     getRule(ruleName) {
-        const waypointType = this.getWaypointType(this.state.currentArrowData.waypoint_name)
-        const gateScore = this.props.scorecard.gatescore_set.find((gate) => {
-            return gate.gate_type === waypointType
-        })
-        return gateScore[ruleName]
+        try {
+            const waypointType = this.getWaypointType(this.state.currentArrowData.waypoint_name)
+            const gateScore = this.props.scorecard.gatescore_set.find((gate) => {
+                return gate.gate_type === waypointType
+            })
+            return gateScore[ruleName]
+        } catch (e) {
+            console.log("Unknown rule " + ruleName + ": " + e)
+            return 0
+        }
     }
 
     getGracePeriodBefore() {
@@ -67,7 +77,7 @@ class ConnectedGateScoreArrow extends Component {
                 this.setState({currentArrowData: this.props.arrowData})
             }
         }
-        if (!frozen && this.props.arrowData !== this.state.currentArrowData || this.props.contestantId!==prevProps.contestantId) {
+        if (!frozen && this.props.arrowData !== this.state.currentArrowData || this.props.contestantId !== prevProps.contestantId) {
             this.frozenTime = null
             this.setState({currentArrowData: this.props.arrowData})
         }
@@ -97,7 +107,7 @@ class ConnectedGateScoreArrow extends Component {
                                                 maximumTimingPenalty={this.getMaximumTimingPenalty()}
                                                 gracePeriodBefore={this.getGracePeriodBefore()}
                                                 gracePeriodAfter={this.getGracePeriodAfter()}
-                            crossingOffsetEstimate={this.state.currentArrowData.estimated_crossing_offset}
+                                                crossingOffsetEstimate={this.state.currentArrowData.estimated_crossing_offset}
                                                 estimatedScore={this.state.currentArrowData.estimated_score}
                                                 contestantId={this.props.contestantId}
                                                 final={this.state.currentArrowData.final}
