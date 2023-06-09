@@ -279,7 +279,7 @@ class Test2017WPFC(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(
-            1265, contestant_track.score  # 1152,
+            1065, contestant_track.score  # 1152,
         )  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 

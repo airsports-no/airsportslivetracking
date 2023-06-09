@@ -158,24 +158,24 @@ class GatekeeperRoute(Gatekeeper):
             intersection_time = self.takeoff_gate.get_gate_intersection_time(self.projector, self.track)
             # Miss is handled by starting line check
             if intersection_time:
-                gate = self.takeoff_gate.gates[0]  # We choose an arbitrary gate since they will have the same times
+                intersected_gate = self.takeoff_gate.intersected_gate
                 current_position = self.track[-1]
-                self.contestant.record_actual_gate_time(self.takeoff_gate.name, intersection_time)
+                self.contestant.record_actual_gate_time(intersected_gate.name, intersection_time)
                 logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
                 gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
-                    gate.type, gate.expected_time, gate.passing_time
+                    intersected_gate.type, intersected_gate.expected_time, intersected_gate.passing_time
                 )
-                self.transmit_actual_crossing(gate)
+                self.transmit_actual_crossing(intersected_gate)
                 self.update_score(
-                    gate,
+                    intersected_gate,
                     gate_score,
                     "passing takeoff gate",
                     current_position.latitude,
                     current_position.longitude,
                     "anomaly",
                     self.GATE_SCORE_TYPE,
-                    planned=gate.expected_time,
-                    actual=gate.passing_time,
+                    planned=intersected_gate.expected_time,
+                    actual=intersected_gate.passing_time,
                 )
 
         # Handle crossing the starting line
@@ -223,22 +223,22 @@ class GatekeeperRoute(Gatekeeper):
         i = len(self.outstanding_gates) - 1
         crossed_gate = False
         while i >= 0:
-            gate = self.outstanding_gates[i]
-            intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
-            if intersection_time and gate.is_passed_in_correct_direction_track(self.track):
-                logger.info("{} {}: Crossed gate {}".format(self.contestant, intersection_time, gate))
+            intersected_gate = self.outstanding_gates[i]
+            intersection_time = intersected_gate.get_gate_intersection_time(self.projector, self.track)
+            if intersection_time and intersected_gate.is_passed_in_correct_direction_track(self.track):
+                logger.info("{} {}: Crossed gate {}".format(self.contestant, intersection_time, intersected_gate))
                 if not self.starting_line.has_infinite_been_passed():
                     self.starting_line.missed = True
-                self.contestant.record_actual_gate_time(gate.name, intersection_time)
-                gate.pass_gate(intersection_time)
+                self.contestant.record_actual_gate_time(intersected_gate.name, intersection_time)
+                intersected_gate.pass_gate(intersection_time)
                 crossed_gate = True
 
             if crossed_gate:
-                if gate.passing_time is None:
-                    gate.missed = True
-                    logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, gate))
+                if intersected_gate.passing_time is None:
+                    intersected_gate.missed = True
+                    logger.info("{} {}: Missed gate {}".format(self.contestant, self.track[-1].time, intersected_gate))
                 # Only update the last gate with the one that was crossed, not the one we detect is missed because of it.
-                self.pop_gate(i, not gate.missed)
+                self.pop_gate(i, not intersected_gate.missed)
             i -= 1
         # Look for near misses
         # Do not look for misses further out if we have not crossed the starting line at some point.
@@ -273,17 +273,17 @@ class GatekeeperRoute(Gatekeeper):
                     extended_next_gate.maybe_missed_position = self.track[-1]
         # Look for any gates  for which we have crossed the infinite line, but not crossed the gate within a few seconds
         if len(self.outstanding_gates) > 0:
-            gate = self.outstanding_gates[0]
+            intersected_gate = self.outstanding_gates[0]
             time_limit = 0
-            if gate.maybe_missed_time and (self.track[-1].time - gate.maybe_missed_time).total_seconds() > time_limit:
+            if intersected_gate.maybe_missed_time and (self.track[-1].time - intersected_gate.maybe_missed_time).total_seconds() > time_limit:
                 logger.info(
                     "{} {}: Did not cross {} within {} seconds of infinite crossing, so missing gate".format(
-                        self.contestant, self.track[-1].time, gate, time_limit
+                        self.contestant, self.track[-1].time, intersected_gate, time_limit
                     )
                 )
-                gate.missed = True
-                if gate.time_check:
-                    self.transmit_actual_crossing(gate)
+                intersected_gate.missed = True
+                if intersected_gate.time_check:
+                    self.transmit_actual_crossing(intersected_gate)
                 self.pop_gate(0, True)
         self.check_gate_in_range()
         if self.last_gate and self.last_gate.type == "fp":
@@ -294,24 +294,24 @@ class GatekeeperRoute(Gatekeeper):
                 intersection_time = self.landing_gate.get_gate_intersection_time(self.projector, self.track)
                 # Miss is handled by miss_outstanding_gates
                 if intersection_time:
-                    gate = self.landing_gate.gates[0]
+                    intersected_gate = self.landing_gate.intersected_gate
                     current_position = self.track[-1]
-                    self.contestant.record_actual_gate_time(self.landing_gate.name, intersection_time)
+                    self.contestant.record_actual_gate_time(intersected_gate.name, intersection_time)
                     logger.info("{} {}: Passing landing line".format(self.contestant, intersection_time))
                     gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
-                        gate.type, gate.expected_time, gate.passing_time
+                        intersected_gate.type, intersected_gate.expected_time, intersected_gate.passing_time
                     )
-                    self.transmit_actual_crossing(gate)
+                    self.transmit_actual_crossing(intersected_gate)
                     self.update_score(
-                        gate,
+                        intersected_gate,
                         gate_score,
                         "passing landing gate",
                         current_position.latitude,
                         current_position.longitude,
                         "anomaly",
                         self.GATE_SCORE_TYPE,
-                        planned=gate.expected_time,
-                        actual=gate.passing_time,
+                        planned=intersected_gate.expected_time,
+                        actual=intersected_gate.passing_time,
                     )
 
     def transmit_actual_crossing(self, gate: Gate):
