@@ -27,6 +27,7 @@
         <thead>
         <tr>
             <th>Contestant</th>
+            <th>Previously generated</th>
             <th>Generating</th>
             <th>Sending</th>
             <th>Errors</th>
@@ -35,6 +36,7 @@
         {% for contestant in contestants %}
             <tr>
                 <td>{{ contestant }}</td>
+                <td>{% if contestant.has_flight_order_link %}<img src="{% static '/img/green_checkmark.png' %}"  style="width: 24px"/>{% endif %}</td>
                 <td id="generating_{{ contestant.pk }}"></td>
                 <td id="transmitting_{{ contestant.pk }}"></td>
                 <td id="errors_{{ contestant.pk }}"></td>

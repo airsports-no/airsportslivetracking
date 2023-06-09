@@ -75,7 +75,7 @@ FROM tracker_web as tracker_daphne
 CMD [ "bash", "-c", "/daphne.sh" ]
 
 FROM tracker_base as tracker_celery
-CMD [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log" ]
+CMD [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log --concurrency 1" ]
 
 FROM tracker_base as tracker_processor
 CMD [ "bash", "-c", "python3 position_processor.py" ]
