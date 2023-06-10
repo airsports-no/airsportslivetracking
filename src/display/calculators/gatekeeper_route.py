@@ -106,6 +106,7 @@ class GatekeeperRoute(Gatekeeper):
                     self.in_range_of_gate.passing_time is None
                     and not self.in_range_of_gate.missed
                     and self.starting_line.has_infinite_been_passed()
+                    and self.starting_line.has_extended_been_passed()
                 ):
                     # Moving out of range of the gate, let's assume we have missed it
                     logger.info(
@@ -275,7 +276,10 @@ class GatekeeperRoute(Gatekeeper):
         if len(self.outstanding_gates) > 0:
             intersected_gate = self.outstanding_gates[0]
             time_limit = 0
-            if intersected_gate.maybe_missed_time and (self.track[-1].time - intersected_gate.maybe_missed_time).total_seconds() > time_limit:
+            if (
+                intersected_gate.maybe_missed_time
+                and (self.track[-1].time - intersected_gate.maybe_missed_time).total_seconds() > time_limit
+            ):
                 logger.info(
                     "{} {}: Did not cross {} within {} seconds of infinite crossing, so missing gate".format(
                         self.contestant, self.track[-1].time, intersected_gate, time_limit
