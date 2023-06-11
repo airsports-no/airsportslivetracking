@@ -193,18 +193,7 @@ first = True
 class UserUploadedMBTiles(GoogleWTS):
     def __init__(self, user_uploaded_map: UserUploadedMap, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        key = f"user_map_{user_uploaded_map.map_file.name}"
-        result = cache.get(key)
-        self.mbtiles_file = None
-        if result is not None:
-            cached_file, size = result
-            if cached_file and user_uploaded_map.map_file.size == size and os.path.exists(cached_file):
-                self.mbtiles_file = cached_file
-        if self.mbtiles_file is None:
-            with NamedTemporaryFile(delete=False) as temporary_map:
-                temporary_map.write(user_uploaded_map.map_file.read())
-                cache.set(key, (temporary_map.name, user_uploaded_map.map_file.size))
-                self.mbtiles_file = temporary_map.name
+        self.mbtiles_file = user_uploaded_map.get_local_file_path()
 
     def _image_url(self, tile):
         return "something"

@@ -123,7 +123,7 @@ class ContestantMapForm(forms.Form):
 class UserUploadedMapForm(forms.ModelForm):
     class Meta:
         model = UserUploadedMap
-        exclude = ("thumbnail","unprotected")
+        exclude = ("thumbnail","unprotected", "minimum_zoom_level", "maximum_zoom_level")
         # widgets = {"map_file": FileInput(attrs={'accept': 'application/vnd.mapbox-vector-tile'})}
 
     def __init__(self, *args, **kwargs):

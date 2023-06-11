@@ -1,3 +1,4 @@
+import os.path
 import time
 from io import BytesIO
 from tempfile import NamedTemporaryFile
@@ -2714,6 +2715,9 @@ def validate_file_size(value):
         return value
 
 
+LOCAL_MAP_FILE_CACHE = {}
+
+
 class UserUploadedMap(models.Model):
     user = models.ForeignKey(MyUser, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
@@ -2724,6 +2728,8 @@ class UserUploadedMap(models.Model):
     )
     thumbnail = models.ImageField(upload_to="map_thumbnails", blank=True, null=True)
     unprotected = models.BooleanField(default=False, help_text="If true, this map is globally available.")
+    minimum_zoom_level = models.IntegerField(default=0)
+    maximum_zoom_level = models.IntegerField(default=14)
 
     def __str__(self):
         return self.name
@@ -2731,20 +2737,42 @@ class UserUploadedMap(models.Model):
     class Meta:
         unique_together = ("user", "name")
 
-    def create_thumbnail(self) -> BytesIO:
+    def get_local_file_path(self) -> str:
+        key = f"user_map_{self.map_file.name}"
+        if temporary_path := LOCAL_MAP_FILE_CACHE.get(key):
+            return temporary_path
+        else:
+            with NamedTemporaryFile(delete=False) as temporary_map:
+                temporary_map.write(self.map_file.read())
+                LOCAL_MAP_FILE_CACHE[key] = temporary_map.name
+                return temporary_map.name
+
+    def clear_local_file_path(self):
+        key = f"user_map_{self.map_file.name}"
+        if local_path := LOCAL_MAP_FILE_CACHE.get(key):
+            try:
+                os.remove(local_path)
+            except OSError:
+                pass
+            try:
+                del LOCAL_MAP_FILE_CACHE[key]
+            except KeyError:
+                pass
+
+    def create_thumbnail(self) -> Tuple[BytesIO, int, int]:
         """
         Finds the smallest Zoom tile and returns this
         """
-        with NamedTemporaryFile() as temporary_map:
-            temporary_map.write(self.map_file.read())
-            with MBtiles(temporary_map.name) as src:
-                helper = MBTilesHelper(src)
-                image = helper.stitch(4096)
-                width, height = image.size
-                image = image.resize((400, int(400 * height / width)))
-                temporary_file = BytesIO()
-                image.save(temporary_file, "PNG")
-                return temporary_file
+        local_path = self.get_local_file_path()
+        with MBtiles(local_path) as src:
+            helper = MBTilesHelper(src)
+            minimum_zoom_level, maximum_zoom_level = helper.mbtiles.zoom_range()
+            image = helper.stitch(4096)
+            width, height = image.size
+            image = image.resize((400, int(400 * height / width)))
+            temporary_file = BytesIO()
+            image.save(temporary_file, "PNG")
+            return temporary_file, minimum_zoom_level, maximum_zoom_level
 
 
 class EditableRoute(models.Model):

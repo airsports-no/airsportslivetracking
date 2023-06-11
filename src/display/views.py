@@ -3369,14 +3369,18 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
         try:
-            filename=os.path.split(instance.map_file.name)[1] + "_thumbnail.png"
-            logger.debug(f"Saving thumbnail filename {filename}")
+            filename = os.path.split(instance.map_file.name)[1] + "_thumbnail.png"
+            content, minimum_zoom, maximum_zoom = instance.create_thumbnail()
             instance.thumbnail.save(
                 filename,
-                ContentFile(instance.create_thumbnail().getvalue()),
+                ContentFile(content.getvalue()),
                 save=True,
             )
+            instance.minimum_zoom_level = minimum_zoom
+            instance.maximum_zoom_level = maximum_zoom
+            instance.save()
         except Exception as ex:
+            logger.exception(f"Failed creating thumbnail")
             form.add_error("map_file", f"Failed reading mbtiles file: {ex}")
             return super().form_invalid(form)
         assign_perm("delete_useruploadedmap", self.request.user, instance)
@@ -3398,13 +3402,20 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
+        instance.clear_local_file_path()
         try:
+            content, minimum_zoom, maximum_zoom = instance.create_thumbnail()
+            filename = os.path.split(instance.map_file.name)[1] + "_thumbnail.png"
             instance.thumbnail.save(
-                os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
-                ContentFile(instance.create_thumbnail().getvalue()),
+                filename,
+                ContentFile(content.getvalue()),
                 save=True,
             )
+            instance.minimum_zoom_level = minimum_zoom
+            instance.maximum_zoom_level = maximum_zoom
+            instance.save()
         except Exception as ex:
+            logger.exception(f"Failed creating thumbnail")
             form.add_error("map_file", f"Failed reading mbtiles file: {ex}")
             return super().form_invalid(form)
 
@@ -3436,6 +3447,10 @@ class UserUploadedMapDelete(GuardianPermissionRequiredMixin, DeleteView):
 
     def get_permission_object(self):
         return self.get_object()
+
+    def form_valid(self, form):
+        self.object.clear_local_file_path()
+        return super().form_valid(form)
 
 
 @guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))

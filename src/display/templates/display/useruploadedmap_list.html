@@ -9,6 +9,7 @@
                 <div class="card-body">
                     <h5 class="card-title">{{ object.name }} ({{ object.map_file.size |filesizeformat }})</h5>
                     <p class="card-text">
+                        <h6>Zoom levels {{ object.minimum_zoom_level }} - {{ object.maximum_zoom_level }}</h6>
                         <a href="{% url 'useruploadedmap_change' object.pk %}">Update</a> |
                         <a href="{% url 'useruploadedmap_permissions_list' object.pk %}">Permissions</a> |
                         <a href="{% url 'useruploadedmap_delete' object.pk %}">Delete</a>
