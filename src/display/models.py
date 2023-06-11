@@ -900,6 +900,10 @@ class NavigationTask(models.Model):
             )
         return maps
 
+    # @property
+    # def is_landscaped_best(self)->bool:
+
+
     @property
     def is_poker_run(self) -> bool:
         return self.POKER in self.scorecard.task_type
