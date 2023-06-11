@@ -194,6 +194,20 @@ def validate_contestant(sender, instance: Contestant, **kwargs):
     instance.clean()
 
 
+@receiver(pre_save, sender=Contestant)
+def delete_flight_order_if_changed(sender, instance: Contestant, **kwargs):
+    if instance.pk:
+        if previous_version := Contestant.objects.filter(pk=instance.pk).first():
+            if (
+                previous_version.starting_point_time != instance.starting_point_time
+                or previous_version.wind_speed != instance.wind_speed
+                or previous_version.wind_direction != instance.wind_direction
+                or previous_version.air_speed != instance.air_speed
+            ):
+                logger.debug(f"Key parameters changed for contestant {instance}, deleting previous flight orders")
+                previous_version.emailmaplink_set.all().delete()
+
+
 @receiver(pre_delete, sender=Contestant)
 def stop_any_calculators(sender, instance: Contestant, **kwargs):
     from websocket_channels import WebsocketFacade

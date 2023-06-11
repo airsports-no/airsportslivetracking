@@ -136,12 +136,12 @@ class Gatekeeper(ABC):
             self.contestant, final_danger_level, final_accumulated_score
         )
 
-    def interpolate_track(self, position: Position) -> List[Position]:
-        if len(self.track) == 0:
+    def interpolate_track(self, last_position: Optional[Position], position: Position) -> List[Position]:
+        if last_position is None:
             return [position]
-        initial_time = self.track[-1].time
+        initial_time = last_position.time
         distance = calculate_distance_lat_lon(
-            (self.track[-1].latitude, self.track[-1].longitude), (position.latitude, position.longitude)
+            (last_position.latitude, last_position.longitude), (position.latitude, position.longitude)
         )
         if distance < 0.001:
             return [position]
@@ -151,7 +151,7 @@ class Gatekeeper(ABC):
             fraction = 1 / time_difference
             for step in range(1, time_difference):
                 new_position = calculate_fractional_distance_point_lat_lon(
-                    (self.track[-1].latitude, self.track[-1].longitude),
+                    (last_position.latitude, last_position.longitude),
                     (position.latitude, position.longitude),
                     step * fraction,
                 )
@@ -322,8 +322,9 @@ class Gatekeeper(ABC):
                 ):
                     # Old or duplicate position, ignoring
                     continue
+                last_position = generated_positions[-1] if len(generated_positions) > 0 else None
                 all_positions.append(p)
-                for position in self.interpolate_track(p):
+                for position in self.interpolate_track(last_position, p):
                     generated_positions.append(
                         ContestantReceivedPosition(
                             contestant=self.contestant,

@@ -61,20 +61,22 @@ body {
 
 .ongoing-navigation-ticker {
     position: absolute;
-    font-size: 0.7rem;
-    bottom: 40px;
-    left: 0;
+    /*font-size: 0.7rem;*/
+    top: 75px;
+    left: 10px;
     right: 0;
-    margin-left: auto;
-    margin-right: auto;
+    /*margin-left: auto;*/
+    /*margin-right: auto;*/
     z-index: 2;
-    width: 200px;
-    border: 1px solid #000000;
+    width: 350px;
+    /*border: 1px solid #000000;*/
     background-color: rgba(255, 255, 255, 0.7);
-    border-radius: 15px;
-    padding: 5px;
-    line-height: 1;
+    transform-origin: top left;
+    /*border-radius: 15px;*/
+    /*padding: 5px;*/
+    /*line-height: 1;*/
 }
+
 
 .flexWrapper {
     display: flex;
@@ -86,6 +88,7 @@ body {
 .contest-popup {
     width: 300px;
     max-width: 80vw;
+    z-index: 5;
 }
 
 .eventListScrolling {
@@ -353,8 +356,13 @@ tr.hidden {
         transform: scale(0.6);
     }
 
-    .globalMapBackdrop {
+    .globalMapBackdrop, .scalableAsGlobalBackdrop {
         transform: scale(0.9);
+    }
+
+    .ongoing-navigation-ticker {
+        transform:scale( 0.9);
+        top: 70px
     }
 
     .scalable {
@@ -372,10 +380,14 @@ tr.hidden {
         transform: scale(0.4);
     }
 
-    .globalMapBackdrop {
+    .globalMapBackdrop, .scalableAsGlobalBackdrop {
         transform: scale(0.85);
     }
 
+    .ongoing-navigation-ticker {
+        transform:scale( 0.85);
+        top: 65px
+    }
     .scalable {
         transform: scale(0.6);
     }
@@ -393,9 +405,15 @@ tr.hidden {
         transform: scale(0.4);
     }
 
-    .globalMapBackdrop {
+    .globalMapBackdrop, .scalableAsGlobalBackdrop {
         transform: scale(0.75);
     }
+
+        .ongoing-navigation-ticker {
+        transform:scale( 0.75);
+        top: 60px
+    }
+
 
     .scalable {
         transform: scale(0.5);
@@ -414,8 +432,13 @@ tr.hidden {
         transform: scale(0.35);
     }
 
-    .globalMapBackdrop {
+    .globalMapBackdrop, .scalableAsGlobalBackdrop {
         transform: scale(0.75);
+    }
+
+    .ongoing-navigation-ticker {
+        transform:scale( 0.75);
+        top: 60px
     }
 
     .scalable {
@@ -434,9 +457,15 @@ tr.hidden {
         transform: scale(0.3);
     }
 
-    .globalMapBackdrop {
+    .globalMapBackdrop, .scalableAsGlobalBackdrop {
         transform: scale(0.5);
     }
+
+        .ongoing-navigation-ticker {
+        transform:scale( 0.5);
+        top: 40px
+    }
+
 
     .scalable {
         transform: scale(0.4);
@@ -460,6 +489,11 @@ tr.hidden {
 
 .transparent {
     background-color: transparent;
+}
+
+.transparent-partial {
+    /*background-color: rgba(255, 255, 255, 0.7);*/
+    opacity: 0.5;
 }
 
 .nopadding {
@@ -707,7 +741,7 @@ tr.hidden {
     /*padding: 0 5px;*/
 }
 
-.playbackNotice{
+.playbackNotice {
     font-size: xx-large;
     position: absolute;
     top: 10px;
@@ -716,7 +750,7 @@ tr.hidden {
     font-weight: bold;
 }
 
-.offlineNotice{
+.offlineNotice {
     font-size: xx-large;
     position: absolute;
     top: 60px;
@@ -724,8 +758,6 @@ tr.hidden {
     z-index: 1001;
     color: red;
 }
-
-
 
 
 .replayIcon {
@@ -1230,8 +1262,10 @@ div.ris-large {
 .thermometer--normal {
     width: 50px;
 }
+
 .thermometer .thermometer__mask .thermometer__bg-color {
-    background: linear-gradient(#f44336, #8BC34A, #2196F3); }
+    background: linear-gradient(#f44336, #8BC34A, #2196F3);
+}
 
 .navbar.transparent.navbar-dark .navbar-inner {
     background: rgba(0, 0, 0, 0.4);

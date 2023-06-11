@@ -62,7 +62,7 @@ spec:
             memory: 500Mi  # Uses 160Mi
           limits:
             cpu: 1000m
-            memory: 1Gi
+            memory: 3Gi
         volumeMounts:
           - mountPath: /secret
             readOnly: true
@@ -88,3 +88,7 @@ spec:
         - name: firebase
           secret:
             secretName: firebase-secrets
+        - name: maps-azurefile
+          persistentVolumeClaim:
+            claimName: maps-azurefile
+

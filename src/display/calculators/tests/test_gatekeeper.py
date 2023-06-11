@@ -63,7 +63,7 @@ class TestInterpolation(TransactionTestCase):
         start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
         next_position = Position(dateutil.parser.parse("2020-01-01T00:00:02Z"), 60, 12, 0, 0, 0, 0, 0, 0)
-        interpolated = gatekeeper.interpolate_track(next_position)
+        interpolated = gatekeeper.interpolate_track(start_position, next_position)
         self.assertEqual(1, len(interpolated))
         self.assertEqual(next_position, interpolated[0])
 
@@ -72,7 +72,7 @@ class TestInterpolation(TransactionTestCase):
         start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
         next_position = Position(dateutil.parser.parse("2020-01-01T00:00:05Z"), 60, 12, 0, 0, 0, 0, 0, 0)
-        interpolated = gatekeeper.interpolate_track(next_position)
+        interpolated = gatekeeper.interpolate_track(start_position, next_position)
         expected = [
             ("2020-01-01 00:00:01+00:00", 60.00060459827332, 11.199996353395562),
             ("2020-01-01 00:00:02+00:00", 60.0009069019875, 11.399998176675595),

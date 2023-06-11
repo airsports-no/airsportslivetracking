@@ -407,7 +407,8 @@ CELERY_BEAT_SCHEDULE = {}
 ASGI_APPLICATION = "live_tracking_map.asgi.application"
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        # "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
         "CONFIG": {
             # "hosts": ["unix:/tmp/docker/redis.sock" if PRODUCTION else ("redis", 6379)],
             "hosts": [CELERY_BROKER_URL],

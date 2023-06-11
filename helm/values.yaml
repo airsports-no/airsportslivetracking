@@ -93,12 +93,6 @@ ingress:
           pathType: Prefix
           serviceName: traccar-service
           servicePort: 5055
-#    - host: home.airsports.no
-#      paths:
-#        - path: /
-#          pathType: Prefix
-#          serviceName: wordpress
-#          servicePort: 80
 
 
 resources: {}

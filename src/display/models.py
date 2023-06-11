@@ -774,7 +774,7 @@ class NavigationTask(models.Model):
         (PRECISION, "Precision"),
         (ANR_CORRIDOR, "ANR Corridor"),
         (AIRSPORTS, "Air Sports Race"),
-        (AIRSPORT_CHALLENGE, "Airsport Challenge"),
+        (AIRSPORT_CHALLENGE, "AirSport Challenge"),
         (POKER, "Poker run"),
         (LANDING, "Landing"),
     )
@@ -899,6 +899,10 @@ class NavigationTask(models.Model):
                 )
             )
         return maps
+
+    # @property
+    # def is_landscaped_best(self)->bool:
+
 
     @property
     def is_poker_run(self) -> bool:

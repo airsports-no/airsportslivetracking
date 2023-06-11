@@ -313,6 +313,8 @@ class ConnectedRouteEditor extends Component {
         console.log('renderRoute')
         console.log(this.props.route)
         let zoomed = false
+        let takeoffGateCounter = 1, landingGateCounter = 1
+
         for (let r of this.props.route.route) {
             new L.GeoJSON(r.geojson, {
                     pointToLayer: (feature, latlng) => {
@@ -347,7 +349,15 @@ class ConnectedRouteEditor extends Component {
                         if (!r.tooltip_position) {
                             r.tooltip_position = [0, 0]
                         }
-                        this.configureLayer(layer, r.name, r.layer_type, r.feature_type, r.track_points, r.tooltip_position, false)
+                        let name = r.name
+                        if (r.feature_type === "to") {
+                            name = "Takeoff gate " + takeoffGateCounter
+                            takeoffGateCounter++
+                        } else if (r.feature_type === "ldg") {
+                            name = "Landing gate " + landingGateCounter
+                            landingGateCounter++
+                        }
+                        this.configureLayer(layer, name, r.layer_type, r.feature_type, r.track_points, r.tooltip_position, false)
                     }
                 }
             )
@@ -821,7 +831,7 @@ class ConnectedRouteEditor extends Component {
     }
 
     initialiseMap() {
-        const sunny=Jawg_Sunny()
+        const sunny = Jawg_Sunny()
         this.map = L.map('routeEditor', {
             zoomControl: true,
             preferCanvas: true,

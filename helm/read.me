@@ -5,6 +5,7 @@ kubectl delete jobs $(kubectl get jobs -o=jsonpath='{.items[?(@.status.failed>0)
 Delete completed jobs
 
 kubectl delete pod --field-selector=status.phase==Succeeded
+kubectl delete pod --field-selector=status.phase==Error
 kubectl delete job $(kubectl get job -o=jsonpath='{.items[?(@.status.succeeded==1)].metadata.name}')
 
 Restart pod:

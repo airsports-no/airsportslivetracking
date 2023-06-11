@@ -9,7 +9,7 @@ const aboutAirsports = (scorecard, route) => {
     return <div>
         <h2>Air Sports Race</h2>
         <p>
-            Air Sports Race is a flying competition where the user is tasked with crossing a set of scorecard known and secret at specific
+            Air Sports Race is a flying competition where the user is tasked with crossing a set of known and secret gates at specific
             times while at the same time remaining within the corridor and avoiding any prohibited and penalty zones
             along the way. The only navigation tools available to the pilot is
             a paper map annotated with the prescribed route and the expected passing times for the scorecard.
@@ -36,7 +36,7 @@ const aboutAirsports = (scorecard, route) => {
             Regular scorecard gives a penalty of {getGateValue(scorecard, "tp", "penalty_per_second")} points for each
             second more
             than {getGateValue(scorecard, "tp", "graceperiod_before")}s early
-            or {getGateValue(scorecard, "tp", "graceperiod_after")}s late. Missing the gate is a penalty
+            or {getGateValue(scorecard, "tp", "graceperiod_after")}s late, with a maximum of {getGateValue(scorecard, "tp", "maximum_penalty")} points. Missing the gate is a penalty
             of {getGateValue(scorecard, "tp", "missed_penalty")} points.
 
         </p>
@@ -44,7 +44,7 @@ const aboutAirsports = (scorecard, route) => {
             Secret scorecard gives a penalty of {getGateValue(scorecard, "secret", "penalty_per_second")} points for each
             second more
             than {getGateValue(scorecard, "secret", "graceperiod_before")}s early
-            or {getGateValue(scorecard, "secret", "graceperiod_after")}s late. Missing the gate is a penalty
+            or {getGateValue(scorecard, "secret", "graceperiod_after")}s late, with a maximum of {getGateValue(scorecard, "secret", "maximum_penalty")} points. Missing the gate is a penalty
             of {getGateValue(scorecard, "secret", "missed_penalty")} points.
 
         </p>

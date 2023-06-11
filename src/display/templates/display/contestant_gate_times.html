@@ -16,18 +16,18 @@
         </tr>
         </thead>
         {% with gate_times=object.gate_times %}
-            {% if object.navigation_task.route.first_takeoff_gate %}
+            {% for takeoff_gate in object.navigation_task.route.takeoff_gates %}
                 <tr>
-                    <td>{{ object.navigation_task.route.first_takeoff_gate.name }}</td>
+                    <td>{{ takeoff_gate.name }}</td>
                 <td></td>
-                    <td>{{ gate_times|dict_key:object.navigation_task.route.first_takeoff_gate.name|date:"H:i:s.u e" }}</td>
+                    <td>{{ gate_times|dict_key:takeoff_gate.name|date:"H:i:s.u e" }}</td>
                     <td>
-                        {% if actual_times|dict_key:object.navigation_task.route.first_takeoff_gate.name %}
-                            {{ actual_times|dict_key:object.navigation_task.route.first_takeoff_gate.name|date:"H:i:s.u e" }}{% else %}
+                        {% if actual_times|dict_key:takeoff_gate.name %}
+                            {{ actual_times|dict_key:takeoff_gate.name|date:"H:i:s.u e" }}{% else %}
                             --{% endif %}</td>
-                    <td>{{ object|gate_time_offset:object.navigation_task.route.first_takeoff_gate.name }}</td>
+                    <td>{{ object|gate_time_offset:takeoff_gate.name }}</td>
                     <td>
-                        {% with gate_log=log|dict_key:object.navigation_task.route.first_takeoff_gate.name %}
+                        {% with gate_log=log|dict_key:takeoff_gate.name %}
                             {% for item in gate_log %}
                                 {{ item.text }} {% if "change_contest" in contest_permissions %}
                                 <a href="{% url 'contestant_remove_score_item' item.pk %}"
@@ -37,7 +37,7 @@
                         {% endwith %}
                     </td>
                 </tr>
-            {% endif %}
+            {% endfor %}
             {% for gate in object.navigation_task.route.waypoints %}
                 <tr>
                     <td>{{ gate.name }}</td>
@@ -59,18 +59,18 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% if object.navigation_task.route.first_landing_gate %}
+            {% for landing_gate in object.navigation_task.route.landing_gates %}
                 <tr>
-                    <td>{{ object.navigation_task.route.first_landing_gate.name }}</td>
+                    <td>{{ landing_gate.name }}</td>
                 <td>
-                    <td>{{ gate_times|dict_key:object.navigation_task.route.first_landing_gate.name|date:"H:i:s.u e" }}</td>
+                    <td>{{ gate_times|dict_key:landing_gate.name|date:"H:i:s.u e" }}</td>
                     <td>
-                        {% if actual_times|dict_key:object.navigation_task.route.first_landing_gate.name %}
-                            {{ actual_times|dict_key:object.navigation_task.route.first_landing_gate.name|date:"H:i:s.u e" }}{% else %}
+                        {% if actual_times|dict_key:landing_gate.name %}
+                            {{ actual_times|dict_key:landing_gate.name|date:"H:i:s.u e" }}{% else %}
                             --{% endif %}</td>
-                    <td>{{ object|gate_time_offset:object.navigation_task.route.first_landing_gate.name }}</td>
+                    <td>{{ object|gate_time_offset:landing_gate.name }}</td>
                     <td>
-                        {% with gate_log=log|dict_key:object.navigation_task.route.first_landing_gate.name %}
+                        {% with gate_log=log|dict_key:landing_gate.name %}
                             {% for item in gate_log %}
                                 {{ item.text }} {% if "change_contest" in contest_permissions %}
                                 <a href="{% url 'contestant_remove_score_item' item.pk %}"
@@ -80,7 +80,7 @@
                         {% endwith %}
                     </td>
                 </tr>
-            {% endif %}
+            {% endfor %}
             <tr><td></td><td>{{ total_distance|stringformat:".f" }} m</td><td></td><td></td><td></td><td></td></tr>
         {% endwith %}
     </table>
