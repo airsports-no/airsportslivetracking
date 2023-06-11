@@ -80,7 +80,7 @@ class MapForm(forms.Form):
     map_source = forms.ChoiceField(
         choices=MAP_CHOICES, help_text="Is overridden by user map source if set", required=False
     )
-    user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set", required=False)
+    user_map_source = forms.ModelChoiceField(UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
@@ -100,7 +100,7 @@ class ContestantMapForm(forms.Form):
     map_source = forms.ChoiceField(
         choices=MAP_CHOICES, help_text="Is overridden by user map source if set", required=False
     )
-    user_map_source = forms.ChoiceField(choices=[], help_text="Overrides map source if set", required=False)
+    user_map_source = forms.ModelChoiceField(UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False)
 
     include_annotations = forms.BooleanField(initial=True, required=False)
     plot_track_between_waypoints = forms.BooleanField(initial=True, required=False)
@@ -123,7 +123,7 @@ class ContestantMapForm(forms.Form):
 class UserUploadedMapForm(forms.ModelForm):
     class Meta:
         model = UserUploadedMap
-        exclude = ("thumbnail",)
+        exclude = ("thumbnail","unprotected")
         # widgets = {"map_file": FileInput(attrs={'accept': 'application/vnd.mapbox-vector-tile'})}
 
     def __init__(self, *args, **kwargs):

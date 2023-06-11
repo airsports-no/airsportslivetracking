@@ -1,5 +1,6 @@
 import time
 from io import BytesIO
+from tempfile import NamedTemporaryFile
 
 import dateutil.parser
 import gpxpy
@@ -891,18 +892,17 @@ class NavigationTask(models.Model):
 
     def get_available_user_maps(self) -> Set["UserUploadedMap"]:
         users = get_users_with_perms(self.contest, attach_perms=True)
-        maps = set()
+        maps = set(UserUploadedMap.objects.filter(unprotected=True))
         for user in users:
             maps.update(
                 get_objects_for_user(
                     user, "display.view_useruploadedmap", klass=UserUploadedMap, accept_global_perms=False
                 )
             )
-        return maps
+        return UserUploadedMap.objects.filter(pk__in=(item.pk for item in maps))
 
     # @property
     # def is_landscaped_best(self)->bool:
-
 
     @property
     def is_poker_run(self) -> bool:
@@ -2718,11 +2718,12 @@ class UserUploadedMap(models.Model):
     user = models.ForeignKey(MyUser, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     map_file = models.FileField(
-        storage=FileSystemStorage(location="/maptiles/user_maps"),
+        upload_to="user_uploaded_maps",
         validators=[FileExtensionValidator(allowed_extensions=["mbtiles"]), validate_file_size],
         help_text="File must be of type MBTILES. This can be generated for instance using MapTile Desktop",
     )
-    thumbnail = models.ImageField(upload_to="map_thumbnails/", blank=True, null=True)
+    thumbnail = models.ImageField(upload_to="map_thumbnails", blank=True, null=True)
+    unprotected = models.BooleanField(default=False, help_text="If true, this map is globally available.")
 
     def __str__(self):
         return self.name
@@ -2734,14 +2735,16 @@ class UserUploadedMap(models.Model):
         """
         Finds the smallest Zoom tile and returns this
         """
-        with MBtiles(self.map_file.path) as src:
-            helper = MBTilesHelper(src)
-            image = helper.stitch(4096)
-            width, height = image.size
-            image = image.resize((400, int(400 * height / width)))
-            temporary_file = BytesIO()
-            image.save(temporary_file, "PNG")
-            return temporary_file
+        with NamedTemporaryFile() as temporary_map:
+            temporary_map.write(self.map_file.read())
+            with MBtiles(temporary_map.name) as src:
+                helper = MBTilesHelper(src)
+                image = helper.stitch(4096)
+                width, height = image.size
+                image = image.resize((400, int(400 * height / width)))
+                temporary_file = BytesIO()
+                image.save(temporary_file, "PNG")
+                return temporary_file
 
 
 class EditableRoute(models.Model):

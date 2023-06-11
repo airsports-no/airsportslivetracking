@@ -792,7 +792,7 @@ def get_contestant_map(request, pk):
             "orientation": configuration.map_orientation,
             "scale": configuration.map_scale,
             "map_source": configuration.map_source,
-            "user_map_source": configuration.map_user_source.map_file if configuration.map_user_source else None,
+            "user_map_source": configuration.map_user_source,
             "include_annotations": configuration.map_include_annotations,
             "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
             "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
@@ -866,7 +866,7 @@ def get_contestant_default_map(request, pk):
         dpi=configuration.map_dpi,
         scale=configuration.map_scale,
         map_source=configuration.map_source,
-        user_map_source=configuration.map_user_source.map_file if configuration.map_user_source else "",
+        user_map_source=configuration.map_user_source,
         line_width=configuration.map_line_width,
         colour=configuration.map_line_colour,
         include_meridians_and_parallels_lines=configuration.map_include_meridians_and_parallels_lines,
@@ -1034,10 +1034,7 @@ def get_navigation_task_map(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if request.method == "POST":
         form = MapForm(request.POST)
-        form.fields["user_map_source"].choices = [("", "----")] + [
-            (item.map_file, item.name) for item in navigation_task.get_available_user_maps()
-        ]
-
+        form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
         if form.is_valid():
             margin = 10
             map_image = plot_route(
@@ -1080,15 +1077,14 @@ def get_navigation_task_map(request, pk):
             "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
             "scale": configuration.map_scale,
             "map_source": configuration.map_source,
-            "user_map_source": configuration.map_user_source.map_file if configuration.map_user_source else None,
+            "user_map_source": configuration.map_user_source,
             "dpi": configuration.map_dpi,
             "line_width": configuration.map_line_width,
             "colour": configuration.map_line_colour,
         }
     )
-    form.fields["user_map_source"].choices = [("", "----")] + [
-        (item.map_file, item.name) for item in navigation_task.get_available_user_maps()
-    ]
+    form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
+    form.fields["user_map_source"].initial = navigation_task.flightorderconfiguration.map_user_source
     return render(
         request,
         "display/map_form.html",
@@ -3373,8 +3369,10 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
         try:
+            filename=os.path.split(instance.map_file.name)[1] + "_thumbnail.png"
+            logger.debug(f"Saving thumbnail filename {filename}")
             instance.thumbnail.save(
-                os.path.split(instance.map_file.name)[1] + "_thumbnail.png",
+                filename,
                 ContentFile(instance.create_thumbnail().getvalue()),
                 save=True,
             )

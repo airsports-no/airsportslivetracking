@@ -1,5 +1,6 @@
 import logging
 from io import BytesIO
+from tempfile import NamedTemporaryFile
 
 import six
 import datetime
@@ -12,6 +13,7 @@ from cartopy.io.img_tiles import OSM, GoogleWTS
 import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
+from django.core.cache import cache
 from matplotlib import patheffects
 from pymbtiles import MBtiles
 from shapely.geometry import Polygon
@@ -45,7 +47,7 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.models import Route, Contestant, NavigationTask, EditableRoute
+from display.models import Route, Contestant, NavigationTask, EditableRoute, UserUploadedMap
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
@@ -189,9 +191,20 @@ first = True
 
 
 class UserUploadedMBTiles(GoogleWTS):
-    def __init__(self, mbtiles_file, *args, **kwargs):
+    def __init__(self, user_uploaded_map: UserUploadedMap, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mbtiles_file = "/maptiles/user_maps/" + mbtiles_file
+        key = f"user_map_{user_uploaded_map.map_file.name}"
+        result = cache.get(key)
+        self.mbtiles_file = None
+        if result is not None:
+            cached_file, size = result
+            if cached_file and user_uploaded_map.map_file.size == size and os.path.exists(cached_file):
+                self.mbtiles_file = cached_file
+        if self.mbtiles_file is None:
+            with NamedTemporaryFile(delete=False) as temporary_map:
+                temporary_map.write(user_uploaded_map.map_file.read())
+                cache.set(key, (temporary_map.name, user_uploaded_map.map_file.size))
+                self.mbtiles_file = temporary_map.name
 
     def _image_url(self, tile):
         return "something"
@@ -1015,7 +1028,7 @@ def plot_route(
     scale: int = 200,
     dpi: int = 300,
     map_source: str = "osm",
-    user_map_source: str = "",
+    user_map_source: UserUploadedMap = None,
     line_width: float = 0.5,
     minute_mark_line_width: float = 0.5,
     colour: str = "#0000ff",
@@ -1023,7 +1036,7 @@ def plot_route(
     margins_mm: float = 0,
 ):
     route = task.route
-    if user_map_source and len(user_map_source):
+    if user_map_source:
         imagery = UserUploadedMBTiles(user_map_source)
     else:
         if map_source == "osm":

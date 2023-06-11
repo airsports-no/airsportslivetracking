@@ -6,9 +6,24 @@ from django_use_email_as_username.admin import BaseUserAdmin
 from guardian.admin import GuardedModelAdmin
 from guardian.shortcuts import assign_perm
 
-from display.models import NavigationTask, Route, Aeroplane, Team, Contestant, ContestantTrack, \
-    Scorecard, \
-    GateScore, Contest, Crew, Person, Club, MyUser, EditableRoute, EmailMapLink, UserUploadedMap
+from display.models import (
+    NavigationTask,
+    Route,
+    Aeroplane,
+    Team,
+    Contestant,
+    ContestantTrack,
+    Scorecard,
+    GateScore,
+    Contest,
+    Crew,
+    Person,
+    Club,
+    MyUser,
+    EditableRoute,
+    EmailMapLink,
+    UserUploadedMap,
+)
 from solo.admin import SingletonModelAdmin
 
 
@@ -17,9 +32,7 @@ class ContestantTrackInline(admin.TabularInline):
 
 
 class ContestantTrackAdmin(admin.ModelAdmin):
-    inlines = (
-        ContestantTrackInline,
-    )
+    inlines = (ContestantTrackInline,)
 
 
 class ContestantInline(admin.TabularInline):
@@ -39,10 +52,9 @@ class ContestantInline(admin.TabularInline):
 #     GateScoreInLine,
 # )
 
+
 class NavigationTaskAdmin(admin.ModelAdmin):
-    inlines = (
-        ContestantInline,
-    )
+    inlines = (ContestantInline,)
 
 
 class PersonAdmin(admin.ModelAdmin):

@@ -64,9 +64,6 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
-          - mountPath: /maptiles
-            readOnly: true
-            name: filtestore-maps
         livenessProbe:
           exec:
             # bash is needed to replace the environment variable
@@ -96,6 +93,3 @@ spec:
         - name: firebase
           secret:
             secretName: firebase-secrets
-        - name: filtestore-maps
-          persistentVolumeClaim:
-            claimName: filtestore-maps

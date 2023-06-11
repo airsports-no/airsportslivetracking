@@ -18,6 +18,7 @@ services:
       - MEDIA_LOCATION
       - AZURE_ACCOUNT_NAME
       - REMOVE_BG_KEY
+      - GOOGLE_APPLICATION_CREDENTIALS=/secret/airsports-613ce-fb2048398826.json
     build:
       context: .
       dockerfile: Dockerfile

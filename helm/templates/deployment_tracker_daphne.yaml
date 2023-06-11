@@ -88,7 +88,4 @@ spec:
         - name: firebase
           secret:
             secretName: firebase-secrets
-        - name: maps-azurefile
-          persistentVolumeClaim:
-            claimName: maps-azurefile
 

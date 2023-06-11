@@ -474,9 +474,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         dpi=flight_order_configuration.map_dpi,
         scale=flight_order_configuration.map_scale,
         map_source=flight_order_configuration.map_source,
-        user_map_source=str(flight_order_configuration.map_user_source.map_file)
-        if flight_order_configuration.map_user_source
-        else "",
+        user_map_source=flight_order_configuration.map_user_source,
         line_width=flight_order_configuration.map_line_width,
         minute_mark_line_width=flight_order_configuration.map_minute_mark_line_width,
         colour=flight_order_configuration.map_line_colour,
