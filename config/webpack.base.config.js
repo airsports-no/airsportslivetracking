@@ -1,6 +1,5 @@
 const path = require("path");
 const fs = require("fs");
-const webpack = require('webpack');
 const BundleTracker = require('webpack-bundle-tracker');
 module.exports = {
     context: path.resolve(__dirname, '../'),
@@ -17,18 +16,37 @@ module.exports = {
         sourcePrefix: ''
     },
 
-    // externals: ["jquery"], // add all vendor libs
-    optimization: {
-        splitChunks: {
-            cacheGroups: {
-                commons: {
-                    test: /[\\/]node_modules[\\/]/,
-                    chunks: "all",
-                    name: "vendors"
-                }
-            }
-        }
-    },
+    // Optimisation breaks react router
+    // optimization: {
+    //     runtimeChunk: 'single',
+    //     splitChunks: {
+    //         cacheGroups: {
+    //             commons: {
+    //                 test: /[\\/]node_modules[\\/]/,
+    //                 chunks: "all",
+    //                 name: "vendors"
+    //             }
+    //         }
+    //     }
+    // },
+    // optimization: {
+    // splitChunks: {
+    //     cacheGroups: {
+    //         styles: {
+    //             name: 'styles',
+    //             test: /\.css$/,
+    //             chunks: 'all',
+    //             enforce: true
+    //         },
+    //         vendor: {
+    //             chunks: 'initial',
+    //             test: 'vendor',
+    //             name: 'vendor',
+    //             enforce: true
+    //         }
+    //     }
+    // }
+    // },
     plugins: [
         new BundleTracker({filename: path.resolve(__dirname, '../webpack-stats-local.json')}),
     ], // add all common plugins here
@@ -97,9 +115,10 @@ module.exports = {
 
 
     resolve: {
+        fallback: {"https": false, "zlib": false, "http": false, "url": false},
+        mainFiles: ['index', 'Cesium'],
         modules: ['node_modules', 'bower_components'],
-        extensions:
-            ['.js', '.jsx'],
+        extensions: ['.js', '.jsx'],
     }
     ,
 };
