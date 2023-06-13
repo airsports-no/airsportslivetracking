@@ -35,7 +35,7 @@ service:
 redis:
   replica:
      disableCommands: []
-     replicaCount: 1
+     replicaCount: 0
   master:
      disableCommands: []
   auth:

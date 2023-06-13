@@ -59,7 +59,7 @@ spec:
             memory: 1Gi
           limits:
             cpu: 1000m
-            memory: 3Gi
+            memory: 1Gi
         volumeMounts:
           - mountPath: /secret
             readOnly: true
