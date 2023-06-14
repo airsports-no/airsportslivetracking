@@ -17,12 +17,10 @@ from django.core.cache import cache
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from pytz import UTC
 
-
 import django
 from django.utils.encoding import smart_str
 
 django.utils.encoding.smart_text = smart_str
-
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 ADMINS = [("admin", "test@test.com")]
@@ -75,12 +73,7 @@ MYSQL_USER = os.environ.get("MYSQL_USER", "tracker")
 MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "tracker")
 MYSQL_DB_NAME = os.environ.get("MYSQL_DB_NAME", "tracker")
 
-STORAGE_ACCOUNT_KEY = os.environ.get("STORAGE_ACCOUNT_KEY", "")
-STORAGE_ACCOUNT_SECRET = os.environ.get("STORAGE_ACCOUNT_SECRET", "")
-AZURE_ACCOUNT_NAME = os.environ.get("AZURE_ACCOUNT_NAME", "")
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
-
-
 
 REMOVE_BG_KEY = os.environ.get("REMOVE_BG_KEY", "")
 
@@ -156,8 +149,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "live_tracking_map.middleware.HandleKnownExceptionsMiddleware",
-    # 'wagtail.contrib.redirects.middleware.RedirectMiddleware',
-    # 'google_analytics.middleware.GoogleAnalyticsMiddleware',
 ]
 
 ROOT_URLCONF = "live_tracking_map.urls"
@@ -269,17 +260,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
-# DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
-
 DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
 GS_BUCKET_NAME = "airsports-maps"
+MEDIA_ROOT_URL = "storage.googleapis.com/airsports-maps"
+GS_DEFAULT_ACL = "publicRead"
 
 # STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-# AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
-# MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{MEDIA_LOCATION}/'
-AZURE_ACCOUNT_KEY = STORAGE_ACCOUNT_SECRET
-AZURE_CONTAINER = MEDIA_LOCATION
 
 TEMPORARY_FOLDER = "/tmp"
 

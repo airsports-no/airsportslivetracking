@@ -26,7 +26,6 @@ from display.waypoint import Waypoint
 import cartopy.crs as ccrs
 
 from display.utilities.wind_utilities import calculate_wind_correction_angle
-from live_tracking_map.settings import AZURE_ACCOUNT_NAME
 from pylatex import (
     Document,
     PageStyle,
@@ -50,6 +49,8 @@ from pylatex import (
     Marker,
     MediumText,
 )
+
+from live_tracking_map.settings import MEDIA_ROOT_URL
 
 logger = logging.getLogger(__name__)
 
@@ -243,7 +244,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         starting_point_text = f"After {tracking_start_time_string}"
 
     if contestant.navigation_task.contest.logo:
-        logo_url = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/media/{contestant.navigation_task.contest.logo}"
+        logo_url = f"https://{MEDIA_ROOT_URL}/{contestant.navigation_task.contest.logo}"
         logo = f"/tmp/{contestant.navigation_task.contest.logo}"
         urllib.request.urlretrieve(logo_url, logo)
     else:
