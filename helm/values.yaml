@@ -53,6 +53,8 @@ traccarUsername: frankose@ifi.uio.no
 serviceAccountSecretName: calculator-scheduler-token-j9nmc
 k8sApi: https://airsports2-dns-3bdbed7d.hcp.northeurope.azmk8s.io:443 #https://airsports-dns-b66fdeca.hcp.northeurope.azmk8s.io:443
 
+mbtilesUrl: http://mbtiles-service/
+
 ingress:
   enabled: true
   className: ""
@@ -81,19 +83,24 @@ ingress:
           pathType: Prefix
           serviceName: tracker-daphne-service
           servicePort: 80
-    - host: traccar.airsports.no
+    - host: traccar.gcloud.airsports.no
       paths:
         - path: /
           pathType: Prefix
           serviceName: traccar-service
           servicePort: 8082
-    - host: traccarclient.airsports.no
+    - host: traccarclient.gcloud.airsports.no
       paths:
         - path: /
           pathType: Prefix
           serviceName: traccar-service
           servicePort: 5055
-
+    - host: mbtiles.airsports.no
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: mbtiles-service
+          servicePort: 80
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

@@ -6,6 +6,8 @@ import utm
 from PIL import Image
 import qrcode
 
+from display.flight_order_and_maps.mbtiles_facade import get_available_maps
+
 OSM_MAP = 0
 N250_MAP = 1
 M517_BERGEN_MAP = 2
@@ -23,8 +25,7 @@ def folder_map_name(folder: str) -> str:
     return " ".join([item.capitalize() for item in elements])
 
 
-MAP_FOLDERS = glob.glob("/maptiles/*")
-MAP_CHOICES = [(item, folder_map_name(item)) for item in MAP_FOLDERS if not "user_maps" in item] + [
+MAP_CHOICES = [(item["url"].split("/")[-1], item["name"]) for item in get_available_maps()] + [
     ("osm", "OSM"),
     ("fc", "Flight Contest"),
     ("mto", "MapTiler Outdoor"),

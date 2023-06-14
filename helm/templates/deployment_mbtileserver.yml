@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-mbtiles
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Gi
+  storageClassName: standard-rwo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mbtiles
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: mbtiles
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: mbtiles
+    spec:
+      volumes:
+        - name: mbtiles-files
+          persistentVolumeClaim:
+            claimName: pvc-mbtiles
+      containers:
+        - name: mbtiles
+          image: consbio/mbtileserver:latest
+          command: ["/mbtileserver",  "--enable-reload-signal"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 0.5Gi
+          livenessProbe:
+            httpGet:
+              path: /services/
+              port: 8000
+            initialDelaySeconds: 180
+            periodSeconds: 60
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /services/
+              port: 8000
+            initialDelaySeconds: 180
+            periodSeconds: 60
+            failureThreshold: 3
+          volumeMounts:
+            - mountPath: "/tilesets"
+              name: mbtiles-files
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mbtiles-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP
+  selector:
+    service: mbtiles

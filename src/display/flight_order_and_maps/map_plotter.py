@@ -18,6 +18,7 @@ from matplotlib import patheffects
 from pymbtiles import MBtiles
 from shapely.geometry import Polygon
 
+from display.flight_order_and_maps.mbtiles_facade import get_map_details
 from display.utilities.coordinate_utilities import (
     calculate_distance_lat_lon,
     calculate_bearing,
@@ -34,6 +35,7 @@ from display.utilities.wind_utilities import (
     calculate_ground_speed_combined,
     calculate_wind_correction_angle,
 )
+from live_tracking_map.settings import MBTILES_SERVER_URL
 
 A4_WIDTH = 21.0
 A4_HEIGHT = 29.7
@@ -183,7 +185,7 @@ def create_minute_lines_track(
 
 
 def country_code_to_map_source(country_code: str) -> str:
-    map = {"no": "/maptiles/Norway_N250"}
+    map = {"no": "norway"}
     return map.get(country_code, "cyclosm")
 
 
@@ -271,42 +273,15 @@ class CyclOSM(GoogleWTS):
         return f"https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png"
 
 
-class LocalImages(GoogleWTS):
-    def __init__(self, folder: str, **kwargs):
+class LocalMapServer(GoogleWTS):
+    def __init__(self, map_key: str, **kwargs):
         super().__init__(**kwargs)
-        self.folder = folder
+        self.map_key = map_key
+        self.format = get_map_details(self.map_key).get("format", "png")
 
     def _image_url(self, tile):
         x, y, z = tile
-        return "file://{}/{}/{}/{}.png".format(self.folder, z, x, y)
-
-    def tileextent(self, x_y_z):
-        """Return extent tuple ``(x0,x1,y0,y1)`` in Mercator coordinates."""
-        x, y, z = x_y_z
-        x_lim, y_lim = self.tile_bbox(x, y, z, y0_at_north_pole=False)
-        return tuple(x_lim) + tuple(y_lim)
-
-    _tileextent = tileextent
-
-    # def subtiles(self, x_y_z):
-    #     x, y, z = x_y_z
-    #     # Google tile specific (i.e. up->down).
-    #     for xi in range(0, 2):
-    #         for yi in range(0, 2):
-    #             ry=y * 2 + yi
-    #             result = x * 2 + xi, (ry*2) + yi, z + 1
-    #             print(result)
-    #             yield result
-    #
-    # _subtiles = subtiles
-    # def tileextent(self, x_y_z):
-    #     """Return extent tuple ``(x0,x1,y0,y1)`` in Mercator coordinates."""
-    #     x, y, z = x_y_z
-    #     x_lim, y_lim = self.tile_bbox(x, y, z, y0_at_north_pole=True)
-    #     # return [-1.70230674884, 32.2907623616, 57.5458684362, 71.7652057932]
-    #     return [577671.47,475230.47,6378894.33, 7962889.13]
-    #     # return [57.5458684362, 32.2907623616], [71.7652057932, -1.70230674884]
-    #     # return tuple(x_lim) + tuple(y_lim)
+        return f"{MBTILES_SERVER_URL}/services/{self.map_key}/tiles/{z}/{x}/{y}.{self.format}"
 
 
 def scale_bar(
@@ -1037,7 +1012,7 @@ def plot_route(
         elif map_source == "cyclosm":
             imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
         else:
-            imagery = LocalImages(map_source, desired_tile_form="RGBA")
+            imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
