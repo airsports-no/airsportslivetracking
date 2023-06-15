@@ -24,10 +24,10 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "live_tracking.mysqlHost" }}
-{{- printf "%s-mysql" .Release.Name }}
+{{- printf "10.95.240.3" }}
 {{- end }}
 {{- define "live_tracking.redisHost" }}
-{{- printf "%s-redis-master" .Release.Name }}
+{{- printf "10.95.241.3" }}
 {{- end }}
 {{- define "live_tracking.traccarHost" }}
 {{- printf "traccar-service" }}
