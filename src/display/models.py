@@ -2725,8 +2725,9 @@ class UserUploadedMap(models.Model):
         upload_to="user_uploaded_maps",
         validators=[FileExtensionValidator(allowed_extensions=["mbtiles"]), validate_file_size],
         help_text="File must be of type MBTILES. This can be generated for instance using MapTile Desktop",
+        max_length=500
     )
-    thumbnail = models.ImageField(upload_to="map_thumbnails", blank=True, null=True)
+    thumbnail = models.ImageField(upload_to="map_thumbnails", blank=True, null=True, max_length=500)
     unprotected = models.BooleanField(default=False, help_text="If true, this map is globally available.")
     minimum_zoom_level = models.IntegerField(default=0)
     maximum_zoom_level = models.IntegerField(default=14)
