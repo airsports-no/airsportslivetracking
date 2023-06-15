@@ -27,5 +27,5 @@ data:
 
   TRACCAR_USERNAME: {{ .Values.traccarUsername }}
   OPEN_SKY_USERNAME: {{ .Values.openskyUsername }}
-  MBTILES_SERVER_URL: {{ .Values.mbtilesUrl }}
+#  MBTILES_SERVER_URL: {{ .Values.mbtilesUrl }}
 

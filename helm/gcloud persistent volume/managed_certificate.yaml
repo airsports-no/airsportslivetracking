@@ -6,4 +6,5 @@ spec:
   domains:
     - gcloud.airsports.no
     - traccar.gcloud.airsports.no
+    - traccarclient.gcloud.airsports.no
     - mbtiles.airsports.no
