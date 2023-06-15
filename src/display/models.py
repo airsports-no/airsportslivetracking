@@ -2720,7 +2720,7 @@ LOCAL_MAP_FILE_CACHE = {}
 
 class UserUploadedMap(models.Model):
     user = models.ForeignKey(MyUser, on_delete=models.CASCADE)
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=500)
     map_file = models.FileField(
         upload_to="user_uploaded_maps",
         validators=[FileExtensionValidator(allowed_extensions=["mbtiles"]), validate_file_size],
