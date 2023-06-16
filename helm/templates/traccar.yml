@@ -29,6 +29,17 @@ spec:
         service: traccar
         deployVersion: "1"
     spec:
+      terminationGracePeriodSeconds: 25
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: cloud.google.com/gke-spot
+                    operator: In
+                    values:
+                      - "true"
+
       volumes:
         - name: config-traccar
           configMap:
@@ -48,7 +59,7 @@ spec:
           image: traccar/traccar:5.3
           resources:
             requests:
-              cpu: 500m
+              cpu: 1000m
               memory: 1.5Gi  # Uses 773Mi
             limits:
               cpu: 4000m

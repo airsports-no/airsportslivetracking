@@ -14,7 +14,7 @@ spec:
         resources:
           requests:
             cpu: 500m
-            memory: 1000Mi # Looks to be around 250 MB
+            memory: 600Mi # Looks to be around 250 MB
           limit:
             cpu: 400m
         name: calculator-job
