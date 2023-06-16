@@ -127,7 +127,8 @@ externalMysql:
   host: 10.95.240.3
 
 externalRedis:
-  host: 10.95.241.3
+  host: 10.95.241.11
+  port: 6379
 
 redis:
   enabled: false

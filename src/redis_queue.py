@@ -18,7 +18,7 @@ class RedisQueue:
         self.queue_name = f"{namespace}:{queue_name}"
         try:
             logger.debug("Attempting to connect to {}:{}".format(REDIS_HOST, REDIS_PORT))
-            self.redis_handle = redis.StrictRedis(REDIS_HOST, REDIS_PORT, password=REDIS_PASSWORD)
+            self.redis_handle = redis.StrictRedis(REDIS_HOST, REDIS_PORT)#, password=REDIS_PASSWORD)
             logger.info(
                 "Connected RedisQueue to {}:{} with the queue {}".format(REDIS_HOST, REDIS_PORT, self.queue_name))
         except:

@@ -52,7 +52,7 @@ ALLOWED_HOSTS = ["*"]
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
 REDIS_PORT = os.environ.get("REDIS_PORT", 6379)
-REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", None)
 
 INFLUX_HOST = os.environ.get("INFLUX_HOST", "influx")
 INFLUX_PORT = os.environ.get("INFLUX_PORT", 8086)
@@ -355,7 +355,7 @@ LOGGING = {
 
 # celery
 # CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
-CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}"
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
@@ -364,7 +364,7 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}",
+        "LOCATION": CELERY_BROKER_URL,
     }
     # "default": {
     #     "BACKEND": "redis_cache.RedisCache",

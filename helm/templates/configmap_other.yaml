@@ -4,7 +4,7 @@ metadata:
   name: envs-production-other
 data:
   REDIS_HOST: {{ include "live_tracking.redisHost" . }}
-  REDIS_PORT: "6379"
+  REDIS_PORT: {{ .Values.externalRedis.port | quote}}
   MYSQL_HOST: {{ include "live_tracking.mysqlHost" . }}
   MYSQL_PORT: "3306"
   MYSQL_USER: tracker

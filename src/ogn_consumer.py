@@ -116,7 +116,7 @@ def process_beacon(raw_message):
 
 if __name__ == "__main__":
     logger.info("OGN consumer starting")
-    redis = StrictRedis(REDIS_HOST, REDIS_PORT, password=REDIS_PASSWORD)
+    redis = StrictRedis(REDIS_HOST, REDIS_PORT)#, password=REDIS_PASSWORD)
     # redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
     redis.delete(REDIS_GLOBAL_POSITIONS_KEY)
     client = AprsClient(aprs_user='N0CALL')

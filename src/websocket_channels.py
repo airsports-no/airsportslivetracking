@@ -92,7 +92,7 @@ def generate_contestant_data_block(
 class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
-        self.redis = StrictRedis(REDIS_HOST, REDIS_PORT, password=REDIS_PASSWORD)
+        self.redis = StrictRedis(REDIS_HOST, REDIS_PORT)#, password=REDIS_PASSWORD)
 
     def transmit_initial_load(self, contestant: "Contestant"):
         """Transmitted whenever a web socket connects. Primarily used to fill missing track after network outage"""

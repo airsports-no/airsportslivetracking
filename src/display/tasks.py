@@ -61,7 +61,7 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
 
 
 def append_cache_dict(cache_key, dict_key, value):
-    conn = Redis(REDIS_HOST, REDIS_PORT, 2, REDIS_PASSWORD)
+    conn = Redis(REDIS_HOST, REDIS_PORT, 2)#, REDIS_PASSWORD)
     base = cache_key
     with redis_lock.Lock(conn, f"{base}_lock"):
         dictionary = cache.get(cache_key) or {}

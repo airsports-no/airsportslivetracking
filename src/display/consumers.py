@@ -105,7 +105,7 @@ class GlobalConsumer(WebsocketConsumer):
         # if settings.PRODUCTION:
         #     self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
         # else:
-        self.redis = StrictRedis(REDIS_HOST, REDIS_PORT, password=REDIS_PASSWORD)
+        self.redis = StrictRedis(REDIS_HOST, REDIS_PORT)#, password=REDIS_PASSWORD)
         self.groups.append("tracking_global")
 
     def connect(self):
