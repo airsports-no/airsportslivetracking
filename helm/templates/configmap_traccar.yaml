@@ -26,7 +26,7 @@ data:
         <entry key='database.driver'>com.mysql.cj.jdbc.Driver</entry>
         <entry key='database.url'>jdbc:mysql://{{ include "live_tracking.mysqlHost" . }}:3306/{{ .Values.traccar.database }}?serverTimezone=UTC&amp;useSSL=false&amp;allowMultiQueries=true&amp;autoReconnect=true&amp;useUnicode=yes&amp;characterEncoding=UTF-8&amp;sessionVariables=sql_mode=''&amp;allowPublicKeyRetrieval=true</entry>
         <entry key='database.user'>{{ .Values.traccar.username }}</entry>
-        <entry key='database.password'>{{ .Values.mysqlTraccarPassword }}</entry>
+        <entry key='database.password'>{{ .Values.externalMysql.traccarPassword }}</entry>
         <entry key="web.origin">*</entry>
         <entry key='logger.enable'>true</entry>
         <entry key='logger.level'>warning</entry>

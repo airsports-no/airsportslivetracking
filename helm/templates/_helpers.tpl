@@ -24,11 +24,29 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "live_tracking.mysqlHost" }}
-{{- printf "10.95.240.3" }}
+{{- if .Values.mysql.enabled }}
+{{- printf "%s-mysql" .Release.Name }}
+{{- else }}
+{{- .Values.externalMysql.host }}
 {{- end }}
+{{- end }}
+
 {{- define "live_tracking.redisHost" }}
-{{- printf "10.95.241.3" }}
+{{- if .Values.redis.enabled }}
+{{- printf "%s-redis-master" .Release.Name }}
+{{- else }}
+{{- .Values.externalRedis.host }}
 {{- end }}
+{{- end }}
+
+{{- define "live_tracking.redisPassword" }}
+{{- if .Values.redis.enabled }}
+{{- .Values.redis.auth.password }}
+{{- else }}
+{{- .Values.externalRedis.password }}
+{{- end }}
+{{- end }}
+
 {{- define "live_tracking.traccarHost" }}
 {{- printf "traccar-service" }}
 {{- end }}
