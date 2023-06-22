@@ -349,6 +349,7 @@ data["route_file"] = route_string
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestImportSerialiser(TransactionTestCase):
     def setUp(self):
         self.user = get_user_model().objects.create(email="test")
@@ -358,7 +359,7 @@ class TestImportSerialiser(TransactionTestCase):
                                               finish_time=datetime.utcnow())
         get_default_scorecard()
 
-    def test_import_serialiser(self, patch):
+    def test_import_serialiser(self, *args):
         request = Mock()
         request.user = self.user
         serialiser = ExternalNavigationTaskNestedTeamSerialiser(data=data,
@@ -371,9 +372,11 @@ class TestImportSerialiser(TransactionTestCase):
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         Contest.objects.all().delete()
         create_scorecards()
         with open("display/tests/importnavigationtaskfcteamid.json", "r") as i:
@@ -397,7 +400,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
             ContestTeam.objects.create(contest=self.contest, team=team, tracking_service="traccar", air_speed=70,
                                        tracker_device_id="{}".format(index))
 
-    def testPost(self, patch):
+    def testPost(self, *args):
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtaskteamid/".format(self.contest.pk), self.data, format="json")
         print(res.content)
@@ -405,6 +408,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestImportFCNavigationTask(APITransactionTestCase):
     def setUp(self):
         create_scorecards()
@@ -418,7 +422,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         assign_perm("display.change_contest", self.user, self.contest)
         assign_perm("display.view_contest", self.user, self.contest)
 
-    def test_import(self, patch):
+    def test_import(self, *args):
         print(json.dumps(self.data, sort_keys=True, indent=2))
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), self.data, format="json")
@@ -476,7 +480,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
             self.assertTrue((len(waypoint["procedure_turn_points"])>0 and waypoint["is_procedure_turn"]) or len(waypoint["procedure_turn_points"])==0 and not waypoint["is_procedure_turn"])
 
 
-    def test_multiple_import(self, patch):
+    def test_multiple_import(self, *args):
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), self.data, format="json")
         print(res.content)
@@ -493,7 +497,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(status.HTTP_400_BAD_REQUEST, res.status_code, res.content)
         # self.assertEqual(2, len(ContestTeam.objects.filter(contest=self.contest)))
 
-    # def test_basic_score_override(self, patch):
+    # def test_basic_score_override(self, *args):
     #     other_data = deepcopy(self.data)
     #     other_data["track_score_override"] = {
     #         "bad_course_penalty": 123
@@ -517,7 +521,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
     #         self.assertEqual(track_override, contestant.get_track_score_override())
     #         self.assertListEqual([override], [contestant.get_gate_score_override("tp")])
     #
-    # def test_contestant_score_override(self, patch):
+    # def test_contestant_score_override(self, *args):
     #     other_data = deepcopy(self.data)
     #     other_data["contestant_set"][0]["track_score_override"] = {
     #         "bad_course_penalty": 123
@@ -544,7 +548,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
     #     self.assertEqual(None, contestant.track_score_override)
     #     self.assertListEqual([], list(contestant.gate_score_override.all()))
 
-    # def test_import_preexisting_phone(self, patch):
+    # def test_import_preexisting_phone(self, *args):
     #     person = Person.objects.create(first_name="first", last_name="last", phone="+4773215338")
     #     first_team = self.data["contestant_set"][0]["team"]
     #     second_team = self.data["contestant_set"][1]["team"]
@@ -559,7 +563,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
     #     self.assertEqual(1, len(Person.objects.filter(first_name="first")))
     #     self.assertEqual(2, Crew.objects.all().count())
 
-    def test_import_preexisting_email(self, patch):
+    def test_import_preexisting_email(self, *args):
         person = Person.objects.create(first_name="first", last_name="last", email="to@to.com")
         first_team = self.data["contestant_set"][0]["team"]
         second_team = self.data["contestant_set"][1]["team"]
@@ -575,7 +579,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(1, len(Person.objects.filter(first_name="first")))
         self.assertEqual(2, Crew.objects.all().count())
 
-    def test_preexisting_team(self, patch):
+    def test_preexisting_team(self, *args):
         person = Person.objects.create(first_name="first", last_name="last", email="to@to.com")
         crew = Crew.objects.create(member1=person)
         aircraft = Aeroplane.objects.create(registration="LN-YDB")
@@ -599,7 +603,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(1, Team.objects.all().count())
         self.assertEqual(team, Team.objects.first())
 
-    def test_doc_example(self, patch):
+    def test_doc_example(self, *args):
         with open('../documentation/importnavigationtask.json', 'r') as i:
             data = json.load(i)
         res = self.client.post(
@@ -607,7 +611,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         print(res.content)
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, res.content)
 
-    def test_post_input_with_the_gate_times(self, patch):
+    def test_post_input_with_the_gate_times(self, *args):
         res = self.client.post(
             "/api/v1/contests/{}/importnavigationtask/".format(self.contest.pk), data_with_gate_times, format="json")
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, res.content)
@@ -619,7 +623,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
             value = dateutil.parser.parse(value)
             self.assertEqual(contestant_gate_times[key], value, key)
 
-    def test_post_input_with_partial_gate_times(self, patch):
+    def test_post_input_with_partial_gate_times(self, *args):
         partial_gate_times = deepcopy(data_with_gate_times)
         partial_gate_times["contestant_set"][0]["gate_times"] = {"TP4": "2017-08-01T10:13:09Z"}
         res = self.client.post(

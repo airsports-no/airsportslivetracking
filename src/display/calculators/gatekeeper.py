@@ -39,7 +39,7 @@ class ScoreAccumulator:
         self.related_score = {}
 
     def set_and_update_score(
-            self, score: float, score_type: str, maximum_score: Optional[float], previous_score: Optional[float] = 0
+        self, score: float, score_type: str, maximum_score: Optional[float], previous_score: Optional[float] = 0
     ) -> Tuple[float, bool]:
         """
         Returns the calculated score given the maximum limits. If there is no maximum limit, score is returned
@@ -64,11 +64,11 @@ class Gatekeeper(ABC):
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
     def __init__(
-            self,
-            contestant: "Contestant",
-            calculators: List[Callable],
-            live_processing: bool = True,
-            queue_name_override: str = None,
+        self,
+        contestant: "Contestant",
+        calculators: List[Callable],
+        live_processing: bool = True,
+        queue_name_override: str = None,
     ):
         calculator_is_alive(contestant.pk, 30)
         super().__init__()
@@ -78,6 +78,7 @@ class Gatekeeper(ABC):
         self.live_processing = live_processing
         self.track_terminated = False
         self.contestant = contestant
+        self.contestant_track=contestant.contestanttrack
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.position_queue = RedisQueue(queue_name_override or str(contestant.pk))
         self.score_processing_queue = Queue()
@@ -90,7 +91,7 @@ class Gatekeeper(ABC):
         self.process_event = threading.Event()
         self.contestant.reset_track_and_score()
         self.contestant.contestantreceivedposition_set.all().delete()
-        self.contestant.contestanttrack.set_calculator_started()
+        self.contestant_track.set_calculator_started()
         self.scorecard = self.contestant.navigation_task.scorecard
         self.gates = self.create_gates()
         self.outstanding_gates = list(self.gates)
@@ -129,7 +130,10 @@ class Gatekeeper(ABC):
     def score_updater_thread(self):
         while True:
             score = self.score_processing_queue.get(True)
-            self.contestant.contestanttrack.update_score(score)
+            logger.debug(f"Found score to be logged {score}")
+            self.contestant_track.update_score(score)
+            logger.debug(f"Finished logging score")
+            self.score_processing_queue.task_done()
 
     def report_calculator_danger_level(self):
         danger_levels = [0]
@@ -325,8 +329,8 @@ class Gatekeeper(ABC):
                 else:
                     self.latest_position_report = max(self.latest_position_report, p.time)
                 if len(self.track) > 0 and (
-                        (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude)
-                        or self.track[-1].time >= p.time
+                    (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude)
+                    or self.track[-1].time >= p.time
                 ):
                     # Old or duplicate position, ignoring
                     continue
@@ -356,25 +360,26 @@ class Gatekeeper(ABC):
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
             self.check_termination()
-        self.contestant.contestanttrack.set_calculator_finished()
+        self.contestant_track.set_calculator_finished()
         while not self.position_queue.empty():
             self.position_queue.pop()
+        self.score_processing_queue.join()
         logger.info("Terminating calculator for {}".format(self.contestant))
         calculator_is_terminated(self.contestant.pk)
 
     def update_score(
-            self,
-            gate: "Gate",
-            score: float,
-            message: str,
-            latitude: float,
-            longitude: float,
-            annotation_type: str,
-            score_type: str,
-            maximum_score: Optional[float] = None,
-            planned: Optional[datetime.datetime] = None,
-            actual: Optional[datetime.datetime] = None,
-            existing_reference: Tuple[int, int, float] = None,
+        self,
+        gate: "Gate",
+        score: float,
+        message: str,
+        latitude: float,
+        longitude: float,
+        annotation_type: str,
+        score_type: str,
+        maximum_score: Optional[float] = None,
+        planned: Optional[datetime.datetime] = None,
+        actual: Optional[datetime.datetime] = None,
+        existing_reference: Tuple[int, int, float] = None,
     ) -> Tuple[int, int, float]:
         """
 
@@ -424,10 +429,13 @@ class Gatekeeper(ABC):
         logger.info(
             "UPDATE_SCORE {}: {}{}".format(self.contestant, "(voids earlier) " if existing_reference else "", string)
         )
+        # Make sure we're not falling behind
+        self.score_processing_queue.join()
         # Take into account that external events may have changed the score
-        self.contestant.contestanttrack.refresh_from_db()
+        self.contestant_track.refresh_from_db()
         self.contestant.record_score_by_gate(gate.name, score)
-        self.score = self.contestant.contestanttrack.score
+        self.score = self.contestant_track.score
+        logger.debug(f"Setting existing scores from contestant track: {self.score}")
         if existing_reference is None:
             self.score += score
             entry = ScoreLogEntry.create_and_push(
@@ -501,14 +509,14 @@ class Gatekeeper(ABC):
 
     def passed_finishpoint(self):
         if not self.has_passed_finishpoint:
-            self.contestant.contestanttrack.set_passed_finish_gate()
+            self.contestant_track.set_passed_finish_gate()
             self.has_passed_finishpoint = True
             for calculator in self.calculators:
                 calculator.passed_finishpoint(self.track, self.last_gate)
 
     def notify_termination(self):
         logger.info(f"{self.contestant}: Setting termination flag")
-        self.contestant.contestanttrack.set_calculator_finished()
+        self.contestant_track.set_calculator_finished()
         self.track_terminated = True
 
     def check_termination(self):

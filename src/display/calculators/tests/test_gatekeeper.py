@@ -12,10 +12,12 @@ from utilities.mock_utilities import TraccarMock
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestInterpolation(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, patch, p2):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_precision_2020
 
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
@@ -58,7 +60,7 @@ class TestInterpolation(TransactionTestCase):
             wind_speed=8,
         )
 
-    def test_no_interpolation(self, p, p2):
+    def test_no_interpolation(self, *args):
         gatekeeper = GatekeeperRoute(self.contestant, [])
         start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
@@ -67,7 +69,7 @@ class TestInterpolation(TransactionTestCase):
         self.assertEqual(1, len(interpolated))
         self.assertEqual(next_position, interpolated[0])
 
-    def test_interpolation(self, p, p2):
+    def test_interpolation(self, *args):
         gatekeeper = GatekeeperRoute(self.contestant, [])
         start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
@@ -90,10 +92,12 @@ class TestInterpolation(TransactionTestCase):
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestCrossingEstimate(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, patch, p2):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_precision_2020
 
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
@@ -138,7 +142,7 @@ class TestCrossingEstimate(TransactionTestCase):
             wind_speed=8,
         )
 
-    def test_next_is_timed(self, p1, p2):
+    def test_next_is_timed(self, *args):
         # SP, 9.481223867089488, 59.19144317223039, sp, 2
         # SC 1/1, 9.408413335420015, 59.19427817352367, secret, 1.5
         # TP1, 9.198618292991952, 59.20222672648168, tp, 1.5
@@ -155,7 +159,7 @@ class TestCrossingEstimate(TransactionTestCase):
         expected = dateutil.parser.parse("2020-01-01T00:00:02.631887+00:00")
         self.assertEqual(expected, estimated)
 
-    def test_next_is_not_timed(self, p1, p2):
+    def test_next_is_not_timed(self, *args):
         # SP, 9.481223867089488, 59.19144317223039, sp, 2
         # SC 1/1, 9.408413335420015, 59.19427817352367, secret, 1.5
         # TP1, 9.198618292991952, 59.20222672648168, tp, 1.5

@@ -2293,7 +2293,7 @@ class ContestantTrack(models.Model):
         self.refresh_from_db()
         self.last_gate = gate_name
         self.last_gate_time_offset = time_difference
-        self.save()
+        self.save(update_fields=["last_gate", "last_gate_time_offset"])
         self.__push_change()
 
     def update_score(self, score):
@@ -2311,14 +2311,14 @@ class ContestantTrack(models.Model):
         self.refresh_from_db()
         if self.current_state != state:
             self.current_state = state
-            self.save()
+            self.save(update_fields=["current_state"])
             self.__push_change()
 
     def update_current_leg(self, current_leg: str):
         self.refresh_from_db()
         if self.current_leg != current_leg:
             self.current_leg = current_leg
-            self.save()
+            self.save(update_fields=["current_leg"])
             self.__push_change()
 
     def set_calculator_finished(self):
@@ -2335,13 +2335,13 @@ class ContestantTrack(models.Model):
     def set_passed_starting_gate(self):
         self.refresh_from_db()
         self.passed_starting_gate = True
-        self.save()
+        self.save(update_fields=["passed_starting_gate"])
         self.__push_change()
 
     def set_passed_finish_gate(self):
         self.refresh_from_db()
         self.passed_finish_gate = True
-        self.save()
+        self.save(update_fields=["passed_finish_gate"])
         self.__push_change()
 
     def __push_change(self):

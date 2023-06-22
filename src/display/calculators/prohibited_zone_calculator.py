@@ -95,7 +95,7 @@ class ProhibitedZoneCalculator(Calculator):
                     "anomaly",
                     self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE,
                 )
-        for zone in self.inside_zones.keys():
+        for zone in list(self.inside_zones.keys()):
             if zone not in inside_this_time:
                 del self.running_penalty[zone]
                 del self.inside_zones[zone]

@@ -48,10 +48,12 @@ def calculator_runner(contestant, track):
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRPerLeg(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p, p2):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/kjeller.kml", "r") as file:
@@ -85,7 +87,7 @@ class TestANRPerLeg(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_anr_score_per_leg(self, p, p2):
+    def test_anr_score_per_leg(self, *args):
         track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/kjeller_anr_bad.csv"))
         start_time, speed = (
             datetime.datetime(2021, 3, 15, 19, 30, tzinfo=datetime.timezone.utc),
@@ -126,7 +128,7 @@ class TestANRPerLeg(TransactionTestCase):
         self.assertListEqual(a, strings)
         self.assertEqual(700, contestant_track.score)
 
-    def test_anr_miss_multiple_finish(self, p, p2):
+    def test_anr_miss_multiple_finish(self, *args):
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/anr_miss_multiple_finish.csv")
         )
@@ -164,7 +166,7 @@ class TestANRPerLeg(TransactionTestCase):
         )
         self.assertEqual(750, contestant_track.score)
 
-    def test_manually_terminate_calculator(self, p, p2):
+    def test_manually_terminate_calculator(self, *args):
         cache.clear()
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/anr_miss_multiple_finish.csv")
@@ -200,7 +202,7 @@ class TestANRPerLeg(TransactionTestCase):
         self.assertTrue("SP: 0 points manually terminated" in strings)
         # self.assertEqual(492, contestant_track.score)
 
-    def test_anr_miss_start_and_finish(self, p, p2):
+    def test_anr_miss_start_and_finish(self, *args):
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/anr_miss_start_and_finish.csv")
         )
@@ -240,10 +242,12 @@ class TestANRPerLeg(TransactionTestCase):
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANR(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p, p2):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/eidsvoll.kml", "r") as file:
@@ -274,7 +278,7 @@ class TestANR(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_track(self, p, p2):
+    def test_track(self, *args):
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/kolaf_eidsvoll_traccar.csv")
         )
@@ -301,7 +305,7 @@ class TestANR(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         self.assertTrue("SP: 96.0 points passing gate (+33 s)\nplanned: 07:52:00\nactual: 07:52:33" in strings)
 
-    def test_track_adaptive_start(self, p, p2):
+    def test_track_adaptive_start(self, *args):
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/kolaf_eidsvoll_traccar.csv")
         )
@@ -334,7 +338,8 @@ class TestANR(TransactionTestCase):
 
 class TestAnrCorridorCalculator(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         with patch(
             "display.utilities.route_building_utilities.load_features_from_kml",
             return_value={"route": [(60, 11), (60, 12), (61, 12), (61, 11)]},
@@ -564,10 +569,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRPolygon(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p, p2):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/kjeller.kml", "r") as file:
@@ -599,7 +606,7 @@ class TestANRPolygon(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_track(self, p, p2):
+    def test_track(self, *args):
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/kolaf_eidsvoll_traccar.csv")
         )
@@ -625,10 +632,12 @@ class TestANRPolygon(TransactionTestCase):
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRBergenBacktracking(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p, p2):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/Bergen_Open_Test.kml", "r") as file:
@@ -660,7 +669,7 @@ class TestANRBergenBacktracking(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_track(self, p, p2):
+    def test_track(self, *args):
         track = load_track_points_traccar_csv(load_traccar_track("display/calculators/tests/kurtbergen.csv"))
         start_time, speed = (
             datetime.datetime(2021, 3, 24, 13, 17, tzinfo=datetime.timezone.utc),
@@ -687,9 +696,11 @@ class TestANRBergenBacktracking(TransactionTestCase):
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRBergenBacktrackingTommy(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/tommy_test.kml", "r") as file:
@@ -721,7 +732,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_track(self, p, p2):
+    def test_track(self, *args):
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/tommy_missing_circling_penalty.csv")
         )
@@ -755,12 +766,14 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestOscarDoubleCorridorPenalty(TransactionTestCase):
     """
     https://airsports.no/display/navigationtask/1300/
     """
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2022
 
         with open("display/calculators/tests/oscar_double_finish/route.json", "r") as file:
@@ -792,7 +805,7 @@ class TestOscarDoubleCorridorPenalty(TransactionTestCase):
         # Required to make the time zone save correctly
         self.navigation_task.refresh_from_db()
 
-    def test_track(self, p, p2):
+    def test_track(self, *args):
         """
         When flown the contestant received double penalty for the final part of the track that was outside of the 
         corridor (missed the starting gate).

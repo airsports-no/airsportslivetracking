@@ -106,8 +106,9 @@ TraccarMock.get_or_create_device.return_value = ({}, False)
 
 
 class TestAutoCompletePersonFirstName(APITestCase):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    def setUp(self, *args):
         self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
@@ -165,7 +166,8 @@ class TestAutoCompletePersonFirstName(APITestCase):
 
 class TestAutoCompletePersonLastname(APITestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
@@ -223,7 +225,8 @@ class TestAutoCompletePersonLastname(APITestCase):
 
 class TestAutoCompletePersonPhone(APITestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
@@ -281,7 +284,8 @@ class TestAutoCompletePersonPhone(APITestCase):
 
 class TestAutoCompletePersonEmail(APITestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
@@ -339,7 +343,8 @@ class TestAutoCompletePersonEmail(APITestCase):
 
 class TestAutoCompletePersonId(APITestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
