@@ -80,6 +80,12 @@ ingress:
           pathType: Prefix
           serviceName: traccar-service
           servicePort: 8082
+    - host: home.gcloud.airsports.no
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: airsportsrelease-wordpress
+          servicePort: 80
     - host: traccarclient.gcloud.airsports.no
       paths:
         - path: /
@@ -140,6 +146,62 @@ redis:
   auth:
     enabled: true  # Default
     password: simplepassword
+
+
+wordpress:
+  enabled: true
+  wordpressUsername: kolaf
+  mariadb:
+    enabled: false
+
+  externalDatabase:
+    host: 10.95.240.3
+    database: bitnami_wordpress
+    user: bn_wordpress
+
+  wordpressEmail: frankose@ifi.uio.no
+  wordpressFirstName: Frank Olaf
+  wordpressLastName: Sem-Jacobsen
+  wordpressBlogName: Air Sports Live Tracking
+
+  smtpHost: smtp.sendgrid.net
+  smtpPort: "587"
+  smtpUser: apiKey
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: cloud.google.com/gke-spot
+                operator: In
+                values:
+                  - "true"
+
+
+  extraVolumeMounts:
+    - name: php-ini
+      #subPath: conf.d
+      mountPath: /opt/bitnami/php/etc/conf.d
+
+  extraVolumes:
+    - name: php-ini
+      configMap:
+        name: php-ini
+  allowOverrideNone: false
+
+  resources:
+    requests:
+      cpu: 250m
+  #    memory: 512mi
+
+
+  # ConfigMap with custom wordpress-htaccess.conf file (requires allowOverrideNone to true)
+  customHTAccessCM: prod-wordpress-cm
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
 
 
 mysql:
@@ -224,4 +286,5 @@ mysql:
 
       GRANT ALL PRIVILEGES ON traccar.* To 'traccar'@'%';
       GRANT ALL PRIVILEGES ON tracker.* To 'tracker'@'%';
+      GRANT ALL PRIVILEGES ON bitnami_wordpress.* To 'bn_wordpress'@'%';
       FLUSH PRIVILEGES;
