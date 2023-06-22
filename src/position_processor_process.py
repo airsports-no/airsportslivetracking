@@ -212,7 +212,7 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
                 processes[key] = (q, None)
                 try:
                     response = start_kubernetes_job()
-                    calculator_is_alive(contestant.pk, 30)
+                    calculator_is_alive(contestant.pk, 300) # Give it five minutes to spin up the kubernetes job
                     logger.info(f"Successfully created calculator job for {contestant}")
                 except AlreadyExists:
                     logger.warning(
@@ -224,7 +224,7 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
                         logger.error(f"Failed the deleting calculator job for contestant {contestant}")
                     try:
                         response = start_kubernetes_job()
-                        calculator_is_alive(contestant.pk, 30)
+                        calculator_is_alive(contestant.pk, 300)
                         logger.info(f"Successfully created calculator job for {contestant}")
                     except AlreadyExists:
                         logger.warning(f"Tried to start existing calculator job for contestant {contestant}. Ignoring.")

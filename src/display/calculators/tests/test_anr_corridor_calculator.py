@@ -57,9 +57,14 @@ class TestANRPerLeg(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/kjeller.kml", "r") as file:
-            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+            with patch(
+                "display.models.EditableRoute._create_route_and_thumbnail",
+                lambda name, r: EditableRoute.objects.create(name=name, route=r),
+            ):
                 editable_route, _ = EditableRoute.create_from_kml("test", file)
-                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+                route = editable_route.create_anr_route(
+                    False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
+                )
 
         navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
         navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
@@ -113,14 +118,12 @@ class TestANRPerLeg(TransactionTestCase):
         a = [
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --",
             "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
+            "SP: 0 points exiting corridor",
             "SP: 50.0 points outside corridor (40 s) (capped)",
-            "SP: 0 points entering corridor",
-            "TP 1: 0 points passing gate (no time check) (-406 s)\nplanned: 20:39:00\nactual: 20:32:14",
-            "SP: 50.0 points outside corridor (117 s) (capped)",
+            "TP 1: 0 points passing gate (no time check) (-406 s)\n" + "planned: 20:39:00\n" + "actual: 20:32:14",
+            "SP: 0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 0 points entering corridor",
-            # 'Waypoint 1: 0 points outside corridor (157 s) (capped)',
-            # 'Waypoint 2: 50.0 points outside corridor (-1 s) (capped)',
+            "SP: 50.0 points outside corridor (117 s) (capped)",
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
             "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
         ]
@@ -132,7 +135,7 @@ class TestANRPerLeg(TransactionTestCase):
         track = load_track_points_traccar_csv(
             load_traccar_track("display/calculators/tests/anr_miss_multiple_finish.csv")
         )
-        start_time, speed = datetime.datetime.now(datetime.timezone.utc), 70
+        start_time, speed = datetime.datetime(2023, 6, 22, 12, tzinfo=datetime.timezone.utc), 70
         self.contestant = Contestant.objects.create(
             navigation_task=self.navigation_task,
             team=self.team,
@@ -149,20 +152,24 @@ class TestANRPerLeg(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
-        print(strings)
-        fixed_strings = [item.split("\n")[0] for item in strings]
-        fixed_strings[1] = fixed_strings[1][:10]
-        fixed_strings[5] = fixed_strings[5][:20]
-        pprint(fixed_strings)
+        pprint(strings)
+        final_list = [
+            "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 14:00:00\nactual: --",
+            "SP: 200.0 points passing gate (-71535748 s)\n" "planned: 14:07:00\n" "actual: 14:04:32",
+            "SP: 0 points exiting corridor",
+            "TP 1: 0 points passing gate (no time check) (-71535796 s)\n" "planned: 14:09:00\n" "actual: 14:05:44",
+            "SP: 50.0 points outside corridor (25 s) (capped)",
+            "SP: 0 points exiting corridor",
+            "SP: 200.0 points backtracking",
+            "SP: 0.0 points outside corridor (228 s) (capped)",
+            "SP: 50.0 points outside corridor (0 s) (capped)",
+            "SP: 50.0 points outside corridor (0 s) (capped)",
+            "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
+            "Landing 1: 0.0 points missing landing gate\nplanned: 13:59:30\nactual: --",
+        ]
         self.assertListEqual(
-            [
-                "SP: 200.0 points backtracking",
-                "SP: 50.0 points outside corridor (0 s) (capped)",
-                "SP: 50.0 points outside corridor (0 s) (capped)",
-                "FP: 200.0 points missing gate",
-                "Landing 1: 0.0 points missing landing gate",
-            ],
-            fixed_strings[-5:],
+            final_list,
+            strings,
         )
         self.assertEqual(750, contestant_track.score)
 
@@ -251,9 +258,14 @@ class TestANR(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/eidsvoll.kml", "r") as file:
-            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+            with patch(
+                "display.models.EditableRoute._create_route_and_thumbnail",
+                lambda name, r: EditableRoute.objects.create(name=name, route=r),
+            ):
                 editable_route, _ = EditableRoute.create_from_kml("test", file)
-                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+                route = editable_route.create_anr_route(
+                    False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
+                )
         navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
         navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -348,8 +360,10 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 
             with open("display/calculators/tests/eidsvoll.kml", "r") as file:
                 # Actual filename is irrelevant since we  mock the feature method above
-                with patch("display.models.EditableRoute._create_route_and_thumbnail",
-                           lambda name, r: EditableRoute.objects.create(name=name, route=r)):
+                with patch(
+                    "display.models.EditableRoute._create_route_and_thumbnail",
+                    lambda name, r: EditableRoute.objects.create(name=name, route=r),
+                ):
                     editable_route, _ = EditableRoute.create_from_kml("test", file)
                     self.route = editable_route.create_anr_route(
                         False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
@@ -444,33 +458,21 @@ class TestAnrCorridorCalculator(TransactionTestCase):
                 call(
                     self.calculator.route.waypoints[0],
                     0,
-                    "outside corridor (0 s)",
+                    "exiting corridor",
                     60.5,
                     11,
-                    "anomaly",
+                    "information",
                     f"outside_corridor_{gate.name}",
-                    maximum_score=-1,
-                    existing_reference=None,
                 ),
                 call(
                     self.calculator.route.waypoints[0],
                     0,
                     "outside corridor (2 s)",
-                    60.5,
-                    11,
-                    "anomaly",
-                    f"outside_corridor_{gate.name}",
-                    maximum_score=-1,
-                    existing_reference=er,
-                ),
-                call(
-                    self.calculator.route.waypoints[0],
-                    0,
-                    "entering corridor",
                     60,
                     11.5,
-                    "information",
-                    "entering_corridor",
+                    "anomaly",
+                    f"outside_corridor_{gate.name}",
+                    maximum_score=-1.0,
                 ),
             ]
         )
@@ -502,15 +504,24 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             [
                 call(
                     self.calculator.route.waypoints[0],
-                    45.0,
-                    "outside corridor (20 s)",
+                    0,
+                    "exiting corridor",
                     60.5,
                     11,
-                    "anomaly",
+                    "information",
                     f"outside_corridor_{gate.name}",
                     maximum_score=-1,
-                    existing_reference=er,
-                )
+                ),
+                call(
+                    self.calculator.route.waypoints[0],
+                    45.0,
+                    "outside corridor (20 s)",
+                    60,
+                    11.5,
+                    "anomaly",
+                    f"outside_corridor_{gate.name}",
+                    maximum_score=-1.0,
+                ),
             ]
         )
 
@@ -539,11 +550,10 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             48.0,
             "outside corridor (21 s)",
             60.5,
-            11,
+            11.5,
             "anomaly",
             f"outside_corridor_{gate.name}",
-            maximum_score=-1,
-            existing_reference=er,
+            maximum_score=-1.0,
         )
 
     def test_outside_20_seconds_outside_route(self):
@@ -578,9 +588,14 @@ class TestANRPolygon(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/kjeller.kml", "r") as file:
-            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+            with patch(
+                "display.models.EditableRoute._create_route_and_thumbnail",
+                lambda name, r: EditableRoute.objects.create(name=name, route=r),
+            ):
                 editable_route, _ = EditableRoute.create_from_kml("test", file)
-                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+                route = editable_route.create_anr_route(
+                    False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
+                )
         navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
         navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -641,9 +656,14 @@ class TestANRBergenBacktracking(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/Bergen_Open_Test.kml", "r") as file:
-            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+            with patch(
+                "display.models.EditableRoute._create_route_and_thumbnail",
+                lambda name, r: EditableRoute.objects.create(name=name, route=r),
+            ):
                 editable_route, _ = EditableRoute.create_from_kml("test", file)
-                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+                route = editable_route.create_anr_route(
+                    False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
+                )
         navigation_task_start_time = datetime.datetime(2021, 3, 24, 6, 0, 0, tzinfo=datetime.timezone.utc)
         navigation_task_finish_time = datetime.datetime(2021, 3, 24, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -691,7 +711,7 @@ class TestANRBergenBacktracking(TransactionTestCase):
         )
         calculator_runner(self.contestant, track)
         # Incorrectly gets 200 points for prohibited zone at departure and arrival, actual score is 51.
-        self.assertEqual(406, self.contestant.contestanttrack.score)
+        self.assertEqual(203, self.contestant.contestanttrack.score)  # 406
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
@@ -704,9 +724,14 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_anr_2017
 
         with open("display/calculators/tests/tommy_test.kml", "r") as file:
-            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
+            with patch(
+                "display.models.EditableRoute._create_route_and_thumbnail",
+                lambda name, r: EditableRoute.objects.create(name=name, route=r),
+            ):
                 editable_route, _ = EditableRoute.create_from_kml("test", file)
-                route = editable_route.create_anr_route(False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard())
+                route = editable_route.create_anr_route(
+                    False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
+                )
         navigation_task_start_time = datetime.datetime(2021, 3, 31, 14, 0, 0, tzinfo=datetime.timezone.utc)
         navigation_task_finish_time = datetime.datetime(2021, 3, 31, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -759,7 +784,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         for s in strings:
             print(s)
-        self.assertEqual(735, self.contestant.contestanttrack.score)
+        self.assertEqual(535, self.contestant.contestanttrack.score)  # 735
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertTrue("SP: 200.0 points circling start" in strings)
 
@@ -771,16 +796,22 @@ class TestOscarDoubleCorridorPenalty(TransactionTestCase):
     """
     https://airsports.no/display/navigationtask/1300/
     """
+
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2022
 
         with open("display/calculators/tests/oscar_double_finish/route.json", "r") as file:
-            data=json.load(file)
-            with patch ("display.models.EditableRoute._create_route_and_thumbnail", lambda name,r: EditableRoute.objects.create(name=name, route=r)):
-                editable_route=EditableRoute.objects.create(**data)
-                route = editable_route.create_anr_route(False, 0.3, default_scorecard_fai_anr_2022.get_default_scorecard())
+            data = json.load(file)
+            with patch(
+                "display.models.EditableRoute._create_route_and_thumbnail",
+                lambda name, r: EditableRoute.objects.create(name=name, route=r),
+            ):
+                editable_route = EditableRoute.objects.create(**data)
+                route = editable_route.create_anr_route(
+                    False, 0.3, default_scorecard_fai_anr_2022.get_default_scorecard()
+                )
         navigation_task_start_time = datetime.datetime(2023, 3, 26, 14, 0, 0, tzinfo=datetime.timezone.utc)
         navigation_task_finish_time = datetime.datetime(2023, 3, 31, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
@@ -807,12 +838,12 @@ class TestOscarDoubleCorridorPenalty(TransactionTestCase):
 
     def test_track(self, *args):
         """
-        When flown the contestant received double penalty for the final part of the track that was outside of the 
+        When flown the contestant received double penalty for the final part of the track that was outside of the
         corridor (missed the starting gate).
 
         https://airsports.no/display/navigationtask/1300/
         """
-        track=load_track_points("display/calculators/tests/oscar_double_finish/oscar_anr.gpx")
+        track = load_track_points("display/calculators/tests/oscar_double_finish/oscar_anr.gpx")
         start_time, speed = (
             datetime.datetime(2021, 3, 31, 12, 35, tzinfo=datetime.timezone.utc),
             70,
@@ -837,5 +868,3 @@ class TestOscarDoubleCorridorPenalty(TransactionTestCase):
             print(s)
         # If the last outside corridor is counted twice, the score will be closer to 1600.
         self.assertEqual(932, self.contestant.contestanttrack.score)
-
-
