@@ -3,6 +3,7 @@ import logging
 import threading
 import time
 from abc import abstractmethod, ABC
+from queue import Queue
 from typing import List, Optional, Callable, Tuple, Dict
 
 import dateutil
@@ -38,7 +39,7 @@ class ScoreAccumulator:
         self.related_score = {}
 
     def set_and_update_score(
-        self, score: float, score_type: str, maximum_score: Optional[float], previous_score: Optional[float] = 0
+            self, score: float, score_type: str, maximum_score: Optional[float], previous_score: Optional[float] = 0
     ) -> Tuple[float, bool]:
         """
         Returns the calculated score given the maximum limits. If there is no maximum limit, score is returned
@@ -63,11 +64,11 @@ class Gatekeeper(ABC):
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
     def __init__(
-        self,
-        contestant: "Contestant",
-        calculators: List[Callable],
-        live_processing: bool = True,
-        queue_name_override: str = None,
+            self,
+            contestant: "Contestant",
+            calculators: List[Callable],
+            live_processing: bool = True,
+            queue_name_override: str = None,
     ):
         calculator_is_alive(contestant.pk, 30)
         super().__init__()
@@ -79,6 +80,7 @@ class Gatekeeper(ABC):
         self.contestant = contestant
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.position_queue = RedisQueue(queue_name_override or str(contestant.pk))
+        self.score_processing_queue = Queue()
         self.last_termination_command_check = None
         self.track = []  # type: List[Position]
         self.score = 0
@@ -122,6 +124,12 @@ class Gatekeeper(ABC):
             )
         self.websocket_facade.transmit_delete_contestant(self.contestant)
         self.websocket_facade.transmit_contestant(self.contestant)
+        threading.Thread(target=self.score_updater_thread, daemon=True).start()
+
+    def score_updater_thread(self):
+        while True:
+            score = self.score_processing_queue.get(True)
+            self.contestant.contestanttrack.update_score(score)
 
     def report_calculator_danger_level(self):
         danger_levels = [0]
@@ -317,8 +325,8 @@ class Gatekeeper(ABC):
                 else:
                     self.latest_position_report = max(self.latest_position_report, p.time)
                 if len(self.track) > 0 and (
-                    (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude)
-                    or self.track[-1].time >= p.time
+                        (p.latitude == self.track[-1].latitude and p.longitude == self.track[-1].longitude)
+                        or self.track[-1].time >= p.time
                 ):
                     # Old or duplicate position, ignoring
                     continue
@@ -355,18 +363,18 @@ class Gatekeeper(ABC):
         calculator_is_terminated(self.contestant.pk)
 
     def update_score(
-        self,
-        gate: "Gate",
-        score: float,
-        message: str,
-        latitude: float,
-        longitude: float,
-        annotation_type: str,
-        score_type: str,
-        maximum_score: Optional[float] = None,
-        planned: Optional[datetime.datetime] = None,
-        actual: Optional[datetime.datetime] = None,
-        existing_reference: Tuple[int, int, float] = None,
+            self,
+            gate: "Gate",
+            score: float,
+            message: str,
+            latitude: float,
+            longitude: float,
+            annotation_type: str,
+            score_type: str,
+            maximum_score: Optional[float] = None,
+            planned: Optional[datetime.datetime] = None,
+            actual: Optional[datetime.datetime] = None,
+            existing_reference: Tuple[int, int, float] = None,
     ) -> Tuple[int, int, float]:
         """
 
@@ -447,14 +455,14 @@ class Gatekeeper(ABC):
                 score_log_entry=entry,
             )
             if score != 0:
-                self.contestant.contestanttrack.update_score(self.score)
+                self.score_processing_queue.put(self.score, True)
             return entry.pk, annotation.pk, score
         else:
             self.score = self.score - existing_reference[2] + score
             # if - existing_reference[2] + score > 0:
             ScoreLogEntry.update(existing_reference[0], message=message, points=score, string=string)
             TrackAnnotation.update(existing_reference[1], message=string)
-            self.contestant.contestanttrack.update_score(self.score)
+            self.score_processing_queue.put(self.score, True)
             return existing_reference[:2] + (score,)
 
     def create_gates(self) -> List[Gate]:
