@@ -13,9 +13,11 @@ TRACKER_NAME = "tracker"
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestContestantValidation(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, patch):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         self.contest = Contest.objects.create(name="TestContest",
                                               start_time=datetime.datetime.now(datetime.timezone.utc),
                                               finish_time=datetime.datetime.now(datetime.timezone.utc))
@@ -40,7 +42,7 @@ class TestContestantValidation(TransactionTestCase):
                                                             finished_by_time=datetime.datetime(2020, 1, 1, 12,
                                                                                                tzinfo=datetime.timezone.utc))
 
-    def test_overlapping_contestant_after(self, patch):
+    def test_overlapping_contestant_after(self, *args):
         with self.assertRaisesMessage(ValidationError,
                                       '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, \'2020-01-01T11:00:00+00:00\', \'2020-01-01T12:00:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
@@ -53,7 +55,7 @@ class TestContestantValidation(TransactionTestCase):
                                       finished_by_time=datetime.datetime(2020, 1, 1, 13,
                                                                          tzinfo=datetime.timezone.utc))
 
-    def test_overlapping_contestant_before(self, patch):
+    def test_overlapping_contestant_before(self, *args):
         with self.assertRaisesMessage(ValidationError,
                                       '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, \'2020-01-01T09:30:00+00:00\', \'2020-01-01T11:00:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
@@ -66,7 +68,7 @@ class TestContestantValidation(TransactionTestCase):
                                       finished_by_time=datetime.datetime(2020, 1, 1, 11,
                                                                          tzinfo=datetime.timezone.utc))
 
-    def test_overlapping_contestant_inside(self, patch):
+    def test_overlapping_contestant_inside(self, *args):
         with self.assertRaisesMessage(ValidationError,
                                       '"The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, \'2020-01-01T11:00:00+00:00\', \'2020-01-01T11:30:00+00:00\')]"'):
             Contestant.objects.create(team=self.team,
@@ -79,7 +81,7 @@ class TestContestantValidation(TransactionTestCase):
                                       finished_by_time=datetime.datetime(2020, 1, 1, 11, 30,
                                                                          tzinfo=datetime.timezone.utc))
 
-    def test_overlapping_contestant_outside(self, patch):
+    def test_overlapping_contestant_outside(self, *args):
         with self.assertRaisesMessage(ValidationError,
                                       '["The tracker \'tracker\' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, \'2020-01-01T09:30:00+00:00\', \'2020-01-01T12:00:00+00:00\')]"]'):
             Contestant.objects.create(team=self.team,
@@ -92,7 +94,7 @@ class TestContestantValidation(TransactionTestCase):
                                       finished_by_time=datetime.datetime(2020, 1, 1, 13,
                                                                          tzinfo=datetime.timezone.utc))
 
-    def test_no_overlap(self, patch):
+    def test_no_overlap(self, *args):
         try:
             Contestant.objects.create(team=self.team,
                                       navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
@@ -106,7 +108,7 @@ class TestContestantValidation(TransactionTestCase):
         except ValidationError:
             self.fail(" There is no overlap so there should be no validation error")
 
-    def test_take_off_before_tracking(self, patch):
+    def test_take_off_before_tracking(self, *args):
         with self.assertRaisesMessage(ValidationError,
                                       "Tracker start time '2020-01-02 14:00:00+00:00' is after takeoff time '2020-01-02 13:30:00+00:00' for contestant number 2"):
             Contestant.objects.create(team=self.team,
@@ -119,7 +121,7 @@ class TestContestantValidation(TransactionTestCase):
                                       finished_by_time=datetime.datetime(2020, 1, 2, 16,
                                                                          tzinfo=datetime.timezone.utc))
 
-    def test_finish_before_takeoff(self, patch):
+    def test_finish_before_takeoff(self, *args):
         with self.assertRaisesMessage(ValidationError,
                                       "Takeoff time '2020-01-02 13:30:00+00:00' is after finished by time '2020-01-02 13:15:00+00:00' for contestant number 2"):
             Contestant.objects.create(team=self.team,
@@ -132,7 +134,7 @@ class TestContestantValidation(TransactionTestCase):
                                       finished_by_time=datetime.datetime(2020, 1, 2, 13, 15,
                                                                          tzinfo=datetime.timezone.utc))
 
-    def test_calculator_started_nothing_modified(self, patch):
+    def test_calculator_started_nothing_modified(self, *args):
         contestant = Contestant.objects.create(team=self.team,
                                                navigation_task=self.navigation_task, tracking_device=TRACKING_DEVICE,
                                                takeoff_time=datetime.datetime(2020, 1, 2, 13, 30,
@@ -148,7 +150,7 @@ class TestContestantValidation(TransactionTestCase):
         contestant.takeoff_time = contestant.takeoff_time.replace(hour=contestant.takeoff_time.hour)
         contestant.save()
 
-    def test_calculator_started_modified_takeoff_time(self, patch):
+    def test_calculator_started_modified_takeoff_time(self, *args):
         with self.assertRaisesMessage(ValidationError,
                                       "Calculator has started for 2 - Mister Pilot in registration, it is not possible to change takeoff time"):
             contestant = Contestant.objects.create(team=self.team,
@@ -170,7 +172,8 @@ class TestContestantValidation(TransactionTestCase):
 
 class TestGetContestantForDevice(TransactionTestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, patch):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         self.contest = Contest.objects.create(name="TestContest",
                                               start_time=datetime.datetime.now(datetime.timezone.utc),
                                               finish_time=datetime.datetime.now(datetime.timezone.utc))

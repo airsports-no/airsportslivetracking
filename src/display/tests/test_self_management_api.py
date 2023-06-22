@@ -27,9 +27,11 @@ from utilities.mock_utilities import TraccarMock
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestContestantGatesCalculation(APITestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, patch):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         self.scorecard = get_default_scorecard()
         with open("display/tests/NM.csv", "r") as file:
             editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
@@ -73,7 +75,7 @@ class TestContestantGatesCalculation(APITestCase):
 
         self.user_someone_else = get_user_model().objects.create(email="withpermissions")
 
-    def test_self_management_signup(self, p):
+    def test_self_management_signup(self, *args):
         self.client.force_login(user=self.user_owner)
         data = {
             "starting_point_time": "2021-05-13T09:00:00Z",
@@ -100,7 +102,7 @@ class TestContestantGatesCalculation(APITestCase):
             datetime.datetime(2021, 5, 13, 11, 19, 52, tzinfo=datetime.timezone.utc), contestant.finished_by_time
         )
 
-    def test_self_management_signup_without_permissions(self, p):
+    def test_self_management_signup_without_permissions(self, *args):
         remove_perm("add_contest", self.user_owner, self.contest)
         remove_perm("view_contest", self.user_owner, self.contest)
         remove_perm("change_contest", self.user_owner, self.contest)
@@ -136,7 +138,7 @@ class TestContestantGatesCalculation(APITestCase):
             datetime.datetime(2021, 5, 13, 10, 19, 52, tzinfo=datetime.timezone.utc), contestant.finished_by_time
         )
 
-    def test_self_management_signup_not_available(self, p):
+    def test_self_management_signup_not_available(self, *args):
         self.navigation_task.allow_self_management = False
         self.navigation_task.save()
         self.client.force_login(user=self.user_owner)
@@ -157,7 +159,7 @@ class TestContestantGatesCalculation(APITestCase):
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_self_management_signup_another_team(self, p):
+    def test_self_management_signup_another_team(self, *args):
         self.navigation_task.is_public = True
         self.navigation_task.save()
 
@@ -179,7 +181,7 @@ class TestContestantGatesCalculation(APITestCase):
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_self_management_signup_not_signed_in(self, p):
+    def test_self_management_signup_not_signed_in(self, *args):
         data = {
             "starting_point_time": "2021-05-13T09:00:00Z",
             "contest_team": self.contest_team.pk,
@@ -197,7 +199,7 @@ class TestContestantGatesCalculation(APITestCase):
         print(result.content)
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_my_participation(self, p):
+    def test_my_participation(self, *args):
         with open("display/tests/NM.csv", "r") as file:
             editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
             route = editable_route.create_precision_route(True, self.scorecard)

@@ -16,7 +16,8 @@ def chop_microseconds(delta):
 
 class TestContestantGatesCalculation(TestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         scorecard = get_default_scorecard()
         with open("display/tests/NM.csv", "r") as file:
             editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
@@ -114,7 +115,8 @@ class TestContestantGatesCalculation(TestCase):
 
 class TestContestantGatesCalculationANRRounded(TestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         with open("display/tests/kjeller.kml", "r") as file:
             with patch(
                 "display.models.EditableRoute._create_route_and_thumbnail",
