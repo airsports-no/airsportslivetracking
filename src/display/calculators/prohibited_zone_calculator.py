@@ -1,4 +1,6 @@
 import logging
+import time
+from datetime import timedelta
 from typing import List, Callable, Optional
 
 from display.calculators.calculator import Calculator
@@ -32,7 +34,8 @@ class ProhibitedZoneCalculator(Calculator):
             type_filter: str = None,
     ):
         super().__init__(contestant, scorecard, gates, route, update_score)
-        self.inside_zones = set()
+        self.inside_zones = {}
+        self.zones_scored = set()
         self.gates = gates
         self.crossed_outside_time = None
         self.last_outside_penalty = None
@@ -41,6 +44,7 @@ class ProhibitedZoneCalculator(Calculator):
         self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
         self.zone_polygons = []
         self.running_penalty = {}
+        self.prohibited_zone_grace_time = timedelta(seconds=self.scorecard.prohibited_zone_grace_time)
         zones = route.prohibited_set.filter(type="prohibited")
         for zone in zones:
             self.zone_polygons.append((zone.name, self.polygon_helper.build_polygon(zone.path)))
@@ -61,7 +65,8 @@ class ProhibitedZoneCalculator(Calculator):
         else:
             return self._calculate_danger_level(track), sum([0] + list(self.running_penalty.values()))
 
-    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate", next_gate: Optional["Gate"]):
+    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate",
+                          next_gate: Optional["Gate"]):
         self.check_inside_prohibited_zone(track, last_gate)
 
     def check_inside_prohibited_zone(self, track: List["Position"], last_gate: Optional["Gate"]):
@@ -72,6 +77,10 @@ class ProhibitedZoneCalculator(Calculator):
         ):
             inside_this_time.add(inside)
             if inside not in self.inside_zones:
+                self.inside_zones[inside] = position.time
+            if inside not in self.zones_scored and position.time > self.inside_zones[
+                inside] + self.prohibited_zone_grace_time:
+                self.zones_scored.add(inside)
                 penalty = self.scorecard.prohibited_zone_penalty
                 self.running_penalty[inside] = penalty
                 self.update_score(
@@ -83,7 +92,11 @@ class ProhibitedZoneCalculator(Calculator):
                     "anomaly",
                     self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE,
                 )
-        for zone in self.inside_zones:
+        for zone in self.inside_zones.keys():
             if zone not in inside_this_time:
                 del self.running_penalty[zone]
-        self.inside_zones = inside_this_time
+                del self.inside_zones[zone]
+                try:
+                    self.zones_scored.remove(zone)
+                except KeyError:
+                    pass
