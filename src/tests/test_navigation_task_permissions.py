@@ -139,7 +139,8 @@ class TestAccessNavigationTask(APITestCase):
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
 
     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
-    def test_delete_self_registration(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def test_delete_self_registration(self, *args):
         self.generic_user = get_user_model().objects.create(email="name@domain.com")
         self.navigation_task.allow_self_management = True
         self.navigation_task.save()

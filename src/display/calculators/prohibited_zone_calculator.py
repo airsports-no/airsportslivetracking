@@ -1,5 +1,4 @@
 import logging
-import time
 from datetime import timedelta
 from typing import List, Callable, Optional
 
@@ -25,13 +24,13 @@ class ProhibitedZoneCalculator(Calculator):
     INSIDE_PROHIBITED_ZONE_PENALTY_TYPE = "inside_prohibited_zone"
 
     def __init__(
-            self,
-            contestant: "Contestant",
-            scorecard: "Scorecard",
-            gates: List["Gate"],
-            route: "Route",
-            update_score: Callable,
-            type_filter: str = None,
+        self,
+        contestant: "Contestant",
+        scorecard: "Scorecard",
+        gates: List["Gate"],
+        route: "Route",
+        update_score: Callable,
+        type_filter: str = None,
     ):
         super().__init__(contestant, scorecard, gates, route, update_score)
         self.inside_zones = {}
@@ -54,8 +53,9 @@ class ProhibitedZoneCalculator(Calculator):
         Danger level ranges from 0 to 100 where 100 is inside a prohibited zone
         """
         LOOKAHEAD_SECONDS = 40
-        shortest_time = get_shortest_intersection_time(track, self.polygon_helper, self.zone_polygons,
-                                                       LOOKAHEAD_SECONDS)
+        shortest_time = get_shortest_intersection_time(
+            track, self.polygon_helper, self.zone_polygons, LOOKAHEAD_SECONDS
+        )
         return 99 * (LOOKAHEAD_SECONDS - shortest_time) / LOOKAHEAD_SECONDS
 
     def get_danger_level_and_accumulated_score(self, track: List["Position"]):
@@ -65,21 +65,24 @@ class ProhibitedZoneCalculator(Calculator):
         else:
             return self._calculate_danger_level(track), sum([0] + list(self.running_penalty.values()))
 
-    def calculate_enroute(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate",
-                          next_gate: Optional["Gate"]):
+    def calculate_enroute(
+        self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate", next_gate: Optional["Gate"]
+    ):
         self.check_inside_prohibited_zone(track, last_gate)
 
     def check_inside_prohibited_zone(self, track: List["Position"], last_gate: Optional["Gate"]):
         position = track[-1]
         inside_this_time = set()
         for inside in self.polygon_helper.check_inside_polygons(
-                self.zone_polygons, position.latitude, position.longitude
+            self.zone_polygons, position.latitude, position.longitude
         ):
             inside_this_time.add(inside)
             if inside not in self.inside_zones:
                 self.inside_zones[inside] = position.time
-            if inside not in self.zones_scored and position.time > self.inside_zones[
-                inside] + self.prohibited_zone_grace_time:
+            if (
+                inside not in self.zones_scored
+                and position.time > self.inside_zones[inside] + self.prohibited_zone_grace_time
+            ):
                 self.zones_scored.add(inside)
                 penalty = self.scorecard.prohibited_zone_penalty
                 self.running_penalty[inside] = penalty

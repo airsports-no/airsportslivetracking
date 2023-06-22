@@ -28,9 +28,11 @@ TEAM_DATA = {
 
 
 @patch("display.models.get_traccar_instance", return_value=TraccarMock, autospec=True)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestTeamApi(APITestCase):
     @patch("display.models.get_traccar_instance", return_value=TraccarMock, autospec=True)
-    def setUp(self, p):
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
         self.user_owner = get_user_model().objects.create(email="withpermissions")
         self.user_owner.user_permissions.add(Permission.objects.get(codename="add_contest"),
                                              Permission.objects.get(codename="view_contest"),
@@ -67,28 +69,28 @@ class TestTeamApi(APITestCase):
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
 
-    def test_fetch_team_list_without_login(self, p):
+    def test_fetch_team_list_without_login(self, *args):
         self.client.logout()
         result = self.client.get(reverse("teams-list"))
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_fetch_team_list_as_user_with_privileges(self, p):
+    def test_fetch_team_list_as_user_with_privileges(self, *args):
         result = self.client.get(reverse("teams-list"))
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertEqual(1, len(result.json()))
 
-    def test_fetch_team_list_as_user_without_privileges(self, p):
+    def test_fetch_team_list_as_user_without_privileges(self, *args):
         self.client.force_login(self.user_without_permissions)
         result = self.client.get(reverse("teams-list"))
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_post_team_with_privileges(self, p):
+    def test_post_team_with_privileges(self, *args):
         result = self.client.post(reverse("teams-list"), TEAM_DATA, format="json")
         print(result)
         print(result.json())
@@ -96,20 +98,20 @@ class TestTeamApi(APITestCase):
         result = self.client.get(reverse("teams-list"))
         self.assertEqual(2, len(result.json()))
 
-    def test_post_team_without_privileges(self, p):
+    def test_post_team_without_privileges(self, *args):
         self.client.force_login(self.user_without_permissions)
         result = self.client.post(reverse("teams-list"), TEAM_DATA, format="json")
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_get_specific_team_with_privileges(self, p):
+    def test_get_specific_team_with_privileges(self, *args):
         result = self.client.get(reverse("teams-detail", kwargs={"pk": self.team.pk}))
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_200_OK)
 
-    def test_put_team_with_privileges(self, p):
+    def test_put_team_with_privileges(self, *args):
         result = self.client.post(reverse("teams-list"), TEAM_DATA, format="json")
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
         modified = deepcopy(TEAM_DATA)
@@ -126,7 +128,7 @@ class TestTeamApi(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertEqual(result.json()["crew"]["member1"]["email"], "name2@domain.com")
 
-    def test_patch_team_with_privileges(self, p):
+    def test_patch_team_with_privileges(self, *args):
         result = self.client.post(reverse("teams-list"), TEAM_DATA, format="json")
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
         modified = {"aeroplane": {"registration": "Different"}}
@@ -135,13 +137,13 @@ class TestTeamApi(APITestCase):
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_delete_team_with_privileges(self, p):
+    def test_delete_team_with_privileges(self, *args):
         result = self.client.delete(reverse("teams-detail", kwargs={"pk": self.team.pk}))
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_post_existing_team(self, p):
+    def test_post_existing_team(self, *args):
         result = self.client.post(reverse("teams-list"), TEAM_DATA, format="json")
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
         result = self.client.get(reverse("teams-list"))
