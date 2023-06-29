@@ -130,21 +130,26 @@ traccar:
   username: traccar
 
 externalMysql:
-  host: 10.95.240.3
+  host: 10.95.241.3
 
 externalRedis:
-  host: 10.95.241.11
+#  host: 10.95.241.11
   port: 6379
 
 redis:
-  enabled: false
+  enabled: true
   replica:
      disableCommands: []
      replicaCount: 0
   master:
-     disableCommands: []
+    disableCommands: []
+    resources:
+      requests:
+        cpu: 0.5m
+        memory: 1Gi
+
   auth:
-    enabled: true  # Default
+    enabled: false  # Default true
     password: simplepassword
 
 
@@ -155,7 +160,7 @@ wordpress:
     enabled: false
 
   externalDatabase:
-    host: 10.95.240.3
+    host: 10.95.241.3
     database: bitnami_wordpress
     user: bn_wordpress
 
@@ -193,7 +198,7 @@ wordpress:
   resources:
     requests:
       cpu: 250m
-  #    memory: 512mi
+      memory: 512mi
 
 
   # ConfigMap with custom wordpress-htaccess.conf file (requires allowOverrideNone to true)

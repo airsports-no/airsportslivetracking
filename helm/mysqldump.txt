@@ -31,3 +31,12 @@ az network public-ip create --resource-group MC_airsports_group_airsports2_north
 
 # Production WordPress chart version
 helm install wordpress bitnami/wordpress -f wordpress/private-values.yaml --namespace wordpress --version 13.0.11
+
+# temp mysql client
+kubectl run mysql-client --image=mysql:5.7 -it --rm --restart=Never -- /bin/bash
+
+mysql -h 10.95.241.3 -p
+
+GRANT ALL PRIVILEGES ON traccar.* To 'traccar'@'%';
+GRANT ALL PRIVILEGES ON tracker.* To 'tracker'@'%';
+GRANT ALL PRIVILEGES ON bitnami_wordpress.* To 'bn_wordpress'@'%';

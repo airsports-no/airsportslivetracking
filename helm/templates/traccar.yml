@@ -61,9 +61,6 @@ spec:
             requests:
               cpu: 1000m
               memory: 1.5Gi  # Uses 773Mi
-            limits:
-              cpu: 4000m
-              memory: 8024Mi
           command: ["java", "-Xms512m", "-Xmx512m", "-Djava.net.preferIPv4Stack=true"]
           args: ["-jar", "tracker-server.jar", "conf/traccar.xml"]
           ports:
