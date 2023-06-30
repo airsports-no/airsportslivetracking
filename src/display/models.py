@@ -65,7 +65,6 @@ from display.flight_order_and_maps.map_constants import (
     A4,
     PORTRAIT,
 )
-from display.flight_order_and_maps.map_plotter_shared_utilities import MAP_CHOICES
 from display.utilities.mbtiles_stitch import MBTilesHelper
 from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.poker.poker_cards import PLAYING_CARDS
@@ -1056,7 +1055,7 @@ class FlightOrderConfiguration(models.Model):
     map_zoom_level = models.IntegerField(default=12)
     map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
     map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
-    map_source = models.CharField(choices=MAP_CHOICES, default="cyclosm", max_length=50, blank=True)
+    map_source = models.CharField(choices=[], default="cyclosm", max_length=50, blank=True)
     map_user_source = models.ForeignKey(
         "UserUploadedMap",
         on_delete=models.SET_NULL,

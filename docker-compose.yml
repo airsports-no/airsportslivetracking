@@ -52,6 +52,7 @@ services:
       - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
       - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
       - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+      - GOOGLE_APPLICATION_CREDENTIALS=/secret/airsports-613ce-fb2048398826.json
     build:
       context: .
       dockerfile: Dockerfile

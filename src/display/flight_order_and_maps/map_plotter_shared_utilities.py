@@ -25,16 +25,16 @@ def folder_map_name(folder: str) -> str:
     return " ".join([item.capitalize() for item in elements])
 
 
-MAP_CHOICES = [(item["url"].split("/")[-1], item["name"]) for item in get_available_maps()] + [
-    ("osm", "OSM"),
-    ("fc", "Flight Contest"),
-    ("mto", "MapTiler Outdoor"),
-    ("cyclosm", "CycleOSM"),
-]
+def get_map_choices() -> list[tuple[str, str]]:
+    return [(item["url"].split("/")[-1], item["name"]) for item in get_available_maps()] + [
+        ("osm", "OSM"),
+        ("fc", "Flight Contest"),
+        ("mto", "MapTiler Outdoor"),
+        ("cyclosm", "CycleOSM"),
+    ]
 
 
 def qr_code_image(url: str, image_path: str):
-
     # taking image which user wants
     # in the QR code center
     logo = Image.open(image_path)

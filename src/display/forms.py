@@ -21,7 +21,7 @@ from display.flight_order_and_maps.map_constants import (
     A4,
     PORTRAIT,
 )
-from display.flight_order_and_maps.map_plotter_shared_utilities import MAP_CHOICES
+from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_choices
 from display.models import (
     NavigationTask,
     Contestant,
@@ -78,7 +78,7 @@ class MapForm(forms.Form):
 
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(
-        choices=MAP_CHOICES, help_text="Is overridden by user map source if set", required=False
+        choices=[], help_text="Is overridden by user map source if set", required=False
     )
     user_map_source = forms.ModelChoiceField(UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
@@ -89,6 +89,8 @@ class MapForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_tag = False
+        self.fields["map_source"].choices = get_map_choices()
+
 
 
 class ContestantMapForm(forms.Form):
@@ -98,7 +100,7 @@ class ContestantMapForm(forms.Form):
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=PORTRAIT)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(
-        choices=MAP_CHOICES, help_text="Is overridden by user map source if set", required=False
+        choices=[], help_text="Is overridden by user map source if set", required=False
     )
     user_map_source = forms.ModelChoiceField(UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False)
 
@@ -118,6 +120,7 @@ class ContestantMapForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_tag = False
+        self.fields["map_source"].choices = get_map_choices()
 
 
 class UserUploadedMapForm(forms.ModelForm):
@@ -154,8 +157,10 @@ class FlightOrderConfigurationForm(forms.ModelForm):
         model = FlightOrderConfiguration
         exclude = ("navigation_task", "document_size")
 
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["map_source"].choices = get_map_choices()
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(

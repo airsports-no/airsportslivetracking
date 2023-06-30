@@ -804,6 +804,7 @@ def get_contestant_map(request, pk):
     form.fields["user_map_source"].choices = [("", "----")] + [
         (item.map_file, item.name) for item in contestant.navigation_task.get_available_user_maps()
     ]
+    form.fields["user_map_source"].initial = contestant.navigation_task.flightorderconfiguration.map_user_source
 
     return render(
         request,
@@ -2715,15 +2716,12 @@ class ContestViewSet(ModelViewSet):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_queryset(self):
-        return (
-            get_objects_for_user(
-                self.request.user,
-                "display.view_contest",
-                klass=self.queryset,
-                accept_global_perms=False,
-            )
-            | self.queryset.filter(is_public=True, is_featured=True)
-        )
+        return get_objects_for_user(
+            self.request.user,
+            "display.view_contest",
+            klass=self.queryset,
+            accept_global_perms=False,
+        ) | self.queryset.filter(is_public=True, is_featured=True)
 
     @action(detail=False, methods=["get"])
     def results(self, request, *args, **kwargs):

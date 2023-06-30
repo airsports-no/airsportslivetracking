@@ -1,3 +1,4 @@
+django==4.1.7
 Babel==2.11.0
 Pillow==9.4.0
 SimConnect==0.4.26
@@ -25,7 +26,6 @@ django-storages[azure, google]
 django-timezone-field==5.0
 django-use-email-as-username==1.3.0
 django-webpack-loader==1.8.1
-django==4.1.7
 djangorestframework-guardian==0.3.0
 djangorestframework==3.14.0
 drf-firebase-auth==1.0.0

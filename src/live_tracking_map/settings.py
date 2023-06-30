@@ -262,8 +262,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
-GS_BUCKET_NAME = "airsports-maps"
-MEDIA_ROOT_URL = "storage.googleapis.com/airsports-maps"
+GS_BUCKET_NAME = "airsports-data"
+MEDIA_ROOT_URL = "storage.googleapis.com/airsports-data"
 GS_DEFAULT_ACL = "publicRead"
 
 # STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
