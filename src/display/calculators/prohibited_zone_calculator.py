@@ -97,7 +97,10 @@ class ProhibitedZoneCalculator(Calculator):
                 )
         for zone in list(self.inside_zones.keys()):
             if zone not in inside_this_time:
-                del self.running_penalty[zone]
+                try:
+                    del self.running_penalty[zone]
+                except KeyError:
+                    pass
                 del self.inside_zones[zone]
                 try:
                     self.zones_scored.remove(zone)

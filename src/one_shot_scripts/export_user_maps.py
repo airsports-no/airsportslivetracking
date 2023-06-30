@@ -5,7 +5,6 @@ Loop through the existing maps in the database and try to infer which local file
 from display.models import UserUploadedMap
 
 
-map = UserUploadedMap.objects.all().first()
 for map in UserUploadedMap.objects.all():
     if not map.map_file.name.startswith("user_uploaded"):
         print(map.map_file.name)
