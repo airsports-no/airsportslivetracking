@@ -80,7 +80,7 @@ ingress:
           pathType: Prefix
           serviceName: traccar-service
           servicePort: 8082
-    - host: home.gcloud.airsports.no
+    - host: home.airsports.no
       paths:
         - path: /
           pathType: Prefix
@@ -145,7 +145,7 @@ redis:
     disableCommands: []
     resources:
       requests:
-        cpu: 0.5m
+        cpu: 250m
         memory: 1Gi
 
   auth:
@@ -198,7 +198,7 @@ wordpress:
   resources:
     requests:
       cpu: 250m
-      memory: 512mi
+      memory: 512Mi
 
 
   # ConfigMap with custom wordpress-htaccess.conf file (requires allowOverrideNone to true)

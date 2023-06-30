@@ -4,6 +4,7 @@ metadata:
   name: managed-gcloud-cert
 spec:
   domains:
+    - home.airsports.no
     - gcloud.airsports.no
     - traccar.gcloud.airsports.no
     - traccarclient.gcloud.airsports.no

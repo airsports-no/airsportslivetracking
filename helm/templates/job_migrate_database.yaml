@@ -37,7 +37,7 @@ spec:
 #                do sleep 2;
 #              done
       containers:
-      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_web:{{ .Values.image.tag }}
+      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_daphne:{{ .Values.image.tag }}
         command: [ "bash", "-c", "python3 manage.py migrate && python3 manage.py createdefaultscores" ]
         name: tracker-migrate-db
         resources:
