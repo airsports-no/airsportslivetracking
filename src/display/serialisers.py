@@ -289,12 +289,12 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         return {"change_contest": [user], "delete_contest": [user], "view_contest": [user]}
 
     def get_visiblenavigationtasks(self, contest):
-        contests = get_objects_for_user(
-            self.context["request"].user, "display.view_contest", klass=Contest, accept_global_perms=False
+        user = self.context["request"].user
+        viewable_contest = user.has_perm("display.view_contest", contest)
+        items = filter(
+            lambda task: viewable_contest or (task.is_public and contest.is_publi and task.is_featured),
+            contest.navigationtask_set.all(),
         )
-        items = NavigationTask.objects.filter(
-            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
-        ).filter(contest_id=contest.pk)
         serialiser = NavigationTasksSummarySerialiser(items, many=True, read_only=True)
         return serialiser.data
 
@@ -309,15 +309,11 @@ class ContestSerialiserWithResults(ContestSerialiser):
 
 class ContestParticipationSerialiser(ContestSerialiser):
     def get_visiblenavigationtasks(self, contest):
-        contests = get_objects_for_user(
-            self.context["request"].user, "display.view_contest", klass=Contest, accept_global_perms=False
-        )
-        items = (
-            NavigationTask.objects.filter(
-                Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
-            )
-            .filter(contest_id=contest.pk)
-            .filter(allow_self_management=True)
+        user = self.context["request"].user
+        viewable_contest = user.has_perm("display.view_contest", contest)
+        items = filter(
+            lambda task: task.allow_self_management and (viewable_contest or (task.is_public and contest.is_publi and task.is_featured)),
+            contest.navigationtask_set.all(),
         )
         serialiser = NavigationTasksSummaryParticipationSerialiser(
             items, many=True, read_only=True, context={"request": self.context["request"]}
@@ -350,7 +346,7 @@ class WaypointSerialiser(serializers.Serializer):
     )
     gate_line_extended = serializers.JSONField(
         help_text="Coordinates that describe the starting point and finish point of the extended gate line, e.g. [[lat1,lon2],[lat2,lon2]",
-        required=False
+        required=False,
     )
     time_check = serializers.BooleanField()
     gate_check = serializers.BooleanField()

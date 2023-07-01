@@ -2686,7 +2686,7 @@ class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
             "display.view_contest",
             klass=self.queryset,
             accept_global_perms=False,
-        ).order_by("name")
+        ).prefetch_related("navigationtask_set").order_by("name")
 
 
 class ContestViewSet(ModelViewSet):
@@ -2716,12 +2716,12 @@ class ContestViewSet(ModelViewSet):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_queryset(self):
-        return get_objects_for_user(
+        return (get_objects_for_user(
             self.request.user,
             "display.view_contest",
             klass=self.queryset,
             accept_global_perms=False,
-        ) | self.queryset.filter(is_public=True, is_featured=True)
+        ) | self.queryset.filter(is_public=True, is_featured=True)).prefetch_related("navigationtask_set")
 
     @action(detail=False, methods=["get"])
     def results(self, request, *args, **kwargs):
