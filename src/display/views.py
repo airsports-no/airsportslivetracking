@@ -22,7 +22,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 from django.db import transaction, connection
-from django.db.models import Q, ProtectedError
+from django.db.models import Q, ProtectedError, Count
 from django import forms
 
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
@@ -2686,7 +2686,7 @@ class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
             "display.view_contest",
             klass=self.queryset,
             accept_global_perms=False,
-        ).prefetch_related("navigationtask_set").order_by("name")
+        ).annotate(Count("navigationtask", distinct=True)).order_by("name")
 
 
 class ContestViewSet(ModelViewSet):

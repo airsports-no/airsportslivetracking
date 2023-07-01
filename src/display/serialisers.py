@@ -266,10 +266,10 @@ class ContestFrontEndSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMi
         fields = ("id", "name", "editors", "start_time", "finish_time", "number_of_tasks", "share_string", "is_editor")
 
     def get_number_of_tasks(self, contest):
-        return contest.navigationtask_set.all().count()
+        return contest.navigationtask__count
 
     def get_is_editor(self, contest):
-        return self.context["request"].user in contest.editors
+        return self.context["request"].user.has_perm("display.change_contest", contest)
 
 
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, serializers.ModelSerializer):
@@ -292,7 +292,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         user = self.context["request"].user
         viewable_contest = user.has_perm("display.view_contest", contest)
         items = filter(
-            lambda task: viewable_contest or (task.is_public and contest.is_publi and task.is_featured),
+            lambda task: viewable_contest or (task.is_public and contest.is_public and task.is_featured),
             contest.navigationtask_set.all(),
         )
         serialiser = NavigationTasksSummarySerialiser(items, many=True, read_only=True)
@@ -312,7 +312,8 @@ class ContestParticipationSerialiser(ContestSerialiser):
         user = self.context["request"].user
         viewable_contest = user.has_perm("display.view_contest", contest)
         items = filter(
-            lambda task: task.allow_self_management and (viewable_contest or (task.is_public and contest.is_publi and task.is_featured)),
+            lambda task: task.allow_self_management
+            and (viewable_contest or (task.is_public and contest.is_public and task.is_featured)),
             contest.navigationtask_set.all(),
         )
         serialiser = NavigationTasksSummaryParticipationSerialiser(
