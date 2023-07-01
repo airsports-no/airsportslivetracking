@@ -394,6 +394,7 @@ class Gatekeeper(ABC):
         :param actual: The actual passing time if gate
         :return:
         """
+        logger.debug(f"Received score to log: {message}")
         self.score_processing_queue.put((gate, score, message, latitude, longitude, annotation_type, score_type, maximum_score, planned, actual))
 
     def update_score_from_thread(

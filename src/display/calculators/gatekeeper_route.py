@@ -457,7 +457,7 @@ class GatekeeperRoute(Gatekeeper):
     def notify_termination(self):
         super().notify_termination()
         logger.info(
-            f"{self.contestant}: {'Live processing and past' if self.live_processing else 'Past'} finish time, terminating"
+            f"{self.contestant}: {'Live processing' if self.live_processing else 'Offline processing'} {'past finish time' if datetime.datetime.now(datetime.timezone.utc)>self.contestant.finished_by_time else ''}, terminating"
         )
         self.miss_outstanding_gates()
         self.calculate_gate_score()
