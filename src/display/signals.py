@@ -214,7 +214,7 @@ def stop_any_calculators(sender, instance: Contestant, **kwargs):
 
     ws = WebsocketFacade()
     ws.transmit_delete_contestant(instance)
-    instance.blocking_request_calculator_termination()
+    instance.request_calculator_termination()
     ScoreLogEntry.objects.filter(contestant=instance).delete()
 
 

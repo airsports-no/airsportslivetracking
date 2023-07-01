@@ -85,11 +85,10 @@ def send(id, timestamp, lat, lon, speed):
 
 
 def send_data_thread(contestant, positions):
-    remaining = True
     logger.info(f"Started sending positions for {contestant}")
     start_time = datetime.datetime.now(datetime.timezone.utc)
     have_paused = False
-    while remaining:
+    while len(positions) > 0:
         while len(positions) > 0 and (positions[0]["device_time"] < datetime.datetime.now(datetime.timezone.utc)):
             if (
                 arguments.pause > 0
@@ -116,6 +115,7 @@ def send_data_thread(contestant, positions):
                 data["speed"],
             )
         time.sleep(1)
+    contestant.blocking_request_calculator_termination()
     logger.info(f"Completed sending positions for {contestant}")
 
 
