@@ -40,6 +40,7 @@ from django_countries.fields import CountryField
 from phonenumber_field.modelfields import PhoneNumberField
 from solo.models import SingletonModel
 
+from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_choices
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
@@ -1071,6 +1072,9 @@ class FlightOrderConfiguration(models.Model):
     )
     map_line_colour = models.CharField(default="#0000ff", max_length=7)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._meta.get_field('map_source').choices = get_map_choices()
 
 class Scorecard(models.Model):
     name = models.CharField(max_length=255, default="default", unique=True)

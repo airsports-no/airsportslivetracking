@@ -5,9 +5,12 @@
 
     {{ form.media }}
     {{ form.errors }}
-    <h2>Contestant optimisation</h2>
-    <b>Warning:</b> this might take some time, especially with a large number of teams (more than 30) when many share
-    the same aircraft. It should not take more than 10 minutes, or it will fail.<br/>
+    <h2>Contestant scheduling</h2>
+    Scheduling the contestants should ideally be done before the task starts.  Be aware that any contestant belonging
+    to a team not selected below will be removed. Scheduling existing contestants may change their takeoff times to
+    produce a valid solution. This will fail if any of the contestants have already started tracking since it is
+    impossible to update their takeoff time. The resulting solution will therefore maybe not be correct.
+
     <a href="{% url 'navigationtask_detail' navigation_task.pk %}">Back to task details</a>
     <p>
         <a href="#" onclick="select_all()">Select all</a>/<a href="#" onclick="deselect_all()">Deselect all</a>

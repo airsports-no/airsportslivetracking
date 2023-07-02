@@ -161,6 +161,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["map_source"].choices = get_map_choices()
+        print(self.fields["map_source"].choices)
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(

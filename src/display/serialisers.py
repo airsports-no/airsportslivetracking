@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
-from guardian.shortcuts import assign_perm, get_objects_for_user
+from guardian.shortcuts import assign_perm, get_objects_for_user, get_perms, get_user_perms
 from rest_framework import serializers
 from rest_framework.fields import MultipleChoiceField, SerializerMethodField
 from rest_framework.exceptions import ValidationError
@@ -269,7 +269,7 @@ class ContestFrontEndSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMi
         return contest.navigationtask__count
 
     def get_is_editor(self, contest):
-        return self.context["request"].user.has_perm("display.change_contest", contest)
+        return "change_contest" in get_user_perms(self.context["request"].user, contest)
 
 
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, serializers.ModelSerializer):
