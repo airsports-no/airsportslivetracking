@@ -51,7 +51,7 @@ ingress:
   className: ""
   annotations:
     kubernetes.io/ingress.global-static-ip-name: public
-    networking.gke.io/managed-certificates: managed-gcloud-cert
+    networking.gke.io/managed-certificates: airsports-no-cert
     kubernetes.io/ingress.class: "gce"
     nginx.ingress.kubernetes.io/proxy-body-size: "500m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
@@ -62,7 +62,7 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-http-version: "1.0"
     nginx.ingress.kubernetes.io/connection-proxy-header: "keep-alive"
   hosts:
-    - host: gcloud.airsports.no
+    - host: airsports.no
       paths:
         - path: /
           pathType: Prefix
@@ -74,7 +74,7 @@ ingress:
           pathType: Prefix
           serviceName: tracker-daphne-service
           servicePort: 80
-    - host: traccar.gcloud.airsports.no
+    - host: traccar.airsports.no
       paths:
         - path: /
           pathType: Prefix
@@ -86,7 +86,7 @@ ingress:
           pathType: Prefix
           serviceName: airsportsrelease-wordpress
           servicePort: 80
-    - host: traccarclient.gcloud.airsports.no
+    - host: traccarclient.airsports.no
       paths:
         - path: /
           pathType: Prefix

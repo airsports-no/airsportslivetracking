@@ -47,7 +47,7 @@ from display.utilities.calculator_termination_utilities import request_terminati
 from display.calculators.calculator_utilities import round_time_second
 from display.calculators.positions_and_gates import Position
 from display.utilities.clone_object import simple_clone
-from display.utilities.coordinate_utilities import bearing_difference
+from display.utilities.coordinate_utilities import bearing_difference, calculate_distance_lat_lon
 from display.utilities.country_code_utilities import get_country_code_from_location
 from display.utilities.editable_route_utilities import (
     create_track_block,
@@ -1074,7 +1074,8 @@ class FlightOrderConfiguration(models.Model):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._meta.get_field('map_source').choices = get_map_choices()
+        self._meta.get_field("map_source").choices = get_map_choices()
+
 
 class Scorecard(models.Model):
     name = models.CharField(max_length=255, default="default", unique=True)
@@ -1546,6 +1547,9 @@ gives a penalty of {scorecard.backtracking_penalty} points.
 {"The route has a takeoff gate." if self.navigation_task.route.first_takeoff_gate else ""} {"The route has a landing gate." if self.navigation_task.route.first_landing_gate else ""}
 """
 
+    def _poker_rule_description(self):
+        return """There are no specific rules for a poker run. Just cross the gates in the correct order to receive your playing cards."""
+
     def _anr_rule_description(self):
         scorecard = self.navigation_task.scorecard
         text = f"""For this task the corridor width is {"{:.2f}".format(self.navigation_task.route.corridor_width)} nm. 
@@ -1591,6 +1595,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             return self._anr_rule_description()
         if self.navigation_task.scorecard.calculator in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
             return self._air_sports_rule_description()
+        if self.navigation_task.scorecard.calculator == NavigationTask.POKER:
+            return self._poker_rule_description()
+        return "Missing rules"
 
     def __str__(self):
         return "{} - {}".format(self.contestant_number, self.team)
@@ -2728,7 +2735,7 @@ class UserUploadedMap(models.Model):
         upload_to="user_uploaded_maps",
         validators=[FileExtensionValidator(allowed_extensions=["mbtiles"]), validate_file_size],
         help_text="File must be of type MBTILES. This can be generated for instance using MapTile Desktop",
-        max_length=500
+        max_length=500,
     )
     thumbnail = models.ImageField(upload_to="map_thumbnails", blank=True, null=True, max_length=500)
     unprotected = models.BooleanField(default=False, help_text="If true, this map is globally available.")
@@ -2785,6 +2792,8 @@ class EditableRoute(models.Model):
     )
     name = models.CharField(max_length=200, help_text="User-friendly name")
     route = MyPickledObjectField(default=dict)
+    number_of_waypoints = models.IntegerField(default=0)
+    route_length = models.FloatField(default=0, help_text="NM")
     thumbnail = models.ImageField(upload_to="route_thumbnails/", blank=True, null=True)
 
     class Meta:
@@ -2801,6 +2810,20 @@ class EditableRoute(models.Model):
         users = get_users_with_perms(self, attach_perms=True)
         return [user for user, permissions in users.items() if "change_editableroute" in permissions]
 
+    def calculate_number_of_waypoints(self):
+        if track := self.get_track():
+            return len(track["track_points"])
+
+    def calculate_route_length(self):
+        initial_length = 0
+        if track := self.get_track():
+            path = track["geojson"]["geometry"]["coordinates"]
+            for index in range(0, len(path) - 1):
+                initial_length += calculate_distance_lat_lon(
+                    (path[index][1], path[index][0]), (path[index + 1][1], path[index + 1][0])
+                )
+        return initial_length
+
     def create_thumbnail(self) -> BytesIO:
         """
         Finds the smallest Zoom tile and returns this
@@ -2812,6 +2835,9 @@ class EditableRoute(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_track(self):
+        return next(filter(lambda item: item["feature_type"] == "track", self.route), None)
 
     def get_features_type(self, feature_type: str) -> List[Dict]:
         return [item for item in self.route if item["feature_type"] == feature_type]

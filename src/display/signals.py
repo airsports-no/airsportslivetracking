@@ -1,4 +1,5 @@
 import logging
+from functools import wraps
 from random import choice
 from string import ascii_uppercase, ascii_lowercase, digits
 
@@ -28,11 +29,32 @@ from display.models import (
     TRACKING_DEVICE,
     Person,
     MyUser,
+    EditableRoute,
 )
 from display.utilities.country_code_utilities import get_country_code_from_location
 from display.utilities.traccar_factory import get_traccar_instance
 
 logger = logging.getLogger(__name__)
+
+
+def prevent_recursion(func):
+    @wraps(func)
+    def no_recursion(sender, instance=None, **kwargs):
+        if not instance:
+            return
+
+        if hasattr(instance, "_dirty"):
+            return
+
+        func(sender, instance=instance, **kwargs)
+
+        try:
+            instance._dirty = True
+            instance.save()
+        finally:
+            del instance._dirty
+
+    return no_recursion
 
 
 @receiver(post_save, sender=TeamTestScore)
@@ -404,3 +426,10 @@ def adjust_group_notifications(instance, action, reverse, model, pk_set, using, 
                     instance.send_contest_creator_email(person)
     else:
         logger.info("Group %s is modifying its relation to users «%s»", instance, pk_set)
+
+
+@receiver(post_save, sender=EditableRoute)
+def calculate_editable_route_statistics(sender, instance: EditableRoute, **kwargs):
+    EditableRoute.objects.filter(pk=instance.pk).update(
+        number_of_waypoints=instance.calculate_number_of_waypoints(), route_length=instance.calculate_route_length()
+    )
