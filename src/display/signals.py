@@ -288,7 +288,9 @@ def initialise_navigation_task_dependencies(sender, instance: NavigationTask, cr
         if instance.route and len(instance.route.waypoints) > 0:
             waypoint = instance.route.waypoints[0]  # type: Waypoint
             country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
-        # country_code = instance.country_code
+            if instance.contest.latitude == instance.contest.longitude == 0:
+                instance.contest.latitude = waypoint.latitude
+                instance.contest.longitude = waypoint.longitude
         map_source = country_code_to_map_source(country_code)
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 

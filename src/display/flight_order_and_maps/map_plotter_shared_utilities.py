@@ -8,16 +8,6 @@ import qrcode
 
 from display.flight_order_and_maps.mbtiles_facade import get_available_maps
 
-OSM_MAP = 0
-N250_MAP = 1
-M517_BERGEN_MAP = 2
-GERMANY1 = 3
-TILE_MAP = {
-    N250_MAP: "Norway_N250",
-    M517_BERGEN_MAP: "m517_bergen",
-    GERMANY1: "germany_map",
-}
-
 
 def folder_map_name(folder: str) -> str:
     actual_map = folder.split("/")[-1]

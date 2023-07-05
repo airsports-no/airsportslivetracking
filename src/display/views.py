@@ -769,10 +769,6 @@ def get_contestant_map(request, pk):
                 include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"],
                 margins_mm=margin,
             )
-            # if int(form.cleaned_data["output_type"]) == PNG:
-            #     response = HttpResponse(map_image, content_type="image/png")
-            #     response["Content-Disposition"] = f"attachment; filename=map.png"
-            # else:
             pdf = embed_map_in_pdf(
                 "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
                 map_image.read(),
@@ -784,27 +780,28 @@ def get_contestant_map(request, pk):
             response = HttpResponse(pdf, content_type="application/pdf")
             response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
-    configuration = contestant.navigation_task.flightorderconfiguration
-    form = ContestantMapForm(
-        initial={
-            "dpi": configuration.map_dpi,
-            "zoom_level": configuration.map_zoom_level,
-            "orientation": configuration.map_orientation,
-            "scale": configuration.map_scale,
-            "map_source": configuration.map_source,
-            "user_map_source": configuration.map_user_source,
-            "include_annotations": configuration.map_include_annotations,
-            "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
-            "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
-            "line_width": configuration.map_line_width,
-            "minute_mark_line_width": configuration.map_minute_mark_line_width,
-            "colour": configuration.map_line_colour,
-        }
-    )
-    form.fields["user_map_source"].choices = [("", "----")] + [
-        (item.map_file, item.name) for item in contestant.navigation_task.get_available_user_maps()
-    ]
-    form.fields["user_map_source"].initial = contestant.navigation_task.flightorderconfiguration.map_user_source
+    else:
+        configuration = contestant.navigation_task.flightorderconfiguration
+        form = ContestantMapForm(
+            initial={
+                "dpi": configuration.map_dpi,
+                "zoom_level": configuration.map_zoom_level,
+                "orientation": configuration.map_orientation,
+                "scale": configuration.map_scale,
+                "map_source": configuration.map_source,
+                "user_map_source": configuration.map_user_source,
+                "include_annotations": configuration.map_include_annotations,
+                "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
+                "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
+                "line_width": configuration.map_line_width,
+                "minute_mark_line_width": configuration.map_minute_mark_line_width,
+                "colour": configuration.map_line_colour,
+            }
+        )
+        form.fields["user_map_source"].choices = [("", "----")] + [
+            (item.map_file, item.name) for item in contestant.navigation_task.get_available_user_maps()
+        ]
+        form.fields["user_map_source"].initial = contestant.navigation_task.flightorderconfiguration.map_user_source
 
     return render(
         request,
@@ -820,10 +817,6 @@ def get_contestant_map(request, pk):
 def update_flight_order_configurations(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     configuration = get_object_or_404(FlightOrderConfiguration, navigation_task__pk=pk)
-    form = FlightOrderConfigurationForm(instance=configuration)
-    form.fields["map_user_source"].queryset = UserUploadedMap.objects.filter(
-        pk__in=[item.pk for item in navigation_task.get_available_user_maps()]
-    )
     if request.method == "POST":
         form = FlightOrderConfigurationForm(request.POST, instance=configuration)
         form.fields["map_user_source"].queryset = UserUploadedMap.objects.filter(
@@ -832,6 +825,11 @@ def update_flight_order_configurations(request, pk):
         if form.is_valid():
             form.save()
             return redirect(reverse("navigationtask_detail", kwargs={"pk": pk}))
+    else:
+        form = FlightOrderConfigurationForm(instance=configuration)
+        form.fields["map_user_source"].queryset = UserUploadedMap.objects.filter(
+            pk__in=[item.pk for item in navigation_task.get_available_user_maps()]
+        )
     return render(
         request,
         "display/flight_order_configuration_form.html",
@@ -1069,23 +1067,24 @@ def get_navigation_task_map(request, pk):
 
             response["Content-Disposition"] = f"attachment; filename=map.pdf"
             return response
-    configuration = navigation_task.flightorderconfiguration
-    form = MapForm(
-        initial={
-            "zoom_level": configuration.map_zoom_level,
-            "orientation": configuration.map_orientation,
-            "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
-            "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
-            "scale": configuration.map_scale,
-            "map_source": configuration.map_source,
-            "user_map_source": configuration.map_user_source,
-            "dpi": configuration.map_dpi,
-            "line_width": configuration.map_line_width,
-            "colour": configuration.map_line_colour,
-        }
-    )
-    form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
-    form.fields["user_map_source"].initial = navigation_task.flightorderconfiguration.map_user_source
+    else:
+        configuration = navigation_task.flightorderconfiguration
+        form = MapForm(
+            initial={
+                "zoom_level": configuration.map_zoom_level,
+                "orientation": configuration.map_orientation,
+                "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
+                "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
+                "scale": configuration.map_scale,
+                "map_source": configuration.map_source,
+                "user_map_source": configuration.map_user_source,
+                "dpi": configuration.map_dpi,
+                "line_width": configuration.map_line_width,
+                "colour": configuration.map_line_colour,
+            }
+        )
+        form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
+        form.fields["user_map_source"].initial = navigation_task.flightorderconfiguration.map_user_source
     return render(
         request,
         "display/map_form.html",
@@ -2681,12 +2680,16 @@ class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
     permission_classes = [(permissions.IsAuthenticated & ContestPermissions)]
 
     def get_queryset(self):
-        return get_objects_for_user(
-            self.request.user,
-            "display.view_contest",
-            klass=self.queryset,
-            accept_global_perms=False,
-        ).annotate(Count("navigationtask", distinct=True)).order_by("name")
+        return (
+            get_objects_for_user(
+                self.request.user,
+                "display.view_contest",
+                klass=self.queryset,
+                accept_global_perms=False,
+            )
+            .annotate(Count("navigationtask", distinct=True))
+            .order_by("name")
+        )
 
 
 class ContestViewSet(ModelViewSet):
@@ -2716,12 +2719,15 @@ class ContestViewSet(ModelViewSet):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_queryset(self):
-        return (get_objects_for_user(
-            self.request.user,
-            "display.view_contest",
-            klass=self.queryset,
-            accept_global_perms=False,
-        ) | self.queryset.filter(is_public=True, is_featured=True)).prefetch_related("navigationtask_set")
+        return (
+            get_objects_for_user(
+                self.request.user,
+                "display.view_contest",
+                klass=self.queryset,
+                accept_global_perms=False,
+            )
+            | self.queryset.filter(is_public=True, is_featured=True)
+        ).prefetch_related("navigationtask_set")
 
     @action(detail=False, methods=["get"])
     def results(self, request, *args, **kwargs):

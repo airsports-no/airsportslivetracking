@@ -185,7 +185,7 @@ def create_minute_lines_track(
 
 
 def country_code_to_map_source(country_code: str) -> str:
-    map = {"no": "norway"}
+    map = {"no": "NorwayN250", "fi": "Finland200k"}
     return map.get(country_code, "cyclosm")
 
 
@@ -203,7 +203,7 @@ class UserUploadedMBTiles(GoogleWTS):
     def get_image(self, tile):
         global first
         x, y, z = tile
-        y = (2 ** z) - y - 1
+        y = (2**z) - y - 1
         try:
             with MBtiles(self.mbtiles_file) as src:
                 # tiles = src.list_tiles()
@@ -228,7 +228,7 @@ class UserUploadedMBTiles(GoogleWTS):
 class FlightContest(GoogleWTS):
     def _image_url(self, tile):
         x, y, z = tile
-        y = (2 ** z) - y - 1
+        y = (2**z) - y - 1
         return f"https://tiles.flightcontest.de/{z}/{x}/{y}.png"
 
     def get_image(self, tile):
