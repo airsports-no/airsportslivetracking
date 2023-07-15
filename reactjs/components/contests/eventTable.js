@@ -44,7 +44,7 @@ export const EventTable = (props) => {
             disableFilters: true,
             Cell: cellInfo => cellInfo.value.map((task, i) => [
                     i > 0 && ", ",
-                    <a href={task.tracking_link}>{task.name}</a>
+                    <a key={task.id + "_" + i} href={task.tracking_link}>{task.name}</a>
                 ]
             )
         },

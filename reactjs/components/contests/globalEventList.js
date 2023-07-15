@@ -87,6 +87,7 @@ class ConnectedGlobalEventList extends Component {
         if (contest.latitude !== 0 && contest.longitude !== 0) {
             this.props.zoomFocusContest(contest.id)
         }
+        this.props.hideEventSearchModal()
         this.props.navigate("/global/contest_details/" + contest.id + "/")
     }
 

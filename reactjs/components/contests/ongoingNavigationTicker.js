@@ -53,6 +53,9 @@ class ConnectedOngoingNavigationTicker extends Component {
             return null
         }
         const currentNavigation = this.props.ongoingNavigation[this.state.currentNavigationIndex]
+        if (currentNavigation === undefined) {
+            return null
+        }
         return <span className={"second-in-between"}>
                 <div
                     className={"list-group-item list-group-item-secondary list-group-item-action"}

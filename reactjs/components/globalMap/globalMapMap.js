@@ -75,6 +75,13 @@ const mapDispatchToProps = {
     globalMapStoreVisibleContests
 }
 
+function arrayEquals(a, b) {
+    return Array.isArray(a) &&
+        Array.isArray(b) &&
+        a.length === b.length &&
+        a.every((val, index) => val === b[index]);
+}
+
 
 class Aircraft {
     constructor(name, colour, initial_position, map, iconLayer, textLayer, ageTimeout, trafficSource) {
@@ -418,7 +425,7 @@ class ConnectedGlobalMapMap
     }
 
     componentDidUpdate(prevProps) {
-        if (prevProps.contests !== this.props.contests) {
+        if (this.props.contests && this.props.contests.length > 0 && !arrayEquals(prevProps.contests, this.props.contests)) {
             this.createMarkers()
         }
         if (prevProps.zoomContest !== this.props.zoomContest && this.map && this.props.zoomContest) {
