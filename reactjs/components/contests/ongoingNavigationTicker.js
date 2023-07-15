@@ -51,45 +51,36 @@ class ConnectedOngoingNavigationTicker extends Component {
     render() {
         if (this.props.ongoingNavigation.length === 0) {
             return null
-            // return <div className="card transparent-partial">
-            //     <div className={"card-body transparent-partial"}>
-            //         <div className={"card-text"}>
-            //             No active competitions
-            //         </div>
-            //     </div>
-            // </div>
         }
         const currentNavigation = this.props.ongoingNavigation[this.state.currentNavigationIndex]
-        return <div className="card">
-            {/*<h5 className={"card-header"}>*/}
-            {/*    Ongoing*/}
-            {/*    competition*/}
-            {/*</h5>*/}
-            <div className={"card-body"}>
-                <div className={"card-title"}>
-                    <h3>{currentNavigation.contest.name}</h3>
+        return <span className={"second-in-between"}>
+                <div
+                    className={"list-group-item list-group-item-secondary list-group-item-action"}
+                >
+                    {this.props.ongoingNavigation.length > 1 ?
+                        <a href={"#"} onClick={() => this.cycleNavigation()}
+                           className={"float-right"}>&gt;</a> : null}
+                    <b>Ongoing {this.state.currentNavigationIndex + 1}/{this.props.ongoingNavigation.length}</b>
+                    <br/>
+                    <img className={"img-fluid"}
+                         src={currentNavigation.contest.logo && currentNavigation.contest.logo.length > 0 ?
+                             currentNavigation.contest.logo : "/static/img/airsportslogo.png"}
+                         alt={"Event logo"}
+                         style={{width: "100%", maxHeight: "60px", maxWidth: "60px", float: "left"}}/>
+
+                         <span className={"d-flex justify-content-between align-items-centre"}
+                               style={{paddingLeft: "10px"}}>
+                             <span>
+                                 <b>{currentNavigation.contest.name}</b>
+                                 <a href={currentNavigation.tracking_link}>
+                                    <h5>{currentNavigation.name}</h5>
+                                </a>
+                             </span>
+                             <img src={currentNavigation.contest.country_flag_url} style={{height: "15px"}}
+                                  alt={"Country flag"}/>
+                    </span>
                 </div>
-                <div className={"card-text row"}>
-                    <div className={"col-4"}>
-                            <img
-                                src={currentNavigation.contest.logo && currentNavigation.contest.logo.length > 0 ? currentNavigation.contest.logo : "/static/img/airsportslogo.png"}
-                                alt={"Contest promo image"}
-                                style={{maxHeight: "200px", maxWidth: "100px", marginBottom: "5px"}}/>
-                    </div>
-                    <div className={"col-8"}>
-                        <a href={currentNavigation.tracking_link}>
-                            <h3>{currentNavigation.name}</h3>
-                        </a>
-                        {currentNavigation.active_contestants.length} active {currentNavigation.active_contestants.length > 1 ? "contestants" : "contestant"}
-                    </div>
-                </div>
-            </div>
-            <div className={"card-footer text-muted"}>
-                {this.props.ongoingNavigation.length > 1 ?
-                    <a href={"#"} onClick={() => this.cycleNavigation()} className={"float-right"}>&gt;</a> : null}
-                Ongoing competition {this.state.currentNavigationIndex + 1}/{this.props.ongoingNavigation.length}
-            </div>
-        </div>
+    </span>
     }
 }
 

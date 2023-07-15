@@ -19,6 +19,7 @@ import {Link, Navigate} from "react-router-dom";
 import {sortStartAndFinishTimes} from "./utilities";
 import {withParams} from "../../utilities";
 import {EventTable} from "./eventTable";
+import OngoingNavigationTicker from "./ongoingNavigationTicker";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -152,6 +153,7 @@ class ConnectedGlobalEventList extends Component {
                     <div className={"eventListScrolling"}>
                         <div id={"eventMenu"}>
                             <div className={"list-group"} id={"ongoing"}>
+                                <OngoingNavigationTicker/>
                                 <TimePeriodEventList contests={visibleEvents}
                                                      onClick={(contest) => this.handleContestClick(contest)}/>
                             </div>

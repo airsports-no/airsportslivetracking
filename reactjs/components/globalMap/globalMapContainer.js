@@ -48,7 +48,6 @@ class ConnectedGlobalMapContainer extends Component {
                             <img src={"/static/img/news.png"} style={{width: "50px"}} alt={"About"}/>
                         </a>
                         <div id="cesiumContainer"/>
-                        <div className="ongoing-navigation-ticker"><OngoingNavigationTicker/></div>
                     </div>
                 </div>
                 <GlobalMapMap/>
