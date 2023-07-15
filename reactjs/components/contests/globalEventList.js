@@ -48,9 +48,9 @@ class EventSearchModal extends Component {
                         Find contests
                     </Modal.Title>
                 </Modal.Header>
-                <Modal.Body className="show-grid">
+                <Modal.Body>
                     <Container>
-                        <EventTable contests={this.props.contests}/>
+                        <EventTable contests={this.props.contests} handleContestClick={this.props.handleContestClick}/>
                     </Container>
                 </Modal.Body>
             </Modal>
@@ -182,7 +182,7 @@ class ConnectedGlobalEventList extends Component {
 
             <EventSearchModal contests={this.props.contests} show={this.props.eventSearchModalShow}
                               handleContestClick={(contest) => this.handleContestClick(contest)}
-                              dialogClassName="modal-90w" onHide={() => this.props.hideEventSearchModal()}/>
+                              dialogClassName="modal-xl" onHide={() => this.props.hideEventSearchModal()}/>
             <ContestPopupModal contest={popupContest} show={popupContest !== undefined}
                                participation={currentParticipation}
                                onHide={() => this.props.navigate("/")}/>

@@ -229,7 +229,7 @@ export function ASTable({columns, data, rowEvents, initialState, className}) {
             data,
             defaultColumn, // Be sure to pass the defaultColumn option
             filterTypes,
-            initialState: initialState
+            initialState: initialState,
         },
         useFilters, // useFilters!
         useGlobalFilter, // useGlobalFilter!

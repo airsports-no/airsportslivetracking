@@ -1,3 +1,4 @@
+import {Link} from "react-router-dom";
 import React from "react";
 import {Form} from "react-bootstrap";
 import {ASTable} from "../filteredSearchableTable";
@@ -5,18 +6,21 @@ import {useEffect, useMemo, useState} from "react";
 import {Loading} from "../basicComponents";
 import {DateTime} from "luxon";
 
-export const EventTable = (contests) => {
+export const EventTable = (props) => {
     const columns = useMemo(() => [
         {
             Header: "Contest",
             accessor: "name",
-            Cell: cellInfo => <a href={"/display/contest/" + cellInfo.row.original.id + "/"}>{cellInfo.value}</a>
+            Cell: cellInfo => <a onClick={() => props.handleContestClick(cellInfo.row.original)}>{cellInfo.value}</a>
         },
         {
-            Header: "Sharing",
-            accessor: "share_string",
+            Header: "Registration",
             disableFilters: true,
-            disableSortBy: true,
+            accessor: (row, index) => {
+            },
+            Cell: cellInfo => <Link to={"/participation/" + cellInfo.row.original.id + "/register/"}>
+                <button className={"btn btn-info"}>Manage</button>
+            </Link>
         },
         {
             Header: "Start",
@@ -36,9 +40,13 @@ export const EventTable = (contests) => {
         },
         {
             Header: "Tasks",
-            accessor: "number_of_tasks",
+            accessor: "navigationtask_set",
             disableFilters: true,
-            style: {width: "80px"}
+            Cell: cellInfo => cellInfo.value.map((task, i) => [
+                    i > 0 && ", ",
+                    <a href={task.tracking_link}>{task.name}</a>
+                ]
+            )
         },
         // {
         //     Header: "Editors",
@@ -58,13 +66,16 @@ export const EventTable = (contests) => {
 
     const rowEvents = {
         // onClick: (row) => {
+        //     props.handleContestClick(row)
+        // }
+        // onClick: (row) => {
         //     window.location.href = "/display/contest/" + row.id + "/"
         // }
     }
     return (
         <div>
             <ASTable columns={columns}
-                     data={contests.contests}
+                     data={props.contests}
                      className={"table table-striped table-hover"} initialState={{
                 sortBy: [
                     {
