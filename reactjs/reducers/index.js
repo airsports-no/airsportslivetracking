@@ -15,7 +15,7 @@ import {
     EXPLICITLY_DISPLAY_ALL_TRACKS,
     GET_CONTESTS_SUCCESSFUL,
     GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
-    DISPLAY_PAST_EVENTS_MODAL,
+    DISPLAY_EVENT_SEARCH_MODAL,
     DISPLAY_DISCLAIMER_MODAL,
     FETCH_DISCLAIMER_SUCCESSFUL,
     DISPLAY_ABOUT_MODAL,
@@ -34,7 +34,12 @@ import {
     TOGGLE_DANGER_LEVEL,
     GET_NAVIGATION_TASK_FAILED,
     FETCH_INITIAL_TRACKS_FAILED,
-    CURRENT_TIME, NEW_CONTESTANT, DELETE_CONTESTANT, GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL, WEB_SOCKET_STATUS
+    CURRENT_TIME,
+    NEW_CONTESTANT,
+    DELETE_CONTESTANT,
+    GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL,
+    WEB_SOCKET_STATUS,
+    GLOBAL_MAP_SET_VISIBLE_CONTESTS
 } from "../constants/action-types";
 import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
 import {
@@ -67,7 +72,7 @@ const initialState = {
     highlightContestantTable: [],
     contests: [],
     zoomContest: null,
-    displayPastEventsModal: false,
+    displayEventSearchModal: false,
     displayAboutModal: false,
     tasks: {},
     taskTests: {},
@@ -91,7 +96,8 @@ const initialState = {
     editableRoutes: {},
     fetchingEditableRoute: false,
     initialTracks: {},
-    webSocketOnline: true
+    webSocketOnline: true,
+    globalMapVisibleContests: []
 };
 
 function emptyContestantData() {
@@ -389,9 +395,9 @@ function rootReducer(state = initialState, action) {
             zoomContest: action.payload
         })
     }
-    if (action.type === DISPLAY_PAST_EVENTS_MODAL) {
+    if (action.type === DISPLAY_EVENT_SEARCH_MODAL) {
         return Object.assign({}, state, {
-            displayPastEventsModal: action.payload
+            displayEventSearchModal: action.payload
         })
     }
     if (action.type === TOGGLE_GATE_ARROW) {
@@ -640,6 +646,11 @@ function rootReducer(state = initialState, action) {
             displayOpenAip: !state.displayOpenAip
         })
     }
+
+    if (action.type === GLOBAL_MAP_SET_VISIBLE_CONTESTS) {
+        return Object.assign({}, state, {...state, globalMapVisibleContests: action.payload})
+    }
+
     return state;
 }
 

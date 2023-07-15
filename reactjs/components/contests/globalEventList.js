@@ -2,12 +2,12 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
     displayAboutModal,
-    displayPastEventsModal,
-    hidePastEventsModal, zoomFocusContest
+    displayEventSearchModal,
+    hideEventSearchModal, zoomFocusContest
 } from "../../actions";
 import TimePeriodEventList from "./timePeriodEventList";
 import Icon from "@mdi/react";
-import {mdiAccountDetails, mdiCog, mdiLogin, mdiLogout} from '@mdi/js'
+import {mdiAccountDetails, mdiCog, mdiLogin, mdiLogout, mdiMapSearch} from '@mdi/js'
 import {Modal, Container} from "react-bootstrap";
 import ContestPopupItem from "./contestPopupItem";
 import ContestItem from "./contestItem";
@@ -18,42 +18,38 @@ import {
 import {Link, Navigate} from "react-router-dom";
 import {sortStartAndFinishTimes} from "./utilities";
 import {withParams} from "../../utilities";
+import {EventTable} from "./eventTable";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
-    pastEventsModalShow: state.displayPastEventsModal,
-    myParticipatingContests: state.myParticipatingContests
+    eventSearchModalShow: state.displayEventSearchModal,
+    myParticipatingContests: state.myParticipatingContests,
+    globalMapVisibleContests: state.globalMapVisibleContests
 })
 export const mapDispatchToProps = {
-    displayPastEventsModal, hidePastEventsModal, displayAboutModal, zoomFocusContest
+    displayEventSearchModal: displayEventSearchModal,
+    hideEventSearchModal: hideEventSearchModal,
+    displayAboutModal,
+    zoomFocusContest
 }
 
-class PastEvents extends Component {
+class EventSearchModal extends Component {
     constructor(props) {
         super(props)
     }
 
     render() {
-        let contestBoxes = this.props.contests.map((contest) => {
-            return <span key={contest.id + "past_event_span"} style={{width: "350px"}}
-                         onClick={()=>this.props.handleContestClick(contest)}><ContestItem
-                key={"contest" + contest.pk} contest={contest}/></span>
-        })
-
-        contestBoxes.reverse()
         return (
             <Modal {...this.props} aria-labelledby="contained-modal-title-vcenter">
 
                 <Modal.Header closeButton>
                     <Modal.Title id="contained-modal-title-vcenter">
-                        Past events
+                        Find contests
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body className="show-grid">
                     <Container>
-                        <ul className={"d-flex flex-wrap justify-content-around"} style={{paddingLeft: "0px"}}>
-                            {contestBoxes}
-                        </ul>
+                        <EventTable contests={this.props.contests}/>
                     </Container>
                 </Modal.Body>
             </Modal>
@@ -90,7 +86,7 @@ class ConnectedGlobalEventList extends Component {
         if (contest.latitude !== 0 && contest.longitude !== 0) {
             this.props.zoomFocusContest(contest.id)
         }
-        this.props.navigate("/global/contest_details/"+ contest.id + "/")
+        this.props.navigate("/global/contest_details/" + contest.id + "/")
     }
 
     getCurrentParticipation(contestId) {
@@ -102,7 +98,8 @@ class ConnectedGlobalEventList extends Component {
 
     render() {
         let settingsButton = null
-
+        const searchButton = <a className={"btn"} onClick={() => this.props.displayEventSearchModal()}><Icon
+            path={mdiMapSearch} size={1.1} color={"white"}/></a>
         if (document.configuration.managementLink) {
             settingsButton = <a className={"btn"} href={document.configuration.managementLink}>
                 <Icon path={mdiCog} title={"Settings"} size={1.1} color={"white"}/>
@@ -130,42 +127,19 @@ class ConnectedGlobalEventList extends Component {
                 <Icon path={mdiLogout} title={"Logout"} size={1.1} color={"white"}/>
             </a>
         }
-
-        const now = new Date()
-        const upcomingEvents = this.props.contests.filter((contest) => {
-            const startTime = new Date(contest.start_time)
-            const finishTime = new Date(contest.finish_time)
-            if (startTime > now) {
-                return contest
-            }
-        }).sort(sortStartAndFinishTimes)
-        const ongoingEvents = this.props.contests.filter((contest) => {
-            const startTime = new Date(contest.start_time)
-            const finishTime = new Date(contest.finish_time)
-            if (finishTime > now && startTime < now) {
-                return contest
-            }
-        }).sort(sortStartAndFinishTimes)
-        const earlierEvents = this.props.contests.filter((contest) => {
-            const startTime = new Date(contest.start_time)
-            const finishTime = new Date(contest.finish_time)
-            if (finishTime < now) {
-                return contest
-            }
+        const visibleEvents = this.props.contests.filter((contest) => {
+            return this.props.globalMapVisibleContests.includes(contest.id)
         }).sort(sortStartAndFinishTimes)
         const popupContest = this.props.contests.find((contest) => {
             return contest.id === this.props.contestDetailsId
         })
         const currentParticipation = this.getCurrentParticipation(this.props.contestDetailsId)
-        console.log("Pop-up contest")
-        console.log(popupContest)
-        console.log(currentParticipation)
         return <div>
             <div className={"globalMapBackdrop"}>
                 <div className={"flexWrapper"}>
                     <div
                         className={"titleWrapper"}>
-                        <a data-toggle={"collapse"} data-target={"#eventMenu"}
+                        <a data-toggle={"collapse"} data-target={"#ongoing"}
                            style={{paddingLeft: "14px", paddingRight: "12px"}}>
                             <i className={"eventTitle mdi mdi-menu"} id={'menuButton'}/>
                         </a>
@@ -173,43 +147,15 @@ class ConnectedGlobalEventList extends Component {
                            data-target={"#eventMenu"}>Events</a>
 
                         <span className={"eventTitle"}
-                              style={{float: "right"}}>{participationButton}{loginButton}{settingsButton}{logoutButton}</span>
+                              style={{float: "right"}}>{searchButton}{participationButton}{loginButton}{settingsButton}{logoutButton}</span>
                     </div>
                     <div className={"eventListScrolling"}>
-                        <div id={"eventMenu"} className={"collapse"}>
+                        <div id={"eventMenu"}>
                             <div className={"list-group"} id={"ongoing"}>
-                                <TimePeriodEventList contests={ongoingEvents}
+                                <TimePeriodEventList contests={visibleEvents}
                                                      onClick={(contest) => this.handleContestClick(contest)}/>
                             </div>
                             <div className={"list-group list-group-root"}>
-                                <a href={"#upcoming"}
-                                   className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
-                                   data-toggle={"collapse"}>
-                                    <span>Upcoming events</span>
-                                    <span style={{"paddingTop": "0.5em"}}
-                                          className={"badge badge-dark badge-pill"}>{upcomingEvents.length}</span>
-                                </a>
-                                <div className={"list-group collapse"} id={"upcoming"}>
-                                    <TimePeriodEventList contests={upcomingEvents}
-                                                         onClick={(contest) => this.handleContestClick(contest)}/>
-                                </div>
-                                <a href={"#past"}
-                                   className={"list-group-item list-group-item-action list-group-item-secondary d-flex justify-content-between align-items-centre"}
-                                   onClick={() => {
-                                       this.props.displayPastEventsModal()
-                                   }
-                                   }>
-                            <span>
-                            Past events
-                                </span>
-                                    <span style={{"paddingTop": "0.5em"}}
-                                          className={"badge badge-dark badge-pill"}>{earlierEvents.length}</span>
-                                </a>
-                                <a
-                                    className={"list-group-item list-group-item-action list-group-item-secondary align-items-centre"}
-                                    onClick={this.props.displayAboutModal}>About live tracking
-
-                                </a>
                                 <div
                                     className={"d-flex justify-content-around list-group-item list-group-item-action list-group-item-secondary align-items-centre"}
                                     style={{paddingBottom: 0, paddingTop: 0}}>
@@ -232,10 +178,11 @@ class ConnectedGlobalEventList extends Component {
                 </div>
             </div>
 
-            <PastEvents contests={earlierEvents} show={this.props.pastEventsModalShow}
-                        handleContestClick={(contest)=>this.handleContestClick(contest)}
-                        dialogClassName="modal-90w" onHide={() => this.props.hidePastEventsModal()}/>
-            <ContestPopupModal contest={popupContest} show={popupContest !== undefined} participation={currentParticipation}
+            <EventSearchModal contests={this.props.contests} show={this.props.eventSearchModalShow}
+                              handleContestClick={(contest) => this.handleContestClick(contest)}
+                              dialogClassName="modal-90w" onHide={() => this.props.hideEventSearchModal()}/>
+            <ContestPopupModal contest={popupContest} show={popupContest !== undefined}
+                               participation={currentParticipation}
                                onHide={() => this.props.navigate("/")}/>
         </div>
     }

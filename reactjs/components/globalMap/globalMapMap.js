@@ -2,7 +2,7 @@ import React, {Component} from "react";
 import {connect} from "react-redux";
 
 import {w3cwebsocket as W3CWebSocket} from "websocket";
-import {fetchMyParticipatingContests, zoomFocusContest} from "../../actions";
+import {fetchMyParticipatingContests, globalMapStoreVisibleContests, zoomFocusContest} from "../../actions";
 import ReactDOMServer from "react-dom/server";
 import {
     balloon,
@@ -18,8 +18,8 @@ import {
     tower
 } from "../aircraft/aircraft";
 
-import ContestsGlobalMap from "../contests/contestsGlobalMap";
 import {Jawg_Sunny} from "../leafletLayers";
+import ContestPopupItem from "../contests/contestPopupItem";
 
 const ognAircraftTypeMap = {
     0: jet,
@@ -71,7 +71,8 @@ const mapStateToProps = (state, props) => ({
 })
 const mapDispatchToProps = {
     zoomFocusContest,
-    fetchMyParticipatingContests
+    fetchMyParticipatingContests,
+    globalMapStoreVisibleContests
 }
 
 
@@ -307,6 +308,8 @@ class ConnectedGlobalMapMap
         this.connectInterval = null;
         this.wsTimeOut = 1000
         this.bounds = null
+        this.L = window['L']
+        this.markers = {}
         this.purgePositions = this.purgePositions.bind(this)
         setInterval(this.purgePositions, this.purgeInterval * 1000)
     }
@@ -415,16 +418,17 @@ class ConnectedGlobalMapMap
     }
 
     componentDidUpdate(prevProps) {
-        if (prevProps.zoomContest !== this.props.zoomContest && this.map && this.props.zoomContest) {
-            const contest = this.props.contests.find((contest) => {
-                if (contest.id === this.props.zoomContest) {
-                    return contest
-                }
-            })
-            if (contest) {
-                this.map.flyTo([contest.latitude, contest.longitude], 8)
-            }
+        if (prevProps.contests !== this.props.contests) {
+            this.createMarkers()
         }
+        if (prevProps.zoomContest !== this.props.zoomContest && this.map && this.props.zoomContest) {
+            if (prevProps.zoomContest) {
+                this.markers[prevProps.zoomContest].closePopup()
+            }
+            this.markers[this.props.zoomContest].openPopup()
+            this.map.flyTo(this.markers[this.props.zoomContest])
+        }
+
     }
 
     componentDidMount() {
@@ -447,6 +451,17 @@ class ConnectedGlobalMapMap
             }
             this.client.send(JSON.stringify(data))
         }
+    }
+
+    updateVisibleContests() {
+        const extent = this.map.getBounds()
+        let visibleIds = []
+        for (const [key, value] of Object.entries(this.markers)) {
+            if (extent.contains(value.getLatLng())) {
+                visibleIds.push(parseInt(key))
+            }
+        }
+        this.props.globalMapStoreVisibleContests(visibleIds)
     }
 
     initialiseMap() {
@@ -475,6 +490,7 @@ class ConnectedGlobalMapMap
         this.setState({map: this.map})
         this.map.on("zoomend", (e) => {
             this.sendUpdatedPosition()
+            this.updateVisibleContests()
             if (this.map.getZoom() < 7) {
                 this.externalPositionText.removeFrom(this.map)
                 this.internalPositionText.removeFrom(this.map)
@@ -490,13 +506,44 @@ class ConnectedGlobalMapMap
                 this.bounds = this.map.getBounds()
             }
             this.sendUpdatedPosition()
+            this.updateVisibleContests()
             this.clearAircraftNotVisible()
         })
     }
 
+    getCurrentParticipation(contestId) {
+        if (!this.props.myParticipatingContests) return null
+        return this.props.myParticipatingContests.find((participation) => {
+            return participation.contest.id === contestId
+        })
+    }
+
+    createMarkers() {
+        const now = new Date()
+        const futureOrOngoingContests = this.props.contests.filter((contest) => {
+            return contest.latitude !== 0 && contest.longitude !== 0 && new Date(contest.finish_time).getTime() > now.getTime()
+        })
+        for (let contest of futureOrOngoingContests) {
+            this.markers[contest.id] = this.L.marker([contest.latitude, contest.longitude], {
+                title: contest.name,
+                zIndexOffset: 1000000,
+                riseOnHover: true
+
+            }).addTo(this.map)
+            this.markers[contest.id].bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={contest}
+                                                                                               participation={this.getCurrentParticipation(contest.id)}/>), {
+                className: "contest-popup",
+                maxWidth: 350,
+                permanent: false,
+                direction: "center"
+            })
+        }
+        this.updateVisibleContests()
+    }
+
 
     render() {
-        return <ContestsGlobalMap map={this.state.map}/>
+        return null
     }
 
 }

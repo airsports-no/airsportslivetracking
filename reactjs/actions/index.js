@@ -15,7 +15,7 @@ import {
     EXPLICITLY_DISPLAY_ALL_TRACKS,
     GET_CONTESTS_SUCCESSFUL,
     GLOBAL_MAP_ZOOM_FOCUS_CONTEST,
-    DISPLAY_PAST_EVENTS_MODAL,
+    DISPLAY_EVENT_SEARCH_MODAL,
     DISPLAY_DISCLAIMER_MODAL,
     FETCH_DISCLAIMER_SUCCESSFUL,
     DISPLAY_ABOUT_MODAL,
@@ -35,7 +35,12 @@ import {
     TOGGLE_DANGER_LEVEL,
     GET_NAVIGATION_TASK_FAILED,
     FETCH_INITIAL_TRACKS_FAILED,
-    CURRENT_TIME, NEW_CONTESTANT, DELETE_CONTESTANT, GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL, WEB_SOCKET_STATUS
+    CURRENT_TIME,
+    NEW_CONTESTANT,
+    DELETE_CONTESTANT,
+    GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL,
+    WEB_SOCKET_STATUS,
+    GLOBAL_MAP_SET_VISIBLE_CONTESTS
 } from "../constants/action-types";
 
 export function setDisplay(payload) {
@@ -156,12 +161,12 @@ export const zoomFocusContest = (data) => (dispatch) => {
     dispatch({type: GLOBAL_MAP_ZOOM_FOCUS_CONTEST, payload: data})
 }
 
-export const displayPastEventsModal = () => (dispatch) => {
-    dispatch({type: DISPLAY_PAST_EVENTS_MODAL, payload: true})
+export const displayEventSearchModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_EVENT_SEARCH_MODAL, payload: true})
 }
 
-export const hidePastEventsModal = () => (dispatch) => {
-    dispatch({type: DISPLAY_PAST_EVENTS_MODAL, payload: false})
+export const hideEventSearchModal = () => (dispatch) => {
+    dispatch({type: DISPLAY_EVENT_SEARCH_MODAL, payload: false})
 }
 
 
@@ -260,4 +265,8 @@ export const fetchInitialTracks = (contestId, navigationTaskId, contestantId) =>
         success: value => dispatch({type: FETCH_INITIAL_TRACKS_SUCCESS, payload: value, contestantId: contestantId}),
         error: error => dispatch({type: FETCH_INITIAL_TRACKS_FAILED, payload: error, contestantId: contestantId})
     });
+}
+
+export const globalMapStoreVisibleContests = (visibleContests) => (dispatch) => {
+    dispatch({type: GLOBAL_MAP_SET_VISIBLE_CONTESTS, payload: visibleContests})
 }

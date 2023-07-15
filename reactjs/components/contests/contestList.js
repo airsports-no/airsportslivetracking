@@ -86,7 +86,7 @@ export const ContestList = () => {
                     sortBy: [
                         {
                             id: "Start",
-                            desc: false
+                            desc: true
                         }
                     ]
                 }}
