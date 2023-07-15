@@ -185,13 +185,13 @@ class MyUser(BaseUser, GuardianUserMixin):
         try:
             html = render_deletion_email()
             if len(html) == 0:
-                raise Exception("Did not receive any text for welcome email")
+                raise Exception("Did not receive any text for deletion email")
             converter = html2text.HTML2Text()
             plaintext = converter.handle(html)
-            logger.debug(f"Sending contest creation email to {self.email}")
+            logger.debug(f"Sending user deletion email to {self.email}")
             try:
                 send_mail(
-                    f"You have been granted contest creation privileges at Air Sports Live Tracking",
+                    f"Your user profile has been deleted from Air Sports Live Tracking",
                     plaintext,
                     None,  # Should default to system from email
                     recipient_list=[self.email, "support@airsports.no"],

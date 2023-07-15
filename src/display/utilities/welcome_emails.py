@@ -28,8 +28,8 @@ def render_contest_creation_email(person: "Person") -> str:
 
 
 def render_deletion_email():
-    welcome = get_page(DELETION_EMAIL_PAGE).get("content", {}).get("rendered", "")
+    deletion = get_page(DELETION_EMAIL_PAGE).get("content", {}).get("rendered", "")
     signature = get_page(EMAIL_SIGNATURE_PAGE).get("content", {}).get("rendered", "")
-    template = Template(HEADER + welcome + signature + FOOTER)
+    template = Template(HEADER + deletion + signature + FOOTER)
     context = Context()
     return template.render(context)

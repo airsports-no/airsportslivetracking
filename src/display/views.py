@@ -9,8 +9,8 @@ import gpxpy
 import zipfile
 from crispy_forms.layout import Fieldset
 from django.contrib import messages
-from django.contrib.auth import login, get_user_model
-from django.contrib.auth.decorators import permission_required, user_passes_test
+from django.contrib.auth import login, get_user_model, logout
+from django.contrib.auth.decorators import permission_required, user_passes_test, login_required
 from django.contrib.auth.mixins import (
     PermissionRequiredMixin,
     LoginRequiredMixin,
@@ -21,6 +21,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
+from django.core.mail import send_mail
 from django.db import transaction, connection
 from django.db.models import Q, ProtectedError, Count
 from django import forms
@@ -212,6 +213,7 @@ from display.tasks import (
 )
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
 from live_tracking_map import settings
+from slack_facade import post_slack_message
 from websocket_channels import (
     WebsocketFacade,
     generate_contestant_data_block,
@@ -359,6 +361,28 @@ def manifest(request):
     }
     return JsonResponse(data)
 
+def user_start_request_profile_deletion(request):
+    """
+    We must provide this link to Google so that it can be included in the play store listing.
+    """
+    return render(request, "display/request_profile_deletion.html")
+
+@login_required
+def user_request_profile_deletion(request):
+    try:
+        send_mail(
+            f"User requested profile deletion",
+            f"The user {request.user.email} has requested their profile to be deleted",
+            None,  # Should default to system from email
+            recipient_list=["support@airsports.no"],
+        )
+    except:
+        logger.error(f"Failed sending email about deleting user profile for {request.user.email}")
+        post_slack_message("Exception", f"Failed sending email about deleting user profile for {request.user.email}")
+    messages.info(request, f"Your request for deleting your user profile has been submitted")
+    logout(request)
+    return redirect("/")
+
 
 @user_passes_test(lambda u: u.is_superuser)
 def delete_user_and_person(request):
@@ -382,6 +406,7 @@ def delete_user_and_person(request):
                     person.delete()
                     messages.success(request, f"Successfully deleted {person}")
                 except ProtectedError:
+                    my_user.send_deletion_email()
                     person.first_name = "Unknown"
                     person.last_name = "Unknown"
                     person.email = f"internal_{person.pk}@airsports.no"

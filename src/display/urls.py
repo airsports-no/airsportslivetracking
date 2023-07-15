@@ -95,8 +95,12 @@ from display.views import (
     list_editableroute_permissions,
     add_user_editableroute_permissions,
     change_user_editableroute_permissions,
-    delete_user_editableroute_permissions, StatisticsView,
-    import_route, delete_user_and_person,
+    delete_user_editableroute_permissions,
+    StatisticsView,
+    import_route,
+    delete_user_and_person,
+    user_start_request_profile_deletion,
+    user_request_profile_deletion,
 )
 
 urlpatterns = [
@@ -297,6 +301,8 @@ urlpatterns = [
     path("navigationtaskwizard/<int:contest_pk>/", NewNavigationTaskWizard.as_view(), name="navigationtaskwizard"),
     path("person/<int:pk>/update/", PersonUpdateView.as_view(), name="person_update"),
     path("person/signuplist/", get_persons_for_signup, name="get_persons_for_signup"),
+    path("person/request_deletion/", user_start_request_profile_deletion, name="user_start_request_profile_deletion"),
+    path("person/request_deletion_confirm/", user_request_profile_deletion, name="user_request_profile_deletion"),
     path("person/", PersonList.as_view(), name="person_list"),
     path("manifest/", manifest, name="tracking_manifest"),
     path("editableroute/", EditableRouteList.as_view(), name="editableroute_list"),
