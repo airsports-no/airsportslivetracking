@@ -2752,7 +2752,7 @@ class ContestViewSet(ModelViewSet):
                 accept_global_perms=False,
             )
             | self.queryset.filter(is_public=True, is_featured=True)
-        ).prefetch_related("navigationtask_set")
+        ).prefetch_related("navigationtask_set", "contest_teams")
 
     @action(detail=False, methods=["get"])
     def results(self, request, *args, **kwargs):
