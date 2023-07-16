@@ -3410,6 +3410,9 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
             )
             instance.minimum_zoom_level = minimum_zoom
             instance.maximum_zoom_level = maximum_zoom
+            if not minimum_zoom<=instance.default_zoom_level<=maximum_zoom:
+                form.add_error("default_zoom_level", f"The selected default zoom level {instance.default_zoom_level} is not in the range supported by the map: [{minimum_zoom}, {maximum_zoom}]")
+                return super().form_invalid(form)
             instance.save()
         except Exception as ex:
             logger.exception(f"Failed creating thumbnail")
@@ -3445,6 +3448,9 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
             )
             instance.minimum_zoom_level = minimum_zoom
             instance.maximum_zoom_level = maximum_zoom
+            if not minimum_zoom<=instance.default_zoom_level<=maximum_zoom:
+                form.add_error("default_zoom_level", f"The selected default zoom level {instance.default_zoom_level} is not in the range supported by the map: [{minimum_zoom}, {maximum_zoom}]")
+                return super().form_invalid(form)
             instance.save()
         except Exception as ex:
             logger.exception(f"Failed creating thumbnail")

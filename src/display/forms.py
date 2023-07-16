@@ -146,7 +146,7 @@ class UserUploadedMapForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.layout = Layout(
-            Fieldset("User map", "name", "map_file"),
+            Fieldset("User map", "name", "default_zoom_level", "map_file"),
             Field("user", type="hidden"),
             ButtonHolder(Submit("submit", "Submit")),
         )
