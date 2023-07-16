@@ -3,8 +3,8 @@
 {% load tz %}
 {% block content %}
     <H1>{{ object.name }} ({{ object.share_string }})</H1>
-    {{ object.start_time|date:"Y-m-d H:i:s e" }} -
-    {{ object.finish_time|date:"Y-m-d H:i:s e" }}
+    {{ object.start_time|date:"Y-m-d" }} -
+    {{ object.finish_time|date:"Y-m-d" }} {{ object.start_time|date:"e" }}
     <p>
         {% get_obj_perms request.user for contest as "contest_permissions" %}
 

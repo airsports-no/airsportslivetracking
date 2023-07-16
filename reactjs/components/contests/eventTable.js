@@ -10,34 +10,36 @@ export const EventTable = (props) => {
     const columns = useMemo(() => [
         {
             Header: "Contest",
-            accessor: "name",
-            Cell: cellInfo => <a onClick={() => props.handleContestClick(cellInfo.row.original)}>{cellInfo.value}</a>
-        },
-        {
-            Header: "Registration",
-            disableFilters: true,
+            // accessor: "name",
             accessor: (row, index) => {
-            },
-            Cell: cellInfo => <Link to={"/participation/" + cellInfo.row.original.id + "/register/"}>
-                <button className={"btn btn-info"}>{cellInfo.row.original.registered?"Manage":"Register"}</button>
-            </Link>
+                 return row.name + " ("+DateTime.fromISO(row.start_time).toISODate()+")"
+             },
+            Cell: cellInfo => <a href={"#"} onClick={() => props.handleContestClick(cellInfo.row.original)}>{cellInfo.value}</a>,
         },
-        {
-            Header: "Start",
-            accessor: (row, index) => {
-                return DateTime.fromISO(row.start_time).toISODate()
-            },
-            disableFilters: true,
-            style: {width: "100px"}
-        },
-        {
-            Header: "Finish",
-            accessor: (row, index) => {
-                return DateTime.fromISO(row.finish_time).toISODate()
-            },
-            disableFilters: true,
-            style: {width: "100px"}
-        },
+        // {
+        //     Header: "Registration",
+        //     disableFilters: true,
+        //     accessor: (row, index) => {
+        //     },
+        //     Cell: cellInfo => <Link to={"/participation/" + cellInfo.row.original.id + "/register/"}>
+        //         <button className={"btn btn-info"}>{cellInfo.row.original.registered?"Manage":"Register"}</button>
+        //     </Link>
+        // },
+        // {
+        //     Header: "Start",
+        //     accessor: (row, index) => {
+        //         return DateTime.fromISO(row.start_time).toISODate()
+        //     },
+        //     disableFilters: true,
+        // },
+        // {
+        //     Header: "Finish",
+        //     accessor: (row, index) => {
+        //         return DateTime.fromISO(row.finish_time).toISODate()
+        //     },
+        //     disableFilters: true,
+        //     style: {width: "100px"}
+        // },
         {
             Header: "Tasks",
             accessor: "navigationtask_set",

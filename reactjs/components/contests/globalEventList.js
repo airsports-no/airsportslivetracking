@@ -20,6 +20,7 @@ import {sortStartAndFinishTimes} from "./utilities";
 import {withParams} from "../../utilities";
 import {EventTable} from "./eventTable";
 import OngoingNavigationTicker from "./ongoingNavigationTicker";
+import {Loading} from "../basicComponents";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -154,7 +155,9 @@ class ConnectedGlobalEventList extends Component {
                     <div className={"eventListScrolling"}>
                         <div id={"eventMenu"}>
                             <div className={"list-group"} id={"ongoing"}>
-                                <OngoingNavigationTicker/>
+                                {this.props.contests.length > 0 ? <OngoingNavigationTicker/> : <div
+                                    className={"list-group-item list-group-item-secondary list-group-item-action"}
+                                ><Loading/></div>}
                                 <TimePeriodEventList contests={visibleEvents}
                                                      onClick={(contest) => this.handleContestClick(contest)}/>
                             </div>

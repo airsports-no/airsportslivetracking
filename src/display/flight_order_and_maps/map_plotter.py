@@ -185,8 +185,7 @@ def create_minute_lines_track(
 
 
 def country_code_to_map_source(country_code: str) -> str:
-    map = {"no": "Norway250k", "fi": "Finland200k"}
-    return map.get(country_code, "cyclosm")
+    return {"no": "Norway250k", "fi": "Finland200k", "se": "Sweden100k"}.get(country_code, "cyclosm")
 
 
 first = True
