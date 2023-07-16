@@ -65,7 +65,7 @@ class ShareForm(forms.Form):
 
 class MapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
-    zoom_level = forms.IntegerField(initial=12)
+    zoom_level = forms.ChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)])
     orientation = forms.ChoiceField(
         choices=ORIENTATIONS,
         initial=LANDSCAPE,
@@ -103,7 +103,7 @@ class MapForm(forms.Form):
 class ContestantMapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=500)
-    zoom_level = forms.IntegerField(initial=12)
+    zoom_level = forms.ChoiceField(initial=12, choices=list(range(1, 15)))
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=PORTRAIT)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=[], help_text="Is overridden by user map source if set", required=False)

@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.db.models.signals import post_save, post_delete, pre_delete, pre_save, m2m_changed
 from django.dispatch import receiver
 
-from display.flight_order_and_maps.map_plotter import country_code_to_map_source
+from display.flight_order_and_maps.map_plotter_shared_utilities import country_code_to_map_source
 from display.models import (
     TeamTestScore,
     TaskSummary,

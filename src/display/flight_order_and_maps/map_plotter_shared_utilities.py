@@ -6,7 +6,7 @@ import utm
 from PIL import Image
 import qrcode
 
-from display.flight_order_and_maps.mbtiles_facade import get_available_maps
+from display.flight_order_and_maps.mbtiles_facade import get_available_maps, get_map_details
 
 
 def folder_map_name(folder: str) -> str:
@@ -22,6 +22,29 @@ def get_map_choices() -> list[tuple[str, str]]:
         ("mto", "MapTiler Outdoor"),
         ("cyclosm", "CycleOSM"),
     ]
+
+
+def country_code_to_map_source(country_code: str) -> str:
+    return {"no": "Norway250k", "fi": "Finland200k", "se": "Sweden100k"}.get(country_code, "cyclosm")
+
+
+DEFAULT_MAP_ZOOM_LEVELS = {"Norway250k": 12, "Finland200k": 13, "Sweden100k": 13}
+
+
+def get_map_zoom_levels() -> dict[str, tuple[int, int, int]]:
+    from display.models import UserUploadedMap
+    zoom_levels = {}
+    for system_map_data in get_available_maps():
+        system_map = system_map_data["name"]
+        details = get_map_details(system_map)
+        zoom_levels[system_map] = (details["minzoom"], details["maxzoom"], DEFAULT_MAP_ZOOM_LEVELS.get(system_map))
+    for user_uploaded_map in UserUploadedMap.objects.all():
+        zoom_levels[user_uploaded_map.pk] = (
+            user_uploaded_map.minimum_zoom_level,
+            user_uploaded_map.maximum_zoom_level,
+            user_uploaded_map.default_zoom_level,
+        )
+    return zoom_levels
 
 
 def qr_code_image(url: str, image_path: str):

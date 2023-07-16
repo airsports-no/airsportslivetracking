@@ -18,16 +18,43 @@
                 console.log(color.hexString);
                 document.getElementById('id_map_line_colour').value = color.hexString;
             });
+            const mapSource = document.getElementById("id_map_source")
             const customMap = document.getElementById("id_map_user_source")
-            customMap.onchange = function (e) {
+            const zoomSelect = document.getElementById("id_map_zoom_level")
+
+            function updateMapSourceVisibility(first) {
                 if (customMap.value === "") {
-                    console.log("Selected nothing")
-                    document.getElementById("div_id_map_source").style.display=""
+                    document.getElementById("div_id_map_source").style.display = ""
+                    setOptions(mapSource.value, first)
                 } else {
                     document.getElementById("div_id_map_source").style.display = "none"
+                    setOptions(customMap.value, first)
                 }
-                console.log(customMap.value)
             }
+
+            customMap.onchange = function (e) {
+                updateMapSourceVisibility(false)
+            }
+
+            const zoomLevels = JSON.parse('{{ system_map_zoom_levels | safe }}')
+
+            mapSource.onchange = (event) => {
+                setOptions(event.target.value, false)
+            }
+
+            updateMapSourceVisibility(true)
+
+            function setOptions(mapName, first) {
+                const currentSelected = parseInt(zoomSelect.value)
+                while (zoomSelect.options.length > 0) {
+                    zoomSelect.remove(0)
+                }
+                const zoomOptions = zoomLevels[mapName] ?? [1, 15, 12]
+                for (let i = zoomOptions[0]; i <= zoomOptions[1]; i++) {
+                    zoomSelect.add(new Option(i, i, false, (i === currentSelected && first) || (i === zoomOptions[2] && !first)))
+                }
+            }
+
         </script>
     </form>
 {% endblock %}

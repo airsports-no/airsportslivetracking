@@ -1053,7 +1053,7 @@ class FlightOrderConfiguration(models.Model):
         help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this",
     )
     map_dpi = models.IntegerField(default=300, validators=[MinValueValidator(100), MaxValueValidator(500)])
-    map_zoom_level = models.IntegerField(default=12)
+    map_zoom_level = models.IntegerField(default=12, choices=[(x, x) for x in range(1, 20)])
     map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
     map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
     map_source = models.CharField(choices=[], default="cyclosm", max_length=50, blank=True)
@@ -2741,6 +2741,11 @@ class UserUploadedMap(models.Model):
     unprotected = models.BooleanField(default=False, help_text="If true, this map is globally available.")
     minimum_zoom_level = models.IntegerField(default=0)
     maximum_zoom_level = models.IntegerField(default=14)
+    default_zoom_level = models.IntegerField(
+        default=12,
+        help_text="This zoom level is automatically selected when choosing the map in the flight order configuration "
+        "or other map generation forms.",
+    )
 
     def __str__(self):
         return self.name

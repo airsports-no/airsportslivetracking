@@ -1,6 +1,5 @@
 import logging
 from io import BytesIO
-from tempfile import NamedTemporaryFile
 
 import six
 import datetime
@@ -13,7 +12,6 @@ from cartopy.io.img_tiles import OSM, GoogleWTS
 import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
-from django.core.cache import cache
 from matplotlib import patheffects
 from pymbtiles import MBtiles
 from shapely.geometry import Polygon
@@ -182,10 +180,6 @@ def create_minute_lines_track(
     for line in lines:
         logger.debug(line)
     return lines
-
-
-def country_code_to_map_source(country_code: str) -> str:
-    return {"no": "Norway250k", "fi": "Finland200k", "se": "Sweden100k"}.get(country_code, "cyclosm")
 
 
 first = True

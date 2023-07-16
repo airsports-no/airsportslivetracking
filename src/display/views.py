@@ -1,5 +1,6 @@
 import base64
 import datetime
+import json
 import os
 from collections import defaultdict
 from io import BytesIO
@@ -61,6 +62,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 
+from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_zoom_levels
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
@@ -361,11 +363,13 @@ def manifest(request):
     }
     return JsonResponse(data)
 
+
 def user_start_request_profile_deletion(request):
     """
     We must provide this link to Google so that it can be included in the play store listing.
     """
     return render(request, "display/request_profile_deletion.html")
+
 
 @login_required
 def user_request_profile_deletion(request):
@@ -834,6 +838,7 @@ def get_contestant_map(request, pk):
         {
             "form": form,
             "redirect": reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}),
+            "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
         },
     )
 
@@ -862,6 +867,7 @@ def update_flight_order_configurations(request, pk):
             "form": form,
             "navigation_task": navigation_task,
             "initial_color": configuration.map_line_colour,
+            "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
         },
     )
 
@@ -1076,10 +1082,6 @@ def get_navigation_task_map(request, pk):
                 margins_mm=margin,
                 include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"],
             )
-            # if int(form.cleaned_data["output_type"]) == PNG:
-            #     response = HttpResponse(map_image.read(), content_type="image/png")
-            #     response["Content-Disposition"] = f"attachment; filename=map.png"
-            # else:
             pdf = embed_map_in_pdf(
                 "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
                 map_image.read(),
@@ -1116,6 +1118,7 @@ def get_navigation_task_map(request, pk):
         {
             "form": form,
             "redirect": reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}),
+            "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
         },
     )
 

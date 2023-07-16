@@ -23,14 +23,35 @@
                 console.log(color.hexString);
                 document.getElementById('id_colour').value = color.hexString;
             });
+            const mapSource = document.getElementById("id_map_source")
             const customMap = document.getElementById("id_user_map_source")
             customMap.onchange = function (e) {
                 if (customMap.value === "") {
                     document.getElementById("div_id_map_source").style.display = ""
+                    setOptions(mapSource.value)
                 } else {
                     document.getElementById("div_id_map_source").style.display = "none"
+                    setOptions(e.target.value)
                 }
             }
+
+            const zoomLevels = JSON.parse('{{ system_map_zoom_levels | safe }}')
+            mapSource.onchange = (event) => {
+                setOptions(event.target.value)
+            }
+            setOptions(mapSource.value)
+
+            function setOptions(mapName) {
+                const zoomSelect = document.getElementById("id_zoom_level")
+                while (zoomSelect.options.length > 0) {
+                    zoomSelect.remove(0)
+                }
+                const zoomOptions = zoomLevels[mapName] ?? [1, 15, 12]
+                for (let i = zoomOptions[0]; i <= zoomOptions[1]; i++) {
+                    zoomSelect.add(new Option(i, i, false, i === zoomOptions[2]))
+                }
+            }
+
         </script>
     </form>
 {% endblock %}
