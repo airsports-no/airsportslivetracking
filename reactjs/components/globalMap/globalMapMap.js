@@ -67,7 +67,7 @@ const ZOOM_LEVELS = {
 const TRAIL_LENGTH = 180;
 const mapStateToProps = (state, props) => ({
     zoomContest: state.zoomContest,
-    contests: state.contests
+    upcomingContests: state.upcomingContests
 })
 const mapDispatchToProps = {
     zoomFocusContest,
@@ -425,7 +425,7 @@ class ConnectedGlobalMapMap
     }
 
     componentDidUpdate(prevProps) {
-        if (this.props.contests && this.props.contests.length > 0 && !arrayEquals(prevProps.contests, this.props.contests)) {
+        if (this.props.upcomingContests && this.props.upcomingContests.length > 0 && !arrayEquals(prevProps.upcomingContests, this.props.upcomingContests)) {
             this.createMarkers()
         }
         if (prevProps.zoomContest !== this.props.zoomContest && this.map && this.props.zoomContest) {
@@ -461,61 +461,63 @@ class ConnectedGlobalMapMap
     }
 
     updateVisibleContests() {
-        const extent = this.map.getBounds()
-        let visibleIds = []
-        for (const [key, value] of Object.entries(this.markers)) {
-            if (extent.contains(value.getLatLng())) {
-                visibleIds.push(parseInt(key))
+        if (Object.keys(this.markers).length > 0) {
+            const extent = this.map.getBounds()
+            let visibleIds = []
+            for (const [key, value] of Object.entries(this.markers)) {
+                if (extent.contains(value.getLatLng())) {
+                    visibleIds.push(parseInt(key))
+                }
             }
+            this.props.globalMapStoreVisibleContests(visibleIds)
         }
-        this.props.globalMapStoreVisibleContests(visibleIds)
     }
 
     initialiseMap() {
-        this.map = L.map('cesiumContainer', {
-            zoomDelta: 0.25,
-            zoomSnap: 0.25,
-            zoomControl: false,
-            preferCanvas: true
-        })
+        if (!this.map) {
+            this.map = L.map('cesiumContainer', {
+                zoomDelta: 0.25,
+                zoomSnap: 0.25,
+                zoomControl: false,
+                preferCanvas: true
+            })
 
-        this.internalPositionIcons = L.layerGroup().addTo(this.map)
-        this.internalPositionText = L.layerGroup().addTo(this.map)
-        this.externalPositionIcons = L.layerGroup().addTo(this.map)
-        this.externalPositionText = L.layerGroup().addTo(this.map)
-        Jawg_Sunny().addTo(this.map);
-        // OpenAIP.addTo(this.map);
-        this.map.on("locationerror", (e) => {
-            this.map.setView(L.latLng(59, 10.5), 7)
-        })
-        this.map.locate({setView: true, maxZoom: 7})
-        this.map.whenReady(() => {
-            this.bounds = this.map.getBounds()
-            this.sendUpdatedPosition()
-        })
-
-        this.setState({map: this.map})
-        this.map.on("zoomend", (e) => {
-            this.sendUpdatedPosition()
-            this.updateVisibleContests()
-            if (this.map.getZoom() < 7) {
-                this.externalPositionText.removeFrom(this.map)
-                this.internalPositionText.removeFrom(this.map)
-            } else {
-                this.externalPositionText.addTo(this.map)
-                this.internalPositionText.addTo(this.map)
-            }
-            this.clearAircraftNotVisible()
-        })
-        this.map.on("moveend", (e) => {
-            if (this.bounds) {
-                // Only when loaded
+            this.internalPositionIcons = L.layerGroup().addTo(this.map)
+            this.internalPositionText = L.layerGroup().addTo(this.map)
+            this.externalPositionIcons = L.layerGroup().addTo(this.map)
+            this.externalPositionText = L.layerGroup().addTo(this.map)
+            Jawg_Sunny().addTo(this.map);
+            // OpenAIP.addTo(this.map);
+            this.map.on("locationerror", (e) => {
+                this.map.setView(L.latLng(59, 10.5), 7)
+            })
+            this.map.locate({setView: true, maxZoom: 7})
+            this.map.whenReady(() => {
                 this.bounds = this.map.getBounds()
-            }
-            this.sendUpdatedPosition()
-            this.updateVisibleContests()
-            this.clearAircraftNotVisible()
-        })
+                this.sendUpdatedPosition()
+                this.map.on("zoomend", (e) => {
+                    this.sendUpdatedPosition()
+                    this.updateVisibleContests()
+                    if (this.map.getZoom() < 7) {
+                        this.externalPositionText.removeFrom(this.map)
+                        this.internalPositionText.removeFrom(this.map)
+                    } else {
+                        this.externalPositionText.addTo(this.map)
+                        this.internalPositionText.addTo(this.map)
+                    }
+                    this.clearAircraftNotVisible()
+                })
+                this.map.on("moveend", (e) => {
+                    if (this.bounds) {
+                        // Only when loaded
+                        this.bounds = this.map.getBounds()
+                    }
+                    this.sendUpdatedPosition()
+                    this.updateVisibleContests()
+                    this.clearAircraftNotVisible()
+                })
+            })
+        }
     }
 
     getCurrentParticipation(contestId) {
@@ -526,9 +528,8 @@ class ConnectedGlobalMapMap
     }
 
     createMarkers() {
-        const now = new Date()
-        const futureOrOngoingContests = this.props.contests.filter((contest) => {
-            return contest.latitude !== 0 && contest.longitude !== 0 && new Date(contest.finish_time).getTime() > now.getTime()
+        const futureOrOngoingContests = this.props.upcomingContests.filter((contest) => {
+            return contest.latitude !== 0 && contest.longitude !== 0
         })
         for (let contest of futureOrOngoingContests) {
             this.markers[contest.id] = this.L.marker([contest.latitude, contest.longitude], {

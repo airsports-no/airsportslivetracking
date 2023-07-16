@@ -279,6 +279,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     share_string = serializers.CharField(read_only=True)
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
+    registered = SerializerMethodField("get_registered")
 
     class Meta:
         model = Contest
@@ -297,6 +298,15 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         )
         serialiser = NavigationTasksSummarySerialiser(items, many=True, read_only=True)
         return serialiser.data
+
+    def get_registered(self, contest):
+        user = self.context["request"].user
+        return (
+            user
+            and contest.contest_teams.filter(
+                Q(crew__member1__email=user.email) | Q(crew__member2__email=user.email)
+            ).exists()
+        )
 
 
 class ContestSerialiserWithResults(ContestSerialiser):

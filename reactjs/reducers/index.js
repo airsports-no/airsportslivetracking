@@ -352,8 +352,12 @@ function rootReducer(state = initialState, action) {
         });
     }
     if (action.type === GET_CONTESTS_SUCCESSFUL) {
+        const now = new Date()
         return Object.assign({}, state, {
             contests: action.payload,
+            upcomingContests: action.payload.filter((contest) => {
+                return new Date(contest.finish_time).getTime() > now.getTime()
+            }),
             loadingContests: false
         })
     }

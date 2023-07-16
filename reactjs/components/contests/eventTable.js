@@ -19,7 +19,7 @@ export const EventTable = (props) => {
             accessor: (row, index) => {
             },
             Cell: cellInfo => <Link to={"/participation/" + cellInfo.row.original.id + "/register/"}>
-                <button className={"btn btn-info"}>Manage</button>
+                <button className={"btn btn-info"}>{cellInfo.row.original.registered?"Manage":"Register"}</button>
             </Link>
         },
         {
