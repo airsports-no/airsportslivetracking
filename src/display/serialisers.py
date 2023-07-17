@@ -301,6 +301,8 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
 
     def get_registered(self, contest):
         user = self.context["request"].user
+        if not hasattr(user, "email"):
+            return False
         return (
             user
             and contest.contest_teams.filter(

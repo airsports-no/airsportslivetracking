@@ -51,7 +51,10 @@ class EventSearchModal extends Component {
                 </Modal.Header>
                 <Modal.Body>
                     <Container>
-                        <EventTable contests={this.props.contests} handleContestClick={this.props.handleContestClick}/>
+                        <div className={""}>
+                            <EventTable contests={this.props.contests}
+                                        handleContestClick={this.props.handleContestClick}/>
+                        </div>
                     </Container>
                 </Modal.Body>
             </Modal>

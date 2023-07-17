@@ -65,7 +65,6 @@ class ShareForm(forms.Form):
 
 class MapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
-    zoom_level = forms.ChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)])
     orientation = forms.ChoiceField(
         choices=ORIENTATIONS,
         initial=LANDSCAPE,
@@ -83,6 +82,7 @@ class MapForm(forms.Form):
     user_map_source = forms.ModelChoiceField(
         UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False
     )
+    zoom_level = forms.ChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)])
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
@@ -90,7 +90,7 @@ class MapForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         validate_map_zoom_level(
-            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), cleaned_data.get("zoom_level")
+            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), int(cleaned_data.get("zoom_level"))
         )
 
     def __init__(self, *args, **kwargs):
@@ -103,13 +103,13 @@ class MapForm(forms.Form):
 class ContestantMapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=500)
-    zoom_level = forms.ChoiceField(initial=12, choices=list(range(1, 15)))
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=PORTRAIT)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=[], help_text="Is overridden by user map source if set", required=False)
     user_map_source = forms.ModelChoiceField(
         UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False
     )
+    zoom_level = forms.ChoiceField(initial=12, choices=list(range(1, 15)))
 
     include_annotations = forms.BooleanField(initial=True, required=False)
     plot_track_between_waypoints = forms.BooleanField(initial=True, required=False)
@@ -126,7 +126,7 @@ class ContestantMapForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         validate_map_zoom_level(
-            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), cleaned_data.get("zoom_level")
+            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), int(cleaned_data.get("zoom_level"))
         )
 
     def __init__(self, *args, **kwargs):
@@ -192,7 +192,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         validate_map_zoom_level(
-            cleaned_data.get("map_source"), cleaned_data.get("map_user_source"), cleaned_data.get("map_zoom_level")
+            cleaned_data.get("map_source"), cleaned_data.get("map_user_source"), int(cleaned_data.get("map_zoom_level"))
         )
 
     def __init__(self, *args, **kwargs):

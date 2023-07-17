@@ -783,7 +783,7 @@ def get_contestant_map(request, pk):
             map_image = plot_route(
                 contestant.navigation_task,
                 form.cleaned_data["size"],
-                zoom_level=form.cleaned_data["zoom_level"],
+                zoom_level=int(form.cleaned_data["zoom_level"]),
                 landscape=form.cleaned_data["orientation"] == LANDSCAPE,
                 contestant=contestant,
                 annotations=form.cleaned_data["include_annotations"],
@@ -1070,7 +1070,7 @@ def get_navigation_task_map(request, pk):
             map_image = plot_route(
                 navigation_task,
                 form.cleaned_data["size"],
-                zoom_level=form.cleaned_data["zoom_level"],
+                zoom_level=int(form.cleaned_data["zoom_level"]),
                 landscape=form.cleaned_data["orientation"] == LANDSCAPE,
                 waypoints_only=not form.cleaned_data["plot_track_between_waypoints"],
                 dpi=form.cleaned_data["dpi"],

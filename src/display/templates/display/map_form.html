@@ -11,6 +11,9 @@
         {% crispy form %}
         <h5>Pick a colour for the route</h5>
         <div id="picker" style="margin-bottom: 15px"></div>
+        <div class="alert alert-warning"><b>Warning: Map generation can take as much as a few minutes. Certain combinations of large
+            zoom level (e.g. greater than 12) and large-scale (e.g. 1:200.000 or greater) may lead to an out of memory
+            error. If this happens, please reduce the zoom level (lower number).</b></div>
         <button type="submit" class="btn btn-primary">Submit</button>
         <a href="{{ redirect }}" class="btn btn-secondary">Back</a>
         <script src="{% static 'js/iro.min.js' %}"></script>
