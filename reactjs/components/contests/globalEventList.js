@@ -158,11 +158,12 @@ class ConnectedGlobalEventList extends Component {
                     <div className={"eventListScrolling"}>
                         <div id={"eventMenu"}>
                             <div className={"list-group"} id={"ongoing"}>
+                                <a className={"list-group-item list-group-item-secondary list-group-item-action"}
+                                   onClick={() => this.props.displayEventSearchModal()}><Icon
+                                    path={mdiMapSearch} size={1.1} color={"black"}/> <b>Search</b></a>
                                 {this.props.contests.length > 0 ? <OngoingNavigationTicker/> : <div
                                     className={"list-group-item list-group-item-secondary list-group-item-action"}
                                 ><Loading/></div>}
-                                    <a className={"list-group-item list-group-item-secondary list-group-item-action"} onClick={() => this.props.displayEventSearchModal()}><Icon
-            path={mdiMapSearch} size={1.1} color={"black"}/> <b>Search</b></a>
                                 <TimePeriodEventList contests={visibleEvents}
                                                      onClick={(contest) => this.handleContestClick(contest)}/>
                             </div>
@@ -199,5 +200,6 @@ class ConnectedGlobalEventList extends Component {
     }
 }
 
-const GlobalEventList = connect(mapStateToProps, mapDispatchToProps)(ConnectedGlobalEventList);
+const
+    GlobalEventList = connect(mapStateToProps, mapDispatchToProps)(ConnectedGlobalEventList);
 export default withParams(GlobalEventList);

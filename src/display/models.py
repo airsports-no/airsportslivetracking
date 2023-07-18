@@ -2746,6 +2746,11 @@ class UserUploadedMap(models.Model):
         help_text="This zoom level is automatically selected when choosing the map in the flight order configuration "
         "or other map generation forms.",
     )
+    attribution = models.TextField(
+        default="",
+        help_text="A short attribution text for the map source material (source and time of retrieval), e.g. 'Contains data from kartverket.no, 07/2023",
+        max_length=100
+    )
 
     def __str__(self):
         return self.name

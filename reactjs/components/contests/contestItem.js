@@ -35,7 +35,7 @@ class ConnectedContestItem extends Component {
                                  {new Date(this.props.contest.finish_time).toLocaleDateString()}
                              </span>
                              <img src={this.props.contest.country_flag_url} style={{height: "15px"}}
-                                  alt={"Country flag"}/>
+                                  alt={this.props.contest.country}/>
                     </span>
                 </div>
     </span>

@@ -37,6 +37,7 @@ export const EditableRouteList = () => {
             Header: "Route",
             accessor: "name",
             id: "Route",
+            disableSortBy: true,
             Cell: cellInfo=><a href={document.configuration.editRoute(cellInfo.row.original.id)}>{cellInfo.value}</a>
         },
         {

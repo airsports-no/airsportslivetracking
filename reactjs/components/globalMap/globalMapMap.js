@@ -317,6 +317,7 @@ class ConnectedGlobalMapMap
         this.bounds = null
         this.L = window['L']
         this.markers = {}
+        this.mapReady = false
         this.purgePositions = this.purgePositions.bind(this)
         setInterval(this.purgePositions, this.purgeInterval * 1000)
     }
@@ -461,7 +462,7 @@ class ConnectedGlobalMapMap
     }
 
     updateVisibleContests() {
-        if (Object.keys(this.markers).length > 0) {
+        if (this.mapReady && Object.keys(this.markers).length > 0) {
             const extent = this.map.getBounds()
             let visibleIds = []
             for (const [key, value] of Object.entries(this.markers)) {
@@ -493,6 +494,7 @@ class ConnectedGlobalMapMap
             })
             this.map.locate({setView: true, maxZoom: 7})
             this.map.whenReady(() => {
+                this.mapReady = true
                 this.bounds = this.map.getBounds()
                 this.sendUpdatedPosition()
                 this.map.on("zoomend", (e) => {
@@ -516,6 +518,7 @@ class ConnectedGlobalMapMap
                     this.updateVisibleContests()
                     this.clearAircraftNotVisible()
                 })
+                this.updateVisibleContests()
             })
         }
     }

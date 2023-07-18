@@ -16,6 +16,7 @@ from matplotlib import patheffects
 from pymbtiles import MBtiles
 from shapely.geometry import Polygon
 
+from display.flight_order_and_maps.map_plotter_shared_utilities import MAP_ATTRIBUTIONS
 from display.flight_order_and_maps.mbtiles_facade import get_map_details
 from display.utilities.coordinate_utilities import (
     calculate_distance_lat_lon,
@@ -993,19 +994,26 @@ def plot_route(
     margins_mm: float = 0,
 ):
     route = task.route
+    attribution = ""
     if user_map_source:
         imagery = UserUploadedMBTiles(user_map_source)
+        attribution = user_map_source.attribution
     else:
         if map_source == "osm":
             imagery = OSM(user_agent="airsports.no, support@airsports.no")  # Does not like zoom level greater than 12
+            attribution = "openstreetmap.org"
         elif map_source == "fc":
             imagery = FlightContest(desired_tile_form="RGBA")
+            attribution = "FlightContest"
         elif map_source == "mto":
             imagery = MapTilerOutdoor(desired_tile_form="RGBA")
+            attribution = "maptiler.com"
         elif map_source == "cyclosm":
             imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
+            attribution = "openstreetmap.org CycleOSM"
         else:
             imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
+            attribution = MAP_ATTRIBUTIONS.get(map_source)
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
@@ -1185,6 +1193,7 @@ def plot_route(
                 linewidth=0.5,
             )
             latitude += 1
+    plt.text(0, 0, " "+attribution, ha='left', va='bottom', transform=ax.transAxes)
     # fig.subplots_adjust(bottom=0)
     # fig.subplots_adjust(top=1)
     # fig.subplots_adjust(right=1)

@@ -29,10 +29,16 @@ def country_code_to_map_source(country_code: str) -> str:
 
 
 DEFAULT_MAP_ZOOM_LEVELS = {"Norway250k": 12, "Finland200k": 13, "Sweden100k": 13}
+MAP_ATTRIBUTIONS = {
+    "Norway250k": "Contains data from kartverket.no, 07/2023",
+    "Finland200k": "Contains data from the National Land Survey of Finland Topographic Database 07/2023",
+    "Sweden100k": "Contains data from lentmateriet.se, 07/2023",
+}
 
 
 def get_map_zoom_levels() -> dict[str, tuple[int, int, int]]:
     from display.models import UserUploadedMap
+
     zoom_levels = {}
     for system_map_data in get_available_maps():
         system_map = system_map_data["name"]

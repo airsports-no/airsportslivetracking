@@ -146,7 +146,7 @@ class UserUploadedMapForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.layout = Layout(
-            Fieldset("User map", "name", "default_zoom_level", "map_file"),
+            Fieldset("User map", "name", "default_zoom_level", "attribution", "map_file"),
             Field("user", type="hidden"),
             ButtonHolder(Submit("submit", "Submit")),
         )
@@ -179,7 +179,7 @@ def validate_map_zoom_level(map_source: str, user_uploaded_map: Optional[UserUpl
             max_zoom = map_details.get("maxzoom", 12)
             if not min_zoom <= zoom_level <= max_zoom:
                 raise ValidationError(
-                    f"The selected zoom level {zoom_level}  is not in the valid range [{min_zoom}, "
+                    f"The selected zoom level {zoom_level} is not in the valid range [{min_zoom}, "
                     f"{max_zoom}] for the map source {map_details['name']}"
                 )
 
