@@ -28,7 +28,7 @@ def country_code_to_map_source(country_code: str) -> str:
     return {"no": "Norway250k", "fi": "Finland200k", "se": "Sweden100k"}.get(country_code, "cyclosm")
 
 
-DEFAULT_MAP_ZOOM_LEVELS = {"Norway250k": 12, "Finland200k": 13, "Sweden100k": 13}
+DEFAULT_MAP_ZOOM_LEVELS = {"Norway250k": 12, "Finland200k": 12, "Sweden100k": 12}
 MAP_ATTRIBUTIONS = {
     "Norway250k": "Contains data from kartverket.no, 07/2023",
     "Finland200k": "Contains data from the National Land Survey of Finland Topographic Database 07/2023",

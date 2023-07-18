@@ -74,3 +74,4 @@ utm==0.7.0
 uvicorn[standard]==0.21.1
 websocket-client==1.5.1
 whitenoise==6.4.0
+django-location-field==2.7.1

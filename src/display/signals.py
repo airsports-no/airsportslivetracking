@@ -30,6 +30,7 @@ from display.models import (
     Person,
     MyUser,
     EditableRoute,
+    Contest,
 )
 from display.utilities.country_code_utilities import get_country_code_from_location
 from display.utilities.traccar_factory import get_traccar_instance
@@ -280,18 +281,16 @@ def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
             )
 
 
+@receiver(pre_save, sender=Contest)
+def set_contest_location(sender, instance: Contest, **kwargs):
+    instance.country = get_country_code_from_location(instance.latitude, instance.longitude)
+
+
 @receiver(post_save, sender=NavigationTask)
 def initialise_navigation_task_dependencies(sender, instance: NavigationTask, created, **kwargs):
     if created:
         instance.create_results_service_test()
-        country_code = "xx"
-        if instance.route and len(instance.route.waypoints) > 0:
-            waypoint = instance.route.waypoints[0]  # type: Waypoint
-            country_code = get_country_code_from_location(waypoint.latitude, waypoint.longitude)
-            if instance.contest.latitude == instance.contest.longitude == 0:
-                instance.contest.latitude = waypoint.latitude
-                instance.contest.longitude = waypoint.longitude
-        map_source = country_code_to_map_source(country_code)
+        map_source = country_code_to_map_source(instance.contest.country)
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 
 

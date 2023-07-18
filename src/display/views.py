@@ -2057,9 +2057,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             route=route,
             editable_route=ediable_route,
         )
-        # Update contest location if necessary
-        if location := route.get_location():
-            self.contest.update_position_if_not_set(*location)
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     def get_context_data(self, form, **kwargs):

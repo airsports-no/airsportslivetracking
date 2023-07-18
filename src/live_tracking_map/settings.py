@@ -112,10 +112,15 @@ INSTALLED_APPS = [
     "firebase.apps.FirebaseConfig",
     "storages",
     "crispy_bootstrap4",
+    "location_field.apps.DefaultConfig",
 ]
 if os.environ.get("MODE") != "dev":
     INSTALLED_APPS.append("drf_firebase_auth")
 
+LOCATION_FIELD = {
+    "map.provider": "openstreetmap",
+    "provider.openstreetmap.max_zoom": 18,
+}
 PRODUCTION = os.environ.get("MODE") != "dev"
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"

@@ -467,7 +467,7 @@ class ContestSelectForm(forms.Form):
 class ContestForm(forms.ModelForm):
     class Meta:
         model = Contest
-        exclude = ("contest_teams", "is_featured", "is_public")
+        exclude = ("contest_teams", "is_featured", "is_public", "latitude", "longitude", "country")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -482,13 +482,14 @@ class ContestForm(forms.ModelForm):
                 "finish_time",
             ),
             Fieldset(
-                "Contest location (optional)",
-                HTML(
-                    "If no position is given, position will be extracted from the starting position of the first task added to the contest"
-                ),
-                "latitude",
-                "longitude",
-                "country",
+                "Contest location",
+                # HTML(
+                #     "If no position is given, position will be extracted from the starting position of the first task added to the contest"
+                # ),
+                # "latitude",
+                # "longitude",
+                # "country",
+                "location"
             ),
             Fieldset("Publicity", "contest_website", "header_image", "logo"),
             Fieldset("Result service", "summary_score_sorting_direction", "autosum_scores"),

@@ -261,6 +261,7 @@ class ContestFrontEndSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMi
     share_string = serializers.CharField(read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor")
 
+
     class Meta:
         model = Contest
         fields = ("id", "name", "editors", "start_time", "finish_time", "number_of_tasks", "share_string", "is_editor")
@@ -280,6 +281,8 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
     registered = SerializerMethodField("get_registered")
+    latitude=serializers.FloatField(read_only=True)
+    longitude=serializers.FloatField(read_only=True)
 
     class Meta:
         model = Contest

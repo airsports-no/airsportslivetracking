@@ -21,6 +21,7 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
+from location_field.models.plain import PlainLocationField
 from django.core.mail import send_mail
 from django.core.validators import MaxValueValidator, MinValueValidator, FileExtensionValidator
 
@@ -628,16 +629,7 @@ class Contest(models.Model):
     )
     name = models.CharField(max_length=100, unique=True)
     time_zone = TimeZoneField()
-    latitude = models.FloatField(
-        default=0,
-        help_text="Approximate location of contest, used for global map display",
-        blank=True,
-    )
-    longitude = models.FloatField(
-        default=0,
-        help_text="Approximate location of contest, used for global map display",
-        blank=True,
-    )
+    location = PlainLocationField(based_fields=["city"], zoom=7, help_text="Text field with latitude, longitude (two comma-separated numbers)")
     start_time = models.DateTimeField(
         help_text="The start time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval."
     )
@@ -671,6 +663,14 @@ class Contest(models.Model):
     )
 
     @property
+    def latitude(self) -> float:
+        return float(self.location.split(",")[0])
+
+    @property
+    def longitude(self) -> float:
+        return float(self.location.split(",")[1])
+
+    @property
     def country_flag_url(self):
         if self.country:
             return "/static/flags/3x2/" + str(self.country) + ".svg"
@@ -702,8 +702,6 @@ class Contest(models.Model):
     def initialise(self, user: MyUser):
         self.start_time = self.start_time.replace(tzinfo=self.time_zone)
         self.finish_time = self.finish_time.replace(tzinfo=self.time_zone)
-        if self.latitude != 0 and self.longitude != 0 and (not self.country or self.country == ""):
-            self.country = get_country_code_from_location(self.latitude, self.longitude)
         self.save()
         assign_perm("delete_contest", user, self)
         assign_perm("view_contest", user, self)
@@ -723,14 +721,6 @@ class Contest(models.Model):
         TaskSummary.objects.filter(task__contest=self, team=old_team).update(team=new_team)
         TeamTestScore.objects.filter(task_test__task__contest=self, team=old_team).update(team=new_team)
         return ct
-
-    def update_position_if_not_set(self, latitude, longitude):
-        if self.latitude == 0 and self.longitude == 0:
-            self.latitude = latitude
-            self.longitude = longitude
-            if not self.country:
-                self.country = get_country_code_from_location(self.latitude, self.longitude)
-            self.save()
 
     def make_public(self):
         self.is_public = True
@@ -2749,7 +2739,7 @@ class UserUploadedMap(models.Model):
     attribution = models.TextField(
         default="",
         help_text="A short attribution text for the map source material (source and time of retrieval), e.g. 'Contains data from kartverket.no, 07/2023",
-        max_length=100
+        max_length=100,
     )
 
     def __str__(self):
