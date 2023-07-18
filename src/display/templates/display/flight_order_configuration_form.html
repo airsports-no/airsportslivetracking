@@ -6,10 +6,9 @@
 {% block content %}
     <h2>Flight order configuration for {{ navigation_task }}</h2>
     <form method="post" class="form">
-        <div class="alert alert-warning"><b>Warning: Map generation can take as much as a few minutes. Certain
-            combinations of large
-            zoom level (e.g. greater than 12) and large-scale (e.g. 1:200.000 or greater) may lead to an out of memory
-            error. If this happens, please reduce the zoom level (lower number). Be sure to test map generation when
+        <div class="alert alert-warning"><b>Caution: Map generation may require several minutes. Using large zoom levels
+            (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error.
+            If this occurs, kindly decrease the zoom level (use a lower number). Be sure to test map generation when
             changing the values here.</b></div>
 
         {% crispy form %}

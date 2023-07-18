@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
 from matplotlib import patheffects
+import matplotlib.ticker as mticker
 from pymbtiles import MBtiles
 from shapely.geometry import Polygon
 
@@ -1078,8 +1079,6 @@ def plot_route(
     else:
         paths = []
     plot_prohibited_zones(route, imagery.crs, ax)
-    if include_meridians_and_parallels_lines:
-        ax.gridlines(draw_labels=False, dms=True)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
         plt.title(
@@ -1173,26 +1172,29 @@ def plot_route(
     # lat lon lines
     extent = ax.get_extent(proj)
     if include_meridians_and_parallels_lines:
-        longitude = np.ceil(extent[0])
-        while longitude < extent[1]:
-            plt.plot(
-                (longitude, longitude),
-                (extent[2], extent[3]),
-                transform=ccrs.PlateCarree(),
-                color="black",
-                linewidth=0.5,
-            )
-            longitude += 1
-        latitude = np.ceil(extent[2])
-        while latitude < extent[3]:
-            plt.plot(
-                (extent[0], extent[1]),
-                (latitude, latitude),
-                transform=ccrs.PlateCarree(),
-                color="black",
-                linewidth=0.5,
-            )
-            latitude += 1
+        gl = ax.gridlines(draw_labels=False, dms=True, crs=ccrs.PlateCarree(), color='grey', linewidth=1)
+        gl.xlocator=mticker.FixedLocator(np.arange(extent[0],extent[1], 0.1))
+        gl.ylocator=mticker.FixedLocator(np.arange(extent[2],extent[3], 0.1))
+        # longitude = np.ceil(extent[0])
+        # while longitude < extent[1]:
+        #     plt.plot(
+        #         (longitude, longitude),
+        #         (extent[2], extent[3]),
+        #         transform=ccrs.PlateCarree(),
+        #         color="black",
+        #         linewidth=0.5,
+        #     )
+        #     longitude += 1
+        # latitude = np.ceil(extent[2])
+        # while latitude < extent[3]:
+        #     plt.plot(
+        #         (extent[0], extent[1]),
+        #         (latitude, latitude),
+        #         transform=ccrs.PlateCarree(),
+        #         color="black",
+        #         linewidth=0.5,
+        #     )
+        #     latitude += 1
     plt.text(0, 0, " "+attribution, ha='left', va='bottom', transform=ax.transAxes)
     # fig.subplots_adjust(bottom=0)
     # fig.subplots_adjust(top=1)
