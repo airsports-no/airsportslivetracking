@@ -283,6 +283,10 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     registered = SerializerMethodField("get_registered")
     latitude=serializers.FloatField(read_only=True)
     longitude=serializers.FloatField(read_only=True)
+    is_editor = serializers.SerializerMethodField("get_is_editor")
+
+    def get_is_editor(self, contest):
+        return "change_contest" in get_user_perms(self.context["request"].user, contest)
 
     class Meta:
         model = Contest

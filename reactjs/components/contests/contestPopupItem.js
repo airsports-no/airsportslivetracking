@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import TaskItem from "./taskItem";
 import {Link} from "react-router-dom";
-import {mdiContentCopy, mdiShare} from "@mdi/js";
+import {mdiContentCopy, mdiShare, mdiCog} from "@mdi/js";
 import Icon from "@mdi/react";
 import CopyToClipboard from "react-copy-to-clipboard";
 import {sortStartAndFinishTimes} from "./utilities";
@@ -59,16 +59,20 @@ export default class ContestPopupItem extends Component {
                 <span style={{"paddingTop": "0.3em", fontSize: "20px"}}
                       className={"badge badge-dark badge-pill"}>{this.props.contest.contest_team_count} </span>
                 <div style={{float: "right"}}><h6>
-                    {this.props.link ?
-                        <CopyToClipboard
-                            text={"https://airsports.no/global/contest_details/" + this.props.contest.id + "/"}
-                            onCopy={() => this.setState({copied: true})}
-                        >
-                            {!this.state.copied ?
-                                <Icon path={mdiContentCopy} title={"Copy URL"} size={1.5} color={"black"}/> :
-                                <Icon path={mdiContentCopy} title={"URL copied to clipboard"} size={1.5}
-                                      color={"grey"}/>}
-                        </CopyToClipboard> : null}
+                    {this.props.contest.is_editor ?
+                        <a href={"/display/contest/" + this.props.contest.id + "/"}><Icon path={mdiCog}
+                                                                                          title={"Manage contest"}
+                                                                                          size={1.5}
+                                                                                          color={"black"}/></a> : null}
+                    {this.props.link ? <CopyToClipboard
+                        text={"https://airsports.no/global/contest_details/" + this.props.contest.id + "/"}
+                        onCopy={() => this.setState({copied: true})}
+                    >
+                        {!this.state.copied ?
+                            <Icon path={mdiContentCopy} title={"Copy URL"} size={1.5} color={"black"}/> :
+                            <Icon path={mdiContentCopy} title={"URL copied to clipboard"} size={1.5}
+                                  color={"grey"}/>}
+                    </CopyToClipboard> : null}
                     <a href={"/global/contest_details/" + this.props.contest.id + "/"}><Icon path={mdiShare}
                                                                                              title={"Direct link"}
                                                                                              size={1.5}

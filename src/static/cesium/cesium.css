@@ -1280,3 +1280,7 @@ div.ris-large {
     position: absolute;
     /*left:0;*/
 }
+
+.ui-datepicker {
+    z-index: 999 !important
+}
