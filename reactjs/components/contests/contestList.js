@@ -23,7 +23,8 @@ export const ContestList = () => {
         {
             Header: "Contest",
             accessor: "name",
-            Cell: cellInfo=><a href={"/display/contest/" + cellInfo.row.original.id + "/"}>{cellInfo.value}</a>
+            Cell: cellInfo=><a href={"/display/contest/" + cellInfo.row.original.id + "/"}>{cellInfo.value}</a>, 
+            disableSortBy: true,
         },
         {
             Header: "Sharing",

@@ -28,6 +28,7 @@
                 logoutLink: null,
                 authenticatedUser: false,
             {% endif %}
+            isSuperuser: {% if user.is_superuser %}true{% else %}false{% endif %},
             firstVisit: {% if first_visit %}true{% else %}false{% endif %},
             navigationTaskMap: navigationTaskId => "{% url 'frontend_view_map' 0 %}".replace("0", navigationTaskId)
         }
