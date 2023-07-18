@@ -629,7 +629,7 @@ class Contest(models.Model):
     )
     name = models.CharField(max_length=100, unique=True)
     time_zone = TimeZoneField()
-    location = PlainLocationField(based_fields=["city"], zoom=7, help_text="Text field with latitude, longitude (two comma-separated numbers)")
+    location = PlainLocationField(based_fields=["city"], zoom=7, help_text="Text field with latitude, longitude (two comma-separated numbers). Select the location using the embedded map.")
     start_time = models.DateTimeField(
         help_text="The start time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval."
     )

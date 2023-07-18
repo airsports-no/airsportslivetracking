@@ -13,10 +13,10 @@
         {% crispy form %}
     </form>
     <script type="text/javascript">
-        $('#id_start_time').datepicker({dateFormat: "yy-mm-dd"});
+        $('#id_start_time').datepicker({dateFormat: "yy-mm-dd",});
         $('#id_finish_time').datepicker({dateFormat: "yy-mm-dd"});
         $(document).ready(function () {
-            document.getElementById('id_location').style.display = 'none'
+            document.getElementById('id_location').readOnly = true
         })
     </script>
 {% endblock %}
