@@ -424,6 +424,13 @@ def delete_user_and_person(request):
 
 
 @api_view(["POST"])
+def get_country_from_location(request):
+    latitude = float(request.data.get("latitude"))
+    longitude = float(request.data.get("longitude"))
+    return Response(get_country_from_location(latitude, longitude))
+
+
+@api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_aeroplane(request):
     request_number = int(request.data.get("request"))
@@ -3407,8 +3414,11 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
             )
             instance.minimum_zoom_level = minimum_zoom
             instance.maximum_zoom_level = maximum_zoom
-            if not minimum_zoom<=instance.default_zoom_level<=maximum_zoom:
-                form.add_error("default_zoom_level", f"The selected default zoom level {instance.default_zoom_level} is not in the range supported by the map: [{minimum_zoom}, {maximum_zoom}]")
+            if not minimum_zoom <= instance.default_zoom_level <= maximum_zoom:
+                form.add_error(
+                    "default_zoom_level",
+                    f"The selected default zoom level {instance.default_zoom_level} is not in the range supported by the map: [{minimum_zoom}, {maximum_zoom}]",
+                )
                 return super().form_invalid(form)
             instance.save()
         except Exception as ex:
@@ -3445,8 +3455,11 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
             )
             instance.minimum_zoom_level = minimum_zoom
             instance.maximum_zoom_level = maximum_zoom
-            if not minimum_zoom<=instance.default_zoom_level<=maximum_zoom:
-                form.add_error("default_zoom_level", f"The selected default zoom level {instance.default_zoom_level} is not in the range supported by the map: [{minimum_zoom}, {maximum_zoom}]")
+            if not minimum_zoom <= instance.default_zoom_level <= maximum_zoom:
+                form.add_error(
+                    "default_zoom_level",
+                    f"The selected default zoom level {instance.default_zoom_level} is not in the range supported by the map: [{minimum_zoom}, {maximum_zoom}]",
+                )
                 return super().form_invalid(form)
             instance.save()
         except Exception as ex:

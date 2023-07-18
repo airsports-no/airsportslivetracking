@@ -100,7 +100,7 @@ from display.views import (
     import_route,
     delete_user_and_person,
     user_start_request_profile_deletion,
-    user_request_profile_deletion,
+    user_request_profile_deletion, get_country_from_location,
 )
 
 urlpatterns = [
@@ -291,6 +291,7 @@ urlpatterns = [
         name="contestteamtracking_update",
     ),
     path("contest/<int:contest_pk>/teams/", ContestTeamList.as_view(), name="contest_team_list"),
+    path("getcountrycode/", get_country_from_location, name="getcountrycode"),
     path("contestant/autocomplete/id/", auto_complete_person_id, name="autocomplete_id"),
     path("contestant/autocomplete/phone/", auto_complete_person_phone, name="autocomplete_phone"),
     path("contestant/autocomplete/email/", auto_complete_person_email, name="autocomplete_email"),
