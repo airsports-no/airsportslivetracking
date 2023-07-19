@@ -959,14 +959,14 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
         plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1)
     for zone_type in ("info", "penalty", "prohibited", "gate"):
         for feature in editable_route.get_features_type(zone_type):
-            fill_colour, line_colour = PROHIBITED_COLOURS.get(zone_type, ("blue", "darkblue"))
+            fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(zone_type, ("blue", "darkblue", 4))
             plot_prohibited_polygon(
                 imagery.crs,
                 ax,
                 editable_route.get_feature_coordinates(feature, flip=True),
                 fill_colour,
                 line_colour,
-                10,
+                font_size,
                 feature["name"],
             )
     ax.add_image(imagery, 11)
