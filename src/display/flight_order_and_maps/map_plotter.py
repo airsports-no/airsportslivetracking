@@ -1074,7 +1074,7 @@ def plot_route(
             line_width,
             minute_mark_line_width,
             colour,
-            True,
+            not waypoints_only,
         )
     else:
         paths = []

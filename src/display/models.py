@@ -49,7 +49,6 @@ from display.calculators.calculator_utilities import round_time_second
 from display.calculators.positions_and_gates import Position
 from display.utilities.clone_object import simple_clone
 from display.utilities.coordinate_utilities import bearing_difference, calculate_distance_lat_lon
-from display.utilities.country_code_utilities import get_country_code_from_location
 from display.utilities.editable_route_utilities import (
     create_track_block,
     create_takeoff_gate,
@@ -629,7 +628,11 @@ class Contest(models.Model):
     )
     name = models.CharField(max_length=100, unique=True)
     time_zone = TimeZoneField()
-    location = PlainLocationField(based_fields=["city"], zoom=7, help_text="Text field with latitude, longitude (two comma-separated numbers). Select the location using the embedded map.")
+    location = PlainLocationField(
+        based_fields=["city"],
+        zoom=7,
+        help_text="Text field with latitude, longitude (two comma-separated numbers). Select the location using the embedded map.",
+    )
     start_time = models.DateTimeField(
         help_text="The start time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval."
     )
@@ -1054,8 +1057,14 @@ class FlightOrderConfiguration(models.Model):
         null=True,
         help_text="Overrides whatever is chosen in map source",
     )
-    map_include_annotations = models.BooleanField(default=True)
-    map_plot_track_between_waypoints = models.BooleanField(default=True)
+    map_include_annotations = models.BooleanField(
+        default=True,
+        help_text="If this if set, the generated map will include minute marks and leg headings for the contestant so that no map preparation is necessary.",
+    )
+    map_plot_track_between_waypoints = models.BooleanField(
+        default=True,
+        help_text="For precision and Air Sport competition types this will draw a line between the waypoints of the track. Without this the precision map will only contain the waypoints, and the Air Sport maps will only contain the corridor without a centreline.",
+    )
     map_line_width = models.FloatField(default=1, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
     map_minute_mark_line_width = models.FloatField(
         default=1, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)]

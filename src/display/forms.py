@@ -70,7 +70,7 @@ class MapForm(forms.Form):
         initial=LANDSCAPE,
         help_text="WARNING: scale printing is currently only correct for landscape orientation",
     )
-    plot_track_between_waypoints = forms.BooleanField(initial=True, required=False)
+    plot_track_between_waypoints = forms.BooleanField(initial=True, required=False, help_text="For precision and Air Sport competition types this will draw a line between the waypoints of the track. Without this the precision map will only contain the waypoints, and the Air Sport maps will only contain the corridor without a centreline.")
     include_meridians_and_parallels_lines = forms.BooleanField(
         initial=True,
         required=False,
