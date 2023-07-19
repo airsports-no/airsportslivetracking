@@ -941,16 +941,18 @@ def get_contestant_email_flying_orders_link(request, pk):
 def generatenavigation_task_orders_template(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     single_contestant_pk = request.GET.get("contestant_pk")
-    contestants = navigation_task.contestant_set.filter(takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc))
+    selected_contestants = navigation_task.contestant_set.filter(
+        takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
+    )
     if single_contestant_pk:
-        contestants = contestants.filter(pk=single_contestant_pk)
+        selected_contestants = navigation_task.contestant_set.filter(pk=single_contestant_pk)
     return render(
         request,
         "display/flight_order_progress.html",
         {
             "navigation_task": navigation_task,
-            "contestants": contestants,
-            "contestant_pks": [item.pk for item in contestants],
+            "selected_contestants": selected_contestants,
+            "contestant_pk": [c.pk for c in navigation_task.contestant_set.all()],
         },
     )
 
@@ -1025,13 +1027,12 @@ def broadcast_navigation_task_orders(request, pk):
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def download_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    single_contestant = request.GET.get("contestant_pk")
-    if single_contestant:
-        contestants = Contestant.objects.filter(pk=single_contestant)
-    else:
-        contestants = navigation_task.contestant_set.filter(
-            takeoff_time__gt=datetime.datetime.now(datetime.timezone.utc)
-        )
+    contestant_pks = request.GET.get("contestant_pks")
+    if not contestant_pks or len(contestant_pks) == 0:
+        messages.error(request, f"No contestants were selected to download flight orders for.")
+        return redirect("navigationtask_flightordersprogress", pk=pk)
+    contestant_pks = contestant_pks.split(",")
+    contestants = navigation_task.contestant_set.filter(pk__in=contestant_pks)
     orders = EmailMapLink.objects.filter(contestant__in=contestants)
     if orders.count() > 1:
         # set up zip folder
@@ -1049,7 +1050,8 @@ def download_navigation_task_orders(request, pk):
         response = HttpResponse(orders.first().orders, content_type="application/pdf")
         response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
         return response
-    raise Http404
+    messages.error(request, f"There were no flight orders to download. Maybe they are still generating?")
+    return redirect("navigationtask_flightordersprogress", pk=pk)
 
 
 @api_view(["GET"])

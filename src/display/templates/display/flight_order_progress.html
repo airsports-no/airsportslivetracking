@@ -3,91 +3,103 @@
 {% block content %}
     <h5> Generating flight order for</h5>
     <p>
-        {% if single_contestant %}
-            <h2>Contestant {{ single_contestant }}</h2>
-        {% else %}
-            <H2>Navigation task {{ navigation_task }}</H2>
-        {% endif %}
+    <H2>Navigation task {{ navigation_task }}</H2>
     </p>
 
     <p>
         <a class="btn btn-primary" href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
-        <button class="btn btn-danger" onclick="generateFlightOrders()" id="generate_button">(Re)Generate flight orders
-        </button>
     </p>
-    <p class="text-muted">Flight orders can only be generated for contestants with takeoff times in the future. If the
-        table below is empty it means that there are no contestants that match this and you need to update them.
+    <p class="text-muted">Generate, broadcast, or download flight orders for contestants in the navigation task. Check
+        the checkbox next to the contestants and click the appropriate buttons. If the contestant already has an
+        existing flight order (green checkmark in the Existing FO column) there is no need to regenerate the flight
+        order unless you have changed any of the parameters (speed, wind, et cetera).
+    </p>
+    <p class="text-muted">
         Generation can take a few minutes per contestant, so please be patient. Progress and any failures
         will continuously
-        be reported in the table below.</p>
+        be reported in the table below.
+    </p>
     <div id="loading" style="display: none">
         <img class="center" src="/static/img/loading_airplane.gif" alt="loading..."/>
     </div>
-    <table class="table">
-        <thead>
-        <tr>
-            <th>Contestant</th>
-            <th>Previously generated</th>
-            <th>Generating</th>
-            <th>Sending</th>
-            <th>Errors</th>
-        </tr>
-        </thead>
-        {% for contestant in contestants %}
+    <form>
+        <table class="table">
+            <thead>
             <tr>
-                <td>{{ contestant }}</td>
-                <td>{% if contestant.has_flight_order_link %}<img src="{% static '/img/green_checkmark.png' %}"  style="width: 24px"/>{% endif %}</td>
-                <td id="generating_{{ contestant.pk }}"></td>
-                <td id="transmitting_{{ contestant.pk }}"></td>
-                <td id="errors_{{ contestant.pk }}"></td>
+                <th>Selected</th>
+                <th>Contestant</th>
+                <th>Existing FO</th>
+                <th>Generating</th>
+                <th>Sending</th>
+                <th>Errors</th>
             </tr>
-        {% endfor %}
-    </table>
+            </thead>
+            {% for contestant in navigation_task.contestant_set.all %}
+                <tr>
+                    <td><label>
+                        <input id="contestant_{{ contestant.pk }}" type="checkbox"
+                               {% if contestant in selected_contestants %}checked{% endif %}/>
+                    </label></td>
+                    <td>{{ contestant }}</td>
+                    <td id="previously_generated_{{ contestant.pk }}">{% if contestant.has_flight_order_link %}
+                        <img src="{% static '/img/green_checkmark.png' %}" style="width: 24px"/>{% endif %}</td>
+                    <td id="generating_{{ contestant.pk }}"></td>
+                    <td id="transmitting_{{ contestant.pk }}"></td>
+                    <td id="errors_{{ contestant.pk }}"></td>
+                </tr>
+            {% endfor %}
+        </table>
+    </form>
     <div id="details"></div>
-    <div id="successful_menu" style="display: none">
-        {% if single_contestant %}
-            <a class="btn btn-primary"
-               href="{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}?contestant_pk={{ single_contestant.pk }}"
-               role="button">Broadcast</a>
-            <a class="btn btn-primary"
-               href="{% url 'navigationtask_downloadflightorders' navigation_task.pk %}?contestant_pk={{ single_contestant.pk }}"
-               role="button">Download</a>
-        {% else %}
-            <button class="btn btn-primary" onclick="broadcastFlightOrders()"
-                    role="button">Broadcast
-            </button>
-            <a class="btn btn-primary" href="{% url 'navigationtask_downloadflightorders' navigation_task.pk %}"
-               role="button">Download</a>
-        {% endif %}
-    </div>
+    {#    <div id="successful_menu" style="display: none">#}
+    <button class="btn btn-danger" onclick="generateFlightOrders()" id="generate_button">Generate flight orders
+    </button>
+    {#    <div id="successful_menu">#}
+    <button class="btn btn-primary" onclick="broadcastFlightOrders()"
+            role="button">Broadcast
+    </button>
+    <a class="btn btn-primary" onclick="downloadFlightOrders()"
+       role="button">Download</a>
+    {#    </div>#}
     <script type="text/javascript">
         var generating = false
-        var first = true
+        const contestantPks = {{ contestant_pk }}
 
-        function clearStatus() {
-            for (var key of {{ contestant_pks }}) {
-                document.getElementById("generating_" + key).innerHTML = ""
-                document.getElementById("transmitting_" + key).innerHTML = ""
-                document.getElementById("errors_" + key).innerHTML = ""
+            function clearStatus() {
+                for (var key of getSelectedContestants()) {
+                    document.getElementById("generating_" + key).innerHTML = ""
+                    document.getElementById("transmitting_" + key).innerHTML = ""
+                    document.getElementById("errors_" + key).innerHTML = ""
+                }
             }
-        }
 
         function disableGenerate() {
             document.getElementById("generate_button").disabled = true
+            document.getElementById("loading").removeAttribute("style")
         }
 
         function enableGenerate() {
             document.getElementById("generate_button").disabled = false
+            document.getElementById("loading").setAttribute("style", "display: none")
+        }
+
+        function getSelectedContestants() {
+            let selected = []
+            for (var key of contestantPks) {
+                if (document.getElementById("contestant_" + key).checked) {
+                    selected.push(key)
+                }
+            }
+            return selected
         }
 
         function generateFlightOrders() {
-            document.getElementById("loading").removeAttribute("style")
-            document.getElementById("successful_menu").setAttribute("style", "display: none")
+            {#document.getElementById("successful_menu").setAttribute("style", "display: none")#}
             disableGenerate()
             clearStatus()
             generating = true
             $.ajax({
-                url: "/display/navigationtask/{{ navigation_task.pk }}/generateflightorders/?contestant_pks={{ contestant_pks|join:"," }}",
+                url: "/display/navigationtask/{{ navigation_task.pk }}/generateflightorders/?contestant_pks=" + getSelectedContestants().join(","),
                 type: 'get',
                 dataType: "json",
                 success: function (data) {
@@ -98,7 +110,7 @@
 
         function broadcastFlightOrders() {
             $.ajax({
-                url: "/display/navigationtask/{{ navigation_task.pk }}/broadcastflightorders/?contestant_pks={{ contestant_pks|join:"," }}",
+                url: "/display/navigationtask/{{ navigation_task.pk }}/broadcastflightorders/?contestant_pks=" + getSelectedContestants().join(","),
                 type: 'get',
                 dataType: "json",
                 success: function (data) {
@@ -107,21 +119,25 @@
             });
         }
 
+        function downloadFlightOrders() {
+            location.href = "/display/navigationtask/{{ navigation_task.pk }}/downloadflightorders/?contestant_pks=" + getSelectedContestants().join(",")
+        }
+
         function redirect() {
             location.href = "{% url 'navigationtask_detail' navigation_task.pk %}"
         }
 
         function updateRunningStatus(data) {
+            let wasGenerating = generating
             var ongoing = new Set()
             if (data.completed_flight_orders_map) {
-                completed = true
                 for (const [key, value] of Object.entries(data.completed_flight_orders_map)) {
                     if (!value) {
                         ongoing.add(key)
                         document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/loading.gif' %}" style="width: 24px"/>'
                     } else {
                         document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/green_checkmark.png' %}"  style="width: 24px"/>'
-
+                        document.getElementById("previously_generated_" + key).innerHTML = '<img src="{% static '/img/green_checkmark.png' %}"  style="width: 24px"/>'
                     }
                 }
             }
@@ -148,18 +164,14 @@
                     document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}"  style="width: 24px"/>'
                 }
             }
-            if (first && generating) {
-                document.getElementById("loading").removeAttribute("style")
+            generating = ongoing.size != 0
+            if (!generating && wasGenerating) {
+                enableGenerate()
+                {#document.getElementById("successful_menu").removeAttribute("style")#}
+                {#setTimeout(redirect, 10000)#}
+            } else if (generating && !wasGenerating) {
                 disableGenerate()
             }
-            if (ongoing.size === 0 && (generating || first)) {
-                generating = false
-                enableGenerate()
-                document.getElementById("loading").setAttribute("style", "display: none")
-                document.getElementById("successful_menu").removeAttribute("style")
-                {#setTimeout(redirect, 10000)#}
-            }
-            first = false
         }
 
         function getFlightOrderProgress() {
