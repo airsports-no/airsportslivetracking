@@ -70,7 +70,11 @@ class MapForm(forms.Form):
         initial=LANDSCAPE,
         help_text="WARNING: scale printing is currently only correct for landscape orientation",
     )
-    plot_track_between_waypoints = forms.BooleanField(initial=True, required=False, help_text="For precision and Air Sport competition types this will draw a line between the waypoints of the track. Without this the precision map will only contain the waypoints, and the Air Sport maps will only contain the corridor without a centreline.")
+    plot_track_between_waypoints = forms.BooleanField(
+        initial=True,
+        required=False,
+        help_text="For precision and Air Sport competition types this will draw a line between the waypoints of the track. Without this the precision map will only contain the waypoints, and the Air Sport maps will only contain the corridor without a centreline.",
+    )
     include_meridians_and_parallels_lines = forms.BooleanField(
         initial=True,
         required=False,
@@ -82,7 +86,7 @@ class MapForm(forms.Form):
     user_map_source = forms.ModelChoiceField(
         UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False
     )
-    zoom_level = forms.ChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)])
+    zoom_level = forms.TypedChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)], coerce=int, empty_value=12)
     dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
@@ -90,7 +94,7 @@ class MapForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         validate_map_zoom_level(
-            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), int(cleaned_data.get("zoom_level"))
+            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), cleaned_data.get("zoom_level")
         )
 
     def __init__(self, *args, **kwargs):
@@ -126,7 +130,7 @@ class ContestantMapForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         validate_map_zoom_level(
-            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), int(cleaned_data.get("zoom_level"))
+            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), cleaned_data.get("zoom_level")
         )
 
     def __init__(self, *args, **kwargs):
@@ -192,7 +196,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         validate_map_zoom_level(
-            cleaned_data.get("map_source"), cleaned_data.get("map_user_source"), int(cleaned_data.get("map_zoom_level"))
+            cleaned_data.get("map_source"), cleaned_data.get("map_user_source"), cleaned_data.get("map_zoom_level")
         )
 
     def __init__(self, *args, **kwargs):
@@ -489,7 +493,7 @@ class ContestForm(forms.ModelForm):
                 # "latitude",
                 # "longitude",
                 # "country",
-                "location"
+                "location",
             ),
             Fieldset("Publicity", "contest_website", "header_image", "logo"),
             Fieldset("Result service", "summary_score_sorting_direction", "autosum_scores"),
