@@ -23,6 +23,7 @@ from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
 
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
+from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from display.models import (
     NavigationTask,
@@ -261,7 +262,6 @@ class ContestFrontEndSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMi
     share_string = serializers.CharField(read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor")
 
-
     class Meta:
         model = Contest
         fields = ("id", "name", "editors", "start_time", "finish_time", "number_of_tasks", "share_string", "is_editor")
@@ -281,12 +281,26 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
     registered = SerializerMethodField("get_registered")
-    latitude=serializers.FloatField(read_only=True)
-    longitude=serializers.FloatField(read_only=True)
+    latitude = serializers.FloatField(read_only=True)
+    longitude = serializers.FloatField(read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor")
 
     def get_is_editor(self, contest):
         return "change_contest" in get_user_perms(self.context["request"].user, contest)
+
+    def validate(self, validated_data):
+        try:
+            validated_data["country"] = get_country_code_from_location(
+                *[float(x) for x in validated_data["location"].split(",")]
+            )
+        except CountryNotFoundException:
+            raise serializers.ValidationError(
+                f"The contest location {validated_data['location']} is not in a valid country",
+                code="invalid",
+            )
+        except:
+            pass
+        return validated_data
 
     class Meta:
         model = Contest

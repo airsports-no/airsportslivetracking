@@ -40,6 +40,7 @@ from display.models import (
     UserUploadedMap,
 )
 from display.poker.poker_cards import PLAYING_CARDS
+from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 
 FILE_TYPE_CSV = "csv"
 FILE_TYPE_FLIGHTCONTEST_GPX = "fcgpx"
@@ -507,6 +508,23 @@ class ContestForm(forms.ModelForm):
             return finish_time + datetime.timedelta(days=1)
         else:
             return finish_time
+
+    def clean(self):
+        cleaned_data = super().clean()
+        try:
+            get_country_code_from_location(
+                *[float(x) for x in cleaned_data["location"].split(",")]
+            )
+        except CountryNotFoundException:
+            raise ValidationError(
+                f"The contest location {cleaned_data['location']} is not in a valid country",
+                code="invalid",
+            )
+        except KeyError:
+            raise ValidationError(f"Please select a valid location for the contest.", code="invalid")
+        # except:
+        #     pass
+        return cleaned_data
 
 
 class PictureWidget(forms.widgets.Widget):

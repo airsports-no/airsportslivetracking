@@ -100,7 +100,7 @@ from display.views import (
     import_route,
     delete_user_and_person,
     user_start_request_profile_deletion,
-    user_request_profile_deletion, get_country_from_location,
+    user_request_profile_deletion, get_country_from_location, clear_flight_order_generation_cache,
 )
 
 urlpatterns = [
@@ -207,6 +207,11 @@ urlpatterns = [
         "navigationtask/<int:pk>/flightordersprogress/",
         generatenavigation_task_orders_template,
         name="navigationtask_flightordersprogress",
+    ),
+path(
+        "navigationtask/<int:pk>/clearflightordersprogress/",
+        clear_flight_order_generation_cache,
+        name="navigationtask_clearflightordersprogress",
     ),
     path(
         "navigationtask/<int:pk>/generateflightorders/",

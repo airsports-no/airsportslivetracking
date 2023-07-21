@@ -49,6 +49,7 @@ from display.calculators.calculator_utilities import round_time_second
 from display.calculators.positions_and_gates import Position
 from display.utilities.clone_object import simple_clone
 from display.utilities.coordinate_utilities import bearing_difference, calculate_distance_lat_lon
+from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 from display.utilities.editable_route_utilities import (
     create_track_block,
     create_takeoff_gate,
@@ -701,6 +702,18 @@ class Contest(models.Model):
     @property
     def country_names(self) -> Set[str]:
         return set([navigation_task.country_name for navigation_task in self.navigationtask_set.all()])
+
+    def validate_and_set_country(self):
+        try:
+            self.country = get_country_code_from_location(self.latitude, self.longitude)
+        except CountryNotFoundException:
+            raise ValidationError(
+                "The contest location %(location)s is not in a valid country",
+                params={"location": self.location},
+                code="invalid",
+            )
+        # except:
+        #     pass
 
     def initialise(self, user: MyUser):
         self.start_time = self.start_time.replace(tzinfo=self.time_zone)

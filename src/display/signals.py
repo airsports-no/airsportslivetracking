@@ -281,14 +281,6 @@ def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
             )
 
 
-@receiver(pre_save, sender=Contest)
-def set_contest_location(sender, instance: Contest, **kwargs):
-    try:
-        instance.country = get_country_code_from_location(instance.latitude, instance.longitude)
-    except:
-        pass
-
-
 @receiver(post_save, sender=NavigationTask)
 def initialise_navigation_task_dependencies(sender, instance: NavigationTask, created, **kwargs):
     if created:

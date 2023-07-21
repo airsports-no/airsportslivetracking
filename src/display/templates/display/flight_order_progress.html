@@ -1,13 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
 {% block content %}
-    <h5> Generating flight order for</h5>
+    <h3>Generating flight order for navigation task {{ navigation_task }}</h3>
     <p>
-    <H2>Navigation task {{ navigation_task }}</H2>
-    </p>
-
-    <p>
-        <a class="btn btn-primary" href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
     </p>
     <p class="text-muted">Generate, broadcast, or download flight orders for contestants in the navigation task. Check
         the checkbox next to the contestants and click the appropriate buttons. If the contestant already has an
@@ -26,8 +21,9 @@
         <table class="table">
             <thead>
             <tr>
-                <th>Selected</th>
+                <th>X</th>
                 <th>Contestant</th>
+                <th>Takeoff time</th>
                 <th>Existing FO</th>
                 <th>Generating</th>
                 <th>Sending</th>
@@ -41,6 +37,7 @@
                                {% if contestant in selected_contestants %}checked{% endif %}/>
                     </label></td>
                     <td>{{ contestant }}</td>
+                    <td>{{ contestant.takeoff_time_local | date:"Y-m-d H:m:s" }}</td>
                     <td id="previously_generated_{{ contestant.pk }}">{% if contestant.has_flight_order_link %}
                         <img src="{% static '/img/green_checkmark.png' %}" style="width: 24px"/>{% endif %}</td>
                     <td id="generating_{{ contestant.pk }}"></td>
@@ -51,6 +48,8 @@
         </table>
     </form>
     <div id="details"></div>
+    <a class="btn btn-primary" href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
+
     {#    <div id="successful_menu" style="display: none">#}
     <button class="btn btn-danger" onclick="generateFlightOrders()" id="generate_button">Generate flight orders
     </button>

@@ -969,6 +969,16 @@ def get_navigation_task_orders_status_object(pk) -> Dict:
 
 @api_view(["GET"])
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+def clear_flight_order_generation_cache(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    cache.delete(f"total_flight_orders_{pk}")
+    cache.delete(f"generate_failed_flight_orders_map_{navigation_task.pk}")
+    cache.delete(f"completed_flight_orders_map_{navigation_task.pk}")
+    return Response({})
+
+
+@api_view(["GET"])
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def generate_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestant_pks = request.GET.get("contestant_pks")
@@ -1458,6 +1468,7 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
+        instance.validate_and_set_country()
         instance.initialise(self.request.user)
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
@@ -1475,6 +1486,12 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
     model = Contest
     permission_required = ("display.change_contest",)
     form_class = ContestForm
+
+    def form_valid(self, form):
+        instance = form.save(commit=False)  # type: Contest
+        instance.validate_and_set_country()
+        instance.save()
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_permission_object(self):
         return self.get_object()
@@ -2748,6 +2765,7 @@ class ContestViewSet(ModelViewSet):
     lookup_url_kwarg = "pk"
 
     permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
+
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
