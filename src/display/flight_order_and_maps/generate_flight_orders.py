@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os.path
 import random
@@ -181,10 +182,12 @@ def render_turning_point_images(
             current_page += 1
         figure_width = 0.4
         with document.create(Figure(position="!ht")):
-            with document.create(MiniPage(width=fr"{figure_width}\textwidth")):
+            with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
                 image_file = get_turning_point_image(
                     # Use full waypoint list to get correct track in image
-                    waypoints, waypoints.index(render_waypoints[index]), unknown_leg=unknown_leg
+                    waypoints,
+                    waypoints.index(render_waypoints[index]),
+                    unknown_leg=unknown_leg,
                 )
                 document.append(
                     StandAloneGraphic(
@@ -198,9 +201,11 @@ def render_turning_point_images(
             if index < len(render_waypoints) - 1:
                 image_file = get_turning_point_image(
                     # Use full waypoint list to get correct track in image
-                    waypoints, waypoints.index(render_waypoints[index + 1]), unknown_leg=unknown_leg
+                    waypoints,
+                    waypoints.index(render_waypoints[index + 1]),
+                    unknown_leg=unknown_leg,
                 )
-                with document.create(MiniPage(width=fr"{figure_width}\textwidth")):
+                with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
                     document.append(
                         StandAloneGraphic(
                             image_options=r"width=\linewidth",
@@ -295,6 +300,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                 filename="/src/static/img/AirSportsLiveTracking.png",
             )
         )
+    # with header.create(Foot("L")):
+    #     header.append(VerticalSpace("-20pt"))
+    #     header.append(
+    #         f"Flight order generated at\n{datetime.datetime.now().astimezone(contestant.navigation_task.contest.time_zone).isoformat()}"
+    #     )
     document.preamble.append(header)
     # Map header
     map_header = PageStyle("mapheader")
@@ -349,7 +359,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         )
                         data_table.add_row(
                             bold("Departure:"),
-                            f"{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}",
+                            f"{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}",
                         )
                         data_table.add_row(bold("Start point:"), f"{starting_point_text}")
                         data_table.add_row(bold("Finish by:"), f"{finish_tracking_time} (tracking will stop)")
@@ -371,7 +381,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                     Command(
                         "captionof*",
                         "figure",
-                        extra_arguments=NoEscape(fr"\protect\href{{{url}}}{{Share on Facebook}}"),
+                        extra_arguments=NoEscape(rf"\protect\href{{{url}}}{{Share on Facebook}}"),
                     )
                 )
 
@@ -407,6 +417,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                 )
             )
             document.append(Command("caption*", "Finish point"))
+    document.append(VerticalSpace(Command("fill")))
+    document.append(
+        f"Flight order generated at {datetime.datetime.now().astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S %Z')}"
+    )
+
     document.append(NewPage())
     with document.create(Section("Turning points and time gates", numbering=False)):
         with document.create(MiniPage(width=r"\textwidth")):
