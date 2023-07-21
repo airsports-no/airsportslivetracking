@@ -1,19 +1,15 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
-    displayAboutModal,
-    displayEventSearchModal,
-    hideEventSearchModal, zoomFocusContest
+    displayAboutModal, displayEventSearchModal, hideEventSearchModal, zoomFocusContest
 } from "../../actions";
 import TimePeriodEventList from "./timePeriodEventList";
 import Icon from "@mdi/react";
 import {mdiAccountDetails, mdiCog, mdiLogin, mdiLogout, mdiMapSearch} from '@mdi/js'
 import {Modal, Container} from "react-bootstrap";
 import ContestPopupItem from "./contestPopupItem";
-import ContestItem from "./contestItem";
 import {
-    isAndroid,
-    isIOS
+    isAndroid, isIOS
 } from "react-device-detect";
 import {Link, Navigate} from "react-router-dom";
 import {sortStartAndFinishTimes} from "./utilities";
@@ -41,8 +37,7 @@ class EventSearchModal extends Component {
     }
 
     render() {
-        return (
-            <Modal {...this.props} aria-labelledby="contained-modal-title-vcenter">
+        return (<Modal {...this.props} aria-labelledby="contained-modal-title-vcenter">
 
                 <Modal.Header closeButton>
                     <Modal.Title id="contained-modal-title-vcenter">
@@ -57,8 +52,7 @@ class EventSearchModal extends Component {
                         </div>
                     </Container>
                 </Modal.Body>
-            </Modal>
-        );
+            </Modal>);
     }
 }
 
@@ -85,6 +79,12 @@ class ConnectedGlobalEventList extends Component {
     constructor(props) {
         super(props)
         this.state = {displayPopupContest: false, popupContest: null}
+    }
+
+    componentDidUpdate(prevProps) {
+        if (this.props.contestPopupId && this.props.contestPopupId !== prevProps.contestPopupId) {
+            this.props.zoomFocusContest(this.props.contestPopupId)
+        }
     }
 
     handleContestClick(contest) {
@@ -171,17 +171,15 @@ class ConnectedGlobalEventList extends Component {
                                 <div
                                     className={"d-flex justify-content-around list-group-item list-group-item-action list-group-item-secondary align-items-centre"}
                                     style={{paddingBottom: 0, paddingTop: 0}}>
-                                    {!isIOS ?
-                                        <a target={"_blank"}
-                                           href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
-                                            alt='Get it on Google Play' style={{height: "45px"}}
-                                            src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a> : null}
-                                    {!isAndroid ?
-                                        <a target={"_blank"}
-                                           href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
-                                            style={{height: "45px", padding: "8px"}}
-                                            src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
-                                            alt="Download on the App Store"/></a> : null}
+                                    {!isIOS ? <a target={"_blank"}
+                                                 href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
+                                        alt='Get it on Google Play' style={{height: "45px"}}
+                                        src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a> : null}
+                                    {!isAndroid ? <a target={"_blank"}
+                                                     href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
+                                        style={{height: "45px", padding: "8px"}}
+                                        src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
+                                        alt="Download on the App Store"/></a> : null}
                                 </div>
 
                             </div>
@@ -200,6 +198,5 @@ class ConnectedGlobalEventList extends Component {
     }
 }
 
-const
-    GlobalEventList = connect(mapStateToProps, mapDispatchToProps)(ConnectedGlobalEventList);
+const GlobalEventList = connect(mapStateToProps, mapDispatchToProps)(ConnectedGlobalEventList);
 export default withParams(GlobalEventList);

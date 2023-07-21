@@ -429,12 +429,12 @@ class ConnectedGlobalMapMap
         if (this.props.upcomingContests && this.props.upcomingContests.length > 0 && !arrayEquals(prevProps.upcomingContests, this.props.upcomingContests)) {
             this.createMarkers()
         }
-        if (prevProps.zoomContest !== this.props.zoomContest && this.map && this.props.zoomContest) {
+        if (this.map && this.props.zoomContest) {
             if (prevProps.zoomContest) {
                 this.markers[prevProps.zoomContest].closePopup()
             }
             this.markers[this.props.zoomContest].openPopup()
-            this.map.flyTo(this.markers[this.props.zoomContest])
+            this.map.flyTo(this.markers[this.props.zoomContest].getLatLng())
         }
 
     }
@@ -535,7 +535,7 @@ class ConnectedGlobalMapMap
             return contest.latitude !== 0 && contest.longitude !== 0
         })
         for (let contest of futureOrOngoingContests) {
-            this.markers[contest.id] = this.L.marker([contest.latitude, contest.longitude], {
+            this.markers[contest.id] = new this.L.marker([contest.latitude, contest.longitude], {
                 title: contest.name,
                 zIndexOffset: 1000000,
                 riseOnHover: true

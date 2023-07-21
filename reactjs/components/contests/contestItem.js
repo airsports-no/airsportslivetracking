@@ -3,7 +3,6 @@ import {connect} from "react-redux";
 
 
 export const mapStateToProps = (state, props) => ({
-    zoomContest: state.zoomContest
 })
 export const mapDispatchToProps = {}
 
