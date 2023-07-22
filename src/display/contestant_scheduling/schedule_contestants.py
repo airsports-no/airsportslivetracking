@@ -20,6 +20,7 @@ def schedule_and_create_contestants(
     aircraft_switch_time_minutes: int,
     tracker_switch_time: int,
     minimum_start_interval: int,
+    minimum_finish_interval: int,
     crew_switch_time: int,
     optimise: bool = False,
 ) -> Tuple[bool, List[str]]:
@@ -44,6 +45,7 @@ def schedule_and_create_contestants(
             aircraft_switch_time_minutes,
             tracker_switch_time,
             minimum_start_interval,
+            minimum_finish_interval,
             crew_switch_time,
             optimise,
         )
@@ -61,8 +63,7 @@ def schedule_and_create_contestants_landing_task(
     optimise: bool = False,
 ) -> Tuple[bool, List[str]]:
     selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
-    # Remove contestants that are not selected:
-    navigation_task.contestant_set.exclude(team__in=[item.team for item in selected_contest_teams]).delete()
+
     for index, contest_team in enumerate(selected_contest_teams):
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
@@ -97,6 +98,7 @@ def schedule_and_create_contestants_navigation_tasks(
     aircraft_switch_time_minutes: int,
     tracker_switch_time: int,
     minimum_start_interval: int,
+    minimum_finish_interval: int,
     crew_switch_time: int,
     optimise: bool = False,
 ) -> Tuple[bool, List[str]]:
@@ -108,38 +110,19 @@ def schedule_and_create_contestants_navigation_tasks(
         raise ValidationError(
             f"The tracker switch time {tracker_switch_time} must be larger than the tracker leadtime {tracker_leadtime_minutes}"
         )
-    # Remove contestants that are not selected:
-    navigation_task.contestant_set.exclude(team__in=[item.team for item in selected_contest_teams]).delete()
-
     for contest_team in selected_contest_teams:  # type: ContestTeam
-        try:
-            contestant = navigation_task.contestant_set.get(team=contest_team.team)
-
-            contest_teams.append(
-                (
-                    contest_team,
-                    contestant.air_speed,
-                    contestant.wind_speed,
-                    contestant.wind_direction,
-                    contestant.minutes_to_starting_point,
-                    (contestant.finished_by_time - contestant.gate_times[final_waypoint.name]).total_seconds() / 60,
-                    contestant.contestanttrack.calculator_started,
-                    contestant.takeoff_time,
-                )
+        contest_teams.append(
+            (
+                contest_team,
+                contest_team.air_speed,
+                navigation_task.wind_speed,
+                navigation_task.wind_direction,
+                navigation_task.minutes_to_starting_point,
+                navigation_task.minutes_to_landing,
+                False,  # frozen
+                None,  # start_time
             )
-        except ObjectDoesNotExist:
-            contest_teams.append(
-                (
-                    contest_team,
-                    contest_team.air_speed,
-                    navigation_task.wind_speed,
-                    navigation_task.wind_direction,
-                    navigation_task.minutes_to_starting_point,
-                    navigation_task.minutes_to_landing,
-                    False,
-                    None,
-                )
-            )
+        )
     team_data = []
     for (
         contest_team,
@@ -172,6 +155,7 @@ def schedule_and_create_contestants_navigation_tasks(
         int((navigation_task.finish_time - navigation_task.start_time).total_seconds() / 60),
         team_data,
         minimum_start_interval=minimum_start_interval,
+        minimum_finish_interval=minimum_finish_interval,
         aircraft_switch_time=aircraft_switch_time_minutes,
         tracker_start_lead_time=tracker_leadtime_minutes,
         tracker_switch_time=tracker_switch_time,
@@ -180,46 +164,27 @@ def schedule_and_create_contestants_navigation_tasks(
     )
     print("Running solver")
     team_definitions = solver.schedule_teams()
+    optimisation_messages.extend(solver.optimisation_messages)
     if len(team_definitions) == 0:
         return False, optimisation_messages
+    contestants = []
+    earliest_tracking_start = datetime.datetime.max.replace(tzinfo=datetime.timezone.utc)
+    latest_tracking_finish = datetime.datetime.max.replace(tzinfo=datetime.timezone.utc)
     for team_definition in team_definitions:
         contest_team = ContestTeam.objects.get(pk=team_definition.pk)
-        try:
-            contestant = navigation_task.contestant_set.get(team=contest_team.team)
-            if contestant.contestanttrack.calculator_started:
-                logger.warning(f"{contestant} has already started, so we cannot change this")
-                continue
-            start_offset = team_definition.start_time - contestant.takeoff_time
-            contestant.tracker_start_time = team_definition.start_time - datetime.timedelta(
-                minutes=tracker_leadtime_minutes
-            )
-            contestant.takeoff_time += start_offset
-            contestant.finished_by_time += start_offset
-            if contestant.predefined_gate_times is not None:
-                for key, value in contestant.predefined_gate_times.items():
-                    contestant.predefined_gate_times[key] = value + start_offset
-            try:
-                contestant.save()
-            except ValidationError as e:
-                logger.warning(e)
-                optimisation_messages.append(
-                    mark_safe(
-                        f"Failed updating contestant {contestant} because of {e}. The resulting schedule is probably not valid."
-                    )
-                )
-        except ObjectDoesNotExist:
-            if navigation_task.contestant_set.all().count() > 0:
-                maximum_contestant = max([item.contestant_number for item in navigation_task.contestant_set.all()])
-            else:
-                maximum_contestant = 0
-            Contestant.objects.create(
+        tracking_start_time = (
+            team_definition.start_time - datetime.timedelta(minutes=tracker_leadtime_minutes)
+        ).replace(microsecond=0)
+        tracking_finish_time = (
+            team_definition.start_time
+            + datetime.timedelta(minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes)
+        ).replace(microsecond=0)
+        earliest_tracking_start = min(earliest_tracking_start, tracking_start_time)
+        latest_tracking_finish = max(latest_tracking_finish, tracking_finish_time)
+        contestants.append(
+            Contestant(
                 takeoff_time=team_definition.start_time.replace(microsecond=0),
-                finished_by_time=(
-                    team_definition.start_time
-                    + datetime.timedelta(
-                        minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes
-                    )
-                ).replace(microsecond=0),
+                finished_by_time=tracking_finish_time,
                 air_speed=contest_team.air_speed,
                 wind_speed=navigation_task.wind_speed,
                 wind_direction=navigation_task.wind_direction,
@@ -229,9 +194,26 @@ def schedule_and_create_contestants_navigation_tasks(
                 navigation_task=navigation_task,
                 tracking_service=contest_team.tracking_service,
                 tracker_device_id=contest_team.tracker_device_id,
-                tracker_start_time=(
-                    team_definition.start_time - datetime.timedelta(minutes=tracker_leadtime_minutes)
-                ).replace(microsecond=0),
-                contestant_number=maximum_contestant + 1,
+                tracker_start_time=tracking_start_time,
+                contestant_number=0,
             )
+        )
+    if navigation_task.contestant_set.filter(
+        finished_by_time__gte=earliest_tracking_start, tracker_start_time__lte=latest_tracking_finish
+    ).exists():
+        raise ValidationError(
+            f"There are pre-existing contestants in the task time interval ({earliest_tracking_start.strftime('%Y-%m-%m %H:%M:%S %z')} "
+            f"to {latest_tracking_finish.strftime('%Y-%m-%m %H:%M:%S %z')}.  This is not supported by the scheduling "
+            f"algorithm. Please remove any contestants in this interval or consider changing the first takeoff time. "
+            f"If you do not wish to do this, consider creating the new contestants manually using the 'Add contestant' "
+            f"link at the bottom of the contestants overview page."
+        )
+    contestants.sort(key=lambda c: c.takeoff_time)
+    if navigation_task.contestant_set.all().count() > 0:
+        maximum_contestant = max([item.contestant_number for item in navigation_task.contestant_set.all()])
+    else:
+        maximum_contestant = 0
+    for index, contestant in enumerate(contestants):
+        contestant.contestant_number = maximum_contestant + index + 1
+    Contestant.objects.bulk_create(contestants)
     return True, optimisation_messages

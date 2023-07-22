@@ -12,6 +12,7 @@ from cartopy.io.img_tiles import OSM, GoogleWTS
 import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from matplotlib import patheffects
 import matplotlib.ticker as mticker
 from pymbtiles import MBtiles
@@ -1103,8 +1104,8 @@ def plot_route(
     minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude = route.get_extent()
     # print(f"minimum: {minimum_latitude}, {minimum_longitude}")
     # print(f"maximum: {maximum_latitude}, {maximum_longitude}")
-    proj = ccrs.PlateCarree()
-    x0_lon, x1_lon, y0_lat, y1_lat = ax.get_extent(proj)
+    proj_pc = ccrs.PlateCarree()
+    x0_lon, x1_lon, y0_lat, y1_lat = ax.get_extent(proj_pc)
 
     # Projection in metres
     utm = utm_from_lat_lon((y0_lat + y1_lat) / 2, (x0_lon + x1_lon) / 2)
@@ -1112,10 +1113,10 @@ def plot_route(
         # Zoom to fit
         map_margin = 6000  # metres
 
-        bottom_left = utm.transform_point(minimum_longitude, minimum_latitude, proj)
+        bottom_left = utm.transform_point(minimum_longitude, minimum_latitude, proj_pc)
         # top_left = utm.transform_point(minimum_longitude, maximum_latitude, proj)
         # bottom_right = utm.transform_point(maximum_longitude, minimum_latitude, proj)
-        top_right = utm.transform_point(maximum_longitude, maximum_latitude, proj)
+        top_right = utm.transform_point(maximum_longitude, maximum_latitude, proj_pc)
         # Widen the image a bit
         scaled_top = top_right[1] + map_margin
         scaled_bottom = bottom_left[1] - map_margin
@@ -1152,7 +1153,7 @@ def plot_route(
     else:
         centre_longitude = minimum_longitude + (maximum_longitude - minimum_longitude) / 2
         centre_latitude = minimum_latitude + (maximum_latitude - minimum_latitude) / 2
-        centre_x, centre_y = utm.transform_point(centre_longitude, centre_latitude, proj)
+        centre_x, centre_y = utm.transform_point(centre_longitude, centre_latitude, proj_pc)
         width_metres = (scale * 10) * figure_width
         height_metres = (scale * 10) * figure_height
         lower_left = (
@@ -1170,11 +1171,24 @@ def plot_route(
     # ax.autoscale(False)
     fig.patch.set_visible(False)
     # lat lon lines
-    extent = ax.get_extent(proj)
+    extent = ax.get_extent(proj_pc)
     if include_meridians_and_parallels_lines:
-        gl = ax.gridlines(draw_labels=False, dms=True, crs=ccrs.PlateCarree(), color='grey', linewidth=1)
-        gl.xlocator=mticker.FixedLocator(np.arange(extent[0],extent[1], 0.1))
-        gl.ylocator=mticker.FixedLocator(np.arange(extent[2],extent[3], 0.1))
+        # ax.set_xticks(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 0.1), crs=ccrs.PlateCarree())
+        gl = ax.gridlines(draw_labels=True, xpadding=-10,ypadding=-10,x_inline=False, y_inline=False, dms=True, crs=ccrs.PlateCarree(), color="grey", linewidth=1, clip_on=True)
+        gl.xlocator = mticker.FixedLocator(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 0.1))
+        # gl.right_labels=True
+        # gl.left_labels=True
+        # gl.xformatter = LONGITUDE_FORMATTER
+        # gl.xlabel_style = {"size": 15, "color": "grey"}
+        # gl.xpadding = 10
+        gl.ylocator = mticker.FixedLocator(np.arange(np.floor(extent[2]), np.ceil(extent[3]), 0.1))
+        # gl.bottom_labels=True
+        # gl.top_labels=True
+        # gl.yformatter = LATITUDE_FORMATTER
+        # gl.ylabel_style = {"size": 15, "color": "grey"}
+        # gl.ypadding = 10
+        # for artist in gl.bottom_label_artists:
+        #     artist.set_visible(True)
         # longitude = np.ceil(extent[0])
         # while longitude < extent[1]:
         #     plt.plot(
@@ -1195,7 +1209,7 @@ def plot_route(
         #         linewidth=0.5,
         #     )
         #     latitude += 1
-    plt.text(0, 0, " "+attribution, ha='left', va='bottom', transform=ax.transAxes)
+    plt.text(0, 0, " " + attribution, ha="left", va="bottom", transform=ax.transAxes)
     # fig.subplots_adjust(bottom=0)
     # fig.subplots_adjust(top=1)
     # fig.subplots_adjust(right=1)

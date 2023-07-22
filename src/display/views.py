@@ -1722,7 +1722,7 @@ def add_contest_teams_to_navigation_task(request, pk):
     """
     Add all teams registered for a contest to a task. If the team is already assigned as a contestant, ignore it.
 
-    Apply basic the conflicting of speed, aircraft, and trackers
+    Apply basic deconflicting of speed, aircraft, and trackers
     """
     TIME_LOCK_MINUTES = 30
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
@@ -1742,7 +1742,8 @@ def add_contest_teams_to_navigation_task(request, pk):
                     form.cleaned_data["tracker_lead_time_minutes"],
                     form.cleaned_data["minutes_for_aircraft_switch"],
                     form.cleaned_data["minutes_for_tracker_switch"],
-                    form.cleaned_data["minutes_between_contestants"],
+                    form.cleaned_data["minutes_between_contestants_at_start"],
+                    form.cleaned_data["minutes_between_contestants_at_finish"],
                     form.cleaned_data["minutes_for_crew_switch"],
                     optimise=form.cleaned_data.get("optimise", False),
                 )
@@ -1760,38 +1761,10 @@ def add_contest_teams_to_navigation_task(request, pk):
                     kwargs={"pk": navigation_task.pk},
                 )
             )
-    now = datetime.datetime.now(datetime.timezone.utc)
-    selected_existing = []
-    used_contest_teams = set()
-    for contestant in navigation_task.contestant_set.all():
-        selected = True
-        # if contestant.takeoff_time - datetime.timedelta(
-        #         minutes=TIME_LOCK_MINUTES) > now:
-        #     selected = True
-        try:
-            contest_team = navigation_task.contest.contestteam_set.get(team=contestant.team)
-        except ObjectDoesNotExist:
-            contest_team = ContestTeam.objects.create(
-                team=contestant.team,
-                contest=contestant.navigation_task.contest,
-                air_speed=contestant.air_speed,
-                tracking_device=contestant.tracking_device,
-                tracker_device_id=contestant.tracker_device_id,
-                tracking_service=contestant.tracking_service,
-            )
-        selected_existing.append((contest_team, f"{contest_team} (at {contestant.takeoff_time})", selected))
-        used_contest_teams.add(contest_team.pk)
-    selected_existing.extend(
-        [
-            (item, str(item), False)
-            for item in navigation_task.contest.contestteam_set.exclude(pk__in=used_contest_teams)
-        ]
-    )
-    # initial = navigation_task.contest.contestteam_set.filter(
-    #     team__in=[item.team for item in navigation_task.contestant_set.all()])
-    form.fields["contest_teams"].choices = [(str(item[0].pk), item[1]) for item in selected_existing]
-    form.fields["contest_teams"].initial = [str(item[0].pk) for item in selected_existing if item[2]]
     form.fields["first_takeoff_time"].initial = navigation_task.start_time
+    form.fields["contest_teams"].choices = [
+        (str(item.pk), str(item)) for item in navigation_task.contest.contestteam_set.all()
+    ]
     return render(
         request,
         "display/contestteam_optimisation_form.html",

@@ -343,6 +343,7 @@ class NavigationTaskForm(forms.ModelForm):
             "display_background_map",
             "display_secrets",
             "minutes_to_starting_point",
+            "planning_time",
             "original_scorecard",
             "minutes_to_landing",
             "wind_speed",
@@ -368,6 +369,7 @@ class NavigationTaskForm(forms.ModelForm):
                 "original_scorecard",
                 "allow_self_management",
                 "score_sorting_direction",
+                "planning_time"
             ),
             Fieldset("Wind", "wind_speed", "wind_direction"),
             Fieldset("Getting to and from the track", "minutes_to_starting_point", "minutes_to_landing"),
@@ -784,7 +786,8 @@ class ContestantForm(forms.ModelForm):
 class ContestTeamOptimisationForm(forms.Form):
     contest_teams = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple())
     first_takeoff_time = forms.DateTimeField()
-    minutes_between_contestants = forms.FloatField(initial=5, help_text="The minimum spacing between takeoffs")
+    minutes_between_contestants_at_start = forms.FloatField(initial=5, help_text="The minimum spacing between takeoffs")
+    minutes_between_contestants_at_finish = forms.FloatField(initial=2, help_text="The minimum spacing between aircraft as they cross the finish point (I.e. how close the second aircraft is allowed to get to the first aircraft")
     minutes_for_aircraft_switch = forms.IntegerField(
         initial=30,
         help_text="If an aircraft is shared between competitors, how much time is required from the landing time to the next takeoff for the same aircraft.",
@@ -800,7 +803,7 @@ class ContestTeamOptimisationForm(forms.Form):
     tracker_lead_time_minutes = forms.IntegerField(
         initial=15, help_text="How long before takeoff time should tracking of the contestant start"
     )
-    # optimise = forms.BooleanField(required=False, initial=False, help_text="Try to further optimise the schedule")
+    optimise = forms.BooleanField(required=False, initial=True, help_text="Try to further optimise the schedule")
 
 
 class AssignPokerCardForm(forms.Form):

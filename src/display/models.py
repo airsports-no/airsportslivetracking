@@ -846,6 +846,10 @@ class NavigationTask(models.Model):
         default=30,
         help_text="The number of minutes from the finish point to the contestant should have landed",
     )
+    planning_time = models.IntegerField(
+        default=30,
+        help_text="The number of minutes each team has for planning the navigation task. This is only used for populating the planning time: in the starting table timeline.",
+    )
     display_background_map = models.BooleanField(
         default=True,
         help_text="If checked the online tracking map shows the mapping background. Otherwise the map will be blank.",
@@ -935,6 +939,13 @@ class NavigationTask(models.Model):
     @property
     def display_contestant_rank_summary(self):
         return Task.objects.filter(contest=self.contest).count() > 1
+
+    @property
+    def earliest_takeoff_time(self) -> datetime.datetime:
+        try:
+            return self.contestant_set.all().order_by("takeoff_time")[0].takeoff_time
+        except IndexError:
+            return self.start_time
 
     class Meta:
         ordering = ("start_time", "finish_time")
@@ -1445,6 +1456,10 @@ class Contestant(models.Model):
     @property
     def newest_flight_order_link_uid(self):
         return self.emailmaplink_set.all().order_by("-created_at").values_list("id", flat=True).first()
+
+    @property
+    def planning_time(self) -> datetime.datetime:
+        return self.takeoff_time - datetime.timedelta(minutes=self.navigation_task.planning_time)
 
     @property
     def has_flight_order_link(self):

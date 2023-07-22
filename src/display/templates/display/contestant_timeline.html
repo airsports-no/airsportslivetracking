@@ -48,7 +48,7 @@
                           src="{% static 'img/AirSportsLiveTracking.png' %}"
                           alt="AirSports">
     <h3>Timeline "{{ navigation_task.name }}"</h3>
-    <h5>{{ navigation_task.start_time|date:"Y-m-d" }}</h5>
+    <h5>{{ navigation_task.earliest_takeoff_time|date:"Y-m-d" }}</h5>
     <div id="timeline"></div>
     <p style="page-break-after: always;">&nbsp;</p>
     <p style="page-break-before: always;">
@@ -56,12 +56,13 @@
                           src="{% static 'img/AirSportsLiveTracking.png' %}"
                           alt="AirSports">
     <h3>Timetable "{{ navigation_task.name }}"</h3>
-        <h5>{{ navigation_task.start_time|date:"Y-m-d" }}</h5>
+        <h5>{{ navigation_task.earliest_takeoff_time|date:"Y-m-d" }}</h5>
     </p>
 
     <table class="table table-condensed">
         <thead>
         <th>Contestant</th>
+        <th>Planning start</th>
         <th>Takeoff</th>
         <th>Start point</th>
         <th>Landing</th>
@@ -72,6 +73,7 @@
         {% for contestant in navigation_task.contestant_set.all %}
             <tr>
                 <td>{{ contestant }}</td>
+                <td>{% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.planning_time|date:"H:i:s" }}{% endif %}</td>
                 <td>{% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.takeoff_time|date:"H:i:s" }}{% endif %}</td>
                 <td>{% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.starting_point_time|date:"H:i:s" }}{% endif %}</td>
                 <td>{% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.landing_time_after_final_gate|date:"H:i:s" }}{% endif %}</td>
