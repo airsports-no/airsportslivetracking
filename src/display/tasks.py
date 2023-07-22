@@ -69,6 +69,7 @@ def append_cache_dict(cache_key, dict_key, value):
         cache.set(cache_key, dictionary)
 
 
+
 @app.task
 def generate_and_maybe_notify_flight_order(
     contestant_pk: int, email: str, first_name: str, transmit_immediately: bool = False

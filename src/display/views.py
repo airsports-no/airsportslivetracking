@@ -959,7 +959,6 @@ def generatenavigation_task_orders_template(request, pk):
 
 def get_navigation_task_orders_status_object(pk) -> Dict:
     return {
-        "total_flight_orders": cache.get(f"total_flight_orders_{pk}"),
         "completed_flight_orders_map": cache.get(f"completed_flight_orders_map_{pk}"),
         "transmitted_flight_orders_map": cache.get(f"transmitted_flight_orders_map_{pk}"),
         "generate_failed_flight_orders_map": cache.get(f"generate_failed_flight_orders_map_{pk}"),
@@ -971,7 +970,6 @@ def get_navigation_task_orders_status_object(pk) -> Dict:
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def clear_flight_order_generation_cache(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    cache.delete(f"total_flight_orders_{pk}")
     cache.delete(f"generate_failed_flight_orders_map_{navigation_task.pk}")
     cache.delete(f"completed_flight_orders_map_{navigation_task.pk}")
     return Response({})
@@ -986,7 +984,6 @@ def generate_navigation_task_orders(request, pk):
         raise Http404
     contestant_pks = contestant_pks.split(",")
     contestants = navigation_task.contestant_set.filter(pk__in=contestant_pks)
-    cache.set(f"total_flight_orders_{pk}", contestants.count())
     cache.set(
         f"completed_flight_orders_map_{navigation_task.pk}",
         {contestant.pk: False for contestant in contestants},
@@ -1017,7 +1014,6 @@ def broadcast_navigation_task_orders(request, pk):
         raise Http404
     contestant_pks = contestant_pks.split(",")
     contestants = navigation_task.contestant_set.filter(pk__in=contestant_pks)
-    cache.set(f"total_flight_orders_{pk}", contestants.count())
     cache.set(
         f"transmitted_flight_orders_map_{navigation_task.pk}",
         {contestant.pk: False for contestant in contestants},
