@@ -79,7 +79,7 @@ class MapForm(forms.Form):
     include_meridians_and_parallels_lines = forms.BooleanField(
         initial=True,
         required=False,
-        help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this",
+        help_text="If true, navigation map is overlaid with meridians and parallels every 0.1 degrees. Disable if map source already has this",
     )
 
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
@@ -512,9 +512,7 @@ class ContestForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         try:
-            get_country_code_from_location(
-                *[float(x) for x in cleaned_data["location"].split(",")]
-            )
+            get_country_code_from_location(*[float(x) for x in cleaned_data["location"].split(",")])
         except CountryNotFoundException:
             raise ValidationError(
                 f"The contest location {cleaned_data['location']} is not in a valid country",
@@ -786,11 +784,22 @@ class ContestantForm(forms.ModelForm):
 class ContestTeamOptimisationForm(forms.Form):
     contest_teams = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple())
     first_takeoff_time = forms.DateTimeField()
-    minutes_between_contestants = forms.FloatField(initial=5)
-    minutes_for_aircraft_switch = forms.IntegerField(initial=30)
-    minutes_for_tracker_switch = forms.IntegerField(initial=15)
-    minutes_for_crew_switch = forms.IntegerField(initial=15)
-    tracker_lead_time_minutes = forms.IntegerField(initial=15)
+    minutes_between_contestants = forms.FloatField(initial=5, help_text="The minimum spacing between takeoffs")
+    minutes_for_aircraft_switch = forms.IntegerField(
+        initial=30,
+        help_text="If an aircraft is shared between competitors, how much time is required from the landing time to the next takeoff for the same aircraft.",
+    )
+    minutes_for_tracker_switch = forms.IntegerField(
+        initial=15,
+        help_text="If a tracker is shared between competitors, how much time is required from the landing time to the next takeoff for the same tracker.",
+    )
+    minutes_for_crew_switch = forms.IntegerField(
+        initial=15,
+        help_text="If a person is part of multiple crews, how much time does he/she require to jump from one crew to another.",
+    )
+    tracker_lead_time_minutes = forms.IntegerField(
+        initial=15, help_text="How long before takeoff time should tracking of the contestant start"
+    )
     # optimise = forms.BooleanField(required=False, initial=False, help_text="Try to further optimise the schedule")
 
 

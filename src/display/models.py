@@ -1056,7 +1056,7 @@ class FlightOrderConfiguration(models.Model):
     )
     map_include_meridians_and_parallels_lines = models.BooleanField(
         default=True,
-        help_text="If true, navigation map is overlaid with meridians and parallels. Disable if map source already has this",
+        help_text="If true, navigation map is overlaid with meridians and parallels every 0.1 degrees. Disable if map source already has this",
     )
     map_dpi = models.IntegerField(default=300, validators=[MinValueValidator(100), MaxValueValidator(500)])
     map_zoom_level = models.IntegerField(default=12, choices=[(x, x) for x in range(1, 20)])
