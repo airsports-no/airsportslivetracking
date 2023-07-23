@@ -11,19 +11,14 @@ class TestContestantScheduler(TestCase):
             TeamDefinition(1, 5, "something2", "traccar", "aircraft_one", 3, 4, False, None),
         ]
         now = datetime.datetime.now(datetime.timezone.utc)
-        solver = Solver(
-            now, 60, teams, minimum_start_interval=0, aircraft_switch_time=0
-        )
+        solver = Solver(now, 60, teams, minimum_start_interval=0, aircraft_switch_time=0)
         team_definitions = solver.schedule_teams()
+        self.assertTrue(solver.optimal_solution)
         self.assertEqual(2, len(team_definitions))
         self.assertEqual(now, min([item.start_time for item in team_definitions]))
         self.assertEqual(
             5 * 60,
-            abs(
-                (
-                    team_definitions[0].start_time - team_definitions[1].start_time
-                ).total_seconds()
-            ),
+            abs((team_definitions[0].start_time - team_definitions[1].start_time).total_seconds()),
         )
 
     def test_overtaking(self):
@@ -32,12 +27,25 @@ class TestContestantScheduler(TestCase):
             TeamDefinition(1, 5, "something2", "traccar", "aircraft_two", 3, 4, False, None),
         ]
         now = datetime.datetime.now(datetime.timezone.utc)
-        solver = Solver(now, 8, teams, minimum_start_interval=2)
+        solver = Solver(now, 8, teams, minimum_start_interval=2, minimum_finish_interval=5)
         team_definitions = solver.schedule_teams()
-        print(now)
+        self.assertTrue(solver.optimal_solution)
         self.assertEqual(now, min([item.start_time for item in team_definitions]))
         self.assertEqual(0, team_definitions[0].start_slot)
         self.assertEqual(2, team_definitions[1].start_slot)
+
+    def test_minimum_finish_interval(self):
+        teams = [
+            TeamDefinition(0, 5, "something", "traccar", "aircraft_one", 1, 2, False, None),
+            TeamDefinition(1, 6, "something2", "traccar", "aircraft_two", 3, 4, False, None),
+        ]
+        now = datetime.datetime.now(datetime.timezone.utc)
+        solver = Solver(now, 8, teams, minimum_start_interval=0, minimum_finish_interval=3)
+        team_definitions = solver.schedule_teams()
+        self.assertTrue(solver.optimal_solution)
+        self.assertEqual(now, min([item.start_time for item in team_definitions]))
+        self.assertEqual(0, team_definitions[0].start_slot)
+        self.assertEqual(3, team_definitions[1].start_slot)
 
     def test_overlapping_tracker(self):
         teams = [
@@ -54,15 +62,12 @@ class TestContestantScheduler(TestCase):
             tracker_start_lead_time=1,
         )
         team_definitions = solver.schedule_teams()
+        self.assertTrue(solver.optimal_solution)
         self.assertEqual(2, len(team_definitions))
         self.assertEqual(now, min([item.start_time for item in team_definitions]))
         self.assertEqual(
             6 * 60,
-            abs(
-                (
-                    team_definitions[0].start_time - team_definitions[1].start_time
-                ).total_seconds()
-            ),
+            abs((team_definitions[0].start_time - team_definitions[1].start_time).total_seconds()),
         )
         team_definitions = sorted(team_definitions, key=lambda k: k.start_slot)
         self.assertEqual(0, team_definitions[0].start_slot)
@@ -85,18 +90,13 @@ class TestContestantScheduler(TestCase):
             aircraft_switch_time=0,
         )
         team_definitions = solver.schedule_teams()
+        self.assertTrue(solver.optimal_solution)
         self.assertEqual(2, len(team_definitions))
         self.assertEqual(now, min([item.start_time for item in team_definitions]))
         self.assertEqual(
             16 * 60,
-            abs(
-                (
-                    team_definitions[0].start_time - team_definitions[1].start_time
-                ).total_seconds()
-            ),
+            abs((team_definitions[0].start_time - team_definitions[1].start_time).total_seconds()),
         )
         team_definitions = sorted(team_definitions, key=lambda k: k.start_slot)
         self.assertEqual(0, team_definitions[0].start_slot)
-        self.assertEqual(
-            16, team_definitions[1].start_slot
-        )  # Flight time of the first team plus crew switch time
+        self.assertEqual(16, team_definitions[1].start_slot)  # Flight time of the first team plus crew switch time

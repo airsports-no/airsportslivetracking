@@ -198,6 +198,7 @@ services:
     image: mysql
     container_name: mysql
     restart: always
+    command: --max_allowed_packet=325058560
     environment:
       #      - MYSQL_DATABASE=traccar
       #      - MYSQL_USER=traccar

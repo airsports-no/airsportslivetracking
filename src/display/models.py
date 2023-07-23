@@ -947,6 +947,17 @@ class NavigationTask(models.Model):
         except IndexError:
             return self.start_time
 
+    @property
+    def latest_finished_by_time(self) -> datetime.datetime:
+        try:
+            return self.contestant_set.all().order_by("-finished_by_time")[0].finished_by_time
+        except IndexError:
+            return self.finish_time
+
+    @property
+    def duration(self) -> datetime.timedelta:
+        return self.latest_finished_by_time - self.earliest_takeoff_time
+
     class Meta:
         ordering = ("start_time", "finish_time")
 

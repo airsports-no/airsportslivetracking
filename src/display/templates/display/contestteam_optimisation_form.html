@@ -11,8 +11,9 @@
     finished by time when creating a schedule and will warn accordingly if this is the case to give you the opportunity
     to clean out the interval or change the initial time.
 
-    The system first uses a simple algorithm to create a valid good schedule, and then applies a linear programming (LP)
-    optimiser to minimise the latest planning time (to make the final contestant complete the task as early as
+    The system first uses a simple algorithm to create a valid good schedule that ensures that no aircraft overtakes
+    another while respecting the constraints below. It then optionally applies a linear programming (LP)
+    optimiser to minimise the latest finish point time (to make the final contestant complete the task as early as
     possible).
     <p>
         <a href="{% url 'navigationtask_detail' navigation_task.pk %}">Back to task details</a>

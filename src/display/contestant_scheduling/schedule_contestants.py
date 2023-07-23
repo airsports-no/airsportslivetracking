@@ -104,7 +104,6 @@ def schedule_and_create_contestants_navigation_tasks(
 ) -> Tuple[bool, List[str]]:
     optimisation_messages = []
     contest_teams = []
-    final_waypoint = navigation_task.route.waypoints[-1]
     selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
     if tracker_switch_time < tracker_leadtime_minutes:
         raise ValidationError(
