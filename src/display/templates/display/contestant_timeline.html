@@ -66,9 +66,9 @@
         <th>Planning start</th>
         <th>Takeoff</th>
         <th>Start point</th>
-        <th>Landing</th>
+        <th>Landing before</th>
         <th>Tracker start</th>
-        <th>Tracker stop</th>
+{#        <th>Tracker stop</th>#}
         </thead>
         <tbody>
         {% for contestant in navigation_task.contestant_set.all %}
@@ -79,7 +79,7 @@
                 <td>{% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.starting_point_time|date:"H:i:s" }}{% endif %}</td>
                 <td>{% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.landing_time_after_final_gate|date:"H:i:s" }}{% endif %}</td>
                 <td>{{ contestant.tracker_start_time|date:"H:i:s" }}</td>
-                <td>{{ contestant.finished_by_time|date:"H:i:s" }}</td>
+{#                <td>{{ contestant.finished_by_time|date:"H:i:s" }}</td>#}
             </tr>
         {% endfor %}
         </tbody>
