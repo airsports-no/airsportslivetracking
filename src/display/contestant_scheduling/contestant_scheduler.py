@@ -89,6 +89,7 @@ class Solver:
         """
         self.__initiate_problem()
         self.__latest_finish_time_constraints()
+        self.__nonoverlapping_team_members()
         self.__nonoverlapping_aircraft()
         self.__nonoverlapping_trackers()
         self.__minimum_start_and_finish_interval_between_teams()
@@ -100,7 +101,7 @@ class Solver:
         self.problem.writeLP("problem.lp")
         logger.debug("Running solve")
         # status = self.problem.solve(pulp.SCIP_CMD(timeLimit=600))
-        status = self.problem.solve(pulp.PULP_CBC_CMD(maxSeconds=600, warmStart=True))
+        status = self.problem.solve(pulp.PULP_CBC_CMD(maxSeconds=60000, warmStart=True))
         self.optimal_solution = status == pulp.LpStatusOptimal
         logger.debug(f"Optimisation status {pulp.LpStatus[status]}")
         status = pulp.LpStatusOptimal
@@ -138,6 +139,7 @@ class Solver:
         )
         self.aircraft_team_variables = {}
         self.tracker_team_variables = {}
+        self.crew_team_variables = {}
         self.start_after = {}
         for index in range(len(self.teams)):
             team = self.teams[index]
@@ -156,7 +158,7 @@ class Solver:
         self.problem += self.latest_finish_time
         # self.problem += 999 * self.latest_finish_time + pulp.lpSum(
         #     [self.start_slot_numbers[f"{team.pk}"] * 1 / team.flight_time for team in self.teams])
-        self.problem += pulp.lpSum([self.start_slot_numbers[f"{team.pk}"] * team.flight_time for team in self.teams])
+        # self.problem += pulp.lpSum([self.start_slot_numbers[f"{team.pk}"] * team.flight_time for team in self.teams])
 
     def __latest_finish_time_constraints(self):
         for team in self.teams:
@@ -244,7 +246,7 @@ class Solver:
                 for team in sorted_teams:
                     next_available = get_next_possibility_for_team(team, current_slot)
                     local_latest_finish = next_available + team.flight_time
-                    while local_latest_finish <= latest_finish:
+                    while local_latest_finish <= latest_finish + self.minimum_finish_interval:
                         next_available += 1
                         local_latest_finish = next_available + team.flight_time
                     if next_available <= current_slot + increment:
@@ -326,15 +328,22 @@ class Solver:
                 self.tracker_team_variables[name].setInitialValue(0)
             else:
                 self.tracker_team_variables[name].setInitialValue(1)
+        for name, parameter in self.crew_team_variables.items():
+            team, other_team = name.split("_")
+            if self.start_slot_numbers[f"{team}"].value() < self.start_slot_numbers[f"{other_team}"].value():
+                self.crew_team_variables[name].setInitialValue(0)
+            else:
+                self.crew_team_variables[name].setInitialValue(1)
 
     def __nonoverlapping_trackers(self):
         logger.debug("Nonoverlapping trackers")
         overlapping_trackers = {}
         for team in self.teams:
-            if team.aircraft_registration not in overlapping_trackers:
+            if team.get_tracker_id() not in overlapping_trackers:
                 overlapping_trackers[team.get_tracker_id()] = []
             overlapping_trackers[team.get_tracker_id()].append(team)
         for tracker, teams in overlapping_trackers.items():
+            logger.debug(f"Constraints for overlapping trackers {tracker} with {len(teams)} teams")
             if len(teams) > 1:
                 self.tracker_team_variables.update(
                     pulp.LpVariable.dicts(
@@ -354,7 +363,7 @@ class Solver:
                                 self.start_slot_numbers[f"{team.pk}"]
                                 - self.start_slot_numbers[f"{other_team.pk}"]
                                 + team.flight_time
-                                + self.tracker_switch_time
+                                + max(self.tracker_switch_time, self.tracker_start_lead_time)
                                 - self.very_large_variable * self.tracker_team_variables[f"{team.pk}_{other_team.pk}"]
                                 <= 0,
                                 f"team_use_tracker_before_other_{team.pk}_{other_team.pk}",
@@ -369,6 +378,55 @@ class Solver:
                                 * (1 - self.tracker_team_variables[f"{team.pk}_{other_team.pk}"])
                                 <= 0,
                                 f"other_use_tracker_before_team_{team.pk}_{other_team.pk}",
+                            )
+
+    def __nonoverlapping_team_members(self):
+        logger.debug("Nonoverlapping team members")
+        overlapping_members = {}
+        for team in self.teams:
+            if team.member1 not in overlapping_members:
+                overlapping_members[team.member1] = []
+            overlapping_members[team.member1].append(team)
+            if team.member2:
+                if team.member2 not in overlapping_members:
+                    overlapping_members[team.member2] = []
+                overlapping_members[team.member2].append(team)
+        for member, teams in overlapping_members.items():
+            logger.debug(f"Constraints for overlapping members {member} with {len(teams)} teams")
+            if len(teams) > 1:
+                self.crew_team_variables.update(
+                    pulp.LpVariable.dicts(
+                        "team_member_usage",
+                        [f"{team.pk}_{other_team.pk}" for team in teams for other_team in teams],
+                        lowBound=0,
+                        upBound=1,
+                        cat=pulp.LpInteger,
+                    )
+                )
+                for team in teams:
+                    # Get slot number of team aircraft usage
+                    for other_team in teams:
+                        if team != other_team:
+                            # Ensure no overlap
+                            self.problem += (
+                                self.start_slot_numbers[f"{team.pk}"]
+                                - self.start_slot_numbers[f"{other_team.pk}"]
+                                + team.flight_time
+                                + self.crew_switch_time
+                                - self.very_large_variable * self.crew_team_variables[f"{team.pk}_{other_team.pk}"]
+                                <= 0,
+                                f"team_use_member_before_other_{team.pk}_{other_team.pk}",
+                            )
+                            # 1 = before
+                            self.problem += (
+                                self.start_slot_numbers[f"{other_team.pk}"]
+                                - self.start_slot_numbers[f"{team.pk}"]
+                                + other_team.flight_time
+                                + self.crew_switch_time
+                                - self.very_large_variable
+                                * (1 - self.crew_team_variables[f"{team.pk}_{other_team.pk}"])
+                                <= 0,
+                                f"other_use_member_before_team_{team.pk}_{other_team.pk}",
                             )
 
     def __minimum_start_and_finish_interval_between_teams(self):
@@ -395,7 +453,7 @@ class Solver:
                     self.problem += (
                         self.start_slot_numbers[f"{other_team.pk}"]
                         - self.start_slot_numbers[f"{team.pk}"]
-                        + max(self.minimum_start_interval,  self.minimum_finish_interval-flight_time_difference)
+                        + max(self.minimum_start_interval, self.minimum_finish_interval - flight_time_difference)
                         - self.very_large_variable * (1 - self.start_after[f"{team.pk}_{other_team.pk}"])
                         <= 0,
                         f"other_start_immediately_before_team_{team.pk}_{other_team.pk}",
@@ -416,7 +474,7 @@ class Solver:
                     self.problem += (
                         self.start_slot_numbers[f"{team.pk}"]
                         - self.start_slot_numbers[f"{other_team.pk}"]
-                        + max(self.minimum_start_interval,  self.minimum_finish_interval-flight_time_difference)
+                        + max(self.minimum_start_interval, self.minimum_finish_interval - flight_time_difference)
                         - self.very_large_variable * (1 - self.start_after[f"{team.pk}_{other_team.pk}"])
                         <= 0,
                         f"other_start_immediately_before_team_{team.pk}_{other_team.pk}",

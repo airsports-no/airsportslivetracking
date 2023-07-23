@@ -809,7 +809,7 @@ class ContestTeamOptimisationForm(forms.Form):
     optimise = forms.BooleanField(
         required=False,
         initial=True,
-        help_text="Try to further optimise the schedule. If this fails, try deselecting this option.",
+        help_text="Try to further optimise the schedule. This will take a maximum of 10 minutes. If a solution is not found within the time, the result will be a suboptimal solution. In that case, rerun the scheduler without this flag set",
     )
 
 

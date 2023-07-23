@@ -209,6 +209,7 @@ services:
     volumes:
       - mysqldata3:/var/lib/mysql/
       - ./traccar/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
+      - ./src:/src
 
   redis:
     image: redis
