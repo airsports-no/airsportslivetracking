@@ -482,6 +482,7 @@ class ConnectedGlobalMapMap
                 zoomControl: false,
                 preferCanvas: true
             })
+            this.createMarkers()
 
             this.internalPositionIcons = L.layerGroup().addTo(this.map)
             this.internalPositionText = L.layerGroup().addTo(this.map)
@@ -531,25 +532,31 @@ class ConnectedGlobalMapMap
     }
 
     createMarkers() {
-        const futureOrOngoingContests = this.props.upcomingContests.filter((contest) => {
-            return contest.latitude !== 0 && contest.longitude !== 0
-        })
-        for (let contest of futureOrOngoingContests) {
-            this.markers[contest.id] = new this.L.marker([contest.latitude, contest.longitude], {
-                title: contest.name,
-                zIndexOffset: 1000000,
-                riseOnHover: true
-
-            }).addTo(this.map)
-            this.markers[contest.id].bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={contest}
-                                                                                               participation={this.getCurrentParticipation(contest.id)}/>), {
-                className: "contest-popup",
-                maxWidth: 350,
-                permanent: false,
-                direction: "center"
+        if(this.props.upcomingContests) {
+            for (const [key, value] of Object.entries(this.markers)) {
+                this.map.removeLayer(value)
+            }
+            this.markers = {}
+            const futureOrOngoingContests = this.props.upcomingContests.filter((contest) => {
+                return contest.latitude !== 0 && contest.longitude !== 0
             })
+            for (let contest of futureOrOngoingContests) {
+                this.markers[contest.id] = new this.L.marker([contest.latitude, contest.longitude], {
+                    title: contest.name,
+                    zIndexOffset: 1000000,
+                    riseOnHover: true
+
+                }).addTo(this.map)
+                this.markers[contest.id].bindPopup(ReactDOMServer.renderToString(<ContestPopupItem contest={contest}
+                                                                                                   participation={this.getCurrentParticipation(contest.id)}/>), {
+                    className: "contest-popup",
+                    maxWidth: 350,
+                    permanent: false,
+                    direction: "center"
+                })
+            }
+            this.updateVisibleContests()
         }
-        this.updateVisibleContests()
     }
 
 
