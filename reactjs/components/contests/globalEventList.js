@@ -39,20 +39,20 @@ class EventSearchModal extends Component {
     render() {
         return (<Modal {...this.props} aria-labelledby="contained-modal-title-vcenter">
 
-                <Modal.Header closeButton>
-                    <Modal.Title id="contained-modal-title-vcenter">
-                        Find contests
-                    </Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Container>
-                        <div className={""}>
-                            <EventTable contests={this.props.contests}
-                                        handleContestClick={this.props.handleContestClick}/>
-                        </div>
-                    </Container>
-                </Modal.Body>
-            </Modal>);
+            <Modal.Header closeButton>
+                <Modal.Title id="contained-modal-title-vcenter">
+                    Find contests
+                </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <Container>
+                    <div className={""}>
+                        <EventTable contests={this.props.contests}
+                                    handleContestClick={this.props.handleContestClick}/>
+                    </div>
+                </Container>
+            </Modal.Body>
+        </Modal>);
     }
 }
 
@@ -88,9 +88,12 @@ class ConnectedGlobalEventList extends Component {
     }
 
     handleContestClick(contest) {
-        this.props.zoomFocusContest(contest.id)
         this.props.hideEventSearchModal()
-        // this.props.navigate("/global/contest_details/" + contest.id + "/")
+        this.props.navigate("/global/contest_details/" + contest.id + "/")
+    }
+
+    handleContestOnMapClick(contest) {
+        this.props.zoomFocusContest(contest.id)
     }
 
     getCurrentParticipation(contestId) {
@@ -163,7 +166,7 @@ class ConnectedGlobalEventList extends Component {
                                     className={"list-group-item list-group-item-secondary list-group-item-action"}
                                 ><Loading/></div>}
                                 <TimePeriodEventList contests={visibleEvents}
-                                                     onClick={(contest) => this.handleContestClick(contest)}/>
+                                                     onClick={(contest) => this.handleContestOnMapClick(contest)}/>
                             </div>
                             <div className={"list-group list-group-root"}>
                                 <div

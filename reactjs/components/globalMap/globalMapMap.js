@@ -434,7 +434,7 @@ class ConnectedGlobalMapMap
                 this.markers[prevProps.zoomContest].closePopup()
             }
             this.markers[this.props.zoomContest].openPopup()
-            this.map.flyTo(this.markers[this.props.zoomContest].getLatLng())
+            this.map.flyTo(this.markers[this.props.zoomContest].getLatLng(), 7)
         }
 
     }
@@ -532,15 +532,8 @@ class ConnectedGlobalMapMap
     }
 
     createMarkers() {
-        if(this.props.upcomingContests) {
-            for (const [key, value] of Object.entries(this.markers)) {
-                this.map.removeLayer(value)
-            }
-            this.markers = {}
-            const futureOrOngoingContests = this.props.upcomingContests.filter((contest) => {
-                return contest.latitude !== 0 && contest.longitude !== 0
-            })
-            for (let contest of futureOrOngoingContests) {
+        if (this.props.upcomingContests && Object.keys(this.markers).length == 0) {
+            for (let contest of this.props.upcomingContests) {
                 this.markers[contest.id] = new this.L.marker([contest.latitude, contest.longitude], {
                     title: contest.name,
                     zIndexOffset: 1000000,
