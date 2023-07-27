@@ -227,6 +227,7 @@ export class ConnectedNavigationTask extends Component {
             zoomDelta: 0.25,
             zoomSnap: 0.25,
             zoomControl: false,
+            maxZoom: 14,  // Required when there is no background map, otherwise it may crash
         }).on('contextmenu', (e) => this.resetToAllContestants(e))
     }
 
