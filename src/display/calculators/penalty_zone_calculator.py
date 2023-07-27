@@ -90,7 +90,7 @@ class PenaltyZoneCalculator(Calculator):
                 self.update_score(
                     self.get_last_non_secret_gate(last_gate or self.gates[0]),
                     self.running_penalty[zone],
-                    "inside penalty zone {}".format(zone),
+                    "inside penalty zone {} ({}s)".format(zone, int((position.time-start_time).total_second())),
                     position.latitude,
                     position.longitude,
                     ANOMALY,
