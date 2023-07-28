@@ -116,8 +116,13 @@ class Traccar:
                     logger.error(f"Failed to find device ID for unique ID {name}")
         return devices
 
-    def update_and_get_devices(self) -> List:
-        return self.session.get(self.base + "/api/devices").json()
+    def update_and_get_devices(self) -> Optional[List]:
+        response = self.session.get(self.base + "/api/devices")
+        try:
+            return response.json()
+        except:
+            logger.exception(f"Failed fetching device list {response.status_code}: {response.text}")
+            return None
 
     def delete_device(self, device_id):
         response = self.session.delete(self.base + "/api/devices/{}".format(device_id))
@@ -206,14 +211,15 @@ class Traccar:
         return existing_device, False
 
     def delete_all_devices(self):
-        devices = self.update_and_get_devices()
-        for item in devices:
-            self.delete_device(item["id"])
+        if devices := self.update_and_get_devices():
+            for item in devices:
+                self.delete_device(item["id"])
         return devices
 
     def get_device_map(self) -> Dict:
-        self.device_map = {
-            item["id"]: item["uniqueId"] for item in self.update_and_get_devices()
-        }
+        if dmap := self.update_and_get_devices():
+            self.device_map = {
+                item["id"]: item["uniqueId"] for item in dmap
+            }
         self.unique_id_map = {value: key for key, value in self.device_map.items()}
         return self.device_map
