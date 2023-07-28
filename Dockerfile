@@ -18,7 +18,7 @@ ENV LC_CTYPE C.UTF-8
 ENV LC_ALL C.UTF-8
 ENV LANGUAGE C.UTF-8
 ENV LANG C.UTF-8
-RUN pip install cython
+RUN pip install cython==0.29.36
 COPY requirements.txt /
 RUN pip install -Ur /requirements.txt
 RUN pip install -e /opensky-api/python
