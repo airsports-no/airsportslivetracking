@@ -686,7 +686,11 @@ class ConnectedRouteEditor extends Component {
                                 return <option key={item[1]} value={item[1]}>{item[0]}</option>
                             })}
                         </Form.Control>
-
+                        <Form.Text id={'waypointFormTextId'} muted>The first waypoint must be of the type starting point
+                            and the last waypoint must be of the type finish point. Waypoints in between are typically turning
+                            points and secret gates. The gate types "dummy" and "unknown leg" are used to build&nbsp;
+                            <a href={"https://home.airsports.no/tutorials/#Unknown"} target={"_blank"}>precision tasks with unknown legs</a>. They are not to be used with corridor-based
+                            tasks.</Form.Text>
                         <Form.Label>Gate width (NM):</Form.Label>&nbsp;
                         <Form.Control key={"Width"} placeholder={"Width"}
                                       type={"number"}
