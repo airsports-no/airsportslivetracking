@@ -50,7 +50,21 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.models import Route, Contestant, NavigationTask, EditableRoute, UserUploadedMap
+from display.models import (
+    Route,
+    Contestant,
+    NavigationTask,
+    EditableRoute,
+    UserUploadedMap,
+    SECRETPOINT,
+    UNKNOWN_LEG,
+    DUMMY,
+    INTERMEDIARY_STARTINGPOINT,
+    INTERMEDIARY_FINISHPOINT,
+    FINISHPOINT,
+    TURNPOINT,
+    STARTINGPOINT,
+)
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
@@ -656,7 +670,7 @@ def plot_anr_corridor_track(
         ys, xs = np.array(waypoint.gate_line).T
         bearing = waypoint_bearing(waypoint, index)
 
-        if waypoint.type not in ("secret",) and waypoint.time_check:
+        if waypoint.type not in (SECRETPOINT,) and waypoint.time_check:
             plot_waypoint_name(
                 route,
                 waypoint,
@@ -675,7 +689,7 @@ def plot_anr_corridor_track(
             inner_track.append(waypoint.gate_line[0])
             outer_track.append(waypoint.gate_line[1])
         center_track.append((waypoint.latitude, waypoint.longitude))
-        if waypoint.type not in ("secret",) and waypoint.time_check:
+        if waypoint.type not in (SECRETPOINT,) and waypoint.time_check:
             plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
             plot_minute_marks(
@@ -706,7 +720,7 @@ def plot_anr_corridor_track(
 def maybe_plot_leg_bearing(
     waypoint: Waypoint, index: int, track: List[Waypoint], contestant: Contestant, character_offset: int, font_size: int
 ):
-    if waypoint.type != "secret":
+    if waypoint.type != SECRETPOINT:
         # Only plot bearing if there is a straight line between one not secret gate and the next
         next_index = index + 1
         accumulated_distance = 0
@@ -723,7 +737,7 @@ def maybe_plot_leg_bearing(
                 break
             accumulated_distance += track[next_index].distance_previous
             if (
-                track[next_index].type not in ("secret", "ul", "dummy") and accumulated_distance / 1852 > 1
+                track[next_index].type not in (SECRETPOINT, UNKNOWN_LEG, DUMMY) and accumulated_distance / 1852 > 1
             ):  # Distance between waypoints must be more than 1 nautical miles
                 plot_leg_bearing(
                     waypoint,
@@ -826,18 +840,33 @@ def plot_precision_track(
             next_waypoint = None
         if waypoint.type == "ul":
             on_unknown_leg = True
-        if waypoint.type in ("tp", "sp", "fp", "isp", "ifp"):
+        if waypoint.type in (
+            TURNPOINT,
+            STARTINGPOINT,
+            FINISHPOINT,
+            INTERMEDIARY_STARTINGPOINT,
+            INTERMEDIARY_FINISHPOINT,
+        ):
             on_unknown_leg = False
-        if previous_waypoint and previous_waypoint.type in ("dummy", "ul") and waypoint.type != "dummy":
+        if previous_waypoint and previous_waypoint.type in (DUMMY, UNKNOWN_LEG) and waypoint.type != DUMMY:
             tracks.append([])
-        if waypoint.type == "isp":
+        if waypoint.type == INTERMEDIARY_STARTINGPOINT:
             tracks.append([])
-        if waypoint.type in ("tp", "sp", "fp", "isp", "ifp", "secret", "dummy", "ul"):
+        if waypoint.type in (
+            TURNPOINT,
+            STARTINGPOINT,
+            FINISHPOINT,
+            INTERMEDIARY_STARTINGPOINT,
+            INTERMEDIARY_FINISHPOINT,
+            SECRETPOINT,
+            DUMMY,
+            UNKNOWN_LEG,
+        ):
             # Do not show unknown leg gates, these are to be considered secret unless followed by a dummy
-            if waypoint.type == "ul" and next_waypoint and next_waypoint.type != "dummy":
+            if waypoint.type == UNKNOWN_LEG and next_waypoint and next_waypoint.type != DUMMY:
                 continue
             # Secret checkpoints on unknown legs should not be displayed
-            if on_unknown_leg and waypoint.type == "secret":
+            if on_unknown_leg and waypoint.type == SECRETPOINT:
                 continue
             tracks[-1].append(waypoint)
         previous_waypoint = waypoint
@@ -845,7 +874,7 @@ def plot_precision_track(
     for track in tracks:  # type: List[Waypoint]
         line = []
         for index, waypoint in enumerate(track):  # type: int, Waypoint
-            if waypoint.type not in ("secret", "ul", "dummy"):
+            if waypoint.type not in (SECRETPOINT, UNKNOWN_LEG, DUMMY):
                 bearing = waypoint_bearing(waypoint, index)
                 ys, xs = np.array(waypoint.gate_line).T
                 if not waypoints_only:
@@ -1174,7 +1203,18 @@ def plot_route(
     extent = ax.get_extent(proj_pc)
     if include_meridians_and_parallels_lines:
         # ax.set_xticks(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 0.1), crs=ccrs.PlateCarree())
-        gl = ax.gridlines(draw_labels=True, xpadding=-10,ypadding=-10,x_inline=False, y_inline=False, dms=True, crs=ccrs.PlateCarree(), color="grey", linewidth=1, clip_on=True)
+        gl = ax.gridlines(
+            draw_labels=True,
+            xpadding=-10,
+            ypadding=-10,
+            x_inline=False,
+            y_inline=False,
+            dms=True,
+            crs=ccrs.PlateCarree(),
+            color="grey",
+            linewidth=1,
+            clip_on=True,
+        )
         gl.xlocator = mticker.FixedLocator(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 0.1))
         # gl.right_labels=True
         # gl.left_labels=True
