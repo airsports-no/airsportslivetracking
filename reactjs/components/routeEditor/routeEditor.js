@@ -954,13 +954,13 @@ class ConnectedRouteEditor extends Component {
                         }}>Route list
                 </button>
             </div>
-            {this.state.displayTutorial ?
-                <IntroSlider slides={slides} sliderIsOpen={this.state.displayTutorial} skipButton={true}
-                             controllerOrientation={"horizontal"} size={"large"}
-                             descriptionStyle={{fontSize: "1.1rem"}}
-                             imageStyle={{padding: null}}
-                             handleDone={() => this.setState({displayTutorial: false})}
-                             handleClose={() => this.setState({displayTutorial: false})}/> : null}
+            {/*{this.state.displayTutorial ?*/}
+            {/*    <IntroSlider slides={slides} sliderIsOpen={this.state.displayTutorial} skipButton={true}*/}
+            {/*                 controllerOrientation={"horizontal"} size={"large"}*/}
+            {/*                 descriptionStyle={{fontSize: "1.1rem"}}*/}
+            {/*                 imageStyle={{padding: null}}*/}
+            {/*                 handleDone={() => this.setState({displayTutorial: false})}*/}
+            {/*                 handleClose={() => this.setState({displayTutorial: false})}/> : null}*/}
         </div>
     }
 
