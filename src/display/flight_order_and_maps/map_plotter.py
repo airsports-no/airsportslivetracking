@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     django.setup()
 
-from display.models import Route, Contestant, NavigationTask, EditableRoute, UserUploadedMap, DUMMY, UNKNOWN_LEG
+from display.models import Route, Contestant, NavigationTask, EditableRoute, UserUploadedMap
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
@@ -652,7 +652,7 @@ def plot_anr_corridor_track(
     inner_track = []
     outer_track = []
     center_track = []
-    for index, waypoint in enumerate(filter(lambda w: w.type not in (DUMMY,UNKNOWN_LEG), route.waypoints)):
+    for index, waypoint in enumerate(route.waypoints):
         ys, xs = np.array(waypoint.gate_line).T
         bearing = waypoint_bearing(waypoint, index)
 
