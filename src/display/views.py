@@ -2195,6 +2195,9 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 f"Unable to find original scorecard for task type {task_type}. Please notify support@airsports.no.",
             )
             return redirect("editableroute_list")
+        except ValidationError as e:
+            messages.error(self.request, str(e))
+            return redirect("editableroute_list")
 
 
 class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
@@ -2734,7 +2737,6 @@ class ContestViewSet(ModelViewSet):
     lookup_url_kwarg = "pk"
 
     permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
-
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)

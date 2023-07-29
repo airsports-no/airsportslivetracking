@@ -2913,6 +2913,20 @@ class EditableRoute(models.Model):
             raise ValidationError(f"Malformed internal route: {e}")
         return coordinates
 
+    def validate_valid_corridor_route(self, route_type: str):
+        """
+        Check that there are no unknown leg waypoints or dummy waypoints in the route. Raise ValidationError.
+        """
+        track = self.get_feature_type("track")
+        if track is None:
+            return
+        track_points = track.get("track_points", [])
+        illegal_points = list(filter(lambda k: k["gateType"] in (DUMMY, UNKNOWN_LEG), track_points))
+        if len(illegal_points) > 0:
+            raise ValidationError(
+                f"Waypoints of type 'dummy' or 'unknown leg' are not allowed for a {route_type} route. Please remove this from your route or choose another task type."
+            )
+
     def create_landing_route(self):
         route = Route.objects.create(name="", waypoints=[], use_procedure_turns=False)
         self.amend_route_with_additional_features(route)
@@ -2952,7 +2966,7 @@ class EditableRoute(models.Model):
     def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: Scorecard) -> Route:
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
-
+        self.validate_valid_corridor_route("ANR")
         track = self.get_feature_type("track")
         waypoint_list = []
         coordinates = self.get_feature_coordinates(track)
@@ -2982,6 +2996,7 @@ class EditableRoute(models.Model):
     def create_airsports_route(self, rounded_corners: bool, scorecard: Scorecard) -> Route:
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
+        self.validate_valid_corridor_route("AirSports Challenge and Air Sports Race")
 
         track = self.get_feature_type("track")
         waypoint_list = []
