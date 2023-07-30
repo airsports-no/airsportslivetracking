@@ -931,7 +931,7 @@ class ConnectedRouteEditor extends Component {
                     <Toast.Body>{this.state.saveFailed}</Toast.Body>
                 </Toast> : null}
             </div>
-            <a href={"#"} className={"logoImageRE"} onClick={() => this.setState({displayTutorial: true})}>
+            <a href={"https://home.airsports.no/tutorials/#RouteEditor"} className={"logoImageRE"} target={"_blank"}>
                 <img src={"/static/img/airsports_help.png"} style={{width: "50px"}} alt={"Help"}/>
             </a>
 
