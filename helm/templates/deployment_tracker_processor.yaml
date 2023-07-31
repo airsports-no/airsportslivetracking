@@ -67,6 +67,26 @@ spec:
               name: envs-production-other
           - secretRef:
               name: pw-secrets
+        livenessProbe:
+          exec:
+            # bash is needed to replace the environment variable
+            command: [
+              "bash",
+              "-c",
+              "python -m probes.is_alive || (for pid in $(ps axo pid --no-headers); do ps -p $pid -o command --no-headers ; ps -T -p $pid; done; false )"
+            ]
+          initialDelaySeconds: 30  # startup takes some time
+          periodSeconds: 120
+          timeoutSeconds: 10
+        readinessProbe:
+          exec:
+            # bash is needed to replace the environment variable
+            command: [
+              "python", "-m", "probes.is_ready""
+            ]
+          initialDelaySeconds: 30  # startup takes some time
+          periodSeconds: 120
+          timeoutSeconds: 10
         volumeMounts:
           - mountPath: /secret
             readOnly: true

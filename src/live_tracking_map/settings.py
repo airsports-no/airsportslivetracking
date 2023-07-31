@@ -81,7 +81,14 @@ REMOVE_BG_KEY = os.environ.get("REMOVE_BG_KEY", "")
 SLACK_DEVELOPMENT_WEBHOOK = os.environ.get("SLACK_DEVELOPMENT_WEBHOOK", "")
 
 REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
+
+PURGE_GLOBAL_MAP_INTERVAL = 60
+LIVE_POSITION_TRANSMITTER_CACHE_RESET_INTERVAL = 300
+
+
 # Application definition
+
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",

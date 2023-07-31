@@ -6,7 +6,8 @@ import threading
 import time
 from multiprocessing import Process, Queue
 
-# import sentry_sdk
+import probes
+from live_position_transmitter import live_position_transmitter_process
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -16,153 +17,26 @@ if __name__ == "__main__":
 
 from traccar_facade import Traccar
 from django.core.cache import cache
-from django.core.exceptions import ObjectDoesNotExist
-from django.db import connections, OperationalError, connection
-from display.serialisers import PersonLtdSerialiser
+from django.db import connections
 
-from websocket_channels import WebsocketFacade
-
-from position_processor_process import initial_processor, PERSON_TYPE
+from position_processor_process import initial_processor
 
 import websocket
-from display.models import Contestant, Person
 
 logger = logging.getLogger(__name__)
 
-PURGE_GLOBAL_MAP_INTERVAL = 60
-
-if __name__ == "__main__":
-    websocket_facade = WebsocketFacade()
+FAILED_TRACCAR_CONNECTION_COUNT_LIMIT = 10
 
 global_map_queue = Queue()
 processing_queue = Queue()
-RESET_INTERVAL = 300
 
 received_messages = 0
-
-
-def live_position_transmitter_process(queue):
-    django.db.connections.close_all()
-    person_cache = {}
-    contestant_cache = {}
-    last_reset = datetime.datetime.now()
-
-    def fetch_person(person_or_contestant):
-        try:
-            person = person_cache[person_or_contestant]
-        except KeyError:
-            person = Person.objects.get(app_tracking_id=person_or_contestant)
-            person_cache[person_or_contestant] = person
-            logger.info(f"Found person for live position {person}")
-        return person
-
-    def fetch_contestant(person_or_contestant):
-        try:
-            contestant = contestant_cache[person_or_contestant]
-        except KeyError:
-            contestant = (
-                Contestant.objects.filter(pk=person_or_contestant)
-                .select_related(
-                    "navigation_task",
-                    "team",
-                    "team__crew",
-                    "team__crew__member1",
-                    "team__crew__member2",
-                    "team__aeroplane",
-                )
-                .first()
-            )
-            logger.info(f"Found contestant for live position {contestant}")
-            contestant_cache[person_or_contestant] = contestant
-        return contestant
-
-    while True:
-        (
-            data_type,
-            person_or_contestant,
-            position_data,
-            device_time,
-            is_simulator,
-        ) = queue.get()
-        if (datetime.datetime.now() - last_reset).total_seconds() > RESET_INTERVAL:
-            person_cache = {}
-            contestant_cache = {}
-            last_reset = datetime.datetime.now()
-
-        navigation_task_id = None
-        global_tracking_name = None
-        person_data = None
-        push_global = True
-        if data_type == PERSON_TYPE:
-            try:
-                person = fetch_person(person_or_contestant)
-                person.last_seen = device_time
-                person.save(update_fields=["last_seen"])
-                global_tracking_name = person.app_aircraft_registration
-                if person.is_public:
-                    person_data = PersonLtdSerialiser(person).data
-            except ObjectDoesNotExist:
-                pass
-            except OperationalError:
-                logger.warning(
-                    f"Error when fetching person for app_tracking_id '{person_or_contestant}'. Attempting to reconnect"
-                )
-                connection.connect()
-            except Exception:
-                logger.exception(
-                    f"Something failed when trying to update person {person_or_contestant}"
-                )
-
-        else:
-            try:
-                contestant = fetch_contestant(person_or_contestant)
-                if contestant is not None:
-                    # Check for delayed tracking, do not push global positions if there is delay
-                    # if contestant.navigation_task.calculation_delay_minutes != 0:
-                    #     push_global = False
-                    global_tracking_name = contestant.team.aeroplane.registration
-                    try:
-                        person = contestant.team.crew.member1
-                        person.last_seen = device_time
-                        person.save(update_fields=["last_seen"])
-                        if person.is_public:
-                            person_data = PersonLtdSerialiser(person).data
-                    except:
-                        logger.exception(
-                            f"Failed fetching person data for contestant {contestant}"
-                        )
-                    if contestant.navigation_task.everything_public:
-                        navigation_task_id = contestant.navigation_task_id
-            except OperationalError:
-                logger.warning(
-                    f"Error when fetching contestant for app_tracking_id '{person_or_contestant}'. Attempting to reconnect"
-                )
-                connection.connect()
-        now = datetime.datetime.now(datetime.timezone.utc)
-        if (
-            global_tracking_name is not None
-            and not is_simulator
-            and now
-            < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
-        ):
-            if push_global:
-                websocket_facade.transmit_global_position_data(
-                    global_tracking_name,
-                    person_data,
-                    position_data,
-                    device_time,
-                    navigation_task_id,
-                )
-            websocket_facade.transmit_airsports_position_data(
-                global_tracking_name,
-                position_data,
-                device_time,
-                navigation_task_id,
-            )
+failed_traccar_connection_count = 0
 
 
 def on_message(ws, message):
-    global received_messages
+    global received_messages, failed_traccar_connection_count
+    failed_traccar_connection_count = 0
     data = json.loads(message)
     received_messages += 1
     # for item in data.get("positions", []):
@@ -202,30 +76,29 @@ headers["Upgrade"] = "websocket"
 
 if __name__ == "__main__":
     """
-    Incoming positions are first sent to the initial processor. The person or contestant is then forwarded  to the live 
+    Incoming positions are first sent to the initial processor. The person or contestant is then forwarded  to the live
     position transmitter process  to appear on the global map and on the air sports data feed.
     """
     django.db.connections.close_all()
-    p = Process(
+    cache.clear()
+
+    Process(
         target=live_position_transmitter_process,
         args=(global_map_queue,),
         daemon=True,
         name="live_position_transmitter",
-    )
-    p.start()
+    ).start()
 
-    for index in range(1):
-        logger.info(f"Creating initial processor number {index}")
-        Process(
-            target=initial_processor,
-            args=(processing_queue, global_map_queue),
-            daemon=False,
-            name="initial_processor_{}".format(index),
-        ).start()
-
-    cache.clear()
+    logger.info(f"Creating initial processor")
+    Process(
+        target=initial_processor,
+        args=(processing_queue, global_map_queue),
+        daemon=False,
+        name="initial_processor",
+    ).start()
 
     print_debug()
+    probes.readiness(True)
     while True:
         try:
             traccar = Traccar.create_from_configuration()
@@ -245,4 +118,7 @@ if __name__ == "__main__":
         )
         ws.run_forever(ping_interval=55)
         logger.warning("Websocket terminated, restarting")
+        failed_traccar_connection_count += 1
+        if failed_traccar_connection_count > FAILED_TRACCAR_CONNECTION_COUNT_LIMIT:
+            probes.readiness(False)
         time.sleep(5)

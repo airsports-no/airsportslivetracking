@@ -3,6 +3,7 @@ from http.client import RemoteDisconnected
 from multiprocessing import Queue, Process
 
 import os
+from queue import Empty
 from typing import List, Dict, Tuple, Optional
 
 import logging
@@ -22,6 +23,7 @@ from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import is_termination_requested
 from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
 from live_tracking_map import settings
+from probes import probes
 from redis_queue import RedisQueue
 
 if __name__ == "__main__":
@@ -105,19 +107,20 @@ def initial_processor(queue: Queue, global_map_queue: Queue):
     print_debug()
     while True:
         clean_db_positions()
-        data = queue.get()
-        build_and_push_position_data(data, traccar, global_map_queue)
+        try:
+            data = queue.get(timeout=10)
+            build_and_push_position_data(data, traccar, global_map_queue)
+        except Empty:
+            pass
+        probes.liveness(True)
 
 
 def build_and_push_position_data(data, traccar, global_map_queue):
     global global_received_positions
-    # logger.info("Received data")
     received_positions = map_positions_to_contestants(traccar, data.get("positions", []), global_map_queue)
     for contestant, positions in received_positions.items():
-        # logger.info("Positions for {}".format(contestant))
         global_received_positions += len(positions)
         add_positions_to_calculator(contestant, positions)
-        # logger.info("Positions to calculator for {}".format(contestant))
     cleanup_calculators()
 
 
@@ -212,7 +215,7 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
                 processes[key] = (q, None)
                 try:
                     response = start_kubernetes_job()
-                    calculator_is_alive(contestant.pk, 300) # Give it five minutes to spin up the kubernetes job
+                    calculator_is_alive(contestant.pk, 300)  # Give it five minutes to spin up the kubernetes job
                     logger.info(f"Successfully created calculator job for {contestant}")
                 except AlreadyExists:
                     logger.warning(
