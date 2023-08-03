@@ -7,7 +7,6 @@ import time
 from multiprocessing import Process, Queue
 
 import probes
-from live_position_transmitter import live_position_transmitter_process
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
@@ -20,6 +19,7 @@ from django.core.cache import cache
 from django.db import connections
 
 from position_processor_process import initial_processor
+from live_position_transmitter import live_position_transmitter_process
 
 import websocket
 

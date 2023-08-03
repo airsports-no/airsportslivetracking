@@ -82,7 +82,7 @@ spec:
           exec:
             # bash is needed to replace the environment variable
             command: [
-              "python", "-m", "probes.is_ready""
+              "python", "-m", "probes.is_ready"
             ]
           initialDelaySeconds: 30  # startup takes some time
           periodSeconds: 120

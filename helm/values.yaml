@@ -169,9 +169,9 @@ wordpress:
   wordpressLastName: Sem-Jacobsen
   wordpressBlogName: Air Sports Live Tracking
 
-  smtpHost: smtp.sendgrid.net
+  smtpHost: pro.turbo-smtp.com
   smtpPort: "587"
-  smtpUser: apiKey
+  smtpUser: frankose@ifi.uio.no
 
   affinity:
     nodeAffinity:

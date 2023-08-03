@@ -14,7 +14,6 @@ import datetime
 import dateutil
 import threading
 
-import urllib3
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 from urllib3.exceptions import ProtocolError
