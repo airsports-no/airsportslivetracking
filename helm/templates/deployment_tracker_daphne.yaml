@@ -17,6 +17,17 @@ spec:
     spec:
       terminationGracePeriodSeconds: 25
       affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: service
+                      operator: In
+                      values:
+                        - tracker-daphne
+                topologyKey: "kubernetes.io/hostname"
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
