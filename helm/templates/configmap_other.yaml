@@ -14,9 +14,9 @@ data:
   TRACCAR_PORT: "8082"
   TRACCAR_PROTOCOL: http
 
-  AUTHEMAIL_EMAIL_HOST: smtp.sendgrid.net
-  AUTHEMAIL_EMAIL_PORT: "587"
-  AUTHEMAIL_EMAIL_HOST_USER: apikey
+  AUTHEMAIL_EMAIL_HOST: {{ .Values.wordpress.smtpHost }}
+  AUTHEMAIL_EMAIL_PORT: {{ .Values.wordpress.smtpPort | quote }}
+  AUTHEMAIL_EMAIL_HOST_USER: {{ .Values.wordpress.smtpUser }}
   AUTHEMAIL_DEFAULT_EMAIL_FROM: support@airsports.no
   AUTHEMAIL_DEFAULT_EMAIL_BCC: support@airsports.no
 
