@@ -1791,7 +1791,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         # Validate no timing changes after calculator start
         if self.pk is not None:
             original = Contestant.objects.get(pk=self.pk)
-            if original.contestanttrack.calculator_started:
+            if hasattr(original, "contestanttrack") and original.contestanttrack.calculator_started:
                 if original.takeoff_time.replace(microsecond=0) != self.takeoff_time.replace(microsecond=0):
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change takeoff time from {original.takeoff_time} to {self.takeoff_time}"
@@ -2457,7 +2457,8 @@ class PlayingCard(models.Model):
             string="{}: {}".format(waypoint, message),
         )
 
-        contestant.contestanttrack.update_score(relative_score)
+        if hasattr(contestant, "contestanttrack"):
+            contestant.contestanttrack.update_score(relative_score)
         from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()

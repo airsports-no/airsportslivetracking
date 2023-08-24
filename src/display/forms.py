@@ -114,7 +114,7 @@ class ContestantMapForm(forms.Form):
     user_map_source = forms.ModelChoiceField(
         UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False
     )
-    zoom_level = forms.ChoiceField(initial=12, choices=list(range(1, 15)))
+    zoom_level = forms.ChoiceField(initial=12, choices=[(i, i) for i in range(1, 15)])
 
     include_annotations = forms.BooleanField(initial=True, required=False)
     plot_track_between_waypoints = forms.BooleanField(initial=True, required=False)

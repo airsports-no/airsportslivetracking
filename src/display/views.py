@@ -1880,7 +1880,11 @@ def _generate_data(contestant_pk):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
     logger.debug("Fetching track for {} {}".format(contestant.pk, contestant))
     # Do not include track if we have not started a calculator yet
-    position_data = contestant.get_track() if contestant.contestanttrack.calculator_started else []
+    position_data = (
+        contestant.get_track()
+        if hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_started
+        else []
+    )
     if len(position_data) > 0:
         global_latest_time = position_data[-1].time
     else:
@@ -2963,7 +2967,7 @@ class ContestTeamViewSet(ModelViewSet):
         )
         try:
             contest = contests.get(pk=contest_id)
-        except ObjectDoesNotExist:
+        except Contest.DoesNotExist:
             raise Http404("Contest does not exist")
         return ContestTeam.objects.filter(contest=contest)
 
