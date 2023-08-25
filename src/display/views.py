@@ -60,7 +60,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
-from rest_framework.viewsets import ModelViewSet, GenericViewSet
+from rest_framework.viewsets import ModelViewSet, GenericViewSet, ReadOnlyModelViewSet
 
 from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_zoom_levels
 from display.utilities.calculator_running_utilities import is_calculator_running
@@ -205,6 +205,7 @@ from display.serialisers import (
     ContestSerialiserWithResults,
     PersonSerialiserExcludingTracking,
     ContestFrontEndSerialiser,
+    NavigationTaskEditableRoutReferenceSerialiser,
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.tasks import (
@@ -2146,24 +2147,16 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
 
     def create_route(self, scorecard: Scorecard) -> Route:
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
-        route = None
-        if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
-            use_procedure_turns = scorecard.use_procedure_turns
-            route = self.editable_route.create_precision_route(use_procedure_turns, scorecard)
-        elif task_type == NavigationTask.ANR_CORRIDOR:
+        rounded_corners = False
+        corridor_width = 0
+        if task_type == NavigationTask.ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_parameters")
             rounded_corners = initial_step_data["rounded_corners"]
             corridor_width = initial_step_data["corridor_width"]
-            route = self.editable_route.create_anr_route(rounded_corners, corridor_width, scorecard)
         elif task_type in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
             initial_step_data = self.get_cleaned_data_for_step("airsports_parameters")
             rounded_corners = initial_step_data["rounded_corners"]
-            route = self.editable_route.create_airsports_route(rounded_corners, scorecard)
-        elif task_type == NavigationTask.LANDING:
-            route = self.editable_route.create_landing_route()
-        # Check for gate polygons that do not match a turning point
-        route.validate_gate_polygons()
-        return route
+        return self.editable_route.create_route(task_type, scorecard, rounded_corners, corridor_width)
 
     def done(self, form_list, **kwargs):
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
@@ -2968,6 +2961,11 @@ class ContestTeamViewSet(ModelViewSet):
         return ContestTeam.objects.filter(contest=contest)
 
 
+class GetScorecardsViewSet(ReadOnlyModelViewSet):
+    queryset = Scorecard.get_originals()
+    serializer_class = ScorecardNestedSerialiser
+
+
 class NavigationTaskViewSet(ModelViewSet):
     """
     Main navigation task view set. Used by the front end to load the tracking map.
@@ -2978,6 +2976,7 @@ class NavigationTaskViewSet(ModelViewSet):
         "share": SharingSerialiser,
         "contestant_self_registration": SelfManagementSerialiser,
         "scorecard": ScorecardNestedSerialiser,
+        "create": NavigationTaskEditableRoutReferenceSerialiser,
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -2986,7 +2985,7 @@ class NavigationTaskViewSet(ModelViewSet):
         NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)
     ]
 
-    http_method_names = ["get", "post", "delete", "put"]
+    http_method_names = ["get", "post", "delete"]
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)

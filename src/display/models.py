@@ -2969,6 +2969,7 @@ class EditableRoute(models.Model):
     def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: Scorecard) -> Route:
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
+
         self.validate_valid_corridor_route("ANR")
         track = self.get_feature_type("track")
         waypoint_list = []
@@ -2999,6 +3000,7 @@ class EditableRoute(models.Model):
     def create_airsports_route(self, rounded_corners: bool, scorecard: Scorecard) -> Route:
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
+
         self.validate_valid_corridor_route("AirSports Challenge and Air Sports Race")
 
         track = self.get_feature_type("track")
@@ -3208,3 +3210,18 @@ class EditableRoute(models.Model):
         messages.append(f"Found route with {len(waypoint_order)} gates")
         editable_route = cls._create_route_and_thumbnail(name, my_route)
         return editable_route, messages
+
+    def create_route(self, task_type: str, scorecard: Scorecard, rounded_corners: bool, corridor_width: float) -> Route:
+        if task_type in (NavigationTask.PRECISION, NavigationTask.POKER):
+            use_procedure_turns = scorecard.use_procedure_turns
+            route = self.create_precision_route(use_procedure_turns, scorecard)
+        elif task_type == NavigationTask.ANR_CORRIDOR:
+            route = self.create_anr_route(rounded_corners, corridor_width, scorecard)
+        elif task_type in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
+            route = self.create_airsports_route(rounded_corners, scorecard)
+        elif task_type == NavigationTask.LANDING:
+            route = self.create_landing_route()
+        else:
+            raise ValidationError(f"Unknown task type {task_type}")
+        route.validate_gate_polygons()
+        return route

@@ -50,7 +50,7 @@ from display.models import (
     ScoreLogEntry,
     GateCumulativeScore,
     EditableRoute,
-    MyUser,
+    MyUser, STARTINGPOINT, FINISHPOINT, GATE_TYPES,
 )
 from display.waypoint import Waypoint
 
@@ -916,6 +916,49 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         return navigation_task
 
 
+class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer):
+    original_scorecard = SlugRelatedField(
+        slug_field="shortcut_name",
+        queryset=Scorecard.get_originals(),
+        required=False,
+        help_text="Reference to an existing scorecard name. Use the shortcut_name to reference the scorecard"
+    )
+    editable_route = serializers.PrimaryKeyRelatedField(queryset=EditableRoute.objects.all())
+    corridor_width = serializers.FloatField(
+        help_text="If the task type is ANR, air sports race, or air sports challenge, this value must be set."
+    )
+    rounded_corners = serializers.BooleanField(
+        help_text="If the task type is ANR, air sports race, or air sports challenge, this value must be set."
+    )
+
+    class Meta:
+        model = NavigationTask
+        exclude = ("route", "contest", "scorecard")
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            editable_route: EditableRoute = validated_data.pop("editable_route")
+            original_scorecard: Scorecard = validated_data["original_scorecard"]
+            route = editable_route.create_route(
+                original_scorecard.calculator,
+                original_scorecard,
+                validated_data.pop("rounded_corners"),
+                validated_data.pop("corridor_width"),
+            )
+            user = self.context["request"].user
+            try:
+                validated_data["contest"] = self.context["contest"]
+            except KeyError:
+                raise Http404("Contest not found")
+
+            validated_data["route"] = route
+            assign_perm("view_route", user, route)
+            assign_perm("delete_route", user, route)
+            assign_perm("change_route", user, route)
+            navigation_task = NavigationTask.create(**validated_data)
+        return navigation_task
+
+
 class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiser(many=True)
     original_scorecard = SlugRelatedField(
@@ -1154,7 +1197,89 @@ class TaskTestSerialiser(serializers.ModelSerializer):
 
 
 class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
-    route = serializers.JSONField()
+    route = serializers.JSONField(help_text=f"""
+This is a JSON field that contains the elements of the route. It is a list of objects, where each block has a type field that determines which of the fields are in the object.
+[
+    {{
+        "feature_type": <feature_type>, 
+        "layer_type": <layer_type>, 
+        ...
+        ...
+    }}
+]    
+Feature type and layer type are required fields in the following combinations are valid:
+feature_type, layer_type
+track, polyline # The route itself
+to, polyline # Optional take-off gate
+ldg, polyline # Optional landing gate
+prohibited, polygon # Optional prohibited zone
+penalty, polygon # Optional penalty zone
+info, polygon # Optional information zone
+gate, polygon # Optional gate, used for poker runs
+
+Each line in the list above represents a route object type. Now follows a detailed description of each object type.
+
+Track:
+{{
+    "feature_type": "track",
+    "layer_type": "polyline", 
+    "name": "Track", # Can be anything, but is not used anywhere
+    "tooltip_position": [0, 0], Relative location of name, not relevant for track
+    "track_points": [ # A list of all the waypoints in the route
+        {{
+            "name": "SP", # Any waypoint name you like
+            "gateType": "tp", # The type of gate.The first must be of type "{STARTINGPOINT}" in the last must be of type "{FINISHPOINT}". Other valid values are {GATE_TYPES}
+            "timeCheck": true, # Whether the gate is considered for time penalty
+            "gateWidth": 1, # The width of the gate, NM
+            "position": {{"lat": 60, "lng": 11}} # The position of the gate, must match what is at the same list index in the geojson  
+        }}, 
+        {{}}
+    ], 
+    "geojson": {{ # A geojson object that describes the line of the track
+        "type": "Feature",
+        "properties": {{}},
+        "geometry": {{
+            "type": "LineString",
+            "coordinates": [[lng, lat] for item in track_points], # The list of coordinates similar to what is in track_points. Note the longitude, latitude order
+        }},
+    }},
+}}
+
+Takeoff and landing gate:
+{{
+    "name": "TO",
+    "layer_type": "polyline",
+    "track_points": [], # Leave empty
+    "feature_type": "to", # to or ldg
+    "tooltip_position": [0, 0],
+    "geojson": {{
+        "type": "Feature",
+        "properties": {{}},
+        "geometry": {{
+            "type": "LineString", 
+            "coordinates": [[lng, lat], [lng, lat]] # List of two (longitude, latitude) pairs.
+        }},
+    }},
+}}
+
+Prohibited, penalty, information, gate zones
+{{
+    "name": "Prohibited 1",
+    "layer_type": "polygon",
+    "track_points": [], # Leave empty
+    "feature_type": "prohibited", # prohibited, penalty, info, gate
+    "tooltip_position": [0, 0], # Useful if the polygon name overlaps anything in the map. The numbers of pixels from centre of object
+    "geojson": {{
+        "type": "Feature",
+        "properties": {{}},
+        "geometry": {{
+            "type": "Polygon",
+            "coordinates": [positions],  # Apparently a list of list of positions, i.e. multiple polygons. Should be lat, lon
+        }},
+    }},
+}}
+
+    """)
     editors = UserSerialiser(many=True, read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
 
