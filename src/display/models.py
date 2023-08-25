@@ -2862,6 +2862,7 @@ class EditableRoute(models.Model):
     def calculate_number_of_waypoints(self):
         if track := self.get_track():
             return len(track["track_points"])
+        return 0
 
     def calculate_route_length(self):
         initial_length = 0

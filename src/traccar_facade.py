@@ -29,8 +29,8 @@ class Traccar:
         self.username = username
         self.password = password
         self.base = "{}://{}".format(self.protocol, self.address)
-        self._session = self.get_authenticated_session()
         self.last_session_time = None
+        self._session = None
         self.device_map = {}
         self.unique_id_map = {}
 
@@ -49,7 +49,7 @@ class Traccar:
             try:
                 self._session.close()
             except:
-                pass
+                logger.exception(f"Failed closing traccar session {self._session}")
             self._session = self.get_authenticated_session()
         return self._session
 
