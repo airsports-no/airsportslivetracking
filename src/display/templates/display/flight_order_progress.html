@@ -37,7 +37,7 @@
                                {% if contestant in selected_contestants %}checked{% endif %}/>
                     </label></td>
                     <td>{{ contestant }}</td>
-                    <td>{{ contestant.takeoff_time_local | date:"Y-m-d H:M:S" }}</td>
+                    <td>{{ contestant.takeoff_time_local | date:"Y-m-d H:i:s" }}</td>
                     <td id="previously_generated_{{ contestant.pk }}">{% if contestant.has_flight_order_link %}
                         <img src="{% static '/img/green_checkmark.png' %}" style="width: 24px"/>{% endif %}</td>
                     <td id="generating_{{ contestant.pk }}"></td>

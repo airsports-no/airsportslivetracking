@@ -782,9 +782,7 @@ def get_contestant_map(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     if request.method == "POST":
         form = ContestantMapForm(request.POST)
-        form.fields["user_map_source"].choices = [("", "----")] + [
-            (item.map_file, item.name) for item in contestant.navigation_task.get_available_user_maps()
-        ]
+        form.fields["user_map_source"].queryset = contestant.navigation_task.get_available_user_maps()
         if form.is_valid():
             margin = 10
             map_image = plot_route(
@@ -808,7 +806,7 @@ def get_contestant_map(request, pk):
             pdf = embed_map_in_pdf(
                 "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
                 map_image.read(),
-                10 * A4_WIDTH - 2 * margin if form.cleaned_data["size"] else 10 * A3_WIDTH - 2 * margin,
+                10 * A4_WIDTH - 2 * margin if form.cleaned_data["size"] == A4 else 10 * A3_WIDTH - 2 * margin,
                 10 * A4_HEIGHT - 2 * margin if form.cleaned_data["size"] == A4 else 10 * A3_HEIGHT - 2 * margin,
                 form.cleaned_data["orientation"] == LANDSCAPE,
             )
@@ -834,9 +832,7 @@ def get_contestant_map(request, pk):
                 "colour": configuration.map_line_colour,
             }
         )
-        form.fields["user_map_source"].choices = [("", "----")] + [
-            (item.map_file, item.name) for item in contestant.navigation_task.get_available_user_maps()
-        ]
+        form.fields["user_map_source"].queryset = contestant.navigation_task.get_available_user_maps()
         form.fields["user_map_source"].initial = contestant.navigation_task.flightorderconfiguration.map_user_source
 
     return render(

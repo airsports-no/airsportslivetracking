@@ -1649,17 +1649,18 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             # A progress of zero will also leave estimated score blank
             return 0
         route_progress = 100
-        if len(self.navigation_task.route.waypoints) > 0 and (
-            not self.contestanttrack.calculator_finished or ignore_finished
-        ):
-            first_gate = self.navigation_task.route.waypoints[0]
-            last_gate = self.navigation_task.route.waypoints[-1]
+        if hasattr(self, "contestanttrack"):
+            if len(self.navigation_task.route.waypoints) > 0 and (
+                not self.contestanttrack.calculator_finished or ignore_finished
+            ):
+                first_gate = self.navigation_task.route.waypoints[0]
+                last_gate = self.navigation_task.route.waypoints[-1]
 
-            first_gate_time = self.gate_times[first_gate.name]
-            last_gate_time = self.gate_times[last_gate.name]
-            route_duration = (last_gate_time - first_gate_time).total_seconds()
-            route_duration_progress = (latest_time - first_gate_time).total_seconds()
-            route_progress = 100 * route_duration_progress / route_duration
+                first_gate_time = self.gate_times[first_gate.name]
+                last_gate_time = self.gate_times[last_gate.name]
+                route_duration = (last_gate_time - first_gate_time).total_seconds()
+                route_duration_progress = (latest_time - first_gate_time).total_seconds()
+                route_progress = 100 * route_duration_progress / route_duration
         return route_progress
 
     def get_groundspeed(self, bearing) -> float:

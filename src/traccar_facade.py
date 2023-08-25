@@ -46,10 +46,11 @@ class Traccar:
     @property
     def session(self) -> Session:
         if not self._session or time.time() - SESSION_LIFETIME > self.last_session_time:
-            try:
-                self._session.close()
-            except:
-                logger.exception(f"Failed closing traccar session {self._session}")
+            if self._session:
+                try:
+                    self._session.close()
+                except:
+                    logger.exception(f"Failed closing traccar session {self._session}")
             self._session = self.get_authenticated_session()
         return self._session
 
