@@ -1,4 +1,3 @@
-import datetime
 import json
 import logging
 import os
@@ -18,7 +17,7 @@ from traccar_facade import Traccar
 from django.core.cache import cache
 from django.db import connections
 
-from position_processor_process import initial_processor
+from position_processor_process import initial_processor, LAST_DEBUG_KEY
 from live_position_transmitter import live_position_transmitter_process
 
 import websocket
@@ -32,6 +31,8 @@ processing_queue = Queue()
 
 received_messages = 0
 failed_traccar_connection_count = 0
+
+disconnected_time = time.time()
 
 
 def on_message(ws, message):
@@ -49,23 +50,43 @@ def on_error(ws, error):
 
 
 def on_close(ws, *args, **kwargs):
+    global disconnected_time
+    disconnected_time = time.time()
     print("### closed ###")
 
 
 def on_open(ws):
+    global disconnected_time
+    disconnected_time = None
     logger.info(f"Websocket connected")
 
 
-DEBUG_INTERVAL = 60
+CONNECTION_CHECK_INTERVAL = 30
 
 
-def print_debug():
-    global received_messages
-    logger.debug(
-        f"Received {received_messages} messages last {DEBUG_INTERVAL} seconds ({(received_messages/DEBUG_INTERVAL):.2f} m/s)"
-    )
-    received_messages = 0
-    threading.Timer(DEBUG_INTERVAL, print_debug).start()
+def check_connection():
+    """
+    Used in the main process
+    """
+    global disconnected_time
+    last_debug = cache.get(LAST_DEBUG_KEY)
+    if (
+        (disconnected_time and time.time() - disconnected_time > 300)
+        or not last_debug
+        or (time.time() - last_debug > 300)
+    ):
+        if disconnected_time:
+            logger.error(
+                f"Websocket has not been connected for 5 minutes, setting liveness probe to false to force a restart."
+            )
+        elif not last_debug:
+            logger.error(f"Last debug time is not in the cache, setting liveness to false")
+        else:
+            logger.error(f"Loss debug time is {time.time()-last_debug} seconds old, setting liveness to false")
+        probes.liveness(False)
+    else:
+        probes.liveness(True)
+    threading.Timer(CONNECTION_CHECK_INTERVAL, check_connection).start()
 
 
 headers = {
@@ -97,8 +118,8 @@ if __name__ == "__main__":
         name="initial_processor",
     ).start()
 
-    print_debug()
     probes.readiness(True)
+    check_connection()
     while True:
         try:
             traccar = Traccar.create_from_configuration()
@@ -107,6 +128,7 @@ if __name__ == "__main__":
             time.sleep(5)
             continue
         websocket.enableTrace(False)
+        logger.info("Initiating session and getting cookie")
         cookies = traccar.session.cookies.get_dict()
         ws = websocket.WebSocketApp(
             "ws://{}/api/socket".format(traccar.address),
@@ -117,8 +139,6 @@ if __name__ == "__main__":
             cookie="; ".join(["%s=%s" % (i, j) for i, j in cookies.items()]),
         )
         ws.run_forever(ping_interval=55)
-        logger.warning("Websocket terminated, restarting")
         failed_traccar_connection_count += 1
-        if failed_traccar_connection_count > FAILED_TRACCAR_CONNECTION_COUNT_LIMIT:
-            probes.readiness(False)
+        logger.warning(f"Websocket terminated for {failed_traccar_connection_count} consecutive time, restarting")
         time.sleep(5)

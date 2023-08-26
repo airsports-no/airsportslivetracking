@@ -63,6 +63,7 @@ class Traccar:
         # response = session.get(string)
         if response.status_code != 200:
             raise Exception("Failed authenticating session: {}".format(response.text))
+        logger.info("Successfully connected to Traccar")
         self.last_session_time = time.time()
         return session
 
