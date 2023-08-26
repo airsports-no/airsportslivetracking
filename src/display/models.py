@@ -3216,8 +3216,14 @@ class EditableRoute(models.Model):
             use_procedure_turns = scorecard.use_procedure_turns
             route = self.create_precision_route(use_procedure_turns, scorecard)
         elif task_type == NavigationTask.ANR_CORRIDOR:
+            if rounded_corners is None:
+                raise ValidationError(f"Missing 'rounded_corners' for task type {task_type}")
+            if corridor_width is None:
+                raise ValidationError(f"Missing 'corridor_width' for task type {task_type}")
             route = self.create_anr_route(rounded_corners, corridor_width, scorecard)
         elif task_type in (NavigationTask.AIRSPORTS, NavigationTask.AIRSPORT_CHALLENGE):
+            if rounded_corners is None:
+                raise ValidationError(f"Missing 'rounded_corners' for task type {task_type}")
             route = self.create_airsports_route(rounded_corners, scorecard)
         elif task_type == NavigationTask.LANDING:
             route = self.create_landing_route()

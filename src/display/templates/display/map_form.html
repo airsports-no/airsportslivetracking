@@ -42,7 +42,14 @@
             mapSource.onchange = (event) => {
                 setOptions(event.target.value)
             }
-            setOptions(mapSource.value)
+
+            if (customMap.value === "") {
+                document.getElementById("div_id_map_source").style.display = ""
+                setOptions(mapSource.value)
+            }else{
+                document.getElementById("div_id_map_source").style.display = "none"
+                setOptions(customMap.value)
+            }
 
             function setOptions(mapName) {
                 const zoomSelect = document.getElementById("id_zoom_level")

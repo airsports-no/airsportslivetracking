@@ -22,6 +22,8 @@ from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
 
+from django.core.exceptions import ValidationError as CoreValidationError
+
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
@@ -50,7 +52,10 @@ from display.models import (
     ScoreLogEntry,
     GateCumulativeScore,
     EditableRoute,
-    MyUser, STARTINGPOINT, FINISHPOINT, GATE_TYPES,
+    MyUser,
+    STARTINGPOINT,
+    FINISHPOINT,
+    GATE_TYPES,
 )
 from display.waypoint import Waypoint
 
@@ -761,7 +766,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
     )
     scorecard_rules = serializers.JSONField(help_text="Dictionary with all rules", read_only=True)
     tracker_id_display = serializers.JSONField(help_text="", read_only=True)
-    default_map_url = SerializerMethodField("get_default_map_url")
+    default_map_url = SerializerMethodField("get_default_map_url", read_only=True)
     has_crossed_starting_line = serializers.BooleanField(read_only=True)
 
     def get_default_map_url(self, contestant):
@@ -916,19 +921,29 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         return navigation_task
 
 
+class MyRoutesField(serializers.PrimaryKeyRelatedField):
+    def get_queryset(self):
+        user = self.context["request"].user
+        return EditableRoute.get_for_user(user)
+
+
 class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer):
     original_scorecard = SlugRelatedField(
         slug_field="shortcut_name",
         queryset=Scorecard.get_originals(),
-        required=False,
-        help_text="Reference to an existing scorecard name. Use the shortcut_name to reference the scorecard"
+        required=True,
+        help_text="Reference to an existing scorecard name. Use the shortcut_name to reference the scorecard",
     )
-    editable_route = serializers.PrimaryKeyRelatedField(queryset=EditableRoute.objects.all())
+    editable_route = MyRoutesField(queryset=EditableRoute.objects.all())
     corridor_width = serializers.FloatField(
-        help_text="If the task type is ANR, air sports race, or air sports challenge, this value must be set."
+        help_text="If the task type is ANR, air sports race, or air sports challenge, this value must be set.",
+        write_only=True,
+        required=False,
     )
     rounded_corners = serializers.BooleanField(
-        help_text="If the task type is ANR, air sports race, or air sports challenge, this value must be set."
+        help_text="If the task type is ANR, air sports race, or air sports challenge, this value must be set.",
+        write_only=True,
+        required=False,
     )
 
     class Meta:
@@ -937,14 +952,17 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
 
     def create(self, validated_data):
         with transaction.atomic():
-            editable_route: EditableRoute = validated_data.pop("editable_route")
+            editable_route: EditableRoute = validated_data["editable_route"]
             original_scorecard: Scorecard = validated_data["original_scorecard"]
-            route = editable_route.create_route(
-                original_scorecard.calculator,
-                original_scorecard,
-                validated_data.pop("rounded_corners"),
-                validated_data.pop("corridor_width"),
-            )
+            try:
+                route = editable_route.create_route(
+                    original_scorecard.calculator,
+                    original_scorecard,
+                    validated_data.pop("rounded_corners", None),
+                    validated_data.pop("corridor_width", None),
+                )
+            except CoreValidationError as e:
+                raise ValidationError(e)
             user = self.context["request"].user
             try:
                 validated_data["contest"] = self.context["contest"]
@@ -1197,7 +1215,8 @@ class TaskTestSerialiser(serializers.ModelSerializer):
 
 
 class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
-    route = serializers.JSONField(help_text=f"""
+    route = serializers.JSONField(
+        help_text=f"""
 This is a JSON field that contains the elements of the route. It is a list of objects, where each block has a type field that determines which of the fields are in the object.
 [
     {{
@@ -1209,7 +1228,7 @@ This is a JSON field that contains the elements of the route. It is a list of ob
 ]    
 Feature type and layer type are required fields in the following combinations are valid:
 feature_type, layer_type
-track, polyline # The route itself
+track, polyline # The route itself. This is always required.
 to, polyline # Optional take-off gate
 ldg, polyline # Optional landing gate
 prohibited, polygon # Optional prohibited zone
@@ -1279,9 +1298,12 @@ Prohibited, penalty, information, gate zones
     }},
 }}
 
-    """)
+    """
+    )
     editors = UserSerialiser(many=True, read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
+    number_of_waypoints = serializers.IntegerField(read_only=True)
+    route_length = serializers.FloatField(read_only=True)
 
     class Meta:
         model = EditableRoute

@@ -2924,12 +2924,12 @@ class ContestViewSet(ModelViewSet):
         return context
 
 
-class TeamViewSet(ModelViewSet):
-    queryset = Team.objects.all()
-    serializer_class = TeamNestedSerialiser
-    permission_classes = [permissions.IsAuthenticated & OrganiserPermission]
-
-    http_method_names = ["post", "put", "get"]
+# class TeamViewSet(ModelViewSet):
+#     queryset = Team.objects.all()
+#     serializer_class = TeamNestedSerialiser
+#     permission_classes = [permissions.IsAuthenticated & OrganiserPermission]
+#
+#     http_method_names = ["post", "put", "get"]
 
 
 class ContestTeamViewSet(ModelViewSet):
@@ -3013,13 +3013,6 @@ class NavigationTaskViewSet(ModelViewSet):
         return NavigationTask.objects.filter(
             Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)
         ).filter(contest_id=contest_id)
-
-    def create(self, request, *args, **kwargs):
-        serialiser = self.get_serializer(data=request.data)
-        if serialiser.is_valid():
-            serialiser.save()
-            return Response(serialiser.data, status=status.HTTP_201_CREATED)
-        return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         raise drf_exceptions.PermissionDenied(
@@ -3222,7 +3215,8 @@ class ContestantViewSet(ModelViewSet):
     serializer_classes = {
         "track": ContestantTrackWithTrackPointsSerialiser,
         "gpx_track": GpxTrackSerialiser,
-        "update_without_team": ContestantSerialiser,
+        "create": ContestantSerialiser,
+        "update": ContestantSerialiser,
     }
     default_serialiser_class = ContestantNestedTeamSerialiserWithContestantTrack
 
@@ -3270,10 +3264,6 @@ class ContestantViewSet(ModelViewSet):
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=True, methods=["put", "patch"])
-    def update_without_team(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
 
     @action(detail=True, methods=["get"])
     def initial_track_data(self, request, *args, **kwargs):
