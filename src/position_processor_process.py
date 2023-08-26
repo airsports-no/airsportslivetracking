@@ -12,7 +12,6 @@ import multiprocessing
 
 import datetime
 import dateutil
-import threading
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
@@ -22,7 +21,6 @@ from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import is_termination_requested
 from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
 from live_tracking_map import settings
-from probes import probes
 from redis_queue import RedisQueue
 
 if __name__ == "__main__":
@@ -49,15 +47,21 @@ PERSON_TYPE = 1
 
 DEBUG_INTERVAL = 60
 global_received_positions = 0
+last_debug = time.time()
+
+LAST_DEBUG_KEY = "last_debug"
 
 
 def print_debug():
-    global global_received_positions
-    logger.debug(
-        f"Received {global_received_positions} positions last {DEBUG_INTERVAL} seconds ({(global_received_positions / DEBUG_INTERVAL):.2f} p/s)"
-    )
-    global_received_positions = 0
-    threading.Timer(DEBUG_INTERVAL, print_debug).start()
+    global global_received_positions, last_debug
+    this_interval = time.time() - last_debug
+    if this_interval > DEBUG_INTERVAL:
+        logger.debug(
+            f"Received {global_received_positions} positions last {this_interval} seconds ({(global_received_positions / this_interval):.2f} p/s)"
+        )
+        global_received_positions = 0
+        last_debug = time.time()
+        cache.set(LAST_DEBUG_KEY, last_debug, 10 * DEBUG_INTERVAL)
 
 
 def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> Tuple[Optional[Contestant], bool]:
@@ -95,6 +99,8 @@ def clean_db_positions():
 
 
 def initial_processor(queue: Queue, global_map_queue: Queue):
+    cache.set(LAST_DEBUG_KEY, last_debug, 10 * DEBUG_INTERVAL)
+
     connections.close_all()
     while True:
         try:
@@ -103,15 +109,14 @@ def initial_processor(queue: Queue, global_map_queue: Queue):
         except:
             logger.exception(f"Initial processor failed to connect to traccer")
             time.sleep(5)
-    print_debug()
     while True:
         clean_db_positions()
         try:
-            data = queue.get(timeout=10)
+            data = queue.get(timeout=DEBUG_INTERVAL)
             build_and_push_position_data(data, traccar, global_map_queue)
         except Empty:
             pass
-        probes.liveness(True)
+        print_debug()
 
 
 def build_and_push_position_data(data, traccar, global_map_queue):
