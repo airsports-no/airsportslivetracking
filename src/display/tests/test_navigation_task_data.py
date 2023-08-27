@@ -1175,7 +1175,6 @@ class TestImportFCNavigationTask(APITransactionTestCase):
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestNavigationTaskCreationFlow(APITransactionTestCase):
     ROUTE_DATA = {
-        "route_type": "anr_corridor",
         "name": "My name",
         "route": [
             {
@@ -1196,7 +1195,7 @@ class TestNavigationTaskCreationFlow(APITransactionTestCase):
                         "gateType": "fp",
                         "timeCheck": True,
                         "gateWidth": 1,
-                        "position": {"lat": 60, "lng": 11},
+                        "position": {"lat": 60.1, "lng": 11.1},
                     },
                 ],
                 "geojson": {

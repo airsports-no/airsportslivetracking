@@ -2841,7 +2841,7 @@ class EditableRoute(models.Model):
         choices=NavigationTask.NAVIGATION_TASK_TYPES, default=NavigationTask.PRECISION, max_length=200
     )
     name = models.CharField(max_length=200, help_text="User-friendly name")
-    route = MyPickledObjectField(default=dict)
+    route = MyPickledObjectField(default=list)
     number_of_waypoints = models.IntegerField(default=0)
     route_length = models.FloatField(default=0, help_text="NM")
     thumbnail = models.ImageField(upload_to="route_thumbnails/", blank=True, null=True)
