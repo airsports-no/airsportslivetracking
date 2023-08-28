@@ -221,8 +221,7 @@ class Traccar:
                 self.delete_device(item["id"])
         return devices
 
-    def get_device_map(self) -> Dict:
+    def get_device_map(self):
         if dmap := self.update_and_get_devices():
             self.device_map = {item["id"]: item["uniqueId"] for item in dmap}
-        self.unique_id_map = {value: key for key, value in self.device_map.items()}
-        return self.device_map
+            self.unique_id_map = {value: key for key, value in self.device_map.items()}

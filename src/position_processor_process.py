@@ -52,12 +52,12 @@ last_debug = time.time()
 LAST_DEBUG_KEY = "last_debug"
 
 
-def print_debug():
+def print_contestant_positions_debug():
     global global_received_positions, last_debug
     this_interval = time.time() - last_debug
     if this_interval > DEBUG_INTERVAL:
         logger.debug(
-            f"Received {global_received_positions} positions last {this_interval} seconds ({(global_received_positions / this_interval):.2f} p/s)"
+            f"Received {global_received_positions} positions last {this_interval:.1f} seconds ({(global_received_positions / this_interval):.2f} p/s)"
         )
         global_received_positions = 0
         last_debug = time.time()
@@ -116,7 +116,7 @@ def initial_processor(queue: Queue, global_map_queue: Queue):
             build_and_push_position_data(data, traccar, global_map_queue)
         except Empty:
             pass
-        print_debug()
+        print_contestant_positions_debug()
 
 
 def build_and_push_position_data(data, traccar, global_map_queue):
