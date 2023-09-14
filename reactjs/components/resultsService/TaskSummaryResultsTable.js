@@ -499,7 +499,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
             Header: this.props.contest.results.permission_change_contest ? <span>Σ<br/>&nbsp;</span> : "Σ",
             accessor: "contestSummary",
             sort: true,
-            editable: !this.props.contest.results.autosum_scores,
+            Cell: !this.props.contest.results.autosum_scores && this.props.contest.results.permission_change_contest ? EditableCell : ({value}) => String(value),
             classes: "number-right " + (!this.props.contest.results.autosum_scores && this.props.contest.results.permission_change_contest ? "editableCell" : ""),
             sortDirection: this.props.contest.results.summary_score_sorting_direction,
             disableFilters: true,
