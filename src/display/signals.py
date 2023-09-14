@@ -80,7 +80,7 @@ def auto_summarise_tests(sender, instance: TeamTestScore, **kwargs):
 
 
 @receiver(post_save, sender=Task)
-def update_score_on_test_configuration_change(sender, instance: Task, **kwargs):
+def update_score_on_task_configuration_change(sender, instance: Task, **kwargs):
     for task_summary in instance.tasksummary_set.all():
         auto_summarise_tasks(sender, task_summary, **kwargs)
 
