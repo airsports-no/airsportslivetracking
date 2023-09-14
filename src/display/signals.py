@@ -58,6 +58,12 @@ def prevent_recursion(func):
     return no_recursion
 
 
+@receiver(post_save, sender=TaskTest)
+def update_score_on_test_configuration_change(sender, instance: TaskTest, **kwargs):
+    for team_test_score in instance.teamtestscore_set.all():
+        auto_summarise_tests(sender, team_test_score, **kwargs)
+
+
 @receiver(post_save, sender=TeamTestScore)
 @receiver(post_delete, sender=TeamTestScore)
 def auto_summarise_tests(sender, instance: TeamTestScore, **kwargs):
@@ -71,6 +77,12 @@ def auto_summarise_tests(sender, instance: TeamTestScore, **kwargs):
             task_summary.update_sum()
     except ObjectDoesNotExist:
         pass
+
+
+@receiver(post_save, sender=Task)
+def update_score_on_test_configuration_change(sender, instance: Task, **kwargs):
+    for task_summary in instance.tasksummary_set.all():
+        auto_summarise_tasks(sender, task_summary, **kwargs)
 
 
 @receiver(post_save, sender=TaskSummary)

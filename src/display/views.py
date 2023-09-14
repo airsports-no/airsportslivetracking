@@ -2924,12 +2924,12 @@ class ContestViewSet(ModelViewSet):
         return context
 
 
-# class TeamViewSet(ModelViewSet):
-#     queryset = Team.objects.all()
-#     serializer_class = TeamNestedSerialiser
-#     permission_classes = [permissions.IsAuthenticated & OrganiserPermission]
-#
-#     http_method_names = ["post", "put", "get"]
+class TeamViewSet(ModelViewSet):
+    queryset = Team.objects.all()
+    serializer_class = TeamNestedSerialiser
+    permission_classes = [permissions.IsAuthenticated & OrganiserPermission]
+
+    http_method_names = ["post", "put", "get"]
 
 
 class ContestTeamViewSet(ModelViewSet):
@@ -2985,7 +2985,7 @@ class NavigationTaskViewSet(ModelViewSet):
         NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)
     ]
 
-    http_method_names = ["get", "post", "delete"]
+    http_method_names = ["get", "post", "delete", "put"]
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
