@@ -54,3 +54,7 @@ PURGE_CMD="acr purge --filter 'tracker_processor:.*' --ago 0d --untagged --keep 
 az acr run --cmd "$PURGE_CMD" --registry airsportsacr /dev/null
 PURGE_CMD="acr purge --filter 'tracker_init:.*' --ago 0d --untagged --keep 2"
 az acr run --cmd "$PURGE_CMD" --registry airsportsacr /dev/null
+
+
+# gcloud
+gcloud container clusters get-credentials airsports-cluster --region=europe-north1

@@ -2068,11 +2068,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
 
     def get_form(self, step=None, data=None, files=None):
         form = super().get_form(step, data, files)
-        if step in (
-            "anr_route_import",
-            "precision_route_import",
-            "landing_route_import",
-        ):
+        if "internal_route" in form.fields:
             form.fields["internal_route"].queryset = EditableRoute.get_for_user(self.request.user)
         return form
 
