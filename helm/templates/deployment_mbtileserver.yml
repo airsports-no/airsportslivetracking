@@ -43,7 +43,7 @@ spec:
             claimName: pvc-mbtiles
       containers:
         - name: mbtiles
-          image: consbio/mbtileserver:latest
+          image: ghcr.io/consbio/mbtileserver:latest
           command: ["/mbtileserver",  "--enable-reload-signal"]
           resources:
             requests:
