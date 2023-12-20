@@ -58,27 +58,25 @@ stages:
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Build services'
         additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: true
+        includeLatestTag: false
     - task: DockerCompose@0
       displayName: Push tracker_web to docker registry
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'push'
-        arguments: 'tracker_web'
+        arguments: 'tracker_daphne'
     - task: DockerCompose@0
       displayName: Push the rest to docker registry
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Push services'
         additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: true
+        includeLatestTag: false
     
 - stage: ApproveTest
   condition: succeeded()
@@ -103,27 +101,16 @@ stages:
     - task: DockerCompose@0
       displayName: Pull web
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-        dockerComposeFile: '**/docker-compose.yml'
-        action: 'Run a Docker Compose command'
-        dockerComposeCommand: 'pull tracker_web'
-    - task: DockerCompose@0
-      displayName: Pull the rest
-      inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull'
     - task: DockerCompose@0
       displayName: Run tests
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'up'
@@ -149,9 +136,8 @@ stages:
         failTaskOnFailedTests: true
     - task: DockerCompose@0
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'down'
