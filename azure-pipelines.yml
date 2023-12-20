@@ -177,7 +177,7 @@ stages:
             name: privateValues
             displayName: 'Download private values'
             inputs:
-              secureFile: 'private_values_gcloud.yml'
+              secureFile: 'private_values_gcloud.yaml'
           - task: HelmDeploy@0
             inputs:
               connectionType: 'Kubernetes Service Connection'
