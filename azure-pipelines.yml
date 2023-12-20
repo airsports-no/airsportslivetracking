@@ -191,7 +191,7 @@ stages:
             name: privateValues
             displayName: 'Download private values'
             inputs:
-              secureFile: 'private_values2.yml'
+              secureFile: 'private_values2.yaml'
           - task: HelmDeploy@0
             inputs:
               connectionType: 'Azure Resource Manager'
