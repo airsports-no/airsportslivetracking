@@ -177,13 +177,11 @@ stages:
             name: privateValues
             displayName: 'Download private values'
             inputs:
-              secureFile: 'private_values2.yml'
+              secureFile: 'private_values_gcloud.yml'
           - task: HelmDeploy@0
             inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-              azureResourceGroup: 'airsports_group'
-              kubernetesCluster: 'airsports2'
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: 'GKE Kubernetes connection'
               namespace: 'airsports'
               command: 'upgrade'
               chartType: 'Name'
