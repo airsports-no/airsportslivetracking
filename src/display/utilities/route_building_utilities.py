@@ -18,11 +18,22 @@ from display.utilities.coordinate_utilities import (
     bearing_difference,
     calculate_fractional_distance_point_lat_lon,
 )
-from display.models import Route, is_procedure_turn, Scorecard, Prohibited
+from display.models import Route, Scorecard, Prohibited
 
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
+
+
+def is_procedure_turn(bearing1, bearing2) -> bool:
+    """
+    Return True if the turn is more than 90 degrees
+
+    :param bearing1: degrees
+    :param bearing2: degrees
+    :return:
+    """
+    return abs(bearing_difference(bearing1, bearing2)) > 90
 
 
 def add_line(place_mark):
@@ -249,7 +260,9 @@ def create_gate_from_line(gate_line, name: str, type: str) -> Waypoint:
     return waypoint
 
 
-def create_precision_route_from_waypoint_list(route_name, waypoint_list, use_procedure_turns: bool, scorecard: Scorecard) -> Route:
+def create_precision_route_from_waypoint_list(
+    route_name, waypoint_list, use_procedure_turns: bool, scorecard: Scorecard
+) -> Route:
     if len(waypoint_list) < 2:
         raise ValidationError("A route must at least have a starting point and finish point")
     if waypoint_list[0].type != "sp":

@@ -5,14 +5,18 @@ from display.utilities.clone_object import simple_clone
 from display.models import (
     GateScore,
     Scorecard,
-    NavigationTask,
+)
+from display.utilities.gate_definitions import (
     TURNPOINT,
     TAKEOFF_GATE,
-    STARTINGPOINT,
     LANDING_GATE,
+    STARTINGPOINT,
+    UNKNOWN_LEG,
+    DUMMY,
     SECRETPOINT,
-    FINISHPOINT, UNKNOWN_LEG, DUMMY,
+    FINISHPOINT,
 )
+from display.utilities.navigation_task_type_definitions import PRECISION
 
 
 def get_default_scorecard():
@@ -24,8 +28,8 @@ def get_default_scorecard():
             "backtracking_penalty": 200,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": False,
-            "task_type": [NavigationTask.PRECISION],
-            "calculator": NavigationTask.PRECISION,
+            "task_type": [PRECISION],
+            "calculator": PRECISION,
             "prohibited_zone_penalty": 0,
             "included_fields": [
                 [

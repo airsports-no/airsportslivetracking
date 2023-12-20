@@ -5,13 +5,17 @@ from display.utilities.clone_object import simple_clone
 from display.models import (
     GateScore,
     Scorecard,
-    NavigationTask,
-    STARTINGPOINT,
+)
+from display.utilities.gate_definitions import (
+    FINISHPOINT,
     TAKEOFF_GATE,
     LANDING_GATE,
     SECRETPOINT,
-    FINISHPOINT, DUMMY, UNKNOWN_LEG,
+    STARTINGPOINT,
+    DUMMY,
+    UNKNOWN_LEG,
 )
+from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
 
 
 def get_default_scorecard():
@@ -24,8 +28,8 @@ def get_default_scorecard():
             "backtracking_grace_time_seconds": 5,  # verified?
             "backtracking_maximum_penalty": 400,  # verified
             "use_procedure_turns": False,
-            "task_type": [NavigationTask.ANR_CORRIDOR],
-            "calculator": NavigationTask.ANR_CORRIDOR,
+            "task_type": [ANR_CORRIDOR],
+            "calculator": ANR_CORRIDOR,
             "corridor_maximum_penalty": -1,  # verified
             "corridor_outside_penalty": 3,  # verified
             "corridor_grace_time": 5,  # verified
@@ -57,7 +61,7 @@ def get_default_scorecard():
         scorecard=scorecard,
         gate_type=FINISHPOINT,
         defaults={
-            "extended_gate_width": 0.6, #verified,
+            "extended_gate_width": 0.6,  # verified,
             "bad_crossing_extended_gate_penalty": 0,
             "graceperiod_before": 1,  # verified
             "graceperiod_after": 1,  # verified
@@ -123,7 +127,7 @@ def get_default_scorecard():
         gate_type=SECRETPOINT,
         defaults={
             "backtracking_before_gate_grace_period_nm": 0.5,
-        }
+        },
     )
 
     GateScore.objects.update_or_create(

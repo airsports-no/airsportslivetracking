@@ -12,7 +12,6 @@ from cartopy.io.img_tiles import OSM, GoogleWTS
 import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
-from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from matplotlib import patheffects
 import matplotlib.ticker as mticker
 from pymbtiles import MBtiles
@@ -32,6 +31,10 @@ from display.utilities.coordinate_utilities import (
     normalise_bearing,
 )
 from display.flight_order_and_maps.map_constants import A3
+from display.utilities.gate_definitions import SECRETPOINT, UNKNOWN_LEG, DUMMY, TURNPOINT, STARTINGPOINT, FINISHPOINT, \
+    INTERMEDIARY_STARTINGPOINT, INTERMEDIARY_FINISHPOINT
+from display.utilities.navigation_task_type_definitions import PRECISION, POKER, ANR_CORRIDOR, AIRSPORTS, \
+    AIRSPORT_CHALLENGE
 from display.utilities.wind_utilities import (
     calculate_ground_speed_combined,
     calculate_wind_correction_angle,
@@ -56,14 +59,6 @@ from display.models import (
     NavigationTask,
     EditableRoute,
     UserUploadedMap,
-    SECRETPOINT,
-    UNKNOWN_LEG,
-    DUMMY,
-    INTERMEDIARY_STARTINGPOINT,
-    INTERMEDIARY_FINISHPOINT,
-    FINISHPOINT,
-    TURNPOINT,
-    STARTINGPOINT,
 )
 from display.waypoint import Waypoint
 
@@ -242,10 +237,7 @@ class FlightContest(GoogleWTS):
         return f"https://tiles.flightcontest.de/{z}/{x}/{y}.png"
 
     def get_image(self, tile):
-        if six.PY3:
-            from urllib.request import urlopen, Request, HTTPError, URLError
-        else:
-            from urllib2 import urlopen, Request, HTTPError, URLError
+        from urllib.request import urlopen, Request
 
         url = self._image_url(tile)
         try:
@@ -255,7 +247,7 @@ class FlightContest(GoogleWTS):
             fh.close()
             img = Image.open(im_data)
 
-        except (HTTPError, URLError) as err:
+        except Exception as err:
             print(err)
             img = Image.fromarray(np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8))
 
@@ -1073,7 +1065,7 @@ def plot_route(
     ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
     # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
     ax.set_aspect("auto")
-    if NavigationTask.PRECISION in task.scorecard.task_type or NavigationTask.POKER in task.scorecard.task_type:
+    if PRECISION in task.scorecard.task_type or POKER in task.scorecard.task_type:
         paths = plot_precision_track(
             route,
             contestant,
@@ -1083,7 +1075,7 @@ def plot_route(
             minute_mark_line_width,
             colour,
         )
-    elif NavigationTask.ANR_CORRIDOR in task.scorecard.task_type:
+    elif ANR_CORRIDOR in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
             route,
             contestant,
@@ -1094,8 +1086,8 @@ def plot_route(
             False,
         )
     elif (
-        NavigationTask.AIRSPORTS in task.scorecard.task_type
-        or NavigationTask.AIRSPORT_CHALLENGE in task.scorecard.task_type
+        AIRSPORTS in task.scorecard.task_type
+        or AIRSPORT_CHALLENGE in task.scorecard.task_type
     ):
         paths = plot_anr_corridor_track(
             route,

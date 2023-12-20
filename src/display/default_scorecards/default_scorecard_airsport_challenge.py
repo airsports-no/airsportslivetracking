@@ -5,16 +5,18 @@ from display.utilities.clone_object import simple_clone
 from display.models import (
     GateScore,
     Scorecard,
-    NavigationTask,
+)
+from display.utilities.gate_definitions import (
     TURNPOINT,
+    SECRETPOINT,
     TAKEOFF_GATE,
     LANDING_GATE,
-    SECRETPOINT,
-    FINISHPOINT,
     STARTINGPOINT,
+    FINISHPOINT,
     DUMMY,
     UNKNOWN_LEG,
 )
+from display.utilities.navigation_task_type_definitions import AIRSPORT_CHALLENGE
 
 
 def get_default_scorecard():
@@ -28,8 +30,8 @@ def get_default_scorecard():
             "backtracking_grace_time_seconds": 5,
             "backtracking_maximum_penalty": 100,
             "use_procedure_turns": False,
-            "task_type": [NavigationTask.AIRSPORT_CHALLENGE],
-            "calculator": NavigationTask.AIRSPORT_CHALLENGE,
+            "task_type": [AIRSPORT_CHALLENGE],
+            "calculator": AIRSPORT_CHALLENGE,
             "corridor_maximum_penalty": -1,  # verified
             "corridor_outside_penalty": 1,  # verified
             "corridor_grace_time": 5,  # verified

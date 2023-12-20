@@ -236,6 +236,7 @@ class TestANRPerLeg(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
         print(strings)
         expected = [
+            "SP: 0 points crossing infinite starting line and starting adaptive timing",
             "SP: 9.0 points passing gate (+4 s)\nplanned: 14:17:00\nactual: 14:17:04",
             "TP 1: 0 points passing gate (no time check) (-57 s)\nplanned: 14:19:00\nactual: 14:18:03",
             "TP 2: 0 points passing gate (no time check) (-168 s)\nplanned: 14:22:34\nactual: 14:19:46",
@@ -510,7 +511,6 @@ class TestAnrCorridorCalculator(TransactionTestCase):
                     11,
                     "information",
                     f"outside_corridor_{gate.name}",
-                    maximum_score=-1,
                 ),
                 call(
                     self.calculator.route.waypoints[0],
@@ -549,7 +549,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             self.calculator.route.waypoints[0],
             48.0,
             "outside corridor (21 s)",
-            60.5,
+            60,
             11.5,
             "anomaly",
             f"outside_corridor_{gate.name}",

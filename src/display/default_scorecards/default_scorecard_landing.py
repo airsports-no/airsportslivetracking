@@ -2,7 +2,9 @@
 import datetime
 
 from display.utilities.clone_object import simple_clone
-from display.models import GateScore, Scorecard, NavigationTask, LANDING_GATE, DUMMY, UNKNOWN_LEG
+from display.models import GateScore, Scorecard
+from display.utilities.gate_definitions import LANDING_GATE, DUMMY, UNKNOWN_LEG
+from display.utilities.navigation_task_type_definitions import LANDING
 
 
 def get_default_scorecard():
@@ -14,8 +16,8 @@ def get_default_scorecard():
             "backtracking_penalty": 0,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": False,
-            "task_type": [NavigationTask.LANDING],
-            "calculator": NavigationTask.LANDING,
+            "task_type": [LANDING],
+            "calculator": LANDING,
             "prohibited_zone_penalty": 0,
         },
     )
