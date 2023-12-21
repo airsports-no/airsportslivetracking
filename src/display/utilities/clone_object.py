@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import ForeignKey
 
 
@@ -26,7 +27,6 @@ def clone_object(obj, attrs=None):
     # Scan field to further investigate relations
     fields = clone._meta.get_fields()
     for field in fields:
-
         # Manage M2M fields by replicating all related records
         # found on parent "obj" into "clone"
         if not field.auto_created and field.many_to_many:
@@ -74,12 +74,19 @@ def clone_object_only_foreign_keys(obj, attrs=None):
     return clone
 
 
-def simple_clone(obj, attrs=None):
+def get_or_none(queryset):
+    try:
+        return queryset.get()
+    except ObjectDoesNotExist:
+        return None
+
+
+def simple_clone(obj, attrs=None, existing_clone=None):
     if not attrs:
         attrs = {}
     # we start by building a "flat" clone
     clone = obj._meta.model.objects.get(pk=obj.pk)
-    clone.pk = None
+    clone.pk = existing_clone.pk if existing_clone else None
 
     # if caller specified some attributes to be overridden,
     # use them

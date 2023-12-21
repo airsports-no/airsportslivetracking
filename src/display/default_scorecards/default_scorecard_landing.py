@@ -1,7 +1,7 @@
 #
 import datetime
 
-from display.utilities.clone_object import simple_clone
+from display.utilities.clone_object import simple_clone, get_or_none
 from display.models import GateScore, Scorecard
 from display.utilities.gate_definitions import LANDING_GATE, DUMMY, UNKNOWN_LEG
 from display.utilities.navigation_task_type_definitions import LANDING
@@ -37,8 +37,15 @@ def get_default_scorecard():
             "backtracking_after_steep_gate_grace_period_seconds": 0,
         },
     )
-    scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
-    simple_clone(regular_gate_score, {"gate_type": DUMMY})
-    simple_clone(regular_gate_score, {"gate_type": UNKNOWN_LEG})
+    simple_clone(
+        regular_gate_score,
+        {"gate_type": DUMMY},
+        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=DUMMY)),
+    )
+    simple_clone(
+        regular_gate_score,
+        {"gate_type": UNKNOWN_LEG},
+        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=UNKNOWN_LEG)),
+    )
 
     return scorecard

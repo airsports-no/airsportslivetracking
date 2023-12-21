@@ -1,7 +1,7 @@
 #
 import datetime
 
-from display.utilities.clone_object import simple_clone
+from display.utilities.clone_object import simple_clone, get_or_none
 from display.models import (
     GateScore,
     Scorecard,
@@ -48,10 +48,9 @@ def get_default_scorecard():
     )
     for gate_type, friendly_name in GATE_TYPES:
         if gate_type != TURNPOINT:
-            scorecard.gatescore_set.filter(gate_type=gate_type).delete()
-            simple_clone(turning_point, {"gate_type": gate_type})
-    scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
-    simple_clone(turning_point, {"gate_type": DUMMY})
-    simple_clone(turning_point, {"gate_type": UNKNOWN_LEG})
-
+            simple_clone(
+                turning_point,
+                {"gate_type": gate_type},
+                existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=gate_type)),
+            )
     return scorecard

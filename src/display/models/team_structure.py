@@ -171,7 +171,7 @@ class Club(models.Model):
 
     def validate(self):
         if Club.objects.filter(name=self.name).exclude(pk=self.pk).exists():
-            raise ValidationError("A club with this email already exists")
+            raise ValidationError("A club with this name already exists")
 
     def __str__(self):
         return self.name
