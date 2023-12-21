@@ -59,6 +59,10 @@ stages:
         action: 'Build services'
         additionalImageTags: '${{Variables.tag}}'
         includeLatestTag: false
+    - task: Docker@2
+      inputs:
+        containerRegistry: 'GKE Docker registry'
+        command: 'login'
     - task: DockerCompose@0
       displayName: Push tracker_web to docker registry
       inputs:
@@ -98,6 +102,10 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
+    - task: Docker@2
+      inputs:
+        containerRegistry: 'GKE Docker registry'
+        command: 'login'
     - task: DockerCompose@0
       displayName: Pull web
       inputs:
