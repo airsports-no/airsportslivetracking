@@ -2,18 +2,36 @@ import logging
 from datetime import timedelta, datetime
 from typing import Tuple, List, Optional
 
-from display.utilities.coordinate_utilities import fraction_of_leg, calculate_bearing, Projector, bearing_difference, \
-    point_to_line_distance
+from display.utilities.coordinate_utilities import (
+    fraction_of_leg,
+    calculate_bearing,
+    Projector,
+    bearing_difference,
+    point_to_line_distance,
+)
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
 
 
 class Position:
-    def __init__(self, time, latitude, longitude, altitude, speed, course, battery_level, position_id, device_id,
-                 interpolated: bool = False, processor_received_time=None, calculator_received_time=None,
-                 server_time=None,
-                 **kwargs):
+    def __init__(
+        self,
+        time,
+        latitude,
+        longitude,
+        altitude,
+        speed,
+        course,
+        battery_level,
+        position_id,
+        device_id,
+        interpolated: bool = False,
+        processor_received_time=None,
+        calculator_received_time=None,
+        server_time=None,
+        **kwargs,
+    ):
         self.time = time
         self.latitude = latitude
         self.longitude = longitude
@@ -29,13 +47,27 @@ class Position:
         self.calculator_received_time = calculator_received_time
         self.server_time = server_time
 
+    def to_traccar(self, device_id: str, index: int) -> dict:
+        return {
+            "deviceId": device_id,
+            "id": index,
+            "latitude": float(self.latitude),
+            "longitude": float(self.longitude),
+            "altitude": self.latitude,
+            "attributes": {"batteryLevel": self.battery_level},
+            "speed": self.speed,
+            "course": self.course,
+            "device_time": self.time,
+        }
+
     def __str__(self):
         return f"{self.time}: {self.latitude}, {self.longitude}, a: {self.altitude}, s: {self.speed}, c: {self.course}, bl: {self.battery_level}, pi: {self.position_id}, di: {self.device_id}, p: {self.progress}"
 
 
 class Gate:
-    def __init__(self, gate: Waypoint, expected_time,
-                 gate_line_extended: Tuple[Tuple[float, float], Tuple[float, float]]):
+    def __init__(
+        self, gate: Waypoint, expected_time, gate_line_extended: Tuple[Tuple[float, float], Tuple[float, float]]
+    ):
         self.waypoint = gate
         self.name = gate.name
         self.gate_line = gate.gate_line  # [[lat,lon],[lat,lon]]
@@ -93,7 +125,8 @@ class Gate:
     def is_passed_in_correct_direction_track(self, track) -> bool:
         if len(track) > 1:
             return self.is_passed_in_correct_direction_bearing_to_next(
-                calculate_bearing((track[-2].latitude, track[-2].longitude), (track[-1].latitude, track[-1].longitude)))
+                calculate_bearing((track[-2].latitude, track[-2].longitude), (track[-1].latitude, track[-1].longitude))
+            )
         return False
 
     def get_gate_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
@@ -103,14 +136,16 @@ class Gate:
 
     def get_gate_infinite_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
         if len(track) > 2:
-            return get_intersect_time(projector, track[-3], track[-1], self.gate_line_infinite[0],
-                                      self.gate_line_infinite[1])
+            return get_intersect_time(
+                projector, track[-3], track[-1], self.gate_line_infinite[0], self.gate_line_infinite[1]
+            )
         return None
 
     def get_gate_extended_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
         if len(track) > 2 and self.gate_line_extended:
-            return get_intersect_time(projector, track[-3], track[-1], self.gate_line_extended[0],
-                                      self.gate_line_extended[1])
+            return get_intersect_time(
+                projector, track[-3], track[-1], self.gate_line_extended[0], self.gate_line_extended[1]
+            )
         return None
 
     def get_distance_to_gate_line(self, latitude: float, longitude: float) -> float:
@@ -160,21 +195,26 @@ def round_seconds(stamp: datetime) -> datetime:
     return new_stamp.replace(microsecond=0)
 
 
-def get_intersect_time(projector: Projector, track_segment_start: Position, track_segment_finish: Position, gate_start,
-                       gate_finish) -> \
-        Optional[datetime]:
+def get_intersect_time(
+    projector: Projector, track_segment_start: Position, track_segment_finish: Position, gate_start, gate_finish
+) -> Optional[datetime]:
     # intersection = line_intersect(track_segment_start.longitude, track_segment_start.latitude,
     #                               track_segment_finish.longitude,
     #                               track_segment_finish.latitude, gate_start[1], gate_start[0], gate_finish[1],
     #                               gate_finish[0])
-    intersection = projector.intersect((track_segment_start.latitude, track_segment_start.longitude),
-                                       (track_segment_finish.latitude, track_segment_finish.longitude),
-                                       gate_start, gate_finish)
+    intersection = projector.intersect(
+        (track_segment_start.latitude, track_segment_start.longitude),
+        (track_segment_finish.latitude, track_segment_finish.longitude),
+        gate_start,
+        gate_finish,
+    )
 
     if intersection:
-        fraction = fraction_of_leg((track_segment_start.latitude, track_segment_start.longitude),
-                                   (track_segment_finish.latitude, track_segment_finish.longitude),
-                                   intersection)
+        fraction = fraction_of_leg(
+            (track_segment_start.latitude, track_segment_start.longitude),
+            (track_segment_finish.latitude, track_segment_finish.longitude),
+            intersection,
+        )
         time_difference = (track_segment_finish.time - track_segment_start.time).total_seconds()
         intersection_time = track_segment_start.time + timedelta(seconds=fraction * time_difference)
         # logger.info("Previous position time: {}".format(track_segment_start.time))

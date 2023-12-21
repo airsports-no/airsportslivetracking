@@ -344,6 +344,8 @@ class Gatekeeper(ABC):
                             latitude=position.latitude,
                             longitude=position.longitude,
                             course=position.course,
+                            speed=position.speed,
+                            altitude=position.altitude,
                             processor_received_time=p.processor_received_time,
                             calculator_received_time=p.calculator_received_time,
                             websocket_transmitted_time=datetime.datetime.now(datetime.timezone.utc),
