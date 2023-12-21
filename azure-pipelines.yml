@@ -12,7 +12,7 @@
 #       name: live_tracking_helm_chart
 
 variables:
-  containerName: tracker_web
+  containerName: tracker_daphne
   # Container registry service connection established during pipeline creation
   dockerRegistryServiceConnection: '2393d3ea-2041-4fc3-854b-a2a623ba65ac'
   imageRepository: 'livetracking'
@@ -107,7 +107,7 @@ stages:
         containerRegistry: 'GKE Docker registry'
         command: 'login'
     - task: DockerCompose@0
-      displayName: Pull web
+      displayName: Pull daphne
       inputs:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
@@ -125,7 +125,7 @@ stages:
         arguments: '-d ${{Variables.containerName}}'
     - script: |
         docker exec ${{Variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
-      displayName: Prepare web container for test run
+      displayName: Prepare daphne container for test run
     - script: |
        docker exec ${{Variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
 #       docker exec ${{Variables.containerName}} /bin/bash -c "python3 manage.py jenkins --enable-coverage -v 2 --no-input || test -f reports/junit.xml"
