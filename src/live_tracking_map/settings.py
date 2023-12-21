@@ -91,6 +91,7 @@ LIVE_POSITION_TRANSMITTER_CACHE_RESET_INTERVAL = 300
 
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
