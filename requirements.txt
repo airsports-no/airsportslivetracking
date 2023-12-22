@@ -52,6 +52,7 @@ pyepsg==0.4.0
 pykalman==0.9.5
 pylatex==1.4.2
 pymbtiles==0.5.0
+pytest
 pyproj==3.6.1
 python-redis-lock==4.0.0
 pytz==2023.3

@@ -31,24 +31,6 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
-    # - task: DockerCompose@0
-    #   displayName: Pull web
-    #   inputs:
-    #     containerregistrytype: 'Azure Container Registry'
-    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-    #     dockerComposeFile: '**/docker-compose.yml'
-    #     action: 'Run a Docker Compose command'
-    #     dockerComposeCommand: 'pull tracker_web'
-    # - task: DockerCompose@0
-    #   displayName: Pull the rest
-    #   inputs:
-    #     containerregistrytype: 'Azure Container Registry'
-    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-    #     dockerComposeFile: '**/docker-compose.yml'
-    #     action: 'Run a Docker Compose command'
-    #     dockerComposeCommand: 'pull'
     - task: DockerCompose@0
       displayName: Build services
       inputs:
@@ -128,7 +110,7 @@ stages:
       displayName: Prepare daphne container for test run
     - script: |
        docker exec ${{Variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
-#       docker exec ${{Variables.containerName}} /bin/bash -c "python3 manage.py jenkins --enable-coverage -v 2 --no-input || test -f reports/junit.xml"
+       docker exec ${{Variables.containerName}} /bin/bash -c "pytest --junitxml reports/django_test_results.xml --cov=. --cov-report=xml:reports/django_coverage.xml || test -f reports/django_test_results.xml"
       displayName: Run main tests
     - script: 'docker cp ${{Variables.containerName}}:/src/reports/. reports'
       displayName: Get reports from container
