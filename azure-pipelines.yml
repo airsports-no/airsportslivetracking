@@ -5,20 +5,9 @@
 # trigger:
 # - master
 
-# resources:
-#   repositories:
-#     - repository: helmChart
-#       type: git
-#       name: live_tracking_helm_chart
-
 variables:
   containerName: tracker_daphne
-  # Container registry service connection established during pipeline creation
-  dockerRegistryServiceConnection: '2393d3ea-2041-4fc3-854b-a2a623ba65ac'
-  imageRepository: 'livetracking'
-  containerRegistry: 'airsportsacr.azurecr.io'
-  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
-  tag: '$(Build.BuildId)'
+  IMAGE_TAG: $(Build.BuildId)
 
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
@@ -31,34 +20,15 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
-    # - task: DockerCompose@0
-    #   displayName: Pull web
-    #   inputs:
-    #     containerregistrytype: 'Azure Container Registry'
-    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-    #     dockerComposeFile: '**/docker-compose.yml'
-    #     action: 'Run a Docker Compose command'
-    #     dockerComposeCommand: 'pull tracker_web'
-    # - task: DockerCompose@0
-    #   displayName: Pull the rest
-    #   inputs:
-    #     containerregistrytype: 'Azure Container Registry'
-    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-    #     dockerComposeFile: '**/docker-compose.yml'
-    #     action: 'Run a Docker Compose command'
-    #     dockerComposeCommand: 'pull'
     - task: DockerCompose@0
       displayName: Build services
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
+        qualifyImageNames: false
         action: 'Build services'
-        additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: false
     - task: Docker@2
       inputs:
         containerRegistry: 'GKE Docker registry'
@@ -69,8 +39,10 @@ stages:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'push'
+        includeLatestTag: false
         arguments: 'tracker_daphne'
     - task: DockerCompose@0
       displayName: Push the rest to docker registry
@@ -78,6 +50,7 @@ stages:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
         action: 'Push services'
         additionalImageTags: '${{Variables.tag}}'
         includeLatestTag: false
@@ -111,6 +84,7 @@ stages:
       inputs:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
+        projectName: '${{Variables.IMAGE_TAG}}'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull'
@@ -121,6 +95,7 @@ stages:
         dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
+        projectName: '${{Variables.IMAGE_TAG}}'
         dockerComposeCommand: 'up'
         arguments: '-d ${{Variables.containerName}}'
     - script: |
@@ -176,7 +151,6 @@ stages:
           - checkout: self
             submodules: true
             persistCredentials: true
-          # - checkout: helmChart
           - task: HelmInstaller@0
             inputs:
               helmVersion: '2.14.1'
@@ -195,5 +169,5 @@ stages:
               chartType: 'Name'
               chartName: '$(Agent.BuildDirectory)/s/helm/'
               releaseName: 'airsportsrelease'
-              overrideValues: 'image.tag=${{ variables.tag }}'
+              overrideValues: 'image.tag=${{ variables.IMAGE_TAG }}'
               valueFile: '$(privateValues.secureFilePath)'
