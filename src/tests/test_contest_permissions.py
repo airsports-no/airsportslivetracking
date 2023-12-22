@@ -63,7 +63,7 @@ class TestCreateContest(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_201_CREATED, result.content)
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestAccessContest(APITestCase):
     def setUp(self):

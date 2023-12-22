@@ -832,7 +832,7 @@ with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as f:
 data["route_file"] = route_string
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestImportSerialiser(TransactionTestCase):
     def setUp(self):
@@ -855,10 +855,10 @@ class TestImportSerialiser(TransactionTestCase):
         serialiser.save()
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         Contest.objects.all().delete()
@@ -899,7 +899,7 @@ class TestImportFCNavigationTaskTeamId(APITransactionTestCase):
         self.assertEqual(status.HTTP_201_CREATED, res.status_code, "Failed to POST importnavigationtask")
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestImportFCNavigationTask(APITransactionTestCase):
     def setUp(self):
@@ -1171,7 +1171,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertTrue(equal, reasons)
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestNavigationTaskCreationFlow(APITransactionTestCase):
     ROUTE_DATA = {

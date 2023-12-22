@@ -66,12 +66,12 @@ def load_track_points(filename):
     return positions
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestFullTrack(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_precision_2020
@@ -229,11 +229,11 @@ class TestFullTrack(TransactionTestCase):
         self.assertFalse("TP6: 200.0 points missing procedure turn" in strings)
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class Test2017WPFC(TransactionTestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as file:
@@ -287,11 +287,11 @@ class Test2017WPFC(TransactionTestCase):
         )  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
-# @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+# @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 # @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 # class TestScoreverride(TransactionTestCase):
 #     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-#     @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+#     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 #     def setUp(self, *args):
 #         with open("display/calculators/tests/bugs_with_gate_score_overrides.json", "r") as file:
 #             task_data = json.load(file)
@@ -326,11 +326,11 @@ class Test2017WPFC(TransactionTestCase):
 #         self.assertEqual(23, contestant_track.score)
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestNM2019(TransactionTestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_precision_2020
@@ -411,12 +411,12 @@ class TestNM2019(TransactionTestCase):
         )  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestHamar23March2021(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_precision_2020

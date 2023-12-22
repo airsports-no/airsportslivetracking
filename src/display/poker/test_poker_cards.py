@@ -11,7 +11,7 @@ from utilities.mock_utilities import TraccarMock
 
 
 class TestPlayingCards(TestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.contest = Contest.objects.create(

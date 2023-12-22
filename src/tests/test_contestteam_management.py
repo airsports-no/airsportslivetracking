@@ -15,10 +15,10 @@ from utilities.mock_utilities import TraccarMock
 CONTEST_TEAM_DATA = lambda team, contest: {"team": team, "contest": contest, "air_speed": 70}
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock, autospec=True)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock, autospec=True)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestContestTeamApi(APITestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock, autospec=True)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock, autospec=True)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.user_owner = get_user_model().objects.create(email="withpermissions")

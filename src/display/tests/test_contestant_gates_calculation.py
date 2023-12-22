@@ -15,7 +15,7 @@ def chop_microseconds(delta):
 
 
 class TestContestantGatesCalculation(TestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         scorecard = get_default_scorecard()
@@ -54,7 +54,7 @@ class TestContestantGatesCalculation(TestCase):
             wind_speed=8,
         )
 
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     def test_gate_times(self, p):
         gate_times = self.contestant.gate_times
         expected_times = [
@@ -114,7 +114,7 @@ class TestContestantGatesCalculation(TestCase):
 
 
 class TestContestantGatesCalculationANRRounded(TestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         with open("display/tests/kjeller.kml", "r") as file:

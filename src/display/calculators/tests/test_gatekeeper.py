@@ -11,11 +11,11 @@ from utilities.mock_utilities import TraccarMock
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestInterpolation(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_precision_2020
@@ -91,11 +91,11 @@ class TestInterpolation(TransactionTestCase):
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestCrossingEstimate(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_precision_2020

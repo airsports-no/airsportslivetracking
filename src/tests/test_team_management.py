@@ -27,10 +27,10 @@ TEAM_DATA = {
 }
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock, autospec=True)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock, autospec=True)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestTeamApi(APITestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock, autospec=True)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock, autospec=True)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.user_owner = get_user_model().objects.create(email="withpermissions")

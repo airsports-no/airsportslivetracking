@@ -48,11 +48,11 @@ def calculator_runner(contestant, track):
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRPerLeg(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
@@ -249,12 +249,12 @@ class TestANRPerLeg(TransactionTestCase):
         self.assertEqual(209, contestant_track.score)
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANR(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
@@ -351,7 +351,7 @@ class TestANR(TransactionTestCase):
 
 
 class TestAnrCorridorCalculator(TransactionTestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         with patch(
@@ -578,12 +578,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.update_score.assert_not_called()
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRPolygon(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
@@ -646,12 +646,12 @@ class TestANRPolygon(TransactionTestCase):
         calculator_runner(self.contestant, track)
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRBergenBacktracking(TransactionTestCase):
     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
@@ -716,10 +716,10 @@ class TestANRBergenBacktracking(TransactionTestCase):
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRBergenBacktrackingTommy(TransactionTestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2017
@@ -791,14 +791,14 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestOscarDoubleCorridorPenalty(TransactionTestCase):
     """
     https://airsports.no/display/navigationtask/1300/
     """
 
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_fai_anr_2022
