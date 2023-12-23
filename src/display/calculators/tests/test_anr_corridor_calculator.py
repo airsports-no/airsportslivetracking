@@ -712,7 +712,8 @@ class TestANRBergenBacktracking(TransactionTestCase):
         )
         calculator_runner(self.contestant, track)
         # Incorrectly gets 200 points for prohibited zone at departure and arrival, actual score is 51.
-        self.assertEqual(203, self.contestant.contestanttrack.score)  # 406
+        self.contestant.refresh_from_db()
+        self.assertEqual(406, self.contestant.contestanttrack.score)  # 406
 
 
 @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
