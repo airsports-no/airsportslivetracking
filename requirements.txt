@@ -1,4 +1,4 @@
-django==4.1.7
+django==4.2.7
 Babel==2.11.0
 Pillow==9.4.0
 SimConnect==0.4.26
@@ -14,7 +14,6 @@ django-bootstrap4==22.3
 django-countries==7.5.1
 django-crispy-forms==2.0
 django-formtools==2.4
-django-google-analytics-app==6.0.0
 django-guardian==2.4.0
 # django-jenkins==0.110.0
 # django-multiselectfield==0.1.12
