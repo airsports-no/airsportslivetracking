@@ -25,7 +25,7 @@ drf-firebase-auth==1.0.0
 drf-nested-routers==0.93.5
 drf-yasg==1.21.7
 fastkml==0.12
-firebase-admin==6.3.0
+firebase-admin==4.5.3
 flower==2.0.1
 fpdf2==2.7.7
 geopy==2.4.1
