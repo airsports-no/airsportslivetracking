@@ -121,6 +121,7 @@ stages:
   - deployment: live_tracking_deployment
   # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/deployment-jobs?view=azure-devops
     displayName: 'Deploy'
+    environment: 'gke-release'
     strategy:
       runOnce:
         preDeploy:
