@@ -114,7 +114,6 @@ INSTALLED_APPS = [
     "phonenumber_field",
     "qr_code",
     "crispy_forms",
-    "google_analytics",
     "channels",
     "display.apps.DisplayConfig",
     "firebase.apps.FirebaseConfig",
@@ -167,7 +166,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "live_tracking_map.urls"
 
-CELERY_IMPORTS = "google_analytics.tasks"
 LOGOUT_REDIRECT_URL = "/"
 LOGIN_REDIRECT_URL = "/"
 TEMPLATES = [
@@ -201,10 +199,6 @@ AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",  # this is default
     "guardian.backends.ObjectPermissionBackend",
 )
-
-GOOGLE_ANALYTICS = {
-    "google_analytics_id": "UA-12923426-5",
-}
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

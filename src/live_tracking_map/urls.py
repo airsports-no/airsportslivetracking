@@ -63,7 +63,6 @@ urlpatterns = [
     path("accounts/", include("django.contrib.auth.urls")),
     path("firebase_login/", firebase_token_login),
     path("docs/", docs.with_ui()),
-    re_path("djga/", include("google_analytics.urls")),
     path("api/v1/", include(api.urlpatters)),
     re_path(r"^.?", global_map, name="globalmap"),
 ]
