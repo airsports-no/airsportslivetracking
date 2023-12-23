@@ -80,6 +80,7 @@ def generate_and_maybe_notify_flight_order(
         except ObjectDoesNotExist:
             logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
             return
+        logger.info(f"Generating flight order for {contestant}")
         append_cache_dict(f"completed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, False)
         try:
             orders = generate_flight_orders_latex(contestant)
