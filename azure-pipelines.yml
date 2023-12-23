@@ -159,7 +159,7 @@ stages:
         rm -rf reports/*
       displayName: 'Clear reports'
 - stage: Deploy
-  dependsOn: Build
+  dependsOn: Test
   condition: succeeded()
   jobs:
   - deployment: live_tracking_deployment
