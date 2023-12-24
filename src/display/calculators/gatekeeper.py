@@ -411,7 +411,7 @@ class Gatekeeper(ABC):
             maximum_score: Optional[float] = None,
             planned: Optional[datetime.datetime] = None,
             actual: Optional[datetime.datetime] = None,
-    ) -> Tuple[int, int, float]:
+    ):
 
         score, capped = self.accumulated_scores.set_and_update_score(
             score, score_type, maximum_score, 0
