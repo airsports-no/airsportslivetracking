@@ -151,7 +151,7 @@ stages:
             inputs:
               connectionType: 'Kubernetes Service Connection'
               kubernetesServiceConnection: 'GKE Kubernetes connection'
-              namespace: 'airsports'
+              namespace: 'default'
               command: 'upgrade'
               chartType: 'Name'
               chartName: '$(Agent.BuildDirectory)/s/helm/'
