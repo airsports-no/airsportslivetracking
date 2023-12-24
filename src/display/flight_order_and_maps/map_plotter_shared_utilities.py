@@ -1,8 +1,3 @@
-import glob
-import numpy as np
-import cartopy.crs as ccrs
-import utm
-
 from PIL import Image
 import qrcode
 
@@ -64,7 +59,7 @@ def qr_code_image(url: str, image_path: str):
     # adjust image size
     wpercent = basewidth / float(logo.size[0])
     hsize = int((float(logo.size[1]) * float(wpercent)))
-    logo = logo.resize((basewidth, hsize), Image.ANTIALIAS)
+    logo = logo.resize((basewidth, hsize), Image.LANCZOS)
     QRcode = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_H)
     # addingg URL or text to QRcode
     QRcode.add_data(url)

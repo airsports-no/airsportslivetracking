@@ -70,3 +70,4 @@ websocket-client==1.7.0
 whitenoise==6.6.0
 django-location-field==2.7.3
 cartopy==0.22.0
+google-cloud-logging==3.9.0
