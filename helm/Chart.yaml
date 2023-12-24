@@ -23,10 +23,10 @@ version: 0.1.1
 # It is recommended to use it with quotes.
 appVersion: "1.16.0"
 dependencies:
-#  - name: mysql
-#    version: ~9.10.4
-#    repository: https://charts.bitnami.com/bitnami
-#    condition: mysql.enabled
+  - name: mysql
+    version: ~9.10.4
+    repository: https://charts.bitnami.com/bitnami
+    condition: mysql.enabled
   - name: redis
     version: ~17.11.6
     repository: https://charts.bitnami.com/bitnami
