@@ -1,12 +1,12 @@
 dependencies:
 - name: mysql
   repository: https://charts.bitnami.com/bitnami
-  version: 9.10.4
+  version: 9.10.10
 - name: redis
   repository: https://charts.bitnami.com/bitnami
-  version: 17.11.6
+  version: 17.11.8
 - name: wordpress
   repository: https://charts.bitnami.com/bitnami
-  version: 16.1.21
-digest: sha256:6e999e31c094bebf0711fba3fe62ead7fbdcb4c19086dde656c6fea77c95400b
-generated: "2023-06-30T14:11:34.517632005+02:00"
+  version: 16.1.35
+digest: sha256:c211e57558e5b62eed27045215fff431236fdd12a25b581cf463199ccb9fe14a
+generated: "2023-12-24T13:06:21.870930635+01:00"

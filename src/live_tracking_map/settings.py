@@ -288,7 +288,7 @@ from google.cloud import logging
 
 # Note this requires the client to be able to log into Google using local credentials unless running in GKE.
 # Create these credentials by running 'gcloud auth application-default login'
-if os.environ.get("MODE") != "dev":
+if os.environ.get("MODE") != "dev" and os.environ.get("LOG_HANDLER") == "stackdriver":
     try:
         # StackDriver setup
         client = logging.Client()

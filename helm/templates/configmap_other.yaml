@@ -20,6 +20,8 @@ data:
   AUTHEMAIL_DEFAULT_EMAIL_FROM: support@airsports.no
   AUTHEMAIL_DEFAULT_EMAIL_BCC: support@airsports.no
 
+  LOG_HANDLER: stackdriver
+
   AZURE_ACCOUNT_NAME: {{ .Values.storageAccountName }}
   MEDIA_LOCATION: {{ .Values.mediaLocation }}
 

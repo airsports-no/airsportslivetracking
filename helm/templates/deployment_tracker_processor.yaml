@@ -26,6 +26,8 @@ spec:
                     values:
                       - "true"
       serviceAccountName: calculator-scheduler
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
       initContainers:
         - name: wait-for-db
           image: "alpine:3.6"
@@ -67,6 +69,9 @@ spec:
               name: envs-production-other
           - secretRef:
               name: pw-secrets
+        env:
+          - name: LOG_HANDLER
+            value: ""
         livenessProbe:
           exec:
             # bash is needed to replace the environment variable
