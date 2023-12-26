@@ -33,6 +33,7 @@ from display.models import (
     TRACCAR,
     Club,
     TRACKING_PILOT,
+    ContestantReceivedPosition,
 )
 
 logger = logging.getLogger(__name__)
@@ -125,7 +126,10 @@ def load_data_traccar(tracks: List[Tuple[Contestant, List[dict]]], real_time: bo
 
 
 def get_retimed_track(start_time, old_contestant: Contestant) -> List[dict]:
-    existing_track = old_contestant.get_traccar_track()
+    # existing_track = old_contestant.get_traccar_track()
+    existing_track = [
+        p.to_traccar(old_contestant.tracker_device_id, index) for index, p in enumerate(old_contestant.get_track())
+    ]
     expected_starting_point_time = old_contestant.starting_gate_time
     # Assumes start time is in the future, after expected starting point time
     time_difference = start_time - expected_starting_point_time

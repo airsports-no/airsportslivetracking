@@ -27,10 +27,10 @@ TEAM_DATA = {
 }
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock, autospec=True)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock, autospec=True)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestTeamApi(APITestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock, autospec=True)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock, autospec=True)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.user_owner = get_user_model().objects.create(email="withpermissions")
@@ -50,7 +50,9 @@ class TestTeamApi(APITestCase):
         result = self.client.post(reverse("contests-list"),
                                   data={"name": "TestContest", "is_public": False, "time_zone": "Europe/Oslo",
                                         "start_time": datetime.datetime.now(datetime.timezone.utc),
-                                        "finish_time": datetime.datetime.now(datetime.timezone.utc)})
+                                        "finish_time": datetime.datetime.now(datetime.timezone.utc),
+                                        "location": "60, 11",
+                                        })
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)

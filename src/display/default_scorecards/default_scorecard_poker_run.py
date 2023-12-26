@@ -1,14 +1,13 @@
 #
 import datetime
 
-from display.utilities.clone_object import simple_clone
+from display.utilities.clone_object import simple_clone, get_or_none
 from display.models import (
     GateScore,
     Scorecard,
-    NavigationTask,
-    TURNPOINT,
-    GATE_TYPES, DUMMY, UNKNOWN_LEG,
 )
+from display.utilities.gate_definitions import TURNPOINT, GATE_TYPES, DUMMY, UNKNOWN_LEG
+from display.utilities.navigation_task_type_definitions import POKER
 
 
 def get_default_scorecard():
@@ -21,8 +20,8 @@ def get_default_scorecard():
             "backtracking_penalty": 0,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": False,
-            "task_type": [NavigationTask.POKER],
-            "calculator": NavigationTask.POKER,
+            "task_type": [POKER],
+            "calculator": POKER,
             "prohibited_zone_penalty": 0,
             "free_text": """
 <p>The crew must follow the order of the waypoints to receive the next card.  To make the waypoint more accessible, polygons (Gate Zone) can be used in the route editor. Overlap the Gate Zone with the Turning Point, it will then be automatically connected as a waypoint.</p>
@@ -49,10 +48,9 @@ def get_default_scorecard():
     )
     for gate_type, friendly_name in GATE_TYPES:
         if gate_type != TURNPOINT:
-            scorecard.gatescore_set.filter(gate_type=gate_type).delete()
-            simple_clone(turning_point, {"gate_type": gate_type})
-    scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
-    simple_clone(turning_point, {"gate_type": DUMMY})
-    simple_clone(turning_point, {"gate_type": UNKNOWN_LEG})
-
+            simple_clone(
+                turning_point,
+                {"gate_type": gate_type},
+                existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=gate_type)),
+            )
     return scorecard

@@ -1,18 +1,22 @@
 #
 import datetime
 
-from display.utilities.clone_object import simple_clone
+from display.utilities.clone_object import simple_clone, get_or_none
 from display.models import (
     GateScore,
     Scorecard,
-    NavigationTask,
+)
+from display.utilities.gate_definitions import (
     TURNPOINT,
     TAKEOFF_GATE,
     LANDING_GATE,
     STARTINGPOINT,
     SECRETPOINT,
-    FINISHPOINT, DUMMY, UNKNOWN_LEG,
+    FINISHPOINT,
+    DUMMY,
+    UNKNOWN_LEG,
 )
+from display.utilities.navigation_task_type_definitions import PRECISION
 
 
 def get_default_scorecard():
@@ -24,8 +28,8 @@ def get_default_scorecard():
             "backtracking_penalty": 200,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": True,
-            "task_type": [NavigationTask.PRECISION],
-            "calculator": NavigationTask.PRECISION,
+            "task_type": [PRECISION],
+            "calculator": PRECISION,
             "prohibited_zone_penalty": 0,
             "included_fields": [
                 [
@@ -44,7 +48,6 @@ def get_default_scorecard():
                     "penalty_zone_penalty_per_second",
                     "penalty_zone_maximum",
                 ],
-
             ],
         },
     )
@@ -133,11 +136,25 @@ def get_default_scorecard():
         },
     )
 
-    scorecard.gatescore_set.filter(gate_type__in=(SECRETPOINT, FINISHPOINT)).delete()
-    simple_clone(regular_gate_score, {"gate_type": SECRETPOINT})
-    simple_clone(regular_gate_score, {"gate_type": FINISHPOINT})
-    scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
-    simple_clone(regular_gate_score, {"gate_type": DUMMY})
-    simple_clone(regular_gate_score, {"gate_type": UNKNOWN_LEG})
+    simple_clone(
+        regular_gate_score,
+        {"gate_type": SECRETPOINT},
+        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=SECRETPOINT)),
+    )
+    simple_clone(
+        regular_gate_score,
+        {"gate_type": FINISHPOINT},
+        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=FINISHPOINT)),
+    )
+    simple_clone(
+        regular_gate_score,
+        {"gate_type": DUMMY},
+        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=DUMMY)),
+    )
+    simple_clone(
+        regular_gate_score,
+        {"gate_type": UNKNOWN_LEG},
+        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=UNKNOWN_LEG)),
+    )
 
     return scorecard

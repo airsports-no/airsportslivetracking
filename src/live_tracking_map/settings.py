@@ -13,6 +13,7 @@ import os
 import sys
 from pathlib import Path
 from django.core.cache import cache
+from google.auth.exceptions import DefaultCredentialsError
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from pytz import UTC
@@ -89,8 +90,8 @@ LIVE_POSITION_TRANSMITTER_CACHE_RESET_INTERVAL = 300
 # Application definition
 
 
-
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -282,6 +283,28 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
     "/assets",
 ]
+
+from google.cloud import logging
+
+# Note this requires the client to be able to log into Google using local credentials unless running in GKE.
+# Create these credentials by running 'gcloud auth application-default login'
+if os.environ.get("MODE") != "dev" and os.environ.get("LOG_HANDLER") == "stackdriver":
+    try:
+        # StackDriver setup
+        client = logging.Client()
+        # Connects the logger to the root logging handler; by default
+        # this captures all logs at INFO level and higher
+        client.setup_logging()
+        handlers = ["stackdriver"]
+        print("Logging to google cloud")
+    except DefaultCredentialsError:
+        client = None
+        print("Logging to console")
+        handlers = ["console"]
+else:
+    client = None
+    handlers = ["console"]
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -293,6 +316,11 @@ LOGGING = {
     },
     "handlers": {
         "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "standard"},
+        **(
+            {"stackdriver": {"class": "google.cloud.logging.handlers.CloudLoggingHandler", "client": client}}
+            if client
+            else {}
+        )
         # "file": {
         #     "level": "DEBUG",
         #     "class": "logging.handlers.WatchedFileHandler",
@@ -302,57 +330,57 @@ LOGGING = {
     },
     "loggers": {
         "root": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "DEBUG",
         },
-        "": {"handlers": ["console"], "level": "DEBUG"},
+        "": {"handlers": handlers, "level": "DEBUG"},
         "celery": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "INFO",
             "propagate": False,
         },
         "websocket": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "INFO",
             "propagate": False,
         },
         "asyncio": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "WARNING",
             "propagate": False,
         },
         "aioredis": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "WARNING",
             "propagate": False,
         },
         "channels_redis": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "WARNING",
             "propagate": False,
         },
         "daphne": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "INFO",
             "propagate": False,
         },
         "urllib3": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "INFO",
             "propagate": False,
         },
         "matplotlib": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "INFO",
             "propagate": False,
         },
         "shapely": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "INFO",
             "propagate": False,
         },
         "PIL": {
-            "handlers": ["console"],
+            "handlers": handlers,
             "level": "INFO",
             "propagate": False,
         },

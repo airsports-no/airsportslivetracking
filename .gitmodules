@@ -1,3 +1,6 @@
 [submodule "opensky-api"]
 	path = opensky-api
 	url = https://github.com/openskynetwork/opensky-api.git
+[submodule "pyeval7"]
+	path = pyeval7
+	url = https://github.com/kolaf/pyeval7.git

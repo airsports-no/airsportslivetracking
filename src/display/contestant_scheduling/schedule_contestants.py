@@ -3,11 +3,11 @@ import logging
 from typing import List, Tuple
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.utils.safestring import mark_safe
 
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduling.contestant_scheduler import TeamDefinition, Solver
-from display.models import NavigationTask, ContestTeam, Contestant, Scorecard
+from display.models import NavigationTask, ContestTeam, Contestant
+from display.utilities.navigation_task_type_definitions import LANDING
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def schedule_and_create_contestants(
     crew_switch_time: int,
     optimise: bool = False,
 ) -> Tuple[bool, List[str]]:
-    if NavigationTask.LANDING in navigation_task.scorecard.task_type:
+    if LANDING in navigation_task.scorecard.task_type:
         return schedule_and_create_contestants_landing_task(
             navigation_task,
             contest_teams_pks,

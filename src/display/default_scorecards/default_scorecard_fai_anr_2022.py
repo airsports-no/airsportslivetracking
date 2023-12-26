@@ -1,19 +1,21 @@
 #
 import datetime
 
-from display.utilities.clone_object import simple_clone
+from display.utilities.clone_object import simple_clone, get_or_none
 from display.models import (
     GateScore,
     Scorecard,
-    NavigationTask,
-    STARTINGPOINT,
+)
+from display.utilities.gate_definitions import (
+    FINISHPOINT,
     TAKEOFF_GATE,
     LANDING_GATE,
     SECRETPOINT,
-    FINISHPOINT,
+    STARTINGPOINT,
     DUMMY,
     UNKNOWN_LEG,
 )
+from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
 
 DEFAULT_TIMING = {
     "graceperiod_before": 2,  # verified
@@ -34,8 +36,8 @@ def get_default_scorecard():
             "backtracking_grace_time_seconds": 0,  # verified?
             "backtracking_maximum_penalty": 400,  # verified
             "use_procedure_turns": False,
-            "task_type": [NavigationTask.ANR_CORRIDOR],
-            "calculator": NavigationTask.ANR_CORRIDOR,
+            "task_type": [ANR_CORRIDOR],
+            "calculator": ANR_CORRIDOR,
             "corridor_maximum_penalty": -1,  # verified
             "corridor_outside_penalty": 3,  # verified
             "corridor_grace_time": 5,  # verified
@@ -167,8 +169,15 @@ def get_default_scorecard():
             ],
         },
     )
-    scorecard.gatescore_set.filter(gate_type__in=(DUMMY, UNKNOWN_LEG)).delete()
-    simple_clone(regular_gate_score, {"gate_type": DUMMY})
-    simple_clone(regular_gate_score, {"gate_type": UNKNOWN_LEG})
+    simple_clone(
+        regular_gate_score,
+        {"gate_type": DUMMY},
+        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=DUMMY)),
+    )
+    simple_clone(
+        regular_gate_score,
+        {"gate_type": UNKNOWN_LEG},
+        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=UNKNOWN_LEG)),
+    )
 
     return scorecard

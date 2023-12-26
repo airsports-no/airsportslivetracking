@@ -63,7 +63,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position.time = datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc)
         gate = Mock()
         self.calculator.calculate_outside_route([position], gate)
-        self.update_score.assert_called_with(gate, 0, 'inside penalty zone test', 59.5, 11.5, 'anomaly',
+        self.update_score.assert_called_with(gate, 0, 'inside penalty zone test (2s)', 59.5, 11.5, 'anomaly',
                                              'inside_penalty_zone')
 
     def test_in_and_out_beyond_grace_time_enroute(self):
@@ -93,7 +93,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position.time = datetime.datetime(2020, 1, 1, 0, 0, 10, tzinfo=datetime.timezone.utc)
         gate = Mock()
         self.calculator.calculate_outside_route([position], gate)
-        self.update_score.assert_called_with(gate, 21, 'inside penalty zone test', 59.5, 11.5, 'anomaly',
+        self.update_score.assert_called_with(gate, 21, 'inside penalty zone test (10s)', 59.5, 11.5, 'anomaly',
                                              'inside_penalty_zone')
 
     def test_outside_enroute(self):

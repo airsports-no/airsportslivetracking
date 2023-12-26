@@ -107,7 +107,7 @@ TraccarMock.get_or_create_device.return_value = ({}, False)
 
 class TestAutoCompletePersonFirstName(APITestCase):
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
                               phone="+471234678")
@@ -165,7 +165,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
 
 
 class TestAutoCompletePersonLastname(APITestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
@@ -224,7 +224,7 @@ class TestAutoCompletePersonLastname(APITestCase):
 
 
 class TestAutoCompletePersonPhone(APITestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
@@ -283,7 +283,7 @@ class TestAutoCompletePersonPhone(APITestCase):
 
 
 class TestAutoCompletePersonEmail(APITestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
@@ -342,7 +342,7 @@ class TestAutoCompletePersonEmail(APITestCase):
 
 
 class TestAutoCompletePersonId(APITestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",

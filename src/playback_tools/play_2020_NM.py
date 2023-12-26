@@ -1,18 +1,21 @@
 import datetime
 import glob
 import os
+import sys
 import time
 from collections import OrderedDict
 from unittest.mock import patch
 
+
 if __name__ == "__main__":
+    sys.path.append("../")
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
 
     django.setup()
 
-from playback_tools import build_traccar_track, load_data_traccar
 from traccar_facade import Traccar
+from playback_tools.playback import build_traccar_track, load_data_traccar
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import (
     Crew,
@@ -80,7 +83,12 @@ tomorrow = today + datetime.timedelta(days=1)
 contest_start_time = today.replace(hour=0).astimezone()
 contest_finish_time = tomorrow.astimezone()
 contest = Contest.objects.create(
-    name=name, is_public=True, start_time=contest_start_time, finish_time=contest_finish_time, time_zone="Europe/Oslo"
+    name=name,
+    is_public=True,
+    start_time=contest_start_time,
+    finish_time=contest_finish_time,
+    time_zone="Europe/Oslo",
+    location="60, 11",
 )
 with open("/data/NM.csv", "r") as file:
     with patch(
@@ -88,7 +96,7 @@ with open("/data/NM.csv", "r") as file:
         lambda name, r: EditableRoute.objects.create(name=name, route=r),
     ):
         editable_route, _ = EditableRoute.create_from_csv("NM 2020", file.readlines()[1:])
-        route = editable_route.create_precision_route(True)
+        route = editable_route.create_precision_route(True, scorecard)
 
 navigation_task = NavigationTask.create(
     name=name,
@@ -104,12 +112,12 @@ time.sleep(10)
 contestant_map = {}
 tracks = OrderedDict()
 now = datetime.datetime.now(datetime.timezone.utc)
-for index, file in enumerate(glob.glob("../data/tracks/*.gpx")[:-1]):
+for index, file in enumerate(glob.glob("/data/tracks/*.gpx")[:-1]):
     print(file)
     contestant = os.path.splitext(os.path.basename(file))[0]
     if contestant in contestants:
         print(contestant)
-        if contestant == "Frank-Olaf" and False:
+        if contestant == "Frank-Olaf":
             member1, _ = Person.objects.get_or_create(
                 first_name="Frank Olaf", last_name="Sem-Jacobsen", email="frankose@ifi.uio.no"
             )

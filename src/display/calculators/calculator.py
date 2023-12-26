@@ -1,9 +1,10 @@
 import logging
 from abc import abstractmethod
-from typing import List, Callable, Dict, Optional, Tuple
+from typing import List, Callable, Optional, Tuple
 
 from display.calculators.positions_and_gates import Position, Gate
-from display.models import Contestant, Scorecard, Route, SECRETPOINT
+from display.models import Contestant, Scorecard, Route
+from display.utilities.gate_definitions import SECRETPOINT
 
 logger = logging.getLogger(__name__)
 

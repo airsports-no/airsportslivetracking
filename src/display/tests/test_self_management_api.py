@@ -26,10 +26,10 @@ from display.models import (
 from utilities.mock_utilities import TraccarMock
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestContestantGatesCalculation(APITestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.scorecard = get_default_scorecard()
@@ -44,6 +44,7 @@ class TestContestantGatesCalculation(APITestCase):
             time_zone="Europe/Oslo",
             start_time=datetime.datetime.now(datetime.timezone.utc),
             finish_time=datetime.datetime.now(datetime.timezone.utc),
+            location="60, 11"
         )
         self.navigation_task = NavigationTask.create(
             name="NM navigation test",
@@ -233,7 +234,7 @@ class TestContestantGatesCalculation(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
 
         response = self.client.get("/api/v1/userprofile/my_participating_contests/")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         data = response.json()[0]
         pprint(data)
         self.assertEqual(1, len(data["contest"]["navigationtask_set"]))

@@ -5,20 +5,9 @@
 # trigger:
 # - master
 
-# resources:
-#   repositories:
-#     - repository: helmChart
-#       type: git
-#       name: live_tracking_helm_chart
-
 variables:
-  containerName: tracker_web
-  # Container registry service connection established during pipeline creation
-  dockerRegistryServiceConnection: '2393d3ea-2041-4fc3-854b-a2a623ba65ac'
-  imageRepository: 'livetracking'
-  containerRegistry: 'airsportsacr.azurecr.io'
-  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
-  tag: '$(Build.BuildId)'
+  containerName: tracker_daphne
+  IMAGE_TAG: $(Build.BuildId)
 
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
@@ -31,67 +20,41 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
-    # - task: DockerCompose@0
-    #   displayName: Pull web
-    #   inputs:
-    #     containerregistrytype: 'Azure Container Registry'
-    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-    #     dockerComposeFile: '**/docker-compose.yml'
-    #     action: 'Run a Docker Compose command'
-    #     dockerComposeCommand: 'pull tracker_web'
-    # - task: DockerCompose@0
-    #   displayName: Pull the rest
-    #   inputs:
-    #     containerregistrytype: 'Azure Container Registry'
-    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-    #     dockerComposeFile: '**/docker-compose.yml'
-    #     action: 'Run a Docker Compose command'
-    #     dockerComposeCommand: 'pull'
     - task: DockerCompose@0
       displayName: Build services
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
+        qualifyImageNames: false
         action: 'Build services'
-        additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: true
+    - task: Docker@2
+      inputs:
+        containerRegistry: 'GKE Docker registry'
+        command: 'login'
     - task: DockerCompose@0
       displayName: Push tracker_web to docker registry
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'push'
-        arguments: 'tracker_web'
+        includeLatestTag: false
+        arguments: 'tracker_daphne'
     - task: DockerCompose@0
       displayName: Push the rest to docker registry
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
         action: 'Push services'
         additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: true
+        includeLatestTag: false
     
-- stage: ApproveTest
-  condition: succeeded()
-  jobs:
-  - job: ApproveTest
-    pool: server
-    steps:
-    - task: ManualValidation@0
-      displayName: 'Wait for validation'
-      timeoutInMinutes: 1440 # task times out in 1 day
-      inputs:
-        notifyUsers: 'kolaf@airsportslt.onmicrosoft.com'
-        instructions: 'Approve running tests'
 - stage: Test
   condition: succeeded()
   jobs:
@@ -100,40 +63,35 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
-    - task: DockerCompose@0
-      displayName: Pull web
+    - task: Docker@2
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-        dockerComposeFile: '**/docker-compose.yml'
-        action: 'Run a Docker Compose command'
-        dockerComposeCommand: 'pull tracker_web'
+        containerRegistry: 'GKE Docker registry'
+        command: 'login'
     - task: DockerCompose@0
-      displayName: Pull the rest
+      displayName: Pull daphne
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
+        projectName: '${{Variables.IMAGE_TAG}}'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull'
     - task: DockerCompose@0
       displayName: Run tests
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
+        projectName: '${{Variables.IMAGE_TAG}}'
         dockerComposeCommand: 'up'
         arguments: '-d ${{Variables.containerName}}'
     - script: |
         docker exec ${{Variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
-      displayName: Prepare web container for test run
+      displayName: Prepare daphne container for test run
     - script: |
        docker exec ${{Variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
-#       docker exec ${{Variables.containerName}} /bin/bash -c "python3 manage.py jenkins --enable-coverage -v 2 --no-input || test -f reports/junit.xml"
+       docker exec ${{Variables.containerName}} /bin/bash -c "pytest --junitxml reports/django_test_results.xml --cov=. --cov-report=xml:reports/django_coverage.xml || test -f reports/django_test_results.xml"
       displayName: Run main tests
     - script: 'docker cp ${{Variables.containerName}}:/src/reports/. reports'
       displayName: Get reports from container
@@ -149,9 +107,8 @@ stages:
         failTaskOnFailedTests: true
     - task: DockerCompose@0
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports_group/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'down'
@@ -159,13 +116,12 @@ stages:
         rm -rf reports/*
       displayName: 'Clear reports'
 - stage: Deploy
-  dependsOn: Test
   condition: succeeded()
   jobs:
   - deployment: live_tracking_deployment
   # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/deployment-jobs?view=azure-devops
     displayName: 'Deploy'
-    environment: 'aks-release'
+    environment: 'gke-release'
     strategy:
       runOnce:
         preDeploy:
@@ -182,7 +138,6 @@ stages:
           - checkout: self
             submodules: true
             persistCredentials: true
-          # - checkout: helmChart
           - task: HelmInstaller@0
             inputs:
               helmVersion: '2.14.1'
@@ -191,17 +146,15 @@ stages:
             name: privateValues
             displayName: 'Download private values'
             inputs:
-              secureFile: 'private_values2.yaml'
+              secureFile: 'private_values_gcloud.yaml'
           - task: HelmDeploy@0
             inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-              azureResourceGroup: 'airsports_group'
-              kubernetesCluster: 'airsports2'
-              namespace: 'airsports'
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: 'GKE Kubernetes connection'
+              namespace: 'default'
               command: 'upgrade'
               chartType: 'Name'
               chartName: '$(Agent.BuildDirectory)/s/helm/'
               releaseName: 'airsportsrelease'
-              overrideValues: 'image.tag=${{ variables.tag }}'
+              overrideValues: 'image.tag=${{ variables.IMAGE_TAG }}'
               valueFile: '$(privateValues.secureFilePath)'

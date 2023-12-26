@@ -12,10 +12,10 @@ from utilities.mock_utilities import TraccarMock
 TRACKER_NAME = "tracker"
 
 
-@patch("display.models.get_traccar_instance", return_value=TraccarMock)
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestContestantValidation(TransactionTestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.contest = Contest.objects.create(name="TestContest",
@@ -171,7 +171,7 @@ class TestContestantValidation(TransactionTestCase):
 
 
 class TestGetContestantForDevice(TransactionTestCase):
-    @patch("display.models.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.contest = Contest.objects.create(name="TestContest",

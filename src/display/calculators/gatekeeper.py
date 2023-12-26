@@ -344,6 +344,8 @@ class Gatekeeper(ABC):
                             latitude=position.latitude,
                             longitude=position.longitude,
                             course=position.course,
+                            speed=position.speed,
+                            altitude=position.altitude,
                             processor_received_time=p.processor_received_time,
                             calculator_received_time=p.calculator_received_time,
                             websocket_transmitted_time=datetime.datetime.now(datetime.timezone.utc),
@@ -409,7 +411,7 @@ class Gatekeeper(ABC):
             maximum_score: Optional[float] = None,
             planned: Optional[datetime.datetime] = None,
             actual: Optional[datetime.datetime] = None,
-    ) -> Tuple[int, int, float]:
+    ):
 
         score, capped = self.accumulated_scores.set_and_update_score(
             score, score_type, maximum_score, 0

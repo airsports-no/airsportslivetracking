@@ -48,7 +48,7 @@ module.exports = {
     // }
     // },
     plugins: [
-        new BundleTracker({filename: path.resolve(__dirname, '../webpack-stats-local.json')}),
+        new BundleTracker({path: path.join(__dirname, '../'), filename: 'webpack-stats-local.json'}),
     ], // add all common plugins here
 
     module: {
