@@ -30,11 +30,15 @@ from display.models import Contestant, TrackAnnotation, ScoreLogEntry, Contestan
 from display.waypoint import Waypoint
 
 DANGER_LEVEL_REPORT_INTERVAL = 5
-
+CHECK_BUFFERED_DATA_TIME_LIMIT = 6
 logger = logging.getLogger(__name__)
 
 
 class ScoreAccumulator:
+    """
+    A score accumulator keeps track of scores that have a maximum limit.
+    """
+
     def __init__(self):
         self.related_score = {}
 
@@ -60,6 +64,18 @@ CONTESTANT_REFRESH_INTERVAL = datetime.timedelta(seconds=15)
 
 
 class Gatekeeper(ABC):
+    """
+    The Gatekeeper is the main class for tracking contestants during flight. It is responsible for processing positions
+    received from the Traccar service, interpolating missing positions on the track, and storing these to the database.
+    It provides methods for updating the contestants score.
+
+    As the name implies it is built around maintaining a list of gates and tracking the contestants progress through
+    these gates. The rules for progressing through the gates must be implemented by a subclass.
+
+    The gatekeeper supports a list of calculators  that can be used to score other aspects of the flight, like altitude
+    constraints, penalty zones, prohibited zones, backtracking, et cetera.
+    """
+
     GATE_SCORE_TYPE = "gate_score"
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 
@@ -78,7 +94,7 @@ class Gatekeeper(ABC):
         self.live_processing = live_processing
         self.track_terminated = False
         self.contestant = contestant
-        self.contestant_track=contestant.contestanttrack
+        self.contestant_track = contestant.contestanttrack
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.position_queue = RedisQueue(queue_name_override or str(contestant.pk))
         self.score_processing_queue = Queue()
@@ -128,6 +144,11 @@ class Gatekeeper(ABC):
         threading.Thread(target=self.score_updater_thread, daemon=True).start()
 
     def score_updater_thread(self):
+        """
+        Thread function used to provide asynchronous update of scores. Updating the score may take some time and this
+        will lead to a noticeable glitch in the calculator performance/tracking in the tracking map. Running this in a
+        separate thread avoids this.
+        """
         while True:
             score = self.score_processing_queue.get(True)
             logger.debug(f"Found score to be logged {score}")
@@ -136,6 +157,9 @@ class Gatekeeper(ABC):
             self.score_processing_queue.task_done()
 
     def report_calculator_danger_level(self):
+        """
+        Transmit the current danger level to the front end
+        """
         danger_levels = [0]
         accumulated_scores = [0]
         for calculator in self.calculators:
@@ -149,6 +173,10 @@ class Gatekeeper(ABC):
         )
 
     def interpolate_track(self, last_position: Optional[Position], position: Position) -> List[Position]:
+        """
+        If last_position is provided, perform a linear interpolation for each second with missing position data between
+        the time of last_position and position. Return the resulting list of positions.
+        """
         if last_position is None:
             return [position]
         initial_time = last_position.time
@@ -186,16 +214,19 @@ class Gatekeeper(ABC):
         return positions
 
     def check_for_buffered_data_if_necessary(self, position_data: Dict) -> List[Dict]:
+        """
+        If there has been some time since the last position report before this is greater than
+        CHECK_BUFFERED_DATA_TIME_LIMIT, check the traccar service to see if any data is available for the missing time
+        interval and return this together with the last position.
+        """
         if self.latest_position_report is None:
             latest_position_time = self.contestant.tracker_start_time
         else:
             latest_position_time = self.latest_position_report
         current_time = position_data["device_time"]
         time_difference = (current_time - latest_position_time).total_seconds()
-        if time_difference > 6:
+        if time_difference > CHECK_BUFFERED_DATA_TIME_LIMIT:
             # Get positions in between
-            # logger.debug(
-            #     f"{self.contestant}: Position time difference is more than 3 seconds ({latest_position_time.strftime('%H:%M:%S')} to {current_time.strftime('%H:%M:%S')} = {time_difference}), so fetching missing data from traccar.")
             positions = self.traccar.get_positions_for_device_id(
                 position_data["deviceId"],
                 latest_position_time + datetime.timedelta(seconds=1),
@@ -213,7 +244,11 @@ class Gatekeeper(ABC):
             return positions + [position_data]
         return [position_data]
 
-    def enqueue_positions(self):
+    def enqueue_positions_thread(self):
+        """
+        Thread function which enqueues incoming positions in a timed queue. The time queue is used to delay the
+        calculation by a user configurable duration. The time the queue is read by the main run function in the class.
+        """
         logger.info(
             f"{self.contestant}: Starting delayed position queuer with {self.position_queue.size} waiting messages. Track terminated is {self.track_terminated}"
         )
@@ -221,6 +256,7 @@ class Gatekeeper(ABC):
         current_time = datetime.datetime.now(datetime.timezone.utc)
         device_positions = {}
         if self.live_processing:
+            # Fetch any earlier positions for the contestant to ensure that we start from the beginning.
             for device_id in device_ids:
                 positions = self.traccar.get_positions_for_device_id(
                     device_id, self.contestant.tracker_start_time, current_time
@@ -261,18 +297,27 @@ class Gatekeeper(ABC):
                 self.check_termination()
 
     def refresh_scores(self):
+        """
+        Push all score information to the front end. This needs to be done at regular intervals in case the front end
+        loses connectivity with the Web server.
+        """
         self.websocket_facade.transmit_score_log_entry(self.contestant)
         self.websocket_facade.transmit_annotations(self.contestant)
         self.websocket_facade.transmit_basic_information(self.contestant)
 
     def run(self):
+        """
+        The main run function of the gatekeeper. This method reads incoming positions that have been optionally delayed
+        by the timed queue, interpolates any missing positions, calculates the score given the new position data, and
+        pushes the updated positions to the front end. The function terminates when self.track_terminated == True.
+        """
         calculator_is_alive(self.contestant.pk, 30)
         logger.info(
             "Started gatekeeper for contestant {} {}-{}".format(
                 self.contestant, self.contestant.takeoff_time, self.contestant.finished_by_time
             )
         )
-        threading.Thread(target=self.enqueue_positions, daemon=True).start()
+        threading.Thread(target=self.enqueue_positions_thread, daemon=True).start()
         receiving = False
         number_of_positions = 0
         # Wait while the thread loads outstanding positions.
@@ -397,25 +442,28 @@ class Gatekeeper(ABC):
         :return:
         """
         logger.debug(f"Received score to log: {message}")
-        self.score_processing_queue.put((gate, score, message, latitude, longitude, annotation_type, score_type, maximum_score, planned, actual))
+        self.score_processing_queue.put(
+            (gate, score, message, latitude, longitude, annotation_type, score_type, maximum_score, planned, actual)
+        )
 
     def update_score_from_thread(
-            self,
-            gate: "Gate",
-            score: float,
-            message: str,
-            latitude: float,
-            longitude: float,
-            annotation_type: str,
-            score_type: str,
-            maximum_score: Optional[float] = None,
-            planned: Optional[datetime.datetime] = None,
-            actual: Optional[datetime.datetime] = None,
+        self,
+        gate: "Gate",
+        score: float,
+        message: str,
+        latitude: float,
+        longitude: float,
+        annotation_type: str,
+        score_type: str,
+        maximum_score: Optional[float] = None,
+        planned: Optional[datetime.datetime] = None,
+        actual: Optional[datetime.datetime] = None,
     ):
-
-        score, capped = self.accumulated_scores.set_and_update_score(
-            score, score_type, maximum_score, 0
-        )
+        """
+        Constructs the score structures required to update the contestants score. Optionally cap the score if it has a
+        maximum value.
+        """
+        score, capped = self.accumulated_scores.set_and_update_score(score, score_type, maximum_score, 0)
         if planned is not None and actual is not None:
             offset = (actual - planned).total_seconds()
             # Must use round, this is the same as used in the score calculation
@@ -444,9 +492,7 @@ class Gatekeeper(ABC):
             times_string = "planned: {}\nactual: --".format(planned_time)
         if len(times_string) > 0:
             string += f"\n{times_string}"
-        logger.info(
-            "UPDATE_SCORE {}: {}{}".format(self.contestant, "", string)
-        )
+        logger.info("UPDATE_SCORE {}: {}{}".format(self.contestant, "", string))
         # Take into account that external events may have changed the score
         self.contestant_track.refresh_from_db()
         self.contestant.record_score_by_gate(gate.name, score)
@@ -481,6 +527,9 @@ class Gatekeeper(ABC):
             self.contestant_track.update_score(self.score)
 
     def create_gates(self) -> List[Gate]:
+        """
+        Helper function to create gates from the waypoints defined in a route
+        """
         waypoints = self.contestant.navigation_task.route.waypoints
         expected_times = self.contestant.gate_times
         gates = []
@@ -491,6 +540,9 @@ class Gatekeeper(ABC):
         return gates
 
     def pop_gate(self, index, update_last: bool = True):
+        """
+        Remove the gate at the index from the list of outstanding gates.
+        """
         gate = self.outstanding_gates.pop(index)
         if update_last:
             self.previous_last_gate = self.last_gate
@@ -499,12 +551,22 @@ class Gatekeeper(ABC):
         self.update_enroute()
 
     def any_gate_passed(self):
+        """
+        Returns True if any gate has been passed (or missed)
+        """
         return any([gate.has_been_passed() for gate in self.gates])
 
     def all_gates_passed(self):
+        """
+        Returns True if all gates have been passed (or missed)
+        """
         return all([gate.has_been_passed() for gate in self.gates])
 
     def update_enroute(self):
+        """
+        Update the current state to reflect whether the contestant is currently en route between a start and finish
+        point or not.
+        """
         logger.info(f"last_gate: {self.last_gate} {self.last_gate.type}")
         if self.enroute and self.last_gate is not None and self.last_gate.type in ["ldg", "ifp", "fp"]:
             self.enroute = False
@@ -522,11 +584,18 @@ class Gatekeeper(ABC):
                 calculator.passed_finishpoint(self.track, self.last_gate)
 
     def notify_termination(self):
+        """
+        Trigger termination of the run function.
+        """
         logger.info(f"{self.contestant}: Setting termination flag")
         self.contestant_track.set_calculator_finished()
         self.track_terminated = True
 
     def check_termination(self):
+        """
+        Checks if termination has been manually triggered. If it has been triggered, create a score log entry to
+        reflect this and notify termination.
+        """
         if not self.track_terminated and self.is_termination_commanded():
             self.update_score(
                 self.last_gate or self.gates[0],
@@ -540,25 +609,30 @@ class Gatekeeper(ABC):
             self.notify_termination()
 
     def is_termination_commanded(self) -> bool:
-        # now = datetime.datetime.now(datetime.timezone.utc)
-        # if self.last_termination_command_check is None or now > self.last_termination_command_check + datetime.timedelta(
-        #         seconds=15):
-        # self.last_termination_command_check = now
+        """
+        Return true if manual termination has been requested.
+        """
         termination_requested = is_termination_requested(self.contestant.pk)
         if termination_requested:
             logger.info(f"{self.contestant}: Termination request received")
-        return termination_requested is True
-        # return False
+            return True
+        return False
 
     @abstractmethod
     def check_gates(self):
         raise NotImplementedError
 
     def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: Position):
+        """
+        Called the missed_gate event in all calculators.
+        """
         for calculator in self.calculators:
             calculator.missed_gate(previous_gate, gate, position)
 
     def calculate_score(self):
+        """
+        Calculate the score. Is called once for every received (or interpolated) position.
+        """
         if self.track_terminated:
             return
         self.check_gates()
@@ -577,6 +651,9 @@ class Gatekeeper(ABC):
             self.report_calculator_danger_level()
 
     def get_speed(self):
+        """
+        Calculate the speed of the contestant based on the past few positions.
+        """
         previous_index = min(5, len(self.track))
         distance = distance_between_gates(self.track[-previous_index], self.track[-1]) / 1852
         time_difference = (self.track[-1].time - self.track[-previous_index].time).total_seconds() / 3600

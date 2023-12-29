@@ -12,6 +12,10 @@ if typing.TYPE_CHECKING:
 
 
 class PlayingCard(models.Model):
+    """
+    Holds the playing cards received by contestant in a poker run navigation task.
+    """
+
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     card = models.CharField(max_length=2, choices=PLAYING_CARDS)
     waypoint_name = models.CharField(max_length=50, blank=True, null=True)
@@ -22,6 +26,10 @@ class PlayingCard(models.Model):
 
     @classmethod
     def get_random_unique_card(cls, contestant: "Contestant") -> str:
+        """
+        Returns a random card that has not already been assigned to the contestant.  A card is represented by a two
+        letter string the first letter is the card value and the second letter is the card suit, e.g. 5s.
+        """
         cards = [item[0] for item in PLAYING_CARDS]
         existing_cards = contestant.playingcard_set.all().values_list("card", flat=True)
         available_cards = set(cards) - set(existing_cards)
@@ -36,22 +44,38 @@ class PlayingCard(models.Model):
 
     @classmethod
     def evaluate_hand(cls, contestant: "Contestant") -> tuple[int, str]:
+        """
+        Returns the score value of the hand, as well as a string description of the hand (e.g. "pair")
+        """
         hand = [eval7.Card(s.card) for s in cls.objects.filter(contestant=contestant)]
         score = eval7.evaluate(hand)
         return score, eval7.handtype(score)
 
     @classmethod
     def maximum_score(cls) -> int:
+        """
+        This is the maximum score returned by eval7
+        """
         return 135004160
 
     @classmethod
     def get_relative_score(cls, contestant: "Contestant") -> tuple[float, str]:
+        """
+        Returns a relative score for the current hand held by the contestant with a resolution of 1/100 percent. The
+        reason for this resolution is to avoid decimal places in the score display while maintaining sufficient scoring
+        resolution.
+        """
         score, hand_type = cls.evaluate_hand(contestant)
         return 10000 * score / cls.maximum_score(), hand_type
 
     @classmethod
     def clear_cards(cls, contestant: "Contestant"):
+        """
+        Removes all the cards from the hand of the contestant and resets the score to 0. Pushes the playing card update
+        to the front end
+        """
         from display.models import ScoreLogEntry
+
         contestant.playingcard_set.all().delete()
 
         relative_score, hand_description = cls.get_relative_score(contestant)
@@ -78,7 +102,11 @@ class PlayingCard(models.Model):
 
     @classmethod
     def remove_contestant_card(cls, contestant: "Contestant", card_pk: int):
+        """
+        Removes a specific playing card from the contestant, updates the score, and pushes the update to the front end
+        """
         from display.models import ScoreLogEntry
+
         card = contestant.playingcard_set.filter(pk=card_pk).first()
         if card is not None:
             card.delete()
@@ -102,7 +130,12 @@ class PlayingCard(models.Model):
 
     @classmethod
     def add_contestant_card(cls, contestant: "Contestant", card: str, waypoint: str, waypoint_index: int):
+        """
+        Adds a specific card to the contestant, updates the score, and pushes this to the front end. Requires the
+        waypoint index to identify at which waypoint the card was dealt.
+        """
         from display.models import ScoreLogEntry, ANOMALY, TrackAnnotation
+
         poker_card = cls.objects.create(
             contestant=contestant,
             card=card,

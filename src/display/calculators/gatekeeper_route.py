@@ -22,6 +22,9 @@ CROSSING_TIME_TRANSMISSION_INTERVAL = 3
 
 
 class GatekeeperRoute(Gatekeeper):
+    """
+    The main gatekeeper implementation to support navigation tasks where a series of gates should be crossed in sequence.
+    """
     GATE_SCORE_TYPE = "gate_score"
     BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
     ADAPTIVE_TIMING_START_SCORE_TYPE = "adaptive_timing_start"
@@ -78,6 +81,9 @@ class GatekeeperRoute(Gatekeeper):
         self.in_range_of_gate = None
 
     def recalculate_gates_times_from_start_time(self, start_time: datetime.datetime):
+        """
+        Calculate expected crossing times for all outstanding gates given the start time.
+        """
         gate_times = self.contestant.calculate_missing_gate_times({}, start_time)
         self.contestant.gate_times = gate_times
         logger.info(f"Recalculating gates times for contestant {self.contestant}: {self.contestant.gate_times}")
@@ -89,6 +95,10 @@ class GatekeeperRoute(Gatekeeper):
         self.contestant.save()
 
     def check_gate_in_range(self):
+        """
+        Figure out which gate is in range. This should follow the same sequence of gate as the track and give track of
+        when we are moving into the range of a gate and out again along the path.
+        """
         if len(self.outstanding_gates) == 0 or len(self.track) == 0:
             return
         last_position = self.track[-1]
@@ -137,6 +147,9 @@ class GatekeeperRoute(Gatekeeper):
                 )
 
     def miss_outstanding_gates(self):
+        """
+        Assumes that all the remaining gates in outstanding_gates have been missed and acts accordingly.
+        """
         for item in self.outstanding_gates:
             logger.info(f"{self.contestant}: Missing outstanding gate {item}")
             item.missed = True
@@ -330,6 +343,9 @@ class GatekeeperRoute(Gatekeeper):
                     )
 
     def transmit_actual_crossing(self, gate: Gate):
+        """
+        Update the gate score arrow in the frontend with information about the actual crossing time.
+        """
         estimated_crossing_time = self.track[-1].time
         if gate.passing_time:
             planned_time_to_crossing = (gate.passing_time - gate.expected_time).total_seconds()
@@ -351,6 +367,9 @@ class GatekeeperRoute(Gatekeeper):
         )
 
     def transmit_second_to_crossing_time_and_crossing_estimate(self):
+        """
+        Update the gate score arrow in the frontend with information about the estimated crossing time of the next gate.
+        """
         gate, estimated_crossing_time = self.estimate_crossing_time_of_next_timed_gate()
         if estimated_crossing_time is None:
             return
@@ -374,7 +393,6 @@ class GatekeeperRoute(Gatekeeper):
         Project a line from the current bearing (average over a few positions), calculate the intersection point with
         the gate and return the distance. If there is no intersection, return None
 
-        :param gate:
         :return: Distance in NM
         """
         if len(self.track) > 1:
@@ -400,7 +418,6 @@ class GatekeeperRoute(Gatekeeper):
         The time to the first gate is given by the current speed, while the time for the remaining legs is given by
         the planned speed
 
-        :param average_duration_seconds:
         :return: Estimated crossing time
         """
         if len(self.outstanding_gates) > 0:
@@ -466,6 +483,9 @@ class GatekeeperRoute(Gatekeeper):
         return None
 
     def notify_termination(self):
+        """
+        Cleanup gate tracking when being terminated. Ensure that all outstanding gates and the landing gate are missed.
+        """
         super().notify_termination()
         logger.info(
             f"{self.contestant}: {'Live processing' if self.live_processing else 'Offline processing'} {'past finish time' if datetime.datetime.now(datetime.timezone.utc) > self.contestant.finished_by_time else ''}, terminating"
@@ -475,6 +495,9 @@ class GatekeeperRoute(Gatekeeper):
         self.calculate_landing_gate_miss()
 
     def calculate_takeoff_gate_miss(self):
+        """
+        Assign the penalty for missing the takeoff gate if it has been missed.
+        """
         if self.takeoff_gate and self.takeoff_gate.missed:
             gate = self.takeoff_gate.gates[0]
             current_position = self.track[-1]
@@ -491,6 +514,9 @@ class GatekeeperRoute(Gatekeeper):
             )
 
     def calculate_landing_gate_miss(self):
+        """
+        Assign the penalty for missing the landing gate if it has been missed.
+        """
         if self.landing_gate and self.landing_gate.missed:
             gate = self.landing_gate.gates[0]
             current_position = self.track[-1]
@@ -507,6 +533,9 @@ class GatekeeperRoute(Gatekeeper):
             )
 
     def calculate_gate_score(self):
+        """
+        Check if any gait has been passed or missed and apply the penalty.
+        """
         if not len(self.track):
             return
         index = 0
@@ -580,6 +609,9 @@ class GatekeeperRoute(Gatekeeper):
         self.last_gate_index += index
 
     def check_gates(self):
+        """
+        Does everything related to tracking gate passings.
+        """
         self.check_intersections()
         self.calculate_gate_score()
         if (

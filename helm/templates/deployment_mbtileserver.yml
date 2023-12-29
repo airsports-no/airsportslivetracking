@@ -47,7 +47,7 @@ spec:
           command: ["/mbtileserver",  "--enable-reload-signal"]
           resources:
             requests:
-              cpu: 50m
+              cpu: 250m  # minimum
               memory: 0.5Gi
           livenessProbe:
             httpGet:

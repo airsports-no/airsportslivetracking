@@ -40,9 +40,23 @@ logger = logging.getLogger(__name__)
 
 
 class EditableRoute(models.Model):
-    route_type = models.CharField(choices=NAVIGATION_TASK_TYPES, default=PRECISION, max_length=200)
+    """
+    Model to hold the routes created by users in the Route editor.
+    """
+
+    route_type = models.CharField(
+        choices=NAVIGATION_TASK_TYPES, default=PRECISION, max_length=200, help_text="Not used"
+    )
     name = models.CharField(max_length=200, help_text="User-friendly name")
-    route = MyPickledObjectField(default=list)
+    route = MyPickledObjectField(
+        default=list,
+        help_text="""
+    List of route elements. Each route element is a dictionary with the required key "feature_type" which is used to 
+    define the kind of route element that is being described. Legal values are: 
+    ['track', 'to', 'ldg', 'prohibited_*', 'info_*', 'penalty_*', 'gate_*']. 
+    Each element can be included multiple times except for 'track' which can appear at most once.
+    """,
+    )
     number_of_waypoints = models.IntegerField(default=0)
     route_length = models.FloatField(default=0, help_text="NM")
     thumbnail = models.ImageField(upload_to="route_thumbnails/", blank=True, null=True)
@@ -66,7 +80,10 @@ class EditableRoute(models.Model):
             return len(track["track_points"])
         return 0
 
-    def calculate_route_length(self):
+    def calculate_route_length(self) -> float:
+        """
+        Returns the length of the route (m)
+        """
         initial_length = 0
         if track := self.get_track():
             path = track["geojson"]["geometry"]["coordinates"]
@@ -88,9 +105,6 @@ class EditableRoute(models.Model):
     def __str__(self):
         return self.name
 
-    def get_track(self):
-        return next(filter(lambda item: item["feature_type"] == "track", self.route), None)
-
     def get_features_type(self, feature_type: str) -> list[dict]:
         return [item for item in self.route if item["feature_type"] == feature_type]
 
@@ -99,6 +113,15 @@ class EditableRoute(models.Model):
             return self.get_features_type(feature_type)[0]
         except IndexError:
             return None
+
+    def get_track(self) -> Optional[dict]:
+        return self.get_feature_type("track")
+
+    def get_takeoff_gates(self) -> list:
+        return self.get_features_type("to")
+
+    def get_landing_gates(self) -> list:
+        return self.get_features_type("ldg")
 
     @staticmethod
     def get_feature_coordinates(feature: dict, flip: bool = True) -> list[tuple[float, float]]:
@@ -121,7 +144,7 @@ class EditableRoute(models.Model):
         """
         Check that there are no unknown leg waypoints or dummy waypoints in the route. Raise ValidationError.
         """
-        track = self.get_feature_type("track")
+        track = self.get_track()
         if track is None:
             return
         track_points = track.get("track_points", [])
@@ -143,10 +166,13 @@ class EditableRoute(models.Model):
         return route
 
     def create_precision_route(self, use_procedure_turns: bool, scorecard: "Scorecard") -> Optional["Route"]:
+        """
+        Build a Route object self as a precision route using the provided scorecard.
+        """
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list
 
-        track = self.get_feature_type("track")
+        track = self.get_track()
         waypoint_list = []
         if track is None:
             return None
@@ -170,11 +196,14 @@ class EditableRoute(models.Model):
         return route
 
     def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: "Scorecard") -> "Route":
+        """
+        Build a Route object self as a ANR route using the provided scorecard.
+        """
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
         self.validate_valid_corridor_route("ANR")
-        track = self.get_feature_type("track")
+        track = self.get_track()
         waypoint_list = []
         coordinates = self.get_feature_coordinates(track)
         track_points = track["track_points"]
@@ -201,12 +230,15 @@ class EditableRoute(models.Model):
         return route
 
     def create_airsports_route(self, rounded_corners: bool, scorecard: "Scorecard") -> "Route":
+        """
+        Build a Route object self as a airsports race/challenge route using the provided scorecard.
+        """
         from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
         self.validate_valid_corridor_route("AirSports Challenge and Air Sports Race")
 
-        track = self.get_feature_type("track")
+        track = self.get_track()
         waypoint_list = []
         coordinates = self.get_feature_coordinates(track)
         track_points = track["track_points"]
@@ -228,10 +260,13 @@ class EditableRoute(models.Model):
         return route
 
     def amend_route_with_additional_features(self, route: "Route"):
+        """
+        Add common elements to the route, specifically information, penalty, prohibitive zones and gate polygons.
+        """
         from display.models import Prohibited
         from display.utilities.route_building_utilities import create_gate_from_line
 
-        takeoff_gates = self.get_features_type("to")
+        takeoff_gates = self.get_takeoff_gates()
         for index, takeoff_gate in enumerate(takeoff_gates):
             takeoff_gate_line = self.get_feature_coordinates(takeoff_gate)
             if len(takeoff_gate_line) != 2:
@@ -239,7 +274,7 @@ class EditableRoute(models.Model):
             gate = create_gate_from_line(takeoff_gate_line, f"Takeoff {index + 1}", "to")
             gate.gate_line = takeoff_gate_line
             route.takeoff_gates.append(gate)
-        landing_gates = self.get_features_type("ldg")
+        landing_gates = self.get_landing_gates()
         for index, landing_gate in enumerate(landing_gates):
             landing_gate_line = self.get_feature_coordinates(landing_gate)
             if len(landing_gate_line) != 2:
@@ -262,6 +297,9 @@ class EditableRoute(models.Model):
 
     @classmethod
     def _create_route_and_thumbnail(cls, name: str, route: list[dict]) -> "EditableRoute":
+        """
+        Helper function to create the editable route andgenerate a thumbnail image
+        """
         editable_route = EditableRoute.objects.create(name=name, route=route)
         try:
             editable_route.thumbnail.save(
@@ -274,6 +312,9 @@ class EditableRoute(models.Model):
         return editable_route
 
     def update_thumbnail(self):
+        """
+        Update the thumbnail image for the editable route.
+        """
         try:
             self.thumbnail.save(
                 self.name + "_thumbnail.png",
@@ -285,7 +326,7 @@ class EditableRoute(models.Model):
 
     @classmethod
     def create_from_kml(cls, route_name: str, kml_content: TextIO) -> tuple[Optional["EditableRoute"], list[str]]:
-        """Create a route from our own kml format."""
+        """Create a ediable route from our own kml format."""
         messages = []
         from display.utilities.route_building_utilities import load_features_from_kml
 
@@ -329,7 +370,7 @@ class EditableRoute(models.Model):
 
     @classmethod
     def create_from_csv(cls, name: str, csv_content: list[str]) -> tuple[Optional["EditableRoute"], list[str]]:
-        """Create a route from our own CSV format."""
+        """Create a editable route from our own CSV format."""
         messages = []
         positions = []
         gate_widths = []

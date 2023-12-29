@@ -21,6 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class Person(models.Model):
+    """
+    A person represents a unique physical person in the real world. It is tied to MyUser through self.email, but a
+    person does not necessarily have a MyUser. The Person object contains identifiable information and users are
+    allowed to delete their person from the system. If this person is not part of any team it is simply deleted,
+    otherwise it is anonymized.
+    """
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
     email = models.EmailField()
@@ -119,6 +125,11 @@ class Person(models.Model):
         return possible_person.first()
 
     def remove_profile_picture_background(self):
+        """
+        Uses the remove.bg service to automatically remove the background from the uploaded profile image.
+
+        Note that we are using a free account which is limited to 50 calls per month.
+        """
         response = requests.post(
             "https://api.remove.bg/v1.0/removebg",
             data={"image_url": self.picture.url, "size": "auto", "crop": "true"},
@@ -136,6 +147,9 @@ class Person(models.Model):
 
 
 class Crew(models.Model):
+    """
+    A crew is a combination of one or two persons.
+    """
     member1 = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="crewmember_one")
     member2 = models.ForeignKey(
         Person,
@@ -162,12 +176,13 @@ class Crew(models.Model):
 
 
 class Club(models.Model):
+    """
+    A Club represents a physical flying club. It is tied to a team to reflect the club the team is representing in
+    the competition.
+    """
     name = models.CharField(max_length=200)
     country = CountryField(blank=True)
     logo = models.ImageField(null=True, blank=True)
-
-    # class Meta:
-    #     unique_together = ("name", "country")
 
     def validate(self):
         if Club.objects.filter(name=self.name).exclude(pk=self.pk).exists():
@@ -184,6 +199,9 @@ class Club(models.Model):
 
 
 class Aeroplane(models.Model):
+    """
+    Represents a physical aeroplane. Aeroplanes are part of teams.
+    """
     registration = models.CharField(max_length=20)
     colour = models.CharField(max_length=40, blank=True)
     type = models.CharField(max_length=50, blank=True)
@@ -194,6 +212,11 @@ class Aeroplane(models.Model):
 
 
 class Team(models.Model):
+    """
+    A Team  is a combination of a crew, an aeroplane, and a club. The team information is used to populate the results
+    tables and crew details pop-ups on the navigation map. All scores in the results service system and contestants in
+    navigation tasks are tied to a team.
+    """
     aeroplane = models.ForeignKey(Aeroplane, on_delete=models.PROTECT)
     crew = models.ForeignKey(Crew, on_delete=models.PROTECT)
     logo = models.ImageField(null=True, blank=True)

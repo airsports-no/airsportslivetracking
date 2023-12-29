@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class MyUser(BaseUser, GuardianUserMixin):
+    """
+    Typical custom Django user model.
+    """
     username = models.CharField(max_length=50, default="not_applicable")
     objects = BaseUserManager()
 

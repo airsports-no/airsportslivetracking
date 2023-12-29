@@ -12,6 +12,13 @@ from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_T
 
 
 class Scorecard(models.Model):
+    """
+    A scorecard is a collection of parameters used to control the scoring of a navigation task. Static scorecards are
+    created for various international rules, and the user has the option of modifying certain parameters of the
+    scorecard.  When a navigation task is created it is given a reference to the original scorecard, as well as a copy.
+    The user can modify the copyand optionally restore to the contents of the original scorecard and start again.
+    """
+
     name = models.CharField(max_length=255, default="default", unique=True)
     shortcut_name = models.CharField(
         max_length=255,
@@ -92,17 +99,29 @@ class Scorecard(models.Model):
 
     @property
     def visible_fields(self) -> list[str]:
+        """
+        Returns the list of scorecard fields that should be visible in the web GUI.
+        """
         return [field for block in self.included_fields for field in block[1:]]
 
     @property
     def corridor_width(self) -> float:
+        """
+        The corridor width that has been assigned to the navigation task during the creation.
+        """
         return self.navigation_task_override.route.corridor_width
 
     @classmethod
     def get_originals(cls) -> QuerySet:
+        """
+        Gets all scorecards that are original, i.e. not a copy of the original
+        """
         return cls.objects.filter(original=True)
 
     def copy(self, name_postfix: str) -> "Scorecard":
+        """
+        Create a copy of the scorecard that can be modified by the user.
+        """
         obj = simple_clone(
             self,
             {
@@ -118,6 +137,9 @@ class Scorecard(models.Model):
     SCORECARD_CACHE = {}
 
     def get_gate_scorecard(self, gate_type: str) -> "GateScore":
+        """
+        Get the scorecard for a specific gate type.
+        """
         try:
             return self.SCORECARD_CACHE[(self.pk, gate_type)]
         except KeyError:
@@ -128,6 +150,9 @@ class Scorecard(models.Model):
                 raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
 
     def calculate_penalty_zone_score(self, enter: datetime.datetime, exit: datetime.datetime):
+        """
+        Calculate the penalty for entering and then exiting the penalty zone
+        """
         difference = round((exit - enter).total_seconds()) - self.penalty_zone_grace_time
         if difference < 0:
             return 0
@@ -139,6 +164,9 @@ class Scorecard(models.Model):
         planned_time: datetime.datetime,
         actual_time: Optional[datetime.datetime],
     ) -> float:
+        """
+        Given the actual and planned times for the gate type, calculate the resulting score.
+        """
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.calculate_score(planned_time, actual_time)
 
@@ -221,6 +249,11 @@ class Scorecard(models.Model):
 
 
 class GateScore(models.Model):
+    """
+    Describes the scoring parameters for a specific gate type. There can be only one gate score for a given gate type
+    and scorecard.
+    """
+
     scorecard = models.ForeignKey("Scorecard", on_delete=models.CASCADE)
     gate_type = models.CharField(choices=GATE_TYPES, max_length=20)
     included_fields = MyPickledObjectField(
@@ -251,6 +284,9 @@ class GateScore(models.Model):
 
     @property
     def visible_fields(self) -> list[str]:
+        """
+        The list of field names that should be visible in the GUI.
+        """
         return [field for block in self.included_fields for field in block[1:]]
 
     def calculate_score(
@@ -259,10 +295,8 @@ class GateScore(models.Model):
         actual_time: Optional[datetime.datetime],
     ) -> float:
         """
-
-        :param planned_time:
-        :param actual_time: If None the gate is missed
-        :return:
+        Given the planned passing time and the actual passing time, calculate the timing penalty for the gate.  If
+        actual_time is None, then, the gate is treated as missed.
         """
         if actual_time is None:
             return self.missed_penalty

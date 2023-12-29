@@ -24,6 +24,11 @@ if typing.TYPE_CHECKING:
 
 
 class NavigationTask(models.Model):
+    """
+    The navigation task model stores information about task visibility, with a reference to the containing contest, a
+    Route, and a scorecard.
+    """
+
     DESCENDING = "desc"
     ASCENDING = "asc"
     SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
@@ -109,6 +114,10 @@ class NavigationTask(models.Model):
     _nominatim = MyPickledObjectField(default=dict, help_text="Used to hold response from geolocation service")
 
     def _geo_reference(self):
+        """
+        Perform a reverse geolocation lookup based on latitude, longitude and stores the raw result with the navigation
+        task object
+        """
         if location := self.route.get_location():
             geolocator = Nominatim(user_agent="airsports.no")
             self._nominatim = geolocator.reverse(f"{location[0]},{location[1]}").raw
@@ -134,6 +143,9 @@ class NavigationTask(models.Model):
 
     @classmethod
     def get_visible_navigation_tasks(cls, user: User):
+        """
+        Retrieve all navigation tasks that either are public or where the user has view permissions to the contest
+        """
         from display.models import Contest
 
         contests = get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
@@ -142,6 +154,9 @@ class NavigationTask(models.Model):
         )
 
     def get_available_user_maps(self) -> set["UserUploadedMap"]:
+        """
+        Retrieve all user uploaded maps for which the user has view permissions.
+        """
         from display.models import UserUploadedMap
 
         users = get_users_with_perms(self.contest, attach_perms=True)
@@ -163,6 +178,9 @@ class NavigationTask(models.Model):
 
     @property
     def tracking_link(self) -> str:
+        """
+        URL for the online tracking map
+        """
         return reverse("frontend_view_map", kwargs={"pk": self.pk})
 
     @property
@@ -180,12 +198,19 @@ class NavigationTask(models.Model):
 
     @property
     def display_contestant_rank_summary(self):
+        """
+        Returns true if the number of task objects for the contest for this navigation task is greater than 1
+        :return:
+        """
         from display.models import Task
 
         return Task.objects.filter(contest=self.contest).count() > 1
 
     @property
     def earliest_takeoff_time(self) -> datetime.datetime:
+        """
+        Return the first takeoff time for any contestant in the navigation task or the navigation task start time
+        """
         try:
             return self.contestant_set.all().order_by("takeoff_time")[0].takeoff_time
         except IndexError:
@@ -193,6 +218,9 @@ class NavigationTask(models.Model):
 
     @property
     def latest_finished_by_time(self) -> datetime.datetime:
+        """
+        Return the latest finished by time for any contestant in a navigation task or the navigation task finish time
+        """
         try:
             return self.contestant_set.all().order_by("-finished_by_time")[0].finished_by_time
         except IndexError:
@@ -206,6 +234,9 @@ class NavigationTask(models.Model):
         ordering = ("start_time", "finish_time")
 
     def user_has_change_permissions(self, user: User) -> bool:
+        """
+        Returns true if the user is allowed to modify the contest of the navigation task
+        """
         return user.is_superuser or user.has_perm("display.change_contest", self.contest)
 
     def __str__(self):
@@ -224,6 +255,12 @@ class NavigationTask(models.Model):
             self.save(update_fields=("scorecard",))
 
     def refresh_editable_route(self):
+        """
+        Create a new Route object to replace the old from the navigation tasks editable route. Typically used when the
+        editable rout has been updated and the user wants to update the navigation task without creating a new one.
+        Requires that there are no contestants in the navigation task.
+        :return:
+        """
         if self.contestant_set.all().count() > 0:
             raise ValidationError("Cannot refresh the route as long as they are contestants")
         if self.editable_route is None:
@@ -244,14 +281,19 @@ class NavigationTask(models.Model):
             old_route.delete()
 
     def make_public(self):
+        """
+        Makes the navigation task public. If the contest is private or unvested, make it public as well.
+        """
         self.is_public = True
         self.is_featured = True
-        self.contest.is_public = True
-        self.contest.is_featured = True
         self.save()
-        self.contest.save()
+        self.contest.make_public()
 
     def make_unlisted(self):
+        """
+        Makes the navigation task unlisted. It is accessible by anyone with a direct link, but it is not listed
+        anywhere. Makes the contest at least unlisted as well.
+        """
         self.is_public = True
         self.is_featured = False
         self.contest.is_public = True
@@ -259,11 +301,18 @@ class NavigationTask(models.Model):
         self.contest.save()
 
     def make_private(self):
+        """
+        Makes the navigation task private so that it is only viewable by viewers with view permissions on the contest.
+        """
         self.is_public = False
         self.is_featured = False
         self.save()
 
     def create_results_service_test(self):
+        """
+        Creates a special Task and TaskTest  that is linked to the navigation task. Any scoring updates performed in
+        the navigation tasks are automatically updated in the associated TaskTest.
+        """
         from display.models import Task, TaskTest
 
         task, _ = Task.objects.get_or_create(
@@ -284,19 +333,3 @@ class NavigationTask(models.Model):
             navigation_task=self,
         )
         return test
-
-    def export_to_results_service(self):
-        from display.models import TeamTestScore
-
-        self.create_results_service_test()
-        test = self.tasktest
-        for contestant in self.contestant_set.all().order_by("contestanttrack__score"):
-            try:
-                TeamTestScore.objects.create(
-                    team=contestant.team,
-                    task_test=test,
-                    points=contestant.contestanttrack.score,
-                )
-            except IntegrityError:
-                # Caused if there are multiple contestants for the same team. We ignore all but the first one so we only include the lowest score
-                pass

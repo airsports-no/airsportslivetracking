@@ -11,6 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class GatekeeperPoker(Gatekeeper):
+    """
+    Gatekeeper that tracks the progress through poker gates. A poker gate is a gate polygon that encompasses a waypoint.
+    Whenever the contestant enters the polygon of the first waypoint in the list, a card is awarded and the gate is
+    removed from the list.
+    """
     def __init__(
             self, contestant: "Contestant", calculators: List[Callable], live_processing: bool = True,
             queue_name_override: str = None

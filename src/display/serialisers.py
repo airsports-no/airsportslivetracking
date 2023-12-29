@@ -330,11 +330,15 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         if not hasattr(user, "email"):
             return False
         return (
-                user
-                and contest.contest_teams.filter(
-            Q(crew__member1__email=user.email) | Q(crew__member2__email=user.email)
-        ).exists()
+            user
+            and contest.contest_teams.filter(
+                Q(crew__member1__email=user.email) | Q(crew__member2__email=user.email)
+            ).exists()
         )
+
+    def create(self, validated_data):
+        instance: Contest = super().create(validated_data)
+        instance.initialise(self.context["request"].user)
 
 
 class ContestSerialiserWithResults(ContestSerialiser):
@@ -351,7 +355,7 @@ class ContestParticipationSerialiser(ContestSerialiser):
         viewable_contest = user.has_perm("display.view_contest", contest)
         items = filter(
             lambda task: task.allow_self_management
-                         and (viewable_contest or (task.is_public and contest.is_public and task.is_featured)),
+            and (viewable_contest or (task.is_public and contest.is_public and task.is_featured)),
             contest.navigationtask_set.all(),
         )
         serialiser = NavigationTasksSummaryParticipationSerialiser(
@@ -760,8 +764,8 @@ class ContestantSerialiser(serializers.ModelSerializer):
 
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
-                  "values are $date-time strings (with time zone). Missing values will be populated from internal "
-                  "calculations.",
+        "values are $date-time strings (with time zone). Missing values will be populated from internal "
+        "calculations.",
         required=False,
     )
     scorecard_rules = serializers.JSONField(help_text="Dictionary with all rules", read_only=True)

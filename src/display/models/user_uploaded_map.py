@@ -25,6 +25,10 @@ LOCAL_MAP_FILE_CACHE = {}
 
 
 class UserUploadedMap(models.Model):
+    """
+    A user uploaded map contains a mbtiles file that conserve tiles to be used as map backgrounds for navigation maps
+    (flight orders) created by users with access to the user uploaded map object.
+    """
     user = models.ForeignKey("MyUser", on_delete=models.CASCADE)
     name = models.CharField(max_length=500)
     map_file = models.FileField(
@@ -55,6 +59,10 @@ class UserUploadedMap(models.Model):
         unique_together = ("user", "name")
 
     def get_local_file_path(self) -> str:
+        """
+        Maps are stored in Google file storage. However, matplotlib/cartopy requires the files to be available locally.
+        This function ensures that the file has been copied to the local file system and returns the path to it.
+        """
         key = f"user_map_{self.map_file.name}"
         if temporary_path := LOCAL_MAP_FILE_CACHE.get(key):
             return temporary_path
@@ -65,6 +73,9 @@ class UserUploadedMap(models.Model):
                 return temporary_map.name
 
     def clear_local_file_path(self):
+        """
+        Clears the mbtiles file from the local file system
+        """
         key = f"user_map_{self.map_file.name}"
         if local_path := LOCAL_MAP_FILE_CACHE.get(key):
             try:
@@ -78,7 +89,7 @@ class UserUploadedMap(models.Model):
 
     def create_thumbnail(self) -> tuple[BytesIO, int, int]:
         """
-        Finds the smallest Zoom tile and returns this
+        Finds the smallest Zoom tile and returns this as a map thumbnail
         """
         local_path = self.get_local_file_path()
         with MBtiles(local_path) as src:

@@ -1,3 +1,8 @@
+"""
+The results service system is quite disconnected from the navigation task. The tasks and task tests defined in this 
+module are generic elements used to describe any specific test that should be scored, e.g. a landing, an observation 
+test, et cetera. The score is connected directly to the teams that have signed up to the contest.
+"""
 from typing import Optional
 
 from django.db import models
@@ -5,7 +10,8 @@ from django.db import models
 
 class Task(models.Model):
     """
-    Models a generic task for which we want to store scores
+    Models a generic task for which we want to store scores. This is used by the results service and is not part of
+    the contest->navigation_task hierarchy.
     """
 
     DESCENDING = "desc"
@@ -38,7 +44,10 @@ class Task(models.Model):
 class TaskTest(models.Model):
     """
     Models and individual test (e.g. landing one, landing two, or landing three that is part of a task. It includes
-    the configuration for how the score is displayed for the test.
+    the configuration for how the score is displayed for the test. When creating a navigation task a special
+    corresponding TaskTest is created that is linked to the navigation task. While the scores of TaskTests usually are
+    manually entered through the results table GUI or the API, the scores of this special TaskTest are updated
+    automatically whenever a scoring event occurs in the navigation task calculator.
     """
 
     DESCENDING = "desc"
@@ -73,7 +82,8 @@ class TaskTest(models.Model):
 
 class TaskSummary(models.Model):
     """
-    Summary score for all tests inside a task for a team
+    Summary score for all tests inside a task for a team. This is potentially automatically updated whenever a test
+    score changes for a team.
     """
 
     team = models.ForeignKey("Team", on_delete=models.PROTECT)
@@ -96,7 +106,8 @@ class TaskSummary(models.Model):
 
 class ContestSummary(models.Model):
     """
-    Summary score for the entire contest for a team
+    Summary score for the entire contest for a team. This is potentially automatically updated whenever the TaskSummary
+    score changes for a team.
     """
 
     team = models.ForeignKey("Team", on_delete=models.PROTECT)
@@ -119,7 +130,8 @@ class ContestSummary(models.Model):
 
 class TeamTestScore(models.Model):
     """
-    Represents the score a team received for a test
+    Represents the score a team received for a test. Note that this is different from a navigation task where a score
+    is directly connected to a contestant.
     """
 
     team = models.ForeignKey("Team", on_delete=models.PROTECT)

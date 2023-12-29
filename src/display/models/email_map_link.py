@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class EmailMapLink(models.Model):
     """
-    Holds all self registrations in order to deliver a generated map based on a link sent by email
+    Contains a generated flight order for a contestant.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -84,6 +84,9 @@ ____________________________________________________________
         return str(self.contestant) + " " + str(self.contestant.navigation_task)
 
     def send_email(self, email_address: str, first_name: str):
+        """
+        Sends an e-mail to a contestant with a link to the flight order.
+        """
         logger.info(f"Sending email to {email_address}")
         url = "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
 

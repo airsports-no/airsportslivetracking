@@ -14,6 +14,10 @@ LOOP_TIME = 60
 
 
 class GatekeeperLanding(Gatekeeper):
+    """
+    Gatekeeper to track rounds in the landing pattern by counting each time the contestant crosses the landing gate.
+    The contestants score reflects the number of rounds in the patent.
+    """
     def __init__(self, contestant: "Contestant", calculators: List[Callable],
                  live_processing: bool = True, queue_name_override: str = None):
         super().__init__(contestant, calculators, live_processing, queue_name_override=queue_name_override)

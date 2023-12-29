@@ -9,6 +9,9 @@ ANNOTATION_TYPES = [(ANOMALY, "Anomaly"), (INFORMATION, "Information"), (DEBUG, 
 
 
 class ScoreLogEntry(models.Model):
+    """
+    Represents the details around the score awarded when passing a gate.
+    """
     time = models.DateTimeField()
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30, default="")
@@ -26,6 +29,11 @@ class ScoreLogEntry(models.Model):
 
     @classmethod
     def push(cls, entry):
+        """
+        Transmit the score log entry to the front end
+        :param entry:
+        :return:
+        """
         from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()
@@ -34,6 +42,10 @@ class ScoreLogEntry(models.Model):
 
     @classmethod
     def update(cls, pk: int, **kwargs):
+        """
+        Updates an existing score log entry with new data. This is to support continuously updating scores for instance
+        when flying outside the corridor.
+        """
         cls.objects.filter(pk=pk).update(**kwargs)
 
     @classmethod
@@ -44,6 +56,11 @@ class ScoreLogEntry(models.Model):
 
 
 class TrackAnnotation(models.Model):
+    """
+    Holds a data point that should  be displayed on the tracking map for the user. Goes hand-in-hand with ScoreLogEntry,
+    but where the former appears in the score details list, these entities are displayed at specific positions on the
+    map where the event occurred.
+    """
     time = models.DateTimeField()
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     score_log_entry = models.ForeignKey(ScoreLogEntry, on_delete=models.CASCADE)
@@ -63,6 +80,9 @@ class TrackAnnotation(models.Model):
 
     @classmethod
     def push(cls, annotation):
+        """
+        Transmit the annotation to the front end
+        """
         from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()
@@ -76,6 +96,9 @@ class TrackAnnotation(models.Model):
 
 
 class GateCumulativeScore(models.Model):
+    """
+    Holds the cumulative score accrued up until passing the gate.
+    """
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30)
     points = models.FloatField(default=0)
@@ -85,6 +108,9 @@ class GateCumulativeScore(models.Model):
 
 
 class ActualGateTime(models.Model):
+    """
+    The actual passing time for a specific date for a contestant.
+    """
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30)
     time = models.DateTimeField()

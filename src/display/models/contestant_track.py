@@ -4,6 +4,11 @@ from django.db import models
 
 
 class ContestantTrack(models.Model):
+    """
+    Has a one-to-one relationship with a contestant. Used to store metadata related to calculator status.
+
+    TODO: Possibly remove and merge with Contestant
+    """
     contestant = models.OneToOneField("Contestant", on_delete=models.CASCADE)
     score = models.FloatField(default=0)
     current_state = models.CharField(max_length=200, default="Waiting...")

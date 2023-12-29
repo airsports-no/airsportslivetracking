@@ -5,11 +5,19 @@ from display.fields.my_pickled_object_field import MyPickledObjectField
 
 
 class ContestantUploadedTrack(models.Model):
+    """
+    Store a gps track that has been manually uploaded through the API or GUI. They can only be one of these for a
+    contestant, and if this is present it will be preferred over anything received through traccar.
+    """
     contestant = models.OneToOneField("Contestant", on_delete=models.CASCADE)
     track = MyPickledObjectField(default=list, help_text="List of traccar position reports (Dict)")
 
 
 class ContestantReceivedPosition(models.Model):
+    """
+    Represents a position received from traccar. Includes timestamps that can be used to calculate processing
+    statistics.
+    """
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     time = models.DateTimeField()
     latitude = models.FloatField()
@@ -28,6 +36,9 @@ class ContestantReceivedPosition(models.Model):
 
     @staticmethod
     def convert_to_traccar(positions: list["ContestantReceivedPosition"]) -> list[Position]:
+        """
+        Converts the list of contestant received positions to a list of traccar positions dictionaries
+        """
         try:
             contestant = positions[0].contestant
         except IndexError:

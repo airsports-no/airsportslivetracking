@@ -28,6 +28,11 @@ logger = logging.getLogger(__name__)
 
 
 class ContestTeam(models.Model):
+    """
+    Represents the signup of a team to a contest. Includes useful default parameters for use when creating contestants
+    for the team.
+    """
+
     contest = models.ForeignKey("Contest", on_delete=models.CASCADE)
     team = models.ForeignKey("Team", on_delete=models.CASCADE)
     air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
@@ -85,6 +90,11 @@ class ContestTeam(models.Model):
 
 
 class Contest(models.Model):
+    """
+    A contest represents a flying competition that consists of a set of tasks. A contest has a time period and a
+    location (to be viewable on the global map) together with other useful parameters.
+    """
+
     DESCENDING = "desc"
     ASCENDING = "asc"
     SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
@@ -154,6 +164,9 @@ class Contest(models.Model):
 
     @property
     def share_string(self):
+        """
+        What are the access rules for the contest.
+        """
         if self.is_public and self.is_featured:
             return "Public"
         elif self.is_public and not self.is_featured:
@@ -169,10 +182,16 @@ class Contest(models.Model):
 
     @property
     def country_codes(self) -> set[str]:
+        """
+        The list of all country codes when navigation tasks are located
+        """
         return set([navigation_task.country_code for navigation_task in self.navigationtask_set.all()])
 
     @property
     def country_names(self) -> set[str]:
+        """
+        The list of all countries where navigation tasks are located
+        """
         return set([navigation_task.country_name for navigation_task in self.navigationtask_set.all()])
 
     def validate_and_set_country(self):
@@ -188,6 +207,9 @@ class Contest(models.Model):
         #     pass
 
     def initialise(self, user: "MyUser"):
+        """
+        Must be called when a contest is created in order to initialise correct time zones and permissions.
+        """
         self.start_time = self.start_time.replace(tzinfo=self.time_zone)
         self.finish_time = self.finish_time.replace(tzinfo=self.time_zone)
         self.save()
@@ -213,20 +235,31 @@ class Contest(models.Model):
         return ct
 
     def make_public(self):
+        """
+        Makes the contest publicly visible on the global map and enlist views.
+        """
         self.is_public = True
         self.is_featured = True
         self.save()
 
-    def make_private(self):
-        self.is_public = False
-        self.is_featured = False
-        self.navigationtask_set.all().update(is_featured=False, is_public=False)
-        self.save()
-
     def make_unlisted(self):
+        """
+        Makes the contest visible to people with the direct link, but it is not displayed in any lists or on the map.
+        Any public navigation tasks in the contest will be made unlisted.
+        """
         self.is_public = True
         self.is_featured = False
         self.navigationtask_set.all().update(is_featured=False)
+        self.save()
+
+    def make_private(self):
+        """
+        Make the contest private so that it is visible only by the users with explicit access. Any public or unlisted
+        navigation tasks in the contest will also be made private.
+        """
+        self.is_public = False
+        self.is_featured = False
+        self.navigationtask_set.all().update(is_featured=False, is_public=False)
         self.save()
 
     @classmethod
@@ -241,5 +274,8 @@ class Contest(models.Model):
 
     @property
     def editors(self) -> list:
+        """
+        Return the list of users that have permissions to change the contest.
+        """
         users = get_users_with_perms(self, attach_perms=True)
         return [user for user, permissions in users.items() if "change_contest" in permissions]

@@ -25,6 +25,7 @@ spec:
                     operator: In
                     values:
                       - "true"
+      # Required for permissions to create kubernetes jobs.
       serviceAccountName: calculator-scheduler
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
@@ -69,9 +70,10 @@ spec:
               name: envs-production-other
           - secretRef:
               name: pw-secrets
-        env:
-          - name: LOG_HANDLER
-            value: ""
+        # Disable cloud logging, permission problem
+        # env:
+        #   - name: LOG_HANDLER
+        #     value: ""
         livenessProbe:
           exec:
             # bash is needed to replace the environment variable

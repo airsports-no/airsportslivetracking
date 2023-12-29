@@ -22,8 +22,14 @@ from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
-from display.utilities.navigation_task_type_definitions import POKER, AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, \
-    PRECISION, LANDING
+from display.utilities.navigation_task_type_definitions import (
+    POKER,
+    AIRSPORTS,
+    AIRSPORT_CHALLENGE,
+    ANR_CORRIDOR,
+    PRECISION,
+    LANDING,
+)
 from display.utilities.traccar_factory import get_traccar_instance
 from display.utilities.track_merger import merge_tracks
 from display.utilities.tracking_definitions import (
@@ -47,6 +53,13 @@ def round_gate_times(times: dict) -> dict:
 
 
 class Contestant(models.Model):
+    """
+    The contestant model represents an instance of a team competing in a navigation task. It keeps track of all timing
+    information, tracking information, and scoring related to that contestant. There may be multiple contestants for
+    any team/navigation task combination, but contestants for teams that share either personnel or aircraft cannot
+    overlap in time.
+    """
+
     team = models.ForeignKey("Team", on_delete=models.CASCADE)
     navigation_task = models.ForeignKey("NavigationTask", on_delete=models.CASCADE)
     adaptive_start = models.BooleanField(
@@ -128,10 +141,16 @@ class Contestant(models.Model):
 
     @property
     def newest_flight_order_link_uid(self):
+        """
+        There may be multiple generated flight orders. Get the newest one.
+        """
         return self.emailmaplink_set.all().order_by("-created_at").values_list("id", flat=True).first()
 
     @property
     def planning_time(self) -> datetime.datetime:
+        """
+        When does the planning time for the contestant start given the planned takeoff time
+        """
         return self.takeoff_time - datetime.timedelta(minutes=self.navigation_task.planning_time)
 
     @property
@@ -140,6 +159,9 @@ class Contestant(models.Model):
 
     @property
     def starting_point_time(self) -> datetime.datetime:
+        """
+        The calculated passing time for the first waypoint in the track (assumed to be the starting point).
+        """
         try:
             return self.gate_times[self.navigation_task.route.waypoints[0].name]
         except (KeyError, IndexError):
@@ -161,16 +183,7 @@ class Contestant(models.Model):
     def finished_by_time_local(self) -> datetime.datetime:
         return self.finished_by_time.astimezone(self.navigation_task.contest.time_zone)
 
-    @property
-    def starting_gate_time(self) -> Optional[datetime.datetime]:
-        return self.gate_times.get(self.navigation_task.route.waypoints[0].name)
-
     def get_final_gate_time(self) -> Optional[datetime.datetime]:
-        # final_gate = (
-        #     self.navigation_task.route.landing_gates[0]
-        #     if self.navigation_task.route.landing_gates
-        #     else self.navigation_task.route.waypoints[-1]
-        # )
         return self.gate_times.get(self.navigation_task.route.waypoints[-1].name)
 
     @property
@@ -196,6 +209,10 @@ class Contestant(models.Model):
         return self.contestanttrack.calculator_started and self.contestanttrack.current_state != "Waiting..."
 
     def blocking_request_calculator_termination(self):
+        """
+        Signals that the calculator process (or job) should terminate immediately and blocks until it is confirmed to be no longer
+        running.
+        """
         self.request_calculator_termination()
         start = datetime.datetime.now()
         while is_calculator_running(self.pk):
@@ -205,6 +222,9 @@ class Contestant(models.Model):
         return
 
     def request_calculator_termination(self):
+        """
+        Signals that the calculator process (or job) shall terminate immediately and returns.
+        """
         logger.info(f"Signalling manual termination for contestant {self}")
         request_termination(self.pk)
 
@@ -289,6 +309,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return text
 
     def get_formatted_rules_description(self):
+        """
+        Returns a long formatted string that describes the rules for this specific contestant in the navigation task.
+        :return:
+        """
         if self.navigation_task.scorecard.calculator == PRECISION:
             return self._precision_rule_description()
         if self.navigation_task.scorecard.calculator == ANR_CORRIDOR:
@@ -305,6 +329,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         #                                       self.finished_by_time)
 
     def calculate_progress(self, latest_time: datetime, ignore_finished: bool = False) -> float:
+        """
+        Calculate a number between 0 and 100 to describe the progress of the contestant through the track.  Uses
+        expected timing to calculate expected duration and progress.
+        """
         if POKER in self.navigation_task.scorecard.task_type:
             return 100 * self.playingcard_set.all().count() / 5
         if LANDING in self.navigation_task.scorecard.task_type:
@@ -326,6 +354,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return route_progress
 
     def get_groundspeed(self, bearing) -> float:
+        """
+        Calculate the ground speed given bearing, configured airspeed, and wind information.
+        """
         return calculate_ground_speed_combined(bearing, self.air_speed, self.wind_speed, self.wind_direction)
 
     def clean(self):
@@ -482,6 +513,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     def _convert_to_individual_leg_times(
         crossing_times: list[tuple[str, datetime.timedelta]]
     ) -> list[tuple[str, datetime.timedelta]]:
+        """
+        Calculate the planned duration for each leg.
+        """
         if len(crossing_times) == 0:
             return []
         individual_times = [crossing_times[0]]
@@ -489,7 +523,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             individual_times.append((crossing_times[index][0], crossing_times[index][1] - crossing_times[index - 1][1]))
         return individual_times
 
-    def _get_takeoff_and_landing_times(self):
+    def _get_takeoff_and_landing_times(self) -> dict[str, datetime.datetime]:
         crossing_times = {}
         for gate in self.navigation_task.route.takeoff_gates:
             crossing_times[gate.name] = self.takeoff_time
@@ -500,6 +534,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     def calculate_missing_gate_times(
         self, predefined_gate_times: dict, start_point_override: Optional[datetime.datetime] = None
     ) -> dict:
+        """
+        If the gate times have not been provided when the contestant was created, calculate the gay times given the
+        start time, route, airspeed, and wind information. Optionally provide a dictionary of pre-calculated gate times
+        or an initial starting time.
+        """
         if start_point_override:
             previous_crossing_time = start_point_override
         else:
@@ -525,6 +564,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @property
     def gate_times(self) -> dict:
+        """
+        Returns the stored gate times.  Calculate any missing times and store the result.
+        """
         if not self.predefined_gate_times or not len(self.predefined_gate_times):
             times = round_gate_times(self.calculate_missing_gate_times({}))
             if self.pk is not None:
@@ -553,6 +595,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return None
 
     def get_tracker_ids(self) -> list[str]:
+        """
+        Return the traccar IDs that are tied to this contestant.
+        """
         if self.tracking_device == TRACKING_DEVICE:
             return [self.tracker_device_id]
         if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
@@ -568,6 +613,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return [""]
 
     def get_simulator_tracker_ids(self) -> list[str]:
+        """
+        Return the traccar IDs that are tied to this contestant in simulation mode.
+        """
         if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
             trackers = [self.team.crew.member1.simulator_tracking_id]
             if self.team.crew.member2 is not None:
@@ -608,6 +656,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @staticmethod
     def generate_position_block_for_contestant(position_data: dict, device_time: datetime.datetime) -> dict:
+        """
+        Helper function that constructs a position dictionary block from a traccar position message.
+        """
         return {
             "time": device_time,
             "position_id": position_data["id"],
@@ -646,6 +697,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @classmethod
     def _try_to_get_tracker_tracking(cls, device: str, stamp: datetime.datetime) -> tuple[Optional["Contestant"], bool]:
+        """
+        Retrieve contestant that matches tracking device at time
+        """
         try:
             # Device belongs to contestant from 30 minutes before takeoff
             return (
@@ -663,6 +717,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @classmethod
     def _try_to_get_pilot_tracking(cls, device: str, stamp: datetime.datetime) -> tuple[Optional["Contestant"], bool]:
+        """
+        Retrieve contestant that matches pilot tracking app at time
+        """
         try:
             contestant = cls.objects.get(
                 Q(team__crew__member1__app_tracking_id=device) | Q(team__crew__member1__simulator_tracking_id=device),
@@ -682,6 +739,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @classmethod
     def _try_to_get_copilot_tracking(cls, device: str, stamp: datetime.datetime) -> tuple[Optional["Contestant"], bool]:
+        """
+        Retrieve contestant that matches copilot tracking app at time
+        """
         try:
             contestant = cls.objects.get(
                 Q(team__crew__member2__app_tracking_id=device) | Q(team__crew__member2__simulator_tracking_id=device),
@@ -701,8 +761,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     def is_currently_tracked_by_device(self, device_id: str) -> bool:
         """
-        Returns true unless tracking_device is TRACKING_PILOT_AND_COPILOT. In this case the function returns true if we
-        responded to this device_id the last time, or the was no loss time. Otherwise it will return false.
+        Returns true unless tracking_device is TRACKING_PILOT_AND_COPILOT because the contestant cannot be tracked
+        by any other device. In the case where tracking_device is TRACKING_PILOT_AND_COPILOT the function returns true
+        if we responded to this device_id the last time, or the was no loss time. Otherwise it will return false.
         """
         if self.tracking_device == TRACKING_PILOT_AND_COPILOT:
             key = f"latest_tracking_device_{self.pk}"
@@ -716,6 +777,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return True
 
     def get_traccar_track(self) -> list[dict]:
+        """
+        Return the full track for the contestant interval from traccar. All available tracking for the contestant is
+        merged.
+        """
         traccar = get_traccar_instance()
         device_ids = traccar.get_device_ids_for_contestant(self)
 
@@ -731,8 +796,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     def get_track(self) -> list["Position"]:
         """
         Get the track for the contestant.  We only want the track that is used for the last calculation. This is always
-        stored in the ContestantReceivedPosition  objects, which is cleared whenever a calculation is restarted. This
-        means that this  function will always only return the data that is used for the latest calculation up until
+        stored in the ContestantReceivedPosition objects, which is cleared whenever a calculation is restarted. This
+        means that this function will always only return the data that is used for the latest calculation up until
         this time.
         """
         from display.models import ContestantReceivedPosition
@@ -746,6 +811,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             return None
 
     def record_actual_gate_time(self, gate_name: str, passing_time: datetime.datetime):
+        """
+        Record the time of a gate passing to the database.
+        """
         from display.models import ActualGateTime
 
         try:
@@ -754,6 +822,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             logger.exception(f"Contestant has already passed gate {gate_name}")
 
     def record_score_by_gate(self, gate_name: str, score: float):
+        """
+        Recall the cumulative score at a gate
+        """
         from display.models import GateCumulativeScore
 
         gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self)
@@ -761,6 +832,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         gate_score.save()
 
     def reset_track_and_score(self):
+        """
+        Reset all scoring to start again
+        """
         from display.models import PlayingCard
 
         PlayingCard.clear_cards(self)
@@ -770,7 +844,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         self.actualgatetime_set.all().delete()
         self.contestanttrack.reset()
 
-    def generate_processing_statistics(self):
+    def generate_processing_statistics(self)->bytes:
+        """
+        Generate a matplotlib chart showing the processing statistics for the contestants. Returns the binary (png)
+        image.
+        """
         from display.models import ContestantReceivedPosition
 
         stored_positions = ContestantReceivedPosition.objects.filter(contestant=self)

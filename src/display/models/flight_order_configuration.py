@@ -6,6 +6,9 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_c
 
 
 class FlightOrderConfiguration(models.Model):
+    """
+    Stores the flight order configuration for a navigation task.
+    """
     navigation_task = models.OneToOneField("NavigationTask", on_delete=models.CASCADE)
     document_size = models.CharField(choices=MAP_SIZES, default=A4, max_length=50)
     include_turning_point_images = models.BooleanField(

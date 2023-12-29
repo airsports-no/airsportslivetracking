@@ -8,6 +8,10 @@ from display.waypoint import Waypoint
 
 
 class Route(models.Model):
+    """
+    An internal representation of a route used by the calculators. It is created based on an EditableRoute and depends
+    on the navigation task type and scorecard.
+    """
     name = models.CharField(max_length=200)
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     rounded_corners = models.BooleanField(default=False, blank=True)
@@ -29,7 +33,7 @@ class Route(models.Model):
 
     def get_extent(self) -> tuple[float, float, float, float]:
         """
-        Returns the  minimum and maximum latitudes and longitudes for all features in the route.
+        Returns the minimum and maximum latitudes and longitudes for all features in the route.
 
         (minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude)
         """
@@ -67,6 +71,9 @@ class Route(models.Model):
             return None
 
     def get_location(self) -> Optional[tuple[float, float]]:
+        """
+        Get the approximate location (latitude, longitude) of the route
+        """
         if self.waypoints and len(self.waypoints) > 0:
             return self.waypoints[0].latitude, self.waypoints[0].longitude
         if len(self.takeoff_gates) > 0:
@@ -79,6 +86,9 @@ class Route(models.Model):
         return
 
     def validate_gate_polygons(self):
+        """
+        Validate that the gate polygons must contain exactly one waypoint
+        """
         waypoint_names = [gate.name for gate in self.waypoints if gate.type != "secret"]
         if self.prohibited_set.filter(type="gate"):
             if len(waypoint_names) != len(set(waypoint_names)):
@@ -94,6 +104,9 @@ class Route(models.Model):
 
 
 class Prohibited(models.Model):
+    """
+    Models information, penalty, and prohibited zones, as well as gate polygons.
+    """
     name = models.CharField(max_length=200)
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
     path = MyPickledObjectField(default=list)  # List of (lat, lon)

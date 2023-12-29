@@ -130,7 +130,7 @@ def get_retimed_track(start_time, old_contestant: Contestant) -> List[dict]:
     existing_track = [
         p.to_traccar(old_contestant.tracker_device_id, index) for index, p in enumerate(old_contestant.get_track())
     ]
-    expected_starting_point_time = old_contestant.starting_gate_time
+    expected_starting_point_time = old_contestant.starting_point_time
     # Assumes start time is in the future, after expected starting point time
     time_difference = start_time - expected_starting_point_time
     for item in existing_track:

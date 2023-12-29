@@ -129,6 +129,7 @@ if __name__ == "__main__":
     probes.readiness(True)
     check_connection()
     print_messages_debug()
+    failed_connecting_count = 0
     while True:
         disconnected_time = time.time()
         try:
@@ -136,8 +137,12 @@ if __name__ == "__main__":
             cookies = traccar.session.cookies.get_dict()
         except Exception:
             logger.exception("Connection error connecting to traccar")
+            failed_connecting_count += 1
+            if failed_connecting_count >= FAILED_TRACCAR_CONNECTION_COUNT_LIMIT:
+                logger.error("Failed connecting to traccar %d consecutive times", failed_connecting_count)
             time.sleep(5)
             continue
+        field_connecting_count = 0
         websocket.enableTrace(False)
         logger.info("Initiating session and getting cookie")
         ws = websocket.WebSocketApp(
