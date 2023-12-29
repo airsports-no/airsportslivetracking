@@ -284,25 +284,9 @@ STATICFILES_DIRS = [
     "/assets",
 ]
 
-from google.cloud import logging
-
-# Note this requires the client to be able to log into Google using local credentials unless running in GKE.
-# Create these credentials by running 'gcloud auth application-default login'
 if os.environ.get("MODE") != "dev" and os.environ.get("LOG_HANDLER") == "stackdriver":
-    try:
-        # StackDriver setup
-        client = logging.Client()
-        # Connects the logger to the root logging handler; by default
-        # this captures all logs at INFO level and higher
-        client.setup_logging()
-        handlers = ["stackdriver"]
-        print("Logging to google cloud")
-    except DefaultCredentialsError:
-        client = None
-        print("Logging to console")
-        handlers = ["console"]
+    handlers = ["json"]
 else:
-    client = None
     handlers = ["console"]
 
 LOGGING = {
@@ -316,17 +300,7 @@ LOGGING = {
     },
     "handlers": {
         "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "standard"},
-        **(
-            {"stackdriver": {"class": "google.cloud.logging.handlers.CloudLoggingHandler", "client": client}}
-            if client
-            else {}
-        )
-        # "file": {
-        #     "level": "DEBUG",
-        #     "class": "logging.handlers.WatchedFileHandler",
-        #     "filename": "/logs/airsports.log",
-        #     "formatter": "standard",
-        # },
+        "json": {"level": "DEBUG", "class": "google.cloud.logging_v2.handlers.structured_log.StructuredLogHandler"},
     },
     "loggers": {
         "root": {
