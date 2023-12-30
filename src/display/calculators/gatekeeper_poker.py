@@ -16,11 +16,14 @@ class GatekeeperPoker(Gatekeeper):
     Whenever the contestant enters the polygon of the first waypoint in the list, a card is awarded and the gate is
     removed from the list.
     """
+
     def __init__(
-            self, contestant: "Contestant", calculators: List[Callable], live_processing: bool = True,
-            queue_name_override: str = None
+        self,
+        contestant: "Contestant",
+        score_processing_queue: Queue,
+        calculators: List[Callable],
     ):
-        super().__init__(contestant, calculators, live_processing, queue_name_override=queue_name_override)
+        super().__init__(contestant, score_processing_queue, calculators)
         logger.info(f"Starting the GatekeeperPoker for contestant {self.contestant}")
         self.gate_polygons = []
         waypoint = self.contestant.navigation_task.route.waypoints[0]
@@ -39,20 +42,9 @@ class GatekeeperPoker(Gatekeeper):
         self.first_gate = True
         self.first_finish = True
 
-    def notify_termination(self):
-        super().notify_termination()
+    def finished_processing(self):
+        super().finished_processing()
         self.contestant.contestanttrack.updates_current_state("Finished")
-
-    def check_termination(self):
-        super().check_termination()
-        already_terminated = self.track_terminated
-        now = datetime.datetime.now(datetime.timezone.utc)
-        if self.live_processing and now > self.contestant.finished_by_time:
-            if not already_terminated:
-                logger.info(
-                    f"{self.contestant}: {'Live processing' if self.live_processing else 'Offline processing'} {'past finish time' if datetime.datetime.now(datetime.timezone.utc) > self.contestant.finished_by_time else ''}, terminating"
-                )
-                self.notify_termination()
 
     def check_gates(self):
         if len(self.sorted_polygons) > 0:

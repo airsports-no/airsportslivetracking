@@ -7,6 +7,7 @@ import sys
 
 from django.core.exceptions import ObjectDoesNotExist
 
+
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
@@ -15,7 +16,7 @@ if __name__ == "__main__":
 
     django.setup()
 from display.models import Contestant
-from display.calculators.calculator_factory import calculator_factory
+from display.calculators.contestant_processor import ContestantProcessor
 
 if __name__ == "__main__":
     contestant_pk = sys.argv[1]
@@ -25,8 +26,8 @@ if __name__ == "__main__":
         # Contestant has been deleted, gracefully terminate
         sys.exit(0)
     if not contestant.contestanttrack.calculator_finished:
-        calculator = calculator_factory(contestant, live_processing=True)
-        calculator.run()
+        contestant_processor = ContestantProcessor(contestant, live_processing=True)
+        contestant_processor.run()
     else:
         logger.warning(
             f"Attempting to start new calculator for terminated contestant {contestant}"

@@ -6,8 +6,8 @@ import logging
 import requests
 import gpxpy
 
+from display.calculators.contestant_processor import ContestantProcessor
 from display.utilities.calculator_termination_utilities import cancel_termination_request
-from display.calculators.calculator_factory import calculator_factory
 from display.utilities.coordinate_utilities import calculate_speed_between_points, calculate_bearing
 
 from display.models import Contestant, ContestantUploadedTrack
@@ -26,12 +26,12 @@ logger = logging.getLogger(__name__)
 
 
 def build_traccar_track(
-        filename,
-        today: datetime.datetime,
-        start_index: int = 0,
-        starting_time: datetime.datetime = None,
-        leadtime_seconds: int = 0,
-        time_offset: datetime.timedelta = datetime.timedelta(minutes=0),
+    filename,
+    today: datetime.datetime,
+    start_index: int = 0,
+    starting_time: datetime.datetime = None,
+    leadtime_seconds: int = 0,
+    time_offset: datetime.timedelta = datetime.timedelta(minutes=0),
 ):
     with open(filename, "r") as i:
         gpx = gpxpy.parse(i)
@@ -76,9 +76,8 @@ def load_data_traccar(tracks, offset=30, leadtime=0, round_sleep=0.2, contestant
                 try:
                     p_stamp, p_latitude, p_longitude = previous_positions[contestant_name]
                     speed = calculate_speed_between_points(
-                        (p_latitude, p_longitude),
-                        (latitude, longitude),
-                        p_stamp, stamp)
+                        (p_latitude, p_longitude), (latitude, longitude), p_stamp, stamp
+                    )
                 except KeyError:
                     speed = 0
                 previous_positions[contestant_name] = (stamp, latitude, longitude)
@@ -117,8 +116,8 @@ def recalculate_traccar(contestant: "Contestant"):
     q.append(None)
     logger.debug(f"Loaded {len(track)} positions")
     cancel_termination_request(contestant.pk)
-    calculator = calculator_factory(contestant, live_processing=False, queue_name_override=queue_name)
-    calculator.run()
+    contestant_processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name)
+    contestant_processor.run()
     while not q.empty():
         q.pop()
 
@@ -149,10 +148,14 @@ def insert_gpx_file(contestant_object: "Contestant", file):
                             speed = calculate_speed_between_points(
                                 (previous_point["latitude"], previous_point["longitude"]),
                                 (float(point.latitude), float(point.longitude)),
-                                previous_point["device_time"], point.time)
+                                previous_point["device_time"],
+                                point.time,
+                            )
                             # logger.debug(f"speed: {speed}")
-                            course = calculate_bearing((previous_point["latitude"], previous_point["longitude"]),
-                                                       (point.latitude, point.longitude))
+                            course = calculate_bearing(
+                                (previous_point["latitude"], previous_point["longitude"]),
+                                (point.latitude, point.longitude),
+                            )
                         positions.append(
                             {
                                 "deviceId": contestant_object.tracker_device_id,
@@ -187,7 +190,7 @@ def insert_gpx_file(contestant_object: "Contestant", file):
         q.append(i)
     q.append(None)
     cancel_termination_request(contestant_object.pk)
-    calculator = calculator_factory(contestant_object, live_processing=False, queue_name_override=queue_name)
-    calculator.run()
+    contestant_processor = ContestantProcessor(contestant_object, live_processing=False, queue_name_override=queue_name)
+    contestant_processor.run()
     while not q.empty():
         q.pop()

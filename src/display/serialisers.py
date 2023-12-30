@@ -339,6 +339,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     def create(self, validated_data):
         instance: Contest = super().create(validated_data)
         instance.initialise(self.context["request"].user)
+        return instance
 
 
 class ContestSerialiserWithResults(ContestSerialiser):

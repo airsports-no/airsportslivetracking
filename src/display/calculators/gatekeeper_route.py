@@ -1,11 +1,13 @@
 import datetime
 import logging
 import time
+from multiprocessing import Queue
 from typing import List, Optional, Callable, Tuple
 
 from display.calculators.calculator_utilities import round_time_minute
 from display.calculators.gatekeeper import Gatekeeper
-from display.calculators.positions_and_gates import Gate, MultiGate
+from display.calculators.positions_and_gates import Gate, Position
+from display.calculators.update_score_message import UpdateScoreMessage
 from display.utilities.route_building_utilities import calculate_extended_gate
 from display.utilities.coordinate_utilities import (
     Projector,
@@ -13,67 +15,40 @@ from display.utilities.coordinate_utilities import (
     cross_track_distance,
     nv_intersect,
 )
-from display.models import Contestant, INFORMATION
+from display.models import Contestant, INFORMATION, ANOMALY
 
 logger = logging.getLogger(__name__)
 
 LOOP_TIME = 60
 CROSSING_TIME_TRANSMISSION_INTERVAL = 3
 
+GATE_SCORE_TYPE = "gate_score"
+BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
+ADAPTIVE_TIMING_START_SCORE_TYPE = "adaptive_timing_start"
+
 
 class GatekeeperRoute(Gatekeeper):
     """
     The main gatekeeper implementation to support navigation tasks where a series of gates should be crossed in sequence.
     """
-    GATE_SCORE_TYPE = "gate_score"
-    BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
-    ADAPTIVE_TIMING_START_SCORE_TYPE = "adaptive_timing_start"
 
     def __init__(
-            self,
-            contestant: "Contestant",
-            calculators: List[Callable],
-            live_processing: bool = True,
-            queue_name_override: str = None,
+        self,
+        contestant: "Contestant",
+        score_processing_queue: Queue,
+        calculators: List[Callable],
     ):
-        super().__init__(contestant, calculators, live_processing, queue_name_override=queue_name_override)
+        super().__init__(contestant, score_processing_queue, calculators)
+        self.scorecard = self.contestant.navigation_task.scorecard
         self.last_backwards = None
         self.last_crossing_time_transmission = 0
         self.recalculation_completed = not self.contestant.adaptive_start
         self.starting_line = Gate(
             self.gates[0].waypoint,
             self.gates[0].expected_time,
-            calculate_extended_gate(self.gates[0].waypoint, self.scorecard),
+            calculate_extended_gate(self.gates[0].waypoint, self.contestant.navigation_task.scorecard),
         )
         self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
-        self.takeoff_gate = (
-            MultiGate(
-                [
-                    Gate(
-                        takeoff_gate,
-                        self.contestant.gate_times[takeoff_gate.name],
-                        calculate_extended_gate(takeoff_gate, self.scorecard),
-                    )
-                    for takeoff_gate in self.contestant.navigation_task.route.takeoff_gates
-                ]
-            )
-            if len(self.contestant.navigation_task.route.takeoff_gates) > 0
-            else None
-        )
-        self.landing_gate = (
-            MultiGate(
-                [
-                    Gate(
-                        landing_gate,
-                        self.contestant.gate_times[landing_gate.name],
-                        calculate_extended_gate(landing_gate, self.scorecard),
-                    )
-                    for landing_gate in self.contestant.navigation_task.route.landing_gates
-                ]
-            )
-            if len(self.contestant.navigation_task.route.landing_gates) > 0
-            else None
-        )
 
         self.outstanding_gates = list(self.gates)
         if self.contestant.adaptive_start:
@@ -93,6 +68,32 @@ class GatekeeperRoute(Gatekeeper):
             self.landing_gate.set_expected_time(gate_times[self.landing_gate.name])
         self.recalculation_completed = True
         self.contestant.save()
+
+    def update_gate_score(
+        self,
+        position: Position,
+        gate: Gate,
+        score: int,
+        score_type: str,
+        score_string: str,
+        annotation_type: str,
+        planned: Optional[datetime.datetime] = None,
+        actual: Optional[datetime.datetime] = None,
+    ):
+        self.update_score(
+            UpdateScoreMessage(
+                position.time,
+                gate,
+                score,
+                score_string,
+                position.latitude,
+                position.longitude,
+                annotation_type,
+                score_type,
+                planned=planned,
+                actual=actual,
+            )
+        )
 
     def check_gate_in_range(self):
         """
@@ -114,10 +115,10 @@ class GatekeeperRoute(Gatekeeper):
                     )
                 )
                 if (
-                        self.in_range_of_gate.passing_time is None
-                        and not self.in_range_of_gate.missed
-                        and self.starting_line.has_infinite_been_passed()
-                        and self.starting_line.has_extended_been_passed()
+                    self.in_range_of_gate.passing_time is None
+                    and not self.in_range_of_gate.missed
+                    and self.starting_line.has_infinite_been_passed()
+                    and self.starting_line.has_extended_been_passed()
                 ):
                     # Moving out of range of the gate, let's assume we have missed it
                     logger.info(
@@ -181,16 +182,15 @@ class GatekeeperRoute(Gatekeeper):
                     intersected_gate.type, intersected_gate.expected_time, intersected_gate.passing_time
                 )
                 self.transmit_actual_crossing(intersected_gate)
-                self.update_score(
+                self.update_gate_score(
+                    current_position,
                     intersected_gate,
                     gate_score,
+                    GATE_SCORE_TYPE,
                     "passing takeoff gate",
-                    current_position.latitude,
-                    current_position.longitude,
-                    "anomaly",
-                    self.GATE_SCORE_TYPE,
-                    planned=intersected_gate.expected_time,
-                    actual=intersected_gate.passing_time,
+                    ANOMALY,
+                    intersected_gate.expected_time,
+                    intersected_gate.passing_time,
                 )
 
         # Handle crossing the starting line
@@ -207,18 +207,17 @@ class GatekeeperRoute(Gatekeeper):
                 score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
                 # Add a grace time to prevent multiple backwards penalties for a single crossing
                 if self.last_backwards is None or intersection_time > self.last_backwards + datetime.timedelta(
-                        seconds=15
+                    seconds=15
                 ):
                     self.last_backwards = intersection_time
                     if score != 0:
-                        self.update_score(
+                        self.update_gate_score(
+                            self.track[-1],
                             self.starting_line,
                             score,
+                            BACKWARD_STARTING_LINE_SCORE_TYPE,
                             "crossing extended starting gate backwards",
-                            self.track[-1].latitude,
-                            self.track[-1].longitude,
-                            "anomaly",
-                            self.BACKWARD_STARTING_LINE_SCORE_TYPE,
+                            ANOMALY,
                         )
             elif not self.starting_line.has_infinite_been_passed():
                 # Handle resetting adaptive start, and record that the infinite line has been crossed
@@ -234,14 +233,13 @@ class GatekeeperRoute(Gatekeeper):
                     self.starting_line.pass_infinite_gate(intersection_time)
                     if self.contestant.adaptive_start:
                         self.recalculate_gates_times_from_start_time(round_time_minute(intersection_time))
-                        self.update_score(
+                        self.update_gate_score(
+                            self.track[-1],
                             self.starting_line,
                             0,
+                            ADAPTIVE_TIMING_START_SCORE_TYPE,
                             "crossing infinite starting line and starting adaptive timing",
-                            self.track[-1].latitude,
-                            self.track[-1].longitude,
                             INFORMATION,
-                            self.ADAPTIVE_TIMING_START_SCORE_TYPE,
                         )
 
         # Look for crossing of any of the future gates
@@ -270,9 +268,9 @@ class GatekeeperRoute(Gatekeeper):
         if not crossed_gate and len(self.outstanding_gates) > 0 and self.starting_line.has_infinite_been_passed():
             extended_next_gate = self.outstanding_gates[0]  # type: Gate
             if (
-                    extended_next_gate.type not in ("sp", "ildg", "ito", "ldg", "to")
-                    and not extended_next_gate.extended_passing_time
-                    and extended_next_gate.is_procedure_turn
+                extended_next_gate.type not in ("sp", "ildg", "ito", "ldg", "to")
+                and not extended_next_gate.extended_passing_time
+                and extended_next_gate.is_procedure_turn
             ):
                 intersection_time = extended_next_gate.get_gate_extended_intersection_time(self.projector, self.track)
                 if intersection_time and extended_next_gate.is_passed_in_correct_direction_track(self.track):
@@ -284,8 +282,8 @@ class GatekeeperRoute(Gatekeeper):
                     )
 
             if (
-                    extended_next_gate.type not in ("sp", "ildg", "ito", "ldg", "to")
-                    and not extended_next_gate.maybe_missed_time
+                extended_next_gate.type not in ("sp", "ildg", "ito", "ldg", "to")
+                and not extended_next_gate.maybe_missed_time
             ):
                 intersection_time = extended_next_gate.get_gate_infinite_intersection_time(self.projector, self.track)
                 if intersection_time and extended_next_gate.is_passed_in_correct_direction_track(self.track):
@@ -301,8 +299,8 @@ class GatekeeperRoute(Gatekeeper):
             intersected_gate = self.outstanding_gates[0]
             time_limit = 0
             if (
-                    intersected_gate.maybe_missed_time
-                    and (self.track[-1].time - intersected_gate.maybe_missed_time).total_seconds() > time_limit
+                intersected_gate.maybe_missed_time
+                and (self.track[-1].time - intersected_gate.maybe_missed_time).total_seconds() > time_limit
             ):
                 logger.info(
                     "{} {}: Did not cross {} within {} seconds of infinite crossing, so missing gate".format(
@@ -330,16 +328,15 @@ class GatekeeperRoute(Gatekeeper):
                         intersected_gate.type, intersected_gate.expected_time, intersected_gate.passing_time
                     )
                     self.transmit_actual_crossing(intersected_gate)
-                    self.update_score(
+                    self.update_gate_score(
+                        current_position,
                         intersected_gate,
                         gate_score,
                         "passing landing gate",
-                        current_position.latitude,
-                        current_position.longitude,
-                        "anomaly",
-                        self.GATE_SCORE_TYPE,
-                        planned=intersected_gate.expected_time,
-                        actual=intersected_gate.passing_time,
+                        GATE_SCORE_TYPE,
+                        ANOMALY,
+                        intersected_gate.expected_time,
+                        intersected_gate.passing_time,
                     )
 
     def transmit_actual_crossing(self, gate: Gate):
@@ -410,7 +407,7 @@ class GatekeeperRoute(Gatekeeper):
         return None
 
     def estimate_crossing_time_of_next_timed_gate(
-            self, average_duration_seconds: int = 20
+        self, average_duration_seconds: int = 20
     ) -> Tuple[Optional[Gate], Optional[datetime.datetime]]:
         """
         Calculate the distance to the next gate, and the distance between the gates until the first timed gate.
@@ -482,14 +479,11 @@ class GatekeeperRoute(Gatekeeper):
                 return self.track[-1].time + datetime.timedelta(hours=time_to_intercept)
         return None
 
-    def notify_termination(self):
+    def finished_processing(self):
         """
         Cleanup gate tracking when being terminated. Ensure that all outstanding gates and the landing gate are missed.
         """
-        super().notify_termination()
-        logger.info(
-            f"{self.contestant}: {'Live processing' if self.live_processing else 'Offline processing'} {'past finish time' if datetime.datetime.now(datetime.timezone.utc) > self.contestant.finished_by_time else ''}, terminating"
-        )
+        super().finished_processing()
         self.miss_outstanding_gates()
         self.calculate_gate_score()
         self.calculate_landing_gate_miss()
@@ -502,15 +496,8 @@ class GatekeeperRoute(Gatekeeper):
             gate = self.takeoff_gate.gates[0]
             current_position = self.track[-1]
             score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
-            self.update_score(
-                gate,
-                score,
-                "missing takeoff gate",
-                current_position.latitude,
-                current_position.longitude,
-                "anomaly",
-                "gate_score",
-                planned=gate.expected_time,
+            self.update_gate_score(
+                current_position, gate, score, GATE_SCORE_TYPE, "missing takeoff gate", ANOMALY, gate.expected_time
             )
 
     def calculate_landing_gate_miss(self):
@@ -521,15 +508,8 @@ class GatekeeperRoute(Gatekeeper):
             gate = self.landing_gate.gates[0]
             current_position = self.track[-1]
             score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
-            self.update_score(
-                gate,
-                score,
-                "missing landing gate",
-                current_position.latitude,
-                current_position.longitude,
-                "anomaly",
-                "gate_score",
-                planned=gate.expected_time,
+            self.update_gate_score(
+            current_position, gate, score, GATE_SCORE_TYPE, "missing landing gate", ANOMALY, gate.expected_time
             )
 
     def calculate_gate_score(self):
@@ -541,7 +521,7 @@ class GatekeeperRoute(Gatekeeper):
         index = 0
         finished = False
         current_position = self.track[-1]
-        for gate_index, gate in enumerate(self.gates[self.last_gate_index:]):  # type: Gate
+        for gate_index, gate in enumerate(self.gates[self.last_gate_index :]):  # type: Gate
             if finished:
                 break
             if gate.missed:
@@ -549,19 +529,13 @@ class GatekeeperRoute(Gatekeeper):
                     previous_gate = self.gates[self.last_gate_index + gate_index - 1]
                 else:
                     previous_gate = None
-                self.missed_gate(previous_gate, gate, gate.maybe_missed_position or current_position)
+                self.execute_missed_gate(previous_gate, gate, gate.maybe_missed_position or current_position)
                 index += 1
                 if gate.gate_check:
                     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
-                    self.update_score(
-                        gate,
-                        score,
-                        "missing gate",
-                        current_position.latitude,
-                        current_position.longitude,
-                        "anomaly",
-                        "gate_score",
-                        planned=gate.expected_time,
+                    self.update_gate_score(
+                        current_position, gate, score, GATE_SCORE_TYPE, "missing gate", ANOMALY,
+                        gate.expected_time
                     )
                     # Commented out because of A.2.2.16
                     # if gate.is_procedure_turn and not gate.extended_passing_time:
@@ -580,28 +554,14 @@ class GatekeeperRoute(Gatekeeper):
                         gate.type, gate.expected_time, gate.passing_time
                     )
                     self.transmit_actual_crossing(gate)
-                    self.update_score(
-                        gate,
-                        gate_score,
-                        "passing gate",
-                        current_position.latitude,
-                        current_position.longitude,
-                        "anomaly",
-                        self.GATE_SCORE_TYPE,
-                        planned=gate.expected_time,
-                        actual=gate.passing_time,
+                    self.update_gate_score(
+                        current_position, gate, gate_score, GATE_SCORE_TYPE, "passing gate", ANOMALY,
+                        gate.expected_time, gate.passing_time
                     )
                 else:
-                    self.update_score(
-                        gate,
-                        0,
-                        "passing gate (no time check)",
-                        current_position.latitude,
-                        current_position.longitude,
-                        "information",
-                        self.GATE_SCORE_TYPE,
-                        planned=gate.expected_time,
-                        actual=gate.passing_time,
+                    self.update_gate_score(
+                        current_position, gate, 0, GATE_SCORE_TYPE, "passing gate (no time check)", INFORMATION,
+                        gate.expected_time, gate.passing_time
                     )
 
             else:
@@ -615,9 +575,10 @@ class GatekeeperRoute(Gatekeeper):
         self.check_intersections()
         self.calculate_gate_score()
         if (
-                self.recalculation_completed
-                and self.last_crossing_time_transmission + CROSSING_TIME_TRANSMISSION_INTERVAL < time.time()
+            self.recalculation_completed
+            and self.last_crossing_time_transmission + CROSSING_TIME_TRANSMISSION_INTERVAL < time.time()
         ):
             self.last_crossing_time_transmission = time.time()
             self.transmit_second_to_crossing_time_and_crossing_estimate()
         self.check_gate_in_range()
+

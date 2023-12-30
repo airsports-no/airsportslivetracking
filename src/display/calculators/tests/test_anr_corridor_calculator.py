@@ -11,10 +11,11 @@ from django.core.cache import cache
 from django.test import TransactionTestCase
 
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
-from display.calculators.calculator_factory import calculator_factory
 from display.calculators.calculator_utilities import load_track_points_traccar_csv
+from display.calculators.contestant_processor import ContestantProcessor
 from display.calculators.tests.test_precision_calculator import load_track_points
 from display.calculators.tests.utilities import load_traccar_track
+from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import (
     Aeroplane,
     NavigationTask,
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 def calculator_runner(contestant, track):
     q = RedisQueue(contestant.pk)
-    calculator = calculator_factory(contestant, live_processing=False)
+    contestant_processor = ContestantProcessor(contestant, live_processing=False)
     for i in track:
         i["id"] = 0
         i["deviceId"] = ""
@@ -42,16 +43,16 @@ def calculator_runner(contestant, track):
         i["device_time"] = dateutil.parser.parse(i["time"])
         q.append(i)
     q.append(None)
-    calculator.run()
+    contestant_processor.run()
     while not q.empty():
         q.pop()
 
 
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRPerLeg(TransactionTestCase):
-    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
@@ -194,7 +195,7 @@ class TestANRPerLeg(TransactionTestCase):
             wind_speed=0,
         )
         q = RedisQueue(self.contestant.pk)
-        calculator = calculator_factory(self.contestant, live_processing=True)
+        contestant_processor = ContestantProcessor(self.contestant, live_processing=True)
         for i in track:
             i["id"] = 0
             i["deviceId"] = ""
@@ -202,7 +203,7 @@ class TestANRPerLeg(TransactionTestCase):
             i["device_time"] = dateutil.parser.parse(i["time"])
             q.append(i)
         threading.Timer(1, lambda: self.contestant.request_calculator_termination()).start()
-        calculator.run()
+        contestant_processor.run()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
 
@@ -250,10 +251,10 @@ class TestANRPerLeg(TransactionTestCase):
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANR(TransactionTestCase):
-    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
@@ -412,14 +413,14 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             wind_direction=160,
             wind_speed=0,
         )
-        self.update_score = Mock()
         self.calculator = AnrCorridorCalculator(
             self.contestant,
             self.navigation_task.scorecard,
             self.route.waypoints,
             self.route,
-            self.update_score,
+            Mock(),
         )
+        self.calculator.update_score = Mock()
 
     def test_inside_20_seconds_enroute(self):
         position = Mock()
@@ -434,7 +435,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         gate = Mock()
         self.calculator.calculate_enroute([position], gate, gate, None)
         self.calculator.calculate_enroute([position2], gate, gate, None)
-        self.update_score.assert_not_called()
+        self.calculator.update_score.assert_not_called()
 
     def test_outside_2_seconds_enroute(self):
         position = Mock()
@@ -455,26 +456,37 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position2], gate, gate, None)
         er = self.calculator.existing_reference
         self.calculator.calculate_enroute([position3], gate, gate, None)
-        self.update_score.assert_has_calls(
+        self.calculator.update_score.assert_has_calls(
             [
                 call(
-                    self.calculator.route.waypoints[0],
-                    0,
-                    "exiting corridor",
-                    60.5,
-                    11,
-                    "information",
-                    f"outside_corridor_{gate.name}",
+                    UpdateScoreMessage(
+                        time=datetime.datetime(2020, 1, 1, 0, 0),
+                        gate=self.calculator.route.waypoints[0],
+                        score=0,
+                        message="exiting corridor",
+                        latitude=60.5,
+                        longitude=11,
+                        annotation_type="information",
+                        score_type=f"outside_corridor_{gate.name}",
+                        maximum_score=None,
+                        planned=None,
+                        actual=None,
+                    )
                 ),
                 call(
-                    self.calculator.route.waypoints[0],
-                    0,
-                    "outside corridor (2 s)",
-                    60,
-                    11.5,
-                    "anomaly",
-                    f"outside_corridor_{gate.name}",
-                    maximum_score=-1.0,
+                    UpdateScoreMessage(
+                        time=datetime.datetime(2020, 1, 1, 0, 0, 3),
+                        gate=self.calculator.route.waypoints[0],
+                        score=0,
+                        message="outside corridor (2 s)",
+                        latitude=60,
+                        longitude=11.5,
+                        annotation_type="anomaly",
+                        score_type=f"outside_corridor_{gate.name}",
+                        maximum_score=-1.0,
+                        planned=None,
+                        actual=None,
+                    )
                 ),
             ]
         )
@@ -502,26 +514,37 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position2], gate, gate, None)
         er = self.calculator.existing_reference
         self.calculator.calculate_enroute([position3], gate, gate, None)
-        self.update_score.assert_has_calls(
+        self.calculator.update_score.assert_has_calls(
             [
                 call(
-                    self.calculator.route.waypoints[0],
-                    0,
-                    "exiting corridor",
-                    60.5,
-                    11,
-                    "information",
-                    f"outside_corridor_{gate.name}",
+                    UpdateScoreMessage(
+                        time=datetime.datetime(2020, 1, 1, 0, 0),
+                        gate=self.calculator.route.waypoints[0],
+                        score=0,
+                        message="exiting corridor",
+                        latitude=60.5,
+                        longitude=11,
+                        annotation_type="information",
+                        score_type=f"outside_corridor_{gate.name}",
+                        maximum_score=None,
+                        planned=None,
+                        actual=None,
+                    )
                 ),
                 call(
-                    self.calculator.route.waypoints[0],
-                    45.0,
-                    "outside corridor (20 s)",
-                    60,
-                    11.5,
-                    "anomaly",
-                    f"outside_corridor_{gate.name}",
-                    maximum_score=-1.0,
+                    UpdateScoreMessage(
+                        time=datetime.datetime(2020, 1, 1, 0, 0, 21),
+                        gate=self.calculator.route.waypoints[0],
+                        score=45.0,
+                        message="outside corridor (20 s)",
+                        latitude=60,
+                        longitude=11.5,
+                        annotation_type="anomaly",
+                        score_type=f"outside_corridor_{gate.name}",
+                        maximum_score=-1.0,
+                        planned=None,
+                        actual=None,
+                    )
                 ),
             ]
         )
@@ -546,15 +569,20 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         er = self.calculator.existing_reference
         self.calculator.passed_finishpoint([position3], gate)
 
-        self.update_score.assert_called_with(
-            self.calculator.route.waypoints[0],
-            48.0,
-            "outside corridor (21 s)",
-            60,
-            11.5,
-            "anomaly",
-            f"outside_corridor_{gate.name}",
-            maximum_score=-1.0,
+        self.calculator.update_score.assert_called_with(
+            UpdateScoreMessage(
+                time=datetime.datetime(2020, 1, 1, 0, 0, 21),
+                gate=self.calculator.route.waypoints[0],
+                score=48.0,
+                message="outside corridor (21 s)",
+                latitude=60,
+                longitude=11.5,
+                annotation_type="anomaly",
+                score_type=f"outside_corridor_{gate.name}",
+                maximum_score=-1.0,
+                planned=None,
+                actual=None,
+            )
         )
 
     def test_outside_20_seconds_outside_route(self):
@@ -575,14 +603,14 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_outside_route([position], gate)
         self.calculator.calculate_outside_route([position2], gate)
         self.calculator.calculate_outside_route([position3], gate)
-        self.update_score.assert_not_called()
+        self.calculator.update_score.assert_not_called()
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRPolygon(TransactionTestCase):
-    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
@@ -647,10 +675,10 @@ class TestANRPolygon(TransactionTestCase):
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRBergenBacktracking(TransactionTestCase):
-    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
@@ -716,7 +744,7 @@ class TestANRBergenBacktracking(TransactionTestCase):
         self.assertEqual(406, self.contestant.contestanttrack.score)  # 406
 
 
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestANRBergenBacktrackingTommy(TransactionTestCase):
@@ -791,7 +819,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         self.assertTrue("SP: 200.0 points circling start" in strings)
 
 
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestOscarDoubleCorridorPenalty(TransactionTestCase):

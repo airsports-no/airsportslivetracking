@@ -1,10 +1,12 @@
 import logging
 from datetime import timedelta
-from typing import List, Callable, Optional
+from multiprocessing import Queue
+from typing import List, Optional
 
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Position, Gate
+from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Contestant, Scorecard, Route
 
 logger = logging.getLogger(__name__)
@@ -15,12 +17,6 @@ class ProhibitedZoneCalculator(Calculator):
     Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
     """
 
-    def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
-        pass
-
-    def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
-        self.check_inside_prohibited_zone(track, last_gate)
-
     INSIDE_PROHIBITED_ZONE_PENALTY_TYPE = "inside_prohibited_zone"
 
     def __init__(
@@ -29,10 +25,9 @@ class ProhibitedZoneCalculator(Calculator):
         scorecard: "Scorecard",
         gates: List["Gate"],
         route: "Route",
-        update_score: Callable,
-        type_filter: str = None,
+        score_processing_queue: Queue,
     ):
-        super().__init__(contestant, scorecard, gates, route, update_score)
+        super().__init__(contestant, scorecard, gates, route, score_processing_queue)
         self.inside_zones = {}
         self.zones_scored = set()
         self.gates = gates
@@ -47,6 +42,12 @@ class ProhibitedZoneCalculator(Calculator):
         zones = route.prohibited_set.filter(type="prohibited")
         for zone in zones:
             self.zone_polygons.append((zone.name, self.polygon_helper.build_polygon(zone.path)))
+
+    def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
+        pass
+
+    def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
+        self.check_inside_prohibited_zone(track, last_gate)
 
     def _calculate_danger_level(self, track: List["Position"]) -> float:
         """
@@ -87,13 +88,16 @@ class ProhibitedZoneCalculator(Calculator):
                 penalty = self.scorecard.prohibited_zone_penalty
                 self.running_penalty[inside] = penalty
                 self.update_score(
-                    last_gate or self.gates[0],
-                    penalty,
-                    "entered prohibited zone {}".format(inside),
-                    position.latitude,
-                    position.longitude,
-                    "anomaly",
-                    self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE,
+                    UpdateScoreMessage(
+                        position.time,
+                        last_gate or self.gates[0],
+                        penalty,
+                        "entered prohibited zone {}".format(inside),
+                        position.latitude,
+                        position.longitude,
+                        "anomaly",
+                        self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE,
+                    )
                 )
         for zone in list(self.inside_zones.keys()):
             if zone not in inside_this_time:

@@ -1,14 +1,16 @@
 import datetime
+from multiprocessing import Queue
 
 import matplotlib.pyplot as plt
 import logging
-from typing import List, Callable, Optional, Tuple
+from typing import List, Optional, Tuple
 import numpy as np
 from shapely.geometry import Polygon
 
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Position, Gate
+from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Contestant, Scorecard, Route, INFORMATION, ANOMALY
 
 logger = logging.getLogger(__name__)
@@ -41,9 +43,9 @@ class AnrCorridorCalculator(Calculator):
         scorecard: "Scorecard",
         gates: List["Gate"],
         route: "Route",
-        update_score: Callable,
+        score_processing_queue: Queue,
     ):
-        super().__init__(contestant, scorecard, gates, route, update_score)
+        super().__init__(contestant, scorecard, gates, route, score_processing_queue)
         self.corridor_state = self.INSIDE_CORRIDOR
         self.previous_corridor_state = self.INSIDE_CORRIDOR
         self.crossed_outside_time = None
@@ -65,8 +67,6 @@ class AnrCorridorCalculator(Calculator):
     def get_danger_level_and_accumulated_score(self, track: List["Position"]) -> Tuple[float, float]:
         """
         Danger level ranges from 0 to 100 where 100 is outside the corridor, and all other numbers represent half seconds
-        :param position:
-        :return:
         """
         if not self.enroute:
             return 0, 0
@@ -179,7 +179,8 @@ class AnrCorridorCalculator(Calculator):
 
         # If this is called when we have crossed a gate, we need to reset the outside time to Grace time before now to start counting new points
         if self.corridor_state == self.OUTSIDE_CORRIDOR and self.previous_corridor_state == self.INSIDE_CORRIDOR:
-            self.update_score(
+            self.update_score(UpdateScoreMessage(
+                position.time,
                 self.get_last_non_secret_gate(last_gate),
                 0,
                 "exiting corridor",
@@ -187,9 +188,10 @@ class AnrCorridorCalculator(Calculator):
                 position.longitude,
                 INFORMATION,
                 f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
-            )
+            ))
         elif apply_maximum_penalty:
-            self.update_score(
+            self.update_score(UpdateScoreMessage(
+                position.time,
                 self.get_last_non_secret_gate(last_gate),
                 self.accumulated_score,
                 "outside corridor ({} s)".format(int(outside_time)),
@@ -198,12 +200,13 @@ class AnrCorridorCalculator(Calculator):
                 ANOMALY,
                 f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
                 maximum_score=self.scorecard.corridor_maximum_penalty,
-            )
+            ))
         elif (
             self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR
         ) or reset:
             # Update initial score logged with the final score
-            self.update_score(
+            self.update_score(UpdateScoreMessage(
+                position.time,
                 self.get_last_non_secret_gate(last_gate),
                 self.accumulated_score,
                 "outside corridor ({} s)".format(int(outside_time)),
@@ -212,7 +215,7 @@ class AnrCorridorCalculator(Calculator):
                 ANOMALY,
                 f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
                 maximum_score=self.scorecard.corridor_maximum_penalty,
-            )
+            ))
             if not reset:
                 # Do not print entering corridor if you are in the special case where we are cleaning up missed gates (indicated by apply maximum penalty)
                 self.corridor_grace_time = self.scorecard.corridor_grace_time

@@ -31,8 +31,8 @@ if __name__ == "__main__":
 
 from django.core.cache import cache
 from django.db import connections, OperationalError, connection
+from display.calculators.contestant_processor import ContestantProcessor
 
-from display.calculators.calculator_factory import calculator_factory
 from display.models import Contestant
 from traccar_facade import Traccar
 
@@ -139,8 +139,8 @@ def calculator_process(contestant_pk: int):
         logger.warning(f"Attempting to start new calculator for non-existent contestant {contestant_pk}")
         return
     if not contestant.contestanttrack.calculator_finished and not is_termination_requested(contestant_pk):
-        calculator = calculator_factory(contestant, live_processing=True)
-        calculator.run()
+        contestant_processor = ContestantProcessor(contestant, live_processing=True)
+        contestant_processor.run()
     else:
         logger.warning(f"Attempting to start new calculator for terminated contestant {contestant}")
 

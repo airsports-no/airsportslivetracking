@@ -1,8 +1,10 @@
 import logging
 from abc import abstractmethod
-from typing import List, Callable, Optional, Tuple
+from multiprocessing import Queue
+from typing import List, Optional, Tuple
 
 from display.calculators.positions_and_gates import Position, Gate
+from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Contestant, Scorecard, Route
 from display.utilities.gate_definitions import SECRETPOINT
 
@@ -20,17 +22,17 @@ class Calculator:
         scorecard: "Scorecard",
         gates: List["Gate"],
         route: "Route",
-        update_score: Callable,
+        score_processing_queue: Queue,
     ):
         self.contestant = contestant
         self.scorecard = scorecard
         self.gates = gates
         self.route = route
-        self.update_score = update_score
+        self.score_processing_queue = score_processing_queue
         logger.debug(f"{contestant}: Starting calculator {self}")
 
-    def extrapolate_position_forward(self, track: List["Position"], seconds_ahead: float) -> "Position":
-        pass
+    def update_score(self, update_score_message: UpdateScoreMessage) -> None:
+        self.score_processing_queue.put_nowait(update_score_message)
 
     def get_danger_level_and_accumulated_score(self, track: List["Position"]) -> Tuple[float, float]:
         return 0, 0

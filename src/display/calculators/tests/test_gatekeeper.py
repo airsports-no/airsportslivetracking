@@ -1,20 +1,22 @@
 import datetime
+from multiprocessing import Queue
 from unittest.mock import patch
 
 import dateutil.parser
 from django.test import TransactionTestCase
 
+from display.calculators.contestant_processor import ContestantProcessor
 from display.calculators.gatekeeper_route import GatekeeperRoute
 from display.calculators.positions_and_gates import Position
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Contestant, Person, Team, EditableRoute
 from utilities.mock_utilities import TraccarMock
 
 
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestInterpolation(TransactionTestCase):
-    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
@@ -61,7 +63,7 @@ class TestInterpolation(TransactionTestCase):
         )
 
     def test_no_interpolation(self, *args):
-        gatekeeper = GatekeeperRoute(self.contestant, [])
+        gatekeeper = ContestantProcessor(self.contestant)
         start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
         next_position = Position(dateutil.parser.parse("2020-01-01T00:00:02Z"), 60, 12, 0, 0, 0, 0, 0, 0)
@@ -70,7 +72,7 @@ class TestInterpolation(TransactionTestCase):
         self.assertEqual(next_position, interpolated[0])
 
     def test_interpolation(self, *args):
-        gatekeeper = GatekeeperRoute(self.contestant, [])
+        gatekeeper = ContestantProcessor(self.contestant)
         start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
         gatekeeper.track = [start_position]
         next_position = Position(dateutil.parser.parse("2020-01-01T00:00:05Z"), 60, 12, 0, 0, 0, 0, 0, 0)
@@ -90,11 +92,11 @@ class TestInterpolation(TransactionTestCase):
             self.assertAlmostEqual(interpolated[index].longitude, expected[index][2])
 
 
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestCrossingEstimate(TransactionTestCase):
-    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
@@ -146,7 +148,7 @@ class TestCrossingEstimate(TransactionTestCase):
         # SP, 9.481223867089488, 59.19144317223039, sp, 2
         # SC 1/1, 9.408413335420015, 59.19427817352367, secret, 1.5
         # TP1, 9.198618292991952, 59.20222672648168, tp, 1.5
-        gatekeeper = GatekeeperRoute(self.contestant, [])
+        gatekeeper = GatekeeperRoute(self.contestant, Queue(), [])
         start_position = Position(
             dateutil.parser.parse("2020-01-01T00:00:00Z"), 59.19144317223039, 9.481523867089488, 0, 70, 270, 0, 0, 0
         )
@@ -163,7 +165,7 @@ class TestCrossingEstimate(TransactionTestCase):
         # SP, 9.481223867089488, 59.19144317223039, sp, 2
         # SC 1/1, 9.408413335420015, 59.19427817352367, secret, 1.5
         # TP1, 9.198618292991952, 59.20222672648168, tp, 1.5
-        gatekeeper = GatekeeperRoute(self.contestant, [])
+        gatekeeper = GatekeeperRoute(self.contestant, Queue(), [])
         # Skip first gate
         gatekeeper.outstanding_gates.pop(0)
         start_position = Position(

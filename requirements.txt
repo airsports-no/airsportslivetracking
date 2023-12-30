@@ -2,7 +2,7 @@ django==5.0
 Pillow==10.1.0
 SimConnect==0.4.26
 celery==5.3.6
-channels[daphne]
+channels[daphne]~=4.0.0
 channels_redis==4.1
 coverage==7.3.4
 crispy-bootstrap4==2023.1
@@ -71,3 +71,4 @@ whitenoise==6.6.0
 django-location-field==2.7.3
 cartopy==0.22.0
 google-cloud-logging==3.9.0
+python-dateutil~=2.8.2

@@ -6,8 +6,8 @@ import gpxpy
 
 from django.test import TransactionTestCase
 
-from display.calculators.calculator_factory import calculator_factory
 from display.calculators.calculator_utilities import load_track_points_traccar_csv
+from display.calculators.contestant_processor import ContestantProcessor
 from display.calculators.positions_and_gates import Gate
 from display.calculators.tests.utilities import load_traccar_track
 from display.utilities.route_building_utilities import (
@@ -32,7 +32,7 @@ from redis_queue import RedisQueue
 
 def calculator_runner(contestant, track):
     q = RedisQueue(contestant.pk)
-    calculator = calculator_factory(contestant, live_processing=False)
+    contestant_processor = ContestantProcessor(contestant, live_processing=False)
     for i in track:
         i["id"] = 0
         i["deviceId"] = ""
@@ -40,7 +40,7 @@ def calculator_runner(contestant, track):
         i["device_time"] = dateutil.parser.parse(i["time"])
         q.append(i)
     q.append(None)
-    calculator.run()
+    contestant_processor.run()
     while not q.empty():
         q.pop()
 
@@ -67,10 +67,10 @@ def load_track_points(filename):
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestFullTrack(TransactionTestCase):
-    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
@@ -230,7 +230,7 @@ class TestFullTrack(TransactionTestCase):
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class Test2017WPFC(TransactionTestCase):
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -288,9 +288,9 @@ class Test2017WPFC(TransactionTestCase):
 
 
 # @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-# @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+# @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 # class TestScoreverride(TransactionTestCase):
-#     @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+#     @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 #     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 #     def setUp(self, *args):
 #         with open("display/calculators/tests/bugs_with_gate_score_overrides.json", "r") as file:
@@ -327,7 +327,7 @@ class Test2017WPFC(TransactionTestCase):
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestNM2019(TransactionTestCase):
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -412,10 +412,10 @@ class TestNM2019(TransactionTestCase):
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-@patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestHamar23March2021(TransactionTestCase):
-    @patch("display.calculators.gatekeeper.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
