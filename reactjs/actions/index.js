@@ -104,7 +104,7 @@ export const toggleDisplayOpenAip = () => (dispatch) => {
 }
 
 export const fetchNavigationTask = (contestId, navigationTaskId, contestantIds) => (dispatch) => {
-    let url = "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/"
+    let url = document.configuration.navigationTaskUrl(contestId, navigationTaskId)
     if (contestantIds.length > 0) {
         url += "?contestantIds=" + contestantIds.join(",")
     }
@@ -124,7 +124,7 @@ export const fetchNavigationTask = (contestId, navigationTaskId, contestantIds) 
 
 export const fetchDisclaimer = () => (dispatch) => {
     $.ajax({
-        url: "/terms_and_conditions/",
+        url: document.configuration.TERMS_AND_CONDITIONS_URL,
         datatype: 'html',
         cache: false,
         success: value => dispatch({type: FETCH_DISCLAIMER_SUCCESSFUL, payload: value}),
@@ -203,7 +203,7 @@ export const toggleProfilePictures = (visible) => (dispatch) => {
 export const fetchContests = () => (dispatch) => {
     dispatch({type: GET_CONTESTS})
     $.ajax({
-        url: "/api/v1/contests/",
+        url: document.configuration.CONTESTS_LIST_URL,
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_CONTESTS_SUCCESSFUL, payload: value}),
@@ -215,7 +215,7 @@ export const fetchContests = () => (dispatch) => {
 export const fetchContestsWithResults = () => (dispatch) => {
     dispatch({type: GET_CONTESTS})
     $.ajax({
-        url: "/api/v1/contests/results/",
+        url: document.configuration.CONTESTS_WITH_RESULTS_LIST_URL,
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_CONTESTS_SUCCESSFUL, payload: value}),
@@ -227,7 +227,7 @@ export const fetchContestsWithResults = () => (dispatch) => {
 export const fetchEditableRoute = (routeId) => (dispatch) => {
     dispatch({type: FETCH_EDITABLE_ROUTE})
     $.ajax({
-        url: "/api/v1/editableroutes/" + routeId + "/",
+        url: document.configuration.editableRouteUrl(routeId),
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: FETCH_EDITABLE_ROUTE_SUCCESSFUL, payload: value}),
@@ -237,7 +237,7 @@ export const fetchEditableRoute = (routeId) => (dispatch) => {
 
 export const fetchOngoingNavigation = () => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contests/ongoing_navigation/",
+        url: document.configuration.CONTESTS_WITH_ONGOING_NAVIGATION_URL,
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_ONGOING_NAVIGATION_SUCCESSFUL, payload: value}),
@@ -248,7 +248,7 @@ export const fetchOngoingNavigation = () => (dispatch) => {
 export const fetchMyParticipatingContests = () => (dispatch) => {
     dispatch({type: FETCH_MY_PARTICIPATING_CONTESTS})
     $.ajax({
-        url: "/api/v1/userprofile/my_participating_contests/",
+        url: document.configuration.MY_PARTICIPATING_CONTESTS_URL,
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: FETCH_MY_PARTICIPATING_CONTESTS_SUCCESSFUL, payload: value}),
@@ -259,7 +259,7 @@ export const fetchMyParticipatingContests = () => (dispatch) => {
 export const fetchInitialTracks = (contestId, navigationTaskId, contestantId) => (dispatch) => {
     dispatch({type: FETCH_INITIAL_TRACKS})
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/navigationtasks/" + navigationTaskId + "/contestants/" + contestantId + "/initial_track_data/",
+        url: document.configuration.contestantInitialTrackDataUrl(contestId, navigationTaskId, contestantId),
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: FETCH_INITIAL_TRACKS_SUCCESS, payload: value, contestantId: contestantId}),

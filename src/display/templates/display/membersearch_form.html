@@ -25,7 +25,8 @@
     {% endif %}
     <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
     This form is only for searching for an existing person. In order to create a new person in the system, click "Create
-    new (co)pilot". "Use existing (co)pilot" will only become available after selecting an existing pilot from the drop down
+    new (co)pilot". "Use existing (co)pilot" will only become available after selecting an existing pilot from the drop
+    down
     list. Any changes to the text after selecting the person will disable the button again, and a new person must be
     selected for it to become available.
 
@@ -69,7 +70,7 @@
                 source: function (request, response) {
                     document.getElementById('use_existing').disabled = true;
                     $.ajax({
-                        url: "/display/contestant/autocomplete/phone/",
+                        url: "{% url 'autocomplete_phone' %}",
                         type: 'post',
                         dataType: "json",
                         data: {
@@ -86,7 +87,7 @@
 
                     // AJAX
                     $.ajax({
-                        url: "/display/contestant/autocomplete/phone/",
+                        url: "{% url 'autocomplete_phone' %}",
                         type: 'post',
                         data: {search: val, request: 2},
                         dataType: 'json',
@@ -101,7 +102,7 @@
                 source: function (request, response) {
                     document.getElementById('use_existing').disabled = true;
                     $.ajax({
-                        url: "/display/contestant/autocomplete/email/",
+                        url: "{% url 'autocomplete_email' %}",
                         type: 'post',
                         dataType: "json",
                         data: {
@@ -118,7 +119,7 @@
 
                     // AJAX
                     $.ajax({
-                        url: "/display/contestant/autocomplete/email/",
+                        url: "{% url 'autocomplete_email' %}",
                         type: 'post',
                         data: {search: val, request: 2},
                         dataType: 'json',
@@ -134,7 +135,7 @@
                 source: function (request, response) {
                     document.getElementById('use_existing').disabled = true;
                     $.ajax({
-                        url: "/display/contestant/autocomplete/firstname/",
+                        url: "{% url 'autocomplete_first_name' %}",
                         type: 'post',
                         dataType: "json",
                         data: {
@@ -151,7 +152,7 @@
 
                     // AJAX
                     $.ajax({
-                        url: "/display/contestant/autocomplete/firstname/",
+                        url: "{% url 'autocomplete_first_name' %}",
                         type: 'post',
                         data: {search: val, request: 2},
                         dataType: 'json',
@@ -167,7 +168,7 @@
                 source: function (request, response) {
                     document.getElementById('use_existing').disabled = true;
                     $.ajax({
-                        url: "/display/contestant/autocomplete/lastname/",
+                        url: "{% url 'autocomplete_last_name' %}",
                         type: 'post',
                         dataType: "json",
                         data: {
@@ -184,7 +185,7 @@
 
                     // AJAX
                     $.ajax({
-                        url: "/display/contestant/autocomplete/lastname/",
+                        url: "{% url 'autocomplete_last_name' %}",
                         type: 'post',
                         data: {search: val, request: 2},
                         dataType: 'json',
@@ -196,7 +197,7 @@
             });
             if (document.getElementById('id_person_id').value) {
                 $.ajax({
-                    url: "/display/contestant/autocomplete/id/",
+                    url: "{% url 'autocomplete_id' %}",
                     type: 'post',
                     data: {search: document.getElementById('id_person_id').value, request: 2},
                     dataType: 'json',

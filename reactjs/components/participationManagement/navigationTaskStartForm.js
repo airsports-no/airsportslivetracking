@@ -58,7 +58,7 @@ class ConnectedSelfRegistrationForm extends Component {
                 }
                 console.log("submit", data);
                 setSubmitting(true);
-                axios.put("/api/v1/contests/" + this.props.participation.contest.id + "/navigationtasks/" + this.props.navigationTask.pk + "/contestant_self_registration/", data).then((res) => {
+                axios.put(document.configuration.navigationTaskContestantSelfRegistration(this.props.participation.contest.id, this.props.navigationTask.pk), data).then((res) => {
                     setStatus("Registration successful")
                     this.handleSuccess()
                 }).catch((e) => {

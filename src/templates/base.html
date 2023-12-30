@@ -29,6 +29,43 @@
     <link rel="stylesheet" href="{% static 'cesium/cesium.css' %}?rnd=40" media="screen">
     <link rel="shortcut icon" type="image/png" href="{% static 'img/airsports_no_text.png' %}">
     <title>AirSports</title>
+    <script>
+        document.configuration = {
+            navigationTaskUrl: (contestId, navigationTaskId) => "{% url 'navigationtasks-detail' 0 1 %}".replace("/0/", '/' + contestId + '/').replace("/1/", '/' + navigationTaskId + '/'),
+            editableRouteUrl: editableRouteId => "{% url 'editableroutes-detail' 0 %}".replace("0", editableRouteId),
+            contestantInitialTrackDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-initial-track-data' 0 1 2 %}".replace("0", contestId).replace("/1/", '/' + navigationTaskId + '/').replace("/2/", '/' + contestantId + '/'),
+            CONTESTS_LIST_URL: "{% url 'contests-list' %}",
+            CONTESTS_WITH_ONGOING_NAVIGATION_URL: "{% url 'contests-ongoing-navigation' %}",
+            CONTESTS_WITH_RESULTS_LIST_URL: "{% url 'contests-results' %}",
+            MY_PARTICIPATING_CONTESTS_URL: "{% url 'userprofile-my-participating-contests' %}",
+            TERMS_AND_CONDITIONS_URL: "{% url 'terms_and_conditions' %}",
+
+            navigationTaskMap: navigationTaskId => "{% url 'frontend_view_map' 0 %}".replace("0", navigationTaskId),
+            contestResultsDetailsUrl: contestId => "{% url 'contests-results-details' 0 %}".replace("0", contestId),
+            contestUpdateContestSummaryUrl: contestId => "{% url 'contests-update-contest-summary' 0 %}".replace("0", contestId),
+            contestUpdateTaskSummaryUrl: contestId => "{% url 'contests-update-task-summary' 0 %}".replace("0", contestId),
+            contestUpdateTestResultUrl: contestId => "{% url 'contests-update-test-result' 0 %}".replace("0", contestId),
+            contestDeleteTeamResultsUrl: contestId => "{% url 'contests-team-results-delete' 0 %}".replace("0", contestId),
+            taskListUrl: contestId => "{% url 'tasks-list' 0 %}".replace("0", contestId),
+            taskDetailUrl: (contestId, taskId) => "{% url 'tasks-detail' 0 1 %}".replace("0", contestId).replace("1/", '/' + taskId + '/'),
+            taskTestListUrl: contestId => "{% url 'tasktests-list' 0 %}".replace("0", contestId),
+            taskTestDetailUrl: (contestId, taskTestId) => "{% url 'tasktests-detail' 0 1 %}".replace("0", contestId).replace("/1/", '/' + taskTestId + '/'),
+
+            CONTEST_FRONT_END: "{% url 'contestsfrontend-list' %}",
+            contestWithdrawUrl: contestId => "{% url 'contests-withdraw' 0 %}".replace("0", contestId),
+            contestSignUpUrl: contestId => "{% url 'contests-signup' 0 %}".replace("0", contestId),
+            navigationTaskContestantSelfRegistration: (contestId, navigationTaskId) => "{% url 'navigationtasks-contestant-self-registration' 0 1 %}".replace("0", contestId).replace("/1/", '/' + navigationTaskId + '/'),
+
+            AIRCRAFT_LIST_URL: "{% url 'aircraft-list' %}",
+            CLUB_LIST_URL: "{% url 'clubs-list' %}",
+
+            contestDetailsViewUrl: contestId => "{% url 'contest_details' 0 %}".replace("0", contestId),
+            GET_PERSONS_FOR_SIGNUP_URL: "{% url 'get_persons_for_signup' %}",
+            EDITABLE_ROUTE_LIST_VIEW_URL: "{% url 'editableroute_list' %}",
+
+
+        }
+    </script>
     {% block document_configuration %}
     {% endblock %}
     {% block head %}

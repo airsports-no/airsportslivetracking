@@ -46,7 +46,7 @@ class ConnectedContestRegistrationForm extends Component {
     }
 
     getPersonOptions(part) {
-        axios.get('/display/person/signuplist/').then((res) => {
+        axios.get(document.configuration.GET_PERSONS_FOR_SIGNUP_URL).then((res) => {
             console.log(res)
             this.setState({
                 personOptions: res.data.map((person) => {
@@ -61,7 +61,7 @@ class ConnectedContestRegistrationForm extends Component {
 
 
     getAircraftOptions(part) {
-        axios.get('/api/v1/aircraft/').then((res) => {
+        axios.get(document.configuration.AIRCRAFT_LIST_URL).then((res) => {
             console.log(res)
             this.setState({
                 aircraftOptions: res.data.map((aircraft) => {
@@ -73,7 +73,7 @@ class ConnectedContestRegistrationForm extends Component {
 
 
     getClubOptions(part) {
-        axios.get('/api/v1/clubs/').then((res) => {
+        axios.get(document.configuration.CLUB_LIST_URL).then((res) => {
             this.setState({
                 clubOptions: res.data.map((club) => {
                     return {id: club.name, label: club.name + " (" + club.country + ")"}
@@ -121,7 +121,7 @@ class ConnectedContestRegistrationForm extends Component {
                 }
                 axios({
                     method: method,
-                    url: "/api/v1/contests/" + this.props.contest.id + "/signup/",
+                    url: document.configuration.contestSignUpUrl(this.props.contest.id),
                     data: data
                 }).then((res) => {
                     console.log("Response")

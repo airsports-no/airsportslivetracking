@@ -113,7 +113,7 @@ class Aircraft {
     }
 
     getNavigationTaskLink(navigation_task_id) {
-        return navigation_task_id ? "/display/task/" + navigation_task_id + "/map/" : null
+        return navigation_task_id ? document.configuration.navigationTaskMap(navigation_task_id) : null
     }
 
     replaceTime(position) {

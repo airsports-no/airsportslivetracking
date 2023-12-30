@@ -5,13 +5,14 @@
 {% block document_configuration %}
     <script>
         document.configuration = {
+            ...document.configuration,
             is_superuser: {{ user.is_superuser|lower }},
             EDITABLE_ROUTES_URL: "{% url 'editableroutes-list' %}",
-            editRoute: routeId => "/routeeditor/0/".replace("0", routeId),
-            createTask: routeId => "{% url 'editableroute_createnavigationtask' 0 %}".replace("0", routeId),
-            copyRoute: routeId => "{% url 'editableroute_copy' 0 %}".replace("0", routeId),
-            permissionList: routeId => "{% url 'editableroute_permissions_list' 0 %}".replace("0", routeId),
-            deleteRoute: routeId => "{% url 'editableroute_delete' 0 %}".replace("0", routeId),
+            editRouteViewUrl: routeId => "/routeeditor/0/".replace("0", routeId), // react router url
+            createTaskViewUrl: routeId => "{% url 'editableroute_createnavigationtask' 0 %}".replace("0", routeId),
+            copyRouteViewUrl: routeId => "{% url 'editableroute_copy' 0 %}".replace("0", routeId),
+            permissionListViewUrl: routeId => "{% url 'editableroute_permissions_list' 0 %}".replace("0", routeId),
+            deleteRouteViewUrl: routeId => "{% url 'editableroute_delete' 0 %}".replace("0", routeId),
 
         }
     </script>

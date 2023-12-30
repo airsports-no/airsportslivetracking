@@ -60,7 +60,7 @@ class ConnectedMyParticipatingEventsList extends Component {
 
     handleWithdrawClick(currentParticipation) {
         this.setState({errorMessage: null})
-        axios.delete("/api/v1/contests/" + currentParticipation.contest.id + "/withdraw/").then((res) => {
+        axios.delete(document.configuration.contestWithdrawUrl(currentParticipation.contest.id)).then((res) => {
             this.props.fetchMyParticipatingContests()
             this.props.navigate("/participation/")
         }).catch((e) => {
@@ -72,7 +72,7 @@ class ConnectedMyParticipatingEventsList extends Component {
 
     handleWithdrawTaskClick(currentParticipation, navigationTask) {
         this.setState({errorMessage: null})
-        axios.delete("/api/v1/contests/" + currentParticipation.contest.id + "/navigationtasks/" + navigationTask.pk + "/contestant_self_registration/").then((res) => {
+        axios.delete(document.configuration.navigationTaskContestantSelfRegistration(currentParticipation.contest.id, navigationTask.pk)).then((res) => {
             this.props.fetchMyParticipatingContests()
             this.props.navigate("/participation/myparticipation/" + currentParticipation.id + "/")
         }).catch((e) => {

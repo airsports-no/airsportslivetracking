@@ -12,7 +12,7 @@ export const EditableRouteList = () => {
         setShowAll(false)
         const dataFetch = async () => {
             const data = await (
-                await fetch("/api/v1/editableroutes/")
+                await fetch(document.configuration.EDITABLE_ROUTES_URL)
             ).json()
             setData(data)
         }
@@ -38,7 +38,7 @@ export const EditableRouteList = () => {
             accessor: "name",
             id: "Route",
             disableSortBy: true,
-            Cell: cellInfo=><a href={document.configuration.editRoute(cellInfo.row.original.id)}>{cellInfo.value}</a>
+            Cell: cellInfo => <a href={document.configuration.editRouteViewUrl(cellInfo.row.original.id)}>{cellInfo.value}</a>
         },
         {
             Header: "Waypoints",
@@ -49,7 +49,7 @@ export const EditableRouteList = () => {
             Header: "Total length",
             accessor: "route_length",
             disableFilters: true,
-            Cell: ({value}) => (value/1852).toFixed(2) + " NM"
+            Cell: ({value}) => (value / 1852).toFixed(2) + " NM"
         },
         {
             Header: "Editors",
@@ -69,10 +69,10 @@ export const EditableRouteList = () => {
             Header: "Actions",
             accessor: (row, index) => {
                 return <span>
-                    <a href={document.configuration.createTask(row.id)}>Create task</a> | <a
-                    href={document.configuration.copyRoute(row.id)}>Copy</a> | <a
-                    href={document.configuration.permissionList(row.id)}>Permissions</a> | <a
-                    href={document.configuration.deleteRoute(row.id)}>Delete</a>
+                    <a href={document.configuration.createTaskViewUrl(row.id)}>Create task</a> | <a
+                    href={document.configuration.copyRouteViewUrl(row.id)}>Copy</a> | <a
+                    href={document.configuration.permissionListViewUrl(row.id)}>Permissions</a> | <a
+                    href={document.configuration.deleteRouteViewUrl(row.id)}>Delete</a>
                 </span>
             },
             disableSortBy: true,

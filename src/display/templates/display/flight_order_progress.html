@@ -64,13 +64,13 @@
         var generating = false
         const contestantPks = {{ contestant_pk }}
 
-            function clearStatus() {
-                for (var key of getSelectedContestants()) {
-                    document.getElementById("generating_" + key).innerHTML = ""
-                    document.getElementById("transmitting_" + key).innerHTML = ""
-                    document.getElementById("errors_" + key).innerHTML = ""
-                }
+        function clearStatus() {
+            for (var key of getSelectedContestants()) {
+                document.getElementById("generating_" + key).innerHTML = ""
+                document.getElementById("transmitting_" + key).innerHTML = ""
+                document.getElementById("errors_" + key).innerHTML = ""
             }
+        }
 
         function disableGenerate() {
             document.getElementById("generate_button").disabled = true
@@ -98,7 +98,7 @@
             clearStatus()
             generating = true
             $.ajax({
-                url: "/display/navigationtask/{{ navigation_task.pk }}/generateflightorders/?contestant_pks=" + getSelectedContestants().join(","),
+                url: "{% url 'navigationtask_generateflightorders' navigation_task.pk %}" + "?contestant_pks=" + getSelectedContestants().join(","),
                 type: 'get',
                 dataType: "json",
                 success: function (data) {
@@ -109,7 +109,7 @@
 
         function broadcastFlightOrders() {
             $.ajax({
-                url: "/display/navigationtask/{{ navigation_task.pk }}/broadcastflightorders/?contestant_pks=" + getSelectedContestants().join(","),
+                url: "{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}" + "?contestant_pks=" + getSelectedContestants().join(","),
                 type: 'get',
                 dataType: "json",
                 success: function (data) {
@@ -119,7 +119,7 @@
         }
 
         function downloadFlightOrders() {
-            location.href = "/display/navigationtask/{{ navigation_task.pk }}/downloadflightorders/?contestant_pks=" + getSelectedContestants().join(",")
+            location.href = "{% url 'navigationtask_downloadflightorders' navigation_task.pk %}" + "?contestant_pks=" + getSelectedContestants().join(",")
         }
 
         function redirect() {
@@ -175,7 +175,7 @@
 
         function getFlightOrderProgress() {
             $.ajax({
-                url: "/display/navigationtask/{{ navigation_task.pk }}/getflightordersstatus/",
+                url: "{% url 'navigationtask_getflightordersstatus' navigation_task.pk %}",
                 type: 'get',
                 dataType: "json",
                 success: function (data) {

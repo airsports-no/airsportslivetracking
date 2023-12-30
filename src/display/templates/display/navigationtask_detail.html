@@ -231,7 +231,7 @@
 
         function checkCalculatorRunning() {
             $.ajax({
-                url: "/display/navigationtask/{{ object.pk }}/runningcalculators/",
+                url: "{% url 'navigationtask_getrunningcalculators' object.pk %}",
                 type: 'get',
                 dataType: "json",
                 success: function (data) {

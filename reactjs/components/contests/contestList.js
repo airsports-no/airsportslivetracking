@@ -12,7 +12,7 @@ export const ContestList = () => {
         setShowAll(false)
         const dataFetch = async () => {
             const data = await (
-                await fetch("/api/v1/contestsfrontend/")
+                await fetch(document.configuration.CONTEST_FRONT_END)
             ).json()
             setData(data)
         }
@@ -23,7 +23,7 @@ export const ContestList = () => {
         {
             Header: "Contest",
             accessor: "name",
-            Cell: cellInfo=><a href={"/display/contest/" + cellInfo.row.original.id + "/"}>{cellInfo.value}</a>, 
+            Cell: cellInfo=><a href={document.configuration.contestDetailsViewUrl(cellInfo.row.original.id)}>{cellInfo.value}</a>,
             disableSortBy: true,
         },
         {

@@ -239,7 +239,7 @@ class ConnectedRouteEditor extends Component {
                 })
             }
         }
-        let method = "post", url = "/api/v1/editableroutes/"
+        let method = "post", url = document.configuration.EDITABLE_ROUTES_URL
         let name = this.state.routeName
         if (this.props.routeId) {
             method = "put"
@@ -687,9 +687,11 @@ class ConnectedRouteEditor extends Component {
                             })}
                         </Form.Control>
                         <Form.Text id={'waypointFormTextId'} muted>The first waypoint must be of the type starting point
-                            and the last waypoint must be of the type finish point. Waypoints in between are typically turning
+                            and the last waypoint must be of the type finish point. Waypoints in between are typically
+                            turning
                             points and secret gates. The gate types "dummy" and "unknown leg" are used to build&nbsp;
-                            <a href={"https://home.airsports.no/tutorials/#Unknown"} target={"_blank"}>precision tasks with unknown legs</a>. They are not to be used with corridor-based
+                            <a href={"https://home.airsports.no/tutorials/#Unknown"} target={"_blank"}>precision tasks
+                                with unknown legs</a>. They are not to be used with corridor-based
                             tasks.</Form.Text>
                         <Form.Label>Gate width (NM):</Form.Label>&nbsp;
                         <Form.Control key={"Width"} placeholder={"Width"}
@@ -950,7 +952,7 @@ class ConnectedRouteEditor extends Component {
                 &nbsp;
                 <button id="routeReturnButton" className={"btn btn-secondary"}
                         onClick={() => {
-                            this.state.globalEditingMode ? (confirm("Are you sure you want to leave without saving?") ? window.location = "/display/editableroute/" : null) : window.location = "/display/editableroute/"
+                            this.state.globalEditingMode ? (confirm("Are you sure you want to leave without saving?") ? window.location = document.configuration.EDITABLE_ROUTE_LIST_VIEW_URL : null) : window.location = document.configuration.EDITABLE_ROUTE_LIST_VIEW_URL
                         }}>Route list
                 </button>
             </div>

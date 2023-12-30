@@ -86,7 +86,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
     }
 
     deleteResultsTableLine(contestId, teamId) {
-        let url = "/api/v1/contests/" + contestId + "/team_results_delete/"
+        let url = document.configuration.contestDeleteTeamResultsUrl(contestId)
         $.ajax({
             url: url,
             datatype: 'json',

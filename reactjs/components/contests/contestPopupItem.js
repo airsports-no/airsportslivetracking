@@ -60,7 +60,7 @@ export default class ContestPopupItem extends Component {
                       className={"badge badge-dark badge-pill"}>{this.props.contest.contest_team_count} </span>
                 <div style={{float: "right"}}><h6>
                     {this.props.contest.is_editor || document.configuration.isSuperuser ?
-                        <a href={"/display/contest/" + this.props.contest.id + "/"}><Icon path={mdiCog}
+                        <a href={document.configuration.contestDetailsViewUrl(this.props.contest.id)}><Icon path={mdiCog}
                                                                                           title={"Manage contest"}
                                                                                           size={1.5}
                                                                                           color={"black"}/></a> : null}

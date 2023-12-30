@@ -36,7 +36,7 @@ export const resultsData = (data, contestId) => (dispatch) => dispatch({
 
 export const fetchContestResults = (contestId) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/results_details/",
+        url: document.configuration.contestResultsDetailsUrl(contestId),
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_CONTEST_RESULTS_SUCCESSFUL, payload: value, contestId: contestId}),
@@ -45,11 +45,11 @@ export const fetchContestResults = (contestId) => (dispatch) => {
 }
 
 export const createOrUpdateTask = (contestId, task) => (dispatch) => {
-    let url = "/api/v1/contests/" + contestId + "/tasks/"
+    let url = document.configuration.taskListUrl(contestId)
     let method = "POST"
     if (task.id !== undefined) {
         method = "PUT"
-        url = "/api/v1/contests/" + contestId + "/tasks/" + task.id + "/"
+        url = document.configuration.taskDetailUrl(contestId, task.id)
     }
     $.ajax({
         url: url,
@@ -67,7 +67,7 @@ export const createOrUpdateTask = (contestId, task) => (dispatch) => {
 
 export const deleteTask = (contestId, taskId) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/tasks/" + taskId + "/",
+        url: document.configuration.taskDetailUrl(contestId, taskId),
         datatype: 'json',
         method: "DELETE",
         cache: false,
@@ -80,11 +80,11 @@ export const deleteTask = (contestId, taskId) => (dispatch) => {
 }
 
 export const createOrUpdateTaskTest = (contestId, taskTest) => (dispatch) => {
-    let url = "/api/v1/contests/" + contestId + "/tasktests/"
+    let url = document.configuration.taskTestListUrl(contestId)
     let method = "POST"
     if (taskTest.id !== undefined) {
         method = "PUT"
-        url = "/api/v1/contests/" + contestId + "/tasktests/" + taskTest.id + "/"
+        url = document.configuration.taskTestDetailUrl(contestId, taskTest.id)
     }
     $.ajax({
         url: url,
@@ -102,7 +102,7 @@ export const createOrUpdateTaskTest = (contestId, taskTest) => (dispatch) => {
 
 export const deleteTaskTest = (contestId, taskTestId) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/tasktests/" + taskTestId + "/",
+        url: document.configuration.taskTestDetailUrl(contestId, taskTestId),
         datatype: 'json',
         method: "DELETE",
         cache: false,
@@ -117,7 +117,7 @@ export const deleteTaskTest = (contestId, taskTestId) => (dispatch) => {
 
 export const putContestSummary = (contestId, teamId, points) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/update_contest_summary/",
+        url: document.configuration.contestUpdateContestSummaryUrl(contestId),
         datatype: 'json',
         method: "PUT",
         data: {contest: contestId, team: teamId, points: points},
@@ -130,7 +130,7 @@ export const putContestSummary = (contestId, teamId, points) => (dispatch) => {
 
 export const putTaskSummary = (contestId, teamId, taskId, points) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/update_task_summary/",
+        url: document.configuration.contestUpdateTaskSummaryUrl(contestId),
         datatype: 'json',
         method: "PUT",
         data: {task: taskId, team: teamId, points: points},
@@ -142,7 +142,7 @@ export const putTaskSummary = (contestId, teamId, taskId, points) => (dispatch) 
 
 export const putTestResult = (contestId, teamId, taskTestId, points) => (dispatch) => {
     $.ajax({
-        url: "/api/v1/contests/" + contestId + "/update_test_result/",
+        url: document.configuration.contestUpdateTestResultUrl(contestId),
         datatype: 'json',
         method: "PUT",
         data: {task_test: taskTestId, team: teamId, points: points},

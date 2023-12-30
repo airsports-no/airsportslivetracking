@@ -35,7 +35,7 @@
             $("#id_name").autocomplete({
                 source: function (request, response) {
                     $.ajax({
-                        url: "/display/club/autocomplete/name/",
+                        url: "{% url 'autocomplete_club' %}",
                         type: 'post',
                         dataType: "json",
                         data: {
@@ -52,7 +52,7 @@
 
                     // AJAX
                     $.ajax({
-                        url: "/display/club/autocomplete/name/",
+                        url: "{% url 'autocomplete_club' %}",
                         type: 'post',
                         data: {search: val, request: 2},
                         dataType: 'json',
@@ -64,7 +64,7 @@
             });
             if (document.getElementById('id_name').value) {
                 $.ajax({
-                    url: "/display/club/autocomplete/name/",
+                    url: "{% url 'autocomplete_club' %}",
                     type: 'post',
                     data: {search: document.getElementById('id_name').value, request: 2},
                     dataType: 'json',

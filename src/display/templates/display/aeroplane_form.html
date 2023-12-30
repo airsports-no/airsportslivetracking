@@ -34,7 +34,7 @@
             $("#id_registration").autocomplete({
                 source: function (request, response) {
                     $.ajax({
-                        url: "/display/aeroplane/autocomplete/registration/",
+                        url: "{% url 'autocomplete_aeroplane' %}",
                         type: 'post',
                         dataType: "json",
                         data: {
@@ -51,7 +51,7 @@
 
                     // AJAX
                     $.ajax({
-                        url: "/display/aeroplane/autocomplete/registration/",
+                        url: "{% url 'autocomplete_aeroplane' %}",
                         type: 'post',
                         data: {search: val, request: 2},
                         dataType: 'json',
@@ -63,7 +63,7 @@
             });
             if (document.getElementById('id_registration').value) {
                 $.ajax({
-                    url: "/display/aeroplane/autocomplete/registration/",
+                    url: "{% url 'autocomplete_aeroplane' %}",
                     type: 'post',
                     data: {search: document.getElementById('id_registration').value, request: 2},
                     dataType: 'json',

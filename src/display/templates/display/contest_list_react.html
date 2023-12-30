@@ -5,6 +5,7 @@
 {% block document_configuration %}
     <script>
         document.configuration = {
+            ...document.configuration,
             is_superuser: {{ user.is_superuser|lower }},
         }
     </script>
