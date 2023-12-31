@@ -22,7 +22,7 @@ class TestAutoCompleteAeroplane(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/aeroplane/autocomplete/registration/", data={
+        result = self.client.post("/display/api/aeroplane/autocomplete/registration/", data={
             "request": 1,
             "search": "reg"
         }, format="json")
@@ -30,7 +30,7 @@ class TestAutoCompleteAeroplane(APITestCase):
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/aeroplane/autocomplete/registration/", data={
+        result = self.client.post("/display/api/aeroplane/autocomplete/registration/", data={
             "request": 1,
             "search": "reg"
         }, format="json")
@@ -38,7 +38,7 @@ class TestAutoCompleteAeroplane(APITestCase):
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/aeroplane/autocomplete/registration/", data={
+        result = self.client.post("/display/api/aeroplane/autocomplete/registration/", data={
             "request": 1,
             "search": "reg",
         }, format="json", **AJAX_HEADER)
@@ -47,7 +47,7 @@ class TestAutoCompleteAeroplane(APITestCase):
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/aeroplane/autocomplete/registration/", data={
+        result = self.client.post("/display/api/aeroplane/autocomplete/registration/", data={
             "request": 2,
             "search": "registration",
         }, format="json", **AJAX_HEADER)
@@ -67,7 +67,7 @@ class TestAutoCompleteClub(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/club/autocomplete/name/", data={
+        result = self.client.post("/display/api/club/autocomplete/name/", data={
             "request": 1,
             "search": "nam"
         }, format="json")
@@ -75,7 +75,7 @@ class TestAutoCompleteClub(APITestCase):
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/club/autocomplete/name/", data={
+        result = self.client.post("/display/api/club/autocomplete/name/", data={
             "request": 1,
             "search": "nam"
         }, format="json")
@@ -83,7 +83,7 @@ class TestAutoCompleteClub(APITestCase):
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/club/autocomplete/name/", data={
+        result = self.client.post("/display/api/club/autocomplete/name/", data={
             "request": 1,
             "search": "nam",
         }, format="json", **AJAX_HEADER)
@@ -92,7 +92,7 @@ class TestAutoCompleteClub(APITestCase):
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/club/autocomplete/name/", data={
+        result = self.client.post("/display/api/club/autocomplete/name/", data={
             "request": 2,
             "search": "name",
         }, format="json", **AJAX_HEADER)
@@ -118,7 +118,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/firstname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
             "request": 1,
             "search": "nam"
         }, format="json")
@@ -126,7 +126,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/firstname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
             "request": 1,
             "search": "first"
         }, format="json")
@@ -134,7 +134,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/firstname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
             "request": 1,
             "search": "first",
         }, format="json", **AJAX_HEADER)
@@ -143,7 +143,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/firstname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
             "request": 1,
             "search": "different",
         }, format="json", **AJAX_HEADER)
@@ -152,7 +152,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/firstname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
             "request": 2,
             "search": self.person.id,
         }, format="json", **AJAX_HEADER)
@@ -177,7 +177,7 @@ class TestAutoCompletePersonLastname(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/lastname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
             "request": 1,
             "search": "nam"
         }, format="json")
@@ -185,7 +185,7 @@ class TestAutoCompletePersonLastname(APITestCase):
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/lastname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
             "request": 1,
             "search": "last"
         }, format="json")
@@ -193,7 +193,7 @@ class TestAutoCompletePersonLastname(APITestCase):
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/lastname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
             "request": 1,
             "search": "last",
         }, format="json", **AJAX_HEADER)
@@ -202,7 +202,7 @@ class TestAutoCompletePersonLastname(APITestCase):
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/lastname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
             "request": 1,
             "search": "different",
         }, format="json", **AJAX_HEADER)
@@ -211,7 +211,7 @@ class TestAutoCompletePersonLastname(APITestCase):
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/lastname/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
             "request": 2,
             "search": self.person.id,
         }, format="json", **AJAX_HEADER)
@@ -236,7 +236,7 @@ class TestAutoCompletePersonPhone(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/phone/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
             "request": 1,
             "search": "123"
         }, format="json")
@@ -244,7 +244,7 @@ class TestAutoCompletePersonPhone(APITestCase):
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/phone/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
             "request": 1,
             "search": "123"
         }, format="json")
@@ -252,7 +252,7 @@ class TestAutoCompletePersonPhone(APITestCase):
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/phone/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
             "request": 1,
             "search": "123",
         }, format="json", **AJAX_HEADER)
@@ -261,7 +261,7 @@ class TestAutoCompletePersonPhone(APITestCase):
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/phone/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
             "request": 1,
             "search": "321",
         }, format="json", **AJAX_HEADER)
@@ -270,7 +270,7 @@ class TestAutoCompletePersonPhone(APITestCase):
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/phone/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
             "request": 2,
             "search": "+471234678",
         }, format="json", **AJAX_HEADER)
@@ -295,7 +295,7 @@ class TestAutoCompletePersonEmail(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/email/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
             "request": 1,
             "search": "mail"
         }, format="json")
@@ -303,7 +303,7 @@ class TestAutoCompletePersonEmail(APITestCase):
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/email/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
             "request": 1,
             "search": "mail"
         }, format="json")
@@ -311,7 +311,7 @@ class TestAutoCompletePersonEmail(APITestCase):
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/email/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
             "request": 1,
             "search": "mail",
         }, format="json", **AJAX_HEADER)
@@ -320,7 +320,7 @@ class TestAutoCompletePersonEmail(APITestCase):
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/email/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
             "request": 1,
             "search": "321",
         }, format="json", **AJAX_HEADER)
@@ -329,7 +329,7 @@ class TestAutoCompletePersonEmail(APITestCase):
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/email/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
             "request": 2,
             "search": "mail@address.com",
         }, format="json", **AJAX_HEADER)
@@ -354,7 +354,7 @@ class TestAutoCompletePersonId(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/id/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
             "request": 1,
             "search": self.person.pk,
         }, format="json")
@@ -362,7 +362,7 @@ class TestAutoCompletePersonId(APITestCase):
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/contestant/autocomplete/id/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
             "request": 1,
             "search": self.person.pk,
         }, format="json")
@@ -370,7 +370,7 @@ class TestAutoCompletePersonId(APITestCase):
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/id/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
             "request": 1,
             "search": self.person.pk,
         }, format="json", **AJAX_HEADER)
@@ -379,7 +379,7 @@ class TestAutoCompletePersonId(APITestCase):
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/id/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
             "request": 1,
             "search": -321,
         }, format="json", **AJAX_HEADER)
@@ -388,7 +388,7 @@ class TestAutoCompletePersonId(APITestCase):
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/contestant/autocomplete/id/", data={
+        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
             "request": 2,
             "search": self.person.pk,
         }, format="json", **AJAX_HEADER)
