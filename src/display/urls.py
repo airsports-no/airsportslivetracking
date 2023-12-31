@@ -86,23 +86,6 @@ from display.views import (
     user_start_request_profile_deletion,
     user_request_profile_deletion,
 )
-from display.views_api import (
-    get_running_calculators,
-    clear_flight_order_generation_cache,
-    generate_navigation_task_orders,
-    broadcast_navigation_task_orders,
-    get_broadcast_navigation_task_orders_status,
-    get_contestant_schedule,
-    auto_complete_person_last_name,
-    get_country_from_location,
-    auto_complete_person_id,
-    auto_complete_person_phone,
-    auto_complete_person_email,
-    auto_complete_person_first_name,
-    auto_complete_aeroplane,
-    auto_complete_club,
-    get_persons_for_signup,
-)
 from display.views_wizards import NewNavigationTaskWizard, RouteToTaskWizard, RegisterTeamWizard
 
 urlpatterns = [
@@ -194,11 +177,6 @@ urlpatterns = [
         navigation_task_gatescore_override_view,
         name="navigationtask_updategatescoreoverride",
     ),
-    path(
-        "navigationtask/<int:pk>/runningcalculators/",
-        get_running_calculators,
-        name="navigationtask_getrunningcalculators",
-    ),
     path("navigationtask/<int:pk>/qr/", tracking_qr_code_view, name="navigationtask_qr"),
     path("navigationtask/<int:pk>/map/", get_navigation_task_map, name="navigationtask_map"),
     path("navigationtask/<int:pk>/rules/", view_navigation_task_rules, name="navigationtask_rules"),
@@ -211,29 +189,9 @@ urlpatterns = [
         name="navigationtask_flightordersprogress",
     ),
     path(
-        "navigationtask/<int:pk>/clearflightordersprogress/",
-        clear_flight_order_generation_cache,
-        name="navigationtask_clearflightordersprogress",
-    ),
-    path(
-        "navigationtask/<int:pk>/generateflightorders/",
-        generate_navigation_task_orders,
-        name="navigationtask_generateflightorders",
-    ),
-    path(
-        "navigationtask/<int:pk>/broadcastflightorders/",
-        broadcast_navigation_task_orders,
-        name="navigationtask_broadcastflightorders",
-    ),
-    path(
         "navigationtask/<int:pk>/downloadflightorders/",
         download_navigation_task_orders,
         name="navigationtask_downloadflightorders",
-    ),
-    path(
-        "navigationtask/<int:pk>/getflightordersstatus/",
-        get_broadcast_navigation_task_orders_status,
-        name="navigationtask_getflightordersstatus",
     ),
     path(
         "navigationtask/<int:pk>/refresheditableroute/",
@@ -252,11 +210,6 @@ urlpatterns = [
         "navigationtask/<int:pk>/contestants_timeline/",
         render_contestants_timeline,
         name="navigationtask_contestantstimeline",
-    ),
-    path(
-        "navigationtask/<int:pk>/contestants_timeline_data/",
-        get_contestant_schedule,
-        name="navigationtask_contestantstimelinedata",
     ),
     path("maplink/<uuid:key>/", get_contestant_email_flight_orders_link, name="email_map_link"),
     path("mapreport/<int:pk>/", get_contestant_email_flying_orders_link, name="email_report_link"),
@@ -294,17 +247,8 @@ urlpatterns = [
         name="contestteamtracking_update",
     ),
     path("contest/<int:contest_pk>/teams/", ContestTeamList.as_view(), name="contest_team_list"),
-    path("getcountrycode/", get_country_from_location, name="getcountrycode"),
-    path("contestant/autocomplete/id/", auto_complete_person_id, name="autocomplete_id"),
-    path("contestant/autocomplete/phone/", auto_complete_person_phone, name="autocomplete_phone"),
-    path("contestant/autocomplete/email/", auto_complete_person_email, name="autocomplete_email"),
-    path("contestant/autocomplete/firstname/", auto_complete_person_first_name, name="autocomplete_first_name"),
-    path("contestant/autocomplete/lastname/", auto_complete_person_last_name, name="autocomplete_last_name"),
-    path("aeroplane/autocomplete/registration/", auto_complete_aeroplane, name="autocomplete_aeroplane"),
-    path("club/autocomplete/name/", auto_complete_club, name="autocomplete_club"),
     path("navigationtaskwizard/<int:contest_pk>/", NewNavigationTaskWizard.as_view(), name="navigationtaskwizard"),
     path("person/<int:pk>/update/", PersonUpdateView.as_view(), name="person_update"),
-    path("person/signuplist/", get_persons_for_signup, name="get_persons_for_signup"),
     path("person/request_deletion/", user_start_request_profile_deletion, name="user_start_request_profile_deletion"),
     path("person/request_deletion_confirm/", user_request_profile_deletion, name="user_request_profile_deletion"),
     path("person/", PersonList.as_view(), name="person_list"),

@@ -21,29 +21,20 @@ from pytz import UTC
 import django
 from django.utils.encoding import smart_str
 
+#### TODO: Revert when django-countries has been updated to fix the issue
+from django_countries.widgets import LazyChoicesMixin
+
+LazyChoicesMixin.get_choices = lambda self: self._choices
+LazyChoicesMixin.choices = property(LazyChoicesMixin.get_choices, LazyChoicesMixin.set_choices)
+#### End monkey patch
+
 django.utils.encoding.smart_text = smart_str
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 ADMINS = [("admin", "test@test.com")]
-# import sentry_sdk
-# from sentry_sdk.integrations.django import DjangoIntegration
-#
-# sentry_sdk.init(
-#     dsn="https://de23c507c2c14ccba388a15e5dbe1df6@o568590.ingest.sentry.io/5713793",
-#     integrations=[DjangoIntegration()],
-#     # Set traces_sample_rate to 1.0 to capture 100%
-#     # of transactions for performance monitoring.
-#     # We recommend adjusting this value in production.
-#     traces_sample_rate=1.0,
-#     # If you wish to associate users to errors (assuming you are using
-#     # django.contrib.auth) you may enable sending PII data.
-#     send_default_pii=True,
-# )
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "a()!xe(&n4@i(hrd=w*xs&v4f^t&7rw4z4(uz&8&2tuy9216j9"
+SECRET_KEY = os.environ.get("SECRET_KEY", "secret")
 
 SERVER_ROOT = "https://gcloud.airsports.no"
 CSRF_TRUSTED_ORIGINS = ["https://*.airsports.no", "http://*.127.0.0.1"]
@@ -85,7 +76,6 @@ REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
 
 PURGE_GLOBAL_MAP_INTERVAL = 60
 LIVE_POSITION_TRANSMITTER_CACHE_RESET_INTERVAL = 300
-
 
 # Application definition
 
