@@ -14,7 +14,6 @@ from display.views import (
     NavigationTaskDeleteView,
     ContestTeamList,
     remove_team_from_contest,
-    TeamUpdateView,
     PersonUpdateView,
     PersonList,
     NavigationTaskUpdateView,
@@ -24,7 +23,7 @@ from display.views import (
     get_contestant_map,
     get_navigation_task_map,
     add_contest_teams_to_navigation_task,
-    clear_future_contestants,
+    clear_contestants,
     render_contestants_timeline,
     ContestDetailView,
     list_contest_permissions,
@@ -33,11 +32,8 @@ from display.views import (
     change_user_contest_permissions,
     contestant_cards_list,
     contestant_card_remove,
-    create_route_test,
-    clear_results_service,
     delete_score_item,
     terminate_contestant_calculator,
-    view_navigation_task_rules,
     frontend_playback_map,
     share_contest,
     share_navigation_task,
@@ -125,7 +121,6 @@ urlpatterns = [
     path("users/contestexample/", ContestCreationEmailExample.as_view(), name="contestcreation_example"),
     path("contest/create/", ContestCreateView.as_view(), name="contest_create"),
     path("contest/<int:pk>/", ContestDetailView.as_view(), name="contest_details"),
-    path("contest/<int:pk>/clear_results/", clear_results_service, name="contest_clear_results"),
     path("contest/<int:pk>/contest_team_images/", view_contest_team_images, name="contest_team_images"),
     path(
         "contest/<int:contest_pk>/remove_image_background/<int:pk>/",
@@ -149,7 +144,6 @@ urlpatterns = [
         delete_user_contest_permissions,
         name="contest_permissions_delete",
     ),
-    path("contest/<int:pk>/create_route/", create_route_test, name="create_route"),
     path("contest/<int:pk>/delete/", ContestDeleteView.as_view(), name="contest_delete"),
     path("contest/<int:pk>/update/", ContestUpdateView.as_view(), name="contest_update"),
     path("contest/<int:pk>/share/", share_contest, name="contest_share"),
@@ -179,7 +173,6 @@ urlpatterns = [
     ),
     path("navigationtask/<int:pk>/qr/", tracking_qr_code_view, name="navigationtask_qr"),
     path("navigationtask/<int:pk>/map/", get_navigation_task_map, name="navigationtask_map"),
-    path("navigationtask/<int:pk>/rules/", view_navigation_task_rules, name="navigationtask_rules"),
     path("navigationtask/<int:pk>/update/", NavigationTaskUpdateView.as_view(), name="navigationtask_update"),
     path("navigationtask/<int:pk>/delete/", NavigationTaskDeleteView.as_view(), name="navigationtask_delete"),
     path("navigationtask/<int:pk>/share/", share_navigation_task, name="navigationtask_share"),
@@ -204,7 +197,7 @@ urlpatterns = [
         name="navigationtask_addcontestants",
     ),
     path(
-        "navigationtask/<int:pk>/remove_contestants/", clear_future_contestants, name="navigationtask_removecontestants"
+        "navigationtask/<int:pk>/remove_contestants/", clear_contestants, name="navigationtask_removecontestants"
     ),
     path(
         "navigationtask/<int:pk>/contestants_timeline/",
@@ -240,7 +233,6 @@ urlpatterns = [
     path("contest/<int:contest_pk>/team/<int:team_pk>/wizardupdate/", RegisterTeamWizard.as_view(), name="team_wizard"),
     path("contest/<int:contest_pk>/team/<int:team_pk>/remove/", remove_team_from_contest, name="remove_team"),
     path("contest/<int:contest_pk>/team/create/", RegisterTeamWizard.as_view(), name="create_team"),
-    path("contest/<int:contest_pk>/team/<int:pk>/update", TeamUpdateView.as_view(), name="team_update"),
     path(
         "contest/<int:contest_pk>/contestteamtracking/<int:pk>/update",
         ContestTeamTrackingUpdate.as_view(),

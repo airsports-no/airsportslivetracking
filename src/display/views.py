@@ -129,10 +129,16 @@ logger = logging.getLogger(__name__)
 
 
 def healthz(request):
+    """
+    Probe used by kubernetes
+    """
     return HttpResponse(status=status.HTTP_200_OK)
 
 
 def readyz(request):
+    """
+    Probe used by kubernetes
+    """
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
@@ -142,30 +148,50 @@ def readyz(request):
 
 
 class ContestantTimeZoneMixin:
+    """
+    Mixin to ensure that the session time zone is always set to the correct one for the contest
+    """
+
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         timezone.activate(self.get_object().navigation_task.contest.time_zone)
 
 
 class NavigationTaskTimeZoneMixin:
+    """
+    Mixin to ensure that the session time zone is always set to the correct one for the contest
+    """
+
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         timezone.activate(self.get_object().contest.time_zone)
 
 
 class ContestTimeZoneMixin:
+    """
+    Mixin to ensure that the session time zone is always set to the correct one for the contest
+    """
+
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         timezone.activate(self.get_object().time_zone)
 
 
 class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """
+    Mixin to ensure that the view is only available to superusers.
+    """
+
     def test_func(self):
         return self.request.user.is_superuser
 
 
 @user_passes_test(lambda u: u.is_superuser)
 def get_contest_creators_emails(request):
+    """
+    List the e-mail address of all users in the system, with a separate section for users with content creation
+    privileges.
+    """
     users_with_creation_privileges = get_user_model().objects.filter(groups__name="ContestCreator")
     all_users = get_user_model().objects.all()
     return render(
@@ -179,6 +205,9 @@ def get_contest_creators_emails(request):
 
 
 def frontend_view_map(request, pk):
+    """
+    Render the navigation task tracking map frontend in live mode.
+    """
     my_contests = get_objects_for_user(request.user, "display.view_contest", accept_global_perms=False)
     public_contests = Contest.objects.filter(is_public=True)
     try:
@@ -210,6 +239,9 @@ def frontend_view_map(request, pk):
 
 
 def frontend_playback_map(request, pk):
+    """
+    Render the navigation task tracking map frontend in playback mode.
+    """
     my_contests = get_objects_for_user(request.user, "display.view_contest", accept_global_perms=False)
     public_contests = Contest.objects.filter(is_public=True)
     try:
@@ -241,6 +273,9 @@ def frontend_playback_map(request, pk):
 
 
 def global_map(request):
+    """
+    Render the global map react application
+    """
     visited = request.session.get("visited", False)
     request.session["visited"] = True
     return render(
@@ -270,6 +305,7 @@ def manifest(request):
 
 def user_start_request_profile_deletion(request):
     """
+    User accessible page to request profile deletion.
     We must provide this link to Google so that it can be included in the play store listing.
     """
     return render(request, "display/request_profile_deletion.html")
@@ -277,6 +313,10 @@ def user_start_request_profile_deletion(request):
 
 @login_required
 def user_request_profile_deletion(request):
+    """
+    Send an e-mail to support@airsports.no with the request for a profile deletion. There is a separate superuser view
+    to delete a user profile (person object).
+    """
     try:
         send_mail(
             f"User requested profile deletion",
@@ -330,6 +370,9 @@ def delete_user_and_person(request):
 
 
 def tracking_qr_code_view(request, pk):
+    """
+    Renderer page that displays a QR code that links to the live tracking map
+    """
     url = reverse("frontend_view_map", kwargs={"pk": pk})
     return render(
         request,
@@ -341,14 +384,11 @@ def tracking_qr_code_view(request, pk):
     )
 
 
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def create_route_test(request, pk):
-    form = RouteCreationForm()
-    return render(request, "display/route_creation_form.html", {"form": form})
-
-
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def contestant_card_remove(request, pk, card_pk):
+    """
+    Remove a poker card for a contestants. Return a view with the list of current cards.
+    """
     contestant = get_object_or_404(Contestant, pk=pk)
     PlayingCard.remove_contestant_card(contestant, card_pk)
     return redirect(reverse("contestant_cards_list", kwargs={"pk": contestant.pk}))
@@ -356,6 +396,9 @@ def contestant_card_remove(request, pk, card_pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def contestant_cards_list(request, pk):
+    """
+    Render a view with the list of the current poker cards that belong to a contestant
+    """
     contestant = get_object_or_404(Contestant, pk=pk)
     waypoint_names = [waypoint.name for waypoint in contestant.navigation_task.route.waypoints]
 
@@ -404,6 +447,9 @@ def contestant_cards_list(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def share_contest(request, pk):
+    """
+    Render a form and handle POST to change the sharing settings for the contest.
+    """
     contest = get_object_or_404(Contest, pk=pk)
     if request.method == "POST":
         form = ShareForm(request.POST)
@@ -427,6 +473,9 @@ def share_contest(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def share_navigation_task(request, pk):
+    """
+    Render a form and handle POST to change the sharing settings for the navigation task.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if request.method == "POST":
         form = ShareForm(request.POST)
@@ -452,10 +501,12 @@ def share_navigation_task(request, pk):
     )
 
 
-# @guardian_permission_required('display.change_contest', (Contest, "navigationtask__contestant__pk", "pk"))
-# def view_cards(request, pk):
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def refresh_editable_route_navigation_task(request, pk):
+    """
+    Update the navigation task Route with any changes made to the linked editable route. Return the navigation task
+    details page
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     try:
         navigation_task.refresh_editable_route()
@@ -467,6 +518,10 @@ def refresh_editable_route_navigation_task(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def view_contest_team_images(request, pk):
+    """
+    View a list of all profile images used by team members associated with the contest.This view can be used to review
+    the images and click a link to remove the background using the remove.bg service.
+    """
     contest = get_object_or_404(Contest, pk=pk)
     return render(
         request,
@@ -484,7 +539,11 @@ def view_contest_team_images(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
 def clear_profile_image_background(request, contest_pk, pk):
-    contest = get_object_or_404(Contest, pk=contest_pk)
+    """
+    Calls the external remove.bg service to remove the background for the profile image for the person. Redirects to
+    the contest team image page.
+    """
+    contest = get_object_or_404(Contest, pk=contest_pk)  # Required for permission check, I think
     person = get_object_or_404(Person, pk=pk)
     result = person.remove_profile_picture_background()
     if result is not None:
@@ -496,7 +555,10 @@ def clear_profile_image_background(request, contest_pk, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
 def upload_profile_picture(request, contest_pk, pk):
-    contest = get_object_or_404(Contest, pk=contest_pk)
+    """
+    Renders form and handles POST request to upload profile image
+    """
+    contest = get_object_or_404(Contest, pk=contest_pk)  # Required for permission check, I think
     person = get_object_or_404(Person, pk=pk)
     if request.method == "POST":
         form = PersonPictureForm(request.POST, request.FILES, instance=person)
@@ -513,6 +575,9 @@ def upload_profile_picture(request, contest_pk, pk):
 
 @permission_required("display.change_contest")
 def import_route(request):
+    """
+    Provides a form for uploading a file with a route definition. Imports the file and creates an editable route if able.
+    """
     if request.method == "POST":
         form = ImportRouteForm(request.POST, request.FILES)
         if form.is_valid():
@@ -548,6 +613,10 @@ def import_route(request):
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_map(request, pk):
+    """
+    Generates the navigation map for specific contestants with optional annotation. My generation is controlled through
+    a form, and the resulting file is downloaded as a PDF.
+    """
     contestant = get_object_or_404(Contestant, pk=pk)
     if request.method == "POST":
         form = ContestantMapForm(request.POST)
@@ -618,6 +687,9 @@ def get_contestant_map(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def update_flight_order_configurations(request, pk):
+    """
+    Renders a form and handles POST for updating the flight order configuration of a navigation task.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     configuration = get_object_or_404(FlightOrderConfiguration, navigation_task__pk=pk)
     if request.method == "POST":
@@ -647,6 +719,9 @@ def update_flight_order_configurations(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_processing_statistics(request, pk):
+    """
+    Renders an image that is a chart of contestant processing statistics.
+    """
     contestant = get_object_or_404(Contestant, pk=pk)
     figure = contestant.generate_processing_statistics()
     response = HttpResponse(figure, content_type="image/png")
@@ -689,14 +764,20 @@ def get_contestant_default_map(request, pk):
 
 
 def get_contestant_email_flight_orders_link(request, key):
+    """
+    Offers the client ordered PDF file identified by key for download. This is used as part of the flight order
+    notification email.
+    """
     map_link = get_object_or_404(EmailMapLink, id=key)
-    # orders = generate_flight_orders(map_link.contestant)
     response = HttpResponse(map_link.orders, content_type="application/pdf")
     response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
     return response
 
 
 def get_contestant_email_flying_orders_link(request, pk):
+    """
+    View to synchronously generate refined orders for contestant and download the PDF file. Mostly used for testing.
+    """
     contestant = get_object_or_404(Contestant, id=pk)
     report = generate_flight_orders_latex(contestant)
     response = HttpResponse(bytes(report), content_type="application/pdf")
@@ -706,6 +787,10 @@ def get_contestant_email_flying_orders_link(request, pk):
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def generatenavigation_task_orders_template(request, pk):
+    """
+    Render the template where the user can control flight order generation for the contestants of a navigation task.
+    Allows for a preselected set of contestants that will be initially marked as "checked" in the selection form.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     single_contestant_pk = request.GET.get("contestant_pk")
     selected_contestants = navigation_task.contestant_set.filter(
@@ -724,7 +809,10 @@ def generatenavigation_task_orders_template(request, pk):
     )
 
 
-def get_navigation_task_orders_status_object(pk) -> Dict:
+def get_navigation_task_orders_status_object(pk: int) -> Dict:
+    """
+    Helper function to generate the flight order generation status dictionary for a navigation task.
+    """
     return {
         "completed_flight_orders_map": cache.get(f"completed_flight_orders_map_{pk}"),
         "transmitted_flight_orders_map": cache.get(f"transmitted_flight_orders_map_{pk}"),
@@ -735,6 +823,10 @@ def get_navigation_task_orders_status_object(pk) -> Dict:
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def download_navigation_task_orders(request, pk):
+    """
+    Download the selected flight orders for the navigation task. If a single  contestant is selected the flight order
+    is downloaded as PDF. If multiple contestants are selected the flight orders are compressed in a zip file.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestant_pks = request.GET.get("contestant_pks")
     if not contestant_pks or len(contestant_pks) == 0:
@@ -763,16 +855,12 @@ def download_navigation_task_orders(request, pk):
     return redirect("navigationtask_flightordersprogress", pk=pk)
 
 
-# @guardian_permission_required(
-#     "display.view_contest", (Contest, "navigationtask__pk", "pk")
-# )
-# def get_broadcast_navigation_task_orders_status_template(request, pk):
-#     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-#     return render(request, "display/broadcast_flight_order_progress.html", {"navigation_task": navigation_task})
-
-
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_navigation_task_map(request, pk):
+    """
+    Render a form and handle POST for generating the navigation task map pdf. This is a generic map For the navigation
+    task and cannot contain contestants specific annotations.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if request.method == "POST":
         form = MapForm(request.POST)
@@ -839,7 +927,7 @@ def get_navigation_task_map(request, pk):
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def upload_gpx_track_for_contesant(request, pk):
     """
-    Consumes a FC GPX file that contains the GPS track of a contestant.
+    Consumes a GPX file that contains the GPS track of a contestant.
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
@@ -882,7 +970,7 @@ def upload_gpx_track_for_contesant(request, pk):
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def download_gpx_track_contestant(request, pk):
     """
-    Produces a GPX file from whatever is recorded
+    Produces a GPX file from whatever is recorded and offers for download.
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     recorded_track = contestant.get_track()
@@ -909,7 +997,8 @@ def download_gpx_track_contestant(request, pk):
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def revert_uploaded_gpx_track_for_contestant(request, pk):
     """
-    Revert to traccar track
+    Revert to traccar track. Resets track and score and triggers recalculation based of any track that is available
+    in traccar.
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
@@ -935,6 +1024,9 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
 #### Editable route permission management
 @guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
 def list_editableroute_permissions(request, pk):
+    """
+    View to display all users and their permissions related to a specific EditableRoute
+    """
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     users_and_permissions = get_users_with_perms(editableroute, attach_perms=True)
     users = []
@@ -954,6 +1046,9 @@ def list_editableroute_permissions(request, pk):
 
 @guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
 def delete_user_editableroute_permissions(request, pk, user_pk):
+    """
+    Delete all permissions a user has for an editable route
+    """
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
     permissions = ["change_editableroute", "view_editableroute", "delete_editableroute"]
@@ -964,6 +1059,9 @@ def delete_user_editableroute_permissions(request, pk, user_pk):
 
 @guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
 def change_user_editableroute_permissions(request, pk, user_pk):
+    """
+    Change permissions a user has for an editable route
+    """
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
     if request.method == "POST":
@@ -986,6 +1084,9 @@ def change_user_editableroute_permissions(request, pk, user_pk):
 
 @guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
 def add_user_editableroute_permissions(request, pk):
+    """
+    Add permissions for an editable route to a user
+    """
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     if request.method == "POST":
         form = AddEditableRoutePermissionsForm(request.POST)
@@ -1015,6 +1116,9 @@ def add_user_editableroute_permissions(request, pk):
 #### Contest permission management
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def list_contest_permissions(request, pk):
+    """
+    View to display all users and their permissions related to a specific Contest
+    """
     contest = get_object_or_404(Contest, pk=pk)
     users_and_permissions = get_users_with_perms(contest, attach_perms=True)
     users = []
@@ -1034,6 +1138,9 @@ def list_contest_permissions(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def delete_user_contest_permissions(request, pk, user_pk):
+    """
+    Delete all permissions a user has for a Contest
+    """
     contest = get_object_or_404(Contest, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
     permissions = ["change_contest", "view_contest", "delete_contest"]
@@ -1044,6 +1151,9 @@ def delete_user_contest_permissions(request, pk, user_pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def change_user_contest_permissions(request, pk, user_pk):
+    """
+    Change permissions a user has for a Contest
+    """
     contest = get_object_or_404(Contest, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
     if request.method == "POST":
@@ -1064,6 +1174,9 @@ def change_user_contest_permissions(request, pk, user_pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def add_user_contest_permissions(request, pk):
+    """
+    Add permissions for a Contest to a user
+    """
     contest = get_object_or_404(Contest, pk=pk)
     if request.method == "POST":
         form = AddContestPermissionsForm(request.POST)
@@ -1088,20 +1201,22 @@ def add_user_contest_permissions(request, pk):
 ###### Contest permission management ends
 
 
-class ContestList(PermissionRequiredMixin, ListView):
+class ContestList(PermissionRequiredMixin, TemplateView):
+    """
+    Render the react contest list view
+    """
+
     model = Contest
     permission_required = ("display.view_contest",)
-    # todo: Temporary change to try the react version
     template_name = "display/contest_list_react.html"
-
-    def get_queryset(self):
-        # Important not to accept global permissions, otherwise any content creator can view everything
-        objects = get_objects_for_user(self.request.user, "display.view_contest", accept_global_perms=False)
-        return objects
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def terminate_contestant_calculator(request, pk):
+    """
+    Request termination of contestant calculator. The request blocks until termination has completed. Redirects to the
+    navigation task detail page.
+    """
     contestant = get_object_or_404(Contestant, pk=pk)
 
     try:
@@ -1114,6 +1229,10 @@ def terminate_contestant_calculator(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def restart_contestant_calculator(request, pk):
+    """
+    Terminates contesting calculator, resets the score, and cancels termination. This should trigger the calculator to
+    restart on the next received position. Redirects to the navigation task detail page.
+    """
     contestant = get_object_or_404(Contestant, pk=pk)
     contestant.blocking_request_calculator_termination()
     messages.success(
@@ -1125,23 +1244,11 @@ def restart_contestant_calculator(request, pk):
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
 
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
-def view_navigation_task_rules(request, pk):
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    timezone.activate(navigation_task.contest.time_zone)
-    return render(request, "display/navigationtask_rules.html", {"object": navigation_task})
-
-
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def clear_results_service(request, pk):
-    contest = get_object_or_404(Contest, pk=pk)
-    contest.task_set.all().delete()
-    contest.contestsummary_set.all().delete()
-    messages.success(request, "Successfully cleared contest results from results service")
-    return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": pk}))
-
-
 class ContestCreateView(PermissionRequiredMixin, CreateView):
+    """
+    View to create a new contest
+    """
+
     model = Contest
     permission_required = ("display.add_contest",)
     form_class = ContestForm
@@ -1228,6 +1335,9 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     (Contest, "navigationtask__contestant__scorelogentry__pk", "pk"),
 )
 def delete_score_item(request, pk):
+    """
+    Delete a specific score log entry. Pushes updates to the front end
+    """
     entry = get_object_or_404(ScoreLogEntry, pk=pk)
     contestant = entry.contestant
     contestant.contestanttrack.update_score(contestant.contestanttrack.score - entry.points)
@@ -1241,6 +1351,11 @@ def delete_score_item(request, pk):
 
 
 class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
+    """
+    View that displays the planned (and actual if available) gate times for a user. It also includes any score logs that have been generated, with
+    a link to delete that item.
+    """
+
     model = Contestant
     permission_required = ("display.view_contest",)
     template_name = "display/contestant_gate_times.html"
@@ -1352,6 +1467,9 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def render_contestants_timeline(request, pk):
+    """
+    Renders a vis.js timeline of the contestants start and finish times.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     timezone.activate(navigation_task.contest.time_zone)
     return render(
@@ -1362,7 +1480,10 @@ def render_contestants_timeline(request, pk):
 
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
-def clear_future_contestants(request, pk):
+def clear_contestants(request, pk):
+    """
+    Deletes all contestants from the navigation task and redirects to the navigation task detail page.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     now = datetime.datetime.now(datetime.timezone.utc)
     candidates = navigation_task.contestant_set.all()  # filter(takeoff_time__gte=now + datetime.timedelta(minutes=15))
@@ -1428,6 +1549,9 @@ def add_contest_teams_to_navigation_task(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def navigation_task_restore_original_scorecard_view(request, pk):
+    """
+    Delete the scorecard copy assigned to the navigation task and replace with a new copy of the original scorecard.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     navigation_task.assign_scorecard_from_original(force=True)
     messages.success(request, "Original scorecard values have been restored")
@@ -1436,6 +1560,9 @@ def navigation_task_restore_original_scorecard_view(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def navigation_task_scorecard_override_view(request, pk):
+    """
+    Renders form to update the values of the scorecard copy for navigation task.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     form = ScorecardForm(instance=navigation_task.scorecard)
     if request.method == "POST":
@@ -1454,6 +1581,9 @@ def navigation_task_scorecard_override_view(request, pk):
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def navigation_task_gatescore_override_view(request, pk, gate_score_pk):
+    """
+    Renders form to update the values of a gate score copy for the navigation task.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     gate_score = get_object_or_404(GateScore, pk=gate_score_pk)
     form = GateScoreForm(instance=gate_score)
@@ -1491,6 +1621,9 @@ def _extract_values_from_form(form: ModelForm) -> List:
 
 
 def navigation_task_view_detailed_score(request, pk):
+    """
+    Render scorecard overview page that shows scorecard values and gate score values with options to modify them.
+    """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     scorecard_form = ScorecardForm(instance=navigation_task.scorecard)
     content = _extract_values_from_form(scorecard_form)
@@ -1530,6 +1663,10 @@ def navigation_task_view_detailed_score(request, pk):
 
 
 class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
+    """
+    Update the tracking method for a team registered in a contest
+    """
+
     permission_required = ("display.change_contest",)
 
     def get_permission_object(self):
@@ -1538,20 +1675,6 @@ class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
 
     model = ContestTeam
     form_class = TrackingDataForm
-
-    def get_success_url(self):
-        return reverse_lazy("contest_team_list", kwargs={"contest_pk": self.kwargs["contest_pk"]})
-
-
-class TeamUpdateView(GuardianPermissionRequiredMixin, UpdateView):
-    permission_required = ("display.change_contest",)
-
-    def get_permission_object(self):
-        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
-        return contest
-
-    model = Team
-    form_class = TeamForm
 
     def get_success_url(self):
         return reverse_lazy("contest_team_list", kwargs={"contest_pk": self.kwargs["contest_pk"]})
@@ -1571,6 +1694,10 @@ class PersonUpdateView(SuperuserRequiredMixin, UpdateView):
 
 
 class StatisticsView(SuperuserRequiredMixin, TemplateView):
+    """
+    Displays a list of statistics for contestants and competitions registered in the system.
+    """
+
     template_name = "display/statistics.html"
 
     def get_context_data(self, **kwargs):
@@ -1614,6 +1741,10 @@ class StatisticsView(SuperuserRequiredMixin, TemplateView):
 
 
 class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
+    """
+    Display the list of teams that are registered to the contest.
+    """
+
     model = ContestTeam
     permission_required = ("display.view_contest",)
 
@@ -1633,22 +1764,19 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
         return context
 
 
-class EditableRouteList(GuardianPermissionRequiredMixin, ListView):
-    model = EditableRoute
-    permission_required = ("display.view_editableroute",)
-    # todo: Temporary change to test react view
-    template_name = "display/editableroute_list_react.html"
+class EditableRouteList(GuardianPermissionRequiredMixin, TemplateView):
+    """
+    Render the react view to list editable routes
+    """
 
-    def get_queryset(self):
-        return get_objects_for_user(
-            self.request.user,
-            "display.view_editableroute",
-            klass=self.queryset,
-            accept_global_perms=False,
-        )
+    permission_required = ("display.view_editableroute",)
+    template_name = "display/editableroute_list_react.html"
 
 
 class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):
+    """
+    Delete an editable route
+    """
     model = EditableRoute
     permission_required = ("display.delete_editableroute",)
     template_name = "model_delete.html"
@@ -1660,6 +1788,9 @@ class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):
 
 @guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
 def copy_editable_route(request, pk):
+    """
+    Creates a copy of the editable route
+    """
     editable_route = get_object_or_404(EditableRoute, pk=pk)
     editable_route.pk = None
     editable_route.id = None
@@ -1689,10 +1820,16 @@ def renew_token(request):
 
 @permission_required("display.view_contest")
 def view_token(request):
+    """
+    Display the DRF authentication token so the user can copy it into an external application.
+    """
     return render(request, "token.html")
 
 
 class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
+    """
+    Upload a new user uploaded map mbtiles file.
+    """
     model = UserUploadedMap
     permission_required = ("display.add_contest",)
     form_class = UserUploadedMapForm
@@ -1886,18 +2023,27 @@ def add_user_useruploadedmap_permissions(request, pk):
 
 
 class WelcomeEmailExample(SuperuserRequiredMixin, View):
+    """
+    The welcome e-mail is generated based on text written in wordpress. This renders an example email.
+    """
     def get(self, request, *args, **kwargs):
         person = get_object_or_404(Person, email=request.user.email)
         return HttpResponse(render_welcome_email(person))
 
 
 class ContestCreationEmailExample(SuperuserRequiredMixin, View):
+    """
+    The contest creation e-mail is generated based on text written in wordpress. This renders an example email.
+    """
     def get(self, request, *args, **kwargs):
         person = get_object_or_404(Person, email=request.user.email)
         return HttpResponse(render_contest_creation_email(person))
 
 
 def firebase_token_login(request):
+    """
+    Manual view for authenticating with firebase. Not sure if this is in use.
+    """
     from drf_firebase_auth.authentication import FirebaseAuthentication
 
     token = request.GET.get("token")

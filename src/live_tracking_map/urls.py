@@ -49,7 +49,7 @@ urlpatterns = [
     path("accounts/token/", view_token, name="token"),
     path("accounts/password_change/done/", RedirectView.as_view(url="/", permanent=False)),
     path("accounts/", include("django.contrib.auth.urls")),
-    path("firebase_login/", firebase_token_login),
+    path("firebase_login/", firebase_token_login),  # Required?
     path("docs/", docs.with_ui()),
     path("api/v1/", include(api.urlpatters)),
     re_path(r"^.?", global_map, name="globalmap"),
