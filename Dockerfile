@@ -75,9 +75,6 @@ COPY --chown=django:django data /data
 
 RUN mkdir /logs
 RUN chown django /logs
-# Need to download new version for Ubuntu 20.04
-#COPY scip /scip
-#RUN apt install /scip/SCIPOptSuite-7.0.2-Linux-ubuntu.deb
 WORKDIR /src
 
 ###### LABEL THE CURRENT IMAGE ######

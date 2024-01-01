@@ -1,0 +1,48 @@
+# Old cluster
+az aks get-credentials --name airsports --resource-group airsports_group
+kubectl exec -it my-test5-mysql-0 -- bash
+mysqldump -u root -p tracker > /bitnami/mysql/tracker.dbdump.sql
+mysqldump -u root -p traccar > /bitnami/mysql/traccar.dbdump.sql
+tar zcvf dump.tar.gz traccar.dbdump.sql tracker.dbdump.sql
+kubectl cp my-test5-mysql-0:/bitnami/mysql/dump.tar.gz dump.tar.gz
+
+# New cluster
+az aks get-credentials --name airsports2 --resource-group airsports_group
+kubectl cp dump.tar.gz airsportsrelease-mysql-0:/bitnami/mysql/dump.tar.gz -n airsports
+kubectl exec -it airsportsrelease-mysql-0 -n airsports -- bash
+tar zxvf dump.tar.gz
+mysql -u root -p
+drop database tracker;
+drop database traccar;
+create database tracker;
+create database traccar;
+mysql -u root -p tracker < /bitnami/mysql/tracker.dbdump.sql
+mysql -u root -p traccar < /bitnami/mysql/traccar.dbdump.sql
+
+# Create public IP ingress
+az aks show --resource-group airsports_group --name airsports --query nodeResourceGroup -o tsv
+az network public-ip create --resource-group MC_airsports_group_airsports2_northeurope --name airsports_public --sku Standard --allocation-method static --query publicIp.ipAddress -o tsv
+
+
+# Global map link in header
+    <div class="navbar-form navbar-right">
+		<a class="btn btn-primary" href="https://airsports.no">GLOBAL MAP</a>
+    </div>
+
+# Production WordPress chart version
+helm install wordpress bitnami/wordpress -f wordpress/private-values.yaml --namespace wordpress --version 13.0.11
+
+# temp mysql client
+kubectl run mysql-client --image=mysql:5.7 -it --rm --restart=Never -- /bin/bash
+
+mysql -h 10.95.241.3 -p
+
+GRANT ALL PRIVILEGES ON traccar.* To 'traccar'@'%';
+GRANT ALL PRIVILEGES ON tracker.* To 'tracker'@'%';
+GRANT ALL PRIVILEGES ON bitnami_wordpress.* To 'bn_wordpress'@'%';
+
+mysql -ptraccar
+drop database tracker;
+CREATE DATABASE IF NOT EXISTS tracker;
+GRANT ALL PRIVILEGES ON *.* To 'tracker'@'%';
+FLUSH PRIVILEGES;
