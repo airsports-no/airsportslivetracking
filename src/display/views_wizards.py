@@ -52,25 +52,37 @@ from display.utilities.navigation_task_type_definitions import (
 from live_tracking_map import settings
 
 
-def show_precision_path(wizard):
+def show_precision_path(wizard) -> bool:
+    """
+    Returns true if the selected task type requires precision task input.
+    """
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
         PRECISION,
         POKER,
     )
 
 
-def show_anr_path(wizard):
+def show_anr_path(wizard) -> bool:
+    """
+    Returns true if the selected task type requires ANR task input
+    """
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (ANR_CORRIDOR,)
 
 
-def show_airsports_path(wizard):
+def show_airsports_path(wizard) -> bool:
+    """
+    Returns true if the selected task type requires airsports task input
+    """
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
         AIRSPORTS,
         AIRSPORT_CHALLENGE,
     )
 
 
-def show_landing_path(wizard):
+def show_landing_path(wizard) -> bool:
+    """
+    Returns true if the selected task type requires landing task input
+    """
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (LANDING,)
 
 
@@ -110,6 +122,11 @@ class SessionWizardOverrideView(SessionWizardView):
 
 
 class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideView):
+    """
+    Implements the wizard view for creating a new navigation task. Guides the user through selecting task type, route
+    type, and entering the navigation task details.
+    """
+
     permission_required = ("display.change_contest",)
 
     def setup(self, request, *args, **kwargs):
@@ -148,6 +165,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         return [self.templates[self.steps.current]]
 
     def render_done(self, form, **kwargs):
+        """
+        If the final rendering fails, render the failed form with failure information.
+        """
         try:
             return super().render_done(form, **kwargs)
         except ValidationError as e:
@@ -157,6 +177,9 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             return self.render_revalidation_failure("task_type", self.get_form_instance("task_type"), **kwargs)
 
     def create_route(self, scorecard: Scorecard) -> tuple[Route, Optional[EditableRoute]]:
+        """
+        Helper function to create the Route instance.
+        """
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
         editable_route = None
         route = None
@@ -187,6 +210,10 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         return route, editable_route
 
     def done(self, form_list, **kwargs):
+        """
+        The final step of the wizard. Create the Route and navigation task and redirect to the navigation task detail
+        view.
+        """
         scorecard = self.get_cleaned_data_for_step("task_content")["original_scorecard"]
         route, ediable_route = self.create_route(scorecard)
         final_data = self.get_cleaned_data_for_step("task_content")
@@ -199,8 +226,12 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
     def get_context_data(self, form, **kwargs):
+        """
+        Gets the context for the different steps.
+        """
         context = super().get_context_data(form=form, **kwargs)
         if self.steps.current == "task_content":
+            # The task content step needs the list of original scorecards
             useful_cards = []
             for scorecard in Scorecard.get_originals():
                 if self.get_cleaned_data_for_step("task_type")["task_type"] in scorecard.task_type:
@@ -210,12 +241,19 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         return context
 
     def get_form(self, step=None, data=None, files=None):
+        """
+        Override form fields for different steps.
+        """
         form = super().get_form(step, data, files)
         if "internal_route" in form.fields:
+            # If the form references an internal_route, get the editable routes that are available to the user.
             form.fields["internal_route"].queryset = EditableRoute.get_for_user(self.request.user)
         return form
 
     def get_form_initial(self, step):
+        """
+        Provide initial values to the forms for different steps.
+        """
         if step == "task_content":
             return {
                 "score_sorting_direction": self.contest.summary_score_sorting_direction,
@@ -223,15 +261,18 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         return {}
 
 
-def contest_not_chosen(wizard):
+def contest_not_chosen(wizard) -> bool:
+    """
+    Returns true if we need to render the contest selection step
+    """
     return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("contest") is None
 
 
-def anr_task_type(wizard):
+def anr_task_type(wizard) -> bool:
     return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("task_type") == ANR_CORRIDOR
 
 
-def airsports_task_type(wizard):
+def airsports_task_type(wizard) -> bool:
     return (wizard.get_cleaned_data_for_step("contest_selection") or {}).get("task_type") in (
         AIRSPORTS,
         AIRSPORT_CHALLENGE,
@@ -239,6 +280,12 @@ def airsports_task_type(wizard):
 
 
 class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideView):
+    """
+    Implements a wizard to create a navigation task directly from an editable route. It is a more lightweight method of
+    creating navigation tasks than using the navigation task wizard and users a lot of suitable default values instead
+    of the full control that is allowed through the navigation task Wizard.
+    """
+
     permission_required = ("display.change_editableroute",)
     file_storage = FileSystemStorage(location=os.path.join(settings.TEMPORARY_FOLDER, "unneeded"))
 
@@ -298,6 +345,9 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         return self.editable_route.create_route(task_type, scorecard, rounded_corners, corridor_width)
 
     def done(self, form_list, **kwargs):
+        """
+        The wizard is complete, so create the route and navigation task. Redirects to the navigation task detail page.
+        """
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
         task_name = self.get_cleaned_data_for_step("contest_selection")["navigation_task_name"]
         if self.get_cleaned_data_for_step("contest_selection")["contest"] is None:
@@ -343,6 +393,13 @@ def create_new_copilot(wizard):
 
 
 class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideView):
+    """
+    Implements a wizard to create a new team and sign it up to the contest. Usually teams are registered by users
+    themselves when they sign up to a contest that allows self-management. This is the admin view that can be used to
+    build a new team of existing or new persons, aircraft, and clubs. If the combination of persons, aircraft, and
+    club match an existing team, this team is reused.
+    """
+
     permission_required = ("display.change_contest",)
 
     def get_permission_object(self):
@@ -398,6 +455,11 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideV
         return self.request.session.get("my_post_data", {}).get(step, {})
 
     def done(self, form_list, **kwargs):
+        """
+        The final step of the Wizard. Extract the selected persons, aircraft, and club, and create a new team if an
+        existing team for this configuration does not exist. Together with the tracking information, register the team
+        with the contest.
+        """
         form_dict = kwargs["form_dict"]
         team_pk = self.kwargs.get("team_pk")
         contest_pk = self.kwargs.get("contest_pk")
