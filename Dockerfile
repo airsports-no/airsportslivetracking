@@ -6,21 +6,6 @@ RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone &
     apt update && apt -y upgrade &&\
     apt -y install curl build-essential cmake vim libproj-dev proj-data proj-bin libgdal-dev libgeos-dev redis-server daphne libcliquer1 libgslcblas0 latexmk texlive texlive-latex-base texlive-latex-extra texlive-latex-recommended ca-certificates gnupg
 
-#COPY geos-3.12.1.tar.bz2 /
-#RUN tar xvfj geos-3.12.1.tar.bz2
-#WORKDIR geos-3.12.1
-#RUN mkdir _build
-#WORKDIR _build
-## Set up the build
-#RUN cmake \
-#    -DCMAKE_BUILD_TYPE=Release \
-#    -DCMAKE_INSTALL_PREFIX=/usr \
-#    ..
-## Run the build, test, install
-#RUN make
-#RUN ctest
-#RUN make install
-#WORKDIR /
 
 RUN mkdir -p /etc/apt/keyrings
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
@@ -50,9 +35,6 @@ RUN pip install --no-binary :all: shapely
 COPY pyeval7 /pyeval7
 RUN pip install /pyeval7
 
-#COPY django-rest-authemail /django-rest-authemail
-#RUN pip3 install -U -e /django-rest-authemail
-
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 COPY documentation /documentation
 COPY config /config
@@ -65,9 +47,8 @@ RUN npm install
 
 ###### INSTALL APPLICATION ######
 COPY --chown=django:django reactjs /reactjs
-#RUN cd / && npm run webpack
 COPY --chown=django:django src /src
-
+# Required for tests
 COPY --chown=django:django data /data
 
 
