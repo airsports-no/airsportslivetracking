@@ -1,0 +1,8 @@
+001: Difference of 1077 vs 1071 (FC) (7, 0.5%), not an issue
+002: Difference of 63 vs 129 (FC) (66, 51.1%), caused by differences in measure times (up to 5 seconds)
+003: Spot on points, differences of one second measurement time
+004: Spot on points, no differences in measurement time
+005: Spot on points, no differences in measurement time
+006: Spot on points, no differences in measurement time
+007: Difference of 1457 vs 660 (FC) (779, 120%), caused by multiple extra backtracking around TP3 since this was not crossed
+008: Difference of 387 vs 387 (FC)

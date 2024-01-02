@@ -1,0 +1,143 @@
+# Pure local development environment
+
+services:
+  tracker_daphne:
+    container_name: tracker_daphne
+    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_daphne:${IMAGE_TAG:-develop}
+    command: [ "/wait-for-it.sh", "mysql:3306", "--",
+               "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py runserver 0.0.0.0:8000" ]
+
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+      - MODE=dev
+      - STORAGE_ACCOUNT_SECRET
+      - MEDIA_LOCATION
+      - AZURE_ACCOUNT_NAME
+      - REMOVE_BG_KEY
+      - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
+      - GOOGLE_CLOUD_PROJECT=airsports-613ce
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tracker_daphne
+    volumes:
+      - ./secret:/secret
+      - ./static:/static
+      - ./assets:/assets
+      - ./src:/src
+      - ./reactjs:/reactjs
+      - ./data:/data
+      - ./weblog:/logs
+      - ./src/display/kubernetes_calculator/ca.crt:/aks_certificate/ca.crt
+      - ./mapserver:/maptiles
+    ports:
+      - "8002:8000"
+    depends_on:
+      - mysql
+      - redis
+      - traccar
+
+
+  tracker_celery:
+    container_name: tracker_celery
+    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_celery:${IMAGE_TAG:-develop}
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+      - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
+      - GOOGLE_CLOUD_PROJECT=airsports-613ce
+      - MODE=dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tracker_celery
+    volumes:
+      - ./secret:/secret
+      - ./django-rest-authemail:/django-rest-authemail
+      - ./static:/static
+      - ./assets:/assets
+      - ./src:/src
+      - ./reactjs:/reactjs
+      - ./data:/data
+      - ./celerylog:/logs
+      - ./mapserver:/maptiles
+    depends_on:
+      - mysql
+      - redis
+
+
+
+  tracker_processor:
+    container_name: tracker_processor
+    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_processor:${IMAGE_TAG:-develop}
+
+    restart: unless-stopped
+    environment:
+      - AUTHEMAIL_DEFAULT_EMAIL_FROM=${AUTHEMAIL_DEFAULT_EMAIL_FROM}
+      - AUTHEMAIL_DEFAULT_EMAIL_BCC=${AUTHEMAIL_DEFAULT_EMAIL_BCC}
+      - AUTHEMAIL_EMAIL_HOST=${AUTHEMAIL_EMAIL_HOST}
+      - AUTHEMAIL_EMAIL_PORT=${AUTHEMAIL_EMAIL_PORT}
+      - AUTHEMAIL_EMAIL_HOST_USER=${AUTHEMAIL_EMAIL_HOST_USER}
+      - AUTHEMAIL_EMAIL_HOST_PASSWORD=${AUTHEMAIL_EMAIL_HOST_PASSWORD}
+      - MODE=dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tracker_processor
+    volumes:
+      - ./secret:/secret
+      - ./django-rest-authemail:/django-rest-authemail
+      - ./src:/src
+      - ./processorlog:/logs
+    depends_on:
+      - traccar
+      - mysql
+      - redis
+
+  traccar:
+    image: traccar/traccar
+    restart: unless-stopped
+    container_name: traccar
+    volumes:
+      - traccar-db:/opt/traccar/data/database
+      - ./traccar_local_config/configuration/traccar.xml:/opt/traccar/conf/traccar.xml
+    ports:
+      - 5000-5150:5000-5150
+      - 5000-5150:5000-5150/udp
+      - 8082:8082
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mysql
+    container_name: mysql
+    restart: always
+    command: --max_allowed_packet=325058560
+    environment:
+      - MYSQL_ROOT_PASSWORD=traccar
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysqldata3:/var/lib/mysql/
+      - ./traccar_local_config/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
+      - ./src:/src
+
+  redis:
+    image: redis
+    #    build:
+    #      context: .
+    #      dockerfile: Dockerfile.redis
+    container_name: redis
+
+volumes:
+  mysqldata3:
+  traccar-db:

@@ -1,0 +1,10 @@
+
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <h2>Upload gpx track for {{ contestant }} in {{ contestant.navigation_task }}</h2>
+    <form method="post" class="form" enctype="multipart/form-data">
+        {% crispy form %}
+    </form>
+{% endblock %}

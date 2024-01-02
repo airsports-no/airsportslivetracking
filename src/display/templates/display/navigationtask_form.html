@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <h2>Update Navigation Task {{ object }}</h2>
+    {{ form.media }}
+    {{ form.errors }}
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% crispy form %}
+    </form>
+    <script type="text/javascript">
+        $('#id_start_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_finish_time').datetimepicker({dateFormat: "yy-mm-dd"});
+    </script>
+{% endblock %}

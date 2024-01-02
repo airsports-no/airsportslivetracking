@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <h2>Team</h2>
+    <form method="post" class="form" enctype="multipart/form-data">
+        {{ form.media }}
+        {% crispy form %}
+    </form>
+{% endblock %}

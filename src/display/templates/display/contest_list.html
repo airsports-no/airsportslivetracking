@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load guardian_tags %}
+{% load tz %}
+{% block content %}
+    <H1>Contests</H1>
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Task</th>
+            <th>Start time</th>
+            <th>Finish time</th>
+            <th>Editors</th>
+        </tr>
+        </thead>
+
+        {% for contest in object_list %}
+            {% get_obj_perms request.user for contest as "contest_permissions" %}
+
+            <tr>
+                <td>
+                    <a href="{% url 'contest_details' contest.pk %}">{{ contest.name }} ({{ contest.share_string }})</a>
+                </td>
+                <td class="no-wrap">
+                    {{ contest.start_time|timezone:contest.time_zone|date:"Y-m-d" }}
+                </td>
+                <td class="no-wrap">
+                    {{ contest.finish_time|timezone:contest.time_zone|date:"Y-m-d" }}
+                </td>
+                <td>
+                    {#                {{ contest.editors|join:", " }}#}
+                    <ul>
+                        {% for user in contest.editors %}
+                            <li>{{ user.first_name }} {{ user.last_name }} ({{ user.email }})</li>
+                        {% endfor %}
+                    </ul>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% if perms.display.add_contest %}
+        <a href="{% url 'contest_create' %}">New contest</a>
+        {% if user.is_superuser %}
+            | <a href="{% url 'person_list' %}">Person overview</a>
+        {% endif %}
+    {% endif %}
+{% endblock %}

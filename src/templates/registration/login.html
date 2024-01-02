@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1>Log into Air Sports Live Tracking</h1>
+    {% if next %}
+        {% if user.is_authenticated %}
+            <p>Your account doesn't have access to this page. To proceed,
+                please login with an account that has access.</p>
+        {% else %}
+            <p>Please login to see this page.</p>
+        {% endif %}
+    {% endif %}
+    {{ form.media }}
+    <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <table>
+            <tr>
+                <td>{{ form.username.label_tag }}</td>
+                <td>{{ form.username }}</td>
+            </tr>
+            <tr>
+                <td>{{ form.password.label_tag }}</td>
+                <td>{{ form.password }}</td>
+            </tr>
+        </table>
+
+        <input type="submit" value="login"/>
+        <input type="hidden" name="next" value="{{ next }}"/>
+    </form>
+
+    <p><a href="{% url 'password_reset' %}">Reset password</a></p>
+    <p>First time user of the website and registered in the app? <a href="{% url 'password_reset' %}">Click here</a> to generate a password</p>
+    All users must be registered in the app to create a profile user on the Air Sport Live Tracking website.
+    Register for free in the app:
+    <div
+            class="d-flex"
+            style="padding-bottom: 0; padding-top: 0">
+        <a target={"_blank"}
+           href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
+                alt='Get it on Google Play' style="height: 80px; margin-top: -5px"
+                src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a>
+        <a target={"_blank"}
+           href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
+                style="height: 70px; padding: 8px"
+                src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
+                alt="Download on the App Store"/></a>
+    </div>
+    <p>
+        Air Sports Live Tracking is an online tracking platform for general aviation leisure flying all competitions.
+        Use your cell phone as a tracker and share your position with other GA pilots. We fly together! Download the Air
+        Sports Live Tracking aap from Google Play or Apple App Store.
+    </p>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block content %}
+    {% if object %}
+        <h2>Update Contest {{ object }}</h2>
+    {% else %}
+        <h2>Create new Contest </h2>
+    {% endif %}
+    {{ form.media }}
+    <form method="post" class="form" enctype="multipart/form-data">
+        {% crispy form %}
+    </form>
+    <script type="text/javascript">
+        $('#id_start_time').datepicker({dateFormat: "yy-mm-dd",});
+        $('#id_finish_time').datepicker({dateFormat: "yy-mm-dd"});
+        $(document).ready(function () {
+            document.getElementById('id_location').readOnly = true
+        })
+    </script>
+{% endblock %}

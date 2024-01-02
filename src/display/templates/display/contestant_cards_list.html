@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load bootstrap4 %}
+{% block content %}
+    <H1>Hand for {{ contestant }}</H1>
+    <a href="{% url 'navigationtask_detail' contestant.navigation_task.pk %}">Back to contestant list</a>
+    <p>
+    Current hand: {{ current_hand }}, relative score {{ current_relative_score }}%
+    </p>
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Card</th>
+            <th>Waypoint</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+
+        {% for card in cards %}
+            <tr>
+                <td>{{ card.get_card_display }}</td>
+                <td>{{ card.waypoint_name }}</td>
+                <td>
+                    <a href="{% url 'contestant_card_remove' contestant.pk card.pk %}">remove</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+
+
+    <h2>Deal new card</h2>
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        {% endbuttons %}
+    </form>
+{% endblock %}

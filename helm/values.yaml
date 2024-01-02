@@ -1,0 +1,297 @@
+# Default values for live-tracking-chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+namespace: testing
+
+image:
+  repository: nginx
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "develop"
+
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+
+emailAddress: frankose@ifi.uio.no
+openskyUsername: username
+openskyPassword: password
+
+storageAccountName: airsportsstorage2
+mediaLocation: media
+traccarUsername: frankose@ifi.uio.no
+
+secretKey: secret
+
+serviceAccountSecretName: calculator-scheduler-token-j9nmc
+k8sApi: https://airsports2-dns-3bdbed7d.hcp.northeurope.azmk8s.io:443 #https://airsports-dns-b66fdeca.hcp.northeurope.azmk8s.io:443
+
+#mbtilesUrl: http://mbtiles-service/
+
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: public
+    networking.gke.io/managed-certificates: airsports-no-cert
+    kubernetes.io/ingress.class: "gce"
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.0"
+    nginx.ingress.kubernetes.io/connection-proxy-header: "keep-alive"
+  hosts:
+    - host: airsports.no
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: tracker-daphne-service
+          servicePort: 80
+    - host: www.airsports.no
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: tracker-daphne-service
+          servicePort: 80
+    - host: traccar.airsports.no
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: traccar-service
+          servicePort: 8082
+    - host: home.airsports.no
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: airsportsrelease-wordpress
+          servicePort: 80
+    - host: traccarclient.airsports.no
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: traccar-service
+          servicePort: 5055
+    - host: mbtiles.airsports.no
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: mbtiles-service
+          servicePort: 80
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 3
+  targetAverageCPUUtilizationPercentage: 600 # Allowed to use 6 times the initial resource request before scaling.
+#  targetCPUUtilizationPercentage: 80
+#   targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+traccar:
+  database: traccar
+  username: traccar
+
+externalMysql:
+  host: 10.95.241.3
+
+externalRedis:
+#  host: 10.95.241.11
+  port: 6379
+
+redis:
+  enabled: true
+  replica:
+     disableCommands: []
+     replicaCount: 0
+  master:
+    disableCommands: []
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+  auth:
+    enabled: false  # Default true
+    password: simplepassword
+
+
+wordpress:
+  enabled: true
+  wordpressUsername: kolaf
+  mariadb:
+    enabled: false
+
+  externalDatabase:
+    host: 10.95.241.3
+    database: bitnami_wordpress
+    user: bn_wordpress
+
+  wordpressEmail: frankose@ifi.uio.no
+  wordpressFirstName: Frank Olaf
+  wordpressLastName: Sem-Jacobsen
+  wordpressBlogName: Air Sports Live Tracking
+
+  smtpHost: pro.turbo-smtp.com
+  smtpPort: "587"
+  smtpUser: frankose@ifi.uio.no
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: cloud.google.com/gke-spot
+                operator: In
+                values:
+                  - "true"
+
+
+  extraVolumeMounts:
+    - name: php-ini
+      #subPath: conf.d
+      mountPath: /opt/bitnami/php/etc/conf.d
+
+  extraVolumes:
+    - name: php-ini
+      configMap:
+        name: php-ini
+  allowOverrideNone: false
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+
+  # ConfigMap with custom wordpress-htaccess.conf file (requires allowOverrideNone to true)
+  customHTAccessCM: prod-wordpress-cm
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+
+
+mysql:
+  enabled: false
+  # from https://github.com/bitnami/charts/blob/master/bitnami/mysql/values.yaml
+  primary:
+    priorityClassName: high-priority
+    pdb:
+      create: true
+    resources:
+      requests:
+        memory: 2Gi
+#      limits:
+#        memory: 8Gi
+    persistence:
+      size: 20Gi  # Manually resized
+    configuration: |-
+      [mysqld]
+      default_authentication_plugin=mysql_native_password
+      skip-name-resolve
+      max_allowed_packet=1000M
+      max_connections=1024
+      explicit_defaults_for_timestamp
+      basedir=/opt/bitnami/mysql
+      plugin_dir=/opt/bitnami/mysql/lib/plugin
+      port=3306
+      socket=/opt/bitnami/mysql/tmp/mysql.sock
+      datadir=/bitnami/mysql/data
+      tmpdir=/opt/bitnami/mysql/tmp
+      bind-address=0.0.0.0
+      pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+      log-error=/opt/bitnami/mysql/logs/mysqld.log
+      character-set-server=UTF8
+      collation-server=utf8_general_ci
+      [client]
+      port=3306
+      socket=/opt/bitnami/mysql/tmp/mysql.sock
+      default-character-set=UTF8
+      plugin_dir=/opt/bitnami/mysql/lib/plugin
+      [manager]
+      port=3306
+      socket=/opt/bitnami/mysql/tmp/mysql.sock
+      pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+  secondary:
+    persistence:
+      size: 20Gi
+    replicaCount: 1
+    configuration: |-
+      [mysqld]
+      default_authentication_plugin=mysql_native_password
+      skip-name-resolve
+      explicit_defaults_for_timestamp
+      basedir=/opt/bitnami/mysql
+      port=3306
+      socket=/opt/bitnami/mysql/tmp/mysql.sock
+      datadir=/bitnami/mysql/data
+      tmpdir=/opt/bitnami/mysql/tmp
+      max_allowed_packet=1000M
+      max_connections=1024
+      bind-address=0.0.0.0
+      pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+      log-error=/opt/bitnami/mysql/logs/mysqld.log
+      character-set-server=UTF8
+      collation-server=utf8_general_ci
+      [client]
+      port=3306
+      socket=/opt/bitnami/mysql/tmp/mysql.sock
+      default-character-set=UTF8
+      [manager]
+      port=3306
+      socket=/opt/bitnami/mysql/tmp/mysql.sock
+      pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+  auth:
+    rootPassword: tracker
+  initdbScripts:
+    init_db.sql: |
+      CREATE DATABASE IF NOT EXISTS traccar;
+      CREATE DATABASE IF NOT EXISTS tracker;
+
+      CREATE USER 'traccar'@'%' IDENTIFIED BY 'traccar';
+      CREATE USER 'tracker'@'%' IDENTIFIED BY 'tracker';
+
+      GRANT ALL PRIVILEGES ON traccar.* To 'traccar'@'%';
+      GRANT ALL PRIVILEGES ON tracker.* To 'tracker'@'%';
+      GRANT ALL PRIVILEGES ON bitnami_wordpress.* To 'bn_wordpress'@'%';
+      FLUSH PRIVILEGES;

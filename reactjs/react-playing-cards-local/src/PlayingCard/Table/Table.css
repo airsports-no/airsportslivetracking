@@ -1,0 +1,18 @@
+.Player-hand div {
+	display: inline-block;
+    margin: 0 2.5% 0 2.5%;
+    height: 100%;
+}
+.Player-hand {
+
+	text-align: center
+}
+
+.Card-table {
+	display:flex;
+	justify-content:center;
+	align-items:center;
+	position:relative;
+	background: #076324;
+	 overflow: hidden;
+}

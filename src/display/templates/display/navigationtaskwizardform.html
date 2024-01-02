@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% block head %}
+    {{ wizard.form.media }}
+{% endblock %}
+
+{% block content %}
+    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+    <form method="post" class="form" enctype="multipart/form-data">
+        {{ form.media }}
+        {{ wizard.management_form }}
+        {% crispy wizard.form %}
+    </form>
+    <script type="text/javascript">
+        $('#id_task_content-start_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_task_content-finish_time').datetimepicker({dateFormat: "yy-mm-dd"});
+    </script>
+    <script type="text/javascript">
+        $('#id_contest_creation-start_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_contest_creation-finish_time').datetimepicker({dateFormat: "yy-mm-dd"});
+    </script>
+
+{% endblock %}

@@ -1,0 +1,273 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<gpx version='1.1' creator='Flight Contest - flightcontest.de - Version 4'>
+  <extensions>
+    <flightcontest>
+      <observationsettings turnpoint='None' turnpointmapmeasurement='no' enroutephoto='None' enroutephotomeasurement='None' enroutecanvas='None' enroutecanvasmeasurement='None' useprocedureturn='yes' />
+    </flightcontest>
+  </extensions>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <route number='1' />
+      </flightcontest>
+    </extensions>
+    <name>Path</name>
+    <rtept lat='58.7177800000' lon='5.5700000000'>
+      <name>SP</name>
+      <ele>19.8122409168</ele>
+    </rtept>
+    <rtept lat='58.7222500000' lon='5.6275070000'>
+      <name>TP1</name>
+      <ele>34.7476225311</ele>
+    </rtept>
+    <rtept lat='58.5952500000' lon='5.6994610000'>
+      <name>TP2</name>
+      <ele>124.9695196294</ele>
+    </rtept>
+    <rtept lat='58.5162200000' lon='5.7980280000'>
+      <name>TP3</name>
+      <ele>13.7161667886</ele>
+    </rtept>
+    <rtept lat='58.5355900000' lon='5.7235880000'>
+      <name>TP4</name>
+      <ele>3.9624481834</ele>
+    </rtept>
+    <rtept lat='58.5740100000' lon='5.6526920000'>
+      <name>TP5</name>
+      <ele>19.8122409168</ele>
+    </rtept>
+    <rtept lat='58.6108300000' lon='5.6155100000'>
+      <name>TP6</name>
+      <ele>15.8497927335</ele>
+    </rtept>
+    <rtept lat='58.6963900000' lon='5.5447220000'>
+      <name>FP</name>
+      <ele>9.7537186052</ele>
+    </rtept>
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TO' number='1' lat='58.6841700000' lon='5.5841670000' alt='52' width='0.02' dir='270' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>T/O</name>
+    <rtept lat='58.6843366667' lon='5.5841670000' />
+    <rtept lat='58.6840033333' lon='5.5841670000' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SP' number='1' lat='58.7177800000' lon='5.5700000000' alt='65' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SP</name>
+    <rtept lat='58.7260214932' lon='5.5676236390' />
+    <rtept lat='58.7095385068' lon='5.5723757985' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='1' lat='58.7222500000' lon='5.6275070000' alt='114' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP1</name>
+    <rtept lat='58.7304914932' lon='5.6251303337' />
+    <rtept lat='58.7140085068' lon='5.6298831036' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='2' lat='58.5952500000' lon='5.6994610000' alt='410' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP2</name>
+    <rtept lat='58.5976056025' lon='5.7148017045' />
+    <rtept lat='58.5928943975' lon='5.6841213285' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='3' lat='58.5162200000' lon='5.7980280000' alt='45' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP3</name>
+    <rtept lat='58.5207646658' lon='5.8114035350' />
+    <rtept lat='58.5116753342' lon='5.7846541973' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='4' lat='58.5355900000' lon='5.7235880000' alt='13' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP4</name>
+    <rtept lat='58.5281316069' lon='5.7164674548' />
+    <rtept lat='58.5430483931' lon='5.7307100600' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='5' lat='58.5740100000' lon='5.6526920000' alt='65' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP5</name>
+    <rtept lat='58.5682306103' lon='5.6411785125' />
+    <rtept lat='58.5797893897' lon='5.6642073883' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='6' lat='58.6108300000' lon='5.6155100000' alt='52' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>TP6</name>
+    <rtept lat='58.6069491826' lon='5.6013520936' />
+    <rtept lat='58.6147108174' lon='5.6296694781' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='FP' number='1' lat='58.6963900000' lon='5.5447220000' alt='32' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>FP</name>
+    <rtept lat='58.6930955443' lon='5.5299904510' />
+    <rtept lat='58.6996844557' lon='5.5594549420' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='LDG' number='1' lat='58.6841700000' lon='5.5841670000' alt='52' width='0.02' dir='270' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>LDG</name>
+    <rtept lat='58.6843366667' lon='5.5841670000' />
+    <rtept lat='58.6840033333' lon='5.5841670000' />
+  </rte>
+  <rte>
+    <name>Procedure turn TP3</name>
+    <rtept lat='58.5162200000' lon='5.7980280000' />
+    <rtept lat='58.5027406100' lon='5.8148174678' />
+    <rtept lat='58.5027406100' lon='5.8148193877' />
+    <rtept lat='58.5026139883' lon='5.8149831815' />
+    <rtept lat='58.5024904299' lon='5.8151553330' />
+    <rtept lat='58.5023700854' lon='5.8153356325' />
+    <rtept lat='58.5022531013' lon='5.8155238603' />
+    <rtept lat='58.5021396204' lon='5.8157197871' />
+    <rtept lat='58.5020297806' lon='5.8159231742' />
+    <rtept lat='58.5019237160' lon='5.8161337738' />
+    <rtept lat='58.5018215558' lon='5.8163513292' />
+    <rtept lat='58.5017234243' lon='5.8165755756' />
+    <rtept lat='58.5016294412' lon='5.8168062395' />
+    <rtept lat='58.5015397210' lon='5.8170430401' />
+    <rtept lat='58.5014543729' lon='5.8172856889' />
+    <rtept lat='58.5013735010' lon='5.8175338902' />
+    <rtept lat='58.5012972037' lon='5.8177873416' />
+    <rtept lat='58.5012255741' lon='5.8180457345' />
+    <rtept lat='58.5011586995' lon='5.8183087541' />
+    <rtept lat='58.5010966612' lon='5.8185760799' />
+    <rtept lat='58.5010395349' lon='5.8188473862' />
+    <rtept lat='58.5009873901' lon='5.8191223427' />
+    <rtept lat='58.5009402905' lon='5.8194006143' />
+    <rtept lat='58.5008982933' lon='5.8196818621' />
+    <rtept lat='58.5008614498' lon='5.8199657435' />
+    <rtept lat='58.5008298048' lon='5.8202519126' />
+    <rtept lat='58.5008033969' lon='5.8205400209' />
+    <rtept lat='58.5007822583' lon='5.8208297175' />
+    <rtept lat='58.5007664148' lon='5.8211206493' />
+    <rtept lat='58.5007558855' lon='5.8214124621' />
+    <rtept lat='58.5007506834' lon='5.8217048004' />
+    <rtept lat='58.5007508148' lon='5.8219973081' />
+    <rtept lat='58.5007562795' lon='5.8222896289' />
+    <rtept lat='58.5007670709' lon='5.8225814066' />
+    <rtept lat='58.5007831758' lon='5.8228722859' />
+    <rtept lat='58.5008045747' lon='5.8231619124' />
+    <rtept lat='58.5008312413' lon='5.8234499334' />
+    <rtept lat='58.5008631433' lon='5.8237359980' />
+    <rtept lat='58.5009002418' lon='5.8240197577' />
+    <rtept lat='58.5009424916' lon='5.8243008669' />
+    <rtept lat='58.5009898412' lon='5.8245789831' />
+    <rtept lat='58.5010422328' lon='5.8248537676' />
+    <rtept lat='58.5010996028' lon='5.8251248856' />
+    <rtept lat='58.5011618812' lon='5.8253920068' />
+    <rtept lat='58.5012289920' lon='5.8256548059' />
+    <rtept lat='58.5013008537' lon='5.8259129627' />
+    <rtept lat='58.5013773785' lon='5.8261661627' />
+    <rtept lat='58.5014584732' lon='5.8264140975' />
+    <rtept lat='58.5015440392' lon='5.8266564651' />
+    <rtept lat='58.5016339720' lon='5.8268929700' />
+    <rtept lat='58.5017281622' lon='5.8271233244' />
+    <rtept lat='58.5018264950' lon='5.8273472474' />
+    <rtept lat='58.5019288505' lon='5.8275644664' />
+    <rtept lat='58.5020351041' lon='5.8277747166' />
+    <rtept lat='58.5021451264' lon='5.8279777419' />
+    <rtept lat='58.5022587832' lon='5.8281732950' />
+    <rtept lat='58.5023759361' lon='5.8283611376' />
+    <rtept lat='58.5024964425' lon='5.8285410408' />
+    <rtept lat='58.5026201553' lon='5.8287127854' />
+    <rtept lat='58.5027469240' lon='5.8288761621' />
+    <rtept lat='58.5028765941' lon='5.8290309720' />
+    <rtept lat='58.5030090075' lon='5.8291770263' />
+    <rtept lat='58.5031440031' lon='5.8293141470' />
+    <rtept lat='58.5032814162' lon='5.8294421672' />
+    <rtept lat='58.5034210795' lon='5.8295609306' />
+    <rtept lat='58.5035628229' lon='5.8296702927' />
+    <rtept lat='58.5037064736' lon='5.8297701201' />
+    <rtept lat='58.5038518566' lon='5.8298602912' />
+    <rtept lat='58.5039987948' lon='5.8299406960' />
+    <rtept lat='58.5041471091' lon='5.8300112365' />
+    <rtept lat='58.5042966190' lon='5.8300718267' />
+    <rtept lat='58.5044471421' lon='5.8301223928' />
+    <rtept lat='58.5045984952' lon='5.8301628730' />
+    <rtept lat='58.5047504938' lon='5.8301932180' />
+    <rtept lat='58.5049029527' lon='5.8302133907' />
+    <rtept lat='58.5050556863' lon='5.8302233666' />
+    <rtept lat='58.5052085083' lon='5.8302231333' />
+    <rtept lat='58.5053612327' lon='5.8302126912' />
+    <rtept lat='58.5055136733' lon='5.8301920528' />
+    <rtept lat='58.5056656444' lon='5.8301612432' />
+    <rtept lat='58.5058169609' lon='5.8301202999' />
+    <rtept lat='58.5059674385' lon='5.8300692728' />
+    <rtept lat='58.5061168937' lon='5.8300082239' />
+    <rtept lat='58.5062651444' lon='5.8299372275' />
+    <rtept lat='58.5064120102' lon='5.8298563701' />
+    <rtept lat='58.5065573120' lon='5.8297657502' />
+    <rtept lat='58.5067008728' lon='5.8296654780' />
+    <rtept lat='58.5068425177' lon='5.8295556758' />
+    <rtept lat='58.5069820742' lon='5.8294364772' />
+    <rtept lat='58.5071193721' lon='5.8293080275' />
+    <rtept lat='58.5072542443' lon='5.8291704830' />
+    <rtept lat='58.5073865264' lon='5.8290240113' />
+    <rtept lat='58.5075160572' lon='5.8288687909' />
+    <rtept lat='58.5076426789' lon='5.8287050108' />
+    <rtept lat='58.5077662373' lon='5.8285328705' />
+    <rtept lat='58.5078865818' lon='5.8283525797' />
+    <rtept lat='58.5080035659' lon='5.8281643582' />
+    <rtept lat='58.5081170468' lon='5.8279684351' />
+    <rtept lat='58.5082268866' lon='5.8277650492' />
+    <rtept lat='58.5083329512' lon='5.8275544483' />
+    <rtept lat='58.5084351114' lon='5.8273368890' />
+    <rtept lat='58.5085332429' lon='5.8271126363' />
+    <rtept lat='58.5086272260' lon='5.8268819634' />
+    <rtept lat='58.5087169462' lon='5.8266451515' />
+    <rtept lat='58.5088022943' lon='5.8264024890' />
+    <rtept lat='58.5088831662' lon='5.8261542717' />
+    <rtept lat='58.5089594635' lon='5.8259008019' />
+    <rtept lat='58.5090310931' lon='5.8256423886' />
+    <rtept lat='58.5090469014' lon='5.8255841959' />
+    <rtept lat='58.5162200000' lon='5.7980280000' />
+  </rte>
+  <wpt lat='58.6841700000' lon='5.5841670000'>
+    <sym>airport</sym>
+  </wpt>
+  <wpt lat='58.7177800000' lon='5.5700000000'>
+    <sym>start</sym>
+  </wpt>
+  <wpt lat='58.6963900000' lon='5.5447220000'>
+    <sym>finish</sym>
+  </wpt>
+  <wpt lat='58.6841700000' lon='5.5841670000'>
+    <sym>airport</sym>
+  </wpt>
+</gpx>

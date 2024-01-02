@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% block head %}
+    {{ wizard.form.media }}
+{% endblock %}
+
+{% block content %}
+    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+    {{ form.errors }}
+    <form method="post" class="form" enctype="multipart/form-data">
+        {{ form.media }}
+        {{ form.field_errors }}
+        {{ form.non_field_errors }}
+        {{ wizard.management_form }}
+        {% crispy wizard.form %}
+    </form>
+{% endblock %}

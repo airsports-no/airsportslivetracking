@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+    <h2>Request deletion of user data</h2>
+    <p>
+        When clicking the below button you are requesting your user data to be deleted.
+    </p>
+    {% if not user.is_authenticated %}
+        <p>
+            This page requires you to be logged in. If you're accessing the page through the app you are already logged
+            in,
+            otherwise you will be prompted to login. If you have forgotten your password, this can be retrieved by the
+            Lost
+            password function on the login page. After logging in the profile deletion request will be sent and you will
+            be returned to the landing page.
+        </p>
+    {% endif %}
+    Requests to delete user data are reviewed manually before the following actions are performed:
+    <ul>
+        <li>If possible, your user profile and all associated data will be deleted</li>
+        <li>If you are registered as the crew in a team for any contest your profile cannot be deleted since
+            this
+            might interfere with the ranking of existing competitions. In this case your profile is anonymized by
+            removing
+            all identifying information from the profile. Flown tracks will remain in the system, but there is no way to
+            tie them to a specific user.
+        </li>
+    </ul>
+    <p>
+        Note that deleting a user profile from within the app will probably break the functionality of the app until it
+        is restarted and you log in again with a new profile.
+    </p>
+    <p>
+        <a href="{% url 'user_request_profile_deletion' %}" class="btn btn-danger">Request profile deletion</a>
+    </p>
+{% endblock %}

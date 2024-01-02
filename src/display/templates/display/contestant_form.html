@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+{% load bootstrap4 %}
+{% block content %}
+    {% if object %}
+        <h2>Update Contestant {{ object }} for navigation task {{ object.navigation_task }}</h2>
+    {% else %}
+        <h2>Create new Contestant for navigation task {{ navigation_task }} </h2>
+    {% endif %}
+    {{ form.media }}
+    Contest time zone is {{ object.navigation_task.contest.time_zone }}
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+            <a href="{{ redirect }}" class="btn btn-secondary">Cancel</a>
+        {% endbuttons %}
+    </form>
+    <script type="text/javascript">
+        function updateTakeoff() {
+            if (adaptiveStart.checked) {
+                takeoffTime.value = trackingStart.value
+            }
+
+        }
+
+        $('#id_takeoff_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_finished_by_time').datetimepicker({dateFormat: "yy-mm-dd"});
+        $('#id_tracker_start_time').datetimepicker({dateFormat: "yy-mm-dd", onSelect: updateTakeoff});
+        const adaptiveStart = document.getElementById("id_adaptive_start");
+        const takeoffTime = document.getElementById("id_takeoff_time");
+        const trackingStart = document.getElementById("id_tracker_start_time");
+        adaptiveStart.addEventListener("change", (event) => {
+            takeoffTime.readOnly = adaptiveStart.checked;
+            if (adaptiveStart.checked) {
+                takeoffTime.value = trackingStart.value
+            }
+        })
+
+
+        trackingStart.addEventListener("change", (event) => {
+            updateTakeoff()
+        })
+        {% if object.adaptive_start %}
+            takeoffTime.readOnly = adaptiveStart.checked;
+        {% endif %}
+    </script>
+{% endblock %}

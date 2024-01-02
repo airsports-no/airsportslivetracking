@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+    {% if user.is_authenticated %}
+        {% if user.auth_token %}
+            <h2>Token: {{ user.auth_token }}</h2>
+            <a href="{% url 'renewtoken' %}">Renew token</a>
+        {% else %}
+            <a href="{% url 'renewtoken' %}">Create token</a>
+        {% endif %}
+    {% endif %}
+{% endblock %}

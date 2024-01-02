@@ -1,0 +1,2 @@
+Verify your email address by clicking on this link:
+    https://airsports.no/api/accounts/signup/verify/?code={{ code }}

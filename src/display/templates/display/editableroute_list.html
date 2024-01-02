@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+    <H1>Route editor</H1>
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th></th>
+            <th>Name</th>
+{#            <th>Type</th>#}
+            <th>Actions</th>
+        </tr>
+        </thead>
+        {% for object in object_list %}
+            <tr>
+                <td>{% if object.thumbnail %}<img class="zoom" src="{{ object.thumbnail.url }}" style="width: 50px;margin-bottom: -20px;margin-top: -20px;margin-right: -20px">{% endif %}</td>
+                <td><a href="/routeeditor/{{ object.id }}/">{{ object.name }}</a></td>
+{#                <td>{{ object.get_route_type_display }}</td>#}
+                <td>
+                    <a href="{% url 'editableroute_createnavigationtask' object.pk %}">Create task</a> |
+                    <a href="{% url 'editableroute_copy' object.pk %}">Copy</a> |
+                    <a href="{% url 'editableroute_permissions_list' object.pk %}">Permissions</a> |
+                    <a href="{% url 'editableroute_delete' object.pk %}">Delete</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+{#    <div class="card-columns">#}
+{#        {% for object in object_list %}#}
+{#            <div class="card border-dark" style="width: 200px">#}
+{#                {% if object.thumbnail %}#}
+{#                    <img class="card-img-top" src="{{ object.thumbnail.url }}">{% endif %}#}
+{#                <div class="card-body">#}
+{#                    <h5 class="card-title"><a href="/routeeditor/{{ object.id }}/">{{ object.name }}</a></h5>#}
+{#                    <p class="card-text">#}
+{#                        <a href="{% url 'editableroute_createnavigationtask' object.pk %}">Create task</a> |#}
+{#                        <a href="{% url 'editableroute_copy' object.pk %}">Copy</a> |#}
+{#                        <a href="{% url 'editableroute_delete' object.pk %}">Delete</a>#}
+{#                    </p>#}
+{#                </div>#}
+{#            </div>#}
+{#        {% endfor %}#}
+{#    </div>#}
+    {% if perms.display.add_editableroute %}
+        <div class="row col">
+            <a class="btn btn-primary" href="/routeeditor/" style="margin-bottom: 10px">New route</a>&nbsp;
+            <a class="btn btn-primary" href="{% url 'editableroute_import' %}" style="margin-bottom: 10px">Import route</a>
+        </div>
+    {% endif %}
+{% endblock %}

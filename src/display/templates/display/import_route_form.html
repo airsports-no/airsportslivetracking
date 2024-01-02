@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <h2>Import route</h2>
+    <form method="post" class="form" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% crispy form %}
+    </form>
+{% endblock %}

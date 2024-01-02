@@ -1,0 +1,172 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <!-- Make the app on mobile take up the full browser screen and disable user scaling. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta property="og:title" content="Air Sports Live Tracking" data-rh="true">
+    <meta property="og:description" content="Flying competition tracking and social platform" data-rh="true">
+    <meta property="og:image" content="https://airsports.no/static/img/manifest.png" data-rh="true">
+    <link rel='manifest' href="{% url 'tracking_manifest' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap.css' %}" crossorigin="anonymous">
+    <script src="{% static 'js/jquery-3.5.1.min.js' %}"></script>
+    <script src="{% static 'js/popper.min.js' %}"></script>
+    <script src="{% static 'js/jquery-migrate-3.3.2.min.js' %}"></script>
+    <script src="{% static 'jquery-ui/jquery-ui.js' %}"></script>
+    <script src="{% static 'js/jquery-ui-timepicker-addon.js' %}"></script>
+    <script src="{% static 'js/bootstrap.min.js' %}"
+            crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+          crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" crossorigin="anonymous"/>
+    <link rel="stylesheet" href="{% static 'css/material-icons.css' %}">
+    <link rel="stylesheet" href="{% static 'jquery-ui/jquery-ui.css' %}">
+    <link rel="stylesheet" href="{% static 'css/jquery-ui-timepicker-addon.css' %}">
+    <link rel="stylesheet" href="{% static 'cesium/cesium.css' %}?rnd=40" media="screen">
+    <link rel="shortcut icon" type="image/png" href="{% static 'img/airsports_no_text.png' %}">
+    <title>AirSports</title>
+    <script>
+        document.configuration = {
+            navigationTaskUrl: (contestId, navigationTaskId) => "{% url 'navigationtasks-detail' 0 1 %}".replace("/0/", '/' + contestId + '/').replace("/1/", '/' + navigationTaskId + '/'),
+            editableRouteUrl: editableRouteId => "{% url 'editableroutes-detail' 0 %}".replace("0", editableRouteId),
+            contestantInitialTrackDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-initial-track-data' 0 1 2 %}".replace("0", contestId).replace("/1/", '/' + navigationTaskId + '/').replace("/2/", '/' + contestantId + '/'),
+            CONTESTS_LIST_URL: "{% url 'contests-list' %}",
+            CONTESTS_WITH_ONGOING_NAVIGATION_URL: "{% url 'contests-ongoing-navigation' %}",
+            CONTESTS_WITH_RESULTS_LIST_URL: "{% url 'contests-results' %}",
+            MY_PARTICIPATING_CONTESTS_URL: "{% url 'userprofile-my-participating-contests' %}",
+            TERMS_AND_CONDITIONS_URL: "{% url 'terms_and_conditions' %}",
+
+            navigationTaskMap: navigationTaskId => "{% url 'frontend_view_map' 0 %}".replace("0", navigationTaskId),
+            contestResultsDetailsUrl: contestId => "{% url 'contests-results-details' 0 %}".replace("0", contestId),
+            contestUpdateContestSummaryUrl: contestId => "{% url 'contests-update-contest-summary' 0 %}".replace("0", contestId),
+            contestUpdateTaskSummaryUrl: contestId => "{% url 'contests-update-task-summary' 0 %}".replace("0", contestId),
+            contestUpdateTestResultUrl: contestId => "{% url 'contests-update-test-result' 0 %}".replace("0", contestId),
+            contestDeleteTeamResultsUrl: contestId => "{% url 'contests-team-results-delete' 0 %}".replace("0", contestId),
+            taskListUrl: contestId => "{% url 'tasks-list' 0 %}".replace("0", contestId),
+            taskDetailUrl: (contestId, taskId) => "{% url 'tasks-detail' 0 1 %}".replace("0", contestId).replace("1/", '/' + taskId + '/'),
+            taskTestListUrl: contestId => "{% url 'tasktests-list' 0 %}".replace("0", contestId),
+            taskTestDetailUrl: (contestId, taskTestId) => "{% url 'tasktests-detail' 0 1 %}".replace("0", contestId).replace("/1/", '/' + taskTestId + '/'),
+
+            CONTEST_FRONT_END: "{% url 'contestsfrontend-list' %}",
+            contestWithdrawUrl: contestId => "{% url 'contests-withdraw' 0 %}".replace("0", contestId),
+            contestSignUpUrl: contestId => "{% url 'contests-signup' 0 %}".replace("0", contestId),
+            navigationTaskContestantSelfRegistration: (contestId, navigationTaskId) => "{% url 'navigationtasks-contestant-self-registration' 0 1 %}".replace("0", contestId).replace("/1/", '/' + navigationTaskId + '/'),
+
+            AIRCRAFT_LIST_URL: "{% url 'aircraft-list' %}",
+            CLUB_LIST_URL: "{% url 'clubs-list' %}",
+
+            contestDetailsViewUrl: contestId => "{% url 'contest_details' 0 %}".replace("0", contestId),
+            GET_PERSONS_FOR_SIGNUP_URL: "{% url 'get_persons_for_signup' %}",
+            EDITABLE_ROUTE_LIST_VIEW_URL: "{% url 'editableroute_list' %}",
+
+
+        }
+    </script>
+    {% block document_configuration %}
+    {% endblock %}
+    {% block head %}
+    {% endblock %}
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-71DRK6HYHD"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+
+        gtag('js', new Date());
+
+        gtag('config', 'G-71DRK6HYHD');
+    </script>
+</head>
+<body>
+<header>
+    {% if not skip_nav %}
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <a class="navbar-brand" href="/"><img style="height: 30px"
+                                                  src="{% static 'img/airsports_live_tracking_white.png' %}"
+                                                  alt="AirSports"></a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+                    aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    {% if perms.display.add_contest %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="dropdown01"
+                               data-toggle="dropdown">Contest management</a>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item" href="{% url 'contest_list' %}">My contests</a>
+                                <a class="dropdown-item" href="{% url 'useruploadedmap_list' %}">My maps</a>
+                                <a class="dropdown-item" href="{% url 'editableroute_list' %}">Route editor</a>
+
+                                {% if user.is_superuser  and user.is_staff %}
+                                    <hr/>
+                                    <a class="dropdown-item" href="{% url 'statistics' %}">Statistics</a>
+                                    <a class="dropdown-item" href="{% url 'user_emails' %}">User emails</a>
+                                    <a class="dropdown-item" href="{% url 'welcome_example' %}">Welcome email</a>
+                                    <a class="dropdown-item" href="{% url 'contestcreation_example' %}">Contest creation
+                                        email</a>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a target="_blank" class="nav-link" href="https://home.airsports.no/">FAQ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/resultsservice/">Results service</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/participation/">Participation</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ml-auto">
+
+                    {% if not user.is_authenticated %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'login' %}?next=/">Log in</a></li>
+                    {% else %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-toggle="dropdown">{{ user.email }}</a>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item" href="{% url 'password_change' %}?next=/">Change password</a>
+                                {% if perms.display.change_contest %}
+                                    <a class="dropdown-item" href="{% url 'token' %}">Token </a>
+                                {% endif %}
+                                <a class="dropdown-item" href="{% url 'logout' %}?next=/">Log out </a>
+                            </div>
+                        </li>
+
+                    {% endif %}
+                    {% if user.is_superuser  and user.is_staff %}
+                        <li class="nav-item"><a class="nav-link" href="/admin/">Admin</a></li>
+                    {% endif %}
+                </ul>
+
+            </div>
+        </nav>
+    {% endif %}
+</header>
+<main role="main">
+    <div class="container-fluid">
+        {% block contentfluid %}
+        {% endblock %}
+    </div>
+    <div class="container-xl">
+        {% if messages %}
+            <div class="row" style="padding-left: 18%;z-index: 100;position: fixed">{% include 'messages.html' %}</div>
+        {% endif %}
+        {% block content %}
+        {% endblock %}
+    </div>
+</main>
+<script src="{% static 'js/csrf.js' %}"></script>
+</body>
+</html>

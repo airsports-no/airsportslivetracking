@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+    <H1>Teams for contest {{ contest }}</H1>
+    <a href="{% url 'contest_details' contest.pk %}">Back to contest</a> |
+    <a href="{% url 'contest_team_images' contest.pk %}">View images</a>
+
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Team</th>
+            <th>Country</th>
+            <th>Airspeed</th>
+            <th>Tracking device</th>
+            <th>Tracker id</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+
+        {% for object in object_list %}
+            <tr>
+                <td>{{ object.team }}</td>
+                <td>{{ object.team.country }}</td>
+                <td>{{ object.air_speed }}</td>
+                <td>
+                    {{ object.get_tracking_device_display }}
+                </td>
+                <td>{% if object.tracker_device_id|length > 0 %}{{ object.tracker_device_id }}{% else %}N/A{% endif %}</td>
+                <td>
+                    <a href="{% url 'team_wizard' contest.pk object.team.pk %}">Modify team information</a> |
+                    <a href="{% url 'contestteamtracking_update' contest.pk object.pk %}">Update tracking
+                        information</a> |
+                    <a href="{% url 'remove_team' contest.pk object.team.pk %}">Remove team</a>
+                    {% if user.is_superuser %}
+                        | <a href="{% url 'person_update' object.team.crew.member1.pk %}">Edit crewmember one</a>
+                        {% if object.team.crew.member2 %}
+                            | <a href="{% url 'person_update' object.team.crew.member2.pk %}">Edit crewmember two</a>
+                        {% endif %}
+                    {% endif %}
+
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    <a href="{% url 'create_team' contest.pk %}">Add team</a>
+{% endblock %}

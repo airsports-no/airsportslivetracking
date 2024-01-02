@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load tz %}
+{% load guardian_tags %}
+{% block content %}
+    {% get_obj_perms request.user for contestant.navigation_task.contest as "contest_permissions" %}
+    <H1>Rules for {{ contestant }} in {{ contestant.navigation_task.name }}</H1>
+    <p>
+        <a href="{% url 'contest_details' contestant.navigation_task.contest.pk %}">Back to contest</a> |
+        <a href="{% url 'navigationtask_detail' contestant.navigation_task.pk %}">Back to navigation task</a>
+    </p>
+    <p>
+    <h2>Track rules</h2>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Name</th>
+            <th>Value</th>
+            <th>Explanation</th>
+        </tr>
+        </thead>
+        {% for rule in rules.track %}
+            <tr>
+                <td>{{ rule.name }}</td>
+                <td>{{ rule.value }}</td>
+                <td>{{ rule.help_text }}</td>
+            </tr>
+        {% endfor %}
+
+    </table>
+    {% for gate in rules.gates %}
+        <h2>{{ gate.gate }} rules</h2>
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Value</th>
+                <th>Explanation</th>
+            </tr>
+            </thead>
+            {% for rule in gate.rules %}
+                <tr>
+                    <td>{{ rule.name }}</td>
+                    <td>{{ rule.value }}</td>
+                    <td>{{ rule.help_text }}</td>
+                </tr>
+            {% endfor %}
+
+        </table>
+    {% endfor %}
+{% endblock %}

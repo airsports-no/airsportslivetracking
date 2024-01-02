@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+    <H1>My maps</H1>
+    <div class="card-columns">
+        {% for object in object_list %}
+            <div class="card border-dark p-3">
+                {% if object.thumbnail %}
+                    <img class="card-img-top profile-image-header" src="{{ object.thumbnail.url }}">{% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ object.name }} ({{ object.map_file.size |filesizeformat }})</h5>
+                    <p class="card-text">
+                        <h6>Zoom levels {{ object.minimum_zoom_level }} - {{ object.maximum_zoom_level }}</h6>
+                        <a href="{% url 'useruploadedmap_change' object.pk %}">Update</a> |
+                        <a href="{% url 'useruploadedmap_permissions_list' object.pk %}">Permissions</a> |
+                        <a href="{% url 'useruploadedmap_delete' object.pk %}">Delete</a>
+                    </p>
+                    <footer class="blockquote-footer">Uploaded
+                        by {{ object.user.first_name }} {{ object.user.last_name }}</footer>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="row col">
+        <a class="btn btn-primary" href="{% url 'useruploadedmap_add' %}" style="margin-bottom: 10px">Upload new map</a>
+    </div>
+    <div class="card-deck">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Upload your own maps (trial)</h5>
+                <p class="card-text">
+                    Air Sports Live Tracking now supports a trial version of uploading your own georeferenced map tiles
+                    for use
+                    in the navigation maps.
+                    For
+                    this purpose we support the <a
+                        href="https://docs.mapbox.com/help/glossary/mbtiles/#:~:text=MBTiles%20is%20a%20file%20format,from%20many%20different%20data%20sources.">mbtiles</a>
+                    format that can be exported from a wide the variety of
+                    applications. If
+                    this
+                    seems
+                    intimidating, the already included OSM and OpenCycle maps provide global coverage and are in many
+                    places
+                    perfect
+                    for navigation.
+                </p>
+                <p>
+                    User maps are tied to the user that uploaded them, but they can also be shared with other specified
+                    users. However, if the user that uploaded the maps is deleted, the maps will be deleted as well.
+                </p>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">For the intermediate user</h5>
+                <p class="card-text">
+
+                    <a href="https://www.maptiler.com/desktop/">MapTiles Desktop</a> comes in both free and paid
+                    versions and
+                    supports easy georeferencing and exporting of existing maps in the <a
+                        href="https://docs.mapbox.com/help/glossary/mbtiles/#:~:text=MBTiles%20is%20a%20file%20format,from%20many%20different%20data%20sources.">mbtiles</a>
+                    format.
+                </p>
+                <h5 class="card-title">For the power user</h5>
+                <p class="card-text">
+                    For full map control the popular QGis GIS application supports export in the <a
+                        href="https://qgis.org/en/site/forusers/visualchangelog38/index.html?highlight=mbtiles#feature-generate-raster-xyz-tiles">mbtiles
+                    format</a>.
+                </p>
+                <p>The default zoom level used in navigation maps is 12. Please do not include unnecessary zoom levels
+                    in the mbtiles file in order to avoid excessive storage usage.</p>
+            </div>
+        </div>
+    </div>
+    <div class="row col">
+        <small class="text-muted">
+            Air Sport Live Tracking provides no support for the third-party applications used for generating the mbtiles
+            files. The user is responsible for making sure the use of the uploaded maps is in accordance with any
+            licenses that may apply.
+        </small>
+    </div>
+
+
+{% endblock %}

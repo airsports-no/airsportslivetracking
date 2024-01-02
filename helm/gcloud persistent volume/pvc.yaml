@@ -1,0 +1,11 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: filtestore-maps
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: filestore-maps
+  resources:
+    requests:
+      storage: 20Gi

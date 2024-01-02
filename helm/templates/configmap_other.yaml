@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envs-production-other
+data:
+  REDIS_HOST: {{ include "live_tracking.redisHost" . }}
+  REDIS_PORT: {{ .Values.externalRedis.port | quote}}
+  MYSQL_HOST: {{ include "live_tracking.mysqlHost" . }}
+  MYSQL_PORT: "3306"
+  MYSQL_USER: tracker
+  MYSQL_DB_NAME: tracker
+
+  TRACCAR_HOST: {{ include "live_tracking.traccarHost" . }}
+  TRACCAR_PORT: "8082"
+  TRACCAR_PROTOCOL: http
+
+  AUTHEMAIL_EMAIL_HOST: {{ .Values.wordpress.smtpHost }}
+  AUTHEMAIL_EMAIL_PORT: {{ .Values.wordpress.smtpPort | quote }}
+  AUTHEMAIL_EMAIL_HOST_USER: {{ .Values.wordpress.smtpUser }}
+  AUTHEMAIL_DEFAULT_EMAIL_FROM: support@airsports.no
+  AUTHEMAIL_DEFAULT_EMAIL_BCC: support@airsports.no
+
+  LOG_HANDLER: stackdriver
+
+  AZURE_ACCOUNT_NAME: {{ .Values.storageAccountName }}
+  MEDIA_LOCATION: {{ .Values.mediaLocation }}
+
+  K8S_API: {{ .Values.k8sApi }}
+
+  TRACCAR_USERNAME: {{ .Values.traccarUsername }}
+  OPEN_SKY_USERNAME: {{ .Values.openskyUsername }}
+
+  SECRET_KEY: {{ .Values.secretKey }}
+#  MBTILES_SERVER_URL: {{ .Values.mbtilesUrl }}
+

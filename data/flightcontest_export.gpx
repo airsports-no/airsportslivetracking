@@ -1,0 +1,424 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<gpx version='1.1' creator='Flight Contest - flightcontest.de - Version 4'>
+  <extensions>
+    <flightcontest>
+      <observationsettings turnpoint='TrueFalsePhoto' turnpointmapmeasurement='no' enroutephoto='InputCoord' enroutephotomeasurement='NMFromTP' enroutecanvas='None' enroutecanvasmeasurement='None' useprocedureturn='no' />
+    </flightcontest>
+  </extensions>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <route number='1' />
+      </flightcontest>
+    </extensions>
+    <name>DMM NAV Nordstrecke / 14 CPs / 109 nm</name>
+    <rtept lat='47.9159394500' lon='9.9622968333'>
+      <name>SP</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='48.0648201433' lon='9.9344414333'>
+      <name>TP1</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='48.1356368333' lon='10.1151173333'>
+      <name>TP2</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='48.2939917500' lon='10.0656472200'>
+      <name>TP3</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='48.3028553333' lon='9.8619995000'>
+      <name>TP4</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='48.2415866833' lon='9.7138265667'>
+      <name>TP5</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='48.1384775667' lon='9.6169446667'>
+      <name>TP6</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='48.0394554767' lon='9.6493494667'>
+      <name>TP7</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.9555679333' lon='9.6511269333'>
+      <name>TP8</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.9383071333' lon='9.7860172833'>
+      <name>TP9</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.8036108333' lon='9.7244093333'>
+      <name>TP10</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.7208234167' lon='9.8277507833'>
+      <name>TP11</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.7566066667' lon='10.0236602133'>
+      <name>TP12</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.8500981667' lon='10.1853097500'>
+      <name>FP</name>
+      <ele>0E+4</ele>
+    </rtept>
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TO' number='1' lat='47.8587984505' lon='10.0141566647' alt='0' width='0.02' dir='240' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>T/O</name>
+    <rtept lat='47.8589427881' lon='10.0140324644' />
+    <rtept lat='47.8586541129' lon='10.0142808647' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SP' number='1' lat='47.9159394500' lon='9.9622968333' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>SP</name>
+    <rtept lat='47.9149040615' lon='9.9499595762' />
+    <rtept lat='47.9169748385' lon='9.9746343373' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='1' lat='48.0648201433' lon='9.9344414333' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP1</name>
+    <rtept lat='48.0637847548' lon='9.9220685336' />
+    <rtept lat='48.0658555318' lon='9.9468145819' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='2' lat='48.1356368333' lon='10.1151173333' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP2</name>
+    <rtept lat='48.1428237850' lon='10.1087964391' />
+    <rtept lat='48.1284498816' lon='10.1214373428' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='3' lat='48.2939917500' lon='10.0656472200' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP3</name>
+    <rtept lat='48.2922934500' lon='10.0533847774' />
+    <rtept lat='48.2956900500' lon='10.0779100705' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='4' lat='48.3028553333' lon='9.8619995000' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP4</name>
+    <rtept lat='48.2945397781' lon='9.8611816900' />
+    <rtept lat='48.3111708885' lon='9.8628174433' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='5' lat='48.2415866833' lon='9.7138265667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP5</name>
+    <rtept lat='48.2345081026' lon='9.7204290727' />
+    <rtept lat='48.2486652640' lon='9.7072231470' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='6' lat='48.1384775667' lon='9.6169446667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP6</name>
+    <rtept lat='48.1340538040' lon='9.6275269509' />
+    <rtept lat='48.1429013294' lon='9.6063614706' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='7' lat='48.0394554767' lon='9.6493494667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='False' />
+      </flightcontest>
+    </extensions>
+    <name>TP7</name>
+    <rtept lat='48.0412350712' lon='9.6615256732' />
+    <rtept lat='48.0376758822' lon='9.6371736808' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='8' lat='47.9555679333' lon='9.6511269333' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP8</name>
+    <rtept lat='47.9556860771' lon='9.6635689550' />
+    <rtept lat='47.9554497895' lon='9.6386849400' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='9' lat='47.9383071333' lon='9.7860172833' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP9</name>
+    <rtept lat='47.9464924395' lon='9.7883516146' />
+    <rtept lat='47.9301218271' lon='9.7836833215' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='10' lat='47.8036108333' lon='9.7244093333' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP10</name>
+    <rtept lat='47.8011665074' lon='9.7362701497' />
+    <rtept lat='47.8060551592' lon='9.7125479588' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='11' lat='47.7208234167' lon='9.8277507833' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='False' />
+      </flightcontest>
+    </extensions>
+    <name>TP11</name>
+    <rtept lat='47.7261799872' lon='9.8372403204' />
+    <rtept lat='47.7154668462' lon='9.8182622219' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='12' lat='47.7566066667' lon='10.0236602133' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP12</name>
+    <rtept lat='47.7646486693' lon='10.0204110565' />
+    <rtept lat='47.7485646641' lon='10.0269088680' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='FP' number='1' lat='47.8500981667' lon='10.1853097500' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='False' />
+      </flightcontest>
+    </extensions>
+    <name>FP</name>
+    <rtept lat='47.8564130439' lon='10.1772065066' />
+    <rtept lat='47.8437832895' lon='10.1934120068' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='LDG' number='1' lat='47.8587984505' lon='10.0141566647' alt='0' width='0.02' dir='240' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>LDG</name>
+    <rtept lat='47.8589427881' lon='10.0140324644' />
+    <rtept lat='47.8586541129' lon='10.0142808647' />
+  </rte>
+  <wpt lat='47.8587984505' lon='10.0141566647'>
+    <sym>airport</sym>
+  </wpt>
+  <wpt lat='47.9159394500' lon='9.9622968333'>
+    <sym>start</sym>
+  </wpt>
+  <wpt lat='47.8500981667' lon='10.1853097500'>
+    <sym>finish</sym>
+  </wpt>
+  <wpt lat='47.8587984505' lon='10.0141566647'>
+    <sym>airport</sym>
+  </wpt>
+  <wpt lat='48.0964166667' lon='10.0204166667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='E' viewpos='1' type='TP' number='1' dist='3.9333397749' measuredist='' orthogonaldist='202' />
+      </flightcontest>
+    </extensions>
+    <name>E</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='48.2177166667' lon='10.0937166667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='O' viewpos='2' type='TP' number='2' dist='4.9986708490' measuredist='' orthogonaldist='306' />
+      </flightcontest>
+    </extensions>
+    <name>O</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='48.2390333333' lon='10.0841833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='K' viewpos='3' type='TP' number='2' dist='6.3259948272' measuredist='' orthogonaldist='97' />
+      </flightcontest>
+    </extensions>
+    <name>K</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='48.3039666667' lon='9.8907333333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='N' viewpos='4' type='TP' number='3' dist='7.0072270607' measuredist='' orthogonaldist='261' />
+      </flightcontest>
+    </extensions>
+    <name>N</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='48.1769833333' lon='9.6554833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='B' viewpos='5' type='TP' number='5' dist='4.5240536010' measuredist='' orthogonaldist='-149' />
+      </flightcontest>
+    </extensions>
+    <name>B</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='48.1473333333' lon='9.6231500000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='A' viewpos='6' type='TP' number='5' dist='6.7182163140' measuredist='' orthogonaldist='132' />
+      </flightcontest>
+    </extensions>
+    <name>A</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='48.0887500000' lon='9.6311000000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='G' viewpos='7' type='TP' number='6' dist='3.0370611907' measuredist='' orthogonaldist='154' />
+      </flightcontest>
+    </extensions>
+    <name>G</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='48.0815166667' lon='9.6363333333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='F' viewpos='8' type='TP' number='6' dist='3.5048113127' measuredist='' orthogonaldist='-53' />
+      </flightcontest>
+    </extensions>
+    <name>F</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='48.0537666667' lon='9.6411666667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='R' viewpos='9' type='TP' number='6' dist='5.1745075598' measuredist='' orthogonaldist='254' />
+      </flightcontest>
+    </extensions>
+    <name>R</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='48.0009500000' lon='9.6467833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='Q' viewpos='10' type='TP' number='7' dist='2.3126227591' measuredist='' orthogonaldist='251' />
+      </flightcontest>
+    </extensions>
+    <name>Q</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.9402666667' lon='9.7622500000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='H' viewpos='11' type='TP' number='8' dist='4.5592439503' measuredist='' orthogonaldist='118' />
+      </flightcontest>
+    </extensions>
+    <name>H</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.8845000000' lon='9.7586833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='D' viewpos='12' type='TP' number='9' dist='3.4104499403' measuredist='' orthogonaldist='192' />
+      </flightcontest>
+    </extensions>
+    <name>D</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.8070000000' lon='9.7275500000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='C' viewpos='13' type='TP' number='9' dist='8.2223365051' measuredist='' orthogonaldist='-113' />
+      </flightcontest>
+    </extensions>
+    <name>C</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7452166667' lon='9.7960000000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='M' viewpos='14' type='TP' number='10' dist='4.5397053524' measuredist='' orthogonaldist='75' />
+      </flightcontest>
+    </extensions>
+    <name>M</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7346500000' lon='9.8086000000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='S' viewpos='15' type='TP' number='10' dist='5.3523209874' measuredist='' orthogonaldist='108' />
+      </flightcontest>
+    </extensions>
+    <name>S</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7269000000' lon='9.8743333333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='P' viewpos='16' type='TP' number='11' dist='1.9152012951' measuredist='' orthogonaldist='261' />
+      </flightcontest>
+    </extensions>
+    <name>P</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7430500000' lon='9.9550166667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='I' viewpos='17' type='TP' number='11' dist='5.3062591888' measuredist='' orthogonaldist='109' />
+      </flightcontest>
+    </extensions>
+    <name>I</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7475666667' lon='9.9930166667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='J' viewpos='18' type='TP' number='11' dist='6.8594981884' measuredist='' orthogonaldist='369' />
+      </flightcontest>
+    </extensions>
+    <name>J</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7666666667' lon='10.0457000000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='L' viewpos='19' type='TP' number='12' dist='1.0744907100' measuredist='' orthogonaldist='227' />
+      </flightcontest>
+    </extensions>
+    <name>L</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.8035500000' lon='10.1075833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='T' viewpos='20' type='TP' number='12' dist='4.4025513703' measuredist='' orthogonaldist='136' />
+      </flightcontest>
+    </extensions>
+    <name>T</name>
+    <sym>scenic area</sym>
+  </wpt>
+</gpx>

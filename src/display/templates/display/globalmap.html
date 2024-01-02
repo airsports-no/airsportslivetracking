@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load render_bundle from webpack_loader %}
+{% load static %}
+{#{% block head %}#}
+{#<style>#}
+{#body {#}
+{#  background-image: url("/static/img/results_background2.jpg");#}
+{#  background-repeat: no-repeat;#}
+{#  background-attachment: fixed;#}
+{#}#}
+{#</style>#}
+{#{% endblock %}#}
+
+{% block document_configuration %}
+    <script>
+        document.configuration = {
+            ...document.configuration,
+            {% if perms.display.change_contest %}
+                managementLink: "{% url 'contest_list' %}",
+            {% else %}
+                managementLink: null,
+            {% endif %}
+            {% if user.is_authenticated %}
+                loginLink: null,
+                logoutLink: "{% url 'logout' %}",
+                authenticatedUser: true,
+            {% else %}
+                loginLink: "{% url 'login' %}",
+                logoutLink: null,
+                authenticatedUser: false,
+            {% endif %}
+            isSuperuser: {% if user.is_superuser %}true{% else %}false{% endif %},
+            firstVisit: {% if first_visit %}true{% else %}false{% endif %},
+
+        }
+    </script>
+{% endblock %}
+
+{% block contentfluid %}
+    <div id="root">
+        <img class="centered" src="{% static 'img/loading_airplane.gif' %}" alt="loading..."/>
+    </div>
+    {% render_bundle 'GlobalMap' %}
+{% endblock %}

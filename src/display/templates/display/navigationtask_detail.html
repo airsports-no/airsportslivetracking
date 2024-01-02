@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% load tz %}
+{% load guardian_tags %}
+{% load static %}
+{% block content %}
+    {% get_obj_perms request.user for object.contest as "contest_permissions" %}
+    <H2>{{ object.scorecard.get_calculator_display }} '{{ object.name }}' in
+        contest {{ object.contest.name }}</H2>
+    {{ object.start_time|date:"Y-m-d H:i:s e" }} -
+    {{ object.finish_time|date:"Y-m-d H:i:s e" }} ({{ object.share_string }})
+    <p>
+        Rules: {{ object.original_scorecard.name }}
+    <p>
+        {% if "change_contest" in contest_permissions %}
+            <div class="btn-group float-right">
+                <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false">
+                    Management
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a class="dropdown-item" href="{% url 'navigationtask_addcontestants' object.pk %}"
+                       title="Schedule contestants based on registered teams">Schedule
+                        contestants</a>
+                    <a class="dropdown-item" href="{% url 'navigationtask_removecontestants' object.pk %}"
+                       title="Remove all scheduled contestants">Remove
+                        contestants</a>
+                    {% if object.editable_route %}
+                        <a class="dropdown-item" href="/routeeditor/{{ object.editable_route.id }}/"
+                           title="If the task is generated from a route built in the route editor,  click this link to jump to the edit view of that route.">Edit
+                            route</a>
+                        <a class="dropdown-item" href="{% url 'navigationtask_refresheditableroute' object.pk %}"
+                           title="If the task is generated from a route built in the route editor, click this link to refresh the task if changes have been made to the route.">Reload
+                            route</a>
+                    {% endif %}
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{% url 'navigationtask_flightorderconfiguration' object.pk %}"
+                       title="Update scoring parameters">Flight order configuration</a>
+                    <a class="dropdown-item" href="{% url 'navigationtask_flightordersprogress' object.pk %}"
+                       title="Regenerate flight orders for all future contestants. Warning: it takes a couple of minutes to generate each flight order so this will take some time.">Generate
+                        flight
+                        orders</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{% url 'navigationtask_update' object.pk %}">Update</a>
+                    <a class="dropdown-item" href="{% url 'navigationtask_delete' object.pk %}">Delete</a>
+                </div>
+            </div>
+        {% endif %}
+    <a href="{% url 'contest_details' object.contest.pk %}">Back to contest</a> |
+    <a href="{% url 'navigationtask_share' object.pk %}" title="Toggle the visibility of the navigation task">Share</a>
+    |
+    <a href="{% url 'frontend_view_map' object.pk %}" title="Link to the online tracking map">Tracking map</a> |
+    <a href="{% url 'navigationtask_scoredetails' object.pk %}">Scorecard</a> |
+    <a href="/resultsservice/{{ object.contest.pk }}/taskresults/">Contest results</a>
+
+    <br/>
+    <a href="{% url 'navigationtask_contestantstimeline' object.pk %}"
+       title="A graphical representation of the starting times">Timeline</a> |
+    <a href="{% url 'navigationtask_qr' object.pk %}"
+       title="A page with a QR code to share the navigation task link. Can be printed and posted at the venue, for instance.">QR</a>
+    |
+    <a href="{% url 'navigationtask_map' object.pk %}" title="Generate navigation map">Navigation map</a>
+
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>Team</th>
+            <th>Live</th>
+            <th colspan="2">Tracking</th>
+            <th>Timing</th>
+            {#            <th>Tracker start time</th>#}
+            {#            <th>Takeoff time</th>#}
+            {#            <th>Finish by time</th>#}
+            <th>AS</th>
+            <th>Wind</th>
+            <th>State</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+
+        {% for contestant in object.contestant_set.all %}
+            <tr>
+                <td>{{ contestant.contestant_number }}</td>
+                <td class="no-wrap"><a
+                        href="{% url 'contestant_update' contestant.pk %}">{{ contestant.team.table_display|safe }}</a>
+                </td>
+                <td>
+                    <div id="contestant_live_running_{{ contestant.pk }}" style="display: none">
+                        <a class="dropdown-item" href="{% url 'contestant_stop_calculator' contestant.pk %}"
+                           title="Terminates the running scoring of the contestant."
+                           onclick="return confirm('Are you sure you want to stop the calculator? Do not do this unless you know what you are doing.')"><img
+                                src="{% static "img/green_light.png" %}"
+                                alt="Calculator is running. We have received positions from the tracker."
+                                style="width: 18px"/></a>
+                    </div>
+                    <div id="contestant_live_not_running_{{ contestant.pk }}" style="display: none">
+                        {% if contestant.contestanttrack.calculator_finished %}
+                            <a class="dropdown-item" href="{% url 'contestant_restart_calculator' contestant.pk %}"
+                               title="Restart the live scoring process from the beginning. Can be used if it was inadvertently stopped."
+                               onclick="return confirm('Are you sure you want to restart the calculator? Do not do this unless you know what you are doing.')"><img
+                                    src="{% static "img/red_light.png" %}"
+                                    alt="Calculator is not running because it has finished."
+                                    style="width: 18px"/></a>
+                        {% else %}
+                            <img
+                                    src="{% static "img/red_light.png" %}"
+                                    alt="Calculator is not running, probably because it has not started yet."
+                                    style="width: 18px"/>
+                        {% endif %}
+                    </div>
+                </td>
+                <td style="padding-right:0">
+                    {% for tracker in contestant.tracker_id_display %}
+                        {% if tracker.is_active %}
+                            <img src="{% static "img/green_checkmark.png" %}" alt="Tracking connection is verified"
+                                 style="width: 12px"/>
+                        {% endif %}
+                        <br/>
+                    {% endfor %}
+                </td>
+                <td style="padding-left:0">
+                    {% for tracker in contestant.tracker_id_display %}
+                        {{ tracker.tracker }}{% if not tracker.has_user %}<a href="#" data-toggle="tooltip"
+                                                                             title="The user for the tracker is not registered. This probably means that the user has not downloaded and logged into the app.">*</a>
+                        {% endif %}
+                        <br/>
+                    {% endfor %}
+                </td>
+                <td>
+                    <table class="table borderless table-sm" style="font-size: small">
+                        <tbody>
+                        <tr>
+                            <td class="no-wrap" style="padding-right: .2rem">Tracking</td>
+                            <td class="no-wrap"> {{ contestant.tracker_start_time|date:"Y-m-d H:i:s" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Takeoff</td>
+                            <td class="no-wrap">
+                                {% if contestant.adaptive_start %}
+                                    Adaptive
+                                {% else %}
+                                    {{ contestant.takeoff_time|date:"Y-m-d H:i:s" }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="no-wrap">Finished</td>
+                            <td class="no-wrap">{{ contestant.finished_by_time|date:"Y-m-d H:i:s" }}</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                <td>{{ contestant.air_speed|stringformat:"d" }}</td>
+                <td>
+                    <a href="{% url 'contestant_gate_times' contestant.pk %}">
+                        {{ contestant.wind_direction|stringformat:"03d" }}/{{ contestant.wind_speed }}</a>
+                </td>
+                <td>{{ contestant.contestanttrack.current_state }}</td>
+                <td>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
+                                aria-haspopup="true" aria-expanded="false">
+                            Actions
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right">
+                            <a class="dropdown-item" href="{% url 'contestant_map' contestant.pk %}"
+                               title="Generate the navigation map for the contestant">Map</a>
+                            {% if "change_contest" in contest_permissions %}
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item"
+                                   href="{% url 'navigationtask_flightordersprogress' object.pk %}?contestant_pk={{ contestant.pk }}"
+                                   title="Generate and download a new flight order.">Generate new flight
+                                    order</a>
+                                {% if contestant.has_flight_order_link %}
+                                    <a class="dropdown-item"
+                                       href="{% url 'email_map_link' contestant.newest_flight_order_link_uid %}"
+                                       title="Generate and download a new flight order.">Download flight
+                                        order</a>
+                                {% endif %}
+                                <a class="dropdown-item" href="{% url 'contestant_uploadgpxtrack' contestant.pk %}"
+                                   title="Upload a GPX track for scoring. This will delete any existing track for the contestant.">Upload
+                                    gpx</a>
+                                <a class="dropdown-item" href="{% url 'contestant_downloadgpxtrack' contestant.pk %}"
+                                   title="Download the GPX track used for the current score calculation.">Download
+                                    gpx</a>
+                                <a class="dropdown-item"
+                                   href="{% url 'contestant_recalculatetraccartrack' contestant.pk %}"
+                                   title="Recalculate original data. This will delete any uploaded tracks">Recalculate
+                                    original</a>
+                                <a class="dropdown-item" href="{% url 'processingstatistics' contestant.pk %}"
+                                   title="Retrieve figure with processing statistics for debug purposes">Processing
+                                    statistics</a>
+                                {% if object.is_poker_run %}
+                                    <a class="dropdown-item" href="{% url 'contestant_cards_list' contestant.pk %}"
+                                       title="Manage the poker playing cards for the contestant">Playing
+                                        cards</a>
+                                {% endif %}
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item"
+                                   href="{% url 'contestant_delete' contestant.pk %}">Delete
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    <hr/>
+    <p>
+        To verify that tracking will work, switch on the Air Sports Live Tracking App for the contestants and reload
+        this page. If there is a green checkmark next to the tracking email, then tracking is set up correctly. If there
+        is an * next to the email, then this user has not set up the APP correctly (for instance using a different email
+        address). The email address listed in the tracking column must exactly match the email address used to log into
+        the Air Sports Live Tracking App. When the lights under "Live" is red it means that the calculator is not
+        running. This is either because the contestant has finished, or because it has not started yet. If the light
+        is green, the calculator is running and we have received position data from the tracker.</p>
+    <hr/>
+    <a href="{% url 'contestant_create' object.pk %}">New contestant</a>
+    <script type="text/javascript">
+        function updateRunningStatus(statuses) {
+            for (var i = 0; i < statuses.length; i++) {
+                if (statuses[i][1]) {
+                    document.getElementById("contestant_live_running_" + statuses[i][0]).removeAttribute("style")
+                    document.getElementById("contestant_live_not_running_" + statuses[i][0]).setAttribute("style", "display: none")
+                } else {
+                    document.getElementById("contestant_live_not_running_" + statuses[i][0]).removeAttribute("style")
+                    document.getElementById("contestant_live_running_" + statuses[i][0]).setAttribute("style", "display: none")
+                }
+            }
+        }
+
+        function checkCalculatorRunning() {
+            $.ajax({
+                url: "{% url 'navigationtask_getrunningcalculators' object.pk %}",
+                type: 'get',
+                dataType: "json",
+                success: function (data) {
+                    updateRunningStatus(data);
+                }
+            });
+        }
+
+        $(document).ready(function () {
+            checkCalculatorRunning()
+            setInterval(checkCalculatorRunning, 5000);
+        })
+    </script>
+{% endblock %}

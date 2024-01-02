@@ -1,0 +1,74 @@
+.gate-score-arrow {
+    height: 150px;
+}
+
+.gate-score-next-gate {
+    font-weight: 700;
+}
+
+.gate-countdown-timer {
+    color: black;
+    margin-top: 7px;
+}
+
+.gate-remaining-seconds {
+    text-align: center;
+    font-size: x-large;
+}
+
+.gate-remaining-seconds-red {
+    color: #e50000;
+}
+
+.gate-countdown-label {
+    font-size: 8px;
+    width: 100vw;
+}
+
+.click-time-arrow {
+    position: relative;
+    width: 28px;
+    margin-left: 2px;
+}
+.time-text {
+    transform: rotate(-90deg);
+    position: absolute;
+    top: 47px;
+    left: 7px;
+    color: #e2f0d9;
+}
+
+.danger-level-gauge {
+    position: absolute;
+    right: 32px;
+    bottom: 69px;
+}
+
+.gate-estimated-crossing-offset {
+    text-align: center;
+    font-size: medium;
+}
+
+.gate-score-arrow {
+    /*bottom: 2px;*/
+    /*left: 145px;*/
+    /*position: fixed;*/
+    /*width: 530px;*/
+    /*height: 110px;*/
+    z-index: 2;
+    margin-bottom: -38px;
+}
+
+.gate-arrow-canvas {
+    margin-top: -42px;
+}
+
+.gate-arrow-shadow {
+    box-shadow: 5px 10px 5px rgba(0, 0, 0, 0.6);
+    border-radius: 15px 15px 0 0;
+    height: 80px;
+    width: 512px;
+    background: #f8f4f0;
+    color: #92d468;
+    border: solid;
+}

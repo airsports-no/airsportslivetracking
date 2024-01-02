@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+
+{% block content %}
+    <h2>Upload new picture for {{ object }}</h2>
+    <form method="post" class="form" enctype="multipart/form-data">
+        {{ form.media }}
+        {% crispy form %}
+    </form>
+{% endblock %}

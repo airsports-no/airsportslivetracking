@@ -1,0 +1,50 @@
+<?php get_template_part('templates/head'); ?>
+
+<?php
+        $header_image = get_header_image();
+        if ( ! empty( $header_image ) ) { ?>
+           <div class="hidden-xs"> <a href="<?php echo esc_url( home_url( '/' ) ); ?>" title="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" rel="home">
+                <img class="img-responsive" src="<?php header_image(); ?>" width="<?php echo get_custom_header()->width; ?>" height="<?php echo get_custom_header()->height; ?>" alt="<?php echo get_bloginfo( 'name' ); ?>" />
+            </a></div>
+<?php } // if ( ! empty( $header_image ) )
+?>
+<header class="banner navbar navbar-inverse navbar-static-top" role="banner">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+        <span class="sr-only"><?php _e('Toggle Navigation', 'faq');?></span>
+        <i class="fa fa-plus-square"></i> <?php _e('Navigation', 'faq');?>
+      </button>
+            <?php
+            // if an logo img is set via customizer we show it else show the default text (set via appearance -> header)
+            if ( $logo = get_theme_mod( 'faq_logo' ) ) { ?>
+                      <h1 class="site-title">
+                        <a href="<?php echo esc_url( home_url( '/' ) ); ?>" rel="tooltip" title="<?php bloginfo( 'description' ); ?>" data-placement="bottom">
+                        <img src="<?php echo get_theme_mod( 'faq_logo' ); ?>" alt="<?php bloginfo( 'name' ); ?>">
+                       </a>
+                      </h1>
+
+            <?php } else { ?>
+            <h1 class="site-title"><a href="<?php echo esc_url( home_url( '/' ) ); ?>" rel="tooltip" title="<?php bloginfo( 'description' ); ?>" data-placement="bottom"><?php bloginfo( 'name' ); ?></a></h1>
+            <?php } ?>
+
+    </div>
+    <nav class="collapse navbar-collapse" role="navigation">
+      <?php
+       // primary menu
+
+          wp_nav_menu( array(
+            'theme_location' => 'primary_navigation',
+             'menu_class' => 'nav navbar-nav',
+             'fallback_cb' => 'faq_default_menu'
+             ));
+      ?>
+
+    <div class="navbar-form navbar-right">
+		<a class="btn btn-primary" href="https://airsports.no">GLOBAL MAP</a>
+    </div>
+
+    </nav>
+  </div>
+</header>
+

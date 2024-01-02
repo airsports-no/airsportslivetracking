@@ -1,0 +1,1012 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<gpx version='1.1' creator='Flight Contest - flightcontest.de - Version 4'>
+  <extensions>
+    <flightcontest>
+      <observationsettings turnpoint='TrueFalsePhoto' turnpointmapmeasurement='no' enroutephoto='InputCoord' enroutephotomeasurement='NMFromTP' enroutecanvas='None' enroutecanvasmeasurement='None' useprocedureturn='no' />
+    </flightcontest>
+  </extensions>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <route number='1' />
+      </flightcontest>
+    </extensions>
+    <name>DMM NAV S&amp;uuml;dstrecke I / 14 CPs / 104 nm</name>
+    <rtept lat='47.7838518333' lon='10.0629126667'>
+      <name>SP</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.8789628333' lon='10.2291648333'>
+      <name>TP1</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.8040870000' lon='10.3016886667'>
+      <name>TP2</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.8193200000' lon='10.4416481667'>
+      <name>TP3</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.7637028333' lon='10.6296211667'>
+      <name>TP4</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.6587565000' lon='10.6086370000'>
+      <name>TP5</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.6361473333' lon='10.4677261667'>
+      <name>TP6</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.6332010000' lon='10.4590325000'>
+      <name>SC1</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.6282633333' lon='10.4529118333'>
+      <name>SC2</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.6242498333' lon='10.4445858333'>
+      <name>SC3</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.6177210000' lon='10.4365783333'>
+      <name>SC4</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.6086475000' lon='10.4294166667'>
+      <name>SC5</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.6014553333' lon='10.4203041667'>
+      <name>SC6</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5983313333' lon='10.4179160000'>
+      <name>SC7</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5911905000' lon='10.4149701667'>
+      <name>SC8</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5853438333' lon='10.4093988333'>
+      <name>SC9</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5833581667' lon='10.4107891667'>
+      <name>SC10</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5823780000' lon='10.4144636667'>
+      <name>SC11</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5821260000' lon='10.4198275000'>
+      <name>SC12</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5768545000' lon='10.4243520000'>
+      <name>SC13</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5751363333' lon='10.4297411667'>
+      <name>SC14</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5729360000' lon='10.4315555000'>
+      <name>SC15</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5703585000' lon='10.4302860000'>
+      <name>SC16</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5677136667' lon='10.4327085000'>
+      <name>SC17</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5645796667' lon='10.4331911667'>
+      <name>SC18</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5620901667' lon='10.4344898333'>
+      <name>SC19</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5587023333' lon='10.4322966667'>
+      <name>SC20</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5498310000' lon='10.4245700000'>
+      <name>SC21</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5476543333' lon='10.4240863333'>
+      <name>SC22</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5455793333' lon='10.4237523333'>
+      <name>SC23</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5439481667' lon='10.4207110000'>
+      <name>SC24</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5414698333' lon='10.4182820000'>
+      <name>SC25</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5377376667' lon='10.4128811667'>
+      <name>SC26</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5358581667' lon='10.4126065000'>
+      <name>SC27</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5338833333' lon='10.4139936667'>
+      <name>SC28</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5319185000' lon='10.4143770000'>
+      <name>SC29</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5297903333' lon='10.4157230000'>
+      <name>SC30</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5261865000' lon='10.4147640000'>
+      <name>SC31</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5231683333' lon='10.4109313333'>
+      <name>SC32</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5208725000' lon='10.4098681667'>
+      <name>SC33</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5194693333' lon='10.4100900000'>
+      <name>SC34</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5172985000' lon='10.4084228333'>
+      <name>TP7</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5153096667' lon='10.4041995000'>
+      <name>SC35</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5135406667' lon='10.3969856667'>
+      <name>SC36</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5099828333' lon='10.3914431667'>
+      <name>SC37</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5066405000' lon='10.3800613333'>
+      <name>SC38</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5037351667' lon='10.3586546667'>
+      <name>SC39</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5030716667' lon='10.3455098333'>
+      <name>SC40</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5058335000' lon='10.3145973333'>
+      <name>SC41</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5108218333' lon='10.2998278333'>
+      <name>SC42</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5241240000' lon='10.2815371667'>
+      <name>TP8</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5729706667' lon='10.1957811667'>
+      <name>TP9</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5539131667' lon='10.0509143333'>
+      <name>TP10</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.5861658333' lon='9.8563936667'>
+      <name>TP11</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.7014915000' lon='10.0489215000'>
+      <name>TP12</name>
+      <ele>0E+4</ele>
+    </rtept>
+    <rtept lat='47.7517795000' lon='9.9058131667'>
+      <name>FP</name>
+      <ele>0E+4</ele>
+    </rtept>
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TO' number='1' lat='47.8594136667' lon='10.0154056667' alt='0' width='0.02' dir='240' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>T/O</name>
+    <rtept lat='47.8595580043' lon='10.0152814649' />
+    <rtept lat='47.8592693291' lon='10.0155298681' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SP' number='1' lat='47.7838518333' lon='10.0629126667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>SP</name>
+    <rtept lat='47.7901944617' lon='10.0548679711' />
+    <rtept lat='47.7775092049' lon='10.0709563808' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='1' lat='47.8789628333' lon='10.2291648333' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP1</name>
+    <rtept lat='47.8853054617' lon='10.2211053786' />
+    <rtept lat='47.8726202049' lon='10.2372233014' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='2' lat='47.8040870000' lon='10.3016886667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP2</name>
+    <rtept lat='47.8086290622' lon='10.3120911543' />
+    <rtept lat='47.7995449378' lon='10.2912870886' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='3' lat='47.8193200000' lon='10.4416481667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP3</name>
+    <rtept lat='47.8275460038' lon='10.4396625818' />
+    <rtept lat='47.8110939962' lon='10.4436334370' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='4' lat='47.7637028333' lon='10.6296211667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP4</name>
+    <rtept lat='47.7713293151' lon='10.6346182658' />
+    <rtept lat='47.7560763515' lon='10.6246248001' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='5' lat='47.6587565000' lon='10.6086370000' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP5</name>
+    <rtept lat='47.6576453382' lon='10.6208987426' />
+    <rtept lat='47.6598676618' lon='10.5963749964' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='6' lat='47.6361473333' lon='10.4677261667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP6</name>
+    <rtept lat='47.6280407441' lon='10.4705912004' />
+    <rtept lat='47.6442539225' lon='10.4648606885' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='1' lat='47.6332010000' lon='10.4590325000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC1</name>
+    <rtept lat='47.6183114039' lon='10.4701435299' />
+    <rtept lat='47.6480905961' lon='10.4479183038' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='2' lat='47.6282633333' lon='10.4529118333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC2</name>
+    <rtept lat='47.6175782625' lon='10.4718892301' />
+    <rtept lat='47.6389484041' lon='10.4339305565' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='3' lat='47.6242498333' lon='10.4445858333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC3</name>
+    <rtept lat='47.6106937134' lon='10.4589697116' />
+    <rtept lat='47.6378059532' lon='10.4301982243' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='4' lat='47.6177210000' lon='10.4365783333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC4</name>
+    <rtept lat='47.6071017184' lon='10.4556330146' />
+    <rtept lat='47.6283402816' lon='10.4175197816' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='5' lat='47.6086475000' lon='10.4294166667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC5</name>
+    <rtept lat='47.6008186176' lon='10.4512389345' />
+    <rtept lat='47.6164763824' lon='10.4075911322' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='6' lat='47.6014553333' lon='10.4203041667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC6</name>
+    <rtept lat='47.5906298783' lon='10.4390959526' />
+    <rtept lat='47.6122807883' lon='10.4015084919' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='7' lat='47.5983313333' lon='10.4179160000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC7</name>
+    <rtept lat='47.5906949145' lon='10.4398834832' />
+    <rtept lat='47.6059677521' lon='10.3959453104' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='8' lat='47.5911905000' lon='10.4149701667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC8</name>
+    <rtept lat='47.5867234722' lon='10.4387777247' />
+    <rtept lat='47.5956575278' lon='10.3911605765' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='9' lat='47.5853438333' lon='10.4093988333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC9</name>
+    <rtept lat='47.5763328453' lon='10.4301841105' />
+    <rtept lat='47.5943548213' lon='10.3886099777' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='10' lat='47.5833581667' lon='10.4107891667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC10</name>
+    <rtept lat='47.5904756187' lon='10.4331333293' />
+    <rtept lat='47.5762407147' lon='10.3884480418' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='11' lat='47.5823780000' lon='10.4144636667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC11</name>
+    <rtept lat='47.5978767453' lon='10.4235515916' />
+    <rtept lat='47.5668792547' lon='10.4053784319' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='12' lat='47.5821260000' lon='10.4198275000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC12</name>
+    <rtept lat='47.5987523867' lon='10.4215445665' />
+    <rtept lat='47.5654996133' lon='10.4181109787' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='13' lat='47.5768545000' lon='10.4243520000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC13</name>
+    <rtept lat='47.5852054240' lon='10.4457346312' />
+    <rtept lat='47.5685035760' lon='10.4029727788' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='14' lat='47.5751363333' lon='10.4297411667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC14</name>
+    <rtept lat='47.5902049701' lon='10.4402987682' />
+    <rtept lat='47.5600676965' lon='10.4191866029' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='15' lat='47.5729360000' lon='10.4315555000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC15</name>
+    <rtept lat='47.5810381857' lon='10.4531457572' />
+    <rtept lat='47.5648338143' lon='10.4099685829' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='16' lat='47.5703585000' lon='10.4302860000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC16</name>
+    <rtept lat='47.5651028181' lon='10.4537273537' />
+    <rtept lat='47.5756141819' lon='10.4068422938' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='17' lat='47.5677136667' lon='10.4327085000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC17</name>
+    <rtept lat='47.5764753367' lon='10.4537232193' />
+    <rtept lat='47.5589519967' lon='10.4116972957' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='18' lat='47.5645796667' lon='10.4331911667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC18</name>
+    <rtept lat='47.5663023297' lon='10.4577594626' />
+    <rtept lat='47.5628570037' lon='10.4086236788' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='19' lat='47.5620901667' lon='10.4344898333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC19</name>
+    <rtept lat='47.5676240290' lon='10.4577888563' />
+    <rtept lat='47.5565563044' lon='10.4111932713' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='20' lat='47.5587023333' lon='10.4322966667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC20</name>
+    <rtept lat='47.5520303470' lon='10.4549273379' />
+    <rtept lat='47.5653743196' lon='10.4096631134' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='21' lat='47.5498310000' lon='10.4245700000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC21</name>
+    <rtept lat='47.5413851999' lon='10.4458561791' />
+    <rtept lat='47.5582768001' lon='10.4032803904' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='22' lat='47.5476543333' lon='10.4240863333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC22</name>
+    <rtept lat='47.5451823109' lon='10.4485048505' />
+    <rtept lat='47.5501263557' lon='10.3996666645' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='23' lat='47.5455793333' lon='10.4237523333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC23</name>
+    <rtept lat='47.5437791107' lon='10.4482986850' />
+    <rtept lat='47.5473795559' lon='10.3992051386' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='24' lat='47.5439481667' lon='10.4207110000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC24</name>
+    <rtept lat='47.5308990708' lon='10.4360687778' />
+    <rtept lat='47.5569972626' lon='10.4053493987' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='25' lat='47.5414698333' lon='10.4182820000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC25</name>
+    <rtept lat='47.5322736132' lon='10.4388709232' />
+    <rtept lat='47.5506660534' lon='10.3976894649' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='26' lat='47.5377376667' lon='10.4128811667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC26</name>
+    <rtept lat='47.5260909866' lon='10.4305386041' />
+    <rtept lat='47.5493843468' lon='10.3952198066' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='27' lat='47.5358581667' lon='10.4126065000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC27</name>
+    <rtept lat='47.5342217733' lon='10.4371734913' />
+    <rtept lat='47.5374945601' lon='10.3880387420' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='28' lat='47.5338833333' lon='10.4139936667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC28</name>
+    <rtept lat='47.5410248701' lon='10.4362998590' />
+    <rtept lat='47.5267417965' lon='10.3916905119' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='29' lat='47.5319185000' lon='10.4143770000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC29</name>
+    <rtept lat='47.5340950829' lon='10.4388509006' />
+    <rtept lat='47.5297419171' lon='10.3899041152' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='30' lat='47.5297903333' lon='10.4157230000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC30</name>
+    <rtept lat='47.5363358040' lon='10.4384249829' />
+    <rtept lat='47.5232448626' lon='10.3930238501' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='31' lat='47.5261865000' lon='10.4147640000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC31</name>
+    <rtept lat='47.5232389960' lon='10.4390563731' />
+    <rtept lat='47.5291340040' lon='10.3904702618' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='32' lat='47.5231683333' lon='10.4109313333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC32</name>
+    <rtept lat='47.5123191651' lon='10.4296650074' />
+    <rtept lat='47.5340175015' lon='10.3921937845' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='33' lat='47.5208725000' lon='10.4098681667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC33</name>
+    <rtept lat='47.5158979948' lon='10.4334217276' />
+    <rtept lat='47.5258470052' lon='10.3863123724' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='34' lat='47.5194693333' lon='10.4100900000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC34</name>
+    <rtept lat='47.5212387144' lon='10.4346298874' />
+    <rtept lat='47.5176999522' lon='10.3855509402' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='7' lat='47.5172985000' lon='10.4084228333' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='yes' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP7</name>
+    <rtept lat='47.5134616917' lon='10.4193757614' />
+    <rtept lat='47.5211353083' lon='10.3974691043' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='35' lat='47.5153096667' lon='10.4041995000' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC35</name>
+    <rtept lat='47.5016382243' lon='10.4183117313' />
+    <rtept lat='47.5289811091' lon='10.3900835915' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='36' lat='47.5135406667' lon='10.3969856667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC36</name>
+    <rtept lat='47.4978746263' lon='10.4054058366' />
+    <rtept lat='47.5292067071' lon='10.3885629828' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='37' lat='47.5099828333' lon='10.3914431667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC37</name>
+    <rtept lat='47.4979017569' lon='10.4084392468' />
+    <rtept lat='47.5220639097' lon='10.3744431739' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='38' lat='47.5066405000' lon='10.3800613333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC38</name>
+    <rtept lat='47.4913557237' lon='10.3898966965' />
+    <rtept lat='47.5219252763' lon='10.3702231057' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='39' lat='47.5037351667' lon='10.3586546667' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC39</name>
+    <rtept lat='47.4873950284' lon='10.3635136140' />
+    <rtept lat='47.5200753050' lon='10.3537942067' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='40' lat='47.5030716667' lon='10.3455098333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC40</name>
+    <rtept lat='47.4864513305' lon='10.3473478260' />
+    <rtept lat='47.5196920029' lon='10.3436712586' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='41' lat='47.5058335000' lon='10.3145973333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC41</name>
+    <rtept lat='47.4893107132' lon='10.3113629112' />
+    <rtept lat='47.5223562868' lon='10.3178327736' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='SECRET' number='42' lat='47.5108218333' lon='10.2998278333' alt='0' width='2.0' dir='' notimecheck='yes' nogatecheck='yes' noplanningtest='yes' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>SC42</name>
+    <rtept lat='47.4959147493' lon='10.2887943552' />
+    <rtept lat='47.5257289173' lon='10.3108644458' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='8' lat='47.5241240000' lon='10.2815371667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='yes' endcurved='yes' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP8</name>
+    <rtept lat='47.5184533597' lon='10.2724948647' />
+    <rtept lat='47.5297946403' lon='10.2905804462' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='9' lat='47.5729706667' lon='10.1957811667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='False' />
+      </flightcontest>
+    </extensions>
+    <name>TP9</name>
+    <rtept lat='47.5666020297' lon='10.1878153534' />
+    <rtept lat='47.5793393037' lon='10.2037479488' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='10' lat='47.5539131667' lon='10.0509143333' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='False' />
+      </flightcontest>
+    </extensions>
+    <name>TP10</name>
+    <rtept lat='47.5457338250' lon='10.0532769131' />
+    <rtept lat='47.5620925084' lon='10.0485513847' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='11' lat='47.5861658333' lon='9.8563936667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP11</name>
+    <rtept lat='47.5780732880' lon='9.8534453192' />
+    <rtept lat='47.5942583786' lon='9.8593424701' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='TP' number='12' lat='47.7014915000' lon='10.0489215000' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='True' />
+      </flightcontest>
+    </extensions>
+    <name>TP12</name>
+    <rtept lat='47.7077193135' lon='10.0406935303' />
+    <rtept lat='47.6952636865' lon='10.0571484868' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='FP' number='1' lat='47.7517795000' lon='9.9058131667' alt='0' width='1.0' dir='' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='False' />
+      </flightcontest>
+    </extensions>
+    <name>FP</name>
+    <rtept lat='47.7443932780' lon='9.9000746664' />
+    <rtept lat='47.7591657220' lon='9.9115524815' />
+  </rte>
+  <rte>
+    <extensions>
+      <flightcontest>
+        <gate type='LDG' number='1' lat='47.8593315000' lon='10.0151510000' alt='0' width='0.02' dir='240' notimecheck='no' nogatecheck='no' noplanningtest='no' endcurved='no' dist='' track='' duration='' assignedsign='None' correctsign='Unassigned' />
+      </flightcontest>
+    </extensions>
+    <name>LDG</name>
+    <rtept lat='47.8594758376' lon='10.0150267984' />
+    <rtept lat='47.8591871624' lon='10.0152752013' />
+  </rte>
+  <wpt lat='47.8594136667' lon='10.0154056667'>
+    <sym>airport</sym>
+  </wpt>
+  <wpt lat='47.7838518333' lon='10.0629126667'>
+    <sym>start</sym>
+  </wpt>
+  <wpt lat='47.7517795000' lon='9.9058131667'>
+    <sym>finish</sym>
+  </wpt>
+  <wpt lat='47.8593315000' lon='10.0151510000'>
+    <sym>airport</sym>
+  </wpt>
+  <wpt lat='47.8501666667' lon='10.1845000000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='C' viewpos='1' type='SP' number='1' dist='6.3110536952' measuredist='' orthogonaldist='275' />
+      </flightcontest>
+    </extensions>
+    <name>C</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.8504666667' lon='10.2557500000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='H' viewpos='2' type='TP' number='1' dist='2.0170517613' measuredist='' orthogonaldist='64' />
+      </flightcontest>
+    </extensions>
+    <name>H</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.8223500000' lon='10.2844166667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='K' viewpos='3' type='TP' number='1' dist='4.0604357582' measuredist='' orthogonaldist='-25' />
+      </flightcontest>
+    </extensions>
+    <name>K</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.8105166667' lon='10.3923166667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='N' viewpos='4' type='TP' number='2' dist='3.6724071901' measuredist='' orthogonaldist='376' />
+      </flightcontest>
+    </extensions>
+    <name>N</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.8110833333' lon='10.4017666667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='B' viewpos='5' type='TP' number='2' dist='4.0546667323' measuredist='' orthogonaldist='427' />
+      </flightcontest>
+    </extensions>
+    <name>B</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7908333333' lon='10.5230000000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='E' viewpos='6' type='TP' number='3' dist='3.6972169766' measuredist='' orthogonaldist='450' />
+      </flightcontest>
+    </extensions>
+    <name>E</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7845666667' lon='10.5511166667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='A' viewpos='7' type='TP' number='3' dist='4.8797306060' measuredist='' orthogonaldist='241' />
+      </flightcontest>
+    </extensions>
+    <name>A</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7816166667' lon='10.5684666667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='O' viewpos='8' type='TP' number='3' dist='5.5894007623' measuredist='' orthogonaldist='19' />
+      </flightcontest>
+    </extensions>
+    <name>O</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7081833333' lon='10.6128000000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='L' viewpos='9' type='TP' number='4' dist='3.3996234817' measuredist='' orthogonaldist='423' />
+      </flightcontest>
+    </extensions>
+    <name>L</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.6786833333' lon='10.6116666667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='P' viewpos='10' type='TP' number='4' dist='5.1523932794' measuredist='' orthogonaldist='70' />
+      </flightcontest>
+    </extensions>
+    <name>P</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.6416666667' lon='10.4836833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='G' viewpos='11' type='TP' number='5' dist='5.1535788190' measuredist='' orthogonaldist='319' />
+      </flightcontest>
+    </extensions>
+    <name>G</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.6017500000' lon='10.4208833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='D' viewpos='12' type='TP' number='6' dist='2.8015207781' measuredist='' orthogonaldist='-103' />
+      </flightcontest>
+    </extensions>
+    <name>D</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.5041000000' lon='10.3337500000'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='Q' viewpos='13' type='TP' number='7' dist='3.1281744102' measuredist='' orthogonaldist='-193' />
+      </flightcontest>
+    </extensions>
+    <name>Q</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.5580666667' lon='10.0746833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='R' viewpos='14' type='TP' number='9' dist='4.9835092207' measuredist='' orthogonaldist='111' />
+      </flightcontest>
+    </extensions>
+    <name>R</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.5689333333' lon='9.9753833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='F' viewpos='15' type='TP' number='10' dist='3.1881238906' measuredist='' orthogonaldist='269' />
+      </flightcontest>
+    </extensions>
+    <name>F</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.5804500000' lon='9.8841833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='I' viewpos='16' type='TP' number='10' dist='6.9351065053' measuredist='' orthogonaldist='-119' />
+      </flightcontest>
+    </extensions>
+    <name>I</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.6298166667' lon='9.9327833333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='M' viewpos='17' type='TP' number='11' dist='4.0507054900' measuredist='' orthogonaldist='177' />
+      </flightcontest>
+    </extensions>
+    <name>M</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.6704833333' lon='10.0036333333'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='T' viewpos='18' type='TP' number='11' dist='7.8129336512' measuredist='' orthogonaldist='324' />
+      </flightcontest>
+    </extensions>
+    <name>T</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7223833333' lon='9.9904166667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='J' viewpos='19' type='TP' number='12' dist='2.6739468394' measuredist='' orthogonaldist='32' />
+      </flightcontest>
+    </extensions>
+    <name>J</name>
+    <sym>scenic area</sym>
+  </wpt>
+  <wpt lat='47.7456500000' lon='9.9199166667'>
+    <extensions>
+      <flightcontest>
+        <enroutephotosign photoname='S' viewpos='20' type='TP' number='12' dist='5.8422853669' measuredist='' orthogonaldist='-115' />
+      </flightcontest>
+    </extensions>
+    <name>S</name>
+    <sym>scenic area</sym>
+  </wpt>
+</gpx>

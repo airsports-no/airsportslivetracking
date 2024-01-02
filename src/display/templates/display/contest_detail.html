@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load guardian_tags %}
+{% load tz %}
+{% block content %}
+    <H1>{{ object.name }} ({{ object.share_string }})</H1>
+    {{ object.start_time|date:"Y-m-d" }} -
+    {{ object.finish_time|date:"Y-m-d" }} {{ object.start_time|date:"e" }}
+    <p>
+        {% get_obj_perms request.user for contest as "contest_permissions" %}
+
+
+        {% if "change_contest" in contest_permissions %}
+            <div class="btn-group float-right">
+                <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false">
+                    Management
+                </button>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a>
+                    <a class="dropdown-item" href= {% url 'contest_permissions_list' object.pk %}>Permissions</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{% url 'contest_update' object.pk %}">Update</a>
+                    {% if "delete_contest" in contest_permissions %}
+                        <a class="dropdown-item" href="{% url 'contest_delete' object.pk %}">Delete</a>
+                    {% endif %}
+                </div>
+            </div>
+            <a href="{% url 'contest_share' object.pk %}">Share</a> |
+            <a href="{% url 'contest_team_list' object.pk %}">Team list</a> |
+            <a href="/resultsservice/{{ object.pk }}/taskresults/">Contest results</a>
+        {% endif %}
+    <table class="table table-condensed">
+        <thead>
+        <tr>
+            <th>Task</th>
+            <th>Start time</th>
+            <th>Finish time</th>
+            <th>Scorecard</th>
+        </tr>
+        </thead>
+        {% for navigation_task in object.navigationtask_set.all %}
+            <tr>
+                <td>
+                    {% if "view_contest" in contest_permissions %}
+                        <a href="{% url 'navigationtask_detail' navigation_task.id %}">{{ navigation_task.name }}</a>
+                    {% else %}
+                        {{ navigation_task.name }}
+                    {% endif %}
+                    ({{ navigation_task.share_string }})
+                </td>
+                <td>
+                    {{ navigation_task.start_time|date:"Y-m-d H:i:s e" }}
+                </td>
+                <td>{{ navigation_task.finish_time|date:"Y-m-d H:i:s e" }}</td>
+                <td>{{ navigation_task.original_scorecard }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endblock %}

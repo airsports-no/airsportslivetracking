@@ -1,0 +1,12 @@
+dependencies:
+- name: mysql
+  repository: https://charts.bitnami.com/bitnami
+  version: 9.10.10
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 17.11.8
+- name: wordpress
+  repository: https://charts.bitnami.com/bitnami
+  version: 16.1.35
+digest: sha256:c211e57558e5b62eed27045215fff431236fdd12a25b581cf463199ccb9fe14a
+generated: "2023-12-24T13:06:21.870930635+01:00"

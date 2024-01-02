@@ -1,0 +1,161 @@
+# Docker
+# Build and push an image to Azure Container Registry
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+# trigger:
+# - master
+
+variables:
+  containerName: tracker_daphne
+  IMAGE_TAG: $(Build.BuildId)
+
+  # Agent VM image name
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+    steps:
+    - checkout: self
+      submodules: true
+      persistCredentials: true
+    - task: DockerCompose@0
+      displayName: Build services
+      inputs:
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
+        dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
+        qualifyImageNames: false
+        action: 'Build services'
+    - task: Docker@2
+      inputs:
+        containerRegistry: 'GKE Docker registry'
+        command: 'login'
+    - task: DockerCompose@0
+      displayName: Push tracker_web to docker registry
+      inputs:
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
+        dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'push'
+        includeLatestTag: false
+        arguments: 'tracker_daphne'
+    - task: DockerCompose@0
+      displayName: Push the rest to docker registry
+      inputs:
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
+        dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
+        action: 'Push services'
+        additionalImageTags: '${{Variables.tag}}'
+        includeLatestTag: false
+    
+- stage: Test
+  condition: succeeded()
+  jobs:
+  - job: Test
+    steps:
+    - checkout: self
+      submodules: true
+      persistCredentials: true
+    - task: Docker@2
+      inputs:
+        containerRegistry: 'GKE Docker registry'
+        command: 'login'
+    - task: DockerCompose@0
+      displayName: Pull daphne
+      inputs:
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
+        projectName: '${{Variables.IMAGE_TAG}}'
+        dockerComposeFile: '**/docker-compose.yml'
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'pull'
+    - task: DockerCompose@0
+      displayName: Run tests
+      inputs:
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
+        dockerComposeFile: '**/docker-compose.yml'
+        action: 'Run a Docker Compose command'
+        projectName: '${{Variables.IMAGE_TAG}}'
+        dockerComposeCommand: 'up'
+        arguments: '-d ${{Variables.containerName}}'
+    - script: |
+        docker exec ${{Variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
+      displayName: Prepare daphne container for test run
+    - script: |
+       docker exec ${{Variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
+       docker exec ${{Variables.containerName}} /bin/bash -c "pytest --junitxml reports/django_test_results.xml --cov=. --cov-report=xml:reports/django_coverage.xml || test -f reports/django_test_results.xml"
+      displayName: Run main tests
+    - script: 'docker cp ${{Variables.containerName}}:/src/reports/. reports'
+      displayName: Get reports from container
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: 'reports/coverage.xml'
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: 'reports/*.xml'
+        mergeTestResults: true
+        failTaskOnFailedTests: true
+    - task: DockerCompose@0
+      inputs:
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
+        dockerComposeFile: '**/docker-compose.yml'
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'down'
+    - script: |  
+        rm -rf reports/*
+      displayName: 'Clear reports'
+- stage: Deploy
+  condition: succeeded()
+  jobs:
+  - deployment: live_tracking_deployment
+  # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/deployment-jobs?view=azure-devops
+    displayName: 'Deploy'
+    environment: 'gke-release'
+    strategy:
+      runOnce:
+        preDeploy:
+          pool: server
+          steps:
+          - task: ManualValidation@0
+            displayName: 'Wait for validation'
+            timeoutInMinutes: 1440 # task times out in 1 day
+            inputs:
+              notifyUsers: 'kolaf@airsportslt.onmicrosoft.com'
+              instructions: 'Approve deployment'
+        deploy:
+          steps:
+          - checkout: self
+            submodules: true
+            persistCredentials: true
+          - task: HelmInstaller@0
+            inputs:
+              helmVersion: '2.14.1'
+              installKubectl: true
+          - task: DownloadSecureFile@1
+            name: privateValues
+            displayName: 'Download private values'
+            inputs:
+              secureFile: 'private_values_gcloud.yaml'
+          - task: HelmDeploy@0
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: 'GKE Kubernetes connection'
+              namespace: 'default'
+              command: 'upgrade'
+              chartType: 'Name'
+              chartName: '$(Agent.BuildDirectory)/s/helm/'
+              releaseName: 'airsportsrelease'
+              overrideValues: 'image.tag=${{ variables.IMAGE_TAG }}'
+              valueFile: '$(privateValues.secureFilePath)'
+              arguments: '--timeout 15m0s'

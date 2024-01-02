@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load static %}
+{% load guardian_tags %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    {% get_obj_perms request.user for navigation_task.contest as "contest_permissions" %}
+    <h2 class="float-right">Scorecard</h2>
+    <h2>{{ navigation_task.scorecard.get_calculator_display }}</h2>
+    <a class="btn btn-secondary float-right" style="margin-top: 5px;margin-left: 10px"
+       href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
+    {% if "change_contest" in contest_permissions %}
+        <a class="btn btn-outline-danger float-right" style="margin-top: 5px"
+           onclick="return confirm('Are you sure you want to reset the scorecard to the standard {{ navigation_task.original_scorecard }}?')"
+           href="{% url 'navigationtask_restorescorecard' navigation_task.pk %}"
+           title="Update scoring parameters">Reset to standard</a>
+    {% endif %}
+    <h1><a href="{% url 'navigationtask_detail' navigation_task.pk %}">{{ navigation_task.name }}</a>
+    </h1><p>
+    Note that any changes to any scoring value will only take effect for contestants where the tracking time has not
+    started or the tracker has not been switched on.
+</p>
+    <div class="card-deck">
+        <div class="card border-dark" style="margin-bottom: 24px">
+            <h5 class="card-header">Track Rules</h5>
+            <div class="card-body">
+                <div class="card-text">
+                    {% for c in scorecard_form.content %}
+                        <h5>{{ c.legend }}</h5>
+                        <table class="table">
+                            {% for field in c.values %}
+                                <tr>
+                                    <td>{{ field.label }}:</td>
+                                    <td>{{ field.value }}</td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    {% endfor %}
+                    {{ scorecard_form.free_text|safe }}
+                </div>
+            </div>
+            {% if "change_contest" in contest_permissions %}
+                <div class="card-footer">
+                    <a class="btn btn-primary"
+                       href="{% url 'navigationtask_updatescorecardoverride' navigation_task.pk %}">Update
+                        values</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-deck">
+        {% for gate in gate_score_forms %}
+            <div class="card border-dark mb-4" style="min-width: 18rem">
+                <h5 class="card-header">{{ gate.name }}</h5>
+                <div class="card-body">
+                    <div class="card-text">
+                        {% for c in gate.content %}
+                            <h5>{{ c.legend }}</h5>
+                            <table class="table">
+                                {% for field in c.values %}
+                                    <tr>
+                                        <td>{{ field.label }}:</td>
+                                        <td>{{ field.value }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if "change_contest" in contest_permissions %}
+                    <div class="card-footer">
+                        <a class="btn btn-primary"
+                           href="{% url 'navigationtask_updategatescoreoverride' navigation_task.pk gate.pk %}">Update
+                            values</a>
+                    </div>
+                {% endif %}
+
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

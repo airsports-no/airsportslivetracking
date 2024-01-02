@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% block head %}
+    {{ wizard.form.media }}
+{% endblock %}
+
+{% block content %}
+    {% if form.errors %}
+        <!-- Error messaging -->
+        <div id="errors">
+            <div class="inner">
+                <p>There were some errors in the information you entered. Please correct the following:</p>
+                {{ form.non_field_errors }}
+                <ul>
+                    {% for field in form %}
+                        {% if field.errors %}
+                            <li>{{ field.label }}: {{ field.errors|striptags }}</li>{% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <!-- /Error messaging -->
+    {% endif %}
+    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+    This form is only for searching for an existing person. In order to create a new person in the system, click "Create
+    new (co)pilot". "Use existing (co)pilot" will only become available after selecting an existing pilot from the drop
+    down
+    list. Any changes to the text after selecting the person will disable the button again, and a new person must be
+    selected for it to become available.
+
+    Editing existing persons is only available to administrators.
+    <form method="post" class="form" enctype="multipart/form-data">
+        {{ form.media }}
+        {{ form.field_errors }}
+        {{ form.non_field_errors }}
+        {{ wizard.management_form }}
+        {% crispy form %}
+    </form>
+    <script type="text/javascript">
+        function setResponse(response) {
+            var len = response.length;
+
+            if (len > 0) {
+                document.getElementById('use_existing').disabled = false;
+
+                var first_name = response[0]['first_name'];
+                var last_name = response[0]['last_name'];
+                var email = response[0]['email'];
+                var phone = "+" + response[0]['phone_country_prefix'] + response[0]["phone_national_number"];
+                var picture = response[0]['picture'];
+                var flag = response[0]['country_flag_url'];
+                var id = response[0]['id'];
+
+                document.getElementById('id_person_id').value = id;
+                document.getElementById('id_first_name').value = first_name;
+                document.getElementById('id_last_name').value = last_name;
+                document.getElementById('id_email').value = email;
+                document.getElementById('id_phone').value = phone;
+                document.getElementById('picture_display_field').src = picture;
+                document.getElementById('country_flag_display_field').src = flag;
+
+            }
+        }
+
+        $(document).ready(function () {
+            document.getElementById('use_existing').disabled = true;
+            $("#id_phone").autocomplete({
+                source: function (request, response) {
+                    document.getElementById('use_existing').disabled = true;
+                    $.ajax({
+                        url: "{% url 'autocomplete_phone' %}",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "{% url 'autocomplete_phone' %}",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+
+            $("#id_email").autocomplete({
+                source: function (request, response) {
+                    document.getElementById('use_existing').disabled = true;
+                    $.ajax({
+                        url: "{% url 'autocomplete_email' %}",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "{% url 'autocomplete_email' %}",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+
+
+            $("#id_first_name").autocomplete({
+                source: function (request, response) {
+                    document.getElementById('use_existing').disabled = true;
+                    $.ajax({
+                        url: "{% url 'autocomplete_first_name' %}",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "{% url 'autocomplete_first_name' %}",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+
+
+            $("#id_last_name").autocomplete({
+                source: function (request, response) {
+                    document.getElementById('use_existing').disabled = true;
+                    $.ajax({
+                        url: "{% url 'autocomplete_last_name' %}",
+                        type: 'post',
+                        dataType: "json",
+                        data: {
+                            search: request.term, request: 1
+                        },
+                        success: function (data) {
+                            response(data);
+                        }
+                    });
+                },
+                select: function (event, ui) {
+                    $(this).val(ui.item.label); // display the selected text
+                    var val = ui.item.value; // selected value
+
+                    // AJAX
+                    $.ajax({
+                        url: "{% url 'autocomplete_last_name' %}",
+                        type: 'post',
+                        data: {search: val, request: 2},
+                        dataType: 'json',
+                        success: setResponse
+                    });
+
+                    return false;
+                }
+            });
+            if (document.getElementById('id_person_id').value) {
+                $.ajax({
+                    url: "{% url 'autocomplete_id' %}",
+                    type: 'post',
+                    data: {search: document.getElementById('id_person_id').value, request: 2},
+                    dataType: 'json',
+                    success: setResponse
+                });
+            }
+
+        });
+    </script>
+{% endblock %}

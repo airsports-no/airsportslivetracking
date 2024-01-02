@@ -1,0 +1,27 @@
+Download gdrive
+> curl -L https://github.com/glotlabs/gdrive/releases/download/3.9.0/gdrive_linux-x64.tar.gz --output gdrive.tar.gz
+
+Log in locally
+
+> ./gdrive account add
+
+Export account
+
+> ./gdrive account export frankose@gmail.com
+
+Copy to container
+
+> kubectl cp -n airsports gdrive_export-frankose_gmail_com.tar airsportsrelease-mysql-0:/bitnami/mysql/gdrive_export.tar
+
+In container
+
+> tar zxvf gdrive.tar.gz
+> export HOME=/bitnami/mysql
+> ./gdrive account import gdrive_export.tar
+
+Upload or download files..
+
+Big file
+
+> ./gdrive files upload dump.tar.gz --chunk-size 512 --print-chunk-info
+
