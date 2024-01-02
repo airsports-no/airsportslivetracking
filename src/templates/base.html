@@ -140,7 +140,13 @@
                                 {% if perms.display.change_contest %}
                                     <a class="dropdown-item" href="{% url 'token' %}">Token </a>
                                 {% endif %}
-                                <a class="dropdown-item" href="{% url 'logout' %}?next=/">Log out </a>
+
+                                <p class="dropdown-item">
+                                <form id="logout-form" action="{% url 'logout' %}" method="post">
+                                    {% csrf_token %}
+                                    <button class="btn btn-link" type="submit">Log out</button>
+                                </form>
+                                </p>
                             </div>
                         </li>
 
