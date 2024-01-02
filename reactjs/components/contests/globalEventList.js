@@ -12,6 +12,7 @@ import {
     isAndroid, isIOS
 } from "react-device-detect";
 import {Link, Navigate} from "react-router-dom";
+import axios from "axios";
 import {sortStartAndFinishTimes} from "./utilities";
 import {withParams} from "../../utilities";
 import {EventTable} from "./eventTable";
@@ -130,7 +131,10 @@ class ConnectedGlobalEventList extends Component {
 
         let logoutButton = null
         if (document.configuration.logoutLink) {
-            logoutButton = <a className={"btn"} href={document.configuration.logoutLink}>
+            logoutButton = <a className={"btn"} onClick={()=>axios({
+            method: "post",
+            url: document.configuration.logoutLink,
+        }).then((res) => {window.location.href="/"})}>
                 <Icon path={mdiLogout} title={"Logout"} size={1.1} color={"white"}/>
             </a>
         }
