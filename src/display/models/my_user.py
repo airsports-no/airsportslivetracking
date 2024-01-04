@@ -9,6 +9,7 @@ from django_use_email_as_username.models import BaseUser, BaseUserManager
 from guardian.mixins import GuardianUserMixin
 
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email, render_deletion_email
+from live_tracking_map.settings import SUPPORT_EMAIL
 
 if typing.TYPE_CHECKING:
     from display.models import Person
@@ -47,11 +48,11 @@ class MyUser(BaseUser, GuardianUserMixin):
                 f"Welcome to Air Sports Live Tracking",
                 plaintext,
                 None,  # Should default to system from email
-                recipient_list=[self.email, "support@airsports.no"],
+                recipient_list=[self.email, SUPPORT_EMAIL],
                 html_message=html,
             )
         except:
-            logger.error(f"Failed sending email to {self}")
+            logger.exception(f"Failed sending email to {self}")
 
     def send_contest_creator_email(self, person: "Person"):
         try:
@@ -69,11 +70,11 @@ class MyUser(BaseUser, GuardianUserMixin):
                 f"You have been granted contest creation privileges at Air Sports Live Tracking",
                 plaintext,
                 None,  # Should default to system from email
-                recipient_list=[self.email, "support@airsports.no"],
+                recipient_list=[self.email, SUPPORT_EMAIL],
                 html_message=html,
             )
         except:
-            logger.error(f"Failed sending email to {self}")
+            logger.exception(f"Failed sending email to {self}")
 
     def send_deletion_email(self):
         try:
@@ -88,11 +89,11 @@ class MyUser(BaseUser, GuardianUserMixin):
                     f"Your user profile has been deleted from Air Sports Live Tracking",
                     plaintext,
                     None,  # Should default to system from email
-                    recipient_list=[self.email, "support@airsports.no"],
+                    recipient_list=[self.email, SUPPORT_EMAIL],
                     html_message=html,
                 )
             except:
-                logger.error(f"Failed sending email to {self}")
+                logger.exception(f"Failed sending email to {self}")
         except:
             logger.exception("Failed to generate user deletion email, you need to send it manually")
             raise

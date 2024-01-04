@@ -71,6 +71,7 @@ MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 REMOVE_BG_KEY = os.environ.get("REMOVE_BG_KEY", "")
 
 SLACK_DEVELOPMENT_WEBHOOK = os.environ.get("SLACK_DEVELOPMENT_WEBHOOK", "")
+SUPPORT_EMAIL = "support@airsports.no"
 
 REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
 
@@ -126,8 +127,8 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 GUARDIAN_MONKEY_PATCH = False
 AUTH_USER_MODEL = "display.MyUser"
 
-EMAIL_FROM = os.environ.get("AUTHEMAIL_DEFAULT_EMAIL_FROM") or "tracking@airsports.no"
-EMAIL_BCC = os.environ.get("AUTHEMAIL_DEFAULT_EMAIL_BCC") or "tracking@airsports.no"
+EMAIL_FROM = os.environ.get("AUTHEMAIL_DEFAULT_EMAIL_FROM") or "support@airsports.no"
+EMAIL_BCC = os.environ.get("AUTHEMAIL_DEFAULT_EMAIL_BCC") or "support@airsports.no"
 
 EMAIL_HOST = os.environ.get("AUTHEMAIL_EMAIL_HOST") or ""
 EMAIL_PORT = os.environ.get("AUTHEMAIL_EMAIL_PORT") or 587

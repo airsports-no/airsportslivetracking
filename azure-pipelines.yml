@@ -102,7 +102,7 @@ stages:
     - task: PublishCodeCoverageResults@1
       inputs:
         codeCoverageTool: 'Cobertura'
-        summaryFileLocation: 'reports/coverage.xml'
+        summaryFileLocation: 'reports/django_coverage.xml'
     - task: PublishTestResults@2
       inputs:
         testResultsFormat: 'JUnit'

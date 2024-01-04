@@ -120,6 +120,7 @@ from display.tasks import (
 )
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
 from display.waypoint import Waypoint
+from live_tracking_map.settings import SUPPORT_EMAIL
 from slack_facade import post_slack_message
 from websocket_channels import (
     WebsocketFacade,
@@ -322,7 +323,7 @@ def user_request_profile_deletion(request):
             f"User requested profile deletion",
             f"The user {request.user.email} has requested their profile to be deleted",
             None,  # Should default to system from email
-            recipient_list=["support@airsports.no"],
+            recipient_list=[SUPPORT_EMAIL],
         )
     except:
         logger.error(f"Failed sending email about deleting user profile for {request.user.email}")
