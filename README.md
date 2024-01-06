@@ -20,7 +20,7 @@ The project welcomes contributions of all kinds in the form of pull requests. Ar
 - Translation
 - New task types
 
-The project is currently in the early stages of open source release, so some work is required to clean up the code base to make it more easily maintainable. 
+The project is currently in the early stages of open source release, so some work is required to clean up the code base to make it more easily maintainable. Check the [implementation guide](https://github.com/airsports-no/airsportslivetracking/wiki/Implementation-guide) for some hints.
 
 ### Structure
 Everything is built upon Django, React, and Python 3.12. Refer to [the wiki](../../wiki/Model-architecture) for a brief description of the most important models. Information about the scoring engine and how the live tracking works is found in [this wiki page](../../wiki/Scoring-engine)
