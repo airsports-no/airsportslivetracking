@@ -89,16 +89,20 @@ stages:
     - script: |
         docker exec ${{Variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
       displayName: Prepare daphne container for test run
+#    - script: |
+#       docker exec ${{Variables.containerName}} /bin/bash -c "flake8 ."
+#      displayName: Run lint
     - script: |
        docker exec ${{Variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
        docker exec ${{Variables.containerName}} /bin/bash -c "pytest --junitxml reports/django_test_results.xml --cov=. --cov-report=xml:reports/django_coverage.xml || test -f reports/django_test_results.xml"
       displayName: Run main tests
     - script: 'docker cp ${{Variables.containerName}}:/src/reports/. reports'
       displayName: Get reports from container
+  
     - task: PublishCodeCoverageResults@1
       inputs:
         codeCoverageTool: 'Cobertura'
-        summaryFileLocation: 'reports/coverage.xml'
+        summaryFileLocation: 'reports/django_coverage.xml'
     - task: PublishTestResults@2
       inputs:
         testResultsFormat: 'JUnit'
