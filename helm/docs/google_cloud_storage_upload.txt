@@ -1,9 +1,0 @@
-curl -X POST -T /bitnami/mysql/tracker.dbdump.sql \
--H "Authorization: Bearer ya29.a0AbVbY6M54e0dyT0ejZ9Q3eTleOAJGs65TU_wXwC-N9QBCVTLAZLp-aJNHeBD0kRt3CdOpIm6OWhfORVhSNtu_R7IVFKgZ34akaLamwVwASP3cr__m6VQ5Wj5hv6e9bcB0sVs_VRD5cqQxkXvmQEpbeUtwuEWaCgYKATESARESFQFWKvPlheLnfE82u66LZ-dBh2H83g0163" \
--H "Content-Type: application/octet-stream" \
-"https://storage.googleapis.com/upload/storage/v1/b/airsports-data/o?uploadType=media&name=tracker.dbdump.sql"
-
-curl -X POST -T /bitnami/mysql/traccar.dbdump.sql \
--H "Authorization: Bearer ya29.a0AbVbY6M54e0dyT0ejZ9Q3eTleOAJGs65TU_wXwC-N9QBCVTLAZLp-aJNHeBD0kRt3CdOpIm6OWhfORVhSNtu_R7IVFKgZ34akaLamwVwASP3cr__m6VQ5Wj5hv6e9bcB0sVs_VRD5cqQxkXvmQEpbeUtwuEWaCgYKATESARESFQFWKvPlheLnfE82u66LZ-dBh2H83g0163" \
--H "Content-Type: application/octet-stream" \
-"https://storage.googleapis.com/upload/storage/v1/b/airsports-data/o?uploadType=media&name=traccar.dbdump.sql"
