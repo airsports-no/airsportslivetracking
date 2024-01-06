@@ -5,6 +5,15 @@
     <H1>{{ object.name }} ({{ object.share_string }})</H1>
     {{ object.start_time|date:"Y-m-d" }} -
     {{ object.finish_time|date:"Y-m-d" }} {{ object.start_time|date:"e" }}
+    <div class="alert alert-warning" role="alert">
+        Air Sports Live Tracking is currently running under a best effort SLA. This means that the service may be
+        intermittently interrupted and become unavailable for a few minutes while operation is restored. This will cause
+        all ongoing tracking to stop, but rest assured that the system automatically handles this and catches up to any
+        ongoing flights within a few minutes. Please refer to our <a
+            href="https://home.airsports.no/news/#cloudhosting" target="_blank">cloud hosting news announcement</a> for
+        more
+        information.
+    </div>
     <p>
         {% get_obj_perms request.user for contest as "contest_permissions" %}
 
