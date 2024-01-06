@@ -56,7 +56,7 @@ spec:
               done
       containers:
         - name: traccar
-          image: traccar/traccar:5.3
+          image: traccar/traccar:5.10-alpine
           resources:
             requests:
               cpu: 1000m
