@@ -30,7 +30,7 @@ stages:
         dockerComposeFileArgs: |
           REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
           SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-        projectName: '${{Variables.IMAGE_TAG}}'
+        projectName: 'latest'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull'
     - task: DockerCompose@0
