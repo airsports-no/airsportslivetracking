@@ -3,7 +3,7 @@
 services:
   tracker_daphne:
     container_name: tracker_daphne
-    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_daphne:${IMAGE_TAG:-develop}
+    image: ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_daphne:${IMAGE_TAG:-develop}
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py runserver 0.0.0.0:8000" ]
 
@@ -37,7 +37,7 @@ services:
 
   tracker_celery:
     container_name: tracker_celery
-    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_celery:${IMAGE_TAG:-develop}
+    image: ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_celery:${IMAGE_TAG:-develop}
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
       - GOOGLE_CLOUD_PROJECT=airsports-613ce
@@ -65,7 +65,7 @@ services:
 
   tracker_processor:
     container_name: tracker_processor
-    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_processor:${IMAGE_TAG:-develop}
+    image: ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_processor:${IMAGE_TAG:-develop}
 
     restart: unless-stopped
     environment:
