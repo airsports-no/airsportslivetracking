@@ -18,7 +18,7 @@ services:
       dockerfile: Dockerfile
       target: tracker_daphne
       cache_from:
-        - ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_daphne:latest
+        - ${SOURCE_REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_daphne:latest
     volumes:
       - ./secret:/secret
       - ./static:/static
@@ -50,7 +50,7 @@ services:
       dockerfile: Dockerfile
       target: tracker_celery
       cache_from:
-        - ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_celery:latest
+        - ${SOURCE_REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_celery:latest
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
@@ -79,7 +79,7 @@ services:
       dockerfile: Dockerfile
       target: tracker_processor
       cache_from:
-        - ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_processor:latest
+        - ${SOURCE_REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_processor:latest
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
