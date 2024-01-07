@@ -22,12 +22,26 @@ stages:
       submodules: true
       persistCredentials: true
     - task: DockerCompose@0
+      displayName: Pull from Azure
+      inputs:
+        containerregistrytype: 'Container Registry'
+        dockerRegistryEndpoint: 'GKE Docker registry'
+        dockerComposeFile: '**/docker-compose.yml'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+        projectName: '${{Variables.IMAGE_TAG}}'
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'pull'
+    - task: DockerCompose@0
       displayName: Build services
       inputs:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
-        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
         projectName: '${{Variables.IMAGE_TAG}}'
         qualifyImageNames: false
         action: 'Build services'
@@ -37,7 +51,9 @@ stages:
         containerregistrytype: 'Azure Container Registry'
         azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
         azureContainerRegistry: '{"loginServer":"airsports.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsports"}'
-        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
         action: 'Push services'
         includeLatestTag: true
 - stage: Test
@@ -49,12 +65,14 @@ stages:
       submodules: true
       persistCredentials: true
     - task: DockerCompose@0
-      displayName: Pull daphne
+      displayName: Pull from Azure
       inputs:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
         projectName: '${{Variables.IMAGE_TAG}}'
-        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull'
@@ -65,7 +83,9 @@ stages:
         dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
-        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
         projectName: '${{Variables.IMAGE_TAG}}'
         dockerComposeCommand: 'up'
         arguments: '-d ${{Variables.containerName}}'
@@ -97,7 +117,9 @@ stages:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
-        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'down'
     - script: |  
@@ -145,7 +167,9 @@ stages:
               containerregistrytype: 'Container Registry'
               dockerRegistryEndpoint: 'GKE Docker registry'
               projectName: '${{Variables.IMAGE_TAG}}'
-              dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
+              dockerComposeFileArgs: |
+                REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+                SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
               dockerComposeFile: '**/docker-compose.yml'
               action: 'Run a Docker Compose command'
               dockerComposeCommand: 'pull'
@@ -156,7 +180,9 @@ stages:
               dockerRegistryEndpoint: 'GKE Docker registry'
               dockerComposeFile: '**/docker-compose.yml'
               projectName: '${{Variables.IMAGE_TAG}}'
-              dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
+              dockerComposeFileArgs: |
+                REGISTRY_NAME=${{Variables.GCR_ADDRESS}}
+                SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
               action: 'Push services'
               additionalImageTags: '${{Variables.tag}}'
               includeLatestTag: false
