@@ -1,3 +1,4 @@
+ARG GIT_COMMIT_HASH
 FROM python:3.12-bookworm as tracker_base
 ENV PYTHONUNBUFFERED 1
 
@@ -60,5 +61,4 @@ WORKDIR /src
 RUN python3 manage.py collectstatic --noinput
 
 ###### LABEL THE CURRENT IMAGE ######
-ARG GIT_COMMIT_HASH
 LABEL GIT_COMMIT_HASH=$GIT_COMMIT_HASH
