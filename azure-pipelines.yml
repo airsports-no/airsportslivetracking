@@ -8,7 +8,8 @@
 variables:
   containerName: tracker_daphne
   IMAGE_TAG: $(Build.BuildId)
-
+  ACR_ADDRESS: airsports.azurecr.io/airsports/
+  GCR_ADDRESS: europe-west3-docker.pkg.dev/airsports-613ce/airsports/
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
 
@@ -26,35 +27,19 @@ stages:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
+        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
         projectName: '${{Variables.IMAGE_TAG}}'
         qualifyImageNames: false
         action: 'Build services'
-    - task: Docker@2
-      inputs:
-        containerRegistry: 'GKE Docker registry'
-        command: 'login'
     - task: DockerCompose@0
-      displayName: Push tracker_web to docker registry
+      displayName: Push to Azure
       inputs:
-        containerregistrytype: 'Container Registry'
-        dockerRegistryEndpoint: 'GKE Docker registry'
-        dockerComposeFile: '**/docker-compose.yml'
-        projectName: '${{Variables.IMAGE_TAG}}'
-        action: 'Run a Docker Compose command'
-        dockerComposeCommand: 'push'
-        includeLatestTag: false
-        arguments: 'tracker_daphne'
-    - task: DockerCompose@0
-      displayName: Push the rest to docker registry
-      inputs:
-        containerregistrytype: 'Container Registry'
-        dockerRegistryEndpoint: 'GKE Docker registry'
-        dockerComposeFile: '**/docker-compose.yml'
-        projectName: '${{Variables.IMAGE_TAG}}'
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsports.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsports"}'
+        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
         action: 'Push services'
-        additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: false
-    
+        includeLatestTag: true
 - stage: Test
   condition: succeeded()
   jobs:
@@ -63,16 +48,13 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
-    - task: Docker@2
-      inputs:
-        containerRegistry: 'GKE Docker registry'
-        command: 'login'
     - task: DockerCompose@0
       displayName: Pull daphne
       inputs:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
         projectName: '${{Variables.IMAGE_TAG}}'
+        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull'
@@ -83,6 +65,7 @@ stages:
         dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
         action: 'Run a Docker Compose command'
+        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
         projectName: '${{Variables.IMAGE_TAG}}'
         dockerComposeCommand: 'up'
         arguments: '-d ${{Variables.containerName}}'
@@ -114,6 +97,7 @@ stages:
         containerregistrytype: 'Container Registry'
         dockerRegistryEndpoint: 'GKE Docker registry'
         dockerComposeFile: '**/docker-compose.yml'
+        dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'down'
     - script: |  
@@ -151,6 +135,31 @@ stages:
             displayName: 'Download private values'
             inputs:
               secureFile: 'private_values_gcloud.yaml'
+          - task: Docker@2
+            inputs:
+              containerRegistry: 'GKE Docker registry'
+              command: 'login'
+          - task: DockerCompose@0
+            displayName: Pull from Azure
+            inputs:
+              containerregistrytype: 'Container Registry'
+              dockerRegistryEndpoint: 'GKE Docker registry'
+              projectName: '${{Variables.IMAGE_TAG}}'
+              dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
+              dockerComposeFile: '**/docker-compose.yml'
+              action: 'Run a Docker Compose command'
+              dockerComposeCommand: 'pull'
+          - task: DockerCompose@0
+            displayName: Push to Google
+            inputs:
+              containerregistrytype: 'Container Registry'
+              dockerRegistryEndpoint: 'GKE Docker registry'
+              dockerComposeFile: '**/docker-compose.yml'
+              projectName: '${{Variables.IMAGE_TAG}}'
+              dockerComposeFileArgs: 'REGISTRY_NAME=${{Variables.ACR_ADDRESS}}'
+              action: 'Push services'
+              additionalImageTags: '${{Variables.tag}}'
+              includeLatestTag: false
           - task: HelmDeploy@0
             inputs:
               connectionType: 'Kubernetes Service Connection'
