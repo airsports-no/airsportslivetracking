@@ -9,6 +9,7 @@ variables:
   containerName: tracker_daphne
   IMAGE_TAG: $(Build.BuildId)
   ACR_ADDRESS: airsportsacr.azurecr.io/
+  ContainerRegistryName: airsportsacr.azurecr.io
   GCR_ADDRESS: europe-west3-docker.pkg.dev/airsports-613ce/airsports/
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
@@ -21,19 +22,27 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
-    - task: DockerCompose@0
-      displayName: Pull from Azure
+    - task: Docker@2
       inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-        dockerComposeFile: '**/docker-compose.yml'
-        dockerComposeFileArgs: |
-          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-          SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-          IMAGE_TAG=latest
-        action: 'Run a Docker Compose command'
-        dockerComposeCommand: 'pull'
+        containerRegistry: '${{Variables.ContainerRegistryName}}'
+        command: 'login'
+
+    - script: "docker pull ${{Variables.ACR_ADDRESS}}/tracker_base:latest"
+      displayName: Pull latest for layer caching
+      continueOnError: true # for first build, no cache
+    # - task: DockerCompose@0
+    #   displayName: Pull from Azure
+    #   inputs:
+    #     containerregistrytype: 'Azure Container Registry'
+    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+    #     dockerComposeFile: '**/docker-compose.yml'
+    #     dockerComposeFileArgs: |
+    #       REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+    #       SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+    #       IMAGE_TAG=latest
+    #     action: 'Run a Docker Compose command'
+    #     dockerComposeCommand: 'pull'
     - task: DockerCompose@0
       displayName: Build services
       inputs:
@@ -163,6 +172,14 @@ stages:
             displayName: 'Download private values'
             inputs:
               secureFile: 'private_values_gcloud.yaml'
+          - task: Docker@2
+            inputs:
+              containerRegistry: '${{Variables.ContainerRegistryName}}'
+              command: 'login'
+
+          - script: "docker pull ${{Variables.ACR_ADDRESS}}/tracker_base:${{Variables.IMAGE_TAG}}"
+            displayName: Pull latest for layer caching
+            continueOnError: true # for first build, no cache
           - task: DockerCompose@0
             displayName: Pull from Azure
             inputs:
