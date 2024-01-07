@@ -29,7 +29,7 @@ services:
       - ./src/display/kubernetes_calculator/ca.crt:/aks_certificate/ca.crt
       - ./mapserver:/maptiles
     ports:
-      - "8002:8000"all all all
+      - "8002:8000"
     depends_on:
       - mysql
       - redis
