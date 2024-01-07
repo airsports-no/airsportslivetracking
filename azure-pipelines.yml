@@ -22,14 +22,6 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
-    - task: Docker@2
-      inputs:
-        containerRegistry: '${{Variables.ContainerRegistryName}}'
-        command: 'login'
-
-    - script: "docker pull ${{Variables.ACR_ADDRESS}}/tracker_base:latest"
-      displayName: Pull latest for layer caching
-      continueOnError: true # for first build, no cache
     - task: DockerCompose@0
       displayName: Pull from Azure
       inputs:
@@ -185,19 +177,6 @@ stages:
                 IMAGE_TAG=latest
               action: 'Run a Docker Compose command'
               dockerComposeCommand: 'pull tracker_daphne'
-          # - task: DockerCompose@0
-          #   displayName: Pull from Azure
-          #   inputs:
-          #     containerregistrytype: 'Azure Container Registry'
-          #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-          #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-          #     dockerComposeFile: '**/docker-compose.yml'
-          #     dockerComposeFileArgs: |
-          #       REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-          #       SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-          #     projectName: '${{Variables.IMAGE_TAG}}'
-          #     action: 'Run a Docker Compose command'
-          #     dockerComposeCommand: 'pull'
           - task: Docker@2
             inputs:
               containerRegistry: 'GKE Docker registry'
