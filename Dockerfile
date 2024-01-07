@@ -64,16 +64,13 @@ LABEL GIT_COMMIT_HASH=$GIT_COMMIT_HASH
 FROM tracker_base as tracker_init
 CMD [ "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD FLUSHALL" ]
 
-FROM tracker_base as tracker_web
+FROM tracker_base as tracker_daphne
 ###### INSTALL JAVASCRIPT PACKAGES ######
 WORKDIR /
 
 RUN npm run webpack
 WORKDIR /src
 RUN python3 manage.py collectstatic --noinput
-CMD [ "bash", "-c", "/gunicorn.sh" ]
-
-FROM tracker_web as tracker_daphne
 CMD [ "bash", "-c", "/daphne.sh" ]
 
 FROM tracker_base as tracker_celery
