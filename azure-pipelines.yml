@@ -52,7 +52,8 @@ stages:
           SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
         projectName: '${{Variables.IMAGE_TAG}}'
         qualifyImageNames: false
-        action: 'Build services'
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'build'
     - script: |
        docker images
     - task: DockerCompose@0
