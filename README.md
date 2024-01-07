@@ -1,6 +1,10 @@
 # Air Sports Live Tracking
 Air Sports Live Tracking (ASLT) is an online (live) scoring platform for aircraft competitions. Currently it is primarily focused on precision flying and air navigation race (ANR), but it also supports other task types such as poker run and the novel Air Sports Challenge.
 
+Latest Build: [![Build Status](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_apis/build/status%2Fairsports-no.airsportslivetracking?branchName=main)](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_build/latest?definitionId=3&branchName=main) 
+
+Latest deploy: [![Build Status](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_apis/build/status%2Fairsports-no.airsportslivetracking?branchName=prod&stageName=Deploy&jobName=Deploy)](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_build/latest?definitionId=3&branchName=prod)
+
 Our primary server is up and running at https://airsports.no/ for anyone to use free of charge. We are looking for funding to keep this service available.
 
 ASLT can be run locally using the docker-compose.yml file, and it is designed to be deployed to GKE using helm.  There are two accompanying apps, [Airsports Google Play](https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1) and [Airsport Apple Appstore](https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&itscg=30200) that integrate with the user management system of ASLT. The repository includes a client also for Microsoft flight simulator 2020 (MFSFS2020).
