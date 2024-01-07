@@ -52,7 +52,8 @@ stages:
       inputs:
         containerregistrytype: 'Azure Container Registry'
         azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsports.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsports"}'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        dockerComposeFile: '**/docker-compose.yml'
         dockerComposeFileArgs: |
           REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
           SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
@@ -165,19 +166,33 @@ stages:
           - task: DockerCompose@0
             displayName: Pull from Azure
             inputs:
-              containerregistrytype: 'Container Registry'
-              dockerRegistryEndpoint: 'GKE Docker registry'
-              projectName: '${{Variables.IMAGE_TAG}}'
+              containerregistrytype: 'Azure Container Registry'
+              azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+              azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+              dockerComposeFile: '**/docker-compose.yml'
               dockerComposeFileArgs: |
                 REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
                 SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-              dockerComposeFile: '**/docker-compose.yml'
+              projectName: '${{Variables.IMAGE_TAG}}'
               action: 'Run a Docker Compose command'
               dockerComposeCommand: 'pull'
           - task: Docker@2
             inputs:
               containerRegistry: 'GKE Docker registry'
               command: 'login'
+          - task: DockerCompose@0
+            displayName: Tag images with google address
+            inputs:
+              containerregistrytype: 'Azure Container Registry'
+              azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+              azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+              dockerComposeFile: '**/docker-compose.yml'
+              dockerComposeFileArgs: |
+                REGISTRY_NAME=${{Variables.GKE_ADDRESS}}
+                SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+              projectName: '${{Variables.IMAGE_TAG}}'
+              qualifyImageNames: false
+              action: 'Build services'
           - task: DockerCompose@0
             displayName: Push to Google
             inputs:
