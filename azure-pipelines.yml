@@ -9,6 +9,7 @@ variables:
   containerName: tracker_daphne
   IMAGE_TAG: $(Build.BuildId)
   ACR_ADDRESS: airsportsacr.azurecr.io/
+  ContainerRegistryName: airsportsacr.azurecr.io
   GCR_ADDRESS: europe-west3-docker.pkg.dev/airsports-613ce/airsports/
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
@@ -33,7 +34,7 @@ stages:
           SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
           IMAGE_TAG=latest
         action: 'Run a Docker Compose command'
-        dockerComposeCommand: 'pull'
+        dockerComposeCommand: 'pull tracker_daphne'
     - task: DockerCompose@0
       displayName: Build services
       inputs:
@@ -173,9 +174,9 @@ stages:
               dockerComposeFileArgs: |
                 REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
                 SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-              projectName: '${{Variables.IMAGE_TAG}}'
+                IMAGE_TAG=latest
               action: 'Run a Docker Compose command'
-              dockerComposeCommand: 'pull'
+              dockerComposeCommand: 'pull tracker_daphne'
           - task: Docker@2
             inputs:
               containerRegistry: 'GKE Docker registry'
