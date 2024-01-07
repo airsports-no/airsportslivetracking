@@ -17,7 +17,7 @@ services:
       dockerfile: Dockerfile
       target: tracker_base
       cache_from:
-        - ${SOURCE_REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:latest
+        - ${SOURCE_REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_daphne:latest
     volumes:
       - ./secret:/secret
       - ./static:/static
@@ -29,7 +29,7 @@ services:
       - ./src/display/kubernetes_calculator/ca.crt:/aks_certificate/ca.crt
       - ./mapserver:/maptiles
     ports:
-      - "8002:8000"
+      - "8002:8000"all all all
     depends_on:
       - mysql
       - redis
