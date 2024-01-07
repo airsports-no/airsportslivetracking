@@ -22,19 +22,21 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
-    # - task: DockerCompose@0
-    #   displayName: Pull from Azure
-    #   inputs:
-    #     containerregistrytype: 'Azure Container Registry'
-    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-    #     dockerComposeFile: '**/docker-compose.yml'
-    #     dockerComposeFileArgs: |
-    #       REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-    #       SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-    #       IMAGE_TAG=latest
-    #     action: 'Run a Docker Compose command'
-    #     dockerComposeCommand: 'pull tracker_daphne'
+    - task: DockerCompose@0
+      displayName: Pull from Azure
+      inputs:
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+        dockerComposeFile: '**/docker-compose.yml'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          IMAGE_TAG=latest
+        action: 'Run a Docker Compose command'
+        dockerComposeCommand: 'pull tracker_daphne'
+    - script: |
+       docker images
     - task: DockerCompose@0
       displayName: Build services
       inputs:
@@ -48,6 +50,8 @@ stages:
         projectName: '${{Variables.IMAGE_TAG}}'
         qualifyImageNames: false
         action: 'Build services'
+    - script: |
+       docker images
     - task: DockerCompose@0
       displayName: Push to Azure
       inputs:
@@ -55,6 +59,7 @@ stages:
         azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
         azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
+        projectName: '${{Variables.IMAGE_TAG}}'
         dockerComposeFileArgs: |
           REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
           SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
