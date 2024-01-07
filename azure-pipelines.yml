@@ -20,6 +20,9 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
+    - task: DockerInstaller@0
+      inputs:
+        dockerVersion: '24.0.7'
     - task: DockerCompose@0
       displayName: Build services
       inputs:
