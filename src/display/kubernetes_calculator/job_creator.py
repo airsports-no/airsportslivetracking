@@ -15,7 +15,10 @@ import yaml
 from kubernetes import client, config
 from kubernetes.utils import create_from_dict, FailToCreateError
 
-logger=logging.getLogger(__name__)
+from live_tracking_map import settings
+
+logger = logging.getLogger(__name__)
+
 
 class AlreadyExists(Exception):
     pass
@@ -53,8 +56,8 @@ class JobCreator:
             configuration = yaml.safe_load(i)
         print(f"configuration: {configuration}")
         configuration["metadata"]["name"] += f"-{pk}"
-
         container = configuration["spec"]["template"]["spec"]["containers"][0]
+        container["image"] += f":{settings.BUILD_ID}"
         container["command"] = command
         container["name"] += f"-{pk}"
         yml = yaml.dump(configuration)
@@ -73,22 +76,15 @@ class JobCreator:
 
     def get_job_completed(self, pk):
         batch_v1 = client.BatchV1Api(self.client)
-        api_response = batch_v1.read_namespaced_job_status(
-            name=self.get_job_name(pk), namespace="default"
-        )
-        return (
-                api_response.status.succeeded is not None
-                or api_response.status.failed is not None
-        )
+        api_response = batch_v1.read_namespaced_job_status(name=self.get_job_name(pk), namespace="default")
+        return api_response.status.succeeded is not None or api_response.status.failed is not None
 
     def delete_calculator(self, pk):
         batch_v1 = client.BatchV1Api(self.client)
         api_response = batch_v1.delete_namespaced_job(
             name=self.get_job_name(pk),
             namespace="default",
-            body=client.V1DeleteOptions(
-                propagation_policy="Foreground", grace_period_seconds=5
-            ),
+            body=client.V1DeleteOptions(propagation_policy="Foreground", grace_period_seconds=5),
         )
         start = datetime.datetime.now()
         while start + datetime.timedelta(minutes=1) < datetime.datetime.now():

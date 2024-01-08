@@ -30,5 +30,7 @@ data:
   OPEN_SKY_USERNAME: {{ .Values.openskyUsername }}
 
   SECRET_KEY: {{ .Values.secretKey }}
+
+  BUILD_ID: {{ .Values.image.tag }}
 #  MBTILES_SERVER_URL: {{ .Values.mbtilesUrl }}
 

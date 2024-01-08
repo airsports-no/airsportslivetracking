@@ -227,4 +227,4 @@ stages:
               releaseName: 'airsportsrelease'
               overrideValues: 'image.tag=${{ variables.IMAGE_TAG }}'
               valueFile: '$(privateValues.secureFilePath)'
-              arguments: '--timeout 15m0s'
+              arguments: '--timeout 20m0s'

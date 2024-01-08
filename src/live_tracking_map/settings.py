@@ -66,6 +66,8 @@ MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "tracker")
 MYSQL_DB_NAME = os.environ.get("MYSQL_DB_NAME", "tracker")
 MBTILES_SERVER_URL = os.environ.get("MBTILES_SERVER_URL", "https://mbtiles.airsports.no/")
 
+BUILD_ID = os.environ.get("BUILD_ID", "latest")
+
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 
 REMOVE_BG_KEY = os.environ.get("REMOVE_BG_KEY", "")
