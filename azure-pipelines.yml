@@ -25,21 +25,21 @@ stages:
     - task: DockerInstaller@0
       inputs:
         dockerVersion: '24.0.7'
-    - task: DockerCompose@0
-      displayName: Pull from Azure
-      inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-        dockerComposeFile: '**/docker-compose.yml'
-        dockerComposeFileArgs: |
-          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-          SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-          IMAGE_TAG=latest
-        action: 'Run a Docker Compose command'
-        dockerComposeCommand: 'pull tracker_daphne'
-    - script: |
-       docker images
+    # - task: DockerCompose@0
+    #   displayName: Pull from Azure
+    #   inputs:
+    #     containerregistrytype: 'Azure Container Registry'
+    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+    #     dockerComposeFile: '**/docker-compose.yml'
+    #     dockerComposeFileArgs: |
+    #       REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+    #       SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+    #       IMAGE_TAG=latest
+    #     action: 'Run a Docker Compose command'
+    #     dockerComposeCommand: 'pull tracker_daphne'
+    # - script: |
+    #    docker images
     - task: DockerCompose@0
       displayName: Build services
       inputs:
@@ -196,19 +196,9 @@ stages:
             inputs:
               containerRegistry: 'GKE Docker registry'
               command: 'login'
-          - task: DockerCompose@0
+          - script: |
+              docker image tag ${{Variables.ACR_ADDRESS}}/tracker_base:${{Variables.IMAGE_TAG}} ${{Variables.GCR_ADDRESS}}/tracker_base:${{Variables.IMAGE_TAG}}
             displayName: Tag images with google address
-            inputs:
-              containerregistrytype: 'Azure Container Registry'
-              azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-              azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-              dockerComposeFile: '**/docker-compose.yml'
-              dockerComposeFileArgs: |
-                REGISTRY_NAME=${{Variables.GKE_ADDRESS}}
-                SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-              projectName: '${{Variables.IMAGE_TAG}}'
-              qualifyImageNames: false
-              action: 'Build services'
           - task: DockerCompose@0
             displayName: Push to Google
             inputs:
@@ -218,10 +208,10 @@ stages:
               projectName: '${{Variables.IMAGE_TAG}}'
               dockerComposeFileArgs: |
                 REGISTRY_NAME=${{Variables.GCR_ADDRESS}}
-                SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+                SOURCE_REGISTRY_NAME=${{Variables.GCR_ADDRESS}}
               action: 'Push services'
               additionalImageTags: '${{Variables.tag}}'
-              includeLatestTag: false
+              includeLatestTag: true
           - task: HelmDeploy@0
             inputs:
               connectionType: 'Kubernetes Service Connection'
