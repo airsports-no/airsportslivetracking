@@ -42,9 +42,10 @@ stages:
         dockerComposeCommand: 'pull tracker_daphne'
     - script: |
        docker images
-       displayName: List images
+      displayName: List images
     - script: |
         docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:${{Variables.IMAGE_TAG}} --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest $(Build.SourcesDirectory)
+      displayName: Build ${{Variables.imageName}}
     # - task: DockerCompose@0
     #   displayName: Build services
     #   inputs:
@@ -61,7 +62,7 @@ stages:
     #     dockerComposeCommand: 'build'
     - script: |
        docker images
-       displayName: List images
+      displayName: List images
     - task: DockerCompose@0
       displayName: Push to Azure
       inputs:
@@ -200,7 +201,7 @@ stages:
               dockerComposeCommand: 'pull tracker_daphne'
           - script: |
               docker images
-              displayName: List images
+            displayName: List images
           - task: Docker@2
             displayName: Login Google docker registry
             inputs:
