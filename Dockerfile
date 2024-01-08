@@ -1,4 +1,3 @@
-ARG GIT_COMMIT_HASH
 FROM python:3.12-bookworm as tracker_base
 ENV PYTHONUNBUFFERED 1
 
@@ -59,6 +58,3 @@ RUN chown django /logs
 RUN npm run webpack
 WORKDIR /src
 RUN python3 manage.py collectstatic --noinput
-
-###### LABEL THE CURRENT IMAGE ######
-LABEL GIT_COMMIT_HASH=$GIT_COMMIT_HASH
