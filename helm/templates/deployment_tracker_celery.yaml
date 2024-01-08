@@ -45,8 +45,8 @@ spec:
                 do sleep 2;
               done
       containers:
-      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_celery:{{ .Values.image.tag }}
-#        command: ["/bin/bash", "-c",  "sleep 1h"]
+      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
+        command: [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log --concurrency 1" ]
         name: tracker-celery
         envFrom:
           - configMapRef:

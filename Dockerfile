@@ -55,36 +55,6 @@ COPY --chown=django:django data /data
 
 RUN mkdir /logs
 RUN chown django /logs
-WORKDIR /src
-
-###### LABEL THE CURRENT IMAGE ######
-ARG GIT_COMMIT_HASH
-LABEL GIT_COMMIT_HASH=$GIT_COMMIT_HASH
-
-FROM tracker_base as tracker_init
-CMD [ "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD FLUSHALL" ]
-
-FROM tracker_base as tracker_web
-###### INSTALL JAVASCRIPT PACKAGES ######
-WORKDIR /
-
 RUN npm run webpack
 WORKDIR /src
 RUN python3 manage.py collectstatic --noinput
-CMD [ "bash", "-c", "/gunicorn.sh" ]
-
-FROM tracker_web as tracker_daphne
-CMD [ "bash", "-c", "/daphne.sh" ]
-
-FROM tracker_base as tracker_celery
-CMD [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log --concurrency 1" ]
-
-FROM tracker_base as tracker_processor
-CMD [ "bash", "-c", "python3 position_processor.py" ]
-
-FROM tracker_base as opensky_consumer
-COPY --chown=django:django aircraft_database /aircraft_database
-CMD [ "bash", "-c", "python3 opensky_consumer.py $OPEN_SKY_USERNAME $OPEN_SKY_PASSWORD" ]
-
-FROM tracker_base as ogn_consumer
-CMD [ "bash", "-c", "python3 ogn_consumer.py" ]

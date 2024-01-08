@@ -3,10 +3,9 @@
 services:
   tracker_daphne:
     container_name: tracker_daphne
-    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_daphne:${IMAGE_TAG:-develop}
+    image: ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "bash", "-c", "python3 manage.py migrate && cd / && (npm run webpack-local &) && cd /src && python3 manage.py initadmin && python3 manage.py createdefaultscores && redis-cli -h redis -p 6379 FLUSHALL && python3 manage.py runserver 0.0.0.0:8000" ]
-
     environment:
       - MODE=dev
       - MEDIA_LOCATION
@@ -16,7 +15,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: tracker_daphne
+      target: tracker_base
     volumes:
       - ./secret:/secret
       - ./static:/static
@@ -37,16 +36,13 @@ services:
 
   tracker_celery:
     container_name: tracker_celery
-    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_celery:${IMAGE_TAG:-develop}
+    image: ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
+    command: [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log --concurrency 1" ]
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
       - GOOGLE_CLOUD_PROJECT=airsports-613ce
       - MEDIA_LOCATION
       - MODE=dev
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: tracker_celery
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
@@ -65,15 +61,11 @@ services:
 
   tracker_processor:
     container_name: tracker_processor
-    image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_processor:${IMAGE_TAG:-develop}
-
+    image: ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
+    command: [ "bash", "-c", "python3 position_processor.py" ]
     restart: unless-stopped
     environment:
       - MODE=dev
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: tracker_processor
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail

@@ -7,10 +7,14 @@
 
 variables:
   containerName: tracker_daphne
+  imageName: tracker_base
   IMAGE_TAG: $(Build.BuildId)
-
+  ACR_ADDRESS: airsportsacr.azurecr.io/
+  GCR_ADDRESS: europe-west3-docker.pkg.dev/airsports-613ce/airsports/
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
+  DOCKER_BUILDKIT: 1
+  BUILDKIT_INLINE_CACHE: 1
 
 stages:
 - stage: Build
@@ -20,41 +24,56 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
+    - task: DockerInstaller@0
+      inputs:
+        dockerVersion: '24.0.7'
     - task: DockerCompose@0
-      displayName: Build services
+      displayName: Pull from Azure
       inputs:
-        containerregistrytype: 'Container Registry'
-        dockerRegistryEndpoint: 'GKE Docker registry'
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
-        projectName: '${{Variables.IMAGE_TAG}}'
-        qualifyImageNames: false
-        action: 'Build services'
-    - task: Docker@2
-      inputs:
-        containerRegistry: 'GKE Docker registry'
-        command: 'login'
-    - task: DockerCompose@0
-      displayName: Push tracker_web to docker registry
-      inputs:
-        containerregistrytype: 'Container Registry'
-        dockerRegistryEndpoint: 'GKE Docker registry'
-        dockerComposeFile: '**/docker-compose.yml'
-        projectName: '${{Variables.IMAGE_TAG}}'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+          IMAGE_TAG=latest
         action: 'Run a Docker Compose command'
-        dockerComposeCommand: 'push'
-        includeLatestTag: false
-        arguments: 'tracker_daphne'
+        dockerComposeCommand: 'pull tracker_daphne'
+    - script: |
+       docker images
+      displayName: List images
+    - script: |
+        docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${{variables.ACR_ADDRESS}}${{variables.imageName}}:latest --tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}} --tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:latest $(Build.SourcesDirectory)
+      displayName: Build ${{variables.imageName}}
+    # - task: DockerCompose@0
+    #   displayName: Build services
+    #   inputs:
+    #     containerregistrytype: 'Azure Container Registry'
+    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+    #     dockerComposeFile: '**/docker-compose.yml'
+    #     dockerComposeFileArgs: |
+    #       REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+    #       SOURCE_REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+    #     projectName: '${{variables.IMAGE_TAG}}'
+    #     qualifyImageNames: false
+    #     action: 'Run a Docker Compose command'
+    #     dockerComposeCommand: 'build'
+    - script: |
+       docker images
+      displayName: List images
     - task: DockerCompose@0
-      displayName: Push the rest to docker registry
+      displayName: Push to Azure
       inputs:
-        containerregistrytype: 'Container Registry'
-        dockerRegistryEndpoint: 'GKE Docker registry'
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
-        projectName: '${{Variables.IMAGE_TAG}}'
+        projectName: '${{variables.IMAGE_TAG}}'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
         action: 'Push services'
-        additionalImageTags: '${{Variables.tag}}'
-        includeLatestTag: false
-    
+        includeLatestTag: true
 - stage: Test
   condition: succeeded()
   jobs:
@@ -63,40 +82,45 @@ stages:
     - checkout: self
       submodules: true
       persistCredentials: true
-    - task: Docker@2
+    - task: DockerInstaller@0
       inputs:
-        containerRegistry: 'GKE Docker registry'
-        command: 'login'
+        dockerVersion: '24.0.7'
     - task: DockerCompose@0
-      displayName: Pull daphne
+      displayName: Pull from Azure
       inputs:
-        containerregistrytype: 'Container Registry'
-        dockerRegistryEndpoint: 'GKE Docker registry'
-        projectName: '${{Variables.IMAGE_TAG}}'
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+        projectName: '${{variables.IMAGE_TAG}}'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull'
     - task: DockerCompose@0
       displayName: Run tests
       inputs:
-        containerregistrytype: 'Container Registry'
-        dockerRegistryEndpoint: 'GKE Docker registry'
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+        projectName: '${{variables.IMAGE_TAG}}'
         action: 'Run a Docker Compose command'
-        projectName: '${{Variables.IMAGE_TAG}}'
         dockerComposeCommand: 'up'
-        arguments: '-d ${{Variables.containerName}}'
+        arguments: '-d ${{variables.containerName}}'
     - script: |
-        docker exec ${{Variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
+        docker exec ${{variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
       displayName: Prepare daphne container for test run
 #    - script: |
-#       docker exec ${{Variables.containerName}} /bin/bash -c "flake8 ."
+#       docker exec ${{variables.containerName}} /bin/bash -c "flake8 ."
 #      displayName: Run lint
     - script: |
-       docker exec ${{Variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
-       docker exec ${{Variables.containerName}} /bin/bash -c "pytest --junitxml reports/django_test_results.xml --cov=. --cov-report=xml:reports/django_coverage.xml || test -f reports/django_test_results.xml"
+       docker exec ${{variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
+       docker exec ${{variables.containerName}} /bin/bash -c "pytest --junitxml reports/django_test_results.xml --cov=. --cov-report=xml:reports/django_coverage.xml || test -f reports/django_test_results.xml"
       displayName: Run main tests
-    - script: 'docker cp ${{Variables.containerName}}:/src/reports/. reports'
+    - script: 'docker cp ${{variables.containerName}}:/src/reports/. reports'
       displayName: Get reports from container
   
     - task: PublishCodeCoverageResults@1
@@ -111,9 +135,12 @@ stages:
         failTaskOnFailedTests: true
     - task: DockerCompose@0
       inputs:
-        containerregistrytype: 'Container Registry'
-        dockerRegistryEndpoint: 'GKE Docker registry'
+        containerregistrytype: 'Azure Container Registry'
+        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
+        dockerComposeFileArgs: |
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'down'
     - script: |  
@@ -142,6 +169,9 @@ stages:
           - checkout: self
             submodules: true
             persistCredentials: true
+          - task: DockerInstaller@0
+            inputs:
+              dockerVersion: '24.0.7'
           - task: HelmInstaller@0
             inputs:
               helmVersion: '2.14.1'
@@ -151,6 +181,41 @@ stages:
             displayName: 'Download private values'
             inputs:
               secureFile: 'private_values_gcloud.yaml'
+          - task: DockerCompose@0
+            displayName: Pull from Azure
+            inputs:
+              containerregistrytype: 'Azure Container Registry'
+              azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+              azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+              dockerComposeFile: '**/docker-compose.yml'
+              dockerComposeFileArgs: |
+                REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+                IMAGE_TAG=${{variables.IMAGE_TAG}}
+              action: 'Run a Docker Compose command'
+              dockerComposeCommand: 'pull tracker_daphne'
+          - script: |
+              docker images
+            displayName: List images
+          - task: Docker@2
+            displayName: Login Google docker registry
+            inputs:
+              containerRegistry: 'GKE Docker registry'
+              command: 'login'
+          - script: |
+              docker image tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}} ${{variables.GCR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}}
+              docker image tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}} ${{variables.GCR_ADDRESS}}${{variables.imageName}}:latest
+            displayName: Tag images with google address
+          - task: DockerCompose@0
+            displayName: Push to Google
+            inputs:
+              containerregistrytype: 'Container Registry'
+              dockerRegistryEndpoint: 'GKE Docker registry'
+              dockerComposeFile: '**/docker-compose.yml'
+              projectName: '${{variables.IMAGE_TAG}}'
+              additionalImageTags: 'latest'
+              dockerComposeFileArgs: |
+                REGISTRY_NAME=${{variables.GCR_ADDRESS}}
+              action: 'Push services'
           - task: HelmDeploy@0
             inputs:
               connectionType: 'Kubernetes Service Connection'
@@ -162,4 +227,4 @@ stages:
               releaseName: 'airsportsrelease'
               overrideValues: 'image.tag=${{ variables.IMAGE_TAG }}'
               valueFile: '$(privateValues.secureFilePath)'
-              arguments: '--timeout 15m0s'
+              arguments: '--timeout 20m0s'
