@@ -7,6 +7,7 @@
 
 variables:
   containerName: tracker_daphne
+  imageName: tracker_base
   IMAGE_TAG: $(Build.BuildId)
   ACR_ADDRESS: airsportsacr.azurecr.io/
   GCR_ADDRESS: europe-west3-docker.pkg.dev/airsports-613ce/airsports/
@@ -42,7 +43,7 @@ stages:
     - script: |
        docker images
     - script: |
-        'DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${{Variables.ACR_ADDRESS}}tracker_base:latest .'
+        'DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:${{Variables.IMAGE_TAG}} --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest /home/vsts/work/1/s/'
     # - task: DockerCompose@0
     #   displayName: Build services
     #   inputs:
