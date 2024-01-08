@@ -35,7 +35,7 @@ stages:
         azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
         dockerComposeFileArgs: |
-          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
           IMAGE_TAG=latest
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull tracker_daphne'
@@ -43,8 +43,8 @@ stages:
        docker images
       displayName: List images
     - script: |
-        docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:${{Variables.IMAGE_TAG}} --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest $(Build.SourcesDirectory)
-      displayName: Build ${{Variables.imageName}}
+        docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${{variables.ACR_ADDRESS}}${{variables.imageName}}:latest --tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}} --tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:latest $(Build.SourcesDirectory)
+      displayName: Build ${{variables.imageName}}
     # - task: DockerCompose@0
     #   displayName: Build services
     #   inputs:
@@ -53,9 +53,9 @@ stages:
     #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
     #     dockerComposeFile: '**/docker-compose.yml'
     #     dockerComposeFileArgs: |
-    #       REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-    #       SOURCE_REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-    #     projectName: '${{Variables.IMAGE_TAG}}'
+    #       REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+    #       SOURCE_REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+    #     projectName: '${{variables.IMAGE_TAG}}'
     #     qualifyImageNames: false
     #     action: 'Run a Docker Compose command'
     #     dockerComposeCommand: 'build'
@@ -69,9 +69,9 @@ stages:
         azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
         azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
-        projectName: '${{Variables.IMAGE_TAG}}'
+        projectName: '${{variables.IMAGE_TAG}}'
         dockerComposeFileArgs: |
-          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
         action: 'Push services'
         includeLatestTag: true
 - stage: Test
@@ -93,8 +93,8 @@ stages:
         azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
         dockerComposeFileArgs: |
-          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-        projectName: '${{Variables.IMAGE_TAG}}'
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+        projectName: '${{variables.IMAGE_TAG}}'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull'
     - task: DockerCompose@0
@@ -105,22 +105,22 @@ stages:
         azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
         dockerComposeFileArgs: |
-          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-        projectName: '${{Variables.IMAGE_TAG}}'
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+        projectName: '${{variables.IMAGE_TAG}}'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'up'
-        arguments: '-d ${{Variables.containerName}}'
+        arguments: '-d ${{variables.containerName}}'
     - script: |
-        docker exec ${{Variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
+        docker exec ${{variables.containerName}} /bin/bash -c "mkdir -p reports && rm -rf reports/*"
       displayName: Prepare daphne container for test run
 #    - script: |
-#       docker exec ${{Variables.containerName}} /bin/bash -c "flake8 ."
+#       docker exec ${{variables.containerName}} /bin/bash -c "flake8 ."
 #      displayName: Run lint
     - script: |
-       docker exec ${{Variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
-       docker exec ${{Variables.containerName}} /bin/bash -c "pytest --junitxml reports/django_test_results.xml --cov=. --cov-report=xml:reports/django_coverage.xml || test -f reports/django_test_results.xml"
+       docker exec ${{variables.containerName}} /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
+       docker exec ${{variables.containerName}} /bin/bash -c "pytest --junitxml reports/django_test_results.xml --cov=. --cov-report=xml:reports/django_coverage.xml || test -f reports/django_test_results.xml"
       displayName: Run main tests
-    - script: 'docker cp ${{Variables.containerName}}:/src/reports/. reports'
+    - script: 'docker cp ${{variables.containerName}}:/src/reports/. reports'
       displayName: Get reports from container
   
     - task: PublishCodeCoverageResults@1
@@ -140,7 +140,7 @@ stages:
         azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
         dockerComposeFile: '**/docker-compose.yml'
         dockerComposeFileArgs: |
-          REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
+          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'down'
     - script: |  
@@ -189,8 +189,8 @@ stages:
               azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
               dockerComposeFile: '**/docker-compose.yml'
               dockerComposeFileArgs: |
-                REGISTRY_NAME=${{Variables.ACR_ADDRESS}}
-                IMAGE_TAG=${{Variables.IMAGE_TAG}}
+                REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+                IMAGE_TAG=${{variables.IMAGE_TAG}}
               action: 'Run a Docker Compose command'
               dockerComposeCommand: 'pull tracker_daphne'
           - script: |
@@ -202,7 +202,7 @@ stages:
               containerRegistry: 'GKE Docker registry'
               command: 'login'
           - script: |
-              docker image tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:${{Variables.IMAGE_TAG}} ${{Variables.GCR_ADDRESS}}${{Variables.imageName}}:${{Variables.IMAGE_TAG}}
+              docker image tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}} ${{variables.GCR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}}
             displayName: Tag images with google address
           - task: DockerCompose@0
             displayName: Push to Google
@@ -210,11 +210,11 @@ stages:
               containerregistrytype: 'Container Registry'
               dockerRegistryEndpoint: 'GKE Docker registry'
               dockerComposeFile: '**/docker-compose.yml'
-              projectName: '${{Variables.IMAGE_TAG}}'
+              projectName: '${{variables.IMAGE_TAG}}'
+              additionalImageTags: 'latest'
               dockerComposeFileArgs: |
-                REGISTRY_NAME=${{Variables.GCR_ADDRESS}}
+                REGISTRY_NAME=${{variables.GCR_ADDRESS}}
               action: 'Push services'
-              includeLatestTag: true
           - task: HelmDeploy@0
             inputs:
               connectionType: 'Kubernetes Service Connection'
