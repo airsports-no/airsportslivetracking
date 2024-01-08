@@ -41,12 +41,8 @@ stages:
         dockerComposeCommand: 'pull tracker_daphne'
     - script: |
        docker images
-    
-    - task: Docker@2
-      inputs:
-        command: 'build'
-        Dockerfile: '**/Dockerfile'
-        arguments: '--cache-from ${{Variables.ACR_ADDRESS}}tracker_base:latest'
+    - script: |
+        'DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${{Variables.ACR_ADDRESS}}tracker_base:latest .'
     # - task: DockerCompose@0
     #   displayName: Build services
     #   inputs:
