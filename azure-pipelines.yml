@@ -43,7 +43,7 @@ stages:
     - script: |
        docker images
     - script: |
-        'DOCKER_BUILDKIT=1 /opt/hostedtoolcache/docker-stable/24.0.7/x64/docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:${{Variables.IMAGE_TAG}} --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest $(Build.SourcesDirectory)'
+        'docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:${{Variables.IMAGE_TAG}} --tag ${{Variables.ACR_ADDRESS}}${{Variables.imageName}}:latest $(Build.SourcesDirectory)'
     # - task: DockerCompose@0
     #   displayName: Build services
     #   inputs:
