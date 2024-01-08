@@ -203,6 +203,7 @@ stages:
               command: 'login'
           - script: |
               docker image tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}} ${{variables.GCR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}}
+              docker image tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}} ${{variables.GCR_ADDRESS}}${{variables.imageName}}:latest
             displayName: Tag images with google address
           - task: DockerCompose@0
             displayName: Push to Google
