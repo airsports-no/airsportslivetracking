@@ -39,7 +39,7 @@
             CONTESTS_WITH_RESULTS_LIST_URL: "{% url 'contests-results' %}",
             MY_PARTICIPATING_CONTESTS_URL: "{% url 'userprofile-my-participating-contests' %}",
             TERMS_AND_CONDITIONS_URL: "{% url 'terms_and_conditions' %}",
-
+            EDITABLE_ROUTES_URL: "{% url 'editableroutes-list' %}",
             navigationTaskMap: navigationTaskId => "{% url 'frontend_view_map' 0 %}".replace("0", navigationTaskId),
             contestResultsDetailsUrl: contestId => "{% url 'contests-results-details' 0 %}".replace("0", contestId),
             contestUpdateContestSummaryUrl: contestId => "{% url 'contests-update-contest-summary' 0 %}".replace("0", contestId),
