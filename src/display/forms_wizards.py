@@ -196,7 +196,7 @@ class Member1SearchForm(forms.Form):
     first_name = forms.CharField(required=False)
     last_name = forms.CharField(required=False)
     email = forms.CharField(required=False)
-    phone = PhoneNumberField()
+    phone = PhoneNumberField(required=False)
     picture_display_field = forms.ImageField(widget=PictureWidget, label="", required=False)
     country_flag_display_field = forms.ImageField(widget=PictureWidget, label="", required=False)
 
