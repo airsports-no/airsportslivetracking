@@ -3,6 +3,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, ButtonHolder, Submit, HTML, Div, Field
 from django import forms
 from django.forms import HiddenInput
+from phonenumber_field.formfields import PhoneNumberField
 
 from display.forms import PictureWidget, kml_description
 from display.models import EditableRoute, Contest, Aeroplane, Club
@@ -195,7 +196,7 @@ class Member1SearchForm(forms.Form):
     first_name = forms.CharField(required=False)
     last_name = forms.CharField(required=False)
     email = forms.CharField(required=False)
-    phone = forms.CharField(required=False)
+    phone = PhoneNumberField()
     picture_display_field = forms.ImageField(widget=PictureWidget, label="", required=False)
     country_flag_display_field = forms.ImageField(widget=PictureWidget, label="", required=False)
 

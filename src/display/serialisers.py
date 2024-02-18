@@ -21,6 +21,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
+from phonenumber_field.serializerfields import PhoneNumberField
 
 from django.core.exceptions import ValidationError as CoreValidationError
 
@@ -86,6 +87,7 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
 
 class PersonSignUpSerialiser(serializers.ModelSerializer):
     email = MangledEmailField(read_only=True)
+    phone = PhoneNumberField()
 
     class Meta:
         model = Person
@@ -93,6 +95,8 @@ class PersonSignUpSerialiser(serializers.ModelSerializer):
 
 
 class PersonLtdSerialiser(serializers.ModelSerializer):
+    phone = PhoneNumberField()
+
     class Meta:
         model = Person
         fields = ("first_name", "last_name", "picture")
@@ -106,13 +110,7 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
-    # phone = PhoneNumberField(required=False)
-    phone_country_prefix = serializers.CharField(
-        max_length=5, required=False, help_text="International prefix for a phone number, e.g. +47"
-    )
-    phone_national_number = serializers.CharField(
-        max_length=30, required=False, help_text="Actual phone number without international prefix"
-    )
+    phone = PhoneNumberField()
 
     def create(self, validated_data):
         country_prefix = validated_data.pop("phone_country_prefix", None)
@@ -147,10 +145,11 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 
 
 class PersonSerialiserExcludingTracking(CountryFieldMixin, serializers.ModelSerializer):
+    phone = PhoneNumberField()
+
     class Meta:
         model = Person
-        # fields = "__all__"
-        exclude = ("phone", "app_tracking_id", "simulator_tracking_id")
+        exclude = ("app_tracking_id", "simulator_tracking_id")
 
 
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
