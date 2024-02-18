@@ -189,7 +189,7 @@ class Contestant(models.Model):
     @property
     def final_gate_time_local(self) -> Optional[datetime.datetime]:
         dt = self.get_final_gate_time()
-        return dt.astimezone(self.navigation_task.contest.timezone) if dt else None
+        return dt.astimezone(self.navigation_task.contest.time_zone) if dt else None
 
     @property
     def landing_time(self) -> datetime.datetime:
