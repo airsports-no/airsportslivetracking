@@ -187,6 +187,11 @@ class Contestant(models.Model):
         return self.gate_times.get(self.navigation_task.route.waypoints[-1].name)
 
     @property
+    def final_gate_time_local(self) -> Optional[datetime.datetime]:
+        dt = self.get_final_gate_time()
+        return dt.astimezone(self.navigation_task.contest.timezone) if dt else None
+
+    @property
     def landing_time(self) -> datetime.datetime:
         if self.navigation_task.route.landing_gates:
             return self.gate_times[self.navigation_task.route.landing_gates.name]
@@ -844,7 +849,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         self.actualgatetime_set.all().delete()
         self.contestanttrack.reset()
 
-    def generate_processing_statistics(self)->bytes:
+    def generate_processing_statistics(self) -> bytes:
         """
         Generate a matplotlib chart showing the processing statistics for the contestants. Returns the binary (png)
         image.
