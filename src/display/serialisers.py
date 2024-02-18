@@ -87,7 +87,7 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
 
 class PersonSignUpSerialiser(serializers.ModelSerializer):
     email = MangledEmailField(read_only=True)
-    phone = PhoneNumberField()
+    phone = PhoneNumberField(required=False)
 
     class Meta:
         model = Person
@@ -95,7 +95,7 @@ class PersonSignUpSerialiser(serializers.ModelSerializer):
 
 
 class PersonLtdSerialiser(serializers.ModelSerializer):
-    phone = PhoneNumberField()
+    phone = PhoneNumberField(required=False)
 
     class Meta:
         model = Person
@@ -110,7 +110,7 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
-    phone = PhoneNumberField()
+    phone = PhoneNumberField(required=False)
 
     def create(self, validated_data):
         country_prefix = validated_data.pop("phone_country_prefix", None)
@@ -145,7 +145,7 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 
 
 class PersonSerialiserExcludingTracking(CountryFieldMixin, serializers.ModelSerializer):
-    phone = PhoneNumberField()
+    phone = PhoneNumberField(required=False)
 
     class Meta:
         model = Person
