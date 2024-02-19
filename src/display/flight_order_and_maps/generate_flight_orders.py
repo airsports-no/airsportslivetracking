@@ -26,7 +26,7 @@ from display.models import Contestant
 from display.waypoint import Waypoint
 import cartopy.crs as ccrs
 
-from display.utilities.wind_utilities import calculate_wind_correction_angle
+from display.utilities.wind_utilities import calculate_ground_speed, calculate_wind_correction_angle
 from pylatex import (
     Document,
     PageStyle,
@@ -426,8 +426,10 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     with document.create(Section("Turning points and time gates", numbering=False)):
         with document.create(MiniPage(width=r"\textwidth")):
             document.append(Command("Large"))
-            with document.create(Tabu("X[l] X[l] X[l] X[l] X[l]")) as data_table:
-                data_table.add_row(["Gate", "Distance", "TT", "TH", "Time"], mapper=[bold])
+            with document.create(Tabu("X[l] X[l] X[l] X[l] X[l] X[l] X[l] X[l]")) as data_table:
+                data_table.add_row(
+                    ["Gate", "Leg (NM)", "Tot (NM)", "TT", "TH", "GS (kt)", "Leg time", "Gate Time"], mapper=[bold]
+                )
                 data_table.add_hline()
                 first_line = True
                 local_time = "-"
@@ -439,9 +441,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime(
                             "%H:%M:%S"
                         )
-                data_table.add_row(["Takeoff gate", "-", "-", "-", local_time])
+                    data_table.add_row(["Takeoff gate", "-", "-", "-", "-", "-", "-", local_time])
+                    data_table.add_hline()
 
                 accumulated_distance = 0
+                previous_waypoint = None
                 for waypoint in contestant.navigation_task.route.waypoints:  # type: Waypoint
                     if not first_line:
                         accumulated_distance += waypoint.distance_previous
@@ -454,20 +458,37 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                             contestant.wind_direction,
                         )
                         wind_bearing = normalise_bearing(bearing - wind_correction_angle)
+                        ground_speed = calculate_ground_speed(
+                            bearing,
+                            contestant.air_speed,
+                            wind_correction_angle,
+                            contestant.wind_speed,
+                            contestant.wind_direction,
+                        )
                         gate_time = contestant.gate_times.get(waypoint.name, None)
                         local_waypoint_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone)
                         if gate_time is not None:
+                            previous_gate_time = (
+                                contestant.gate_times.get(previous_waypoint.name, None).astimezone(
+                                    contestant.navigation_task.contest.time_zone
+                                )
+                                if previous_waypoint
+                                else None
+                            )
                             data_table.add_row(
                                 [
                                     waypoint.name,
-                                    f"{accumulated_distance / 1852:.2f} NM" if not first_line else "-",
+                                    f"{waypoint.distance_previous / 1852:.2f}" if not first_line else "-",
+                                    f"{accumulated_distance / 1852:.2f}" if not first_line else "-",
                                     f"{bearing:.0f}" if not first_line else "-",
                                     f"{wind_bearing:.0f}" if not first_line else "-",
+                                    f"{ground_speed:.1f}" if not first_line else "-",
+                                    str(local_waypoint_time - previous_gate_time) if previous_gate_time else "-",
                                     local_waypoint_time.strftime("%H:%M:%S"),
                                 ]
                             )
-                            accumulated_distance = 0
                             first_line = False
+                    previous_waypoint = waypoint
                 local_time = "-"
                 if contestant.navigation_task.route.first_landing_gate:
                     local_time = contestant.gate_times.get(
@@ -477,7 +498,8 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime(
                             "%H:%M:%S"
                         )
-                data_table.add_row(["Landing gate", "-", "-", "-", local_time])
+                    data_table.add_hline()
+                    data_table.add_row(["Landing gate", "-", "-", "-", "-", "-", "-", local_time])
 
     map_image = plot_route(
         contestant.navigation_task,
