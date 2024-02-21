@@ -46,9 +46,13 @@ def get_map_zoom_levels() -> dict[str, tuple[int, int, int]]:
 
     zoom_levels = {}
     for system_map_data in get_available_maps():
-        system_map = system_map_data["name"]
-        details = get_map_details(system_map)
-        zoom_levels[system_map] = (details["minzoom"], details["maxzoom"], DEFAULT_MAP_ZOOM_LEVELS.get(system_map))
+        system_map_key = get_map_filename(system_map_data["url"])
+        details = get_map_details(system_map_key)
+        zoom_levels[system_map_key] = (
+            details["minzoom"],
+            details["maxzoom"],
+            DEFAULT_MAP_ZOOM_LEVELS.get(system_map_key),
+        )
     for user_uploaded_map in UserUploadedMap.objects.all():
         zoom_levels[user_uploaded_map.pk] = (
             user_uploaded_map.minimum_zoom_level,
