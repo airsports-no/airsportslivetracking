@@ -20,7 +20,7 @@ def get_map_filename(url: str) -> str:
 
 
 def get_map_choices() -> list[tuple[str, str]]:
-    return [(get_map_filename(item["url"]), get_map_filename(item["url"])) for item in get_available_maps()] + [
+    return [(get_map_filename(item["url"]), item["name"]) for item in get_available_maps()] + [
         ("osm", "OSM"),
         ("fc", "Flight Contest"),
         ("mto", "MapTiler Outdoor"),
