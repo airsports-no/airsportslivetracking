@@ -28,6 +28,7 @@ MAP_ATTRIBUTIONS = {
     "Norway250k": "Contains data from kartverket.no, 07/2023",
     "Finland200k": "Contains data from the National Land Survey of Finland Topographic Database 07/2023",
     "Sweden100k": "Contains data from lentmateriet.se, 07/2023",
+    "Sverige": "Contains data from lentmateriet.se, 02/2024",
 }
 
 
