@@ -26,6 +26,20 @@ The project welcomes contributions of all kinds in the form of pull requests. Ar
 
 The project is currently in the early stages of open source release, so some work is required to clean up the code base to make it more easily maintainable. Check the [implementation guide](../../wiki/Implementation-guide) for some hints.
 
+### Cloning the repo
+
+This project make use of git submodules. Be sure to correctly clone and init your submodules using the following commands:
+
+```
+git clone --recurse-submodules git@github.com:airsports-no/airsportslivetracking.git
+```
+
+If you already cloned the project or just wants to updates the submodules, use the following command from within your local copy.
+
+```
+git submodule update --init --recursive
+```
+
 ### Structure
 Everything is built upon Django, React, and Python 3.12. Refer to [the wiki](../../wiki/Model-architecture) for a brief description of the most important models. Information about the scoring engine and how the live tracking works is found in [this wiki page](../../wiki/Scoring-engine)
 
