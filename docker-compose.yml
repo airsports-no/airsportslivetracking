@@ -77,11 +77,11 @@ services:
       - redis
 
   traccar:
-    image: traccar/traccar
+    image: traccar/traccar:ubuntu
     restart: unless-stopped
     container_name: traccar
     volumes:
-      - traccar-db:/opt/traccar/data/database
+      - ./datadev/traccar-db:/opt/traccar/data/database
       - ./traccar_local_config/configuration/traccar.xml:/opt/traccar/conf/traccar.xml
     ports:
       - 5000-5150:5000-5150
@@ -100,7 +100,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysqldata3:/var/lib/mysql/
+      - ./datadev/mysqldata3:/var/lib/mysql/
       - ./traccar_local_config/configuration/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql
       - ./src:/src
 
@@ -110,7 +110,3 @@ services:
     #      context: .
     #      dockerfile: Dockerfile.redis
     container_name: redis
-
-volumes:
-  mysqldata3:
-  traccar-db:
