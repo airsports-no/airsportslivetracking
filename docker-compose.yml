@@ -77,7 +77,7 @@ services:
       - redis
 
   traccar:
-    image: traccar/traccar
+    image: traccar/traccar:ubuntu
     restart: unless-stopped
     container_name: traccar
     volumes:
