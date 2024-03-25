@@ -31,10 +31,23 @@ from display.utilities.coordinate_utilities import (
     normalise_bearing,
 )
 from display.flight_order_and_maps.map_constants import A3
-from display.utilities.gate_definitions import SECRETPOINT, UNKNOWN_LEG, DUMMY, TURNPOINT, STARTINGPOINT, FINISHPOINT, \
-    INTERMEDIARY_STARTINGPOINT, INTERMEDIARY_FINISHPOINT
-from display.utilities.navigation_task_type_definitions import PRECISION, POKER, ANR_CORRIDOR, AIRSPORTS, \
-    AIRSPORT_CHALLENGE
+from display.utilities.gate_definitions import (
+    SECRETPOINT,
+    UNKNOWN_LEG,
+    DUMMY,
+    TURNPOINT,
+    STARTINGPOINT,
+    FINISHPOINT,
+    INTERMEDIARY_STARTINGPOINT,
+    INTERMEDIARY_FINISHPOINT,
+)
+from display.utilities.navigation_task_type_definitions import (
+    PRECISION,
+    POKER,
+    ANR_CORRIDOR,
+    AIRSPORTS,
+    AIRSPORT_CHALLENGE,
+)
 from display.utilities.wind_utilities import (
     calculate_ground_speed_combined,
     calculate_wind_correction_angle,
@@ -77,7 +90,13 @@ def create_minute_lines(
     route_start_time: datetime.datetime,
     resolution_seconds: int = 60,
     line_width_nm=0.5,
-) -> List[Tuple[Tuple[Tuple[float, float], Tuple[float, float]], Tuple[float, float], datetime.datetime,]]:
+) -> List[
+    Tuple[
+        Tuple[Tuple[float, float], Tuple[float, float]],
+        Tuple[float, float],
+        datetime.datetime,
+    ]
+]:
     """
 
     :param start:
@@ -130,7 +149,13 @@ def create_minute_lines_track(
     end_offset: Optional[float] = None,
     resolution_seconds: int = 60,
     line_width_nm=0.5,
-) -> List[Tuple[Tuple[Tuple[float, float], Tuple[float, float]], Tuple[float, float], datetime.datetime,]]:
+) -> List[
+    Tuple[
+        Tuple[Tuple[float, float], Tuple[float, float]],
+        Tuple[float, float],
+        datetime.datetime,
+    ]
+]:
     """
     Generates a track that goes through the centre of the route (or corridor if it exists)
 
@@ -1036,7 +1061,7 @@ def plot_route(
             attribution = "openstreetmap.org CycleOSM"
         else:
             imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
-            attribution = MAP_ATTRIBUTIONS.get(map_source)
+            attribution = MAP_ATTRIBUTIONS.get(map_source, "Missing")
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
@@ -1085,10 +1110,7 @@ def plot_route(
             colour,
             False,
         )
-    elif (
-        AIRSPORTS in task.scorecard.task_type
-        or AIRSPORT_CHALLENGE in task.scorecard.task_type
-    ):
+    elif AIRSPORTS in task.scorecard.task_type or AIRSPORT_CHALLENGE in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
             route,
             contestant,
