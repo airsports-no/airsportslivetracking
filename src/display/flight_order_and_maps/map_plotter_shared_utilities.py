@@ -6,6 +6,7 @@ from display.flight_order_and_maps.mbtiles_facade import get_available_maps, get
 SWEDEN_250 = "Sweden250k"
 SWEDEN_100 = "Sweden100k"
 NORWAY_250 = "Norway250k"
+NORWAY_M517 = "NorwayM517"
 FINLAND_200 = "Finland200k"
 
 
@@ -32,9 +33,10 @@ def country_code_to_map_source(country_code: str) -> str:
     return {"no": NORWAY_250, "fi": FINLAND_200, "se": SWEDEN_250}.get(country_code, "cyclosm")
 
 
-DEFAULT_MAP_ZOOM_LEVELS = {NORWAY_250: 12, FINLAND_200: 12, SWEDEN_100: 12, SWEDEN_250: 12}
+DEFAULT_MAP_ZOOM_LEVELS = {NORWAY_250: 12, FINLAND_200: 12, SWEDEN_100: 12, SWEDEN_250: 12, NORWAY_M517: 12}
 MAP_ATTRIBUTIONS = {
     NORWAY_250: "Contains data from kartverket.no, 07/2023",
+    NORWAY_M517: "Avinor March 2024",
     FINLAND_200: "Contains data from the National Land Survey of Finland Topographic Database 07/2023",
     SWEDEN_100: "Contains data from lentmateriet.se, 07/2023",
     SWEDEN_250: "Contains data from lentmateriet.se, 02/2024",
