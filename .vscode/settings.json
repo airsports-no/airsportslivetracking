@@ -37,6 +37,6 @@
         "src/"
     ],
     "terminal.integrated.env.linux": {
-        "PYTHONPATH": "packages/base:packages/schema"
+        "PYTHONPATH": "src/"
     },
 }

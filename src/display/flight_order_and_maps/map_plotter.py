@@ -514,15 +514,14 @@ def plot_leg_bearing(
     left_of_leg_finish = next_waypoint.get_gate_position_left_of_track(True)
 
     bearing = current_waypoint.bearing_next
-    wind_correction_angle = calculate_wind_correction_angle(bearing, air_speed, wind_speed, wind_direction)
-    bearing_difference_next = get_heading_difference(next_waypoint.bearing_from_previous, next_waypoint.bearing_next)
-    bearing_difference_previous = get_heading_difference(
-        current_waypoint.bearing_from_previous, current_waypoint.bearing_next
-    )
     course_position = calculate_fractional_distance_point_lat_lon(left_of_leg_start, left_of_leg_finish, 0.5)
-    course_text = "{:03.0f}".format(normalise_bearing(current_waypoint.bearing_next - wind_correction_angle))
+    course_text = "{:03.0f}".format(normalise_bearing(current_waypoint.bearing_next))
     label = course_text + " " * (len(course_text) + 1)
     # Try to keep it out of the way of the next leg
+    # bearing_difference_next = get_heading_difference(next_waypoint.bearing_from_previous, next_waypoint.bearing_next)
+    # bearing_difference_previous = get_heading_difference(
+    #     current_waypoint.bearing_from_previous, current_waypoint.bearing_next
+    # )
     # if bearing_difference_next > 60 or bearing_difference_previous > 60:  # leftSide
     #     label = "" + course_text + " " * len(course_text) + " " * character_offset
     # else:  # Right-sided is preferred
@@ -720,7 +719,7 @@ def plot_anr_corridor_track(
                 line_width_nm=0.5,
                 adaptive=True,
             )
-            maybe_plot_leg_bearing(waypoint, index, route.waypoints, contestant, 2, 12)
+            maybe_plot_leg_bearing_anr(waypoint, index, route.waypoints, contestant, 2, 12)
     if plot_center_line:
         path = np.array(center_track)
         ys, xs = path.T
@@ -732,6 +731,26 @@ def plot_anr_corridor_track(
     ys, xs = path.T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
     return [path]
+
+
+def maybe_plot_leg_bearing_anr(
+    waypoint: Waypoint, index: int, track: List[Waypoint], contestant: Contestant, character_offset: int, font_size: int
+):
+    next_index = index + 1
+    if next_index>=len(track):
+        return
+    if (
+        track[next_index].type not in (SECRETPOINT, UNKNOWN_LEG, DUMMY) and track[next_index].distance_previous / 1852 > 1
+    ):  # Distance between waypoints must be more than 1 nautical miles
+        plot_leg_bearing(
+            waypoint,
+            track[next_index],
+            contestant.air_speed,
+            contestant.wind_speed,
+            contestant.wind_direction,
+            character_offset,
+            font_size,
+        )
 
 
 def maybe_plot_leg_bearing(
