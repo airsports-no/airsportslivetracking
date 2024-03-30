@@ -737,10 +737,10 @@ def maybe_plot_leg_bearing_anr(
     waypoint: Waypoint, index: int, track: List[Waypoint], contestant: Contestant, character_offset: int, font_size: int
 ):
     next_index = index + 1
-    if next_index>=len(track):
+    if next_index >= len(track):
         return
     if (
-        track[next_index].type not in (SECRETPOINT, UNKNOWN_LEG, DUMMY) and track[next_index].distance_previous / 1852 > 1
+        track[next_index].type not in (UNKNOWN_LEG, DUMMY) and track[next_index].distance_previous / 1852 > 1
     ):  # Distance between waypoints must be more than 1 nautical miles
         plot_leg_bearing(
             waypoint,
