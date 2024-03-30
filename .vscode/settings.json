@@ -1,31 +1,42 @@
-"python.testing.unittestEnabled": false,
-"python.testing.pytestEnabled": true,
-"python.languageServer": "Pylance",
-"python.analysis.typeCheckingMode": "basic",
-"python.analysis.memory.keepLibraryAst": true,
-"python.formatting.provider": "black",
-"python.formatting.blackArgs": [
-    "--line-length",
-    "120"
-],
-"python.analysis.packageIndexDepths": [
-    {
-        "name": "django",
-        "depth": 5
-    }
-],
-"pylint.args": [
-    "--max-line-length=120",
-    "--load-plugins",
-    "pylint_django",
-    "--django-settings-module=live_tracking.settings"
-],
-"python.autoComplete.extraPaths": [
-    "src",
-],
-"[python]": {
-    "editor.formatOnSave": true
-},
-"python.analysis.extraPaths": [
-    "src/",
-]
+{
+    "python.testing.pytestArgs": [
+        "src/"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.languageServer": "Pylance",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.packageIndexDepths": [
+        {
+            "name": "django",
+            "depth": 5
+        }
+    ],    
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "diffEditor.ignoreTrimWhitespace": false,
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "editor.wordBasedSuggestions": "off",
+    },
+    "editor.rulers": [120],
+    "black-formatter.args": [
+        "--line-length",
+        "120"
+    ],
+    "pylint.args": [
+        "--max-line-length=120",
+        "--load-plugins",
+        "pylint_django",
+        "--django-settings-module=live_tracking.settings"
+    ],
+    "python.autoComplete.extraPaths": [
+        "src/"
+    ],
+    "python.analysis.extraPaths": [
+        "src/"
+    ],
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "packages/base:packages/schema"
+    },
+}
