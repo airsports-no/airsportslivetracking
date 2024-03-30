@@ -515,7 +515,7 @@ def plot_leg_bearing(
 
     bearing = current_waypoint.bearing_next
     course_position = calculate_fractional_distance_point_lat_lon(left_of_leg_start, left_of_leg_finish, 0.5)
-    course_text = "{:03.0f}".format(normalise_bearing(current_waypoint.bearing_next))
+    course_text = "{:03.0f}".format(normalise_bearing(bearing))
     label = course_text + " " * (len(course_text) + 1)
     # Try to keep it out of the way of the next leg
     # bearing_difference_next = get_heading_difference(next_waypoint.bearing_from_previous, next_waypoint.bearing_next)

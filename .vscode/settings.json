@@ -1,7 +1,5 @@
 {
-    "python.testing.pytestArgs": [
-        "src/"
-    ],
+    "python.testing.cwd": "src/",
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "python.languageServer": "Pylance",
