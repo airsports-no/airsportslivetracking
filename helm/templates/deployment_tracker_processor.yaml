@@ -53,11 +53,11 @@ spec:
         command: [ "bash", "-c", "python3 position_processor.py" ]
         resources:
           requests:
-            cpu: 1000m
-            memory: 1Gi  # Uses 231 Mi
+            cpu: 500m
+            memory: 0.6Gi  # Uses 231 Mi
           limits:
-            cpu: 600m
-            memory: 1.5Gi
+            cpu: 500m
+            memory: 0.6Gi
         name: tracker-processor
 #        env:
 #          - name: K8S_TOKEN

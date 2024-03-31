@@ -70,9 +70,9 @@ spec:
         resources:
           requests:
             cpu: 500m
-            memory: 5Gi  # Uses 160Mi
+            memory: 3Gi  # Uses 160Mi
           limits:
-            cpu: 1000m
+            cpu: 500m
             memory: 3Gi
         volumeMounts:
           - mountPath: /secret

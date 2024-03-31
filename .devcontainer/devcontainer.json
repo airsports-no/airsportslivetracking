@@ -24,7 +24,9 @@
 				"charliermarsh.ruff",
 				"ms-python.vscode-pylance",
 				"ms-python.python",
-				"ms-python.pylint"
+				"ms-python.pylint",
+				"ms-python.black-formatter",
+				"ms-azuretools.vscode-docker"
 			]
 		}
 	}

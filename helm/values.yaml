@@ -139,16 +139,14 @@ externalRedis:
   port: 6379
 
 redis:
+  architecture: standalone
   enabled: true
-  replica:
-     disableCommands: []
-     replicaCount: 0
   master:
     disableCommands: []
     resources:
       requests:
-        cpu: 500m
-        memory: 1Gi
+        cpu: 400m
+        memory: 0.8Gi
 
   auth:
     enabled: false  # Default true
@@ -199,8 +197,8 @@ wordpress:
 
   resources:
     requests:
-      cpu: 250m
-      memory: 512Mi
+      cpu: 200m
+      memory: 400Mi
 
 
   # ConfigMap with custom wordpress-htaccess.conf file (requires allowOverrideNone to true)
