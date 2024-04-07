@@ -4,36 +4,41 @@ ENV PYTHONUNBUFFERED 1
 ###### SETUP BASE INFRASTRUCTURE ######
 RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone &&\
     apt update && apt -y upgrade &&\
-    apt -y install curl build-essential cmake vim libproj-dev proj-data proj-bin libgdal-dev libgeos-dev redis-server daphne libcliquer1 libgslcblas0 latexmk texlive texlive-latex-base texlive-latex-extra texlive-latex-recommended ca-certificates gnupg
+    apt -y install curl build-essential \
+    cmake vim libproj-dev proj-data proj-bin \
+    libgdal-dev libgeos-dev redis-server daphne \
+    libcliquer1 libgslcblas0 latexmk texlive \
+    texlive-latex-base texlive-latex-extra \
+    texlive-latex-recommended ca-certificates gnupg \
+     && rm -rf /var/lib/apt/lists/*
 
 
 RUN mkdir -p /etc/apt/keyrings
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-RUN apt-get update
-RUN apt-get install nodejs -y
+RUN apt-get update && apt-get install nodejs -y  && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g npm@10.2.4
 RUN addgroup --system django \
     && adduser --system --ingroup django -u 200 django
 
 
-RUN pip install -U pip
+RUN pip --no-cache-dir install -U pip
 ###### INSTALL PYTHON PACKAGES ######
 ENV LC_CTYPE C.UTF-8
 ENV LC_ALL C.UTF-8
 ENV LANGUAGE C.UTF-8
 ENV LANG C.UTF-8
-RUN pip install cython
+RUN pip --no-cache-dir install cython
 COPY requirements.txt /
-RUN pip install -Ur /requirements.txt
+RUN pip --no-cache-dir install -Ur /requirements.txt
 
-RUN pip uninstall -y shapely
-RUN pip install --no-binary :all: shapely
+RUN pip --no-cache-dir uninstall -y shapely
+RUN pip --no-cache-dir install --no-binary :all: shapely
 
 COPY pyeval7 /pyeval7
-RUN pip install /pyeval7
+RUN pip --no-cache-dir install /pyeval7
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 COPY documentation /documentation
@@ -42,7 +47,7 @@ COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh /
 RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
 
 COPY package* /
-RUN npm install
+RUN npm install && npm cache clean --force d# burde vært `npm ci` i stedet, men må ha package-lock.json/npm-shrinkwrap.json
 
 
 ###### INSTALL APPLICATION ######
