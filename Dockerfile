@@ -25,21 +25,21 @@ RUN addgroup --system django \
     && adduser --system --ingroup django -u 200 django
 
 
-RUN pip install -U pip
+RUN pip --no-cache-dir install -U pip
 ###### INSTALL PYTHON PACKAGES ######
 ENV LC_CTYPE C.UTF-8
 ENV LC_ALL C.UTF-8
 ENV LANGUAGE C.UTF-8
 ENV LANG C.UTF-8
-RUN pip install cython
+RUN pip --no-cache-dir install cython
 COPY requirements.txt /
-RUN pip install -Ur /requirements.txt
+RUN pip --no-cache-dir install -Ur /requirements.txt
 
-RUN pip uninstall -y shapely
-RUN pip install --no-binary :all: shapely
+RUN pip --no-cache-dir uninstall -y shapely
+RUN pip --no-cache-dir install --no-binary :all: shapely
 
 COPY pyeval7 /pyeval7
-RUN pip install /pyeval7
+RUN pip --no-cache-dir install /pyeval7
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 # TODO: Required for a test, should be changed
@@ -49,7 +49,7 @@ COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh /
 RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
 
 COPY package* /
-RUN npm install
+RUN npm install && npm cache clean --force d# burde vært `npm ci` i stedet, men må ha package-lock.json/npm-shrinkwrap.json
 
 
 ###### INSTALL APPLICATION ######
