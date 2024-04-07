@@ -8,7 +8,13 @@ RUN apt-get update; apt-get install curl gpg -y; \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list; \
     ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone; \
     apt update && apt -y upgrade \
-    && apt -y install curl build-essential cmake vim libproj-dev proj-data proj-bin libgdal-dev libgeos-dev redis-server daphne libcliquer1 libgslcblas0 latexmk texlive texlive-latex-base texlive-latex-extra texlive-latex-recommended ca-certificates gnupg nodejs \
+    && apt -y install build-essential \
+    cmake vim libproj-dev proj-data proj-bin \
+    libgdal-dev libgeos-dev redis-server daphne \
+    libcliquer1 libgslcblas0 latexmk texlive \
+    texlive-latex-base texlive-latex-extra \
+    texlive-latex-recommended ca-certificates gnupg \
+    nodejs \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
