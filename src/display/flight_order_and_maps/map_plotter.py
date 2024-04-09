@@ -1248,13 +1248,13 @@ def plot_route(
             linewidth=1,
             clip_on=True,
         )
-        gl.xlocator = mticker.FixedLocator(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 0.1))
+        gl.xlocator = mticker.FixedLocator(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 1 / 6))
         # gl.right_labels=True
         # gl.left_labels=True
         # gl.xformatter = LONGITUDE_FORMATTER
         # gl.xlabel_style = {"size": 15, "color": "grey"}
         # gl.xpadding = 10
-        gl.ylocator = mticker.FixedLocator(np.arange(np.floor(extent[2]), np.ceil(extent[3]), 0.1))
+        gl.ylocator = mticker.FixedLocator(np.arange(np.floor(extent[2]), np.ceil(extent[3]), 1 / 6))
         # gl.bottom_labels=True
         # gl.top_labels=True
         # gl.yformatter = LATITUDE_FORMATTER
