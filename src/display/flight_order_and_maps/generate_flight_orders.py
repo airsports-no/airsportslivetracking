@@ -445,7 +445,8 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                     data_table.add_hline()
 
                 accumulated_distance = 0
-                previous_waypoint = None
+                last_record_distance = 0
+                last_recorded_time = None
                 for waypoint in contestant.navigation_task.route.waypoints:  # type: Waypoint
                     if not first_line:
                         accumulated_distance += waypoint.distance_previous
@@ -468,27 +469,23 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         gate_time = contestant.gate_times.get(waypoint.name, None)
                         local_waypoint_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone)
                         if gate_time is not None:
-                            previous_gate_time = (
-                                contestant.gate_times.get(previous_waypoint.name, None).astimezone(
-                                    contestant.navigation_task.contest.time_zone
-                                )
-                                if previous_waypoint
-                                else None
-                            )
+                            # The distance is the distance from the last real waypoint, i.e. the last waypoint we put in the table
+                            distance = accumulated_distance - last_record_distance
                             data_table.add_row(
                                 [
                                     waypoint.name,
-                                    f"{waypoint.distance_previous / 1852:.2f}" if not first_line else "-",
+                                    f"{distance / 1852:.2f}" if not first_line else "-",
                                     f"{accumulated_distance / 1852:.2f}" if not first_line else "-",
                                     f"{bearing:.0f}" if not first_line else "-",
                                     f"{wind_bearing:.0f}" if not first_line else "-",
                                     f"{ground_speed:.1f}" if not first_line else "-",
-                                    str(local_waypoint_time - previous_gate_time) if previous_gate_time else "-",
+                                    str(local_waypoint_time - last_recorded_time) if last_recorded_time else "-",
                                     local_waypoint_time.strftime("%H:%M:%S"),
                                 ]
                             )
                             first_line = False
-                    previous_waypoint = waypoint
+                        last_record_distance = accumulated_distance
+                        last_recorded_time = gate_time
                 local_time = "-"
                 if contestant.navigation_task.route.first_landing_gate:
                     local_time = contestant.gate_times.get(
