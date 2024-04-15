@@ -922,14 +922,13 @@ def plot_precision_track(
                         linewidth=line_width,
                     )
                 else:
-                    plt.plot(
+                    plt.scatter(
                         waypoint.longitude,
                         waypoint.latitude,
                         transform=ccrs.PlateCarree(),
                         color=colour,
-                        marker="o",
-                        markersize=20,
-                        fillstyle="none",
+                        s=0.5,
+                        edgecolor="none",
                     )
                     plt.plot(
                         waypoint.longitude,
@@ -937,7 +936,7 @@ def plot_precision_track(
                         transform=ccrs.PlateCarree(),
                         color=colour,
                         marker="o",
-                        markersize=0.5,
+                        markersize=20,
                         fillstyle="none",
                     )
                 plot_waypoint_name(
