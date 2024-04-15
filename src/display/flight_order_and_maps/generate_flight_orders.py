@@ -447,7 +447,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
 
                 accumulated_distance = 0
                 last_record_distance = 0
-                number_of_procedure_turns = 0
+                previous_waypoint = None
                 last_recorded_time = None
                 waypoint: Waypoint
                 for waypoint in contestant.navigation_task.route.waypoints:
@@ -486,7 +486,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                                         str(
                                             local_waypoint_time
                                             - last_recorded_time
-                                            - (PROCEDURE_TURN_DURATION * number_of_procedure_turns)
+                                            - (
+                                                PROCEDURE_TURN_DURATION
+                                                if previous_waypoint is not None and previous_waypoint.is_procedure_turn
+                                                else datetime.timedelta(seconds=0)
+                                            )
                                         )
                                         if last_recorded_time
                                         else "-"
@@ -497,10 +501,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                             first_line = False
                         last_record_distance = accumulated_distance
                         last_recorded_time = gate_time
-                        if waypoint.is_procedure_turn:
-                            # Leg time should not include the time for the procedure turn, so we need to subtract all 
-                            # previous procedure turns for each leg time.
-                            number_of_procedure_turns += 1
+                        previous_waypoint = waypoint
 
                 local_time = "-"
                 if contestant.navigation_task.route.first_landing_gate:

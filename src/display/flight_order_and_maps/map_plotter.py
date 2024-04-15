@@ -636,7 +636,7 @@ def plot_waypoint_name(
         rotation = -bearing_to_the_right + 90
 
     if waypoints_only:
-        rotation = 0
+        name_position = []
     if len(timing):
         timing = " " * (0 + len(timing)) + timing
         plt.text(
@@ -653,7 +653,7 @@ def plot_waypoint_name(
             family="monospace",
             clip_on=True,
         )
-    waypoint_name = waypoint_name + " " * (2 + len(waypoint_name))
+    waypoint_name = waypoint_name + " " * (2 if not waypoints_only else 6 + len(waypoint_name))
     plt.text(
         name_position[1] if len(name_position) else waypoint.longitude,
         name_position[0] if len(name_position) else waypoint.latitude,
@@ -928,7 +928,16 @@ def plot_precision_track(
                         transform=ccrs.PlateCarree(),
                         color=colour,
                         marker="o",
-                        markersize=8,
+                        markersize=20,
+                        fillstyle="none",
+                    )
+                    plt.plot(
+                        waypoint.longitude,
+                        waypoint.latitude,
+                        transform=ccrs.PlateCarree(),
+                        color=colour,
+                        marker="o",
+                        markersize=0.5,
                         fillstyle="none",
                     )
                 plot_waypoint_name(

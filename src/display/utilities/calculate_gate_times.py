@@ -2,7 +2,6 @@ import datetime
 from typing import List, Tuple
 
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing
-from display.waypoint import Waypoint
 from display.utilities.wind_utilities import calculate_ground_speed_combined
 
 PROCEDURE_TURN_DURATION=datetime.timedelta(minutes=1)
