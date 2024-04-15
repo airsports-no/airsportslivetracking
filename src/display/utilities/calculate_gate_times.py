@@ -5,6 +5,7 @@ from display.utilities.coordinate_utilities import calculate_distance_lat_lon, c
 from display.waypoint import Waypoint
 from display.utilities.wind_utilities import calculate_ground_speed_combined
 
+PROCEDURE_TURN_DURATION=datetime.timedelta(minutes=1)
 
 def get_segment_time(start, finish, air_speed, wind_speed, wind_direction) -> datetime.timedelta:
     bearing = calculate_bearing(start, finish)
@@ -43,5 +44,5 @@ def calculate_and_get_relative_gate_times(
             )
         crossing_times.append((waypoints[index + 1].name, crossing_time))
         if waypoints[index + 1].is_procedure_turn:
-            crossing_time += datetime.timedelta(minutes=1)
+            crossing_time += PROCEDURE_TURN_DURATION
     return crossing_times

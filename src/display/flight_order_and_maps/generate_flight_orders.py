@@ -18,6 +18,7 @@ from pylatex.base_classes import Environment, Arguments
 from pylatex.utils import bold
 from shapely.geometry import Polygon
 
+from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
 from display.utilities.coordinate_utilities import utm_from_lat_lon, normalise_bearing
 from display.flight_order_and_maps.map_constants import LANDSCAPE, A4
 from display.flight_order_and_maps.map_plotter import plot_route
@@ -446,8 +447,10 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
 
                 accumulated_distance = 0
                 last_record_distance = 0
+                number_of_procedure_turns = 0
                 last_recorded_time = None
-                for waypoint in contestant.navigation_task.route.waypoints:  # type: Waypoint
+                waypoint: Waypoint
+                for waypoint in contestant.navigation_task.route.waypoints:
                     if not first_line:
                         accumulated_distance += waypoint.distance_previous
                     if waypoint.type not in ("secret", "dummy", "ul") and waypoint.time_check:
@@ -479,13 +482,26 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                                     f"{bearing:.0f}" if not first_line else "-",
                                     f"{wind_bearing:.0f}" if not first_line else "-",
                                     f"{ground_speed:.1f}" if not first_line else "-",
-                                    str(local_waypoint_time - last_recorded_time) if last_recorded_time else "-",
+                                    (
+                                        str(
+                                            local_waypoint_time
+                                            - last_recorded_time
+                                            - (PROCEDURE_TURN_DURATION * number_of_procedure_turns)
+                                        )
+                                        if last_recorded_time
+                                        else "-"
+                                    ),
                                     local_waypoint_time.strftime("%H:%M:%S"),
                                 ]
                             )
                             first_line = False
                         last_record_distance = accumulated_distance
                         last_recorded_time = gate_time
+                        if waypoint.is_procedure_turn:
+                            # Leg time should not include the time for the procedure turn, so we need to subtract all 
+                            # previous procedure turns for each leg time.
+                            number_of_procedure_turns += 1
+
                 local_time = "-"
                 if contestant.navigation_task.route.first_landing_gate:
                     local_time = contestant.gate_times.get(
