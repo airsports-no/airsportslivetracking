@@ -156,7 +156,9 @@ class Scorecard(models.Model):
         difference = round((exit - enter).total_seconds()) - self.penalty_zone_grace_time
         if difference < 0:
             return 0
-        return min(self.penalty_zone_maximum, difference * self.penalty_zone_penalty_per_second)
+        if self.penalty_zone_maximum > -1:
+            return min(self.penalty_zone_maximum, difference * self.penalty_zone_penalty_per_second)
+        return difference * self.penalty_zone_penalty_per_second
 
     def get_gate_timing_score_for_gate_type(
         self,
