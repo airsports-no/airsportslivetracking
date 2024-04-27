@@ -95,6 +95,7 @@ class ContestantProcessor:
         self.contestant.contestantreceivedposition_set.all().delete()
         self.contestant_track.set_calculator_started()
         self.scorecard = self.contestant.navigation_task.scorecard
+        self.scorecard.refresh_from_db()
         self.position_update_lock = threading.Lock()
         self.accumulated_scores = ScoreAccumulator()
         self.websocket_facade = WebsocketFacade()
