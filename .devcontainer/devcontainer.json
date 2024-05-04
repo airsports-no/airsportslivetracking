@@ -21,12 +21,18 @@
 		"vscode": {
 			"extensions": [
 				"ms-python.debugpy",
-				"charliermarsh.ruff",
-				"ms-python.vscode-pylance",
-				"ms-python.python",
-				"ms-python.pylint",
+				"pokey.cursorless",
 				"ms-python.black-formatter",
-				"ms-azuretools.vscode-docker"
+				"Anjali.clipboard-history",
+				"batisteo.vscode-django",
+				"ms-azuretools.vscode-docker",
+				"ms-vscode.hexeditor",
+				"ms-python.vscode-pylance",
+				"ms-python.pylint",
+				"charliermarsh.ruff",
+				"pokey.talon",
+				"Gruntfuggly.todo-tree",
+				"ms-python.python"
 			]
 		}
 	},

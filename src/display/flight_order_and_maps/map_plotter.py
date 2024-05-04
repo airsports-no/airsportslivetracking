@@ -12,6 +12,9 @@ from cartopy.io.img_tiles import OSM, GoogleWTS
 import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
+import matplotlib
+
+matplotlib.use("Agg")
 from matplotlib import patheffects
 import matplotlib.ticker as mticker
 from pymbtiles import MBtiles
@@ -615,13 +618,11 @@ def plot_waypoint_name(
     colour: str,
     character_padding: int = 2,
 ):
-    if not waypoint.time_check and not waypoint.gate_check:
-        return
     waypoint_name = "{}".format(waypoint.name)
     timing = ""
     if contestant is not None and annotations:
         waypoint_time = contestant.gate_times.get(waypoint.name)  # type: datetime.datetime
-        if waypoint_time is not None and waypoint.time_check:
+        if waypoint_time is not None:
             local_waypoint_time = waypoint_time.astimezone(route.navigationtask.contest.time_zone)
             timing = " {}".format(local_waypoint_time.strftime("%M:%S"))
 
@@ -686,7 +687,7 @@ def plot_anr_corridor_track(
         ys, xs = np.array(waypoint.gate_line).T
         bearing = waypoint_bearing(waypoint, index)
 
-        if waypoint.type not in (SECRETPOINT,) and waypoint.time_check:
+        if waypoint.type not in (SECRETPOINT,):
             plot_waypoint_name(
                 route,
                 waypoint,
@@ -705,7 +706,7 @@ def plot_anr_corridor_track(
             inner_track.append(waypoint.gate_line[0])
             outer_track.append(waypoint.gate_line[1])
         center_track.append((waypoint.latitude, waypoint.longitude))
-        if waypoint.type not in (SECRETPOINT,) and waypoint.time_check:
+        if waypoint.type not in (SECRETPOINT,):
             plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
             plot_minute_marks(

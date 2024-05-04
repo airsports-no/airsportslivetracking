@@ -164,11 +164,7 @@ def render_turning_point_images(
     header_prefix: str,
     unknown_leg: bool = False,
 ):
-    render_waypoints = [
-        waypoint
-        for waypoint in waypoints
-        if waypoint.type not in ("secret", "ul") and (waypoint.gate_check or waypoint.time_check)
-    ]
+    render_waypoints = [waypoint for waypoint in waypoints if waypoint.type not in ("secret", "ul")]
 
     rows_per_page = 3
     number_of_images = len(render_waypoints)
@@ -453,7 +449,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                 for waypoint in contestant.navigation_task.route.waypoints:
                     if not first_line:
                         accumulated_distance += waypoint.distance_previous
-                    if waypoint.type not in ("secret", "dummy", "ul") and waypoint.time_check:
+                    if waypoint.type not in ("secret", "dummy", "ul"):
                         bearing = waypoint.bearing_from_previous
                         wind_correction_angle = calculate_wind_correction_angle(
                             bearing,
