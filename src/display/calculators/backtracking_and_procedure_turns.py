@@ -76,6 +76,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.between_tracks = False
         self.calculate_track = False
         self.circling = False
+        self.circling_start_time = None
         self.previous_last_gate = None
         self.current_last_gate = None
         self.gate_bearings = []  # type: List[Tuple[int,float]]
@@ -185,10 +186,12 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
 
             if abs(difference) > turn_limit:
                 found_circling = True
-                if not self.circling:
+                if self.circling_start_time is None:
+                    self.circling_start_time = now
+                if (now - self.circling_start_time).total_seconds() > 5 and not self.circling:
                     self.circling = True
                     logger.info(
-                        "{} {}: Detected circling more than 180° the past {} seconds".format(
+                        "{} {}: Detected circling more than 180° the past {} + 5 seconds".format(
                             self.contestant, now, (now - current_position.time).total_seconds()
                         )
                     )
@@ -219,6 +222,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             self.mark_circling_finished_if_ongoing(last_gate, now, track[-1])
 
     def mark_circling_finished_if_ongoing(self, last_gate, now, current_position):
+        self.circling_start_time = None
         if self.circling:
             self.earliest_circle_check = now
             self.previous_gate_bearing = None
