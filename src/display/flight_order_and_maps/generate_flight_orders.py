@@ -18,7 +18,6 @@ from pylatex.base_classes import Environment, Arguments
 from pylatex.utils import bold
 from shapely.geometry import Polygon
 
-from display.calculators.positions_and_gates import round_seconds
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
 from display.utilities.coordinate_utilities import utm_from_lat_lon, normalise_bearing
 from display.flight_order_and_maps.map_constants import LANDSCAPE, A4
@@ -228,6 +227,13 @@ class WrapFigure(Environment):
             arguments=Arguments(left_or_right, width_string),
             data=data,
         )
+
+
+def round_seconds_timedelta(stamp: datetime.timedelta) -> datetime.timedelta:
+    new_stamp = stamp
+    if stamp.microseconds >= 500000:
+        new_stamp = stamp + datetime.timedelta(seconds=1)
+    return new_stamp - datetime.timedelta(microseconds=new_stamp.microseconds)
 
 
 def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
@@ -480,15 +486,18 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                                     f"{wind_bearing:.0f}" if not first_line else "-",
                                     f"{ground_speed:.1f}" if not first_line else "-",
                                     (
-                                        round_seconds(
-                                            local_waypoint_time
-                                            - last_recorded_time
-                                            - (
-                                                PROCEDURE_TURN_DURATION
-                                                if previous_waypoint is not None and previous_waypoint.is_procedure_turn
-                                                else datetime.timedelta(seconds=0)
+                                        str(
+                                            round_seconds_timedelta(
+                                                local_waypoint_time
+                                                - last_recorded_time
+                                                - (
+                                                    PROCEDURE_TURN_DURATION
+                                                    if previous_waypoint is not None
+                                                    and previous_waypoint.is_procedure_turn
+                                                    else datetime.timedelta(seconds=0)
+                                                )
                                             )
-                                        ).strftime("%H:%M:%S")
+                                        )
                                         if last_recorded_time
                                         else "-"
                                     ),
