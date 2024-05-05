@@ -98,7 +98,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         # Need to do the track score first since this might declare the remaining gates as missed if we are done
         # with the track. We can then calculate gate score and consider the missed gates.
         self.calculate_track_score(track, last_gate, in_range_of_gate, next_gate)
-        self.detect_circling(track, last_gate, in_range_of_gate)
+        # self.detect_circling(track, last_gate, in_range_of_gate)
 
     def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
         self.circling_position_list = []
