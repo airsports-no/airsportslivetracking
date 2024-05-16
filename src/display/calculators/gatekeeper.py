@@ -37,6 +37,7 @@ class Gatekeeper(ABC):
     To score other aspects than gate passing, the gatekeeper supports a list of calculators. This can be used to score
     additional elements such as altitude constraints, penalty zones, prohibited zones, backtracking, et cetera.
     """
+
     def __init__(
         self,
         contestant: "Contestant",
@@ -161,7 +162,7 @@ class Gatekeeper(ABC):
         """
         return all([gate.has_been_passed() for gate in self.gates])
 
-    def update_enroute(self):
+    def update_enroute(self, override_enroute: bool = False):
         """
         Update the current state to reflect whether the contestant is currently en route between a start and finish
         point or not.
@@ -171,7 +172,9 @@ class Gatekeeper(ABC):
             self.enroute = False
             logger.info("Switching to not enroute")
             return
-        if not self.enroute and self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]:
+        if not self.enroute and (
+            (self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]) or override_enroute
+        ):
             self.enroute = True
             logger.info("Switching to enroute")
 
