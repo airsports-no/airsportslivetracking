@@ -112,7 +112,7 @@ class ConnectedSelfRegistrationForm extends Component {
                             <Row>
                                 <Col>
                                     <Form.Text>If adaptive start is selected, your start time will be set to the nearest whole minute you
-                                        cross the infinite line going through the starting gate anywhere between one hour before and one hour after the selected starting
+                                        cross the 10 NM long line going through the starting gate anywhere between one hour before and one hour after the selected starting
                                         point time (<a href={'https://home.airsports.no/faq/#adaptiv-start'}>FAQ</a>).</Form.Text>
                                 </Col>
                             </Row>
