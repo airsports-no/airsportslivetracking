@@ -654,7 +654,7 @@ def plot_waypoint_name(
             family="monospace",
             clip_on=True,
         )
-    waypoint_name = waypoint_name + " " * (2 if not waypoints_only else 6 + len(waypoint_name))
+    waypoint_name = waypoint_name + " " * ((2 if not waypoints_only else 6) + len(waypoint_name))
     plt.text(
         name_position[1] if len(name_position) else waypoint.longitude,
         name_position[0] if len(name_position) else waypoint.latitude,
