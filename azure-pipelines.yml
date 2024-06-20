@@ -27,18 +27,18 @@ stages:
     - task: DockerInstaller@0
       inputs:
         dockerVersion: '24.0.7'
-    - task: DockerCompose@0
-      displayName: Pull from Azure
-      inputs:
-        containerregistrytype: 'Azure Container Registry'
-        azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
-        azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
-        dockerComposeFile: '**/docker-compose.yml'
-        dockerComposeFileArgs: |
-          REGISTRY_NAME=${{variables.ACR_ADDRESS}}
-          IMAGE_TAG=latest
-        action: 'Run a Docker Compose command'
-        dockerComposeCommand: 'pull tracker_daphne'
+    # - task: DockerCompose@0
+    #   displayName: Pull from Azure
+    #   inputs:
+    #     containerregistrytype: 'Azure Container Registry'
+    #     azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
+    #     azureContainerRegistry: '{"loginServer":"airsportsacr.azurecr.io", "id" : "/subscriptions/025b77b1-c02b-4961-a548-38caf9cbffcd/resourceGroups/airsports-github/providers/Microsoft.ContainerRegistry/registries/airsportsacr"}'
+    #     dockerComposeFile: '**/docker-compose.yml'
+    #     dockerComposeFileArgs: |
+    #       REGISTRY_NAME=${{variables.ACR_ADDRESS}}
+    #       IMAGE_TAG=latest
+    #     action: 'Run a Docker Compose command'
+    #     dockerComposeCommand: 'pull tracker_daphne'
     - script: |
        docker images
       displayName: List images
