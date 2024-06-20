@@ -38,6 +38,7 @@ stages:
           REGISTRY_NAME=${{variables.ACR_ADDRESS}}
           IMAGE_TAG=latest
         action: 'Run a Docker Compose command'
+        projectName: 'latest'
         dockerComposeCommand: 'pull tracker_daphne'
     - script: |
        docker images
@@ -142,6 +143,7 @@ stages:
         dockerComposeFileArgs: |
           REGISTRY_NAME=${{variables.ACR_ADDRESS}}
         action: 'Run a Docker Compose command'
+        projectName: '${{variables.IMAGE_TAG}}'
         dockerComposeCommand: 'down'
     - script: |  
         rm -rf reports/*
@@ -192,6 +194,7 @@ stages:
                 REGISTRY_NAME=${{variables.ACR_ADDRESS}}
                 IMAGE_TAG=${{variables.IMAGE_TAG}}
               action: 'Run a Docker Compose command'
+              projectName: '${{variables.IMAGE_TAG}}'
               dockerComposeCommand: 'pull tracker_daphne'
           - script: |
               docker images
