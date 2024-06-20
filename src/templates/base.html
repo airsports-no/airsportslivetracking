@@ -47,7 +47,7 @@
             contestUpdateTestResultUrl: contestId => "{% url 'contests-update-test-result' 0 %}".replace("0", contestId),
             contestDeleteTeamResultsUrl: contestId => "{% url 'contests-team-results-delete' 0 %}".replace("0", contestId),
             taskListUrl: contestId => "{% url 'tasks-list' 0 %}".replace("0", contestId),
-            taskDetailUrl: (contestId, taskId) => "{% url 'tasks-detail' 0 1 %}".replace("0", contestId).replace("1/", '/' + taskId + '/'),
+            taskDetailUrl: (contestId, taskId) => "{% url 'tasks-detail' 0 1 %}".replace("0", contestId).replace("/1/", '/' + taskId + '/'),
             taskTestListUrl: contestId => "{% url 'tasktests-list' 0 %}".replace("0", contestId),
             taskTestDetailUrl: (contestId, taskTestId) => "{% url 'tasktests-detail' 0 1 %}".replace("0", contestId).replace("/1/", '/' + taskTestId + '/'),
 
