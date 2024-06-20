@@ -24,6 +24,7 @@ from display.flight_order_and_maps.map_constants import LANDSCAPE, A4
 from display.flight_order_and_maps.map_plotter import plot_route
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
 from display.models import Contestant
+from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
 from display.waypoint import Waypoint
 import cartopy.crs as ccrs
 
@@ -153,7 +154,7 @@ def insert_unknown_leg_images_latex(
     document: Document,
 ):
     navigation = contestant.navigation_task  # type: NavigationTask
-    render_waypoints = [waypoint for waypoint in navigation.route.waypoints if waypoint.type == "ul"]
+    render_waypoints = [waypoint for waypoint in navigation.route.waypoints if waypoint.type == UNKNOWN_LEG]
     random.shuffle(render_waypoints)
     render_turning_point_images(render_waypoints, document, "Unknown legs", unknown_leg=True)
 
@@ -164,7 +165,7 @@ def render_turning_point_images(
     header_prefix: str,
     unknown_leg: bool = False,
 ):
-    render_waypoints = [waypoint for waypoint in waypoints if waypoint.type not in ("secret", "ul")]
+    render_waypoints = [waypoint for waypoint in waypoints if waypoint.type not in (SECRETPOINT, DUMMY)]
 
     rows_per_page = 3
     number_of_images = len(render_waypoints)
@@ -562,7 +563,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     if flight_order_configuration.include_turning_point_images:
         insert_turning_point_images_latex(contestant, document)
 
-    if any(waypoint.type == "ul" for waypoint in contestant.navigation_task.route.waypoints):
+    if any(waypoint.type == UNKNOWN_LEG for waypoint in contestant.navigation_task.route.waypoints):
         insert_unknown_leg_images_latex(contestant, document)
 
     # Produce the output

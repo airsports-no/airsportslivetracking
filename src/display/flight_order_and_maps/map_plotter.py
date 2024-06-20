@@ -964,7 +964,7 @@ def plot_precision_track(
                                 colour,
                             )
 
-            if waypoint.is_procedure_turn:
+            if waypoint.is_procedure_turn and waypoint.type != UNKNOWN_LEG:
                 line.extend(waypoint.procedure_turn_points)
             else:
                 line.append((waypoint.latitude, waypoint.longitude))

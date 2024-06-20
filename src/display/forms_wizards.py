@@ -94,7 +94,7 @@ class LandingImportRouteForm(forms.Form):
 
 class ContestSelectForm(forms.Form):
     contest = forms.ModelChoiceField(
-        Contest.objects.all(),
+        Contest.objects.all().order_by("name"),
         required=False,
         help_text="Choose an existing contest for the new task. If no contest is chosen, you will be prompted to create a new one on the next screen",
     )

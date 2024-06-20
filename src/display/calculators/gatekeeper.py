@@ -167,7 +167,6 @@ class Gatekeeper(ABC):
         Update the current state to reflect whether the contestant is currently en route between a start and finish
         point or not.
         """
-        logger.info(f"last_gate: {self.last_gate} {self.last_gate.type}")
         if self.enroute and self.last_gate is not None and self.last_gate.type in ["ldg", "ifp", "fp"]:
             self.enroute = False
             logger.info("Switching to not enroute")
