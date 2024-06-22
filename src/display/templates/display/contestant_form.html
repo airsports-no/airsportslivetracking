@@ -31,6 +31,9 @@
         const adaptiveStart = document.getElementById("id_adaptive_start");
         const takeoffTime = document.getElementById("id_takeoff_time");
         const trackingStart = document.getElementById("id_tracker_start_time");
+        const teamSelector=document.getElementById("id_team")
+
+       
         adaptiveStart.addEventListener("change", (event) => {
             takeoffTime.readOnly = adaptiveStart.checked;
             if (adaptiveStart.checked) {
@@ -38,6 +41,16 @@
             }
         })
 
+        async function updateAirspeed(event){
+            const selectedTeam=teamSelector.value
+            const response=await fetch("/api/v1/contests/"+{{ navigation_task.contest.id }}+"/contest_team_for_team/"+selectedTeam+"/",{method: "GET"})
+            if(response.ok){
+                const data=await response.json()
+                document.getElementById("id_air_speed").value=data.air_speed
+            }
+        }
+
+        teamSelector.addEventListener("change",updateAirspeed)
 
         trackingStart.addEventListener("change", (event) => {
             updateTakeoff()

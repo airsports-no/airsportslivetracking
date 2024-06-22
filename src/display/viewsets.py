@@ -94,7 +94,8 @@ from display.serialisers import (
     TrackAnnotationSerialiser,
     ScoreLogEntrySerialiser,
     TaskSerialiser,
-    TaskTestSerialiser, ContestantNestedTeamSerialiser,
+    TaskTestSerialiser,
+    ContestantNestedTeamSerialiser,
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
@@ -124,12 +125,16 @@ class UserPersonViewSet(GenericViewSet):
         return Person.objects.get_or_create(
             email=self.request.user.email,
             defaults={
-                "first_name": self.request.user.first_name
-                if self.request.user.first_name and len(self.request.user.first_name) > 0
-                else "",
-                "last_name": self.request.user.last_name
-                if self.request.user.last_name and len(self.request.user.last_name) > 0
-                else "",
+                "first_name": (
+                    self.request.user.first_name
+                    if self.request.user.first_name and len(self.request.user.first_name) > 0
+                    else ""
+                ),
+                "last_name": (
+                    self.request.user.last_name
+                    if self.request.user.last_name and len(self.request.user.last_name) > 0
+                    else ""
+                ),
                 "validated": False,
             },
         )[0]
@@ -311,6 +316,13 @@ class ContestViewSet(ModelViewSet):
             )
             | self.queryset.filter(is_public=True, is_featured=True)
         ).prefetch_related("navigationtask_set", "contest_teams")
+
+    @action(detail=True, methods=["get"], url_path=r"contest_team_for_team/(?P<team_id>\d+)")
+    def contest_team_for_team(self, request, team_id, **kwargs):
+        """Get the ContestTeam that matches the Team id"""
+        return Response(
+            ContestTeamSerialiser(instance=ContestTeam.objects.get(contest=self.get_object(), team=team_id)).data
+        )
 
     @action(detail=False, methods=["get"])
     def results(self, request, *args, **kwargs):
@@ -822,7 +834,7 @@ class ContestantViewSet(ModelViewSet):
         "create": ContestantSerialiser,
         "update": ContestantSerialiser,
         "create_with_team": ContestantNestedTeamSerialiser,
-        "update_with_team": ContestantNestedTeamSerialiser
+        "update_with_team": ContestantNestedTeamSerialiser,
     }
     default_serialiser_class = ContestantNestedTeamSerialiserWithContestantTrack
 
