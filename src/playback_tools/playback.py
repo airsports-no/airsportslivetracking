@@ -122,6 +122,18 @@ def recalculate_traccar(contestant: "Contestant"):
         q.pop()
 
 
+class InvalidGpxTimeFormatException(Exception): ...
+
+
+def validate_gpx_file(file):
+    gpx = gpxpy.parse(file)
+    for track in gpx.tracks:
+        for segment in track.segments:
+            for point in segment.points:
+                if point.time.tzinfo is None:
+                    raise InvalidGpxTimeFormatException("Timezone information is missing")
+
+
 def insert_gpx_file(contestant_object: "Contestant", file):
     now = datetime.datetime.now(datetime.timezone.utc)
     if contestant_object.finished_by_time > now:

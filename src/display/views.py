@@ -17,6 +17,7 @@ from django.contrib.auth.mixins import (
     UserPassesTestMixin,
 )
 
+from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
 
 from django.core.cache import cache
@@ -229,9 +230,9 @@ def frontend_view_map(request, pk):
             "display_table": "false",
             "skip_nav": "true",
             "playback": "false",
-            "can_change_navigation_task": "true"
-            if navigation_task.user_has_change_permissions(request.user)
-            else "false",
+            "can_change_navigation_task": (
+                "true" if navigation_task.user_has_change_permissions(request.user) else "false"
+            ),
             "navigation_task_management_link": reverse("navigationtask_detail", args=(navigation_task.pk,)),
             "playback_link": reverse("frontend_playback_map", args=(navigation_task.pk,)),
             "live_map_link": reverse("frontend_view_map", args=(navigation_task.pk,)),
@@ -263,9 +264,9 @@ def frontend_playback_map(request, pk):
             "display_table": "false",
             "skip_nav": "true",
             "playback": "true",
-            "can_change_navigation_task": "true"
-            if navigation_task.user_has_change_permissions(request.user)
-            else "false",
+            "can_change_navigation_task": (
+                "true" if navigation_task.user_has_change_permissions(request.user) else "false"
+            ),
             "navigation_task_management_link": reverse("navigationtask_detail", args=(navigation_task.pk,)),
             "playback_link": reverse("frontend_playback_map", args=(navigation_task.pk,)),
             "live_map_link": reverse("frontend_view_map", args=(navigation_task.pk,)),
@@ -951,14 +952,20 @@ def upload_gpx_track_for_contesant(request, pk):
         if form.is_valid():
             contestant.reset_track_and_score()
             track_file = request.FILES["track_file"]
-            import_gpx_track.apply_async((contestant.pk, track_file.read().decode("utf-8")))
-            messages.success(request, "Started loading track")
-            return HttpResponseRedirect(
-                reverse(
-                    "navigationtask_detail",
-                    kwargs={"pk": contestant.navigation_task.pk},
+            data = track_file.read().decode("utf-8")
+            try:
+                validate_gpx_file(data)
+            except Exception as e:
+                form.add_error(None, str(e))
+            else:
+                import_gpx_track.apply_async((contestant.pk, data))
+                messages.success(request, "Started loading track")
+                return HttpResponseRedirect(
+                    reverse(
+                        "navigationtask_detail",
+                        kwargs={"pk": contestant.navigation_task.pk},
+                    )
                 )
-            )
     else:
         form = GPXTrackImportForm()
     return render(
@@ -1778,6 +1785,7 @@ class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     """
     Delete an editable route
     """
+
     model = EditableRoute
     permission_required = ("display.delete_editableroute",)
     template_name = "model_delete.html"
@@ -1831,6 +1839,7 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
     """
     Upload a new user uploaded map mbtiles file.
     """
+
     model = UserUploadedMap
     permission_required = ("display.add_contest",)
     form_class = UserUploadedMapForm
@@ -2027,6 +2036,7 @@ class WelcomeEmailExample(SuperuserRequiredMixin, View):
     """
     The welcome e-mail is generated based on text written in wordpress. This renders an example email.
     """
+
     def get(self, request, *args, **kwargs):
         person = get_object_or_404(Person, email=request.user.email)
         return HttpResponse(render_welcome_email(person))
@@ -2036,6 +2046,7 @@ class ContestCreationEmailExample(SuperuserRequiredMixin, View):
     """
     The contest creation e-mail is generated based on text written in wordpress. This renders an example email.
     """
+
     def get(self, request, *args, **kwargs):
         person = get_object_or_404(Person, email=request.user.email)
         return HttpResponse(render_contest_creation_email(person))
