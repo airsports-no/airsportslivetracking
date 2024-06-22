@@ -214,5 +214,7 @@ def schedule_and_create_contestants_navigation_tasks(
         maximum_contestant = 0
     for index, contestant in enumerate(contestants):
         contestant.contestant_number = maximum_contestant + index + 1
-    Contestant.objects.bulk_create(contestants)
+    # Cannot use bulk_create since this skips the post and pre save signals
+    for contestant in contestants:
+        contestant.save()
     return True, optimisation_messages
