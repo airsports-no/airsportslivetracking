@@ -113,7 +113,7 @@ def parse_placemarks(document) -> List[Placemark]:
 
 def validate_no_overlapping_gate_lines(gates: list[Waypoint]):
     projector = Projector(gates[0].latitude, gates[0].longitude)
-    for index in range(1, len(gates)):
+    for index in range(0, len(gates) - 1):
         for second_index in range(index + 1, len(gates)):
             intersection = projector.intersect(
                 gates[index].gate_line[0],
@@ -126,6 +126,45 @@ def validate_no_overlapping_gate_lines(gates: list[Waypoint]):
                     f"The gate line of gates {gates[index].name} and {gates[second_index].name} intersect, which is not "
                     f"allowed. The gates are probably placed too close."
                 )
+
+
+def validate_that_gate_does_not_intersect_corridor(gates: list[Waypoint]):
+    projector = Projector(gates[0].latitude, gates[0].longitude)
+    for index in range(0, len(gates)):
+        previous_left_point = None
+        previous_right_point = None
+        for second_index in range(0, len(gates)):
+            if second_index == index:
+                previous_left_point = None
+                previous_right_point = None
+                continue
+            if previous_left_point is None:
+                previous_left_point = gates[second_index].left_corridor_line[0]
+                previous_right_point = gates[second_index].right_corridor_line[0]
+            for corridor_segment_index in range(0, len(gates[second_index].left_corridor_line)):
+                left_intersection = projector.intersect(
+                    gates[index].gate_line[0],
+                    gates[index].gate_line[1],
+                    previous_left_point,
+                    gates[second_index].left_corridor_line[corridor_segment_index],
+                )
+                if left_intersection:
+                    raise ValidationError(
+                        f"The gate line for gate {gates[index].name} intercepts the corridor from the left near gate {gates[second_index].name}"
+                    )
+                previous_left_point = gates[second_index].left_corridor_line[corridor_segment_index]
+            for corridor_segment_index in range(0, len(gates[second_index].right_corridor_line)):
+                right_intersection = projector.intersect(
+                    gates[index].gate_line[0],
+                    gates[index].gate_line[1],
+                    previous_right_point,
+                    gates[second_index].right_corridor_line[corridor_segment_index],
+                )
+                if right_intersection:
+                    raise ValidationError(
+                        f"The gate line for gate {gates[index].name} intercepts the corridor from the right near gate {gates[second_index].name}"
+                    )
+                previous_right_point = gates[second_index].right_corridor_line[corridor_segment_index]
 
 
 def load_features_from_kml(input_kml) -> Dict:
@@ -482,6 +521,7 @@ def create_anr_corridor_route_from_waypoint_list(
         # correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
     # Validate that waypoints are not too close so that the gates cross each other
     validate_no_overlapping_gate_lines(gates)
+    validate_that_gate_does_not_intersect_corridor(gates)
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
     instance.rounded_corners = rounded_corners
     if corridor_width is not None:
