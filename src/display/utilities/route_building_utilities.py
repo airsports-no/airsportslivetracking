@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from fastkml import kml, Placemark
 
 from display.utilities.coordinate_utilities import (
+    Projector,
     extend_line,
     calculate_distance_lat_lon,
     calculate_bearing,
@@ -108,6 +109,23 @@ def parse_placemarks(document) -> List[Placemark]:
         if isinstance(feature, kml.Document):
             place_marks.extend(parse_placemarks(list(feature.features())))
     return place_marks
+
+
+def validate_no_overlapping_gate_lines(gates: list[Waypoint]):
+    projector = Projector(gates[0].latitude, gates[0].longitude)
+    for index in range(1, len(gates)):
+        for second_index in range(index + 1, len(gates)):
+            intersection = projector.intersect(
+                gates[index].gate_line[0],
+                gates[index].gate_line[1],
+                gates[second_index].gate_line[0],
+                gates[second_index].gate_line[1],
+            )
+            if intersection:
+                raise ValidationError(
+                    f"The gate line of gates {gates[index].name} and {gates[second_index].name} intersect, which is not "
+                    f"allowed. The gates are probably placed too close."
+                )
 
 
 def load_features_from_kml(input_kml) -> Dict:
@@ -328,6 +346,9 @@ def create_precision_route_from_waypoint_list(
     for waypoint in waypoint_list:
         waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)
 
+    # Validate that waypoints are not too close so that the gates cross each other
+    validate_no_overlapping_gate_lines(gates)
+
     calculate_and_update_legs(waypoint_list, use_procedure_turns)
     insert_gate_ranges(waypoint_list)
 
@@ -381,7 +402,7 @@ def create_perpendicular_line_at_end_gates(
 
 
 def create_anr_corridor_route_from_waypoint_list(
-    route_name, waypoint_list, rounded_corners: bool, scorecard: Scorecard, corridor_width: float = None
+    route_name, waypoint_list: list[Waypoint], rounded_corners: bool, scorecard: Scorecard, corridor_width: float = None
 ) -> Route:
     """
 
@@ -459,6 +480,8 @@ def create_anr_corridor_route_from_waypoint_list(
             )
 
         # correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
+    # Validate that waypoints are not too close so that the gates cross each other
+    validate_no_overlapping_gate_lines(gates)
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
     instance.rounded_corners = rounded_corners
     if corridor_width is not None:
