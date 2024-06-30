@@ -6,9 +6,7 @@
         <thead>
         <tr>
             <th>User</th>
-            <th>View contest</th>
-            <th>Change contest</th>
-            <th>Delete contest</th>
+            <th>Permission</th>
             <th>Actions</th>
         </tr>
         </thead>
@@ -16,9 +14,7 @@
         {% for user in users %}
             <tr>
                 <td>{{ user.email }}</td>
-                <td>{{ user.view_contest }}</td>
-                <td>{{ user.change_contest }}</td>
-                <td>{{ user.delete_contest }}</td>
+                <td>{{ user.permission }}</td>
                 <td>
                     <a href="{% url 'contest_permissions_change' contest.pk user.pk %}">Change permissions</a> |
                     <a href="{% url 'contest_permissions_delete' contest.pk user.pk %}">Delete permissions</a>

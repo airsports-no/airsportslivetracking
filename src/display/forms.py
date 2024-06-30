@@ -523,17 +523,16 @@ class AssignPokerCardForm(forms.Form):
     playing_card = forms.ChoiceField(choices=[("random", "Random")] + PLAYING_CARDS, initial="random")
 
 
+CONTEST_PERMISSIONS = [("nothing", "Nothing"), ("view", "View"), ("change", "Change"), ("delete", "Delete")]
+
+
 class AddContestPermissionsForm(forms.Form):
     email = forms.EmailField()
-    change_contest = forms.BooleanField(required=False)
-    view_contest = forms.BooleanField(required=False)
-    delete_contest = forms.BooleanField(required=False)
+    permission = forms.ChoiceField(choices=CONTEST_PERMISSIONS)
 
 
 class ChangeContestPermissionsForm(forms.Form):
-    change_contest = forms.BooleanField(required=False)
-    view_contest = forms.BooleanField(required=False)
-    delete_contest = forms.BooleanField(required=False)
+    permission = forms.ChoiceField(choices=CONTEST_PERMISSIONS)
 
 
 class AddEditableRoutePermissionsForm(forms.Form):
@@ -630,6 +629,7 @@ class ScorecardFormSetHelper(FormHelper):
         super().__init__(*args, **kwargs)
         self.form_method = "post"
         self.render_required_fields = True
+
 
 kml_description = HTML(
     """

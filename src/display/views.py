@@ -1122,6 +1122,17 @@ def add_user_editableroute_permissions(request, pk):
 
 
 #### Contest permission management
+def map_contest_permissions_to_permission_name(permissions: list[str]) -> str:
+    if "delete_contest" in permissions:
+        return "delete"
+    elif "change_contest" in permissions:
+        return "change"
+    elif "view_contest" in permissions:
+        return "view"
+    else:
+        return "nothing"
+
+
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def list_contest_permissions(request, pk):
     """
@@ -1133,7 +1144,8 @@ def list_contest_permissions(request, pk):
     for user in users_and_permissions.keys():
         if user == request.user:
             continue
-        data = {item: True for item in users_and_permissions[user]}
+        data = {}
+        data["permission"] = map_contest_permissions_to_permission_name(users_and_permissions[user]).capitalize()
         data["email"] = user.email
         data["pk"] = user.pk
         users.append(data)
@@ -1144,6 +1156,14 @@ def list_contest_permissions(request, pk):
     )
 
 
+CONTEST_PERMISSION_MAP = {
+    "nothing": [],
+    "view": ["view_contest"],
+    "change": ["view_contest", "change_contest", "add_contest"],
+    "delete": ["view_contest", "change_contest", "add_contest", "delete_contest"],
+}
+
+
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def delete_user_contest_permissions(request, pk, user_pk):
     """
@@ -1151,8 +1171,7 @@ def delete_user_contest_permissions(request, pk, user_pk):
     """
     contest = get_object_or_404(Contest, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
-    permissions = ["change_contest", "view_contest", "delete_contest"]
-    for permission in permissions:
+    for permission in CONTEST_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, contest)
     return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
 
@@ -1167,15 +1186,14 @@ def change_user_contest_permissions(request, pk, user_pk):
     if request.method == "POST":
         form = ChangeContestPermissionsForm(request.POST)
         if form.is_valid():
-            permissions = ["change_contest", "view_contest", "delete_contest"]
+            for permission in CONTEST_PERMISSION_MAP["delete"]:
+                remove_perm(f"display.{permission}", user, contest)
+            permissions = CONTEST_PERMISSION_MAP[form.cleaned_data["permission"]]
             for permission in permissions:
-                if form.cleaned_data[permission]:
-                    assign_perm(f"display.{permission}", user, contest)
-                else:
-                    remove_perm(f"display.{permission}", user, contest)
+                assign_perm(f"display.{permission}", user, contest)
             return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
     existing_permissions = get_user_perms(user, contest)
-    initial = {item: True for item in existing_permissions}
+    initial = {"permission": map_contest_permissions_to_permission_name(existing_permissions)}
     form = ChangeContestPermissionsForm(initial=initial)
     return render(request, "display/contest_permissions_form.html", {"form": form})
 
@@ -1195,12 +1213,11 @@ def add_user_contest_permissions(request, pk):
             except ObjectDoesNotExist:
                 messages.error(request, f"User '{email}' does not exist")
                 return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
-            permissions = ["change_contest", "view_contest", "delete_contest"]
+            for permission in CONTEST_PERMISSION_MAP["delete"]:
+                remove_perm(f"display.{permission}", user, contest)
+            permissions = CONTEST_PERMISSION_MAP[form.cleaned_data["permission"]]
             for permission in permissions:
-                if form.cleaned_data[permission]:
-                    assign_perm(f"display.{permission}", user, contest)
-                else:
-                    remove_perm(f"display.{permission}", user, contest)
+                assign_perm(f"display.{permission}", user, contest)
             return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
     form = AddContestPermissionsForm()
     return render(request, "display/contest_permissions_form.html", {"form": form})
