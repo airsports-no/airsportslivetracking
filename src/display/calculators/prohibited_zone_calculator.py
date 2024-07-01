@@ -38,10 +38,12 @@ class ProhibitedZoneCalculator(Calculator):
         self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
         self.zone_polygons = []
         self.running_penalty = {}
+        self.zone_map = {}
         self.prohibited_zone_grace_time = timedelta(seconds=self.scorecard.prohibited_zone_grace_time)
         zones = route.prohibited_set.filter(type="prohibited")
         for zone in zones:
-            self.zone_polygons.append((zone.name, self.polygon_helper.build_polygon(zone.path)))
+            self.zone_map[zone.pk] = zone
+            self.zone_polygons.append((zone.pk, self.polygon_helper.build_polygon(zone.path)))
 
     def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
         pass
@@ -74,25 +76,25 @@ class ProhibitedZoneCalculator(Calculator):
     def check_inside_prohibited_zone(self, track: List["Position"], last_gate: Optional["Gate"]):
         position = track[-1]
         inside_this_time = set()
-        for inside in self.polygon_helper.check_inside_polygons(
+        for zone_pk in self.polygon_helper.check_inside_polygons(
             self.zone_polygons, position.latitude, position.longitude
         ):
-            inside_this_time.add(inside)
-            if inside not in self.inside_zones:
-                self.inside_zones[inside] = position.time
+            inside_this_time.add(zone_pk)
+            if zone_pk not in self.inside_zones:
+                self.inside_zones[zone_pk] = position.time
             if (
-                inside not in self.zones_scored
-                and position.time > self.inside_zones[inside] + self.prohibited_zone_grace_time
+                zone_pk not in self.zones_scored
+                and position.time > self.inside_zones[zone_pk] + self.prohibited_zone_grace_time
             ):
-                self.zones_scored.add(inside)
+                self.zones_scored.add(zone_pk)
                 penalty = self.scorecard.prohibited_zone_penalty
-                self.running_penalty[inside] = penalty
+                self.running_penalty[zone_pk] = penalty
                 self.update_score(
                     UpdateScoreMessage(
                         position.time,
                         last_gate or self.gates[0],
                         penalty,
-                        "entered prohibited zone {}".format(inside),
+                        "entered prohibited zone {}".format(self.zone_map[zone_pk].name),
                         position.latitude,
                         position.longitude,
                         "anomaly",
