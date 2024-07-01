@@ -67,8 +67,8 @@ from display.forms import (
     TrackingDataForm,
     ContestTeamOptimisationForm,
     AssignPokerCardForm,
-    ChangeContestPermissionsForm,
-    AddContestPermissionsForm,
+    ChangePermissionsForm,
+    AddPermissionsForm,
     RouteCreationForm,
     ShareForm,
     GPXTrackImportForm,
@@ -77,10 +77,6 @@ from display.forms import (
     GateScoreForm,
     FlightOrderConfigurationForm,
     UserUploadedMapForm,
-    AddUserUploadedMapPermissionsForm,
-    ChangeUserUploadedMapPermissionsForm,
-    ChangeEditableRoutePermissionsForm,
-    AddEditableRoutePermissionsForm,
     ImportRouteForm,
     DeleteUserForm,
     TeamForm,
@@ -1030,6 +1026,17 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
 
 
 #### Editable route permission management
+def map_editable_route_permissions_to_permission_name(permissions: list[str]) -> str:
+    if "delete_editableroute" in permissions:
+        return "delete"
+    elif "change_editableroute" in permissions:
+        return "change"
+    elif "view_editableroute" in permissions:
+        return "view"
+    else:
+        return "nothing"
+
+
 @guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
 def list_editableroute_permissions(request, pk):
     """
@@ -1041,7 +1048,8 @@ def list_editableroute_permissions(request, pk):
     for user in users_and_permissions.keys():
         if user == request.user:
             continue
-        data = {item: True for item in users_and_permissions[user]}
+        data = {}
+        data["permission"] = map_editable_route_permissions_to_permission_name(users_and_permissions[user]).capitalize()
         data["email"] = user.email
         data["pk"] = user.pk
         users.append(data)
@@ -1052,6 +1060,14 @@ def list_editableroute_permissions(request, pk):
     )
 
 
+EDITABLEROUTE_PERMISSION_MAP = {
+    "nothing": [],
+    "view": ["view_editableroute"],
+    "change": ["view_editableroute", "change_editableroute", "add_editableroute"],
+    "delete": ["view_editableroute", "change_editableroute", "add_editableroute", "delete_editableroute"],
+}
+
+
 @guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
 def delete_user_editableroute_permissions(request, pk, user_pk):
     """
@@ -1059,8 +1075,7 @@ def delete_user_editableroute_permissions(request, pk, user_pk):
     """
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
-    permissions = ["change_editableroute", "view_editableroute", "delete_editableroute"]
-    for permission in permissions:
+    for permission in EDITABLEROUTE_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, editableroute)
     return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
 
@@ -1073,18 +1088,16 @@ def change_user_editableroute_permissions(request, pk, user_pk):
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
     if request.method == "POST":
-        form = ChangeEditableRoutePermissionsForm(request.POST)
+        form = ChangePermissionsForm(request.POST)
         if form.is_valid():
-            permissions = ["change_editableroute", "view_editableroute", "delete_editableroute"]
-            for permission in permissions:
-                if form.cleaned_data[permission]:
-                    assign_perm(f"display.{permission}", user, editableroute)
-                else:
-                    remove_perm(f"display.{permission}", user, editableroute)
+            for permission in EDITABLEROUTE_PERMISSION_MAP["delete"]:
+                remove_perm(f"display.{permission}", user, editableroute)
+            for permission in EDITABLEROUTE_PERMISSION_MAP[form.cleaned_data["permission"]]:
+                assign_perm(f"display.{permission}", user, editableroute)
             return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
     existing_permissions = get_user_perms(user, editableroute)
-    initial = {item: True for item in existing_permissions}
-    form = ChangeEditableRoutePermissionsForm(initial=initial)
+    initial = {"permission": map_editable_route_permissions_to_permission_name(existing_permissions)}
+    form = ChangePermissionsForm(initial=initial)
     return render(
         request, "display/editableroute_permissions_form.html", {"form": form, "editableroute": editableroute}
     )
@@ -1097,7 +1110,7 @@ def add_user_editableroute_permissions(request, pk):
     """
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     if request.method == "POST":
-        form = AddEditableRoutePermissionsForm(request.POST)
+        form = AddPermissionsForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data["email"]
             try:
@@ -1105,14 +1118,12 @@ def add_user_editableroute_permissions(request, pk):
             except ObjectDoesNotExist:
                 messages.error(request, f"User '{email}' does not exist")
                 return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
-            permissions = ["change_editableroute", "view_editableroute", "delete_editableroute"]
-            for permission in permissions:
-                if form.cleaned_data[permission]:
-                    assign_perm(f"display.{permission}", user, editableroute)
-                else:
-                    remove_perm(f"display.{permission}", user, editableroute)
+            for permission in EDITABLEROUTE_PERMISSION_MAP["delete"]:
+                remove_perm(f"display.{permission}", user, editableroute)
+            for permission in EDITABLEROUTE_PERMISSION_MAP[form.cleaned_data["permission"]]:
+                assign_perm(f"display.{permission}", user, editableroute)
             return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
-    form = AddEditableRoutePermissionsForm()
+    form = AddPermissionsForm()
     return render(
         request, "display/editableroute_permissions_form.html", {"form": form, "editableroute": editableroute}
     )
@@ -1184,17 +1195,16 @@ def change_user_contest_permissions(request, pk, user_pk):
     contest = get_object_or_404(Contest, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
     if request.method == "POST":
-        form = ChangeContestPermissionsForm(request.POST)
+        form = ChangePermissionsForm(request.POST)
         if form.is_valid():
             for permission in CONTEST_PERMISSION_MAP["delete"]:
                 remove_perm(f"display.{permission}", user, contest)
-            permissions = CONTEST_PERMISSION_MAP[form.cleaned_data["permission"]]
-            for permission in permissions:
+            for permission in CONTEST_PERMISSION_MAP[form.cleaned_data["permission"]]:
                 assign_perm(f"display.{permission}", user, contest)
             return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
     existing_permissions = get_user_perms(user, contest)
     initial = {"permission": map_contest_permissions_to_permission_name(existing_permissions)}
-    form = ChangeContestPermissionsForm(initial=initial)
+    form = ChangePermissionsForm(initial=initial)
     return render(request, "display/contest_permissions_form.html", {"form": form})
 
 
@@ -1205,7 +1215,7 @@ def add_user_contest_permissions(request, pk):
     """
     contest = get_object_or_404(Contest, pk=pk)
     if request.method == "POST":
-        form = AddContestPermissionsForm(request.POST)
+        form = AddPermissionsForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data["email"]
             try:
@@ -1215,11 +1225,10 @@ def add_user_contest_permissions(request, pk):
                 return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
             for permission in CONTEST_PERMISSION_MAP["delete"]:
                 remove_perm(f"display.{permission}", user, contest)
-            permissions = CONTEST_PERMISSION_MAP[form.cleaned_data["permission"]]
-            for permission in permissions:
+            for permission in CONTEST_PERMISSION_MAP[form.cleaned_data["permission"]]:
                 assign_perm(f"display.{permission}", user, contest)
             return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
-    form = AddContestPermissionsForm()
+    form = AddPermissionsForm()
     return render(request, "display/contest_permissions_form.html", {"form": form})
 
 
@@ -1965,6 +1974,17 @@ class UserUploadedMapDelete(GuardianPermissionRequiredMixin, DeleteView):
         return super().form_valid(form)
 
 
+def map_useruploadedmap_permissions_to_permission_name(permissions: list[str]) -> str:
+    if "delete_useruploadedmap" in permissions:
+        return "delete"
+    elif "change_useruploadedmap" in permissions:
+        return "change"
+    elif "view_useruploadedmap" in permissions:
+        return "view"
+    else:
+        return "nothing"
+
+
 @guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
 def list_useruploadedmap_permissions(request, pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
@@ -1973,7 +1993,10 @@ def list_useruploadedmap_permissions(request, pk):
     for user in users_and_permissions.keys():
         if user == request.user:
             continue
-        data = {item: True for item in users_and_permissions[user]}
+        data = {}
+        data["permission"] = map_useruploadedmap_permissions_to_permission_name(
+            users_and_permissions[user]
+        ).capitalize()
         data["email"] = user.email
         data["pk"] = user.pk
         users.append(data)
@@ -1984,16 +2007,19 @@ def list_useruploadedmap_permissions(request, pk):
     )
 
 
+USERUPLOADEDMAP_PERMISSION_MAP = {
+    "nothing": [],
+    "view": ["view_useruploadedmap"],
+    "change": ["view_useruploadedmap", "change_useruploadedmap", "add_useruploadedmap"],
+    "delete": ["view_useruploadedmap", "change_useruploadedmap", "add_useruploadedmap", "delete_useruploadedmap"],
+}
+
+
 @guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
 def delete_user_useruploadedmap_permissions(request, pk, user_pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
-    permissions = [
-        "change_useruploadedmap",
-        "view_useruploadedmap",
-        "delete_useruploadedmap",
-    ]
-    for permission in permissions:
+    for permission in USERUPLOADEDMAP_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, user_uploaded_map)
     return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
 
@@ -2003,22 +2029,16 @@ def change_user_useruploadedmap_permissions(request, pk, user_pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
     if request.method == "POST":
-        form = ChangeUserUploadedMapPermissionsForm(request.POST)
+        form = ChangePermissionsForm(request.POST)
         if form.is_valid():
-            permissions = [
-                "change_useruploadedmap",
-                "view_useruploadedmap",
-                "delete_useruploadedmap",
-            ]
-            for permission in permissions:
-                if form.cleaned_data[permission]:
-                    assign_perm(f"display.{permission}", user, user_uploaded_map)
-                else:
-                    remove_perm(f"display.{permission}", user, user_uploaded_map)
+            for permission in USERUPLOADEDMAP_PERMISSION_MAP["delete"]:
+                remove_perm(f"display.{permission}", user, user_uploaded_map)
+            for permission in USERUPLOADEDMAP_PERMISSION_MAP[form.cleaned_data["permission"]]:
+                assign_perm(f"display.{permission}", user, user_uploaded_map)
             return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
     existing_permissions = get_user_perms(user, user_uploaded_map)
-    initial = {item: True for item in existing_permissions}
-    form = ChangeUserUploadedMapPermissionsForm(initial=initial)
+    initial = {"permission": map_useruploadedmap_permissions_to_permission_name(existing_permissions)}
+    form = ChangePermissionsForm(initial=initial)
     return render(request, "display/useruploadedmap_permissions_form.html", {"form": form})
 
 
@@ -2026,7 +2046,7 @@ def change_user_useruploadedmap_permissions(request, pk, user_pk):
 def add_user_useruploadedmap_permissions(request, pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     if request.method == "POST":
-        form = AddUserUploadedMapPermissionsForm(request.POST)
+        form = ChangePermissionsForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data["email"]
             try:
@@ -2034,18 +2054,12 @@ def add_user_useruploadedmap_permissions(request, pk):
             except ObjectDoesNotExist:
                 messages.error(request, f"User '{email}' does not exist")
                 return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
-            permissions = [
-                "change_useruploadedmap",
-                "view_useruploadedmap",
-                "delete_useruploadedmap",
-            ]
-            for permission in permissions:
-                if form.cleaned_data[permission]:
-                    assign_perm(f"display.{permission}", user, user_uploaded_map)
-                else:
-                    remove_perm(f"display.{permission}", user, user_uploaded_map)
+            for permission in USERUPLOADEDMAP_PERMISSION_MAP["delete"]:
+                remove_perm(f"display.{permission}", user, user_uploaded_map)
+            for permission in USERUPLOADEDMAP_PERMISSION_MAP[form.cleaned_data["permission"]]:
+                assign_perm(f"display.{permission}", user, user_uploaded_map)
             return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
-    form = AddUserUploadedMapPermissionsForm()
+    form = ChangePermissionsForm()
     return render(request, "display/useruploadedmap_permissions_form.html", {"form": form})
 
 

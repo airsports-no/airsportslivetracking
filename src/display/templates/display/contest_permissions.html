@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
     <H1>Contest permissions {{ contest }}</H1>
+    <p>Assigning the permission "nothing" removes all permissions from the user. View permission allows the user to view the contest and all its navigation tasks, but not make any modifications. Change allows the user to modify the contest and all its navigation tasks, including adding and removing contestants.  Delete allows the user to do everything, including deleting the contest or any or its navigation tasks.</p>
+
     <a href="{% url 'contest_details' contest.pk %}">Back to contest</a>
     <table class="table table-condensed">
         <thead>

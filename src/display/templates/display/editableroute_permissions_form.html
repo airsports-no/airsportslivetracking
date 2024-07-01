@@ -6,7 +6,7 @@
 
 {% block content %}
     <h2>Manage permissions for route {{ editableroute }}</h2>
-    <h3>Creating a navigation task from a route requires the "change" permission.</h3>
+    <p>Assigning the permission "nothing" Removes all permissions from the user. View permission allows the user to view the route, but not use it. Change allows the user to modify the route and use it for a navigation task.  Delete allows the user to do everything, including deleting the route.</p>
     <form method="post" class="form">
         {% csrf_token %}
         {% bootstrap_form form %}

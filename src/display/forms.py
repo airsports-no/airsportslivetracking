@@ -152,19 +152,6 @@ class UserUploadedMapForm(forms.ModelForm):
         )
 
 
-class AddUserUploadedMapPermissionsForm(forms.Form):
-    email = forms.EmailField()
-    change_useruploadedmap = forms.BooleanField(required=False, label="Modify map")
-    view_useruploadedmap = forms.BooleanField(required=False, label="View and use map")
-    delete_useruploadedmap = forms.BooleanField(required=False, label="Delete map")
-
-
-class ChangeUserUploadedMapPermissionsForm(forms.Form):
-    change_useruploadedmap = forms.BooleanField(required=False, label="Modify map")
-    view_useruploadedmap = forms.BooleanField(required=False, label="View and use map")
-    delete_useruploadedmap = forms.BooleanField(required=False, label="Delete map")
-
-
 def validate_map_zoom_level(map_source: str, user_uploaded_map: Optional[UserUploadedMap], zoom_level: int):
     if user_uploaded_map:
         if not user_uploaded_map.minimum_zoom_level <= zoom_level <= user_uploaded_map.maximum_zoom_level:
@@ -523,29 +510,16 @@ class AssignPokerCardForm(forms.Form):
     playing_card = forms.ChoiceField(choices=[("random", "Random")] + PLAYING_CARDS, initial="random")
 
 
-CONTEST_PERMISSIONS = [("nothing", "Nothing"), ("view", "View"), ("change", "Change"), ("delete", "Delete")]
+PERMISSIONS_CHOICE = [("nothing", "Nothing"), ("view", "View"), ("change", "Change"), ("delete", "Delete")]
 
 
-class AddContestPermissionsForm(forms.Form):
+class AddPermissionsForm(forms.Form):
     email = forms.EmailField()
-    permission = forms.ChoiceField(choices=CONTEST_PERMISSIONS)
+    permission = forms.ChoiceField(choices=PERMISSIONS_CHOICE)
 
 
-class ChangeContestPermissionsForm(forms.Form):
-    permission = forms.ChoiceField(choices=CONTEST_PERMISSIONS)
-
-
-class AddEditableRoutePermissionsForm(forms.Form):
-    email = forms.EmailField()
-    change_editableroute = forms.BooleanField(required=False, label="Change route")
-    view_editableroute = forms.BooleanField(required=False, label="View route")
-    delete_editableroute = forms.BooleanField(required=False, label="Delete route")
-
-
-class ChangeEditableRoutePermissionsForm(forms.Form):
-    change_editableroute = forms.BooleanField(required=False, label="Change route")
-    view_editableroute = forms.BooleanField(required=False, label="View route")
-    delete_editableroute = forms.BooleanField(required=False, label="Delete route")
+class ChangePermissionsForm(forms.Form):
+    permission = forms.ChoiceField(choices=PERMISSIONS_CHOICE)
 
 
 class RouteCreationForm(forms.Form):

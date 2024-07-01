@@ -1,32 +1,28 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block content %}
-    <H1>Contest permissions {{ editableroute }}</H1>
-    <a href="{% url 'editableroute_list' %}">Back to Routes</a>
-    <table class="table table-condensed">
-        <thead>
-        <tr>
-            <th>User</th>
-            <th>View route</th>
-            <th>Change route</th>
-            <th>Delete route</th>
-            <th>Actions</th>
-        </tr>
-        </thead>
+  <H1>Route permissions {{ editableroute }}</H1>
+  <p>Assigning the permission "nothing" Removes all permissions from the user. View permission allows the user to view the route, but not use it. Change allows the user to modify the route and use it for a navigation task. Delete allows the user to do everything, including deleting the route.</p>
 
-        {% for user in users %}
-            <tr>
-                <td>{{ user.email }}</td>
-                <td>{{ user.view_editableroute }}</td>
-                <td>{{ user.change_editableroute }}</td>
-                <td>{{ user.delete_editableroute }}</td>
-                <td>
-                    <a href="{% url 'editableroute_permissions_change' editableroute.pk user.pk %}">Change
-                        permissions</a> |
-                    <a href="{% url 'editableroute_permissions_delete' editableroute.pk user.pk %}">Delete
-                        permissions</a>
-                </td>
-            </tr>
-        {% endfor %}
-    </table>
-    <a href="{% url 'editableroute_permissions_add' editableroute.pk %}">Add permissions for new user</a>
+  <a href="{% url 'editableroute_list' %}">Back to Routes</a>
+  <table class="table table-condensed">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Permission</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+
+    {% for user in users %}
+      <tr>
+        <td>{{ user.email }}</td>
+        <td>{{ user.permission }}</td>
+        <td>
+          <a href="{% url 'editableroute_permissions_change' editableroute.pk user.pk %}">Change permissions</a> |
+          <a href="{% url 'editableroute_permissions_delete' editableroute.pk user.pk %}">Delete permissions</a>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  <a href="{% url 'editableroute_permissions_add' editableroute.pk %}">Add permissions for new user</a>
 {% endblock %}

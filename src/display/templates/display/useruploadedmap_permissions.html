@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
     <H1>Map permissions {{ user_uploaded_map }}</H1>
+    <p>Assigning the permission "nothing" removes all permissions from the user. View permission allows the user to view the map, but not make any modifications. Change allows the user to modify the map.  Delete allows the user to do everything, including deleting the map.</p>
     <a href="{% url 'useruploadedmap_list' %}">Back to my maps</a>
     <table class="table table-condensed">
         <thead>
         <tr>
             <th>User</th>
-            <th>View map</th>
-            <th>Change map</th>
-            <th>Delete map</th>
+            <th>Permission</th>
             <th>Actions</th>
         </tr>
         </thead>
@@ -16,9 +15,7 @@
         {% for user in users %}
             <tr>
                 <td>{{ user.email }}</td>
-                <td>{{ user.view_useruploadedmap }}</td>
-                <td>{{ user.change_useruploadedmap }}</td>
-                <td>{{ user.delete_useruploadedmap }}</td>
+                <td>{{ user.permission1 }}</td>
                 <td>
                     <a href="{% url 'useruploadedmap_permissions_change' user_uploaded_map.pk user.pk %}">Change permissions</a> |
                     <a href="{% url 'useruploadedmap_permissions_delete' user_uploaded_map.pk user.pk %}">Delete permissions</a>

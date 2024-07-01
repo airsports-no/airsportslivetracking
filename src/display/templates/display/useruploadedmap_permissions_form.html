@@ -6,6 +6,7 @@
 
 {% block content %}
     <h2>Manage permissions for map {{ user_uploaded_map }}</h2>
+    <p>Assigning the permission "nothing" removes all permissions from the user. View permission allows the user to view the map, but not make any modifications. Change allows the user to modify the map.  Delete allows the user to do everything, including deleting the map.</p>
     <form method="post" class="form">
         {% csrf_token %}
         {% bootstrap_form form %}
