@@ -1,8 +1,12 @@
 {% extends 'base.html' %}
 {% block content %}
   <H1>Route permissions {{ editableroute }}</H1>
-  <p>Assigning the permission "nothing" Removes all permissions from the user. View permission allows the user to view the route, but not use it. Change allows the user to modify the route and use it for a navigation task. Delete allows the user to do everything, including deleting the route.</p>
-
+  <p>
+    <b>View</b> permission allows the user to view the route, but not make any modifications.<br/>
+    <b>Cange</b> allows the user to modify the route.<br/>
+    <b>Delete</b> allows the user to do everything, including deleting the route.<br/>
+    Assigning the permission "nothing" removes all permissions from the user.
+  </p>
   <a href="{% url 'editableroute_list' %}">Back to Routes</a>
   <table class="table table-condensed">
     <thead>
