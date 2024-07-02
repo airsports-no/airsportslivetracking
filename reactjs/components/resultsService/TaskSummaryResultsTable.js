@@ -486,7 +486,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                                              this.deleteResultsTableLine(this.props.params.contestId, row.team.id)
                                          }
                                      }}><Icon
-                        path={mdiDeleteForever} title={"Edit"} size={0.7}/></a>
+                        path={mdiDeleteForever} title={"Delete team"} size={0.7}/></a>
                 }
                 return <div className={"align-middle crew-name"}>{clearButton}{teamRankingTable(row.team)}</div>
             },
