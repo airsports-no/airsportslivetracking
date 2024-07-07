@@ -84,7 +84,7 @@ spec:
             port: web
           initialDelaySeconds: 30
           periodSeconds: 30
-          timeoutSeconds: 2
+          timeoutSeconds: 30
           failureThreshold: 2
         readinessProbe:
           httpGet:
@@ -92,7 +92,7 @@ spec:
             port: web
           initialDelaySeconds: 30
           periodSeconds: 30
-          timeoutSeconds: 5
+          timeoutSeconds: 10
           failureThreshold: 2
       restartPolicy: Always
       volumes:
