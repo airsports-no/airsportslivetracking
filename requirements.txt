@@ -74,3 +74,4 @@ google-cloud-logging==3.9.0
 python-dateutil~=2.8.2
 flake8
 flake8-docstrings
+gunicorn
