@@ -806,9 +806,6 @@ def _generate_data(contestant_pk):
         if index % 30 == 0:
             progress = contestant.calculate_progress(item.time, ignore_finished=True)
         item.progress = progress
-    logger.debug(
-        "Completed generating data {} {} with {} positions".format(contestant.pk, contestant, len(position_data))
-    )
     data = generate_contestant_data_block(
         contestant,
         positions=PositionSerialiser(position_data, many=True).data,
@@ -819,6 +816,9 @@ def _generate_data(contestant_pk):
         playing_cards=PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
         include_contestant_track=True,
         gate_times=contestant.gate_times,
+    )
+    logger.debug(
+        "Completed generating data {} {} with {} positions".format(contestant.pk, contestant, len(position_data))
     )
     return data
 
