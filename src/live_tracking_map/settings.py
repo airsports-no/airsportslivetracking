@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
+
 import os
 import sys
 from pathlib import Path
@@ -73,6 +74,7 @@ MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 REMOVE_BG_KEY = os.environ.get("REMOVE_BG_KEY", "")
 
 SLACK_DEVELOPMENT_WEBHOOK = os.environ.get("SLACK_DEVELOPMENT_WEBHOOK", "")
+SLACK_COMPETITIONS_WEBHOOK = os.environ.get("SLACK_COMPETITIONS_WEBHOOK", "")
 SUPPORT_EMAIL = "support@airsports.no"
 
 REDIS_GLOBAL_POSITIONS_KEY = "global_positions"

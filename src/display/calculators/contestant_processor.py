@@ -13,7 +13,7 @@ from display.calculators.update_score_message import UpdateScoreMessage
 from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
 from display.utilities.calculator_termination_utilities import is_termination_requested
 from redis_queue import RedisQueue, RedisEmpty
-from slack_facade import post_slack_message
+from slack_facade import post_slack_competition_message
 from utilities.timed_queue import TimedQueue, TimedOut
 from websocket_channels import WebsocketFacade
 
@@ -103,9 +103,9 @@ class ContestantProcessor:
         self.finished_loading_initial_positions = (
             threading.Event()
         )  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
-        post_slack_message(
+        post_slack_competition_message(
             str(self.contestant.navigation_task),
-            f"Calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
+            f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
         )
         self.websocket_facade.transmit_delete_contestant(self.contestant)
         self.websocket_facade.transmit_contestant(self.contestant)
