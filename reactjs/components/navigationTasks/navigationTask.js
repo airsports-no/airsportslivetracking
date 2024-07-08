@@ -1,4 +1,4 @@
-import React, {Component} from "react";
+import React, { Component } from "react";
 import {
     displayAllTracks,
     expandTrackingTable,
@@ -12,21 +12,21 @@ import {
     dispatchDeleteContestant,
     dispatchWebSocketConnected
 } from "../../actions";
-import {connect} from "react-redux";
+import { connect } from "react-redux";
 import ContestantTrack from "./contestantTrack";
 import distinctColors from "distinct-colors";
 import ContestantRankTable from "./contestantRankTable";
-import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY} from "../../constants/display-types";
+import { CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY } from "../../constants/display-types";
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
 import TurningPointDisplay from "./turningPointDisplay";
-import {w3cwebsocket as W3CWebSocket} from "websocket";
+import { w3cwebsocket as W3CWebSocket } from "websocket";
 import PrecisionRenderer from "./trackRenderers/precisionRenderer";
 import AnrCorridorRenderer from "./trackRenderers/anrCorridorRenderer";
 import ProhibitedRenderer from "./trackRenderers/prohibitedRenderer";
 import LandingRenderer from "./trackRenderers/landingRenderer";
 import ContestRankTable from "../resultsService/contestRankTable";
 import AirsportsRenderer from "./trackRenderers/airsportsRenderer";
-import {Jawg_Sunny, OpenAIP} from "../leafletLayers";
+import { Jawg_Sunny, OpenAIP } from "../leafletLayers";
 
 export const mapStateToProps = (state, props) => ({
     initialTracks: state.initialTracks,
@@ -53,6 +53,8 @@ export const mapDispatchToProps = {
     dispatchWebSocketConnected
 }
 
+const PARALLEL_FETCHING_INITIAL_TRACKS = false
+
 export class ConnectedNavigationTask extends Component {
     constructor(props) {
         super(props);
@@ -69,7 +71,7 @@ export class ConnectedNavigationTask extends Component {
         this.renderedTracks = []
         this.lastTimeReceived = null
         this.checkReceivedTimeInterval = null
-        this.colours = distinctColors({count: 25})
+        this.colours = distinctColors({ count: 25 })
         this.sunny = Jawg_Sunny()
         this.openaip = OpenAIP()
     }
@@ -164,7 +166,7 @@ export class ConnectedNavigationTask extends Component {
 
     resetToAllContestants(e) {
         L.DomEvent.stopPropagation(e)
-        this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        this.props.setDisplay({ displayType: SIMPLE_RANK_DISPLAY })
         this.props.displayAllTracks();
         this.props.hideLowerThirds();
     }
@@ -184,12 +186,19 @@ export class ConnectedNavigationTask extends Component {
         if (this.props.navigationTask.route !== previousProps.navigationTask.route) {
             if (this.props.displayMap && !this.rendered) {
                 this.rendered = true;
-                this.remainingTracks = 0
-                this.props.navigationTask.contestant_set.map((contestant, index) => {
-                    this.remainingTracks++
-                    this.waitingInitialLoading[contestant.id] = []
-                    this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
-                })
+                this.remainingTracks = this.props.navigationTask.contestant_set.length
+                if (!PARALLEL_FETCHING_INITIAL_TRACKS) {
+                    if (this.remainingTracks > 0) {
+                        this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, this.props.navigationTask.contestant_set[0].id)
+                        this.waitingInitialLoading[this.props.navigationTask.contestant_set[0].id] = []
+                    }
+                } else {
+
+                    this.props.navigationTask.contestant_set.map((contestant, index) => {
+                        this.waitingInitialLoading[contestant.id] = []
+                        this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
+                    })
+                }
                 this.initiateSession()
             }
         }
@@ -204,6 +213,15 @@ export class ConnectedNavigationTask extends Component {
                         //     this.props.dispatchContestantData(p)
                         // }
                         delete this.waitingInitialLoading[key]
+                    }
+                }
+            }
+            if (!PARALLEL_FETCHING_INITIAL_TRACKS) {
+                for (const contestant of this.props.navigationTask.contestant_set) {
+                    if (!this.renderedTracks.includes(contestant.id.toString())) {
+                        this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
+                        this.waitingInitialLoading[contestant.id] = []
+                        break
                     }
                 }
             }
@@ -247,46 +265,46 @@ export class ConnectedNavigationTask extends Component {
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard.task_type.includes("precision") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
-                                                       contestants={this.props.contestants}
-                                                       currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
-                                                       handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
-                                                       displaySecretGates={this.props.displaySecretGates}/>
+                        contestants={this.props.contestants}
+                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
+                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
+                        displaySecretGates={this.props.displaySecretGates} />
                 } else if (this.props.navigationTask.scorecard.task_type.includes("airsports") || this.props.navigationTask.scorecard.task_type.includes("airsportchallenge") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <AirsportsRenderer map={this.map} navigationTask={this.props.navigationTask}
-                                                       contestants={this.props.contestants}
-                                                       currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
-                                                       handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
-                                                       displaySecretGates={this.props.displaySecretGates}/>
+                        contestants={this.props.contestants}
+                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
+                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
+                        displaySecretGates={this.props.displaySecretGates} />
                 } else if (this.props.navigationTask.scorecard.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}
-                                                         contestants={this.props.contestants}
-                                                         currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}/>
+                        contestants={this.props.contestants}
+                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null} />
                 } else if (this.props.navigationTask.scorecard.task_type.includes("landing")) {
                     routeRenderer = <LandingRenderer map={this.map} navigationTask={this.props.navigationTask}
-                                                     contestants={this.props.contestants}/>
+                        contestants={this.props.contestants} />
                 }
                 prohibitedRender = <ProhibitedRenderer map={this.map} navigationTask={this.props.navigationTask}
-                                                       contestants={this.props.contestants}/>
+                    contestants={this.props.contestants} />
             }
 
-            let display = <div/>
+            let display = <div />
             if (this.props.currentDisplay.displayType === SIMPLE_RANK_DISPLAY) {
                 if (this.props.displayExpandedTrackingTable) {
                     display = <ContestRankTable contestId={this.props.contestId}
-                                                navigationTaskId={this.props.navigationTaskId}
-                                                numberOfContestants={Object.keys(this.props.contestants).length}/>
+                        navigationTaskId={this.props.navigationTaskId}
+                        numberOfContestants={Object.keys(this.props.contestants).length} />
                 } else {
                     display = <ContestantRankTable colours={this.colours}
-                                                   scoreDecimals={this.props.navigationTask.scorecard.task_type.includes("poker") ? 0 : 0}
-                                                   numberOfContestants={Object.keys(this.props.contestants).length}/>
+                        scoreDecimals={this.props.navigationTask.scorecard.task_type.includes("poker") ? 0 : 0}
+                        numberOfContestants={Object.keys(this.props.contestants).length} />
                 }
             } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                 display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}
-                                                    scoreDecimals={this.props.navigationTask.scorecard.task_type.includes("poker") ? 0 : 0}/>
+                    scoreDecimals={this.props.navigationTask.scorecard.task_type.includes("poker") ? 0 : 0} />
                 this.props.shrinkTrackingTable();
             } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
                 display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}
-                                               colours={this.colours}/>
+                    colours={this.colours} />
                 this.props.shrinkTrackingTable();
             }
             const tableDisplay = <div>
@@ -294,10 +312,10 @@ export class ConnectedNavigationTask extends Component {
             </div>
             const mapDisplay = Object.entries(this.props.contestants).map(([key, contestant], index) => {
                 return <ContestantTrack map={this.map} key={contestant.id}
-                                        contestant={contestant} contestId={this.props.contestId}
-                                        navigationTask={this.props.navigationTask}
-                                        displayMap={this.props.displayMap}
-                                        colour={this.getColour(contestant.contestant_number)}/>
+                    contestant={contestant} contestId={this.props.contestId}
+                    navigationTask={this.props.navigationTask}
+                    displayMap={this.props.displayMap}
+                    colour={this.getColour(contestant.contestant_number)} />
             });
             return <div>
                 {routeRenderer}
@@ -306,7 +324,7 @@ export class ConnectedNavigationTask extends Component {
                 {tableDisplay}
             </div>
         }
-        return <div/>
+        return <div />
     }
 
 }

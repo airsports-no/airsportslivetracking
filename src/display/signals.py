@@ -30,9 +30,7 @@ from display.models import (
     Person,
     MyUser,
     EditableRoute,
-    Contest,
 )
-from display.utilities.country_code_utilities import get_country_code_from_location
 from display.utilities.traccar_factory import get_traccar_instance
 
 logger = logging.getLogger(__name__)
@@ -301,7 +299,7 @@ def initialise_navigation_task_dependencies(sender, instance: NavigationTask, cr
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 
 
-@receiver(pre_delete, sender=NavigationTask)
+@receiver(post_delete, sender=NavigationTask)
 def clear_navigation_task_results_service_test(sender, instance: NavigationTask, **kwargs):
     if hasattr(instance, "tasktest") and instance.tasktest:
         task = instance.tasktest.task

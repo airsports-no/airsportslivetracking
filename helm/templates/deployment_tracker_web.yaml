@@ -2,17 +2,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    service: tracker-daphne
-  name: tracker-daphne
+    service: tracker-web
+  name: tracker-web
 spec:
   replicas: 1
   selector:
     matchLabels:
-      service: tracker-daphne
+      service: tracker-web
   template:
     metadata:
       labels:
-        service: tracker-daphne
+        service: tracker-web
         date: "{{ now | unixEpoch }}"
     spec:
       terminationGracePeriodSeconds: 25
@@ -26,7 +26,7 @@ spec:
                     - key: service
                       operator: In
                       values:
-                        - tracker-daphne
+                        - tracker-web
                 topologyKey: "kubernetes.io/hostname"
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -57,11 +57,11 @@ spec:
               done
       containers:
       - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
-        command: [ "bash", "-c", "/daphne.sh" ]
-        name: tracker-daphne
+        command: [ "bash", "-c", "/gunicorn.sh" ]
+        name: tracker-web
         ports:
-          - name: daphne
-            containerPort: 8003
+          - name: web
+            containerPort: 8002
         envFrom:
           - configMapRef:
               name: envs-production-other
@@ -69,10 +69,10 @@ spec:
               name: pw-secrets
         resources:
           requests:
-            cpu: 500m
+            cpu: 800m
             memory: 3Gi  # Uses 160Mi
           limits:
-            cpu: 500m
+            cpu: 800m
             memory: 3Gi
         volumeMounts:
           - mountPath: /secret
@@ -81,18 +81,18 @@ spec:
         livenessProbe:
           httpGet:
             path: /display/healthz/
-            port: daphne
+            port: web
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 60
           timeoutSeconds: 30
           failureThreshold: 2
         readinessProbe:
           httpGet:
             path: /display/readyz/
-            port: daphne
+            port: web
           initialDelaySeconds: 30
-          periodSeconds: 30
-          timeoutSeconds: 10
+          periodSeconds: 60
+          timeoutSeconds: 30
           failureThreshold: 2
       restartPolicy: Always
       volumes:
@@ -100,3 +100,4 @@ spec:
           secret:
             secretName: firebase-secrets
 
+  

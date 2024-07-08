@@ -1,12 +1,12 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: hpa-tracker-daphne
+  name: hpa-tracker-web
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: tracker-daphne
+    name: tracker-web
   minReplicas: 1
   maxReplicas: 3
   metrics:

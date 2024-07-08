@@ -118,7 +118,7 @@ from display.tasks import (
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
 from display.waypoint import Waypoint
 from live_tracking_map.settings import SUPPORT_EMAIL
-from slack_facade import post_slack_message
+from slack_facade import post_slack_competition_message
 from websocket_channels import (
     WebsocketFacade,
 )
@@ -324,7 +324,7 @@ def user_request_profile_deletion(request):
         )
     except:
         logger.error(f"Failed sending email about deleting user profile for {request.user.email}")
-        post_slack_message("Exception", f"Failed sending email about deleting user profile for {request.user.email}")
+        post_slack_competition_message("Exception", f"Failed sending email about deleting user profile for {request.user.email}")
     messages.info(request, f"Your request for deleting your user profile has been submitted")
     logout(request)
     return redirect("/")
