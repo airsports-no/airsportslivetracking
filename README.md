@@ -1,9 +1,10 @@
 # Air Sports Live Tracking
 Air Sports Live Tracking (ASLT) is an online (live) scoring platform for aircraft competitions. Currently it is primarily focused on precision flying and air navigation race (ANR), but it also supports other task types such as poker run and the novel Air Sports Challenge.
 
-Latest Build: [![Build Status](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_apis/build/status%2Fairsports-no.airsportslivetracking?branchName=main)](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_build/latest?definitionId=3&branchName=main) 
+Please join our [Slack community](https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg)
 
-Latest deploy: [![Build Status](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_apis/build/status%2Fairsports-no.airsportslivetracking?branchName=prod&stageName=Deploy&jobName=Deploy)](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_build/latest?definitionId=3&branchName=prod)
+[![Build Status](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_apis/build/status%2Fairsports-no.airsportslivetracking?branchName=main)](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_build/latest?definitionId=3&branchName=main) 
+[![Deploy Status](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_apis/build/status%2Fairsports-no.airsportslivetracking?branchName=prod&stageName=Deploy&jobName=Deploy)](https://dev.azure.com/airsportslt/ASLT%20GitHub%20build/_build/latest?definitionId=3&branchName=prod)
 
 Our primary server is up and running at https://airsports.no/ for anyone to use free of charge. We are looking for funding to keep this service available.
 
