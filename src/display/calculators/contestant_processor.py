@@ -50,9 +50,9 @@ class ScoreAccumulator:
             if (maximum_score > 0 and current_score_for_type + score >= maximum_score) or (
                 maximum_score < 0 and current_score_for_type + score <= maximum_score
             ):
-                score = maximum_score
+                score = maximum_score - current_score_for_type
                 capped = True
-        self.related_score[score_type] = score
+        self.related_score[score_type] += score
         return score, capped
 
 
