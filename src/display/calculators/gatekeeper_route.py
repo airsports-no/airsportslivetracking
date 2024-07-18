@@ -178,6 +178,7 @@ class GatekeeperRoute(Gatekeeper):
                 intersected_gate = self.takeoff_gate.intersected_gate
                 current_position = self.track[-1]
                 self.contestant.record_actual_gate_time(intersected_gate.name, intersection_time)
+                self.takeoff_gate.pass_gate(intersection_time)
                 logger.info("{} {}: Passing takeoff line".format(self.contestant, intersection_time))
                 gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
                     intersected_gate.type, intersected_gate.expected_time, intersected_gate.passing_time
@@ -327,6 +328,7 @@ class GatekeeperRoute(Gatekeeper):
                     intersected_gate = self.landing_gate.intersected_gate
                     current_position = self.track[-1]
                     self.contestant.record_actual_gate_time(intersected_gate.name, intersection_time)
+                    self.landing_gate.pass_gate(intersection_time)
                     logger.info("{} {}: Passing landing line".format(self.contestant, intersection_time))
                     gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
                         intersected_gate.type, intersected_gate.expected_time, intersected_gate.passing_time
