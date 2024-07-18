@@ -39,22 +39,21 @@ class ScoreAccumulator:
     def __init__(self):
         self.related_score = {}
 
-    def set_and_update_score(
-        self, score: float, score_type: str, maximum_score: Optional[float], previous_score: Optional[float] = 0
-    ) -> Tuple[float, bool]:
+    def set_and_update_score(self, score: float, score_type: str, maximum_score: Optional[float]) -> Tuple[float, bool]:
         """
         Returns the calculated score given the maximum limits for the score type. If there is no maximum limit, score
         is returned. The second return parameter indicates whether the score has been capped to a maximum value or not.
         """
         capped = False
-        score -= previous_score
         current_score_for_type = self.related_score.setdefault(score_type, 0)
-        if maximum_score is not None and maximum_score > -1:
-            if current_score_for_type + score >= maximum_score:
-                score = maximum_score - current_score_for_type
+        if maximum_score is not None:
+            if (maximum_score > 0 and current_score_for_type + score >= maximum_score) or (
+                maximum_score < 0 and current_score_for_type + score <= maximum_score
+            ):
+                score = maximum_score
                 capped = True
-        self.related_score[score_type] += score
-        return score + previous_score, capped
+        self.related_score[score_type] = score
+        return score, capped
 
 
 LOOP_TIME = 60
@@ -415,7 +414,7 @@ class ContestantProcessor:
         maximum value.
         """
         score, capped = self.accumulated_scores.set_and_update_score(
-            update_score_message.score, update_score_message.score_type, update_score_message.maximum_score, 0
+            update_score_message.score, update_score_message.score_type, update_score_message.maximum_score
         )
         if update_score_message.planned is not None and update_score_message.actual is not None:
             offset = (update_score_message.actual - update_score_message.planned).total_seconds()

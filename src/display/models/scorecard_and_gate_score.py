@@ -149,15 +149,17 @@ class Scorecard(models.Model):
             except ObjectDoesNotExist:
                 raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
 
-    def calculate_penalty_zone_score(self, enter: datetime.datetime, exit: datetime.datetime):
+    def calculate_penalty_zone_score(self, enter: datetime.datetime, leave: datetime.datetime):
         """
         Calculate the penalty for entering and then exiting the penalty zone
         """
-        difference = round((exit - enter).total_seconds()) - self.penalty_zone_grace_time
+        difference = round((leave - enter).total_seconds()) - self.penalty_zone_grace_time
         if difference < 0:
             return 0
-        if self.penalty_zone_maximum > -1:
+        if self.penalty_zone_maximum > 0:
             return min(self.penalty_zone_maximum, difference * self.penalty_zone_penalty_per_second)
+        if self.penalty_zone_maximum < 0:
+            return max(self.penalty_zone_maximum, difference * self.penalty_zone_penalty_per_second)
         return difference * self.penalty_zone_penalty_per_second
 
     def get_gate_timing_score_for_gate_type(
@@ -311,6 +313,8 @@ class GateScore(models.Model):
             else:
                 grace_limit = self.graceperiod_before
             score = (round(abs(time_difference) - grace_limit)) * self.penalty_per_second
-            if self.maximum_penalty >= 0:
+            if self.maximum_penalty > 0:
                 return min(self.maximum_penalty, score)
+            elif self.maximum_penalty < 0:
+                return max(self.maximum_penalty, score)
             return score

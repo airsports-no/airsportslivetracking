@@ -28,6 +28,65 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         self.calculator.scorecard.penalty_zone_maximum = 200
         self.calculator.update_score = Mock()
 
+    def test_maximum_score_is_reset_between_entries(self):
+        position = Mock()
+        position.latitude = 60.5
+        position.longitude = 11.5
+        gate = Mock()
+        position.time = datetime.datetime(2020, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+        self.calculator.calculate_outside_route([position], gate)
+
+        self.calculator.update_score.assert_called_with(
+            UpdateScoreMessage(
+                time=datetime.datetime(2020, 1, 1, 0, 0, tzinfo=datetime.timezone.utc),
+                gate=gate,
+                score=0,
+                message="entering penalty zone test",
+                latitude=60.5,
+                longitude=11.5,
+                annotation_type="information",
+                score_type="inside_penalty_zone",
+                maximum_score=None,
+                planned=None,
+                actual=None,
+            )
+        )
+
+        position = Mock()
+        position.latitude = 59.5
+        position.longitude = 11.5
+        position.time = datetime.datetime(2020, 1, 1, 0, 2, 0, tzinfo=datetime.timezone.utc)
+        self.calculator.calculate_outside_route([position], gate)
+        self.calculator.update_score.assert_called_with(
+            UpdateScoreMessage(
+                position.time,
+                gate,
+                200,
+                "inside penalty zone test (120s)",
+                59.5,
+                11.5,
+                "anomaly",
+                "inside_penalty_zone",
+            )
+        )
+        # Moving outside again
+        position = Mock()
+        position.latitude = 60.5
+        position.longitude = 11.5
+        position.time = datetime.datetime(2020, 1, 1, 0, 3, tzinfo=datetime.timezone.utc)
+        self.calculator.calculate_outside_route([position], gate)
+        # Moving inside, should not get additional score.
+        position = Mock()
+        position.latitude = 59.5
+        position.longitude = 11.5
+        position.time = datetime.datetime(2020, 1, 1, 0, 3, 15, tzinfo=datetime.timezone.utc)
+        self.calculator.calculate_outside_route([position], gate)
+        self.calculator.update_score.assert_called_with(
+            UpdateScoreMessage(
+                position.time, gate, 36, "inside penalty zone test (15s)", 59.5, 11.5, "anomaly", "inside_penalty_zone"
+            )
+        )
+
     def test_inside_enroute(self):
         position = Mock()
         position.latitude = 60.5
