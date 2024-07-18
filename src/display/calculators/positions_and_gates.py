@@ -165,6 +165,12 @@ class MultiGate:
         self.intersected_gate = None
         self.missed = False
 
+    def pass_gate(self, passing_time: datetime):
+        assert self.intersected_gate is not None, "Setting passing time when the multi gate has not had an intersection"
+        self.intersected_gate.passing_time = passing_time
+        self.intersected_gate.extended_passing_time = passing_time
+        self.intersected_gate.infinite_passing_time = passing_time
+
     @property
     def name(self):
         return self.intersected_gate.name if self.intersected_gate is not None else self.gates[0].name
