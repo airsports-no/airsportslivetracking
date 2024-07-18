@@ -299,7 +299,7 @@ def initialise_navigation_task_dependencies(sender, instance: NavigationTask, cr
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
 
 
-@receiver(post_delete, sender=NavigationTask)
+@receiver(pre_delete, sender=NavigationTask)
 def clear_navigation_task_results_service_test(sender, instance: NavigationTask, **kwargs):
     if hasattr(instance, "tasktest") and instance.tasktest:
         task = instance.tasktest.task
