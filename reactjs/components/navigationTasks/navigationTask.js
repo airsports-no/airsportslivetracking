@@ -187,15 +187,16 @@ export class ConnectedNavigationTask extends Component {
             if (this.props.displayMap && !this.rendered) {
                 this.rendered = true;
                 this.remainingTracks = this.props.navigationTask.contestant_set.length
+                this.props.navigationTask.contestant_set.map((contestant, index) => {
+                    this.waitingInitialLoading[contestant.id] = []
+                })
                 if (!PARALLEL_FETCHING_INITIAL_TRACKS) {
                     if (this.remainingTracks > 0) {
                         this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, this.props.navigationTask.contestant_set[0].id)
                         this.waitingInitialLoading[this.props.navigationTask.contestant_set[0].id] = []
                     }
                 } else {
-
                     this.props.navigationTask.contestant_set.map((contestant, index) => {
-                        this.waitingInitialLoading[contestant.id] = []
                         this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
                     })
                 }
@@ -209,9 +210,9 @@ export class ConnectedNavigationTask extends Component {
                     console.log(value)
                     this.props.dispatchContestantData(value)
                     if (this.waitingInitialLoading[key] !== undefined) {
-                        // for(let p of this.waitingInitialLoading[key]){
-                        //     this.props.dispatchContestantData(p)
-                        // }
+                        for(let p of this.waitingInitialLoading[key]){
+                            this.props.dispatchContestantData(p)
+                        }
                         delete this.waitingInitialLoading[key]
                     }
                 }
@@ -220,7 +221,6 @@ export class ConnectedNavigationTask extends Component {
                 for (const contestant of this.props.navigationTask.contestant_set) {
                     if (!this.renderedTracks.includes(contestant.id.toString())) {
                         this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
-                        this.waitingInitialLoading[contestant.id] = []
                         break
                     }
                 }
