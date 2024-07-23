@@ -5,6 +5,7 @@ from collections import defaultdict
 from io import BytesIO
 from typing import Dict, List
 
+from django.templatetags.static import static
 import gpxpy
 import zipfile
 from crispy_forms.layout import Fieldset
@@ -289,7 +290,7 @@ def manifest(request):
         "name": "Airsports live tracking",
         "icons": [
             {
-                "src": "/static/img/airsports.png",
+                "src": static("img/airsports.png"),
                 "sizes": "192x192",
                 "type": "image/png",
             }
@@ -324,7 +325,9 @@ def user_request_profile_deletion(request):
         )
     except:
         logger.error(f"Failed sending email about deleting user profile for {request.user.email}")
-        post_slack_competition_message("Exception", f"Failed sending email about deleting user profile for {request.user.email}")
+        post_slack_competition_message(
+            "Exception", f"Failed sending email about deleting user profile for {request.user.email}"
+        )
     messages.info(request, f"Your request for deleting your user profile has been submitted")
     logout(request)
     return redirect("/")

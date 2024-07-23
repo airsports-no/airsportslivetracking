@@ -29,7 +29,7 @@ class ConnectedGlobalMapContainer extends Component {
                 <div id='main_div' className={"fill"}>
                     <div className={"fill"}>
                         <a className={"btn"} id="returnLink" href={"/"}>
-                            <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
+                            <img src={document.configuration.STATIC_FILE_LOCATION+"img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
                         </a>
                         <GlobalEventList contestDetailsId={parseInt(this.props.params.contestDetailsId)}/>
                         {/*<div className={"aircraft-legend-global"}>*/}
@@ -45,7 +45,7 @@ class ConnectedGlobalMapContainer extends Component {
                         <Disclaimer/>
                         <AboutLogoPopup aboutText={aboutGlobalMap} size={2}/>
                         <a target="_blank" href={"https://home.airsports.no/"} className={"wikiImage"}>
-                            <img src={"/static/img/news.png"} style={{width: "50px"}} alt={"About"}/>
+                            <img src={document.configuration.STATIC_FILE_LOCATION+"img/news.png"} style={{width: "50px"}} alt={"About"}/>
                         </a>
                         <div id="cesiumContainer"/>
                     </div>

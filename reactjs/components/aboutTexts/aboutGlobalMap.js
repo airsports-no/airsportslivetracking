@@ -4,7 +4,7 @@ import {mdiGoKartTrack} from "@mdi/js";
 import {internalColour, ognColour, safeskyColour} from "../aircraft/aircraft";
 
 const aboutGlobalMap = <div>
-    <img src={"/static/img/airsports_no_text.png"} style={{float: "right", width: "40px"}} alt={"Global logo"}/>
+    <img src={document.configuration.STATIC_FILE_LOCATION+"img/airsports_no_text.png"} style={{float: "right", width: "40px"}} alt={"Global logo"}/>
     <h4>Global map - tracking and events</h4>
     <ul>
         <li>Use Live Tracking to share your position!</li>
@@ -51,7 +51,7 @@ const aboutGlobalMap = <div>
     </p>
     <hr/>
     <p/>
-        <img src={"/static/img/airsports_help.png"} style={{float: "right", width: "40px", marginTop: "-10px"}} alt={"Global logo"}/>
+        <img src={document.configuration.STATIC_FILE_LOCATION+"img/airsports_help.png"} style={{float: "right", width: "40px", marginTop: "-10px"}} alt={"Global logo"}/>
         <b>Air Sports Race introduction</b>
         <div className="video-container">
             <iframe src="https://www.youtube.com/embed/jywBZyqcL1Q"

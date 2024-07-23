@@ -21,7 +21,7 @@ class ConnectedContestItem extends Component {
                     onClick={() => this.handleClick()}
                 >
                     <img className={"img-fluid"}
-                         src={this.props.contest.logo && this.props.contest.logo.length > 0 ? this.props.contest.logo : "/static/img/airsportslogo.png"}
+                         src={this.props.contest.logo && this.props.contest.logo.length > 0 ? this.props.contest.logo : document.configuration.STATIC_FILE_LOCATION+"img/airsportslogo.png"}
                          alt={"Event logo"}
                          style={{width: "100%", maxHeight: "60px", maxWidth: "60px", float: "left"}}/>
 

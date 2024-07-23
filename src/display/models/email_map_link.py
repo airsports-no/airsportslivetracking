@@ -3,6 +3,7 @@ import uuid
 
 from django.core.mail import send_mail
 from django.db import models
+from django.templatetags.static import static
 from django.urls import reverse
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class EmailMapLink(models.Model):
     class Meta:
         ordering = ("created_at",)
 
-    HTML_SIGNATURE = """
+    HTML_SIGNATURE = f"""
 <h3><strong>Best Regards,</strong><br /><span style="color: #000080;">
 <strong>Team&nbsp;Air Sports Live Tracking</strong>
 <strong>&nbsp;</strong>
@@ -37,7 +38,7 @@ can follow it live on&nbsp;</em><em><a href="http://www.airsports.no/" data-safe
 partners who support our work.&nbsp;If you want to become our partners, please get in touch, we are very grateful for 
 your support.&nbsp;Thanks!</em></p>
 
-<p><em><img src="https://airsports.no/static/img/AirSportsLiveTracking.png" alt="Air Sports Live Tracking" width="350" height="52" /></em></p>
+<p><em><img src="{static("img/AirSportsLiveTracking.png")}" alt="Air Sports Live Tracking" width="350" height="52" /></em></p>
 <p><span style="color: #999999;">____________________________________________________________</span></p>
 <p><span style="color: #999999;"><em>NOTICE: This e-mail transmission, and any documents, files or previous e-mail 
 messages attached to it, may contain confidential or privileged information. If you are not the intended recipient, or 

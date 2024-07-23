@@ -4,7 +4,7 @@ let faces = ['j', 'q', 'k'];
 
 let addSuits = (i, PlayingCardsList) => {
     for (let suit of suits) {
-        PlayingCardsList[i + suit] = "/static/img/CardImages/" + i + suit + '.svg'
+        PlayingCardsList[i + suit] = document.configuration.STATIC_FILE_LOCATION+"img/CardImages/" + i + suit + '.svg'
     }
 }
 
@@ -17,14 +17,14 @@ for (let i of faces) {
 }
 
 for (let suit of suits) {
-    PlayingCardsList["t" + suit] = "/static/img/CardImages/10"+ suit + '.svg'
+    PlayingCardsList["t" + suit] = document.configuration.STATIC_FILE_LOCATION+"img/CardImages/10"+ suit + '.svg'
 }
 
 for (let suit of suits) {
-    PlayingCardsList["a" + suit] = "/static/img/CardImages/1" + suit + '.svg'
+    PlayingCardsList["a" + suit] = document.configuration.STATIC_FILE_LOCATION+"img/CardImages/1" + suit + '.svg'
 }
 
-PlayingCardsList.flipped = "/static/img/CardImages/b.svg"
+PlayingCardsList.flipped = document.configuration.STATIC_FILE_LOCATION+"img/CardImages/b.svg"
 
 
 export default PlayingCardsList;

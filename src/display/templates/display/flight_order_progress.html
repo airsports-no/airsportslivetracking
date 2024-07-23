@@ -15,7 +15,7 @@
         be reported in the table below.
     </p>
     <div id="loading" style="display: none">
-        <img class="center" src="/static/img/loading_airplane.gif" alt="loading..."/>
+        <img class="center" src="{% static 'img/loading_airplane.gif' %}" alt="loading..."/>
     </div>
     <form>
         <table class="table">
@@ -39,7 +39,7 @@
                     <td>{{ contestant }}</td>
                     <td>{{ contestant.takeoff_time_local | date:"Y-m-d H:i:s" }}</td>
                     <td id="previously_generated_{{ contestant.pk }}">{% if contestant.has_flight_order_link %}
-                        <img src="{% static '/img/green_checkmark.png' %}" style="width: 24px"/>{% endif %}</td>
+                        <img src="{% static 'img/green_checkmark.png' %}" style="width: 24px"/>{% endif %}</td>
                     <td id="generating_{{ contestant.pk }}"></td>
                     <td id="transmitting_{{ contestant.pk }}"></td>
                     <td id="errors_{{ contestant.pk }}"></td>

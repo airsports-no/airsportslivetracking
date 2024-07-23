@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta property="og:title" content="Air Sports Live Tracking" data-rh="true">
     <meta property="og:description" content="Flying competition tracking and social platform" data-rh="true">
-    <meta property="og:image" content="https://airsports.no/static/img/manifest.png" data-rh="true">
+    <meta property="og:image" content="{% static 'img/manifest.png' %}" data-rh="true">
     <link rel='manifest' href="{% url 'tracking_manifest' %}">
     <link rel="stylesheet" href="{% static 'css/bootstrap.css' %}" crossorigin="anonymous">
     <script src="{% static 'js/jquery-3.5.1.min.js' %}"></script>
@@ -62,7 +62,7 @@
             contestDetailsViewUrl: contestId => "{% url 'contest_details' 0 %}".replace("0", contestId),
             GET_PERSONS_FOR_SIGNUP_URL: "{% url 'get_persons_for_signup' %}",
             EDITABLE_ROUTE_LIST_VIEW_URL: "{% url 'editableroute_list' %}",
-
+            STATIC_FILE_LOCATION:  "{% static '' %}"
 
         }
     </script>

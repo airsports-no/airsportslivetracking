@@ -27,7 +27,7 @@ export const EventTable = (props) => {
             disableSortBy: true,
             Cell: cellInfo => <a href={"#"} onClick={() => props.handleContestClick(cellInfo.row.original)}><img
                 className={"img-fluid"}
-                src={cellInfo.row.original.logo && cellInfo.row.original.logo.length > 0 ? cellInfo.row.original.logo : "/static/img/airsportslogo.png"}
+                src={cellInfo.row.original.logo && cellInfo.row.original.logo.length > 0 ? cellInfo.row.original.logo : document.configuration.STATIC_FILE_LOCATION+"img/airsportslogo.png"}
                 alt={"Event logo"}
                 style={{width: "100%", maxHeight: "40px", maxWidth: "40px", float: "left"}}/>{cellInfo.value}</a>,
         },

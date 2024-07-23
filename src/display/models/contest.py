@@ -5,6 +5,7 @@ from typing import Optional
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
+from django.templatetags.static import static
 from django_countries.fields import CountryField
 from guardian.shortcuts import assign_perm, get_objects_for_user, get_users_with_perms
 from location_field.models.plain import PlainLocationField
@@ -159,7 +160,7 @@ class Contest(models.Model):
     @property
     def country_flag_url(self):
         if self.country:
-            return "/static/flags/3x2/" + str(self.country) + ".svg"
+            return static("flags/3x2/" + str(self.country) + ".svg")
         return None
 
     @property

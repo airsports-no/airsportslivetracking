@@ -66,58 +66,58 @@ const slides = [
     {
         title: "Mouse required",
         description: "The route editor does unfortunately not work with touchscreen devices. Click next to continue the tutorial.",
-        image: "/static/img/tutorial/0.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/0.png",
         background: bgcolor
     }, {
         title: "Enable editing",
         description: "Click 'Edit' to enable editing. Cancel resets and changes, and route list returns you to the list of all your routes.",
-        image: "/static/img/tutorial/0.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/0.png",
         background: bgcolor
     },
     {
         title: "Create route",
         description: "Click icons to create a route or a zone (penalty zone, etc)",
-        image: "/static/img/tutorial/1.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/1.png",
         background: bgcolor
     }, {
         title: "Draw track",
         description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created. Points closer than 1km to the last point will automatically be marked as secret without time check.",
-        image: "/static/img/tutorial/2.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/2.png",
         background: bgcolor
     }, {
         title: "Track details",
         description: "Select type of route. You always need a track. Takeoff and landing gates should cross the runway, but not be crossed during taxi.",
-        image: "/static/img/tutorial/3.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/3.png",
         background: bgcolor
     }, {
         title: "Edit waypoint details",
         description: "Choose a waypoint name, the waypoint type, and the width of the gate. This will determine the size of the gate or the corridor. Time check controls whether the gate gives penalties, secret waypoints are not visible to the pilots. ",
-        image: "/static/img/tutorial/4.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/4.png",
         background: bgcolor
     }, {
         title: "Zones",
         description: "Optionally, create a prohibited zone (fixed penalty), penalty area (penalty per second), or information area. For certain types of tasks (poker run) you can create a gate area around a waypoint to represent the waypoint.",
-        image: "/static/img/tutorial/5.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/5.png",
         background: bgcolor
     }, {
         title: "Zone details",
         description: "Select the type of zone and give a name. The name will be displayed on the map. Enter label x and y offset to control how the name is displayed. Make sure this looks good at multiple zoom levels.",
-        image: "/static/img/tutorial/6.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/6.png",
         background: bgcolor
     }, {
         title: "Editing",
         description: "To edit an existing track or area, click and drag the available markers to the desired shape. Use the satellite view to pinpoint waypoint features.",
-        image: "/static/img/tutorial/7.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/7.png",
         background: bgcolor
     }, {
         title: "Saving",
         description: "At any time, give the route a name and click save at the bottom of the map. This will validate that the route is set up correctly and save it for later editing and use.",
-        image: "/static/img/tutorial/8.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/8.png",
         background: bgcolor
     }, {
         title: "Task creation",
         description: "Once the route is saved, go back to the root list and click 'Create task'. This will guide you through the task creation process. Note that you already have to have created a contest.",
-        image: "/static/img/tutorial/9.png",
+        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/9.png",
         background: bgcolor
     },
 
@@ -934,7 +934,7 @@ class ConnectedRouteEditor extends Component {
                 </Toast> : null}
             </div>
             <a href={"https://home.airsports.no/tutorials/#RouteEditor"} className={"logoImageRE"} target={"_blank"}>
-                <img src={"/static/img/airsports_help.png"} style={{width: "50px"}} alt={"Help"}/>
+                <img src={document.configuration.STATIC_FILE_LOCATION+"img/airsports_help.png"} style={{width: "50px"}} alt={"Help"}/>
             </a>
 
             {this.featureEditModal()}

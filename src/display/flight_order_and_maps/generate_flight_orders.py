@@ -62,7 +62,7 @@ class MyFPDF(FPDF, HTMLMixin):
     pass
 
 
-def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: bool = False):
+def generate_turning_point_image(waypoints: List[Waypoint], index, is_unknown_leg: bool = False):
     waypoint = waypoints[index]
     imagery = GoogleTiles(style="satellite")
     plt.figure(figsize=(10, 10))
@@ -70,7 +70,7 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: 
     ax.add_image(imagery, 15)
     ax.set_aspect("auto")
     plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree())
-    if not unknown_leg:
+    if not is_unknown_leg:
         if index > 0:
             plt.plot(
                 [waypoints[index - 1].longitude, waypoints[index].longitude],
@@ -129,7 +129,7 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: 
     bottom = int(vertical_centre + vertical)
     cropped = img2.crop((left, top, right, bottom))
     draw = ImageDraw.Draw(cropped)
-    if unknown_leg:
+    if is_unknown_leg:
         fnt = ImageFont.truetype("/src/fonts/OpenSans-Bold.ttf", 100)
         draw.text(
             (10, 10),
@@ -146,7 +146,9 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, unknown_leg: 
 
 def insert_turning_point_images_latex(contestant, document: Document):
     navigation = contestant.navigation_task  # type: NavigationTask
-    render_turning_point_images(navigation.route.waypoints, document, "Turning point and time gate", unknown_leg=False)
+    render_turning_point_images(
+        navigation.route.waypoints, document, "Turning point and time gate", is_unknown_leg=False
+    )
 
 
 def insert_unknown_leg_images_latex(
@@ -156,14 +158,14 @@ def insert_unknown_leg_images_latex(
     navigation = contestant.navigation_task  # type: NavigationTask
     render_waypoints = [waypoint for waypoint in navigation.route.waypoints if waypoint.type == UNKNOWN_LEG]
     random.shuffle(render_waypoints)
-    render_turning_point_images(render_waypoints, document, "Unknown legs", unknown_leg=True)
+    render_turning_point_images(render_waypoints, document, "Unknown legs", is_unknown_leg=True)
 
 
 def render_turning_point_images(
     waypoints: List[Waypoint],
     document,
     header_prefix: str,
-    unknown_leg: bool = False,
+    is_unknown_leg: bool = False,
 ):
     render_waypoints = [waypoint for waypoint in waypoints if waypoint.type not in (SECRETPOINT, DUMMY)]
 
@@ -185,7 +187,7 @@ def render_turning_point_images(
                     # Use full waypoint list to get correct track in image
                     waypoints,
                     waypoints.index(render_waypoints[index]),
-                    unknown_leg=unknown_leg,
+                    is_unknown_leg=is_unknown_leg,
                 )
                 document.append(
                     StandAloneGraphic(
@@ -193,7 +195,7 @@ def render_turning_point_images(
                         filename=image_file.name,
                     )
                 )
-                if not unknown_leg:
+                if not is_unknown_leg:
                     document.append(Command("caption*", render_waypoints[index].name))
             document.append(Command("hfill"))
             if index < len(render_waypoints) - 1:
@@ -201,7 +203,7 @@ def render_turning_point_images(
                     # Use full waypoint list to get correct track in image
                     waypoints,
                     waypoints.index(render_waypoints[index + 1]),
-                    unknown_leg=unknown_leg,
+                    is_unknown_leg=is_unknown_leg,
                 )
                 with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
                     document.append(
@@ -210,7 +212,7 @@ def render_turning_point_images(
                             filename=image_file.name,
                         )
                     )
-                    if not unknown_leg:
+                    if not is_unknown_leg:
                         document.append(Command("caption*", render_waypoints[index + 1].name))
     document.append(Label(Marker("lastpagetocount")))
 
@@ -580,8 +582,8 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         return f.read()
 
 
-def get_turning_point_image(waypoints: List, index: int, unknown_leg: bool = False) -> NamedTemporaryFile:
-    turning_point = generate_turning_point_image(waypoints, index, unknown_leg=unknown_leg)
+def get_turning_point_image(waypoints: List, index: int, is_unknown_leg: bool = False) -> NamedTemporaryFile:
+    turning_point = generate_turning_point_image(waypoints, index, is_unknown_leg=is_unknown_leg)
     temporary_file = NamedTemporaryFile(suffix=".png", delete=False)
     temporary_file.write(turning_point.read())
     temporary_file.seek(0)

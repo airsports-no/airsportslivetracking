@@ -765,7 +765,7 @@ class ConnectedTaskSummaryResultsTable extends Component {
                         score of these three tests make up the score for the task.
                         {this.props.contest.results.permission_change_contest ? <div>
                             <hr/>
-                            <a className={"alert-link"} href={"/static/documents/contest_results_admin.pdf"}>Administration
+                            <a className={"alert-link"} href={document.configuration.STATIC_FILE_LOCATION+"documents/contest_results_admin.pdf"}>Administration
                                 how-to guide</a>
                         </div> : null}
 

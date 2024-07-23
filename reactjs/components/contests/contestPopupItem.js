@@ -42,7 +42,7 @@ export default class ContestPopupItem extends Component {
         const tasks = this.props.contest.navigationtask_set.sort(sortStartAndFinishTimes)
         return <div className={""} key={"contest" + this.props.contest.id}>
             <img className={"mx-auto d-block"}
-                 src={this.props.contest.header_image && this.props.contest.header_image.length > 0 ? this.props.contest.header_image : "/static/img/airsportslogo.png"}
+                 src={this.props.contest.header_image && this.props.contest.header_image.length > 0 ? this.props.contest.header_image : document.configuration.STATIC_FILE_LOCATION+"img/airsportslogo.png"}
                  alt={"Contest promo image"} style={{maxHeight: "200px", maxWidth: "260px"}}/>
             <div className={""}>
                 <h5 className={"card-title"}>{this.props.contest.name}</h5>

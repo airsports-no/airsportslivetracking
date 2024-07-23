@@ -28,7 +28,7 @@ function clubDisplay(club) {
     if (club === null) {
         return null
     }
-    const image = <img src={"/static/flags/3x2/" + club.country + ".svg"} className={"personalFlag img-fluid"}
+    const image = <img src={document.configuration.STATIC_FILE_LOCATION+"flags/3x2/" + club.country + ".svg"} className={"personalFlag img-fluid"}
                        alt={club.country}/>
     return <div>{image} {club.name}</div>
 }
@@ -174,7 +174,7 @@ class ConnectedLowerThirdTeam extends Component {
                     </div>
                     <div className={"p-2 clickable click-time-arrow"}>
                         <div className={"time-text"} onClick={() => this.props.toggleGateArrow()}>TIME</div>
-                        <img src={"/static/img/expand_arrow.gif"} onClick={() => this.props.toggleGateArrow()}/>
+                        <img src={document.configuration.STATIC_FILE_LOCATION+"img/expand_arrow.gif"} onClick={() => this.props.toggleGateArrow()}/>
                     </div>
                     <div
                         className={(this.singleCrew() ? "lower-thirds-inner-single" : "lower-thirds-inner-double") + " card-transparent p-2"}

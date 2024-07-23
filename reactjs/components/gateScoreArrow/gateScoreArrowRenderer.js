@@ -5,9 +5,9 @@ const ARROW_HEIGHT = 92, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 1
 const ARROW_ICON_HEIGHT = ARROW_ICON_WIDTH * 1.3
 
 const blackImage = new Image()
-blackImage.src = '/static/img/gate_score_arrow_black.gif';
+blackImage.src = document.configuration.STATIC_FILE_LOCATION+'img/gate_score_arrow_black.gif';
 const redImage = new Image()
-redImage.src = '/static/img/gate_score_arrow_red.gif';
+redImage.src = document.configuration.STATIC_FILE_LOCATION+'img/gate_score_arrow_red.gif';
 
 export default class GateScoreArrowRenderer extends Component {
     constructor(props) {

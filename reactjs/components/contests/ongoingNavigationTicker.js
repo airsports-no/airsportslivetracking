@@ -67,7 +67,7 @@ class ConnectedOngoingNavigationTicker extends Component {
                     <br/>
                     <img className={"img-fluid"}
                          src={currentNavigation.contest.logo && currentNavigation.contest.logo.length > 0 ?
-                             currentNavigation.contest.logo : "/static/img/airsportslogo.png"}
+                             currentNavigation.contest.logo : document.configuration.STATIC_FILE_LOCATION+"iimg/airsportslogo.png"}
                          alt={"Event logo"}
                          style={{width: "100%", maxHeight: "60px", maxWidth: "60px", float: "left"}}/>
 

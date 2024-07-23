@@ -178,7 +178,7 @@ class ConnectedTrackingContainer extends Component {
 
                             </div>
                             <a className={"btn"} id="returnLink" href={"/"}>
-                                <img src={"/static/img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
+                                <img src={document.configuration.STATIC_FILE_LOCATION+"img/AirSportsLiveTracking.png"} id={"returnLinkImage"} alt={"Home"}/>
                             </a>
                             <Disclaimer/>
                             {this.props.navigationTask.allow_self_management ?

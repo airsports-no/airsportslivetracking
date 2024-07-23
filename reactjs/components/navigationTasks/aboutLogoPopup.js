@@ -137,7 +137,7 @@ class ConnectedAboutLogoModal extends Component {
                     </Container>
                 </Modal.Body>
                 <Modal.Footer>
-                    <img src={"/static/img/AirSportsLiveTracking.png"} alt={"Logo"}
+                    <img src={document.configuration.STATIC_FILE_LOCATION+"img/AirSportsLiveTracking.png"} alt={"Logo"}
                          className={"mr-auto p-2 about-logo"}/>
                     <SocialMediaLinks/>
                 </Modal.Footer>
@@ -161,7 +161,7 @@ class ConnectedAboutLogoPopup extends Component {
     render() {
         return <div>
             <a href={"#"} className={"logoImage"} onClick={this.props.displayAboutModal}>
-                <img src={"/static/img/airsports_info.png"} style={{width: "50px"}} alt={"About"}/>
+                <img src={document.configuration.STATIC_FILE_LOCATION+"img/airsports_info.png"} style={{width: "50px"}} alt={"About"}/>
             </a>
             <AboutLogoModal aboutText={this.props.aboutText} show={this.props.aboutModalShow}
                             onHide={() => this.props.hideAboutModal()}
