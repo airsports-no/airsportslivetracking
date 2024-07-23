@@ -3,9 +3,8 @@ from shapely.geometry import Polygon, Point, LineString
 
 import cartopy.crs as ccrs
 import datetime
-from typing import Tuple, List, Dict
 
-from display.calculators.positions_and_gates import Position
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import (
     cross_track_distance,
     along_track_distance,
@@ -44,7 +43,7 @@ def bearing_between(gate1, gate2):
     return calculate_bearing((gate1.latitude, gate1.longitude), (gate2.latitude, gate2.longitude))
 
 
-def load_track_points_traccar_csv(points: List[Tuple[datetime.datetime, float, float]]):
+def load_track_points_traccar_csv(points: list[tuple[datetime.datetime, float, float]]):
     positions = []
     for point in points:
         positions.append(
@@ -91,7 +90,7 @@ class PolygonHelper:
             line.append(self.utm.transform_point(*list(reversed(element)), self.pc))
         return Polygon(line)
 
-    def check_inside_polygons(self, polygons: List[Tuple[int, Polygon]], latitude, longitude) -> List[int]:
+    def check_inside_polygons(self, polygons: list[tuple[int, Polygon]], latitude, longitude) -> list[int]:
         """
         Returns a list of names of the prohibited zone is the position is inside
         """
@@ -104,8 +103,8 @@ class PolygonHelper:
         return incursions
 
     def distance_from_point_to_polygons(
-        self, polygons: List[Tuple[str, Polygon]], latitude, longitude
-    ) -> Dict[str, float]:
+        self, polygons: list[tuple[str, Polygon]], latitude, longitude
+    ) -> dict[str, float]:
         """
 
         :param polygons:
@@ -122,7 +121,7 @@ class PolygonHelper:
 
     def time_to_intersection(
         self,
-        polygons: List[Tuple[str, Polygon]],
+        polygons: list[tuple[str, Polygon]],
         latitude: float,
         longitude: float,
         bearing: float,
@@ -131,7 +130,7 @@ class PolygonHelper:
         lookahead_seconds: int,
         lookahead_step: int = 2,
         from_inside: bool = False,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Returns the number of seconds until a possible intersect of any polygon from the current position with projected speed and turning rate
 
@@ -184,7 +183,7 @@ class PolygonHelper:
 
 def project_position(
     latitude: float, longitude: float, course: float, turning_rate: float, speed: float, seconds: float
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """
 
     :param seconds: Number of seconds into the future to project the position
@@ -209,9 +208,9 @@ def project_position(
 
 
 def get_shortest_intersection_time(
-    track: List["Position"],
+    track: list[ContestantReceivedPosition],
     polygon_helper: PolygonHelper,
-    zone_polygons: List[Tuple[str, Polygon]],
+    zone_polygons: list[tuple[str, Polygon]],
     lookahead_seconds: int,
     from_inside: bool = False,
 ) -> float:

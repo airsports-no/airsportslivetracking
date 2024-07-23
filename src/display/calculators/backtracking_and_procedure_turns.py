@@ -1,16 +1,17 @@
 import datetime
 import logging
 from multiprocessing import Queue
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional
 
 from display.calculators.calculator import Calculator
 from display.calculators.calculator_utilities import bearing_between
 from display.calculators.update_score_message import UpdateScoreMessage
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import get_heading_difference, bearing_difference
 from display.models import Contestant, Scorecard, Route, ANOMALY, INFORMATION
 
 if TYPE_CHECKING:
-    from display.calculators.positions_and_gates import Gate, Position
+    from display.calculators.positions_and_gates import Gate
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.circling_start_time = None
         self.previous_last_gate = None
         self.current_last_gate = None
-        self.gate_bearings = []  # type: List[Tuple[int,float]]
+        self.gate_bearings = []  # type: list[tuple[int,float]]
         # Put into separate parameter so that we can change this when finalising in order to terminate any ongoing
         # backtracking
         self.backtracking_limit = self.scorecard.backtracking_bearing_difference
@@ -93,14 +94,18 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
     def calculate_enroute(
-        self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate", next_gate: Optional["Gate"]
+        self,
+        track: List[ContestantReceivedPosition],
+        last_gate: "Gate",
+        in_range_of_gate: "Gate",
+        next_gate: Optional["Gate"],
     ):
         # Need to do the track score first since this might declare the remaining gates as missed if we are done
         # with the track. We can then calculate gate score and consider the missed gates.
         self.calculate_track_score(track, last_gate, in_range_of_gate, next_gate)
         # self.detect_circling(track, last_gate, in_range_of_gate)
 
-    def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
+    def calculate_outside_route(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         self.circling_position_list = []
 
     def update_current_leg(self, current_leg):
@@ -117,7 +122,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 return bearing
         return None
 
-    def detect_circling(self, track: List["Position"], last_gate: "Gate", in_range_of_gate: Optional["Gate"]):
+    def detect_circling(
+        self, track: List[ContestantReceivedPosition], last_gate: "Gate", in_range_of_gate: Optional["Gate"]
+    ):
         """
         Only detect circling inside range of gates, otherwise we deal with backtracking
 
@@ -240,14 +247,18 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             )
             self.circling = False
 
-    def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
+    def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         self.backtracking_limit = 360
         # Rerun track calculation one final time in order to terminate any ongoing backtracking
         self.calculate_track_score(track, last_gate, last_gate, None)
         self.update_tracking_state(self.FINISHED)
 
     def calculate_track_score(
-        self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate", next_gate: Optional["Gate"]
+        self,
+        track: List[ContestantReceivedPosition],
+        last_gate: "Gate",
+        in_range_of_gate: "Gate",
+        next_gate: Optional["Gate"],
     ):
         """
 
@@ -263,7 +274,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         if last_gate.type == "sp" and last_gate != self.last_gate_previous_round:
             self.update_tracking_state(self.STARTED)
 
-        last_position = track[-1]  # type: Position
+        last_position = track[-1]  # type: ContestantReceivedPosition
         finish_index = len(track) - 1
         look_back = 1
         start_index = max(finish_index - look_back, 0)

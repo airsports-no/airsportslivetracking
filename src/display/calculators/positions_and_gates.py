@@ -2,6 +2,7 @@ import logging
 from datetime import timedelta, datetime
 from typing import Tuple, List, Optional
 
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import (
     fraction_of_leg,
     calculate_bearing,
@@ -12,56 +13,6 @@ from display.utilities.coordinate_utilities import (
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
-
-
-class Position:
-    def __init__(
-        self,
-        time,
-        latitude,
-        longitude,
-        altitude,
-        speed,
-        course,
-        battery_level,
-        position_id,
-        device_id,
-        interpolated: bool = False,
-        processor_received_time=None,
-        calculator_received_time=None,
-        server_time=None,
-        **kwargs,
-    ):
-        self.time = time
-        self.latitude = latitude
-        self.longitude = longitude
-        self.altitude = altitude
-        self.speed = speed
-        self.course = course
-        self.battery_level = battery_level
-        self.position_id = position_id
-        self.device_id = device_id
-        self.progress = 0
-        self.interpolated = interpolated
-        self.processor_received_time = processor_received_time
-        self.calculator_received_time = calculator_received_time
-        self.server_time = server_time
-
-    def to_traccar(self, device_id: str, index: int) -> dict:
-        return {
-            "deviceId": device_id,
-            "id": index,
-            "latitude": float(self.latitude),
-            "longitude": float(self.longitude),
-            "altitude": self.latitude,
-            "attributes": {"batteryLevel": self.battery_level},
-            "speed": self.speed,
-            "course": self.course,
-            "device_time": self.time,
-        }
-
-    def __str__(self):
-        return f"{self.time}: {self.latitude}, {self.longitude}, a: {self.altitude}, s: {self.speed}, c: {self.course}, bl: {self.battery_level}, pi: {self.position_id}, di: {self.device_id}, p: {self.progress}"
 
 
 class Gate:
@@ -129,19 +80,19 @@ class Gate:
             )
         return False
 
-    def get_gate_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
+    def get_gate_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
         if len(track) > 2:
             return get_intersect_time(projector, track[-3], track[-1], self.gate_line[0], self.gate_line[1])
         return None
 
-    def get_gate_infinite_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
+    def get_gate_infinite_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
         if len(track) > 2:
             return get_intersect_time(
                 projector, track[-3], track[-1], self.gate_line_infinite[0], self.gate_line_infinite[1]
             )
         return None
 
-    def get_gate_extended_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
+    def get_gate_extended_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
         if len(track) > 2 and self.gate_line_extended:
             return get_intersect_time(
                 projector, track[-3], track[-1], self.gate_line_extended[0], self.gate_line_extended[1]
@@ -182,7 +133,7 @@ class MultiGate:
         for gate in self.gates:
             gate.expected_time = expected_time
 
-    def get_gate_intersection_time(self, projector: Projector, track: List[Position]) -> Optional[datetime]:
+    def get_gate_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
         for gate in self.gates:
             intersection_time = gate.get_gate_intersection_time(projector, track)
             if intersection_time is not None:
@@ -202,7 +153,7 @@ def round_seconds(stamp: datetime) -> datetime:
 
 
 def get_intersect_time(
-    projector: Projector, track_segment_start: Position, track_segment_finish: Position, gate_start, gate_finish
+    projector: Projector, track_segment_start: ContestantReceivedPosition, track_segment_finish: ContestantReceivedPosition, gate_start, gate_finish
 ) -> Optional[datetime]:
     # intersection = line_intersect(track_segment_start.longitude, track_segment_start.latitude,
     #                               track_segment_finish.longitude,

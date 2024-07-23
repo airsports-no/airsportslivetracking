@@ -7,8 +7,8 @@ from django.test import TransactionTestCase
 
 from display.calculators.contestant_processor import ContestantProcessor
 from display.calculators.gatekeeper_route import GatekeeperRoute
-from display.calculators.positions_and_gates import Position
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Contestant, Person, Team, EditableRoute
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from utilities.mock_utilities import TraccarMock
 
 
@@ -64,18 +64,18 @@ class TestInterpolation(TransactionTestCase):
 
     def test_no_interpolation(self, *args):
         gatekeeper = ContestantProcessor(self.contestant)
-        start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
+        start_position = ContestantReceivedPosition(time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=60, longitude=11)
         gatekeeper.track = [start_position]
-        next_position = Position(dateutil.parser.parse("2020-01-01T00:00:02Z"), 60, 12, 0, 0, 0, 0, 0, 0)
+        next_position = ContestantReceivedPosition(time=dateutil.parser.parse("2020-01-01T00:00:02Z"), latitude=60, longitude=12)
         interpolated = gatekeeper.interpolate_track(start_position, next_position)
         self.assertEqual(1, len(interpolated))
         self.assertEqual(next_position, interpolated[0])
 
     def test_interpolation(self, *args):
         gatekeeper = ContestantProcessor(self.contestant)
-        start_position = Position(dateutil.parser.parse("2020-01-01T00:00:00Z"), 60, 11, 0, 0, 0, 0, 0, 0)
+        start_position = ContestantReceivedPosition(time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=60, longitude=11)
         gatekeeper.track = [start_position]
-        next_position = Position(dateutil.parser.parse("2020-01-01T00:00:05Z"), 60, 12, 0, 0, 0, 0, 0, 0)
+        next_position = ContestantReceivedPosition(time=dateutil.parser.parse("2020-01-01T00:00:05Z"), latitude=60, longitude=12)
         interpolated = gatekeeper.interpolate_track(start_position, next_position)
         expected = [
             ("2020-01-01 00:00:01+00:00", 60.00060459827332, 11.199996353395562),
@@ -149,11 +149,11 @@ class TestCrossingEstimate(TransactionTestCase):
         # SC 1/1, 9.408413335420015, 59.19427817352367, secret, 1.5
         # TP1, 9.198618292991952, 59.20222672648168, tp, 1.5
         gatekeeper = GatekeeperRoute(self.contestant, Queue(), [])
-        start_position = Position(
-            dateutil.parser.parse("2020-01-01T00:00:00Z"), 59.19144317223039, 9.481523867089488, 0, 70, 270, 0, 0, 0
+        start_position = ContestantReceivedPosition(
+            time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=59.19144317223039, longitude=9.481523867089488, speed=70, course=270
         )
-        next_position = Position(
-            dateutil.parser.parse("2020-01-01T00:00:02Z"), 59.19144317223039, 9.481623867089488, 0, 70, 270, 0, 0, 0
+        next_position = ContestantReceivedPosition(
+            time=dateutil.parser.parse("2020-01-01T00:00:02Z"), latitude=59.19144317223039, longitude=9.481623867089488, speed=70, course=270
         )
         gatekeeper.track = [start_position, next_position]
         gate, estimated = gatekeeper.estimate_crossing_time_of_next_timed_gate()
@@ -168,11 +168,11 @@ class TestCrossingEstimate(TransactionTestCase):
         gatekeeper = GatekeeperRoute(self.contestant, Queue(), [])
         # Skip first gate
         gatekeeper.outstanding_gates.pop(0)
-        start_position = Position(
-            dateutil.parser.parse("2020-01-01T00:00:00Z"), 59.19144317223039, 9.481523867089488, 0, 70, 270, 0, 0, 0
+        start_position = ContestantReceivedPosition(
+            time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=59.19144317223039, longitude=9.481523867089488, speed=70, course=270
         )
-        next_position = Position(
-            dateutil.parser.parse("2020-01-01T00:00:02Z"), 59.19144317223039, 9.481623867089488, 0, 70, 270, 0, 0, 0
+        next_position = ContestantReceivedPosition(
+            time=dateutil.parser.parse("2020-01-01T00:00:02Z"), latitude=59.19144317223039, longitude=9.481623867089488,  speed=70, course=270
         )
         gatekeeper.track = [start_position, next_position]
         gate, estimated = gatekeeper.estimate_crossing_time_of_next_timed_gate()

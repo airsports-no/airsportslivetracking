@@ -6,8 +6,9 @@ from typing import List, Optional, Callable, Tuple
 
 from display.calculators.calculator_utilities import round_time_minute
 from display.calculators.gatekeeper import Gatekeeper
-from display.calculators.positions_and_gates import Gate, Position
+from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.route_building_utilities import calculate_extended_gate
 from display.utilities.coordinate_utilities import (
     Projector,
@@ -71,7 +72,7 @@ class GatekeeperRoute(Gatekeeper):
 
     def update_gate_score(
         self,
-        position: Position,
+        position: ContestantReceivedPosition,
         gate: Gate,
         score: int,
         score_type: str,
