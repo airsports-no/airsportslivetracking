@@ -96,8 +96,6 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "rest_framework",
     "rest_framework.authtoken",
-    # "django_celery_beat",
-    # "django_celery_results",
     "timezone_field",
     "webpack_loader",
     "bootstrap4",
@@ -262,18 +260,31 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
-
-DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
-GS_BUCKET_NAME = "airsports-data"
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        "OPTIONS": {"bucket_name": "airsports-data", "default_acl": "publicRead"},
+    },
+    "staticfiles": {
+        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        "OPTIONS": {"bucket_name": "airsports-static", "default_acl": "publicRead"},
+    },
+}
 MEDIA_ROOT_URL = "storage.googleapis.com/airsports-data"
-GS_DEFAULT_ACL = "publicRead"
+STATIC_URL = "storage.googleapis.com/airsports-static/"
+# Serve static files locally when developing
+if os.environ.get("MODE") == "dev":
+    STORAGES["staticfiles"] = {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {"location": "/static", "base_url": "/static/"},
+    }
+    STATIC_URL = "/static/"
+
 
 # STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 TEMPORARY_FOLDER = "/tmp"
 
-STATIC_URL = "/static/"
-STATIC_ROOT = "/static"
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
     "/assets",
