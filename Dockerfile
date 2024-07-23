@@ -63,4 +63,4 @@ RUN mkdir /logs
 RUN chown django /logs
 RUN npm run webpack
 WORKDIR /src
-RUN python3 manage.py collectstatic --noinput
+# RUN python3 manage.py collectstatic --noinput
