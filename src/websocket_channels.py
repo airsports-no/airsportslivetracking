@@ -1,19 +1,18 @@
 import datetime
 import json
 import logging
-from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 
-import dateutil
 import pickle
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from redis import StrictRedis
 
 from display.calculators.positions_and_gates import Position
-from display.models import Contestant, ContestTeam, Task, TaskTest, MyUser, Team, ANOMALY
+
+from display.models import Contestant, Task, TaskTest, MyUser, Team, ANOMALY
 from display.serialisers import (
     ContestantTrackSerialiser,
-    ContestTeamNestedSerialiser,
     TaskSerialiser,
     TaskTestSerialiser,
     ContestResultsDetailsSerialiser,
@@ -25,10 +24,9 @@ from display.serialisers import (
     PositionSerialiser,
     GateScoreIfCrossedNowSerialiser,
     DangerLevelSerialiser,
-    ContestantSerialiser,
     ContestantNestedTeamSerialiser,
 )
-from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+from live_tracking_map.settings import REDIS_GLOBAL_POSITIONS_KEY, REDIS_HOST, REDIS_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -54,17 +52,13 @@ def generate_contestant_data_block(
     latest_time: datetime.datetime = None,
     gate_scores: List = None,
     playing_cards: List = None,
-    include_contestant_track: bool = False,
+    contestant_track_data: dict = None,
     gate_times: Dict = None,
     gate_distance_and_estimate: Dict = None,
     danger_level: Dict = None,
 ):
     if not hasattr(contestant, "contestanttrack"):
         include_contestant_track = False
-    contestant_track = None
-    if include_contestant_track:
-        contestant_track = contestant.contestanttrack
-        contestant_track.refresh_from_db()
     data = {"contestant_id": contestant.id}
     if positions is not None:
         data["positions"] = positions
@@ -82,8 +76,8 @@ def generate_contestant_data_block(
         data["gate_distance_and_estimate"] = gate_distance_and_estimate
     if danger_level is not None:
         data["danger_level"] = danger_level
-    if include_contestant_track:
-        data["contestant_track"] = ContestantTrackSerialiser(contestant_track).data
+    if contestant_track_data is not None:
+        data["contestant_track"] = contestant_track_data
     if latest_time:
         data["progress"] = contestant.calculate_progress(latest_time)
     return data
@@ -92,7 +86,7 @@ def generate_contestant_data_block(
 class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
-        self.redis = StrictRedis(REDIS_HOST, REDIS_PORT)#, password=REDIS_PASSWORD)
+        self.redis = StrictRedis(REDIS_HOST, REDIS_PORT)  # , password=REDIS_PASSWORD)
 
     def transmit_initial_load(self, contestant: "Contestant"):
         """Transmitted whenever a web socket connects. Primarily used to fill missing track after network outage"""
@@ -165,7 +159,9 @@ class WebsocketFacade:
 
     def transmit_basic_information(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        channel_data = generate_contestant_data_block(contestant, include_contestant_track=True)
+        channel_data = generate_contestant_data_block(
+            contestant, contestant_track_data=ContestantTrackSerialiser(contestant.contestanttrack).data
+        )
         async_to_sync(self.channel_layer.group_send)(
             group_key,
             {

@@ -58,6 +58,7 @@ from display.permissions import (
     TaskTestContestPermissions,
 )
 from display.serialisers import (
+    ContestantTrackSerialiser,
     NavigationTasksSummarySerialiser,
     ContestTeamManagementSerialiser,
     PersonSerialiser,
@@ -801,11 +802,14 @@ def _generate_data(contestant_pk):
         global_latest_time = position_data[-1].time
     else:
         global_latest_time = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
-    progress = 0
-    for index, item in enumerate(position_data):
-        if index % 30 == 0:
-            progress = contestant.calculate_progress(item.time, ignore_finished=True)
-        item.progress = progress
+    # progress = 0
+    # step_length = int(len(position_data) / 10)
+    # for index, item in enumerate(position_data):
+    #     if index % step_length == 0:
+    #         progress = contestant.calculate_progress(item.time, ignore_finished=True)
+    #     item.progress = progress
+    if len(position_data):
+        position_data[-1].progress = contestant.calculate_progress(position_data[-1].time, ignore_finished=True)
     data = generate_contestant_data_block(
         contestant,
         positions=PositionSerialiser(position_data, many=True).data,
@@ -814,7 +818,7 @@ def _generate_data(contestant_pk):
         latest_time=global_latest_time,
         gate_scores=GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
         playing_cards=PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
-        include_contestant_track=True,
+        contestant_track_data=ContestantTrackSerialiser(contestant.contestanttrack).data,
         gate_times=contestant.gate_times,
     )
     logger.debug(
